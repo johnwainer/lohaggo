@@ -1,0 +1,214 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  CLIENT
+  PARTNER
+  ADMIN
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum ServiceRequestStatus {
+  ACTIVE
+  ACCEPTED
+  EXPIRED
+  CANCELLED
+}
+
+enum ProposalStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum City {
+  MEDELLIN
+  BOGOTA
+  CALI
+  BARRANQUILLA
+}
+
+enum NotificationType {
+  NEW_SERVICE_REQUEST
+  NEW_PROPOSAL
+  PROPOSAL_ACCEPTED
+  PROPOSAL_REJECTED
+  BOOKING_CONFIRMED
+  BOOKING_CANCELLED
+  BOOKING_IN_PROGRESS
+  BOOKING_COMPLETED
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String
+  password      String
+  phone         String?
+  role          UserRole  @default(CLIENT)
+  pushSubscription String? @db.Text
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  bookings      Booking[]
+  serviceRequests ServiceRequest[]
+  partnerProfile PartnerProfile?
+  notifications Notification[]
+}
+
+model PartnerProfile {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bio           String?
+  rating        Float     @default(0)
+  totalReviews  Int       @default(0)
+  verified      Boolean   @default(false)
+  city          City      @default(MEDELLIN)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  services      PartnerService[]
+  availability  Availability[]
+  proposals     Proposal[]
+  bookings      Booking[]
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  icon        String
+  description String?
+  order       Int       @default(0)
+
+  services    Service[]
+}
+
+model Service {
+  id            String    @id @default(cuid())
+  name          String
+  slug          String    @unique
+  description   String
+  icon          String
+  categoryId    String
+  category      Category  @relation(fields: [categoryId], references: [id])
+  basePrice     Float
+  duration      Int
+  popular       Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  partners        PartnerService[]
+  bookings        Booking[]
+  serviceRequests ServiceRequest[]
+}
+
+model PartnerService {
+  id          String    @id @default(cuid())
+  partnerId   String
+  partner     PartnerProfile @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  serviceId   String
+  service     Service   @relation(fields: [serviceId], references: [id])
+  price       Float
+  city        City      @default(MEDELLIN)
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  availability Availability[]
+
+  @@unique([partnerId, serviceId])
+}
+
+model Availability {
+  id                String         @id @default(cuid())
+  partnerId         String
+  partner           PartnerProfile @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  partnerServiceId  String?
+  partnerService    PartnerService? @relation(fields: [partnerServiceId], references: [id], onDelete: Cascade)
+  dayOfWeek         Int
+  startTime         String
+  endTime           String
+  active            Boolean        @default(true)
+}
+
+model Booking {
+  id            String        @id @default(cuid())
+  userId        String
+  user          User          @relation(fields: [userId], references: [id])
+  serviceId     String
+  service       Service       @relation(fields: [serviceId], references: [id])
+  partnerId     String?
+  partner       PartnerProfile? @relation(fields: [partnerId], references: [id])
+  scheduledDate DateTime
+  scheduledTime String
+  address       String
+  notes         String?
+  city          City          @default(MEDELLIN)
+  status        BookingStatus @default(PENDING)
+  totalPrice    Float
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model ServiceRequest {
+  id               String               @id @default(cuid())
+  userId           String
+  user             User                 @relation(fields: [userId], references: [id])
+  serviceId        String
+  service          Service              @relation(fields: [serviceId], references: [id])
+  address          String
+  notes            String?
+  city             City                 @default(MEDELLIN)
+  preferredDate    DateTime?
+  isUrgent         Boolean              @default(false)
+  status           ServiceRequestStatus @default(ACTIVE)
+  expiresAt        DateTime
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  proposals   Proposal[]
+}
+
+model Proposal {
+  id               String         @id @default(cuid())
+  serviceRequestId String
+  serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+  partnerId        String
+  partner          PartnerProfile @relation(fields: [partnerId], references: [id])
+  price            Float
+  notes            String?
+  status           ProposalStatus @default(PENDING)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@unique([serviceRequestId, partnerId])
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  userId      String
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        NotificationType
+  title       String
+  message     String
+  data        String?          @db.Text
+  read        Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+
+  @@index([userId, read])
+  @@index([createdAt])
+}
