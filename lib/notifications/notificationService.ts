@@ -1,0 +1,317 @@
+import { prisma } from "@/lib/prisma"
+import webpush from "web-push"
+
+const vapidKeys = {
+  publicKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "",
+  privateKey: process.env.VAPID_PRIVATE_KEY || ""
+}
+
+if (vapidKeys.publicKey && vapidKeys.privateKey) {
+  webpush.setVapidDetails(
+    "mailto:admin@haggo.com",
+    vapidKeys.publicKey,
+    vapidKeys.privateKey
+  )
+}
+
+export type NotificationType =
+  | "NEW_SERVICE_REQUEST"
+  | "NEW_PROPOSAL"
+  | "PROPOSAL_ACCEPTED"
+  | "PROPOSAL_REJECTED"
+  | "BOOKING_CONFIRMED"
+  | "BOOKING_CANCELLED"
+  | "BOOKING_IN_PROGRESS"
+  | "BOOKING_COMPLETED"
+
+interface CreateNotificationParams {
+  userId: string
+  type: NotificationType
+  title: string
+  message: string
+  data?: any
+}
+
+export async function createNotification({
+  userId,
+  type,
+  title,
+  message,
+  data
+}: CreateNotificationParams) {
+  try {
+    const notification = await prisma.notification.create({
+      data: {
+        userId,
+        type,
+        title,
+        message,
+        data: data ? JSON.stringify(data) : null
+      }
+    })
+
+    await sendPushNotification(userId, {
+      title,
+      body: message,
+      data: {
+        notificationId: notification.id,
+        type,
+        ...data
+      }
+    })
+
+    return notification
+  } catch (error) {
+    console.error("Error creating notification:", error)
+    throw error
+  }
+}
+
+interface PushPayload {
+  title: string
+  body: string
+  data?: any
+}
+
+async function sendPushNotification(userId: string, payload: PushPayload) {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    })
+
+    if (!user?.pushSubscription) {
+      return
+    }
+
+    const subscription = JSON.parse(user.pushSubscription)
+
+    await webpush.sendNotification(
+      subscription,
+      JSON.stringify(payload)
+    )
+  } catch (error) {
+    console.error("Error sending push notification:", error)
+  }
+}
+
+export async function notifyNewServiceRequest(serviceRequestId: string) {
+  try {
+    const serviceRequest = await prisma.serviceRequest.findUnique({
+      where: { id: serviceRequestId },
+      include: {
+        service: {
+          include: {
+            partners: {
+              where: { active: true },
+              include: {
+                partner: {
+                  include: {
+                    user: true
+                  }
+                }
+              }
+            }
+          }
+        },
+        user: true
+      }
+    })
+
+    if (!serviceRequest) return
+
+    const partners = serviceRequest.service.partners
+
+    for (const partnerService of partners) {
+      await createNotification({
+        userId: partnerService.partner.user.id,
+        type: "NEW_SERVICE_REQUEST",
+        title: "Nueva solicitud de servicio",
+        message: `${serviceRequest.user.name} solicita ${serviceRequest.service.name}`,
+        data: {
+          serviceRequestId: serviceRequest.id,
+          serviceId: serviceRequest.serviceId
+        }
+      })
+    }
+  } catch (error) {
+    console.error("Error notifying new service request:", error)
+  }
+}
+
+export async function notifyNewProposal(proposalId: string) {
+  try {
+    const proposal = await prisma.proposal.findUnique({
+      where: { id: proposalId },
+      include: {
+        serviceRequest: {
+          include: {
+            service: true,
+            user: true
+          }
+        },
+        partner: {
+          include: {
+            user: true
+          }
+        }
+      }
+    })
+
+    if (!proposal) return
+
+    await createNotification({
+      userId: proposal.serviceRequest.userId,
+      type: "NEW_PROPOSAL",
+      title: "Nueva propuesta recibida",
+      message: `${proposal.partner.user.name} te envió una propuesta para ${proposal.serviceRequest.service.name}`,
+      data: {
+        proposalId: proposal.id,
+        serviceRequestId: proposal.serviceRequestId,
+        price: proposal.price
+      }
+    })
+  } catch (error) {
+    console.error("Error notifying new proposal:", error)
+  }
+}
+
+export async function notifyProposalAccepted(proposalId: string) {
+  try {
+    const proposal = await prisma.proposal.findUnique({
+      where: { id: proposalId },
+      include: {
+        serviceRequest: {
+          include: {
+            service: true
+          }
+        },
+        partner: {
+          include: {
+            user: true
+          }
+        }
+      }
+    })
+
+    if (!proposal) return
+
+    await createNotification({
+      userId: proposal.partner.userId,
+      type: "PROPOSAL_ACCEPTED",
+      title: "¡Propuesta aceptada!",
+      message: `Tu propuesta para ${proposal.serviceRequest.service.name} fue aceptada`,
+      data: {
+        proposalId: proposal.id,
+        serviceRequestId: proposal.serviceRequestId
+      }
+    })
+  } catch (error) {
+    console.error("Error notifying proposal accepted:", error)
+  }
+}
+
+export async function notifyProposalRejected(proposalId: string) {
+  try {
+    const proposal = await prisma.proposal.findUnique({
+      where: { id: proposalId },
+      include: {
+        serviceRequest: {
+          include: {
+            service: true
+          }
+        },
+        partner: {
+          include: {
+            user: true
+          }
+        }
+      }
+    })
+
+    if (!proposal) return
+
+    await createNotification({
+      userId: proposal.partner.userId,
+      type: "PROPOSAL_REJECTED",
+      title: "Propuesta rechazada",
+      message: `Tu propuesta para ${proposal.serviceRequest.service.name} fue rechazada`,
+      data: {
+        proposalId: proposal.id,
+        serviceRequestId: proposal.serviceRequestId
+      }
+    })
+  } catch (error) {
+    console.error("Error notifying proposal rejected:", error)
+  }
+}
+
+export async function notifyBookingStatusChange(bookingId: string, status: string) {
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        service: true,
+        user: true,
+        partner: {
+          include: {
+            user: true
+          }
+        }
+      }
+    })
+
+    if (!booking) return
+
+    const statusMessages: Record<string, { title: string; message: string; type: NotificationType }> = {
+      CONFIRMED: {
+        title: "Reserva confirmada",
+        message: `Tu reserva de ${booking.service.name} ha sido confirmada`,
+        type: "BOOKING_CONFIRMED"
+      },
+      CANCELLED: {
+        title: "Reserva cancelada",
+        message: `Tu reserva de ${booking.service.name} ha sido cancelada`,
+        type: "BOOKING_CANCELLED"
+      },
+      IN_PROGRESS: {
+        title: "Servicio en progreso",
+        message: `El servicio de ${booking.service.name} está en progreso`,
+        type: "BOOKING_IN_PROGRESS"
+      },
+      COMPLETED: {
+        title: "Servicio completado",
+        message: `El servicio de ${booking.service.name} ha sido completado`,
+        type: "BOOKING_COMPLETED"
+      }
+    }
+
+    const statusInfo = statusMessages[status]
+    if (!statusInfo) return
+
+    await createNotification({
+      userId: booking.userId,
+      type: statusInfo.type,
+      title: statusInfo.title,
+      message: statusInfo.message,
+      data: {
+        bookingId: booking.id,
+        serviceId: booking.serviceId
+      }
+    })
+
+    if (booking.partner && status === "CANCELLED") {
+      await createNotification({
+        userId: booking.partner.userId,
+        type: "BOOKING_CANCELLED",
+        title: "Reserva cancelada",
+        message: `La reserva de ${booking.service.name} con ${booking.user.name} ha sido cancelada`,
+        data: {
+          bookingId: booking.id,
+          serviceId: booking.serviceId
+        }
+      })
+    }
+  } catch (error) {
+    console.error("Error notifying booking status change:", error)
+  }
+}
