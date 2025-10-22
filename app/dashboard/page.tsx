@@ -392,6 +392,14 @@ export default function DashboardPage() {
                   <Bell size={18} />
                   <span>Notificaciones</span>
                 </button>
+
+                <button
+                  onClick={() => router.push('/dashboard/addresses')}
+                  className="flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
+                >
+                  <MapPin size={18} />
+                  <span>Mis Direcciones</span>
+                </button>
               </nav>
             </div>
           </div>

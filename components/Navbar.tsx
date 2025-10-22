@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useSession, signOut } from 'next-auth/react'
+import { usePathname } from 'next/navigation'
 import { Menu, X, LogOut, LayoutDashboard, Sparkles, ChevronDown, MapPin } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useCity } from '@/lib/city-context'
@@ -9,6 +10,7 @@ import NotificationBell from './NotificationBell'
 
 export function Navbar() {
   const { data: session } = useSession()
+  const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
 
@@ -126,19 +128,31 @@ export function Navbar() {
           <div className="hidden md:flex items-center space-x-2">
             <Link
               href="/"
-              className="text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 px-5 py-2.5 rounded-xl text-sm font-bold transition-all"
+              className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                pathname === '/'
+                  ? 'text-[#FF2D55] bg-[#FF2D55]/5'
+                  : 'text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5'
+              }`}
             >
               Inicio
             </Link>
             <Link
               href="/servicios"
-              className="text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 px-5 py-2.5 rounded-xl text-sm font-bold transition-all"
+              className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                pathname?.startsWith('/servicios')
+                  ? 'text-[#FF2D55] bg-[#FF2D55]/5'
+                  : 'text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5'
+              }`}
             >
               Servicios
             </Link>
             <Link
               href="/faq"
-              className="text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 px-5 py-2.5 rounded-xl text-sm font-bold transition-all"
+              className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                pathname === '/faq'
+                  ? 'text-[#FF2D55] bg-[#FF2D55]/5'
+                  : 'text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5'
+              }`}
             >
               FAQ
             </Link>
@@ -223,21 +237,33 @@ export function Navbar() {
           <div className="px-4 pt-2 pb-4 space-y-2">
             <Link
               href="/"
-              className="block text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+              className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+                pathname === '/'
+                  ? 'text-[#FF2D55] bg-[#FF2D55]/5'
+                  : 'text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5'
+              }`}
               onClick={() => setMobileMenuOpen(false)}
             >
               Inicio
             </Link>
             <Link
               href="/servicios"
-              className="block text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+              className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+                pathname?.startsWith('/servicios')
+                  ? 'text-[#FF2D55] bg-[#FF2D55]/5'
+                  : 'text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5'
+              }`}
               onClick={() => setMobileMenuOpen(false)}
             >
               Servicios
             </Link>
             <Link
               href="/faq"
-              className="block text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+              className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+                pathname === '/faq'
+                  ? 'text-[#FF2D55] bg-[#FF2D55]/5'
+                  : 'text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5'
+              }`}
               onClick={() => setMobileMenuOpen(false)}
             >
               FAQ
