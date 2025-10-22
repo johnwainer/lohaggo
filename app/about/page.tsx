@@ -18,10 +18,10 @@ import {
 
 export default function AboutPage() {
   const stats = [
-    { icon: Users, value: '50K+', label: 'Usuarios activos' },
-    { icon: CheckCircle, value: '100K+', label: 'Servicios completados' },
-    { icon: Star, value: '4.9/5', label: 'Calificación promedio' },
-    { icon: Globe, value: '50+', label: 'Ciudades' }
+    { icon: Users, value: '1K+', label: 'Beta testers' },
+    { icon: CheckCircle, value: '500+', label: 'Servicios en prueba' },
+    { icon: Star, value: '4.8/5', label: 'Calificación beta' },
+    { icon: Globe, value: '5+', label: 'Ciudades piloto' }
   ]
 
   const values = [
@@ -76,29 +76,29 @@ export default function AboutPage() {
 
   const milestones = [
     {
-      year: '2020',
+      year: '2024',
       title: 'Fundación',
       description: 'LoHaggo nace con la visión de revolucionar el mercado de servicios profesionales.'
     },
     {
-      year: '2021',
-      title: 'Expansión',
-      description: 'Alcanzamos 10,000 usuarios y expandimos a 10 ciudades principales.'
-    },
-    {
-      year: '2022',
-      title: 'Crecimiento',
-      description: 'Superamos los 50,000 servicios completados y lanzamos la app móvil.'
-    },
-    {
-      year: '2023',
-      title: 'Consolidación',
-      description: 'Presencia en 50+ ciudades y reconocimiento como plataforma líder.'
-    },
-    {
       year: '2024',
-      title: 'Innovación',
-      description: 'Nuevas funcionalidades con IA y expansión internacional en marcha.'
+      title: 'Desarrollo',
+      description: 'Construcción de la plataforma y desarrollo de funcionalidades core.'
+    },
+    {
+      year: '2025',
+      title: 'Consolidación',
+      description: 'Pruebas exhaustivas, reclutamiento de equipo y preparación para el lanzamiento.'
+    },
+    {
+      year: '2025',
+      title: 'Beta Testing',
+      description: 'Programa piloto con usuarios seleccionados para validar la plataforma.'
+    },
+    {
+      year: '2026',
+      title: 'Lanzamiento Oficial',
+      description: 'Apertura al público y expansión en las principales ciudades de México.'
     }
   ]
 
@@ -168,13 +168,14 @@ export default function AboutPage() {
                 Democratizar el acceso a servicios profesionales
               </h2>
               <p className="text-lg text-gray-600 mb-6 leading-relaxed font-medium">
-                En LoHaggo creemos que todos merecen acceso fácil, rápido y seguro a servicios profesionales de calidad. 
-                Nuestra misión es eliminar las barreras entre clientes y profesionales, creando un ecosistema donde 
+                En LoHaggo creemos que todos merecen acceso fácil, rápido y seguro a servicios profesionales de calidad.
+                Nuestra misión es eliminar las barreras entre clientes y profesionales, creando un ecosistema donde
                 ambos puedan prosperar.
               </p>
               <p className="text-lg text-gray-600 leading-relaxed font-medium">
-                Utilizamos tecnología de vanguardia para verificar profesionales, facilitar transacciones seguras 
-                y garantizar experiencias excepcionales en cada interacción.
+                Actualmente estamos en fase de consolidación, perfeccionando cada detalle de nuestra plataforma
+                y preparándonos para nuestro lanzamiento oficial en 2026. Utilizamos tecnología de vanguardia para
+                verificar profesionales, facilitar transacciones seguras y garantizar experiencias excepcionales.
               </p>
             </div>
             <div className="relative">
@@ -197,8 +198,8 @@ export default function AboutPage() {
                   </div>
                   <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
                     <TrendingUp className="w-10 h-10 text-white mb-4" />
-                    <div className="text-3xl font-black text-white mb-2">+150%</div>
-                    <div className="text-white/90 font-semibold">Crecimiento anual</div>
+                    <div className="text-3xl font-black text-white mb-2">2026</div>
+                    <div className="text-white/90 font-semibold">Lanzamiento oficial</div>
                   </div>
                 </div>
               </div>
