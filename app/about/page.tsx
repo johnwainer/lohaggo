@@ -258,7 +258,7 @@ export default function AboutPage() {
 
           <div className="relative">
             <div className="absolute left-1/2 transform -translate-x-1/2 h-full w-1 bg-gradient-to-b from-[#FF2D55] to-[#FF6900] hidden lg:block"></div>
-            
+
             <div className="space-y-12">
               {milestones.map((milestone, index) => (
                 <div
@@ -267,9 +267,9 @@ export default function AboutPage() {
                     index % 2 === 0 ? 'lg:flex-row' : 'lg:flex-row-reverse'
                   }`}
                 >
-                  <div className="flex-1 lg:text-right">
+                  <div className={`flex-1 ${index % 2 === 0 ? 'lg:text-right' : 'lg:text-left'}`}>
                     {index % 2 === 0 && (
-                      <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
+                      <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100 hover:shadow-2xl transition-all">
                         <div className="text-5xl font-black bg-gradient-to-r from-[#FF2D55] to-[#FF6900] bg-clip-text text-transparent mb-3">
                           {milestone.year}
                         </div>
@@ -282,16 +282,16 @@ export default function AboutPage() {
                       </div>
                     )}
                   </div>
-                  
+
                   <div className="relative z-10">
                     <div className="w-16 h-16 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-full flex items-center justify-center shadow-xl border-4 border-white">
                       <div className="w-6 h-6 bg-white rounded-full"></div>
                     </div>
                   </div>
-                  
-                  <div className="flex-1">
+
+                  <div className={`flex-1 ${index % 2 !== 0 ? 'lg:text-left' : 'lg:text-right'}`}>
                     {index % 2 !== 0 && (
-                      <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
+                      <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100 hover:shadow-2xl transition-all">
                         <div className="text-5xl font-black bg-gradient-to-r from-[#FF2D55] to-[#FF6900] bg-clip-text text-transparent mb-3">
                           {milestone.year}
                         </div>
