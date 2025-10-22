@@ -175,10 +175,9 @@ export default function ContactPage() {
                         Soy un:
                       </label>
                       <div className="grid grid-cols-2 gap-4">
-                        <button
-                          type="button"
+                        <div
                           onClick={() => setFormData({ ...formData, userType: 'client' })}
-                          className={`flex items-center justify-center gap-3 p-4 rounded-xl border-2 transition-all font-bold ${
+                          className={`flex items-center justify-center gap-3 p-4 rounded-xl border-2 transition-all font-bold cursor-pointer ${
                             formData.userType === 'client'
                               ? 'border-[#FF2D55] bg-gradient-to-r from-[#FF2D55]/10 to-[#FF6900]/10 text-[#FF2D55]'
                               : 'border-gray-200 hover:border-gray-300 text-gray-600'
@@ -186,11 +185,10 @@ export default function ContactPage() {
                         >
                           <User className="w-5 h-5" />
                           Cliente
-                        </button>
-                        <button
-                          type="button"
+                        </div>
+                        <div
                           onClick={() => setFormData({ ...formData, userType: 'partner' })}
-                          className={`flex items-center justify-center gap-3 p-4 rounded-xl border-2 transition-all font-bold ${
+                          className={`flex items-center justify-center gap-3 p-4 rounded-xl border-2 transition-all font-bold cursor-pointer ${
                             formData.userType === 'partner'
                               ? 'border-[#FF2D55] bg-gradient-to-r from-[#FF2D55]/10 to-[#FF6900]/10 text-[#FF2D55]'
                               : 'border-gray-200 hover:border-gray-300 text-gray-600'
@@ -198,7 +196,7 @@ export default function ContactPage() {
                         >
                           <Building2 className="w-5 h-5" />
                           Socio/Profesional
-                        </button>
+                        </div>
                       </div>
                     </div>
 
