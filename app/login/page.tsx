@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { signIn } from 'next-auth/react'
+import { useState, useEffect } from 'react'
+import { signIn, useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Mail, Lock } from 'lucide-react'
@@ -10,13 +10,26 @@ export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirect = searchParams.get('redirect') || '/dashboard'
-  
+  const { data: session, status } = useSession()
+
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user) {
+      if (session.user.role === 'ADMIN') {
+        router.push('/admin')
+      } else if (session.user.role === 'PARTNER') {
+        router.push('/partner')
+      } else {
+        router.push('/dashboard')
+      }
+    }
+  }, [status, session, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -36,7 +49,9 @@ export default function LoginPage() {
         const response = await fetch('/api/auth/session')
         const session = await response.json()
 
-        if (session?.user?.role === 'PARTNER') {
+        if (session?.user?.role === 'ADMIN') {
+          router.push('/admin')
+        } else if (session?.user?.role === 'PARTNER') {
           router.push('/partner')
         } else {
           router.push(redirect)
@@ -48,6 +63,14 @@ export default function LoginPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-primary-600"></div>
+      </div>
+    )
   }
 
   return (
