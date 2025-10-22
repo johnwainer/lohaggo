@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { DollarSign, Clock, Star, CheckCircle } from 'lucide-react'
+import { DollarSign, Clock, Star, CheckCircle, MapPin, Plus } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { formatCurrency } from '@/lib/utils'
+import { CityId } from '@/lib/city-context'
 
 interface Service {
   id: string
@@ -32,12 +33,34 @@ interface Service {
   }>
 }
 
+interface Address {
+  id: string
+  label: string
+  street: string
+  number: string
+  complement?: string
+  neighborhood: string
+  city: CityId
+  postalCode?: string
+  instructions?: string
+  isPrimary: boolean
+}
+
+const cityLabels: Record<CityId, string> = {
+  MEDELLIN: 'Medellín',
+  BOGOTA: 'Bogotá',
+  CALI: 'Cali',
+  BARRANQUILLA: 'Barranquilla'
+}
+
 export default function ServiceDetailPage({ params }: { params: { slug: string } }) {
   const { data: session } = useSession()
   const router = useRouter()
   const [service, setService] = useState<Service | null>(null)
   const [loading, setLoading] = useState(true)
   const [showRequestModal, setShowRequestModal] = useState(false)
+  const [addresses, setAddresses] = useState<Address[]>([])
+  const [selectedAddressId, setSelectedAddressId] = useState<string>('')
   const [requestData, setRequestData] = useState({
     address: '',
     notes: '',
@@ -67,6 +90,7 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
       router.push('/login?redirect=/servicios/' + params.slug)
       return
     }
+    fetchAddresses()
     // Open the new request modal
     setShowRequestModal(true)
   }
@@ -77,13 +101,58 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
       router.push('/login?redirect=/servicios/' + params.slug)
       return
     }
+    fetchAddresses()
     setShowRequestModal(true)
+  }
+
+  const fetchAddresses = async () => {
+    try {
+      const res = await fetch('/api/addresses')
+      if (res.ok) {
+        const data = await res.json()
+        setAddresses(data)
+        const primaryAddress = data.find((addr: Address) => addr.isPrimary)
+        if (primaryAddress) {
+          setSelectedAddressId(primaryAddress.id)
+        } else if (data.length > 0) {
+          setSelectedAddressId(data[0].id)
+        } else {
+          setSelectedAddressId('')
+        }
+      } else {
+        setSelectedAddressId('')
+      }
+    } catch (error) {
+      console.error('Error fetching addresses:', error)
+      setSelectedAddressId('')
+    }
+  }
+
+  const getAddressString = (address: Address) => {
+    return `${address.street} #${address.number}${address.complement ? ' - ' + address.complement : ''}, ${address.neighborhood}, ${cityLabels[address.city]}`
   }
 
   const submitRequest = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!service) return
+
+    let finalAddress = requestData.address
+    let finalCity: CityId | string = 'MEDELLIN'
+
+    // If an existing address is selected, use it
+    if (selectedAddressId) {
+      const selectedAddress = addresses.find(addr => addr.id === selectedAddressId)
+      if (selectedAddress) {
+        finalAddress = getAddressString(selectedAddress)
+        finalCity = selectedAddress.city
+      }
+    }
+
+    if (!finalAddress) {
+      alert('Por favor selecciona o ingresa una dirección')
+      return
+    }
 
     setSubmitting(true)
     try {
@@ -92,8 +161,11 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           serviceId: service.id,
-          ...requestData,
-          city: 'MEDELLIN' // TODO: Hacer esto dinámico basado en la ubicación del usuario
+          address: finalAddress,
+          notes: requestData.notes,
+          preferredDate: requestData.preferredDate || null,
+          isUrgent: requestData.isUrgent,
+          city: finalCity
         })
       })
 
@@ -151,7 +223,7 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
                 </span>
               </div>
               <p className="text-gray-600 text-lg mb-6">{service.description}</p>
-              
+
               <div className="flex flex-wrap gap-6">
                 <div className="flex items-center gap-2">
                   <DollarSign className="text-primary-600" size={20} />
@@ -243,14 +315,54 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Dirección *
                   </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Calle, número, barrio, ciudad"
-                    value={requestData.address}
-                    onChange={(e) => setRequestData({ ...requestData, address: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                  />
+
+                  {addresses.length > 0 ? (
+                    <div className="space-y-2">
+                      <select
+                        value={selectedAddressId}
+                        onChange={(e) => setSelectedAddressId(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                      >
+                        {addresses.map((addr) => (
+                          <option key={addr.id} value={addr.id}>
+                            {addr.label} - {getAddressString(addr)}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => router.push('/dashboard/addresses')}
+                        className="text-sm text-[#FF2D55] hover:underline flex items-center gap-1"
+                      >
+                        <MapPin size={14} />
+                        Administrar mis direcciones
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        required
+                        placeholder="Calle, número, barrio, ciudad"
+                        value={requestData.address}
+                        onChange={(e) => setRequestData({ ...requestData, address: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                      />
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <p className="text-sm text-blue-800 mb-2">
+                          💡 Guarda tus direcciones para solicitar servicios más rápido
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => router.push('/dashboard/addresses')}
+                          className="text-sm text-[#FF2D55] hover:underline font-medium flex items-center gap-1"
+                        >
+                          <Plus size={14} />
+                          Agregar dirección guardada
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Fecha preferida o urgente */}

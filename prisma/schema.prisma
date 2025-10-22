@@ -67,6 +67,7 @@ model User {
   serviceRequests ServiceRequest[]
   partnerProfile PartnerProfile?
   notifications Notification[]
+  addresses     Address[]
 }
 
 model PartnerProfile {
@@ -211,4 +212,25 @@ model Notification {
 
   @@index([userId, read])
   @@index([createdAt])
+}
+
+model Address {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label         String
+  street        String
+  number        String
+  complement    String?
+  neighborhood  String
+  city          City
+  postalCode    String?
+  instructions  String?
+  isPrimary     Boolean   @default(false)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([userId, isActive])
+  @@index([userId, isPrimary])
 }
