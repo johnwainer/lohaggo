@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { DollarSign, Clock, Star, CheckCircle, MapPin, Plus } from 'lucide-react'
+import { DollarSign, Clock, Star, CheckCircle, MapPin, Plus, Calendar, X, ChevronRight } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { formatCurrency } from '@/lib/utils'
 import { CityId } from '@/lib/city-context'
@@ -59,6 +59,7 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
   const [service, setService] = useState<Service | null>(null)
   const [loading, setLoading] = useState(true)
   const [showRequestModal, setShowRequestModal] = useState(false)
+  const [currentStep, setCurrentStep] = useState(1)
   const [addresses, setAddresses] = useState<Address[]>([])
   const [selectedAddressId, setSelectedAddressId] = useState<string>('')
   const [requestData, setRequestData] = useState({
@@ -103,6 +104,7 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
       return
     }
     fetchAddresses()
+    setCurrentStep(1)
     setShowRequestModal(true)
   }
 
@@ -303,174 +305,372 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
         )}
       </div>
 
-      {/* Request Modal */}
+      {/* Request Modal - Modern Step by Step */}
       {showRequestModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <h2 className="text-2xl font-bold mb-4">Solicitar {service.name}</h2>
-            <p className="text-gray-600 mb-6">
-              Tu solicitud será enviada a todos los profesionales disponibles. Recibirás propuestas con diferentes precios y podrás elegir la que más te convenga.
-            </p>
-            <form onSubmit={submitRequest}>
-              <div className="space-y-4">
+        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl overflow-hidden animate-slideUp">
+            {/* Header with Progress */}
+            <div className="bg-gradient-to-r from-primary-600 to-primary-700 p-6 text-white">
+              <div className="flex items-center justify-between mb-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Dirección *
-                  </label>
+                  <h2 className="text-2xl font-bold">Solicitar {service.name}</h2>
+                  <p className="text-primary-100 text-sm mt-1">Paso {currentStep} de 3</p>
+                </div>
+                <button
+                  onClick={() => setShowRequestModal(false)}
+                  className="text-white hover:bg-white/20 rounded-full p-2 transition"
+                >
+                  <X size={24} />
+                </button>
+              </div>
 
-                  {addresses.length > 0 ? (
-                    <div className="space-y-2">
-                      <select
-                        value={selectedAddressId}
-                        onChange={(e) => setSelectedAddressId(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                      >
-                        {addresses.map((addr) => (
-                          <option key={addr.id} value={addr.id}>
-                            {addr.label} - {getAddressString(addr)}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        type="button"
-                        onClick={() => router.push('/dashboard/addresses')}
-                        className="text-sm text-[#FF2D55] hover:underline flex items-center gap-1"
-                      >
-                        <MapPin size={14} />
-                        Administrar mis direcciones
-                      </button>
+              {/* Progress Bar */}
+              <div className="flex gap-2">
+                {[1, 2, 3].map((step) => (
+                  <div
+                    key={step}
+                    className={`h-2 flex-1 rounded-full transition-all duration-300 ${
+                      step <= currentStep ? 'bg-white' : 'bg-white/30'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <form onSubmit={submitRequest}>
+              <div className="p-6">
+                {/* Step 1: Dirección */}
+                {currentStep === 1 && (
+                  <div className="space-y-6 animate-fadeIn">
+                    <div className="text-center mb-6">
+                      <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <MapPin className="text-primary-600" size={32} />
+                      </div>
+                      <h3 className="text-xl font-bold text-gray-900 mb-2">¿Dónde necesitas el servicio?</h3>
+                      <p className="text-gray-600">Selecciona o ingresa la dirección</p>
                     </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <input
-                        type="text"
-                        required
-                        placeholder="Calle, número, barrio, ciudad"
-                        value={requestData.address}
-                        onChange={(e) => setRequestData({ ...requestData, address: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                      />
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                        <p className="text-sm text-blue-800 mb-2">
-                          💡 Guarda tus direcciones para solicitar servicios más rápido
-                        </p>
+
+                    {addresses.length > 0 ? (
+                      <div className="space-y-3">
+                        {addresses.map((addr) => (
+                          <label
+                            key={addr.id}
+                            className={`flex items-start gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                              selectedAddressId === addr.id
+                                ? 'border-primary-600 bg-primary-50'
+                                : 'border-gray-200 hover:border-primary-300 hover:bg-gray-50'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="address"
+                              value={addr.id}
+                              checked={selectedAddressId === addr.id}
+                              onChange={(e) => setSelectedAddressId(e.target.value)}
+                              className="mt-1 w-5 h-5 text-primary-600"
+                            />
+                            <div className="flex-1">
+                              <div className="font-semibold text-gray-900 mb-1">{addr.label}</div>
+                              <div className="text-sm text-gray-600">{getAddressString(addr)}</div>
+                            </div>
+                          </label>
+                        ))}
                         <button
                           type="button"
                           onClick={() => router.push('/dashboard/addresses')}
-                          className="text-sm text-[#FF2D55] hover:underline font-medium flex items-center gap-1"
+                          className="w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-primary-600 hover:border-primary-600 hover:bg-primary-50 transition font-medium flex items-center justify-center gap-2"
                         >
-                          <Plus size={14} />
-                          Agregar dirección guardada
+                          <Plus size={20} />
+                          Agregar nueva dirección
                         </button>
                       </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Fecha preferida o urgente */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
-                    ¿Cuándo necesitas el servicio? *
-                  </label>
-                  <div className="space-y-3">
-                    <label className="flex items-center gap-3 p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition">
-                      <input
-                        type="radio"
-                        name="urgency"
-                        checked={requestData.isUrgent}
-                        onChange={() => setRequestData({ ...requestData, isUrgent: true, preferredDate: '' })}
-                        className="w-4 h-4 text-primary-600"
-                      />
-                      <div>
-                        <div className="font-medium text-gray-900">Lo más pronto posible</div>
-                        <div className="text-sm text-gray-500">Necesito el servicio urgentemente</div>
-                      </div>
-                    </label>
-                    <label className="flex items-center gap-3 p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition">
-                      <input
-                        type="radio"
-                        name="urgency"
-                        checked={!requestData.isUrgent}
-                        onChange={() => setRequestData({ ...requestData, isUrgent: false })}
-                        className="w-4 h-4 text-primary-600"
-                      />
-                      <div className="flex-1">
-                        <div className="font-medium text-gray-900 mb-2">Tengo una fecha preferida</div>
-                        {!requestData.isUrgent && (
-                          <div className="space-y-2">
-                            <div>
-                              <label className="block text-sm text-gray-600 mb-1">Fecha</label>
-                              <input
-                                type="date"
-                                required={!requestData.isUrgent}
-                                min={new Date().toISOString().split('T')[0]}
-                                value={requestData.preferredDate}
-                                onChange={(e) => setRequestData({ ...requestData, preferredDate: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                                onClick={(e) => e.stopPropagation()}
-                              />
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="relative">
+                          <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                          <input
+                            type="text"
+                            required
+                            placeholder="Ej: Calle 123 #45-67, Barrio Centro, Medellín"
+                            value={requestData.address}
+                            onChange={(e) => setRequestData({ ...requestData, address: e.target.value })}
+                            className="w-full pl-12 pr-4 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition"
+                          />
+                        </div>
+                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
+                          <div className="flex items-start gap-3">
+                            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                              <span className="text-white text-lg">💡</span>
                             </div>
                             <div>
-                              <label className="block text-sm text-gray-600 mb-1">Hora</label>
-                              <input
-                                type="time"
-                                required={!requestData.isUrgent}
-                                value={requestData.preferredTime}
-                                onChange={(e) => setRequestData({ ...requestData, preferredTime: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                                onClick={(e) => e.stopPropagation()}
-                              />
+                              <p className="text-sm text-blue-900 font-medium mb-2">
+                                Guarda tus direcciones para solicitar servicios más rápido
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() => router.push('/dashboard/addresses')}
+                                className="text-sm text-primary-600 hover:text-primary-700 font-semibold flex items-center gap-1"
+                              >
+                                <Plus size={14} />
+                                Ir a mis direcciones
+                              </button>
                             </div>
                           </div>
-                        )}
+                        </div>
                       </div>
-                    </label>
+                    )}
                   </div>
-                </div>
+                )}
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Detalles adicionales (opcional)
-                  </label>
-                  <textarea
-                    rows={4}
-                    placeholder="Describe los detalles específicos de tu solicitud, medidas, materiales, etc."
-                    value={requestData.notes}
-                    onChange={(e) => setRequestData({ ...requestData, notes: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                  />
-                </div>
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <div className="flex items-start gap-3">
-                    <CheckCircle className="text-blue-600 mt-0.5" size={20} />
-                    <div>
-                      <h3 className="font-semibold text-blue-900 mb-1">¿Cómo funciona?</h3>
-                      <ul className="text-blue-800 text-sm space-y-1">
-                        <li>• Tu solicitud llega a todos los profesionales disponibles</li>
-                        <li>• Recibirás propuestas con diferentes precios</li>
-                        <li>• Elige la propuesta que más te convenga</li>
-                        <li>• Coordina fecha y hora directamente con el profesional</li>
-                      </ul>
+                {/* Step 2: Fecha y Hora */}
+                {currentStep === 2 && (
+                  <div className="space-y-6 animate-fadeIn">
+                    <div className="text-center mb-6">
+                      <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Calendar className="text-primary-600" size={32} />
+                      </div>
+                      <h3 className="text-xl font-bold text-gray-900 mb-2">¿Cuándo necesitas el servicio?</h3>
+                      <p className="text-gray-600">Selecciona la urgencia o programa una fecha</p>
+                    </div>
+
+                    <div className="space-y-4">
+                      {/* Opción Urgente */}
+                      <label
+                        className={`flex items-start gap-4 p-5 border-2 rounded-xl cursor-pointer transition-all ${
+                          requestData.isUrgent
+                            ? 'border-red-500 bg-red-50'
+                            : 'border-gray-200 hover:border-red-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="urgency"
+                          checked={requestData.isUrgent}
+                          onChange={() => setRequestData({ ...requestData, isUrgent: true, preferredDate: '', preferredTime: '' })}
+                          className="mt-1 w-5 h-5 text-red-600"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-2xl">⚡</span>
+                            <span className="font-bold text-gray-900">Lo más pronto posible</span>
+                          </div>
+                          <p className="text-sm text-gray-600">Necesito el servicio urgentemente</p>
+                        </div>
+                      </label>
+
+                      {/* Opción Programada */}
+                      <label
+                        className={`flex items-start gap-4 p-5 border-2 rounded-xl cursor-pointer transition-all ${
+                          !requestData.isUrgent
+                            ? 'border-primary-600 bg-primary-50'
+                            : 'border-gray-200 hover:border-primary-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="urgency"
+                          checked={!requestData.isUrgent}
+                          onChange={() => setRequestData({ ...requestData, isUrgent: false })}
+                          className="mt-1 w-5 h-5 text-primary-600"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-3">
+                            <span className="text-2xl">📅</span>
+                            <span className="font-bold text-gray-900">Programar fecha y hora</span>
+                          </div>
+
+                          {!requestData.isUrgent && (
+                            <div className="space-y-3 mt-4" onClick={(e) => e.stopPropagation()}>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Fecha</label>
+                                <div className="relative">
+                                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                                  <input
+                                    type="date"
+                                    required={!requestData.isUrgent}
+                                    min={new Date().toISOString().split('T')[0]}
+                                    value={requestData.preferredDate}
+                                    onChange={(e) => setRequestData({ ...requestData, preferredDate: e.target.value })}
+                                    className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Hora</label>
+                                <div className="relative">
+                                  <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                                  <input
+                                    type="time"
+                                    required={!requestData.isUrgent}
+                                    value={requestData.preferredTime}
+                                    onChange={(e) => setRequestData({ ...requestData, preferredTime: e.target.value })}
+                                    className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </label>
                     </div>
                   </div>
-                </div>
+                )}
+
+                {/* Step 3: Detalles y Confirmación */}
+                {currentStep === 3 && (
+                  <div className="space-y-6 animate-fadeIn">
+                    <div className="text-center mb-6">
+                      <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <CheckCircle className="text-primary-600" size={32} />
+                      </div>
+                      <h3 className="text-xl font-bold text-gray-900 mb-2">Detalles adicionales</h3>
+                      <p className="text-gray-600">Cuéntanos más sobre lo que necesitas</p>
+                    </div>
+
+                    {/* Resumen */}
+                    <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-5 space-y-3">
+                      <h4 className="font-semibold text-gray-900 mb-3">Resumen de tu solicitud</h4>
+
+                      <div className="flex items-start gap-3">
+                        <MapPin className="text-primary-600 mt-0.5" size={18} />
+                        <div>
+                          <p className="text-sm font-medium text-gray-700">Dirección</p>
+                          <p className="text-sm text-gray-600">
+                            {selectedAddressId
+                              ? getAddressString(addresses.find(a => a.id === selectedAddressId)!)
+                              : requestData.address}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-3">
+                        <Calendar className="text-primary-600 mt-0.5" size={18} />
+                        <div>
+                          <p className="text-sm font-medium text-gray-700">Fecha y hora</p>
+                          <p className="text-sm text-gray-600">
+                            {requestData.isUrgent ? (
+                              <span className="text-red-600 font-medium">⚡ Lo más pronto posible</span>
+                            ) : (
+                              `${new Date(requestData.preferredDate).toLocaleDateString('es-ES', {
+                                weekday: 'long',
+                                day: 'numeric',
+                                month: 'long'
+                              })} a las ${requestData.preferredTime}`
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Notas */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Detalles adicionales (opcional)
+                      </label>
+                      <textarea
+                        rows={4}
+                        placeholder="Describe los detalles específicos: medidas, materiales, problemas específicos, etc."
+                        value={requestData.notes}
+                        onChange={(e) => setRequestData({ ...requestData, notes: e.target.value })}
+                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none resize-none"
+                      />
+                    </div>
+
+                    {/* Info Box */}
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-5">
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                          <CheckCircle className="text-white" size={18} />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-blue-900 mb-2">¿Cómo funciona?</h4>
+                          <ul className="text-blue-800 text-sm space-y-1.5">
+                            <li className="flex items-start gap-2">
+                              <span className="text-blue-600 mt-0.5">✓</span>
+                              <span>Tu solicitud llega a todos los profesionales disponibles</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-blue-600 mt-0.5">✓</span>
+                              <span>Recibirás propuestas con diferentes precios</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-blue-600 mt-0.5">✓</span>
+                              <span>Elige la propuesta que más te convenga</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-blue-600 mt-0.5">✓</span>
+                              <span>Coordina los detalles finales con el profesional</span>
+                            </li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
-              <div className="flex gap-3 mt-6">
-                <button
-                  type="button"
-                  onClick={() => setShowRequestModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-                  disabled={submitting}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="flex-1 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition disabled:opacity-50"
-                >
-                  {submitting ? 'Enviando...' : 'Enviar solicitud'}
-                </button>
+
+              {/* Footer with Navigation */}
+              <div className="border-t bg-gray-50 px-6 py-4">
+                <div className="flex gap-3">
+                  {currentStep > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setCurrentStep(currentStep - 1)}
+                      className="px-6 py-3 border-2 border-gray-300 rounded-xl hover:bg-gray-100 transition font-medium text-gray-700 flex items-center gap-2"
+                      disabled={submitting}
+                    >
+                      <ChevronRight size={20} className="rotate-180" />
+                      Anterior
+                    </button>
+                  )}
+
+                  {currentStep < 3 ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (currentStep === 1) {
+                          if (addresses.length > 0 && !selectedAddressId) {
+                            alert('Por favor selecciona una dirección')
+                            return
+                          }
+                          if (addresses.length === 0 && !requestData.address) {
+                            alert('Por favor ingresa una dirección')
+                            return
+                          }
+                        }
+                        if (currentStep === 2) {
+                          if (!requestData.isUrgent && (!requestData.preferredDate || !requestData.preferredTime)) {
+                            alert('Por favor selecciona fecha y hora o marca como urgente')
+                            return
+                          }
+                        }
+                        setCurrentStep(currentStep + 1)
+                      }}
+                      className="flex-1 bg-primary-600 text-white px-6 py-3 rounded-xl hover:bg-primary-700 transition font-semibold flex items-center justify-center gap-2 shadow-lg shadow-primary-600/30"
+                    >
+                      Continuar
+                      <ChevronRight size={20} />
+                    </button>
+                  ) : (
+                    <button
+                      type="submit"
+                      disabled={submitting}
+                      className="flex-1 bg-gradient-to-r from-primary-600 to-primary-700 text-white px-6 py-3 rounded-xl hover:from-primary-700 hover:to-primary-800 transition font-semibold flex items-center justify-center gap-2 shadow-lg shadow-primary-600/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {submitting ? (
+                        <>
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          Enviando...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle size={20} />
+                          Enviar solicitud
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
               </div>
             </form>
           </div>
