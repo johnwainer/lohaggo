@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSession } from 'next-auth/react'
 import { Bell } from 'lucide-react'
 import Link from 'next/link'
 
@@ -14,6 +15,7 @@ interface Notification {
 }
 
 export default function NotificationBell() {
+  const { data: session } = useSession()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [showDropdown, setShowDropdown] = useState(false)
@@ -50,6 +52,10 @@ export default function NotificationBell() {
     }
   }
 
+  const notificationsUrl = session?.user?.role === 'PARTNER'
+    ? '/partner/notifications'
+    : '/notifications'
+
   return (
     <div className="relative">
       <button
@@ -74,7 +80,7 @@ export default function NotificationBell() {
             <div className="p-4 border-b flex items-center justify-between">
               <h3 className="font-semibold">Notificaciones</h3>
               <Link
-                href="/notifications"
+                href={notificationsUrl}
                 className="text-sm text-primary-600 hover:text-primary-700"
                 onClick={() => setShowDropdown(false)}
               >
