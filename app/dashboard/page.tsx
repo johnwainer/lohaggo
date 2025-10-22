@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import {
   MessageSquare, Calendar, Clock, MapPin, Package, CheckCircle, DollarSign,
-  TrendingUp, Activity, Search, Menu, X, Home, ShoppingBag, Bell,
+  TrendingUp, Activity, Search, Menu, X, Home, Bell,
   Settings, LogOut, ChevronRight, Plus, AlertCircle, User, XCircle
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
@@ -392,14 +392,6 @@ export default function DashboardPage() {
                   <Bell size={18} />
                   <span>Notificaciones</span>
                 </button>
-
-                <button
-                  onClick={() => router.push('/servicios')}
-                  className="flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
-                >
-                  <ShoppingBag size={18} />
-                  <span>Explorar Servicios</span>
-                </button>
               </nav>
             </div>
           </div>
@@ -488,19 +480,7 @@ export default function DashboardPage() {
                   <Activity className="text-primary-600" size={20} />
                   Acciones Rápidas
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <button
-                    onClick={() => router.push('/servicios')}
-                    className="flex items-center gap-3 p-4 rounded-xl border-2 border-gray-200 hover:border-primary-500 hover:bg-primary-50 transition group"
-                  >
-                    <Plus className="text-primary-600 group-hover:scale-110 transition" size={24} />
-                    <div className="text-left">
-                      <p className="font-semibold text-gray-900">Nuevo Servicio</p>
-                      <p className="text-sm text-gray-600">Explorar servicios</p>
-                    </div>
-                    <ChevronRight className="ml-auto text-gray-400 group-hover:text-primary-600" size={20} />
-                  </button>
-
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <button
                     onClick={() => setActiveTab('bookings')}
                     className="flex items-center gap-3 p-4 rounded-xl border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition group"
@@ -604,14 +584,7 @@ export default function DashboardPage() {
                 <div className="bg-white rounded-2xl shadow-lg p-12 text-center">
                   <Package className="mx-auto text-gray-300 mb-4" size={64} />
                   <p className="text-gray-600 text-lg font-medium">No hay reservas</p>
-                  <p className="text-gray-500 text-sm mt-2">Explora nuestros servicios y realiza tu primera reserva</p>
-                  <button
-                    onClick={() => router.push('/servicios')}
-                    className="mt-6 bg-primary-600 text-white px-6 py-3 rounded-xl hover:bg-primary-700 transition font-medium inline-flex items-center gap-2"
-                  >
-                    <Plus size={20} />
-                    Explorar Servicios
-                  </button>
+                  <p className="text-gray-500 text-sm mt-2">Aquí aparecerán tus reservas cuando realices alguna</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
