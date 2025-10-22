@@ -263,12 +263,11 @@ export default function AboutPage() {
               {milestones.map((milestone, index) => (
                 <div
                   key={index}
-                  className={`flex flex-col lg:flex-row gap-8 items-center ${
-                    index % 2 === 0 ? 'lg:flex-row' : 'lg:flex-row-reverse'
-                  }`}
+                  className="flex flex-col lg:flex-row gap-8 items-center"
                 >
-                  <div className={`flex-1 ${index % 2 === 0 ? 'lg:text-right' : 'lg:text-left'}`}>
-                    {index % 2 === 0 && (
+                  {/* Left Side */}
+                  <div className="flex-1 lg:text-right">
+                    {index % 2 === 0 ? (
                       <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100 hover:shadow-2xl transition-all">
                         <div className="text-5xl font-black bg-gradient-to-r from-[#FF2D55] to-[#FF6900] bg-clip-text text-transparent mb-3">
                           {milestone.year}
@@ -280,17 +279,21 @@ export default function AboutPage() {
                           {milestone.description}
                         </p>
                       </div>
+                    ) : (
+                      <div className="hidden lg:block"></div>
                     )}
                   </div>
 
-                  <div className="relative z-10">
+                  {/* Center Circle */}
+                  <div className="relative z-10 flex-shrink-0">
                     <div className="w-16 h-16 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-full flex items-center justify-center shadow-xl border-4 border-white">
                       <div className="w-6 h-6 bg-white rounded-full"></div>
                     </div>
                   </div>
 
-                  <div className={`flex-1 ${index % 2 !== 0 ? 'lg:text-left' : 'lg:text-right'}`}>
-                    {index % 2 !== 0 && (
+                  {/* Right Side */}
+                  <div className="flex-1 lg:text-left">
+                    {index % 2 !== 0 ? (
                       <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100 hover:shadow-2xl transition-all">
                         <div className="text-5xl font-black bg-gradient-to-r from-[#FF2D55] to-[#FF6900] bg-clip-text text-transparent mb-3">
                           {milestone.year}
@@ -302,6 +305,8 @@ export default function AboutPage() {
                           {milestone.description}
                         </p>
                       </div>
+                    ) : (
+                      <div className="hidden lg:block"></div>
                     )}
                   </div>
                 </div>
