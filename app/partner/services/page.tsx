@@ -303,6 +303,14 @@ export default function ServicesManagementPage() {
                 </button>
 
                 <button
+                  onClick={() => router.push('/partner/notifications')}
+                  className="flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
+                >
+                  <Bell size={18} />
+                  <span>Notificaciones</span>
+                </button>
+
+                <button
                   onClick={() => router.push('/partner/services')}
                   className="flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 border-primary-600 text-primary-600 transition whitespace-nowrap"
                 >

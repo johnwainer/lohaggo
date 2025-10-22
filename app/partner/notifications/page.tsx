@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { Bell, Check, CheckCheck, Home, Package, ShoppingBag } from 'lucide-react'
+import { Bell, Check, CheckCheck, Home, Package, Activity, Settings } from 'lucide-react'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
 
 interface Notification {
@@ -16,7 +16,7 @@ interface Notification {
   data?: string
 }
 
-export default function NotificationsPage() {
+export default function PartnerNotificationsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [notifications, setNotifications] = useState<Notification[]>([])
@@ -24,42 +24,46 @@ export default function NotificationsPage() {
   const [filter, setFilter] = useState<'all' | 'unread'>('all')
   const { isSupported, isSubscribed, subscribeToPush } = usePushNotifications()
   const [bookingsCount, setBookingsCount] = useState(0)
-  const [requestsCount, setRequestsCount] = useState(0)
+  const [myRequestsCount, setMyRequestsCount] = useState(0)
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/login')
+    } else if (status === 'authenticated') {
+      if (session?.user?.role !== 'PARTNER') {
+        router.push('/dashboard')
+        return
+      }
+      fetchNotifications()
+      fetchCounts()
+    }
+  }, [status, filter, session])
 
   const fetchCounts = async () => {
     try {
       const [bookingsRes, requestsRes] = await Promise.all([
         fetch('/api/bookings'),
-        fetch('/api/service-requests/user')
+        fetch('/api/partner/service-requests')
       ])
-
+      
       if (bookingsRes.ok) {
         const bookings = await bookingsRes.json()
         setBookingsCount(bookings.length)
       }
-
+      
       if (requestsRes.ok) {
         const requests = await requestsRes.json()
-        setRequestsCount(requests.length)
+        setMyRequestsCount(Array.isArray(requests) ? requests.length : 0)
       }
     } catch (error) {
       console.error('Error fetching counts:', error)
     }
   }
 
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/login')
-    } else if (status === 'authenticated') {
-      fetchNotifications()
-      fetchCounts()
-    }
-  }, [status, filter])
-
   const fetchNotifications = async () => {
     setLoading(true)
     try {
-      const url = filter === 'unread'
+      const url = filter === 'unread' 
         ? '/api/notifications?unreadOnly=true'
         : '/api/notifications'
       const res = await fetch(url)
@@ -150,7 +154,7 @@ export default function NotificationsPage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <nav className="flex gap-1 overflow-x-auto">
               <button
-                onClick={() => router.push('/dashboard')}
+                onClick={() => router.push('/partner')}
                 className="flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
               >
                 <Home size={18} />
@@ -158,7 +162,7 @@ export default function NotificationsPage() {
               </button>
 
               <button
-                onClick={() => router.push('/dashboard')}
+                onClick={() => router.push('/partner')}
                 className="flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
               >
                 <Package size={18} />
@@ -171,20 +175,28 @@ export default function NotificationsPage() {
               </button>
 
               <button
-                onClick={() => router.push('/dashboard')}
+                onClick={() => router.push('/partner')}
                 className="flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
               >
                 <Bell size={18} />
-                <span>Mis Solicitudes</span>
-                {requestsCount > 0 && (
+                <span>Para Mí</span>
+                {myRequestsCount > 0 && (
                   <span className="bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full">
-                    {requestsCount}
+                    {myRequestsCount}
                   </span>
                 )}
               </button>
 
               <button
-                onClick={() => router.push('/notifications')}
+                onClick={() => router.push('/partner')}
+                className="flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
+              >
+                <Activity size={18} />
+                <span>Todas</span>
+              </button>
+
+              <button
+                onClick={() => router.push('/partner/notifications')}
                 className="flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 border-primary-600 text-primary-600 transition whitespace-nowrap"
               >
                 <Bell size={18} />
@@ -192,11 +204,11 @@ export default function NotificationsPage() {
               </button>
 
               <button
-                onClick={() => router.push('/servicios')}
+                onClick={() => router.push('/partner/services')}
                 className="flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
               >
-                <ShoppingBag size={18} />
-                <span>Explorar Servicios</span>
+                <Settings size={18} />
+                <span>Mis Servicios</span>
               </button>
             </nav>
           </div>
@@ -249,7 +261,7 @@ export default function NotificationsPage() {
               <div className="p-12 text-center">
                 <Bell className="mx-auto text-gray-300 mb-4" size={64} />
                 <p className="text-gray-600 text-lg font-medium">
-                  {filter === 'unread'
+                  {filter === 'unread' 
                     ? 'No tienes notificaciones sin leer'
                     : 'No tienes notificaciones'}
                 </p>
