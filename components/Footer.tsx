@@ -67,8 +67,7 @@ export function Footer() {
                 { name: 'Sobre nosotros', href: '/about' },
                 { name: 'Cómo funciona', href: '/how-it-works' },
                 { name: 'Conviértete en socio', href: '/register?role=partner' },
-                { name: 'Blog', href: '/blog' },
-                { name: 'Ayuda', href: '/help' },
+                { name: 'FAQ', href: '/faq' },
                 { name: 'Contacto', href: '/contact' }
               ].map((item) => (
                 <li key={item.name}>
