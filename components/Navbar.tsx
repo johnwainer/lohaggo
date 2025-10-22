@@ -136,6 +136,12 @@ export function Navbar() {
             >
               Servicios
             </Link>
+            <Link
+              href="/faq"
+              className="text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 px-5 py-2.5 rounded-xl text-sm font-bold transition-all"
+            >
+              FAQ
+            </Link>
 
             {session ? (
               <>
@@ -228,6 +234,13 @@ export function Navbar() {
               onClick={() => setMobileMenuOpen(false)}
             >
               Servicios
+            </Link>
+            <Link
+              href="/faq"
+              className="block text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              FAQ
             </Link>
 
             {session ? (
