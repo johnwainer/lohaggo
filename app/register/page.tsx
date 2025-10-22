@@ -24,6 +24,7 @@ export default function RegisterPage() {
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [servicesCatalog, setServicesCatalog] = useState<
     Array<{ id: string; name: string; slug: string; basePrice?: number }>
   >([])
@@ -71,6 +72,12 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+
+    if (!acceptedTerms) {
+      setError('Debes aceptar los Términos y Condiciones y la Política de Privacidad para continuar')
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -316,10 +323,55 @@ export default function RegisterPage() {
               </div>
             )}
 
+            {/* Terms and Conditions Checkbox */}
+            <div className="pt-4 border-t border-gray-200">
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <div className="relative flex items-center justify-center mt-0.5">
+                  <input
+                    type="checkbox"
+                    checked={acceptedTerms}
+                    onChange={(e) => setAcceptedTerms(e.target.checked)}
+                    className="w-5 h-5 border-2 border-gray-300 rounded cursor-pointer checked:bg-[#FF2D55] checked:border-[#FF2D55] focus:ring-2 focus:ring-[#FF2D55] focus:ring-offset-2 transition-all"
+                    required
+                  />
+                </div>
+                <span className="text-sm text-gray-700 leading-relaxed">
+                  He leído y acepto los{' '}
+                  <Link
+                    href="/terms"
+                    target="_blank"
+                    className="text-[#FF2D55] font-semibold hover:underline"
+                  >
+                    Términos y Condiciones
+                  </Link>
+                  , la{' '}
+                  <Link
+                    href="/privacy"
+                    target="_blank"
+                    className="text-[#FF2D55] font-semibold hover:underline"
+                  >
+                    Política de Privacidad
+                  </Link>
+                  {' '}y la{' '}
+                  <Link
+                    href="/cookies"
+                    target="_blank"
+                    className="text-[#FF2D55] font-semibold hover:underline"
+                  >
+                    Política de Cookies
+                  </Link>
+                  {' '}de LoHaggo.
+                </span>
+              </label>
+              <p className="mt-2 text-xs text-gray-500 ml-8">
+                Al registrarte, confirmas que has leído, entendido y aceptado nuestras políticas.
+              </p>
+            </div>
+
             <button
               type="submit"
-              disabled={loading}
-              className="w-full bg-primary-600 text-white py-3 rounded-lg hover:bg-primary-700 transition font-medium disabled:opacity-50"
+              disabled={loading || !acceptedTerms}
+              className="w-full bg-primary-600 text-white py-3 rounded-lg hover:bg-primary-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Registrando...' : 'Crear cuenta'}
             </button>
