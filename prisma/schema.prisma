@@ -175,6 +175,7 @@ model ServiceRequest {
   notes            String?
   city             City                 @default(MEDELLIN)
   preferredDate    DateTime?
+  preferredTime    String?
   isUrgent         Boolean              @default(false)
   status           ServiceRequestStatus @default(ACTIVE)
   expiresAt        DateTime

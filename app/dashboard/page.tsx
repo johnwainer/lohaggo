@@ -40,6 +40,7 @@ interface ServiceRequest {
   createdAt: string
   isUrgent?: boolean
   preferredDate?: string
+  preferredTime?: string
   service: {
     name: string
     icon: string
@@ -718,6 +719,7 @@ export default function DashboardPage() {
                                   day: 'numeric',
                                   month: 'long'
                                 })}
+                                {request.preferredTime && ` a las ${request.preferredTime}`}
                               </span>
                             </div>
                           )}

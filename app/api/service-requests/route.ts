@@ -33,6 +33,7 @@ export async function POST(req: NextRequest) {
         notes: body.notes || null,
         city: body.city || 'MEDELLIN',
         preferredDate: body.preferredDate ? new Date(body.preferredDate) : null,
+        preferredTime: body.preferredTime || null,
         isUrgent: body.isUrgent || false,
         status: 'ACTIVE',
         expiresAt: expiresAt
@@ -108,7 +109,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error('Error fetching service requests:', error)
     return NextResponse.json(
-      { error: 'Error al obtener las solicitudes' }, 
+      { error: 'Error al obtener las solicitudes' },
       { status: 500 }
     )
   }

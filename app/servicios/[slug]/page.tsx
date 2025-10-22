@@ -65,6 +65,7 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
     address: '',
     notes: '',
     preferredDate: '',
+    preferredTime: '',
     isUrgent: false
   })
   const [submitting, setSubmitting] = useState(false)
@@ -164,6 +165,7 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
           address: finalAddress,
           notes: requestData.notes,
           preferredDate: requestData.preferredDate || null,
+          preferredTime: requestData.preferredTime || null,
           isUrgent: requestData.isUrgent,
           city: finalCity
         })
@@ -395,15 +397,31 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
                       <div className="flex-1">
                         <div className="font-medium text-gray-900 mb-2">Tengo una fecha preferida</div>
                         {!requestData.isUrgent && (
-                          <input
-                            type="date"
-                            required={!requestData.isUrgent}
-                            min={new Date().toISOString().split('T')[0]}
-                            value={requestData.preferredDate}
-                            onChange={(e) => setRequestData({ ...requestData, preferredDate: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                            onClick={(e) => e.stopPropagation()}
-                          />
+                          <div className="space-y-2">
+                            <div>
+                              <label className="block text-sm text-gray-600 mb-1">Fecha</label>
+                              <input
+                                type="date"
+                                required={!requestData.isUrgent}
+                                min={new Date().toISOString().split('T')[0]}
+                                value={requestData.preferredDate}
+                                onChange={(e) => setRequestData({ ...requestData, preferredDate: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm text-gray-600 mb-1">Hora</label>
+                              <input
+                                type="time"
+                                required={!requestData.isUrgent}
+                                value={requestData.preferredTime}
+                                onChange={(e) => setRequestData({ ...requestData, preferredTime: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            </div>
+                          </div>
                         )}
                       </div>
                     </label>

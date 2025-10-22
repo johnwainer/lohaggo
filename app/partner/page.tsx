@@ -42,6 +42,7 @@ interface ServiceRequest {
   createdAt: string
   isUrgent?: boolean
   preferredDate?: string
+  preferredTime?: string
   service: {
     name: string
     icon: string
@@ -797,7 +798,10 @@ export default function PartnerDashboard() {
                           {request.preferredDate && (
                             <div className="flex items-center gap-2">
                               <Calendar size={16} className="text-primary-600" />
-                              <span>Fecha preferida: {new Date(request.preferredDate).toLocaleDateString('es-ES')}</span>
+                              <span>
+                                Fecha preferida: {new Date(request.preferredDate).toLocaleDateString('es-ES')}
+                                {request.preferredTime && ` a las ${request.preferredTime}`}
+                              </span>
                             </div>
                           )}
                         </div>
@@ -917,6 +921,12 @@ export default function PartnerDashboard() {
                 <div className="space-y-1 text-sm text-gray-600">
                   <p><strong>Cliente:</strong> {selectedRequest.user.name}</p>
                   <p><strong>Ubicación:</strong> {selectedRequest.address}, {selectedRequest.city}</p>
+                  {selectedRequest.preferredDate && (
+                    <p>
+                      <strong>Fecha preferida:</strong> {new Date(selectedRequest.preferredDate).toLocaleDateString('es-ES')}
+                      {selectedRequest.preferredTime && ` a las ${selectedRequest.preferredTime}`}
+                    </p>
+                  )}
                   {selectedRequest.notes && (
                     <p><strong>Detalles:</strong> {selectedRequest.notes}</p>
                   )}
