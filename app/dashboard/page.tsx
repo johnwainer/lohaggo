@@ -48,6 +48,11 @@ interface ServiceRequest {
       name: string
     }
   }
+  photos?: Array<{
+    id: string
+    url: string
+    order: number
+  }>
   proposals: Array<{
     id: string
     price: number
@@ -734,6 +739,29 @@ export default function DashboardPage() {
                         {request.notes && (
                           <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 mb-4">
                             <p className="text-sm text-gray-700"><strong>Detalles:</strong> {request.notes}</p>
+                          </div>
+                        )}
+
+                        {request.photos && request.photos.length > 0 && (
+                          <div className="mb-4">
+                            <h4 className="font-semibold mb-3 text-sm text-gray-700">Fotos adjuntas:</h4>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                              {request.photos.sort((a, b) => a.order - b.order).map((photo) => (
+                                <div key={photo.id} className="relative group">
+                                  <img
+                                    src={photo.url}
+                                    alt="Foto de la solicitud"
+                                    className="w-full h-32 object-cover rounded-lg border-2 border-gray-200 hover:border-primary-500 transition cursor-pointer"
+                                    onClick={() => window.open(photo.url, '_blank')}
+                                  />
+                                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition rounded-lg flex items-center justify-center">
+                                    <span className="text-white opacity-0 group-hover:opacity-100 transition text-sm font-medium">
+                                      Ver imagen
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         )}
 
