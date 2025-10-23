@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Search, Filter, X, Star } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
@@ -30,11 +31,24 @@ interface Category {
 }
 
 export default function ServiciosPage() {
+  const searchParams = useSearchParams()
   const [services, setServices] = useState<Service[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string>('')
   const [searchTerm, setSearchTerm] = useState('')
   const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const urlSearch = searchParams.get('search')
+    const urlCategory = searchParams.get('category')
+
+    if (urlSearch) {
+      setSearchTerm(urlSearch)
+    }
+    if (urlCategory) {
+      setSelectedCategory(urlCategory)
+    }
+  }, [searchParams])
 
   useEffect(() => {
     fetchCategories()
@@ -136,20 +150,39 @@ export default function ServiciosPage() {
         {loading ? (
           <div className="text-center py-16">
             <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-[#FF2D55] border-t-transparent"></div>
-            <p className="mt-6 text-gray-600 text-lg font-medium">Cargando servicios...</p>
+            <p className="mt-6 text-gray-600 text-lg font-medium">Buscando servicios...</p>
           </div>
         ) : services.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-3xl shadow-xl">
             <div className="text-6xl mb-4">😔</div>
             <p className="text-gray-600 text-xl font-bold">No se encontraron servicios</p>
-            <p className="text-gray-500 mt-2">Intenta con otra búsqueda o categoría</p>
+            {searchTerm ? (
+              <p className="text-gray-500 mt-2">
+                No encontramos resultados para "<span className="font-semibold text-[#FF2D55]">{searchTerm}</span>".
+                Intenta con otros términos como: plomero, electricista, limpieza, etc.
+              </p>
+            ) : (
+              <p className="text-gray-500 mt-2">Intenta con otra búsqueda o categoría</p>
+            )}
           </div>
         ) : (
           <>
             <div className="mb-6">
-              <p className="text-gray-700 font-bold text-lg">
-                {services.length} {services.length === 1 ? 'servicio encontrado' : 'servicios encontrados'}
-              </p>
+              {searchTerm ? (
+                <div className="bg-white rounded-2xl shadow-lg p-4 border-l-4 border-[#FF2D55]">
+                  <p className="text-gray-700 font-bold text-lg">
+                    {services.length} {services.length === 1 ? 'resultado encontrado' : 'resultados encontrados'} para
+                    <span className="text-[#FF2D55]"> "{searchTerm}"</span>
+                  </p>
+                  <p className="text-gray-600 text-sm mt-1">
+                    Mostrando los servicios más relevantes
+                  </p>
+                </div>
+              ) : (
+                <p className="text-gray-700 font-bold text-lg">
+                  {services.length} {services.length === 1 ? 'servicio disponible' : 'servicios disponibles'}
+                </p>
+              )}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {services.map((service) => (

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { expandSearchTerms, calculateRelevanceScore } from "@/lib/searchSynonyms"
 
 export async function GET(request: Request) {
   try {
@@ -18,14 +19,7 @@ export async function GET(request: Request) {
       where.popular = true
     }
 
-    if (search) {
-      where.OR = [
-        { name: { contains: search, mode: "insensitive" } },
-        { description: { contains: search, mode: "insensitive" } },
-      ]
-    }
-
-    const services = await prisma.service.findMany({
+    let services = await prisma.service.findMany({
       where,
       include: {
         category: true,
@@ -38,6 +32,38 @@ export async function GET(request: Request) {
         { name: "asc" }
       ]
     })
+
+    if (search) {
+      const expandedTerms = expandSearchTerms(search)
+
+      const filteredServices = services.filter(service => {
+        const name = service.name.toLowerCase()
+        const description = service.description.toLowerCase()
+        const categoryName = service.category.name.toLowerCase()
+        const searchLower = search.toLowerCase()
+
+        if (name.includes(searchLower) ||
+            description.includes(searchLower) ||
+            categoryName.includes(searchLower)) {
+          return true
+        }
+
+        return expandedTerms.some(term =>
+          name.includes(term) ||
+          description.includes(term) ||
+          categoryName.includes(term)
+        )
+      })
+
+      const servicesWithScore = filteredServices.map(service => ({
+        ...service,
+        relevanceScore: calculateRelevanceScore(service, search)
+      }))
+
+      services = servicesWithScore
+        .sort((a, b) => b.relevanceScore - a.relevanceScore)
+        .map(({ relevanceScore, ...service }) => service)
+    }
 
     return NextResponse.json(services)
   } catch (error) {
