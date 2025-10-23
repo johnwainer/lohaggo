@@ -98,7 +98,7 @@ export default function AboutPage() {
     {
       year: '2026',
       title: 'Lanzamiento Oficial',
-      description: 'Apertura al público y expansión en las principales ciudades de México.'
+      description: 'Apertura al público y expansión en las principales ciudades de Colombia.'
     }
   ]
 
