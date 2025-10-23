@@ -37,23 +37,35 @@ export default function ServiciosPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('')
   const [searchTerm, setSearchTerm] = useState('')
   const [loading, setLoading] = useState(true)
+  const [initialized, setInitialized] = useState(false)
 
+  // First, load categories and initialize from URL params
   useEffect(() => {
-    const urlSearch = searchParams.get('search')
-    const urlCategory = searchParams.get('category')
+    const init = async () => {
+      await fetchCategories()
 
-    if (urlSearch) {
-      setSearchTerm(urlSearch)
+      const urlSearch = searchParams.get('search')
+      const urlCategory = searchParams.get('category')
+
+      if (urlSearch) {
+        setSearchTerm(urlSearch)
+      }
+      if (urlCategory) {
+        setSelectedCategory(urlCategory)
+      }
+
+      setInitialized(true)
     }
-    if (urlCategory) {
-      setSelectedCategory(urlCategory)
-    }
+
+    init()
   }, [searchParams])
 
+  // Then fetch services when filters change
   useEffect(() => {
-    fetchCategories()
-    fetchServices()
-  }, [selectedCategory, searchTerm])
+    if (initialized) {
+      fetchServices()
+    }
+  }, [selectedCategory, searchTerm, initialized])
 
   const fetchCategories = async () => {
     try {
