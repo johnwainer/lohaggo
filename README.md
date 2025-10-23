@@ -1,4 +1,4 @@
-# Plataforma de Servicios - ServiciosApp
+# Haggo - Plataforma de Servicios
 
 Una plataforma moderna para solicitar servicios (plomería, limpieza, electricidad, etc.) con paneles para clientes, socios y administradores.
 
@@ -6,7 +6,10 @@ Una plataforma moderna para solicitar servicios (plomería, limpieza, electricid
 
 - **50+ Servicios** organizados en 10 categorías
 - **3 Tipos de Usuarios**: Clientes, Socios (Proveedores) y Administradores
-- **Sistema de Reservas** completo con gestión de estados
+- **Sistema de Solicitudes**: Los clientes publican solicitudes y los partners envían propuestas
+- **Subida de Fotos**: Los clientes pueden adjuntar fotos a sus solicitudes
+- **Notificaciones en Tiempo Real**: Sistema de notificaciones push
+- **Gestión de Direcciones**: Los clientes pueden guardar múltiples direcciones
 - **Autenticación** con NextAuth.js
 - **Diseño Moderno** inspirado en Uber y Rappi
 - **Responsive** - Funciona en móviles, tablets y desktop
@@ -17,40 +20,56 @@ Una plataforma moderna para solicitar servicios (plomería, limpieza, electricid
 - **TypeScript**
 - **Prisma** (ORM)
 - **PostgreSQL** (Base de datos)
+- **Supabase** (Base de datos en producción)
+- **Cloudinary** (Almacenamiento de imágenes)
 - **NextAuth.js** (Autenticación)
 - **Tailwind CSS** (Estilos)
 
 ## 📋 Requisitos Previos
 
 - Node.js 18+ instalado
-- PostgreSQL instalado y corriendo
+- PostgreSQL instalado (para desarrollo local) o cuenta de Supabase
+- Cuenta de Cloudinary (para subida de fotos)
 - npm o yarn
 
-## 🔧 Instalación
+## 🔧 Instalación Local
 
-1. **Clonar el repositorio** (o crear el proyecto)
+1. **Clonar el repositorio**
 
 ```bash
+git clone <tu-repositorio>
+cd haggo
 npm install
 ```
 
 2. **Configurar variables de entorno**
 
-Crear un archivo `.env` en la raíz del proyecto:
+Crear un archivo `.env.local` en la raíz del proyecto:
 
 ```env
-DATABASE_URL="postgresql://usuario:contraseña@localhost:5432/servicios_db"
+# Base de datos
+DATABASE_URL="postgresql://usuario:contraseña@localhost:5432/haggo_db"
+
+# NextAuth
 NEXTAUTH_SECRET="tu-secreto-super-seguro-aqui"
 NEXTAUTH_URL="http://localhost:3000"
+
+# Cloudinary (para subida de fotos)
+NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME="tu-cloud-name"
+CLOUDINARY_API_KEY="tu-api-key"
+CLOUDINARY_API_SECRET="tu-api-secret"
 ```
 
 3. **Configurar la base de datos**
 
 ```bash
-# Crear la base de datos y tablas
-npx prisma db push
+# Aplicar migraciones
+npx prisma migrate deploy
 
-# Poblar con datos iniciales (50 servicios, usuarios de prueba, etc.)
+# O usar el archivo SQL consolidado
+psql -U usuario -d haggo_db -f database_migration.sql
+
+# Poblar con datos iniciales
 npx prisma db seed
 ```
 
@@ -62,6 +81,45 @@ npm run dev
 
 La aplicación estará disponible en `http://localhost:3000`
 
+## 🚀 Deploy en Vercel
+
+### 1. Configurar Base de Datos (Supabase)
+
+1. Crea un proyecto en [Supabase](https://supabase.com)
+2. Ve a Settings → Database y copia la **Connection String** (modo: Transaction)
+3. Ejecuta el archivo `database_migration.sql` en el SQL Editor de Supabase
+
+### 2. Configurar Cloudinary
+
+1. Crea una cuenta en [Cloudinary](https://cloudinary.com)
+2. Ve a Dashboard y copia:
+   - Cloud Name
+   - API Key
+   - API Secret
+
+### 3. Configurar Variables de Entorno en Vercel
+
+Ve a tu proyecto en Vercel → Settings → Environment Variables y agrega:
+
+```
+DATABASE_URL=postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-1-us-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true
+NEXTAUTH_SECRET=tu-secreto-super-seguro-aqui
+NEXTAUTH_URL=https://tu-dominio.vercel.app
+NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=tu-cloud-name
+CLOUDINARY_API_KEY=tu-api-key
+CLOUDINARY_API_SECRET=tu-api-secret
+```
+
+**Importante**: Marca las 3 opciones (Production, Preview, Development) para cada variable.
+
+### 4. Deploy
+
+```bash
+git push origin main
+```
+
+Vercel hará el deploy automáticamente.
+
 ## 👥 Usuarios de Prueba
 
 Después de ejecutar el seed, puedes usar estos usuarios:
@@ -71,11 +129,7 @@ Después de ejecutar el seed, puedes usar estos usuarios:
 - **Contraseña**: password123
 
 ### Socio/Proveedor
-- **Email**: socio1@test.com
-- **Contraseña**: password123
-
-### Administrador
-- **Email**: admin@servicios.com
+- **Email**: partner@test.com
 - **Contraseña**: password123
 
 ## 📱 Estructura de la Aplicación
@@ -83,104 +137,87 @@ Después de ejecutar el seed, puedes usar estos usuarios:
 ### Páginas Públicas
 - `/` - Página principal con categorías y servicios populares
 - `/servicios` - Catálogo completo de servicios con búsqueda y filtros
-- `/servicios/[slug]` - Detalle de servicio con formulario de reserva
+- `/servicios/[slug]` - Detalle de servicio con formulario de solicitud
 - `/login` - Inicio de sesión
 - `/register` - Registro de nuevos usuarios
 
 ### Paneles Privados
-- `/dashboard` - Panel de cliente (ver y gestionar reservas)
-- `/partner` - Panel de socio (gestionar servicios y reservas de clientes)
+- `/dashboard` - Panel de cliente (crear solicitudes, ver propuestas)
+- `/dashboard/addresses` - Gestión de direcciones guardadas
+- `/partner` - Panel de socio (ver solicitudes, enviar propuestas)
 - `/admin` - Panel administrativo (estadísticas y gestión completa)
 
 ## 🎨 Categorías de Servicios
 
 1. **Hogar** - Plomería, Electricidad, Carpintería, etc.
 2. **Limpieza** - Limpieza de hogar, oficinas, alfombras, etc.
-3. **Belleza** - Peluquería, Manicure, Masajes, etc.
-4. **Tecnología** - Reparación de computadoras, instalación de software, etc.
-5. **Transporte** - Mudanzas, mensajería, transporte de mascotas, etc.
-6. **Educación** - Clases particulares, tutorías, idiomas, etc.
-7. **Salud** - Enfermería, fisioterapia, nutrición, etc.
-8. **Eventos** - Fotografía, catering, decoración, etc.
-9. **Mascotas** - Veterinaria, peluquería canina, paseos, etc.
-10. **Jardinería** - Mantenimiento de jardines, poda, paisajismo, etc.
+3. **Reparaciones** - Electrodomésticos, cerrajería, aires acondicionados, etc.
+4. **Belleza** - Peluquería, Manicure, Masajes, etc.
+5. **Salud** - Enfermería, fisioterapia, nutrición, etc.
+6. **Tecnología** - Reparación de computadoras, instalación de software, etc.
+7. **Transporte** - Mudanzas, mensajería, transporte de mascotas, etc.
+8. **Educación** - Clases particulares, tutorías, idiomas, etc.
+9. **Eventos** - Fotografía, catering, decoración, etc.
+10. **Mascotas** - Veterinaria, peluquería, paseos, etc.
 
-## 🔄 Flujo de Reservas
+## 📂 Archivos Importantes
 
-1. **Cliente** busca y selecciona un servicio
-2. **Cliente** completa el formulario de reserva (fecha, hora, dirección)
-3. La reserva se crea con estado **PENDING**
-4. **Socio** ve la reserva y puede:
-   - Confirmar → Estado cambia a **CONFIRMED**
-   - Rechazar → Estado cambia a **CANCELLED**
-5. **Socio** inicia el servicio → Estado cambia a **IN_PROGRESS**
-6. **Socio** completa el servicio → Estado cambia a **COMPLETED**
+- `database_migration.sql` - Migración completa de base de datos con datos iniciales
+- `prisma/schema.prisma` - Esquema de la base de datos
+- `.env.local` - Variables de entorno locales (no incluido en git)
+- `ARCHITECTURE.md` - Documentación de la arquitectura del proyecto
 
-## 📊 API Routes
-
-- `GET /api/services` - Listar servicios (con filtros)
-- `GET /api/services/[slug]` - Detalle de servicio
-- `GET /api/categories` - Listar categorías
-- `GET /api/bookings` - Listar reservas del usuario
-- `POST /api/bookings` - Crear nueva reserva
-- `PATCH /api/bookings/[id]` - Actualizar estado de reserva
-- `DELETE /api/bookings/[id]` - Cancelar reserva
-- `POST /api/register` - Registrar nuevo usuario
-
-## 🗄️ Modelos de Base de Datos
-
-- **User** - Usuarios (clientes, socios, admins)
-- **PartnerProfile** - Perfil extendido para socios
-- **Category** - Categorías de servicios
-- **Service** - Servicios disponibles
-- **PartnerService** - Relación entre socios y servicios que ofrecen
-- **Availability** - Disponibilidad de socios
-- **Booking** - Reservas de servicios
-
-## 🚀 Despliegue
-
-### Vercel (Recomendado)
-
-1. Subir el código a GitHub
-2. Conectar el repositorio en Vercel
-3. Configurar las variables de entorno
-4. Desplegar
-
-### Otras Plataformas
-
-El proyecto es compatible con cualquier plataforma que soporte Next.js:
-- Railway
-- Render
-- DigitalOcean
-- AWS
-- etc.
-
-## 📝 Scripts Disponibles
+## 🔧 Comandos Útiles
 
 ```bash
-npm run dev          # Iniciar servidor de desarrollo
-npm run build        # Construir para producción
-npm run start        # Iniciar servidor de producción
-npm run lint         # Ejecutar linter
-npx prisma studio    # Abrir interfaz visual de la base de datos
-npx prisma db seed   # Poblar base de datos con datos iniciales
+# Desarrollo
+npm run dev              # Iniciar servidor de desarrollo
+npm run build            # Construir para producción
+npm run start            # Iniciar servidor de producción
+
+# Base de datos
+npx prisma studio        # Abrir interfaz visual de la BD
+npx prisma migrate dev   # Crear nueva migración
+npx prisma migrate deploy # Aplicar migraciones
+npx prisma db seed       # Poblar con datos iniciales
+npx prisma generate      # Regenerar cliente de Prisma
+
+# Linting y formato
+npm run lint             # Ejecutar linter
 ```
 
-## 🎯 Próximas Mejoras
+## 🐛 Troubleshooting
 
-- [ ] Sistema de calificaciones y reseñas
-- [ ] Chat en tiempo real entre cliente y socio
-- [ ] Notificaciones push
-- [ ] Pagos integrados (Stripe, PayPal)
-- [ ] Geolocalización de socios cercanos
-- [ ] Historial de servicios
-- [ ] Sistema de cupones y descuentos
-- [ ] App móvil nativa (React Native)
+### Error de conexión a base de datos en Vercel
+
+Si ves el error `Can't reach database server`:
+
+1. Verifica que tu base de datos de Supabase esté activa (no pausada)
+2. Asegúrate de usar el puerto 6543 (Connection Pooling) en la URL
+3. Verifica que todas las variables de entorno estén configuradas en Vercel
+4. Ejecuta el archivo `database_migration.sql` en Supabase SQL Editor
+
+### Fotos no se suben
+
+1. Verifica que las credenciales de Cloudinary estén correctas
+2. Asegúrate de que las variables de entorno estén configuradas en Vercel
+3. Revisa los logs de Vercel para más detalles
+
+### Errores de TypeScript
+
+```bash
+# Regenerar cliente de Prisma
+npx prisma generate
+
+# Limpiar caché de Next.js
+rm -rf .next
+npm run dev
+```
 
 ## 📄 Licencia
 
-MIT
+Este proyecto es privado y confidencial.
 
-## 👨‍💻 Autor
+## 🤝 Soporte
 
-ServiciosApp - Plataforma de Servicios
+Para soporte, contacta al equipo de desarrollo.
