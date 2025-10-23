@@ -39,34 +39,6 @@ function ServiciosContent() {
   const [loading, setLoading] = useState(true)
   const [initialized, setInitialized] = useState(false)
 
-  // First, load categories and initialize from URL params
-  useEffect(() => {
-    const init = async () => {
-      await fetchCategories()
-
-      const urlSearch = searchParams.get('search')
-      const urlCategory = searchParams.get('category')
-
-      if (urlSearch) {
-        setSearchTerm(urlSearch)
-      }
-      if (urlCategory) {
-        setSelectedCategory(urlCategory)
-      }
-
-      setInitialized(true)
-    }
-
-    init()
-  }, [searchParams])
-
-  // Then fetch services when filters change
-  useEffect(() => {
-    if (initialized) {
-      fetchServices()
-    }
-  }, [selectedCategory, searchTerm, initialized])
-
   const fetchCategories = async () => {
     try {
       const res = await fetch('/api/categories')
@@ -93,6 +65,36 @@ function ServiciosContent() {
       setLoading(false)
     }
   }
+
+  // First, load categories and initialize from URL params
+  useEffect(() => {
+    const init = async () => {
+      await fetchCategories()
+
+      const urlSearch = searchParams.get('search')
+      const urlCategory = searchParams.get('category')
+
+      if (urlSearch) {
+        setSearchTerm(urlSearch)
+      }
+      if (urlCategory) {
+        setSelectedCategory(urlCategory)
+      }
+
+      setInitialized(true)
+    }
+
+    init()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
+
+  // Then fetch services when filters change
+  useEffect(() => {
+    if (initialized) {
+      fetchServices()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCategory, searchTerm, initialized])
 
   return (
     <div className="min-h-screen bg-gray-50">
