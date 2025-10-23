@@ -310,11 +310,11 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
         <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
           <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl overflow-hidden animate-slideUp">
             {/* Header with Progress */}
-            <div className="bg-gradient-to-r from-primary-600 to-primary-700 p-6 text-white">
+            <div className="bg-gradient-to-r from-[#FF2D55] to-[#FF6900] p-6 text-white">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-2xl font-bold">Solicitar {service.name}</h2>
-                  <p className="text-primary-100 text-sm mt-1">Paso {currentStep} de 3</p>
+                  <p className="text-orange-100 text-sm mt-1">Paso {currentStep} de 3</p>
                 </div>
                 <button
                   onClick={() => setShowRequestModal(false)}
@@ -343,8 +343,8 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
                 {currentStep === 1 && (
                   <div className="space-y-6 animate-fadeIn">
                     <div className="text-center mb-6">
-                      <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <MapPin className="text-primary-600" size={32} />
+                      <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <MapPin className="text-[#FF6900]" size={32} />
                       </div>
                       <h3 className="text-xl font-bold text-gray-900 mb-2">¿Dónde necesitas el servicio?</h3>
                       <p className="text-gray-600">Selecciona o ingresa la dirección</p>
@@ -357,8 +357,8 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
                             key={addr.id}
                             className={`flex items-start gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${
                               selectedAddressId === addr.id
-                                ? 'border-primary-600 bg-primary-50'
-                                : 'border-gray-200 hover:border-primary-300 hover:bg-gray-50'
+                                ? 'border-[#FF6900] bg-orange-50'
+                                : 'border-gray-200 hover:border-orange-300 hover:bg-gray-50'
                             }`}
                           >
                             <input
@@ -367,7 +367,7 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
                               value={addr.id}
                               checked={selectedAddressId === addr.id}
                               onChange={(e) => setSelectedAddressId(e.target.value)}
-                              className="mt-1 w-5 h-5 text-primary-600"
+                              className="mt-1 w-5 h-5 text-[#FF6900]"
                             />
                             <div className="flex-1">
                               <div className="font-semibold text-gray-900 mb-1">{addr.label}</div>
@@ -378,7 +378,7 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
                         <button
                           type="button"
                           onClick={() => router.push('/dashboard/addresses')}
-                          className="w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-primary-600 hover:border-primary-600 hover:bg-primary-50 transition font-medium flex items-center justify-center gap-2"
+                          className="w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-[#FF6900] hover:border-[#FF6900] hover:bg-orange-50 transition font-medium flex items-center justify-center gap-2"
                         >
                           <Plus size={20} />
                           Agregar nueva dirección
@@ -390,11 +390,10 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
                           <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                           <input
                             type="text"
-                            required
                             placeholder="Ej: Calle 123 #45-67, Barrio Centro, Medellín"
                             value={requestData.address}
                             onChange={(e) => setRequestData({ ...requestData, address: e.target.value })}
-                            className="w-full pl-12 pr-4 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition"
+                            className="w-full pl-12 pr-4 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FF6900] focus:border-[#FF6900] outline-none transition"
                           />
                         </div>
                         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
@@ -409,7 +408,7 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
                               <button
                                 type="button"
                                 onClick={() => router.push('/dashboard/addresses')}
-                                className="text-sm text-primary-600 hover:text-primary-700 font-semibold flex items-center gap-1"
+                                className="text-sm text-[#FF6900] hover:text-[#FF5900] font-semibold flex items-center gap-1"
                               >
                                 <Plus size={14} />
                                 Ir a mis direcciones
@@ -426,8 +425,8 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
                 {currentStep === 2 && (
                   <div className="space-y-6 animate-fadeIn">
                     <div className="text-center mb-6">
-                      <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Calendar className="text-primary-600" size={32} />
+                      <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Calendar className="text-[#FF6900]" size={32} />
                       </div>
                       <h3 className="text-xl font-bold text-gray-900 mb-2">¿Cuándo necesitas el servicio?</h3>
                       <p className="text-gray-600">Selecciona la urgencia o programa una fecha</p>
@@ -462,8 +461,8 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
                       <label
                         className={`flex items-start gap-4 p-5 border-2 rounded-xl cursor-pointer transition-all ${
                           !requestData.isUrgent
-                            ? 'border-primary-600 bg-primary-50'
-                            : 'border-gray-200 hover:border-primary-300 hover:bg-gray-50'
+                            ? 'border-[#FF6900] bg-orange-50'
+                            : 'border-gray-200 hover:border-orange-300 hover:bg-gray-50'
                         }`}
                       >
                         <input
@@ -471,7 +470,7 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
                           name="urgency"
                           checked={!requestData.isUrgent}
                           onChange={() => setRequestData({ ...requestData, isUrgent: false })}
-                          className="mt-1 w-5 h-5 text-primary-600"
+                          className="mt-1 w-5 h-5 text-[#FF6900]"
                         />
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-3">
@@ -487,11 +486,10 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
                                   <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
                                   <input
                                     type="date"
-                                    required={!requestData.isUrgent}
                                     min={new Date().toISOString().split('T')[0]}
                                     value={requestData.preferredDate}
                                     onChange={(e) => setRequestData({ ...requestData, preferredDate: e.target.value })}
-                                    className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+                                    className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6900] focus:border-[#FF6900] outline-none"
                                   />
                                 </div>
                               </div>
@@ -501,10 +499,9 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
                                   <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
                                   <input
                                     type="time"
-                                    required={!requestData.isUrgent}
                                     value={requestData.preferredTime}
                                     onChange={(e) => setRequestData({ ...requestData, preferredTime: e.target.value })}
-                                    className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+                                    className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6900] focus:border-[#FF6900] outline-none"
                                   />
                                 </div>
                               </div>
@@ -520,8 +517,8 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
                 {currentStep === 3 && (
                   <div className="space-y-6 animate-fadeIn">
                     <div className="text-center mb-6">
-                      <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <CheckCircle className="text-primary-600" size={32} />
+                      <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <CheckCircle className="text-[#FF6900]" size={32} />
                       </div>
                       <h3 className="text-xl font-bold text-gray-900 mb-2">Detalles adicionales</h3>
                       <p className="text-gray-600">Cuéntanos más sobre lo que necesitas</p>
@@ -532,7 +529,7 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
                       <h4 className="font-semibold text-gray-900 mb-3">Resumen de tu solicitud</h4>
 
                       <div className="flex items-start gap-3">
-                        <MapPin className="text-primary-600 mt-0.5" size={18} />
+                        <MapPin className="text-[#FF6900] mt-0.5" size={18} />
                         <div>
                           <p className="text-sm font-medium text-gray-700">Dirección</p>
                           <p className="text-sm text-gray-600">
@@ -544,7 +541,7 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
                       </div>
 
                       <div className="flex items-start gap-3">
-                        <Calendar className="text-primary-600 mt-0.5" size={18} />
+                        <Calendar className="text-[#FF6900] mt-0.5" size={18} />
                         <div>
                           <p className="text-sm font-medium text-gray-700">Fecha y hora</p>
                           <p className="text-sm text-gray-600">
@@ -572,7 +569,7 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
                         placeholder="Describe los detalles específicos: medidas, materiales, problemas específicos, etc."
                         value={requestData.notes}
                         onChange={(e) => setRequestData({ ...requestData, notes: e.target.value })}
-                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none resize-none"
+                        className="w-full px-4 py-3 border-2 border-orange-200 bg-orange-50 text-orange-900 rounded-xl focus:ring-2 focus:ring-[#FF6900] focus:border-[#FF6900] outline-none resize-none"
                       />
                     </div>
 
@@ -646,7 +643,7 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
                         }
                         setCurrentStep(currentStep + 1)
                       }}
-                      className="flex-1 bg-primary-600 text-white px-6 py-3 rounded-xl hover:bg-primary-700 transition font-semibold flex items-center justify-center gap-2 shadow-lg shadow-primary-600/30"
+                      className="flex-1 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white px-6 py-3 rounded-xl hover:from-[#FF1D45] hover:to-[#FF5900] transition font-semibold flex items-center justify-center gap-2 shadow-lg shadow-orange-600/30"
                     >
                       Continuar
                       <ChevronRight size={20} />
@@ -655,7 +652,7 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
                     <button
                       type="submit"
                       disabled={submitting}
-                      className="flex-1 bg-gradient-to-r from-primary-600 to-primary-700 text-white px-6 py-3 rounded-xl hover:from-primary-700 hover:to-primary-800 transition font-semibold flex items-center justify-center gap-2 shadow-lg shadow-primary-600/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex-1 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white px-6 py-3 rounded-xl hover:from-[#FF1D45] hover:to-[#FF5900] transition font-semibold flex items-center justify-center gap-2 shadow-lg shadow-orange-600/30 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {submitting ? (
                         <>
