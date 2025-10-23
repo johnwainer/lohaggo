@@ -825,7 +825,6 @@ export default function DashboardPage() {
           )}
         </main>
       </div>
-      {imageGallery.isOpen && <ImageGalleryModal photos={imageGallery.photos} initialIndex={imageGallery.initialIndex} onClose={() => setImageGallery({ isOpen: false, photos: [], initialIndex: 0 })} />}
     </div>
   )
 }
