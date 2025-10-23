@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
@@ -8,7 +8,7 @@ import { Mail, Lock, User, Phone, MapPin, Check } from 'lucide-react'
 import { CITY_OPTIONS, CityId } from '@/lib/city-context'
 import { formatCurrency } from '@/lib/utils'
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const roleParam = searchParams.get('role')
@@ -388,5 +388,13 @@ export default function RegisterPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Cargando...</div>}>
+      <RegisterForm />
+    </Suspense>
   )
 }

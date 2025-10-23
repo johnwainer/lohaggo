@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Search, Filter, X, Star } from 'lucide-react'
@@ -30,7 +30,7 @@ interface Category {
   icon: string
 }
 
-export default function ServiciosPage() {
+function ServiciosContent() {
   const searchParams = useSearchParams()
   const [services, setServices] = useState<Service[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -241,5 +241,19 @@ export default function ServiciosPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function ServiciosPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-[#FF2D55] border-t-transparent"></div>
+        </div>
+      }
+    >
+      <ServiciosContent />
+    </Suspense>
   )
 }
