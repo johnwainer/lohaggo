@@ -18,7 +18,7 @@ export default function SearchBar() {
   }
 
   return (
-    <form onSubmit={handleSearch} className="max-w-3xl mx-auto mb-16">
+    <form onSubmit={handleSearch}>
       <div className="bg-white rounded-3xl shadow-2xl p-3 flex items-center gap-3 hover:shadow-3xl transition-shadow">
         <Search className="w-6 h-6 text-gray-400 ml-4" />
         <input
