@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -73,7 +75,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error('Error fetching service requests for partner:', error)
     return NextResponse.json(
-      { error: 'Error al obtener las solicitudes' }, 
+      { error: 'Error al obtener las solicitudes' },
       { status: 500 }
     )
   }

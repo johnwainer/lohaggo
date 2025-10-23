@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { notifyNewProposal } from '@/lib/notifications/notificationService'
 
+export const dynamic = 'force-dynamic'
+
 // POST - Crear una nueva propuesta para una solicitud de servicio
 export async function POST(req: NextRequest) {
   try {
