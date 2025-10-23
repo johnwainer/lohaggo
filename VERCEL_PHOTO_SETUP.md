@@ -18,39 +18,29 @@ En el Dashboard de Cloudinary encontrarás:
 - **API Key**: Tu clave de API
 - **API Secret**: Tu secreto de API
 
-### 3. Crear Upload Preset en Cloudinary
-1. Ve a **Settings** → **Upload**
-2. Scroll hasta **Upload presets**
-3. Haz clic en **Add upload preset**
-4. Configura:
-   - **Preset name**: `service_requests`
-   - **Signing Mode**: `Unsigned` (para permitir uploads desde el cliente)
-   - **Folder**: `service-requests` (opcional)
-5. Guarda el preset
-
-### 4. Configurar variables de entorno en Vercel
+### 3. Configurar variables de entorno en Vercel
 1. Ve a tu proyecto en Vercel
 2. Ve a **Settings** → **Environment Variables**
 3. Agrega las siguientes variables:
 
 ```
-NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=tu-cloud-name
-CLOUDINARY_API_KEY=tu-api-key
-CLOUDINARY_API_SECRET=tu-api-secret
+NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=dvby4cpma
+CLOUDINARY_API_KEY=828966959482391
+CLOUDINARY_API_SECRET=PI1dBkZbVotLV7slGI2_Ow0oC3Q
 ```
 
 **Importante**: Asegúrate de que estas variables estén disponibles en todos los entornos (Production, Preview, Development)
 
-### 5. Aplicar migración de base de datos en Vercel
+### 4. Aplicar migración de base de datos en Vercel
 La migración `20251023190836_add_request_photos` ya está creada. Vercel la aplicará automáticamente en el siguiente deploy si tienes configurado el build command correctamente.
 
-Si necesitas aplicarla manualmente:
+Si necesitas aplicarla manualmente en la base de datos de producción:
 ```bash
 npx prisma migrate deploy
 ```
 
-### 6. Verificar el deploy
-1. Haz push de los cambios a tu repositorio
+### 5. Verificar el deploy
+1. Haz push de los cambios a tu repositorio (ya está hecho ✅)
 2. Vercel detectará los cambios y hará el deploy automáticamente
 3. Verifica que las variables de entorno estén configuradas
 4. Prueba subir fotos en una solicitud de servicio
@@ -63,10 +53,11 @@ npx prisma migrate deploy
 - No requiere configuración adicional
 
 ### Producción (Vercel)
-- Las fotos se suben a Cloudinary
+- Las fotos se suben a Cloudinary usando autenticación firmada
 - Las URLs son absolutas de Cloudinary
 - Se almacenan en la carpeta `service-requests`
 - El sistema detecta automáticamente si Cloudinary está configurado
+- **No requiere crear upload preset** - usa autenticación de servidor
 
 ## Estructura de la base de datos
 
@@ -88,7 +79,7 @@ model RequestPhoto {
 
 ### Backend
 - `prisma/schema.prisma` - Modelo RequestPhoto
-- `app/api/upload-photos/route.ts` - Endpoint de subida
+- `app/api/upload-photos/route.ts` - Endpoint de subida con soporte Cloudinary
 - `app/api/service-requests/route.ts` - Incluye fotos en requests
 - `app/api/service-requests/active/route.ts` - Incluye fotos
 - `app/api/proposals/route.ts` - Incluye fotos
@@ -96,6 +87,10 @@ model RequestPhoto {
 
 ### Frontend
 - `app/servicios/[slug]/page.tsx` - Formulario con paso 4 para fotos
+
+### Configuración
+- `.env.local` - Variables de entorno locales (no se sube a git)
+- `.env.example` - Ejemplo de variables de entorno
 
 ## Limitaciones
 - Máximo 5 fotos por solicitud
@@ -105,9 +100,10 @@ model RequestPhoto {
 ## Troubleshooting
 
 ### Error: "Failed to upload to Cloudinary"
-- Verifica que las variables de entorno estén correctamente configuradas
-- Asegúrate de que el upload preset `service_requests` existe y es `unsigned`
+- Verifica que las variables de entorno estén correctamente configuradas en Vercel
+- Asegúrate de que las credenciales sean correctas
 - Revisa los logs de Cloudinary para más detalles
+- Verifica que tu cuenta de Cloudinary esté activa
 
 ### Las fotos no se muestran en producción
 - Verifica que las URLs en la base de datos sean correctas
@@ -119,18 +115,33 @@ model RequestPhoto {
 - Verifica que el comando de build incluya `prisma generate`
 - Revisa los logs del build en Vercel
 
+### Error: "Module not found: crypto"
+- Este error no debería ocurrir en Vercel ya que crypto es un módulo nativo de Node.js
+- Si ocurre, verifica que estés usando Node.js 18 o superior
+
 ## Próximos pasos (opcional)
 
 ### Optimizaciones
 1. **Compresión de imágenes**: Agregar compresión antes de subir
-2. **Validación de tamaño**: Limitar el tamaño máximo de cada foto
+2. **Validación de tamaño**: Limitar el tamaño máximo de cada foto (ej: 5MB)
 3. **Transformaciones**: Usar transformaciones de Cloudinary para thumbnails
 4. **Lazy loading**: Cargar fotos bajo demanda
+5. **Progressive loading**: Mostrar versión de baja calidad mientras carga la original
 
 ### Seguridad
 1. **Validación de tipo MIME**: Verificar que sean realmente imágenes
 2. **Escaneo de malware**: Integrar servicio de escaneo
 3. **Rate limiting**: Limitar número de uploads por usuario
+4. **Watermarking**: Agregar marca de agua a las fotos
+
+## Configuración actual
+
+✅ Credenciales de Cloudinary configuradas localmente
+✅ Código actualizado con autenticación firmada
+✅ Migración de base de datos creada y aplicada
+✅ Cambios subidos a GitHub
+
+**Siguiente paso**: Configurar las variables de entorno en Vercel
 
 ## Soporte
 Si tienes problemas, revisa:
