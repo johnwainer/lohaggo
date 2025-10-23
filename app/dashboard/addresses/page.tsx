@@ -500,9 +500,9 @@ export default function AddressesPage() {
                     onChange={(e) => setFormData({ ...formData, city: e.target.value as CityId })}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent outline-none"
                   >
-                    {Object.entries(CITY_OPTIONS).map(([key, value]) => (
-                      <option key={key} value={key}>
-                        {value.name}
+                    {CITY_OPTIONS.map((city) => (
+                      <option key={city.id} value={city.id}>
+                        {city.name}
                       </option>
                     ))}
                   </select>
