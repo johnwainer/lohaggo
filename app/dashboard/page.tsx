@@ -418,6 +418,7 @@ export default function DashboardPage() {
         <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
           {activeTab === 'overview' && (
             <div className="space-y-4 sm:space-y-6">
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
                 <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border-l-4 border-primary-500 hover:shadow-xl transition">
                   <div className="flex items-center justify-between mb-3 sm:mb-4">
                     <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary-100 rounded-lg sm:rounded-xl flex items-center justify-center">
@@ -536,18 +537,18 @@ export default function DashboardPage() {
                 ) : (
                   <div className="space-y-2 sm:space-y-3">
                     {bookings.slice(0, 5).map((booking) => (
-                      <div key={booking.id} className="flex items-center gap-2 sm:gap-4 p-3 sm:p-4 rounded-lg sm:rounded-xl bg-gray-50 hover:bg-gray-100 transition">
+                      <div key={booking.id} className="flex items-start sm:items-center gap-2 sm:gap-4 p-3 sm:p-4 rounded-lg sm:rounded-xl bg-gray-50 hover:bg-gray-100 transition">
                         <div className="text-2xl sm:text-3xl flex-shrink-0">{booking.service.icon}</div>
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold text-gray-900 text-sm sm:text-base truncate">{booking.service.name}</p>
-                          <p className="text-xs sm:text-sm text-gray-600">{new Date(booking.scheduledDate).toLocaleDateString('es-ES')}</p>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <p className="text-xs sm:text-sm text-gray-600">{new Date(booking.scheduledDate).toLocaleDateString('es-ES')}</p>
+                            <span className={`text-[10px] sm:text-xs font-medium px-2 sm:px-3 py-0.5 sm:py-1 rounded-full border whitespace-nowrap ${statusColors[booking.status]}`}>
+                              {statusLabels[booking.status]}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 flex-shrink-0">
-                          <span className={`text-[10px] sm:text-xs font-medium px-2 sm:px-3 py-1 rounded-full border whitespace-nowrap ${statusColors[booking.status]}`}>
-                            {statusLabels[booking.status]}
-                          </span>
-                          <p className="font-bold text-primary-600 text-sm sm:text-base">{formatCurrency(booking.totalPrice)}</p>
-                        </div>
+                        <p className="font-bold text-primary-600 text-xs sm:text-base whitespace-nowrap flex-shrink-0">{formatCurrency(booking.totalPrice)}</p>
                       </div>
                     ))}
                   </div>
