@@ -467,8 +467,8 @@ export default function TermsPage() {
                       <strong>Email:</strong> legal@lohaggo.com
                     </p>
                     <p><strong>Soporte:</strong> soporte@lohaggo.com</p>
-                    <p><strong>Teléfono:</strong> +57 (1) 234 5678</p>
-                    <p><strong>Dirección:</strong> Colombia</p>
+                    <p><strong>Teléfono:</strong> +57 (4) 604 5678</p>
+                    <p><strong>Dirección:</strong> Medellín, Antioquia, Colombia</p>
                   </div>
                 </div>
               </div>

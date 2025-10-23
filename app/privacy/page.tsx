@@ -63,9 +63,9 @@ export default function PrivacyPage() {
               </h2>
               <div className="pl-11 space-y-3 text-gray-700">
                 <p><strong>Razón Social:</strong> LoHaggo S.A.S.</p>
-                <p><strong>Domicilio:</strong> Colombia</p>
+                <p><strong>Domicilio:</strong> Medellín, Antioquia, Colombia</p>
                 <p><strong>Correo electrónico:</strong> privacidad@lohaggo.com</p>
-                <p><strong>Teléfono:</strong> +57 (1) 234 5678</p>
+                <p><strong>Teléfono:</strong> +57 (4) 604 5678</p>
               </div>
             </div>
 
@@ -351,8 +351,8 @@ export default function PrivacyPage() {
                       <Mail className="w-4 h-4 text-[#FF2D55]" />
                       <strong>Email:</strong> privacidad@lohaggo.com
                     </p>
-                    <p><strong>Dirección:</strong> Colombia</p>
-                    <p><strong>Teléfono:</strong> +57 (1) 234 5678</p>
+                    <p><strong>Dirección:</strong> Medellín, Antioquia, Colombia</p>
+                    <p><strong>Teléfono:</strong> +57 (4) 604 5678</p>
                   </div>
                 </div>
               </div>
