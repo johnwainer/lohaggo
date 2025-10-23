@@ -1,4 +1,5 @@
 import { NextAuthOptions } from "next-auth"
+import { getServerSession } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
@@ -68,4 +69,19 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
   },
   secret: process.env.NEXTAUTH_SECRET,
+}
+
+export async function getCurrentUser() {
+  const session = await getServerSession(authOptions)
+
+  if (!session?.user?.email) {
+    return null
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { email: session.user.email },
+    include: { partnerProfile: true }
+  })
+
+  return user
 }
