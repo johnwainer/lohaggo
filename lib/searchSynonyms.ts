@@ -47,12 +47,12 @@ export const serviceSynonyms: Record<string, string[]> = {
 export function expandSearchTerms(searchTerm: string): string[] {
   const normalizedTerm = searchTerm.toLowerCase().trim()
   const expandedTerms = [normalizedTerm]
-  
+
   for (const [key, synonyms] of Object.entries(serviceSynonyms)) {
     if (normalizedTerm.includes(key) || key.includes(normalizedTerm)) {
       expandedTerms.push(key, ...synonyms)
     }
-    
+
     for (const synonym of synonyms) {
       if (normalizedTerm.includes(synonym) || synonym.includes(normalizedTerm)) {
         expandedTerms.push(key, ...synonyms)
@@ -60,33 +60,33 @@ export function expandSearchTerms(searchTerm: string): string[] {
       }
     }
   }
-  
-  return [...new Set(expandedTerms)]
+
+  return Array.from(new Set(expandedTerms))
 }
 
 export function calculateRelevanceScore(service: any, searchTerm: string): number {
   const normalizedSearch = searchTerm.toLowerCase().trim()
   let score = 0
-  
+
   const name = service.name.toLowerCase()
   const description = service.description.toLowerCase()
   const category = service.category.name.toLowerCase()
-  
+
   if (name === normalizedSearch) score += 100
   else if (name.includes(normalizedSearch)) score += 50
   else if (normalizedSearch.includes(name)) score += 40
-  
+
   if (description.includes(normalizedSearch)) score += 20
-  
+
   if (category === normalizedSearch) score += 30
   else if (category.includes(normalizedSearch)) score += 15
-  
+
   const expandedTerms = expandSearchTerms(normalizedSearch)
   for (const term of expandedTerms) {
     if (name.includes(term)) score += 10
     if (description.includes(term)) score += 5
     if (category.includes(term)) score += 8
   }
-  
+
   return score
 }

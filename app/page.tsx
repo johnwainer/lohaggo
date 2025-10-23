@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Search, Star, Shield, Zap, Clock, Users, CheckCircle, ArrowRight, Sparkles, ChevronRight } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import { formatCurrency } from '@/lib/utils'
+import SearchBar from '@/components/SearchBar'
 
 export default async function Home() {
   const categories = await prisma.category.findMany({
