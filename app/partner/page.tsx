@@ -11,6 +11,7 @@ import {
 import { formatCurrency } from '@/lib/utils'
 import Modal from '@/components/Modal'
 import ConfirmModal from '@/components/ConfirmModal'
+import ImageGalleryModal from '@/components/ImageGalleryModal'
 
 interface Booking {
   id: string
@@ -99,6 +100,15 @@ export default function PartnerDashboard() {
   const [proposalPrice, setProposalPrice] = useState('')
   const [proposalNotes, setProposalNotes] = useState('')
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
+  const [imageGallery, setImageGallery] = useState<{
+    isOpen: boolean
+    photos: Array<{ id: string; url: string; order: number }>
+    initialIndex: number
+  }>({
+    isOpen: false,
+    photos: [],
+    initialIndex: 0
+  })
 
   const [modal, setModal] = useState<{
     isOpen: boolean
@@ -359,6 +369,14 @@ export default function PartnerDashboard() {
         type={confirmModal.type}
         confirmText={confirmModal.type === 'danger' ? 'Sí, cancelar' : 'Sí, actualizar'}
       />
+
+      {imageGallery.isOpen && (
+        <ImageGalleryModal
+          photos={imageGallery.photos}
+          initialIndex={imageGallery.initialIndex}
+          onClose={() => setImageGallery({ isOpen: false, photos: [], initialIndex: 0 })}
+        />
+      )}
 
       {/* Main Content */}
       <div>
@@ -821,13 +839,13 @@ export default function PartnerDashboard() {
                           <div className="mb-4">
                             <h4 className="font-semibold mb-3 text-sm text-gray-700">Fotos adjuntas:</h4>
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                              {request.photos.sort((a, b) => a.order - b.order).map((photo) => (
+                              {request.photos.sort((a, b) => a.order - b.order).map((photo, index) => (
                                 <div key={photo.id} className="relative group">
                                   <img
                                     src={photo.url}
                                     alt="Foto de la solicitud"
                                     className="w-full h-32 object-cover rounded-lg border-2 border-gray-200 hover:border-primary-500 transition cursor-pointer"
-                                    onClick={() => window.open(photo.url, '_blank')}
+                                    onClick={() => setImageGallery({ isOpen: true, photos: request.photos || [], initialIndex: index })}
                                   />
                                   <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition rounded-lg flex items-center justify-center">
                                     <span className="text-white opacity-0 group-hover:opacity-100 transition text-sm font-medium">
@@ -964,13 +982,13 @@ export default function PartnerDashboard() {
                   <div className="mt-4">
                     <p className="text-sm font-semibold text-gray-700 mb-2">Fotos adjuntas:</p>
                     <div className="grid grid-cols-3 gap-2">
-                      {selectedRequest.photos.sort((a, b) => a.order - b.order).map((photo) => (
+                      {selectedRequest.photos.sort((a, b) => a.order - b.order).map((photo, index) => (
                         <div key={photo.id} className="relative group">
                           <img
                             src={photo.url}
                             alt="Foto de la solicitud"
                             className="w-full h-24 object-cover rounded-lg border-2 border-gray-200 hover:border-primary-500 transition cursor-pointer"
-                            onClick={() => window.open(photo.url, '_blank')}
+                            onClick={() => setImageGallery({ isOpen: true, photos: selectedRequest.photos || [], initialIndex: index })}
                           />
                           <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition rounded-lg flex items-center justify-center">
                             <span className="text-white opacity-0 group-hover:opacity-100 transition text-xs font-medium">
