@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma'
 interface ServiceRequestWithProposals {
   id: string
   address: string
-  notes?: string
+  notes: string | null
   city: string
   status: string
   expiresAt: string
@@ -104,7 +104,7 @@ export async function GET() {
     })
 
     // Filtrar solo las solicitudes donde el partner ofrece el servicio en la ciudad correspondiente
-    const availableRequests = activeRequests.filter((request: ServiceRequestWithProposals) => {
+    const availableRequests = activeRequests.filter((request) => {
       return partnerProfile.services.some(ps =>
         ps.serviceId === request.serviceId && ps.city === request.city
       )
