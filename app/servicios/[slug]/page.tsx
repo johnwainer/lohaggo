@@ -537,25 +537,25 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
 
                 {/* Step 3: Detalles y Confirmación */}
                 {currentStep === 3 && (
-                  <div className="space-y-4 md:space-y-6 animate-fadeIn">
-                    <div className="text-center mb-4 md:mb-6">
-                      <div className="w-14 h-14 md:w-16 md:h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4">
-                        <CheckCircle className="text-[#FF6900]" size={28} />
+                  <div className="space-y-3 md:space-y-6 animate-fadeIn">
+                    <div className="text-center mb-3 md:mb-6">
+                      <div className="w-12 h-12 md:w-16 md:h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-2 md:mb-4">
+                        <CheckCircle className="text-[#FF6900]" size={24} />
                       </div>
-                      <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-2">Detalles adicionales</h3>
-                      <p className="text-sm md:text-base text-gray-600">Cuéntanos más sobre lo que necesitas</p>
+                      <h3 className="text-base md:text-xl font-bold text-gray-900 mb-1 md:mb-2">Detalles adicionales</h3>
+                      <p className="text-xs md:text-base text-gray-600">Cuéntanos más sobre lo que necesitas</p>
                     </div>
 
                     {/* Resumen */}
-                    <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 md:p-5 space-y-3">
-                      <h4 className="font-semibold text-sm md:text-base text-gray-900 mb-3">Resumen de tu solicitud</h4>
+                    <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-3 md:p-5 space-y-2 md:space-y-3">
+                      <h4 className="font-semibold text-sm md:text-base text-gray-900 mb-2 md:mb-3">Resumen de tu solicitud</h4>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div className="flex items-start gap-2 md:gap-3">
-                          <MapPin className="text-[#FF6900] mt-0.5 flex-shrink-0" size={16} />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-3">
+                        <div className="flex items-start gap-2">
+                          <MapPin className="text-[#FF6900] mt-0.5 flex-shrink-0" size={14} />
                           <div className="min-w-0">
-                            <p className="text-xs md:text-sm font-medium text-gray-700">Dirección</p>
-                            <p className="text-xs md:text-sm text-gray-600 break-words">
+                            <p className="text-xs font-medium text-gray-700">Dirección</p>
+                            <p className="text-xs text-gray-600 break-words">
                               {selectedAddressId
                                 ? getAddressString(addresses.find(a => a.id === selectedAddressId)!)
                                 : requestData.address || 'No especificada'}
@@ -563,11 +563,11 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
                           </div>
                         </div>
 
-                        <div className="flex items-start gap-2 md:gap-3">
-                          <Calendar className="text-[#FF6900] mt-0.5 flex-shrink-0" size={16} />
+                        <div className="flex items-start gap-2">
+                          <Calendar className="text-[#FF6900] mt-0.5 flex-shrink-0" size={14} />
                           <div className="min-w-0">
-                            <p className="text-xs md:text-sm font-medium text-gray-700">Fecha y hora</p>
-                            <p className="text-xs md:text-sm text-gray-600">
+                            <p className="text-xs font-medium text-gray-700">Fecha y hora</p>
+                            <p className="text-xs text-gray-600">
                               {requestData.isUrgent ? (
                                 <span className="text-red-600 font-medium">⚡ Lo más pronto posible</span>
                               ) : (
@@ -587,42 +587,42 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
 
                     {/* Notas */}
                     <div>
-                      <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">
+                      <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5 md:mb-2">
                         Detalles adicionales (opcional)
                       </label>
                       <textarea
-                        rows={4}
+                        rows={3}
                         placeholder="Describe los detalles específicos: medidas, materiales, problemas específicos, etc."
                         value={requestData.notes}
                         onChange={(e) => setRequestData({ ...requestData, notes: e.target.value })}
-                        className="w-full px-3 md:px-4 py-2.5 md:py-3 border-2 border-orange-200 bg-orange-50 text-orange-900 rounded-xl focus:ring-2 focus:ring-[#FF6900] focus:border-[#FF6900] outline-none resize-none text-sm md:text-base"
+                        className="w-full px-3 md:px-4 py-2 md:py-3 border-2 border-orange-200 bg-orange-50 text-orange-900 rounded-xl focus:ring-2 focus:ring-[#FF6900] focus:border-[#FF6900] outline-none resize-none text-xs md:text-base"
                       />
                     </div>
 
                     {/* Info Box */}
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 md:p-5">
-                      <div className="flex flex-col md:flex-row items-start gap-2 md:gap-3">
-                        <div className="w-7 h-7 md:w-8 md:h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
-                          <CheckCircle className="text-white" size={16} />
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-3 md:p-5">
+                      <div className="flex items-start gap-2 md:gap-3">
+                        <div className="w-6 h-6 md:w-8 md:h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                          <CheckCircle className="text-white" size={14} />
                         </div>
                         <div>
-                          <h4 className="font-semibold text-sm md:text-base text-blue-900 mb-2">¿Cómo funciona?</h4>
-                          <ul className="text-blue-800 text-xs md:text-sm space-y-1.5">
-                            <li className="flex items-start gap-2">
-                              <span className="text-blue-600 mt-0.5">✓</span>
-                              <span className="text-sm md:text-base">Tu solicitud llega a todos los profesionales disponibles</span>
+                          <h4 className="font-semibold text-xs md:text-base text-blue-900 mb-1.5 md:mb-2">¿Cómo funciona?</h4>
+                          <ul className="text-blue-800 text-xs md:text-sm space-y-1">
+                            <li className="flex items-start gap-1.5">
+                              <span className="text-blue-600 mt-0.5 text-xs">✓</span>
+                              <span>Tu solicitud llega a todos los profesionales disponibles</span>
                             </li>
-                            <li className="flex items-start gap-2">
-                              <span className="text-blue-600 mt-0.5">✓</span>
-                              <span className="text-sm md:text-base">Recibirás propuestas con diferentes precios</span>
+                            <li className="flex items-start gap-1.5">
+                              <span className="text-blue-600 mt-0.5 text-xs">✓</span>
+                              <span>Recibirás propuestas con diferentes precios</span>
                             </li>
-                            <li className="flex items-start gap-2">
-                              <span className="text-blue-600 mt-0.5">✓</span>
-                              <span className="text-sm md:text-base">Elige la propuesta que más te convenga</span>
+                            <li className="flex items-start gap-1.5">
+                              <span className="text-blue-600 mt-0.5 text-xs">✓</span>
+                              <span>Elige la propuesta que más te convenga</span>
                             </li>
-                            <li className="flex items-start gap-2">
-                              <span className="text-blue-600 mt-0.5">✓</span>
-                              <span className="text-sm md:text-base">Coordina los detalles finales con el profesional</span>
+                            <li className="flex items-start gap-1.5">
+                              <span className="text-blue-600 mt-0.5 text-xs">✓</span>
+                              <span>Coordina los detalles finales con el profesional</span>
                             </li>
                           </ul>
                         </div>
