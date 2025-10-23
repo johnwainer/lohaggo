@@ -72,8 +72,10 @@ export default function AdminDashboard() {
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar activeSection={activeSection} onSectionChange={setActiveSection} />
-      <main className="flex-1 overflow-auto ml-64">
-        {renderSection()}
+      <main className="flex-1 overflow-auto ml-0 lg:ml-64">
+        <div className="p-3 sm:p-6 lg:p-8">
+          {renderSection()}
+        </div>
       </main>
     </div>
   )

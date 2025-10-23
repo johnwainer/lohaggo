@@ -382,17 +382,17 @@ export default function PartnerDashboard() {
       <div>
         {/* Top Bar */}
         <header className="bg-white shadow-sm sticky top-0 z-40">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">
+              <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+                <div className="min-w-0 flex-1">
+                  <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">
                     {activeTab === 'overview' && 'Resumen General'}
                     {activeTab === 'bookings' && 'Mis Reservas'}
                     {activeTab === 'my-requests' && 'Solicitudes para Mí'}
                     {activeTab === 'all-requests' && 'Todas las Solicitudes'}
                   </h1>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-xs sm:text-sm text-gray-600 truncate hidden sm:block">
                     {activeTab === 'overview' && 'Vista general de tu actividad'}
                     {activeTab === 'bookings' && 'Gestiona tus reservas confirmadas'}
                     {activeTab === 'my-requests' && 'Solicitudes que coinciden con tus servicios'}
@@ -404,32 +404,32 @@ export default function PartnerDashboard() {
           </div>
 
           <div className="border-t border-gray-200 bg-gray-50">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <nav className="flex gap-1 overflow-x-auto">
+            <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
+              <nav className="flex gap-0.5 sm:gap-1 overflow-x-auto scrollbar-hide">
                 <button
                   onClick={() => setActiveTab('overview')}
-                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${
+                  className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition whitespace-nowrap ${
                     activeTab === 'overview'
                       ? 'border-primary-600 text-primary-600'
                       : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                   }`}
                 >
-                  <Home size={18} />
-                  <span>Resumen</span>
+                  <Home size={16} className="sm:w-[18px] sm:h-[18px]" />
+                  <span className="hidden sm:inline">Resumen</span>
                 </button>
 
                 <button
                   onClick={() => setActiveTab('bookings')}
-                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${
+                  className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition whitespace-nowrap ${
                     activeTab === 'bookings'
                       ? 'border-primary-600 text-primary-600'
                       : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                   }`}
                 >
-                  <Package size={18} />
-                  <span>Mis Reservas</span>
+                  <Package size={16} className="sm:w-[18px] sm:h-[18px]" />
+                  <span className="hidden sm:inline">Mis Reservas</span>
                   {bookings.length > 0 && (
-                    <span className="bg-primary-600 text-white text-xs px-2 py-0.5 rounded-full">
+                    <span className="bg-primary-600 text-white text-[10px] px-2 py-0.5 rounded-full ml-2">
                       {bookings.length}
                     </span>
                   )}
@@ -437,16 +437,16 @@ export default function PartnerDashboard() {
 
                 <button
                   onClick={() => setActiveTab('my-requests')}
-                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${
+                  className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition whitespace-nowrap ${
                     activeTab === 'my-requests'
                       ? 'border-primary-600 text-primary-600'
                       : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                   }`}
                 >
-                  <Bell size={18} />
-                  <span>Para Mí</span>
+                  <Bell size={16} className="sm:w-[18px] sm:h-[18px]" />
+                  <span className="hidden sm:inline">Para Mí</span>
                   {serviceRequests.length > 0 && (
-                    <span className="bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full">
+                    <span className="bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded-full ml-2">
                       {serviceRequests.length}
                     </span>
                   )}
@@ -454,30 +454,30 @@ export default function PartnerDashboard() {
 
                 <button
                   onClick={() => setActiveTab('all-requests')}
-                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${
+                  className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition whitespace-nowrap ${
                     activeTab === 'all-requests'
                       ? 'border-primary-600 text-primary-600'
                       : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                   }`}
                 >
-                  <Activity size={18} />
-                  <span>Todas</span>
+                  <Activity size={16} className="sm:w-[18px] sm:h-[18px]" />
+                  <span className="hidden sm:inline">Todas</span>
                 </button>
 
                 <button
                   onClick={() => router.push('/partner/notifications')}
-                  className="flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
+                  className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
                 >
-                  <Bell size={18} />
-                  <span>Notificaciones</span>
+                  <Bell size={16} className="sm:w-[18px] sm:h-[18px]" />
+                  <span className="hidden sm:inline">Notificaciones</span>
                 </button>
 
                 <button
                   onClick={() => router.push('/partner/services')}
-                  className="flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
+                  className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
                 >
-                  <Settings size={18} />
-                  <span>Mis Servicios</span>
+                  <Settings size={16} className="sm:w-[18px] sm:h-[18px]" />
+                  <span className="hidden sm:inline">Mis Servicios</span>
                 </button>
               </nav>
             </div>
@@ -485,95 +485,95 @@ export default function PartnerDashboard() {
         </header>
 
         {/* Content Area */}
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
           {/* Overview Tab */}
           {activeTab === 'overview' && (
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               {/* Stats Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-white rounded-2xl shadow-lg p-6 border-l-4 border-primary-500 hover:shadow-xl transition">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center">
-                      <Package className="text-primary-600" size={24} />
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+                <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border-l-4 border-primary-500 hover:shadow-xl transition">
+                  <div className="flex items-center justify-between mb-3 sm:mb-4">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary-100 rounded-lg sm:rounded-xl flex items-center justify-center">
+                      <Package className="text-primary-600" size={20} />
                     </div>
-                    <TrendingUp className="text-green-500" size={20} />
+                    <TrendingUp className="text-green-500" size={18} />
                   </div>
-                  <p className="text-gray-600 text-sm font-medium mb-1">Total Reservas</p>
-                  <p className="text-3xl font-bold text-gray-900">{bookings.length}</p>
+                  <p className="text-gray-600 text-xs sm:text-sm font-medium mb-1">Total Reservas</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-gray-900">{bookings.length}</p>
                 </div>
 
-                <div className="bg-white rounded-2xl shadow-lg p-6 border-l-4 border-yellow-500 hover:shadow-xl transition">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
-                      <Clock className="text-yellow-600" size={24} />
+                <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border-l-4 border-yellow-500 hover:shadow-xl transition">
+                  <div className="flex items-center justify-between mb-3 sm:mb-4">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-yellow-100 rounded-lg sm:rounded-xl flex items-center justify-center">
+                      <Clock className="text-yellow-600" size={20} />
                     </div>
                   </div>
-                  <p className="text-gray-600 text-sm font-medium mb-1">Pendientes</p>
-                  <p className="text-3xl font-bold text-gray-900">{pendingCount}</p>
+                  <p className="text-gray-600 text-xs sm:text-sm font-medium mb-1">Pendientes</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-gray-900">{pendingCount}</p>
                 </div>
 
-                <div className="bg-white rounded-2xl shadow-lg p-6 border-l-4 border-purple-500 hover:shadow-xl transition">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                      <Activity className="text-purple-600" size={24} />
+                <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border-l-4 border-purple-500 hover:shadow-xl transition">
+                  <div className="flex items-center justify-between mb-3 sm:mb-4">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-100 rounded-lg sm:rounded-xl flex items-center justify-center">
+                      <Activity className="text-purple-600" size={20} />
                     </div>
                   </div>
-                  <p className="text-gray-600 text-sm font-medium mb-1">En Progreso</p>
-                  <p className="text-3xl font-bold text-gray-900">{inProgressCount}</p>
+                  <p className="text-gray-600 text-xs sm:text-sm font-medium mb-1">En Progreso</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-gray-900">{inProgressCount}</p>
                 </div>
 
-                <div className="bg-white rounded-2xl shadow-lg p-6 border-l-4 border-green-500 hover:shadow-xl transition">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                      <DollarSign className="text-green-600" size={24} />
+                <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border-l-4 border-green-500 hover:shadow-xl transition">
+                  <div className="flex items-center justify-between mb-3 sm:mb-4">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-lg sm:rounded-xl flex items-center justify-center">
+                      <DollarSign className="text-green-600" size={20} />
                     </div>
                   </div>
-                  <p className="text-gray-600 text-sm font-medium mb-1">Ganancias</p>
-                  <p className="text-3xl font-bold text-gray-900">{formatCurrency(partnerTotalEarnings)}</p>
+                  <p className="text-gray-600 text-xs sm:text-sm font-medium mb-1">Ganancias</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-gray-900">{formatCurrency(partnerTotalEarnings)}</p>
                 </div>
               </div>
 
               {/* Quick Actions */}
-              <div className="bg-white rounded-2xl shadow-lg p-6">
-                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                  <Activity className="text-primary-600" size={20} />
+              <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6">
+                <h3 className="text-base sm:text-lg font-bold mb-3 sm:mb-4 flex items-center gap-2">
+                  <Activity className="text-primary-600" size={18} />
                   Acciones Rápidas
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                   <button
                     onClick={() => setActiveTab('bookings')}
-                    className="flex items-center gap-3 p-4 rounded-xl border-2 border-gray-200 hover:border-primary-500 hover:bg-primary-50 transition group"
+                    className="flex items-center gap-3 p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 border-gray-200 hover:border-primary-500 hover:bg-primary-50 transition group"
                   >
-                    <Package className="text-primary-600 group-hover:scale-110 transition" size={24} />
-                    <div className="text-left">
-                      <p className="font-semibold text-gray-900">Ver Reservas</p>
-                      <p className="text-sm text-gray-600">{bookings.length} activas</p>
+                    <Package className="text-primary-600 group-hover:scale-110 transition flex-shrink-0" size={20} />
+                    <div className="text-left min-w-0 flex-1">
+                      <p className="font-semibold text-gray-900 text-sm sm:text-base">Ver Reservas</p>
+                      <p className="text-xs sm:text-sm text-gray-600">{bookings.length} activas</p>
                     </div>
-                    <ChevronRight className="ml-auto text-gray-400 group-hover:text-primary-600" size={20} />
+                    <ChevronRight className="ml-auto text-gray-400 group-hover:text-primary-600 hidden sm:inline" size={18} />
                   </button>
 
                   <button
                     onClick={() => setActiveTab('my-requests')}
-                    className="flex items-center gap-3 p-4 rounded-xl border-2 border-gray-200 hover:border-orange-500 hover:bg-orange-50 transition group"
+                    className="flex items-center gap-3 p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 border-gray-200 hover:border-orange-500 hover:bg-orange-50 transition group"
                   >
-                    <Bell className="text-orange-600 group-hover:scale-110 transition" size={24} />
-                    <div className="text-left">
-                      <p className="font-semibold text-gray-900">Solicitudes</p>
-                      <p className="text-sm text-gray-600">{serviceRequests.length} nuevas</p>
+                    <Bell className="text-orange-600 group-hover:scale-110 transition flex-shrink-0" size={20} />
+                    <div className="text-left min-w-0 flex-1">
+                      <p className="font-semibold text-gray-900 text-sm sm:text-base">Solicitudes</p>
+                      <p className="text-xs sm:text-sm text-gray-600">{serviceRequests.length} nuevas</p>
                     </div>
-                    <ChevronRight className="ml-auto text-gray-400 group-hover:text-orange-600" size={20} />
+                    <ChevronRight className="ml-auto text-gray-400 group-hover:text-orange-600 hidden sm:inline" size={18} />
                   </button>
 
                   <button
                     onClick={() => router.push('/partner/services')}
-                    className="flex items-center gap-3 p-4 rounded-xl border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition group"
+                    className="flex items-center gap-3 p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition group"
                   >
-                    <Settings className="text-blue-600 group-hover:scale-110 transition" size={24} />
-                    <div className="text-left">
-                      <p className="font-semibold text-gray-900">Mis Servicios</p>
-                      <p className="text-sm text-gray-600">Gestionar</p>
+                    <Settings className="text-blue-600 group-hover:scale-110 transition flex-shrink-0" size={20} />
+                    <div className="text-left min-w-0 flex-1">
+                      <p className="font-semibold text-gray-900 text-sm sm:text-base">Mis Servicios</p>
+                      <p className="text-xs sm:text-sm text-gray-600">Gestionar</p>
                     </div>
-                    <ChevronRight className="ml-auto text-gray-400 group-hover:text-blue-600" size={20} />
+                    <ChevronRight className="ml-auto text-gray-400 group-hover:text-blue-600 hidden sm:inline" size={18} />
                   </button>
                 </div>
               </div>
