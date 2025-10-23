@@ -64,7 +64,8 @@ export async function GET(req: NextRequest) {
           where: {
             partnerId: partnerProfile.id
           }
-        }
+        },
+        photos: true
       },
       orderBy: {
         createdAt: 'desc'

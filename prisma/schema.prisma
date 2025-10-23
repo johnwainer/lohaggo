@@ -184,6 +184,7 @@ model ServiceRequest {
   updatedAt        DateTime             @updatedAt
 
   proposals   Proposal[]
+  photos      RequestPhoto[]
 }
 
 model Proposal {
@@ -235,4 +236,16 @@ model Address {
 
   @@index([userId, isActive])
   @@index([userId, isPrimary])
+}
+
+model RequestPhoto {
+  id               String         @id @default(cuid())
+  serviceRequestId String
+  serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+  url              String
+  publicId         String?
+  order            Int            @default(0)
+  createdAt        DateTime       @default(now())
+
+  @@index([serviceRequestId])
 }

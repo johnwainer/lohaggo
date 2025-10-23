@@ -8,78 +8,52 @@ Si ya ejecutaste `full_migration.sql` y tienes datos en la base de datos, solo n
 2. Selecciona tu proyecto
 3. En el menú lateral, haz clic en **SQL Editor**
 4. Copia TODO el contenido del archivo `add_missing_columns.sql`
-5. Oégplo en el SQL Editor
-6. Haz clic en **Run** (o preciinaóCmd/Ctrl + Enter)
-
-Luego continúa con el **Paso 3** más abajo.
-
----
-
-## Opción 2: Si NO has ejecutado ninguna migración (Empezar desde cero)
-
-### Paso n 1: Si ya ejecutaste full_migration.sql (RECOMENDADO)
-
-Si ya ejecutaste `full_migration.sql` y tienes datos en la base de datos, solo necesitas agregar las columnas faltantes:
-
-1. Ve a https://supabase.com/dashboard
-2. Selecciona tu proyecto
-3.# En el menú lateral, haz clic en **SQL Editor**
-4. Copia TODO el contenido del archivo `add_missing_columns.sql`
-5. Pégalo en el SQL Editor (actualizado)
+5. Pégalo en el SQL Editor
 6. Haz clic en **Run** (o presiona Cmd/Ctrl + Enter)
 
 Luego continúa con el **Paso 3** más abajo.
-#
+
 ---
 
 ## Opción 2: Si NO has ejecutado ninguna migración (Empezar desde cero)
 
----
-
-### Paso31: Accede al SQL Editor de Supabase
+### Paso 1: Accede al SQL Editor de Supabase
 
 1. Ve a https://supabase.com/dashboard
 2. Selecciona tu proyecto
-1.Cpis2:DO uctndlcv`lili_udm)lte.q`
-2.gPélSlo ioeQLEi
-.nH(zaClEn)**R** rCm /Cts+Et
+3. En el menú lateral, haz clic en **SQL Editor**
 
--1.
+### Paso 2: Ejecuta el SQL de migración
 
-## Pmúaa4: RalVce
+1. Copia TODO el contenido del archivo `full_migration.sql` (actualizado)
+2. Pégalo en el SQL Editor
+3. Haz clic en **Run** (o presiona Cmd/Ctrl + Enter)
 
-Deuésju-gosyled:
+### Paso 3: Verifica que las tablas se crearon
 
-1.Vhtps:v.c/dhboa
-2.Sonuoyo**oho**
-3.oVcloi**Dlploy)s**
-4.Clcknlopuntoútmdpmt
-5.Cick**Rdoy**
+1. En el menú lateral, haz clic en **Table Editor**
+2. Deberías ver las tablas creadas
 
 ---
 
-##yV e faracyós
+## Paso 3: Ejecuta el seed (datos iniciales)
 
-Dcspoédjtaliginedloy:
-1.iVToevhttss://lohqg.v./
-.Lapágn dbía  r corme
-3.Párrcc* oCdters
+Copia y ejecuta este SQL en el SQL Editor para agregar categorías y servicios:
+
+1. Copia TODO el contenido del archivo `seed_complete.sql`
+2. Pégalo en el SQL Editor
+3. Haz clic en **Run** (o presiona Cmd/Ctrl + Enter)
 
 ---
 
-##denileprub(dspuéded
+## Paso 4: Redeploy en Vercel
 
-**Admin:**
--Eml:`dm@ss.`
--Psswd:`pwod123`
+Después de ejecutar las migraciones y el seed:
 
-**Cln:**
--Em:`cli@t.cm`
-cPawr:`wo123`
-
-**S:**
--Eal:`soc@tt.o` Do eocje2s rocac3elet.so101. Ve a https://vercel.com/dashboard
-- Po cwor :s`p ow123`
+1. Ve a https://vercel.com/dashboard
+2. Selecciona tu proyecto **lohaggo**
+3. Ve a **Deployments**
+4. Click en los 3 puntos del último deployment
 5. Click en **Redeploy**
 
 ---
