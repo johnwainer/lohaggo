@@ -1,56 +1,108 @@
 # Migración Manual de Base de Datos en Supabase
 
-## Paso 1: Accede al SQL Editor de Supabase
+## Opción 1: Si ya ejecutaste full_migration.sql (RECOMENDADO)
+
+Si ya ejecutaste `full_migration.sql` y tienes datos en la base de datos, solo necesitas agregar las columnas faltantes:
 
 1. Ve a https://supabase.com/dashboard
 2. Selecciona tu proyecto
 3. En el menú lateral, haz clic en **SQL Editor**
+4. Copia TODO el contenido del archivo `add_missing_columns.sql`
+5. Oégplo en el SQL Editor
+6. Haz clic en **Run** (o preciinaóCmd/Ctrl + Enter)
 
-## Paso 2: Ejecuta el SQL de migración
+Luego continúa con el **Paso 3** más abajo.
 
-1. Copia TODO el contenido del archivo `full_migration.sql`
-2. Pégalo en el SQL Editor
-3. Haz clic en **Run** (o presiona Cmd/Ctrl + Enter)
+---
 
-## Paso 3: Verifica que las tablas se crearon
+## Opción 2: Si NO has ejecutado ninguna migración (Empezar desde cero)
 
-1. En el menú lateral, haz clic en **Table Editor**
-2. Deberías ver las tablas creadas
+### Paso n 1: Si ya ejecutaste full_migration.sql (RECOMENDADO)
 
-## Paso 4: Ejecuta el seed (datos iniciales)
+Si ya ejecutaste `full_migration.sql` y tienes datos en la base de datos, solo necesitas agregar las columnas faltantes:
 
-Copia y ejecuta este SQL en el SQL Editor para agregar categorías y servicios:
+1. Ve a https://supabase.com/dashboard
+2. Selecciona tu proyecto
+3.# En el menú lateral, haz clic en **SQL Editor**
+4. Copia TODO el contenido del archivo `add_missing_columns.sql`
+5. Pégalo en el SQL Editor (actualizado)
+6. Haz clic en **Run** (o presiona Cmd/Ctrl + Enter)
 
-```sql
--- Insertar categorías
-INSERT INTO "Category" (id, name, slug, icon, description, "order") VALUES
-('1', 'Hogar', 'hogar', 'home', 'Servicios para el hogar', 1),
-('2', 'Belleza', 'belleza', 'sparkles', 'Servicios de belleza y cuidado personal', 2),
-('3', 'Tecnología', 'tecnologia', 'laptop', 'Servicios de tecnología y reparación', 3),
-('4', 'Transporte', 'transporte', 'car', 'Servicios de transporte y mudanzas', 4),
-('5', 'Eventos', 'eventos', 'calendar', 'Servicios para eventos y celebraciones', 5),
-('6', 'Salud', 'salud', 'heart', 'Servicios de salud y bienestar', 6);
+Luego continúa con el **Paso 3** más abajo.
+#
+---
 
--- Insertar servicios
-INSERT INTO "Service" (id, name, slug, description, "categoryId", "basePrice", duration, popular, "imageUrl") VALUES
-('s1', 'Limpieza del Hogar', 'limpieza-hogar', 'Servicio profesional de limpieza para tu hogar', '1', 50000, 180, true, '/images/services/limpieza.jpg'),
-('s2', 'Plomería', 'plomeria', 'Reparación e instalación de sistemas de agua', '1', 40000, 120, true, '/images/services/plomeria.jpg'),
-('s3', 'Electricidad', 'electricidad', 'Instalación y reparación eléctrica', '1', 45000, 120, false, '/images/services/electricidad.jpg'),
-('s4', 'Jardinería', 'jardineria', 'Mantenimiento y diseño de jardines', '1', 35000, 180, false, '/images/services/jardineria.jpg'),
-('s5', 'Peluquería a Domicilio', 'peluqueria', 'Corte y peinado profesional en tu hogar', '2', 30000, 90, true, '/images/services/peluqueria.jpg'),
-('s6', 'Manicure y Pedicure', 'manicure-pedicure', 'Cuidado profesional de uñas', '2', 25000, 90, false, '/images/services/manicure.jpg'),
-('s7', 'Masajes', 'masajes', 'Masajes terapéuticos y relajantes', '2', 50000, 60, true, '/images/services/masajes.jpg'),
-('s8', 'Reparación de Computadores', 'reparacion-computadores', 'Diagnóstico y reparación de PC y laptops', '3', 40000, 120, true, '/images/services/computadores.jpg'),
-('s9', 'Instalación de Software', 'instalacion-software', 'Instalación y configuración de programas', '3', 30000, 60, false, '/images/services/software.jpg'),
-('s10', 'Mudanzas', 'mudanzas', 'Servicio completo de mudanzas', '4', 150000, 240, true, '/images/services/mudanzas.jpg'),
-('s11', 'Transporte de Carga', 'transporte-carga', 'Transporte de mercancía y objetos', '4', 80000, 120, false, '/images/services/carga.jpg'),
-('s12', 'Catering', 'catering', 'Servicio de comida para eventos', '5', 200000, 240, true, '/images/services/catering.jpg'),
-('s13', 'Fotografía', 'fotografia', 'Fotografía profesional para eventos', '5', 150000, 180, true, '/images/services/fotografia.jpg'),
-('s14', 'DJ y Sonido', 'dj-sonido', 'Música y sonido para eventos', '5', 180000, 240, false, '/images/services/dj.jpg'),
-('s15', 'Enfermería a Domicilio', 'enfermeria', 'Cuidados de enfermería en casa', '6', 60000, 120, false, '/images/services/enfermeria.jpg'),
-('s16', 'Fisioterapia', 'fisioterapia', 'Terapia física y rehabilitación', '6', 55000, 60, true, '/images/services/fisioterapia.jpg');
-```
+## Opción 2: Si NO has ejecutado ninguna migración (Empezar desde cero)
+
+---
+
+### Paso31: Accede al SQL Editor de Supabase
+
+1. Ve a https://supabase.com/dashboard
+2. Selecciona tu proyecto
+1.Cpis2:DO uctndlcv`lili_udm)lte.q`
+2.gPélSlo ioeQLEi
+.nH(zaClEn)**R** rCm /Cts+Et
+
+-1.
+
+## Pmúaa4: RalVce
+
+Deuésju-gosyled:
+
+1.Vhtps:v.c/dhboa
+2.Sonuoyo**oho**
+3.oVcloi**Dlploy)s**
+4.Clcknlopuntoútmdpmt
+5.Cick**Rdoy**
+
+---
+
+##yV e faracyós
+
+Dcspoédjtaliginedloy:
+1.iVToevhttss://lohqg.v./
+.Lapágn dbía  r corme
+3.Párrcc* oCdters
+
+---
+
+##denileprub(dspuéded
+
+**Admin:**
+-Eml:`dm@ss.`
+-Psswd:`pwod123`
+
+**Cln:**
+-Em:`cli@t.cm`
+cPawr:`wo123`
+
+**S:**
+-Eal:`soc@tt.o` Do eocje2s rocac3elet.so101. Ve a https://vercel.com/dashboard
+- Po cwor :s`p ow123`
+5. Click en **Redeploy**
+
+---
 
 ## Verificación
 
-Después de ejecutar las migraciones, ve a https://lohaggo.vercel.app/ y la página debería cargar correctamente.
+Después de ejecutar las migraciones y el redeploy:
+1. Ve a https://lohaggo.vercel.app/
+2. La página debería cargar correctamente
+3. Podrás registrar usuarios sin errores
+
+---
+
+## Credenciales de prueba (después del seed)
+
+**Admin:**
+- Email: `admin@servicios.com`
+- Password: `password123`
+
+**Cliente:**
+- Email: `cliente@test.com`
+- Password: `password123`
+
+**Socio:**
+- Email: `socio1@test.com` (o socio2, socio3, etc. hasta socio10)
+- Password: `password123`

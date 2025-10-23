@@ -12,6 +12,7 @@ CREATE TABLE "User" (
     "password" TEXT NOT NULL,
     "phone" TEXT,
     "role" "UserRole" NOT NULL DEFAULT 'CLIENT',
+    "pushSubscription" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -26,6 +27,7 @@ CREATE TABLE "PartnerProfile" (
     "rating" DOUBLE PRECISION NOT NULL DEFAULT 0,
     "totalReviews" INTEGER NOT NULL DEFAULT 0,
     "verified" BOOLEAN NOT NULL DEFAULT false,
+    "city" "City" NOT NULL DEFAULT 'MEDELLIN',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
