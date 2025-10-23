@@ -11,7 +11,7 @@ interface ConfirmModalProps {
   message: string
   confirmText?: string
   cancelText?: string
-  type?: 'danger' | 'warning' | 'info'
+  type?: 'danger' | 'warning' | 'info' | 'success' | 'error'
 }
 
 export default function ConfirmModal({
@@ -55,6 +55,18 @@ export default function ConfirmModal({
       border: 'border-blue-200',
       icon: 'text-blue-600',
       button: 'bg-blue-600 hover:bg-blue-700'
+    },
+    success: {
+      bg: 'bg-green-50',
+      border: 'border-green-200',
+      icon: 'text-green-600',
+      button: 'bg-green-600 hover:bg-green-700'
+    },
+    error: {
+      bg: 'bg-red-50',
+      border: 'border-red-200',
+      icon: 'text-red-600',
+      button: 'bg-red-600 hover:bg-red-700'
     }
   }
 
@@ -67,11 +79,11 @@ export default function ConfirmModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div 
+      <div
         className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"
         onClick={onClose}
       />
-      
+
       <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full animate-fadeIn">
         <div className={`${styles.bg} ${styles.border} border-b px-6 py-4 rounded-t-lg`}>
           <div className="flex items-center justify-between">
