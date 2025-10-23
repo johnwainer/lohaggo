@@ -86,11 +86,11 @@ export function Footer() {
             <ul className="space-y-4">
               <li className="flex items-start space-x-3 text-gray-400">
                 <MapPin size={20} className="text-[#FF2D55] flex-shrink-0 mt-1" />
-                <span className="font-medium">Av. Principal 123, Ciudad, País</span>
+                <span className="font-medium">Medellín, Antioquia, Colombia</span>
               </li>
               <li className="flex items-center space-x-3 text-gray-400">
                 <Phone size={20} className="text-[#FF2D55] flex-shrink-0" />
-                <span className="font-medium">+1 234 567 8900</span>
+                <span className="font-medium">+57 (4) 604 5678</span>
               </li>
               <li className="flex items-center space-x-3 text-gray-400">
                 <Mail size={20} className="text-[#FF2D55] flex-shrink-0" />
