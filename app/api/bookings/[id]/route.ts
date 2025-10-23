@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth"
 import { notifyBookingStatusChange } from "@/lib/notifications/notificationService"
 
+export const dynamic = 'force-dynamic'
+
 export async function PATCH(
   request: Request,
   { params }: { params: { id: string } }
@@ -71,7 +73,7 @@ export async function DELETE(
 ) {
   try {
     const user = await getCurrentUser()
-    
+
     if (!user) {
       return NextResponse.json(
         { error: "No autorizado" },
