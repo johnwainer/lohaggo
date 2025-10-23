@@ -6,6 +6,7 @@ import { DollarSign, Clock, Star, CheckCircle, MapPin, Plus, Calendar, X, Chevro
 import { useSession } from 'next-auth/react'
 import { formatCurrency } from '@/lib/utils'
 import { CityId } from '@/lib/city-context'
+import ConfirmModal from '@/components/ConfirmModal'
 
 interface Service {
   id: string
@@ -70,6 +71,15 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
     isUrgent: false
   })
   const [submitting, setSubmitting] = useState(false)
+  const [validationModal, setValidationModal] = useState({
+    isOpen: false,
+    message: ''
+  })
+  const [successModal, setSuccessModal] = useState({
+    isOpen: false,
+    message: '',
+    type: 'success' as 'success' | 'error'
+  })
 
   useEffect(() => {
     fetchService()
@@ -135,9 +145,7 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
     return `${address.street} #${address.number}${address.complement ? ' - ' + address.complement : ''}, ${address.neighborhood}, ${cityLabels[address.city]}`
   }
 
-  const submitRequest = async (e: React.FormEvent) => {
-    e.preventDefault()
-
+  const submitRequest = async () => {
     if (!service) return
 
     let finalAddress = requestData.address
@@ -153,7 +161,10 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
     }
 
     if (!finalAddress) {
-      alert('Por favor selecciona o ingresa una dirección')
+      setValidationModal({
+        isOpen: true,
+        message: 'Por favor selecciona o ingresa una dirección'
+      })
       return
     }
 
@@ -174,15 +185,26 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
       })
 
       if (res.ok) {
-        alert('¡Solicitud creada exitosamente! Los profesionales disponibles recibirán tu solicitud.')
-        router.push('/dashboard')
+        setSuccessModal({
+          isOpen: true,
+          message: '¡Solicitud creada exitosamente! Los profesionales disponibles recibirán tu solicitud.',
+          type: 'success'
+        })
       } else {
         const error = await res.json()
-        alert(error.error || 'Error al crear solicitud')
+        setSuccessModal({
+          isOpen: true,
+          message: error.error || 'Error al crear solicitud',
+          type: 'error'
+        })
       }
     } catch (error) {
       console.error('Error creating booking:', error)
-      alert('Error al crear reserva')
+      setSuccessModal({
+        isOpen: true,
+        message: 'Error al crear reserva',
+        type: 'error'
+      })
     } finally {
       setSubmitting(false)
     }
@@ -337,7 +359,7 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
               </div>
             </div>
 
-            <form onSubmit={submitRequest}>
+            <div>
               <div className="p-6">
                 {/* Step 1: Dirección */}
                 {currentStep === 1 && (
@@ -627,17 +649,26 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
                       onClick={() => {
                         if (currentStep === 1) {
                           if (addresses.length > 0 && !selectedAddressId) {
-                            alert('Por favor selecciona una dirección')
+                            setValidationModal({
+                              isOpen: true,
+                              message: 'Por favor selecciona una dirección'
+                            })
                             return
                           }
                           if (addresses.length === 0 && !requestData.address) {
-                            alert('Por favor ingresa una dirección')
+                            setValidationModal({
+                              isOpen: true,
+                              message: 'Por favor ingresa una dirección'
+                            })
                             return
                           }
                         }
                         if (currentStep === 2) {
                           if (!requestData.isUrgent && (!requestData.preferredDate || !requestData.preferredTime)) {
-                            alert('Por favor selecciona fecha y hora o marca como urgente')
+                            setValidationModal({
+                              isOpen: true,
+                              message: 'Por favor selecciona fecha y hora o marca como urgente'
+                            })
                             return
                           }
                         }
@@ -650,7 +681,8 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
                     </button>
                   ) : (
                     <button
-                      type="submit"
+                      type="button"
+                      onClick={submitRequest}
                       disabled={submitting}
                       className="flex-1 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white px-6 py-3 rounded-xl hover:from-[#FF1D45] hover:to-[#FF5900] transition font-semibold flex items-center justify-center gap-2 shadow-lg shadow-orange-600/30 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -669,10 +701,40 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
                   )}
                 </div>
               </div>
-            </form>
+            </div>
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={validationModal.isOpen}
+        onClose={() => setValidationModal({ isOpen: false, message: '' })}
+        onConfirm={() => setValidationModal({ isOpen: false, message: '' })}
+        title="Atención"
+        message={validationModal.message}
+        confirmText="Entendido"
+        type="warning"
+      />
+
+      <ConfirmModal
+        isOpen={successModal.isOpen}
+        onClose={() => {
+          setSuccessModal({ isOpen: false, message: '', type: 'success' })
+          if (successModal.type === 'success') {
+            router.push('/dashboard')
+          }
+        }}
+        onConfirm={() => {
+          setSuccessModal({ isOpen: false, message: '', type: 'success' })
+          if (successModal.type === 'success') {
+            router.push('/dashboard')
+          }
+        }}
+        title={successModal.type === 'success' ? '¡Éxito!' : 'Error'}
+        message={successModal.message}
+        confirmText="Entendido"
+        type={successModal.type}
+      />
     </div>
   )
 }
