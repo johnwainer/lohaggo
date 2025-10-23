@@ -145,56 +145,56 @@ ON CONFLICT (id) DO NOTHING;
 -- ============================================
 INSERT INTO "PartnerService" (id, "partnerId", "serviceId", price, active, "createdAt") VALUES
 -- María García - Servicios del hogar
-('ps-1-1', 'user-partner-1', 'srv-1', 95000, true, NOW()),
-('ps-1-2', 'user-partner-1', 'srv-12', 95000, true, NOW()),
-('ps-1-3', 'user-partner-1', 'srv-15', 75000, true, NOW()),
+('ps-1-1', 'profile-1', 'srv-1', 95000, true, NOW()),
+('ps-1-2', 'profile-1', 'srv-12', 95000, true, NOW()),
+('ps-1-3', 'profile-1', 'srv-15', 75000, true, NOW()),
 
 -- Carlos Rodríguez - Electricidad y tecnología
-('ps-2-1', 'user-partner-2', 'srv-2', 115000, true, NOW()),
-('ps-2-2', 'user-partner-2', 'srv-30', 115000, true, NOW()),
-('ps-2-3', 'user-partner-2', 'srv-29', 85000, true, NOW()),
+('ps-2-1', 'profile-2', 'srv-2', 115000, true, NOW()),
+('ps-2-2', 'profile-2', 'srv-30', 115000, true, NOW()),
+('ps-2-3', 'profile-2', 'srv-29', 85000, true, NOW()),
 
 -- Ana Martínez - Limpieza
-('ps-3-1', 'user-partner-3', 'srv-3', 75000, true, NOW()),
-('ps-3-2', 'user-partner-3', 'srv-4', 150000, true, NOW()),
-('ps-3-3', 'user-partner-3', 'srv-9', 65000, true, NOW()),
-('ps-3-4', 'user-partner-3', 'srv-10', 55000, true, NOW()),
+('ps-3-1', 'profile-3', 'srv-3', 75000, true, NOW()),
+('ps-3-2', 'profile-3', 'srv-4', 150000, true, NOW()),
+('ps-3-3', 'profile-3', 'srv-9', 65000, true, NOW()),
+('ps-3-4', 'profile-3', 'srv-10', 55000, true, NOW()),
 
 -- Luis Fernández - Pintura y carpintería
-('ps-4-1', 'user-partner-4', 'srv-6', 190000, true, NOW()),
-('ps-4-2', 'user-partner-4', 'srv-5', 135000, true, NOW()),
-('ps-4-3', 'user-partner-4', 'srv-15', 75000, true, NOW()),
+('ps-4-1', 'profile-4', 'srv-6', 190000, true, NOW()),
+('ps-4-2', 'profile-4', 'srv-5', 135000, true, NOW()),
+('ps-4-3', 'profile-4', 'srv-15', 75000, true, NOW()),
 
 -- Roberto Díaz - Reparaciones
-('ps-5-1', 'user-partner-5', 'srv-11', 125000, true, NOW()),
-('ps-5-2', 'user-partner-5', 'srv-13', 145000, true, NOW()),
-('ps-5-3', 'user-partner-5', 'srv-14', 115000, true, NOW()),
+('ps-5-1', 'profile-5', 'srv-11', 125000, true, NOW()),
+('ps-5-2', 'profile-5', 'srv-13', 145000, true, NOW()),
+('ps-5-3', 'profile-5', 'srv-14', 115000, true, NOW()),
 
 -- Laura Gómez - Belleza
-('ps-6-1', 'user-partner-6', 'srv-16', 48000, true, NOW()),
-('ps-6-2', 'user-partner-6', 'srv-17', 58000, true, NOW()),
-('ps-6-3', 'user-partner-6', 'srv-19', 85000, true, NOW()),
+('ps-6-1', 'profile-6', 'srv-16', 48000, true, NOW()),
+('ps-6-2', 'profile-6', 'srv-17', 58000, true, NOW()),
+('ps-6-3', 'profile-6', 'srv-19', 85000, true, NOW()),
 
 -- Diego Torres - Tecnología
-('ps-7-1', 'user-partner-7', 'srv-26', 95000, true, NOW()),
-('ps-7-2', 'user-partner-7', 'srv-27', 75000, true, NOW()),
-('ps-7-3', 'user-partner-7', 'srv-28', 65000, true, NOW()),
-('ps-7-4', 'user-partner-7', 'srv-29', 85000, true, NOW()),
+('ps-7-1', 'profile-7', 'srv-26', 95000, true, NOW()),
+('ps-7-2', 'profile-7', 'srv-27', 75000, true, NOW()),
+('ps-7-3', 'profile-7', 'srv-28', 65000, true, NOW()),
+('ps-7-4', 'profile-7', 'srv-29', 85000, true, NOW()),
 
 -- Carmen Ruiz - Mascotas
-('ps-8-1', 'user-partner-8', 'srv-43', 115000, true, NOW()),
-('ps-8-2', 'user-partner-8', 'srv-44', 65000, true, NOW()),
-('ps-8-3', 'user-partner-8', 'srv-47', 48000, true, NOW()),
+('ps-8-1', 'profile-8', 'srv-43', 115000, true, NOW()),
+('ps-8-2', 'profile-8', 'srv-44', 65000, true, NOW()),
+('ps-8-3', 'profile-8', 'srv-47', 48000, true, NOW()),
 
 -- Pedro Soto - Plomería y electricidad
-('ps-9-1', 'user-partner-9', 'srv-1', 98000, true, NOW()),
-('ps-9-2', 'user-partner-9', 'srv-2', 118000, true, NOW()),
-('ps-9-3', 'user-partner-9', 'srv-14', 118000, true, NOW()),
+('ps-9-1', 'profile-9', 'srv-1', 98000, true, NOW()),
+('ps-9-2', 'profile-9', 'srv-2', 118000, true, NOW()),
+('ps-9-3', 'profile-9', 'srv-14', 118000, true, NOW()),
 
 -- Isabel Morales - Limpieza
-('ps-10-1', 'user-partner-10', 'srv-3', 78000, true, NOW()),
-('ps-10-2', 'user-partner-10', 'srv-10', 58000, true, NOW()),
-('ps-10-3', 'user-partner-10', 'srv-9', 68000, true, NOW())
+('ps-10-1', 'profile-10', 'srv-3', 78000, true, NOW()),
+('ps-10-2', 'profile-10', 'srv-10', 58000, true, NOW()),
+('ps-10-3', 'profile-10', 'srv-9', 68000, true, NOW())
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================
