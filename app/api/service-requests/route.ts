@@ -38,7 +38,13 @@ export async function POST(req: NextRequest) {
         preferredTime: body.preferredTime || null,
         isUrgent: body.isUrgent || false,
         status: 'ACTIVE',
-        expiresAt: expiresAt
+        expiresAt: expiresAt,
+        photos: body.photoUrls && body.photoUrls.length > 0 ? {
+          create: body.photoUrls.map((url: string, index: number) => ({
+            url,
+            order: index
+          }))
+        } : undefined
       },
       include: {
         service: {
@@ -52,7 +58,8 @@ export async function POST(req: NextRequest) {
             email: true,
             phone: true
           }
-        }
+        },
+        photos: true
       }
     })
 
@@ -100,7 +107,8 @@ export async function GET(req: NextRequest) {
               }
             }
           }
-        }
+        },
+        photos: true
       },
       orderBy: {
         createdAt: 'desc'

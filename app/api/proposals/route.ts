@@ -32,7 +32,8 @@ export async function POST(req: NextRequest) {
     const serviceRequest = await prisma.serviceRequest.findUnique({
       where: { id: serviceRequestId },
       include: {
-        service: true
+        service: true,
+        photos: true
       }
     })
 

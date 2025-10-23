@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { DollarSign, Clock, Star, CheckCircle, MapPin, Plus, Calendar, X, ChevronRight } from 'lucide-react'
+import { DollarSign, Clock, Star, CheckCircle, MapPin, Plus, Calendar, X, ChevronRight, Camera, Upload, Trash2 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { formatCurrency } from '@/lib/utils'
 import { CityId } from '@/lib/city-context'
@@ -63,6 +63,8 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
   const [currentStep, setCurrentStep] = useState(1)
   const [addresses, setAddresses] = useState<Address[]>([])
   const [selectedAddressId, setSelectedAddressId] = useState<string>('')
+  const [photos, setPhotos] = useState<File[]>([])
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
   const [requestData, setRequestData] = useState({
     address: '',
     notes: '',
@@ -145,13 +147,38 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
     return `${address.street} #${address.number}${address.complement ? ' - ' + address.complement : ''}, ${address.neighborhood}, ${cityLabels[address.city]}`
   }
 
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    if (files.length + photos.length > 5) {
+      setValidationModal({
+        isOpen: true,
+        message: 'Puedes subir máximo 5 fotos'
+      })
+      return
+    }
+
+    setPhotos([...photos, ...files])
+
+    files.forEach(file => {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setPhotoPreviews(prev => [...prev, reader.result as string])
+      }
+      reader.readAsDataURL(file)
+    })
+  }
+
+  const removePhoto = (index: number) => {
+    setPhotos(photos.filter((_, i) => i !== index))
+    setPhotoPreviews(photoPreviews.filter((_, i) => i !== index))
+  }
+
   const submitRequest = async () => {
     if (!service) return
 
     let finalAddress = requestData.address
     let finalCity: CityId | string = 'MEDELLIN'
 
-    // If an existing address is selected, use it
     if (selectedAddressId) {
       const selectedAddress = addresses.find(addr => addr.id === selectedAddressId)
       if (selectedAddress) {
@@ -170,6 +197,27 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
 
     setSubmitting(true)
     try {
+      let photoUrls: string[] = []
+
+      if (photos.length > 0) {
+        const formData = new FormData()
+        photos.forEach((photo) => {
+          formData.append('photos', photo)
+        })
+
+        const uploadRes = await fetch('/api/upload-photos', {
+          method: 'POST',
+          body: formData
+        })
+
+        if (uploadRes.ok) {
+          const uploadData = await uploadRes.json()
+          photoUrls = uploadData.urls
+        } else {
+          throw new Error('Error al subir las fotos')
+        }
+      }
+
       const res = await fetch('/api/service-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -180,7 +228,8 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
           preferredDate: requestData.preferredDate || null,
           preferredTime: requestData.preferredTime || null,
           isUrgent: requestData.isUrgent,
-          city: finalCity
+          city: finalCity,
+          photoUrls
         })
       })
 
@@ -336,7 +385,7 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
               <div className="flex items-center justify-between mb-3 md:mb-4">
                 <div>
                   <h2 className="text-xl md:text-2xl font-bold">Solicitar {service.name}</h2>
-                  <p className="text-orange-100 text-xs md:text-sm mt-1">Paso {currentStep} de 3</p>
+                  <p className="text-orange-100 text-xs md:text-sm mt-1">Paso {currentStep} de 4</p>
                 </div>
                 <button
                   onClick={() => setShowRequestModal(false)}
@@ -348,7 +397,7 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
 
               {/* Progress Bar */}
               <div className="flex gap-2">
-                {[1, 2, 3].map((step) => (
+                {[1, 2, 3, 4].map((step) => (
                   <div
                     key={step}
                     className={`h-1.5 md:h-2 flex-1 rounded-full transition-all duration-300 ${
@@ -598,31 +647,89 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
                         className="w-full px-3 md:px-4 py-2 md:py-3 border-2 border-orange-200 bg-orange-50 text-orange-900 rounded-xl focus:ring-2 focus:ring-[#FF6900] focus:border-[#FF6900] outline-none resize-none text-xs md:text-base"
                       />
                     </div>
+                  </div>
+                )}
+
+                {/* Step 4: Fotos */}
+                {currentStep === 4 && (
+                  <div className="space-y-4 md:space-y-6 animate-fadeIn">
+                    <div className="text-center mb-4 md:mb-6">
+                      <div className="w-14 h-14 md:w-16 md:h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4">
+                        <Camera className="text-[#FF6900]" size={28} />
+                      </div>
+                      <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-2">Agrega fotos (opcional)</h3>
+                      <p className="text-sm md:text-base text-gray-600">Ayuda a los profesionales a entender mejor tu necesidad</p>
+                    </div>
+
+                    {/* Upload Area */}
+                    <div className="space-y-4">
+                      <label className="block">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={handlePhotoChange}
+                          className="hidden"
+                          disabled={photos.length >= 5}
+                        />
+                        <div className={`border-2 border-dashed rounded-xl p-6 md:p-8 text-center cursor-pointer transition-all ${
+                          photos.length >= 5
+                            ? 'border-gray-300 bg-gray-100 cursor-not-allowed'
+                            : 'border-[#FF6900] bg-orange-50 hover:bg-orange-100'
+                        }`}>
+                          <Upload className={`mx-auto mb-3 ${photos.length >= 5 ? 'text-gray-400' : 'text-[#FF6900]'}`} size={32} />
+                          <p className={`font-semibold mb-1 ${photos.length >= 5 ? 'text-gray-500' : 'text-gray-900'}`}>
+                            {photos.length >= 5 ? 'Máximo de fotos alcanzado' : 'Haz clic para subir fotos'}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {photos.length >= 5 ? 'Ya has subido 5 fotos' : `Puedes subir hasta ${5 - photos.length} foto(s) más`}
+                          </p>
+                        </div>
+                      </label>
+
+                      {/* Photo Previews */}
+                      {photoPreviews.length > 0 && (
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
+                          {photoPreviews.map((preview, index) => (
+                            <div key={index} className="relative group">
+                              <img
+                                src={preview}
+                                alt={`Preview ${index + 1}`}
+                                className="w-full h-32 md:h-40 object-cover rounded-lg border-2 border-gray-200"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removePhoto(index)}
+                                className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full hover:bg-red-600 transition opacity-0 group-hover:opacity-100"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
 
                     {/* Info Box */}
                     <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-3 md:p-5">
                       <div className="flex items-start gap-2 md:gap-3">
                         <div className="w-6 h-6 md:w-8 md:h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
-                          <CheckCircle className="text-white" size={14} />
+                          <Camera className="text-white" size={14} />
                         </div>
                         <div>
-                          <h4 className="font-semibold text-xs md:text-base text-blue-900 mb-1.5 md:mb-2">¿Cómo funciona?</h4>
+                          <h4 className="font-semibold text-xs md:text-base text-blue-900 mb-1.5 md:mb-2">¿Por qué agregar fotos?</h4>
                           <ul className="text-blue-800 text-xs md:text-sm space-y-1">
                             <li className="flex items-start gap-1.5">
                               <span className="text-blue-600 mt-0.5 text-xs">✓</span>
-                              <span>Tu solicitud llega a todos los profesionales disponibles</span>
+                              <span>Los profesionales entenderán mejor tu necesidad</span>
                             </li>
                             <li className="flex items-start gap-1.5">
                               <span className="text-blue-600 mt-0.5 text-xs">✓</span>
-                              <span>Recibirás propuestas con diferentes precios</span>
+                              <span>Recibirás propuestas más precisas</span>
                             </li>
                             <li className="flex items-start gap-1.5">
                               <span className="text-blue-600 mt-0.5 text-xs">✓</span>
-                              <span>Elige la propuesta que más te convenga</span>
-                            </li>
-                            <li className="flex items-start gap-1.5">
-                              <span className="text-blue-600 mt-0.5 text-xs">✓</span>
-                              <span>Coordina los detalles finales con el profesional</span>
+                              <span>Evitarás malentendidos sobre el trabajo</span>
                             </li>
                           </ul>
                         </div>
@@ -647,7 +754,7 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
                     </button>
                   )}
 
-                  {currentStep < 3 ? (
+                  {currentStep < 4 ? (
                     <button
                       type="button"
                       onClick={() => {

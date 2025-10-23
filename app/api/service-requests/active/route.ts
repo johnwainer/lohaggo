@@ -94,6 +94,7 @@ export async function GET() {
             status: true
           }
         },
+        photos: true,
         _count: {
           select: {
             proposals: true
