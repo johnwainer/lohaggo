@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
+export const dynamic = 'force-dynamic'
+
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -16,7 +18,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    
+
     if (!body.serviceRequestId || !body.price) {
       return NextResponse.json({ error: 'Solicitud y precio son requeridos' }, { status: 400 })
     }
@@ -89,7 +91,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('Error creating proposal:', error)
     return NextResponse.json(
-      { error: 'Error al crear la propuesta' }, 
+      { error: 'Error al crear la propuesta' },
       { status: 500 }
     )
   }
