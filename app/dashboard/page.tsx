@@ -11,6 +11,7 @@ import {
 import { formatCurrency } from '@/lib/utils'
 import Modal from '@/components/Modal'
 import ConfirmModal from '@/components/ConfirmModal'
+import ImageGalleryModal from '@/components/ImageGalleryModal'
 
 interface Booking {
   id: string
@@ -105,6 +106,7 @@ export default function DashboardPage() {
   const [filter, setFilter] = useState<string>('')
   const [searchTerm, setSearchTerm] = useState('')
   const [activeTab, setActiveTab] = useState<'overview' | 'bookings' | 'requests'>('overview')
+  const [imageGallery, setImageGallery] = useState<{ isOpen: boolean; photos: Array<{ id: string; url: string; order: number }>; initialIndex: number }>({ isOpen: false, photos: [], initialIndex: 0 })
 
 
   const [modal, setModal] = useState<{
@@ -320,6 +322,8 @@ export default function DashboardPage() {
         type={confirmModal.type}
         confirmText={confirmModal.type === 'danger' ? 'Sí, cancelar' : 'Sí, aceptar'}
       />
+
+      {imageGallery.isOpen && <ImageGalleryModal photos={imageGallery.photos} initialIndex={imageGallery.initialIndex} onClose={() => setImageGallery({ isOpen: false, photos: [], initialIndex: 0 })} />}
 
       <div>
         <header className="bg-white shadow-sm sticky top-0 z-40">
@@ -746,13 +750,13 @@ export default function DashboardPage() {
                           <div className="mb-4">
                             <h4 className="font-semibold mb-3 text-sm text-gray-700">Fotos adjuntas:</h4>
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                              {request.photos.sort((a, b) => a.order - b.order).map((photo) => (
+                              {request.photos.sort((a, b) => a.order - b.order).map((photo, index) => (
                                 <div key={photo.id} className="relative group">
                                   <img
                                     src={photo.url}
                                     alt="Foto de la solicitud"
                                     className="w-full h-32 object-cover rounded-lg border-2 border-gray-200 hover:border-primary-500 transition cursor-pointer"
-                                    onClick={() => window.open(photo.url, '_blank')}
+                                    onClick={() => setImageGallery({ isOpen: true, photos: request.photos || [], initialIndex: index })}
                                   />
                                   <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition rounded-lg flex items-center justify-center">
                                     <span className="text-white opacity-0 group-hover:opacity-100 transition text-sm font-medium">
@@ -821,6 +825,7 @@ export default function DashboardPage() {
           )}
         </main>
       </div>
+      {imageGallery.isOpen && <ImageGalleryModal photos={imageGallery.photos} initialIndex={imageGallery.initialIndex} onClose={() => setImageGallery({ isOpen: false, photos: [], initialIndex: 0 })} />}
     </div>
   )
 }
