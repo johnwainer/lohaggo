@@ -53,6 +53,23 @@ export async function GET(request: Request) {
             email: true,
             phone: true,
           }
+        },
+        partner: {
+          include: {
+            user: {
+              select: {
+                name: true,
+                email: true
+              }
+            }
+          }
+        },
+        review: {
+          select: {
+            id: true,
+            clientToPartnerRating: true,
+            partnerToClientRating: true
+          }
         }
       },
       orderBy: {

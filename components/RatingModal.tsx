@@ -1,0 +1,156 @@
+'use client'
+
+import { useState } from 'react'
+import { X, Star } from 'lucide-react'
+
+interface RatingModalProps {
+  isOpen: boolean
+  onClose: () => void
+  bookingId: string
+  serviceName: string
+  reviewType: 'client' | 'partner'
+  targetName: string
+  onSuccess: () => void
+}
+
+export default function RatingModal({
+  isOpen,
+  onClose,
+  bookingId,
+  serviceName,
+  reviewType,
+  targetName,
+  onSuccess
+}: RatingModalProps) {
+  const [rating, setRating] = useState(0)
+  const [hoveredRating, setHoveredRating] = useState(0)
+  const [comment, setComment] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  if (!isOpen) return null
+
+  const handleSubmit = async () => {
+    if (rating === 0) {
+      alert('Por favor selecciona una calificación')
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      const res = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookingId,
+          rating,
+          comment,
+          reviewType
+        })
+      })
+
+      if (res.ok) {
+        onSuccess()
+        onClose()
+      } else {
+        const data = await res.json()
+        alert(data.error || 'Error al enviar calificación')
+      }
+    } catch (error) {
+      console.error('Error submitting review:', error)
+      alert('Error al enviar calificación')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl">
+        <div className="flex justify-between items-start mb-6">
+          <div>
+            <h3 className="text-xl font-bold text-gray-900">
+              Calificar {reviewType === 'client' ? 'Servicio' : 'Cliente'}
+            </h3>
+            <p className="text-sm text-gray-600 mt-1">
+              {serviceName}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        <div className="space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              ¿Cómo calificarías {reviewType === 'client' ? 'el servicio' : 'al cliente'} de {targetName}?
+            </label>
+            <div className="flex justify-center gap-2">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  onClick={() => setRating(star)}
+                  onMouseEnter={() => setHoveredRating(star)}
+                  onMouseLeave={() => setHoveredRating(0)}
+                  className="transition-transform hover:scale-110"
+                >
+                  <Star
+                    className={`w-10 h-10 ${
+                      star <= (hoveredRating || rating)
+                        ? 'fill-yellow-400 text-yellow-400'
+                        : 'text-gray-300'
+                    }`}
+                  />
+                </button>
+              ))}
+            </div>
+            {rating > 0 && (
+              <p className="text-center text-sm text-gray-600 mt-2">
+                {rating === 1 && 'Muy malo'}
+                {rating === 2 && 'Malo'}
+                {rating === 3 && 'Regular'}
+                {rating === 4 && 'Bueno'}
+                {rating === 5 && 'Excelente'}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Comentario (opcional)
+            </label>
+            <textarea
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder="Cuéntanos sobre tu experiencia..."
+              rows={4}
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+            />
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={isSubmitting || rating === 0}
+              className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? 'Enviando...' : 'Enviar Calificación'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
