@@ -133,8 +133,10 @@ export default function PartnerNotificationsPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Notificaciones</h1>
-                <p className="text-sm text-gray-600">{unreadCount} sin leer</p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-2xl font-bold text-gray-900">Notificaciones</h1>
+                  <p className="text-sm text-gray-600">({unreadCount} sin leer)</p>
+                </div>
               </div>
             </div>
 
