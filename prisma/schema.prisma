@@ -196,9 +196,6 @@ model Review {
   @@index([bookingId])
 }
 
-  @@index([bookingId])
-}
-
 model ServiceRequest {
   id               String               @id @default(cuid())
   userId           String
