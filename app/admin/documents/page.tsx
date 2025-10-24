@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import {
   FileText, CheckCircle, XCircle, Clock, Eye, User, Mail, Phone,
-  Filter, Search, IdCard, GraduationCap, Shield, Upload
+  Filter, Search, CreditCard, GraduationCap, Shield, Upload
 } from 'lucide-react'
 import Modal from '@/components/Modal'
 import { v2 as cloudinary } from 'cloudinary'
@@ -212,7 +212,7 @@ export default function AdminDocumentsPage() {
 
   const getDocumentIcon = (type: string) => {
     if (['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP'].includes(type)) {
-      return <IdCard className="w-5 h-5 text-blue-600" />
+      return <CreditCard className="w-5 h-5 text-blue-600" />
     }
     if (type === 'ANTECEDENTES') {
       return <Shield className="w-5 h-5 text-green-600" />
