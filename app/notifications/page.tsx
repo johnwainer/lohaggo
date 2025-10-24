@@ -142,7 +142,6 @@ export default function NotificationsPage() {
                 </div>
               </div>
             </div>
-            </div>
 
             {unreadCount > 0 && (
               <button
