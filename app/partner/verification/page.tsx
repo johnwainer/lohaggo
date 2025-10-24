@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import {
   Upload, FileText, CheckCircle, XCircle, Clock, Award, Shield,
-  GraduationCap, IdCard, AlertCircle, Trash2, Eye
+  GraduationCap, CreditCard, AlertCircle, Trash2, Eye
 } from 'lucide-react'
 import Modal from '@/components/Modal'
 
@@ -157,11 +157,11 @@ export default function VerificationPage() {
     return allTypes.find(t => t.value === type)?.label || type
   }
 
-  const hasIdentityDoc = documents.some(d => 
+  const hasIdentityDoc = documents.some(d =>
     DOCUMENT_TYPES.IDENTITY.some(t => t.value === d.type) && d.status === 'APPROVED'
   )
 
-  const hasEducationDoc = documents.some(d => 
+  const hasEducationDoc = documents.some(d =>
     DOCUMENT_TYPES.EDUCATION.some(t => t.value === d.type) && d.status === 'APPROVED'
   )
 
@@ -186,7 +186,7 @@ export default function VerificationPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className={`bg-white rounded-lg shadow-md p-6 border-2 ${hasIdentityDoc ? 'border-green-500' : 'border-gray-200'}`}>
             <div className="flex items-center justify-between mb-4">
-              <IdCard className="w-8 h-8 text-blue-600" />
+              <CreditCard className="w-8 h-8 text-blue-600" />
               {hasIdentityDoc && <CheckCircle className="w-6 h-6 text-green-500" />}
             </div>
             <h3 className="text-lg font-semibold mb-2">Identificación</h3>
@@ -303,7 +303,7 @@ export default function VerificationPage() {
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
-                  <IdCard className="w-8 h-8 mx-auto mb-2 text-blue-600" />
+                  <CreditCard className="w-8 h-8 mx-auto mb-2 text-blue-600" />
                   <p className="text-sm font-medium">Identificación</p>
                 </button>
                 <button
