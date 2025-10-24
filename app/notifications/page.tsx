@@ -30,16 +30,17 @@ export default function NotificationsPage() {
     try {
       const [bookingsRes, requestsRes] = await Promise.all([
         fetch('/api/bookings'),
-        fetch('/api/service-requests/user')
+        fetch('/api/service-requests')
       ])
 
       if (bookingsRes.ok) {
-        const bookings = await bookingsRes.json()
-        setBookingsCount(bookings.length)
+        const bookingsData = await bookingsRes.json()
+        setBookingsCount(Array.isArray(bookingsData) ? bookingsData.length : 0)
       }
 
       if (requestsRes.ok) {
-        const requests = await requestsRes.json()
+        const requestsData = await requestsRes.json()
+        const requests = Array.isArray(requestsData) ? requestsData : Array.isArray(requestsData?.serviceRequests) ? requestsData.serviceRequests : []
         setRequestsCount(requests.length)
       }
     } catch (error) {
@@ -54,7 +55,13 @@ export default function NotificationsPage() {
       fetchNotifications()
       fetchCounts()
     }
-  }, [status, filter])
+  }, [status])
+
+  useEffect(() => {
+    if (status === 'authenticated') {
+      fetchNotifications()
+    }
+  }, [filter])
 
   const fetchNotifications = async () => {
     setLoading(true)
