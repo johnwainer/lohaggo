@@ -8,7 +8,7 @@ import {
   Filter, Search, CreditCard, GraduationCap, Shield, Upload
 } from 'lucide-react'
 import Modal from '@/components/Modal'
-import { v2 as cloudinary } from 'cloudinary'
+
 
 interface Document {
   id: string
