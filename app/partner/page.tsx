@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
@@ -85,7 +85,7 @@ const statusLabels: Record<string, string> = {
   CANCELLED: 'Cancelada',
 }
 
-export default function PartnerDashboard() {
+function PartnerDashboardContent() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -1061,5 +1061,13 @@ export default function PartnerDashboard() {
 
       {/* Mobile Sidebar Overlay */}
     </div>
+  )
+}
+
+export default function PartnerDashboard() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Cargando...</div>}>
+      <PartnerDashboardContent />
+    </Suspense>
   )
 }
