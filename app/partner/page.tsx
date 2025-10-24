@@ -3,10 +3,10 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { 
-  Calendar, Clock, MapPin, DollarSign, Package, User, CheckCircle, XCircle, 
+import {
+  Calendar, Clock, MapPin, DollarSign, Package, User, CheckCircle, XCircle,
   Send, AlertCircle, TrendingUp, Activity, Filter, Search, Menu, X,
-  Home, Briefcase, Bell, Settings, LogOut, ChevronRight, Eye
+  Home, Briefcase, Bell, Settings, LogOut, ChevronRight, Eye, MessageSquare
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import Modal from '@/components/Modal'
@@ -443,7 +443,7 @@ export default function PartnerDashboard() {
                       : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                   }`}
                 >
-                  <Bell size={20} className="sm:w-[22px] sm:h-[22px]" />
+                  <MessageSquare size={20} className="sm:w-[22px] sm:h-[22px]" />
                   <span className="hidden sm:inline">Para Mí</span>
                   {serviceRequests.length > 0 && (
                     <span className="bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded-full ml-2">
