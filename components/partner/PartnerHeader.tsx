@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { Home, Package, Bell, Activity, Settings, MessageSquare, Shield } from 'lucide-react'
+import { Home, Package, Bell, Activity, Settings, MessageSquare, Shield, Star } from 'lucide-react'
 import { DESIGN_SYSTEM } from '@/lib/design-system'
 
 interface NavItem {
@@ -69,6 +69,12 @@ export default function PartnerHeader({
       label: 'Notificaciones',
       icon: <Bell size={20} className="sm:w-[22px] sm:h-[22px]" />,
       path: '/partner/notifications',
+    },
+    {
+      id: 'my-ratings',
+      label: 'Mis Calificaciones',
+      icon: <Star size={20} className="sm:w-[22px] sm:h-[22px]" />,
+      path: '/my-ratings',
     },
     {
       id: 'services',

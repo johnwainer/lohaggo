@@ -427,6 +427,14 @@ export default function DashboardPage() {
                 </button>
 
                 <button
+                  onClick={() => router.push('/my-ratings')}
+                  className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
+                >
+                  <Star size={20} className="sm:w-[22px] sm:h-[22px]" />
+                  <span className="hidden sm:inline">Mis Calificaciones</span>
+                </button>
+
+                <button
                   onClick={() => router.push('/dashboard/addresses')}
                   className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
                 >
