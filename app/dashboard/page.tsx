@@ -900,12 +900,13 @@ export default function DashboardPage() {
         type={confirmModal.type}
       />
 
-      <ImageGalleryModal
-        isOpen={imageGallery.isOpen}
-        onClose={() => setImageGallery({ isOpen: false, photos: [], initialIndex: 0 })}
-        photos={imageGallery.photos}
-        initialIndex={imageGallery.initialIndex}
-      />
+      {imageGallery.isOpen && (
+        <ImageGalleryModal
+          onClose={() => setImageGallery({ isOpen: false, photos: [], initialIndex: 0 })}
+          photos={imageGallery.photos}
+          initialIndex={imageGallery.initialIndex}
+        />
+      )}
 
       <RatingModal
         isOpen={ratingModal.isOpen}
