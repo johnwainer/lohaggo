@@ -693,10 +693,10 @@ export default function DashboardPage() {
                   {filteredRequests.map((request) => (
                     <div key={request.id} className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition overflow-hidden">
                       <div className="p-6">
-                        <div className="flex items-start gap-4 mb-4">
+                        <div className="flex flex-col sm:flex-row items-start gap-4 mb-4">
                           <div className="text-4xl">{request.service.icon}</div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2 mb-2">
                               <h3 className="font-bold text-lg text-gray-900">{request.service.name}</h3>
                               <span className={`text-xs font-medium px-3 py-1 rounded-full border ${requestStatusColors[request.status]}`}>
                                 {requestStatusLabels[request.status]}
@@ -707,10 +707,10 @@ export default function DashboardPage() {
                                 </span>
                               )}
                             </div>
-                            <p className="text-sm text-gray-600">{request.service.category.name}</p>
+                            <p className="text-sm text-gray-600 truncate">{request.service.category.name}</p>
                           </div>
-                          <div className="text-right">
-                            <p className="text-sm text-gray-500">{new Date(request.createdAt).toLocaleDateString('es-ES')}</p>
+                          <div className="text-left sm:text-right flex-shrink-0 w-full sm:w-auto mt-2 sm:mt-0">
+                            <p className="text-sm text-gray-500 truncate">{new Date(request.createdAt).toLocaleDateString('es-ES')}</p>
                             <p className="text-xs text-gray-400 mt-1">{request.proposals.length} propuestas</p>
                           </div>
                         </div>
