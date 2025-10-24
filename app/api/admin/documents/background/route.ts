@@ -26,8 +26,9 @@ async function uploadToCloudinary(file: File, folder: string): Promise<{ url: st
   formData.append('api_key', CLOUDINARY_API_KEY!)
   formData.append('signature', signature)
 
+  const uploadType = file.type === 'application/pdf' ? 'raw' : 'image'
   const response = await fetch(
-    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${uploadType}/upload`,
     {
       method: 'POST',
       body: formData
