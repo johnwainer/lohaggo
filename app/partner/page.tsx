@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Calendar, Clock, MapPin, DollarSign, Package, User, CheckCircle, XCircle,
   Send, AlertCircle, TrendingUp, Activity, Filter, Search, Menu, X,
@@ -88,6 +88,7 @@ const statusLabels: Record<string, string> = {
 export default function PartnerDashboard() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [bookings, setBookings] = useState<Booking[]>([])
   const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([])
   const [allServiceRequests, setAllServiceRequests] = useState<ServiceRequest[]>([])
@@ -191,6 +192,13 @@ export default function PartnerDashboard() {
       }
     }
   }, [status, filter, session, activeTab])
+
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (tab && ['overview', 'bookings', 'my-requests', 'all-requests'].includes(tab)) {
+      setActiveTab(tab as 'overview' | 'bookings' | 'my-requests' | 'all-requests')
+    }
+  }, [searchParams])
 
   const updateBookingStatus = async (id: string, newStatus: string, serviceName: string) => {
     const statusMessages: Record<string, { title: string, message: string }> = {
