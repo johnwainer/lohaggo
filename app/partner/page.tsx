@@ -514,10 +514,10 @@ function PartnerDashboardContent() {
 
           {/* Bookings Tab */}
           {activeTab === 'bookings' && (
-            <div className={DESIGN_SYSTEM.spacing.gap}>
+            <div className="space-y-4 sm:space-y-6">
               {/* Search and Filters */}
-              <div className={`${DESIGN_SYSTEM.components.card.base} ${DESIGN_SYSTEM.spacing.card}`}>
-                <div className={DESIGN_SYSTEM.responsive.flexColSm}>
+              <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                   <div className="flex-1 relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                     <input
@@ -525,13 +525,17 @@ function PartnerDashboardContent() {
                       placeholder="Buscar por servicio, cliente o dirección..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className={`${DESIGN_SYSTEM.components.input.base} pl-10`}
+                      className="w-full pl-10 pr-3 py-3 sm:pr-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     />
                   </div>
-                  <div className="flex gap-2 flex-wrap">
+                  <div className="flex gap-2 flex-wrap items-center">
                     <button
                       onClick={() => setFilter('')}
-                      className={filter === '' ? DESIGN_SYSTEM.components.button.primary : DESIGN_SYSTEM.components.button.secondary}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
+                        filter === ''
+                          ? 'bg-primary-600 text-white shadow-lg'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
                     >
                       Todas
                     </button>
@@ -539,7 +543,11 @@ function PartnerDashboardContent() {
                       <button
                         key={key}
                         onClick={() => setFilter(key)}
-                        className={filter === key ? DESIGN_SYSTEM.components.button.primary : DESIGN_SYSTEM.components.button.secondary}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
+                          filter === key
+                            ? 'bg-primary-600 text-white shadow-lg'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
                       >
                         {label}
                       </button>
@@ -550,65 +558,63 @@ function PartnerDashboardContent() {
 
               {/* Bookings Grid */}
               {filteredBookings.length === 0 ? (
-                <EmptyState
-                  icon={Package}
-                  title="No hay reservas"
-                  description="Las reservas aparecerán aquí cuando los clientes las realicen"
-                />
+                <div className="bg-white rounded-2xl shadow-lg p-12 text-center">
+                  <Package className="mx-auto text-gray-300 mb-4" size={64} />
+                  <p className="text-gray-600 text-lg font-medium">No hay reservas</p>
+                  <p className="text-gray-500 text-sm mt-2">Las reservas aparecerán aquí cuando los clientes las realicen</p>
+                </div>
               ) : (
-                <div className={`${DESIGN_SYSTEM.responsive.gridCols2} ${DESIGN_SYSTEM.spacing.gap}`}>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {filteredBookings.map((booking) => (
-                    <div key={booking.id} className={`${DESIGN_SYSTEM.components.card.base} ${DESIGN_SYSTEM.components.card.hover} overflow-hidden`}>
-                      <div className={DESIGN_SYSTEM.spacing.card}>
+                    <div key={booking.id} className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition overflow-hidden">
+                      <div className="p-6">
                         <div className="flex items-start gap-4 mb-4">
                           <div className="text-4xl">{booking.service.icon}</div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
-                              <h3 className={`${DESIGN_SYSTEM.typography.h3} truncate`}>{booking.service.name}</h3>
-                              <span className={`${getStatusClasses(booking.status)} px-3 py-1 rounded-full text-xs font-medium border self-start`}>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <h3 className="font-bold text-lg text-gray-900">{booking.service.name}</h3>
+                              <span className={`text-xs font-medium px-3 py-1 rounded-full border ${getStatusClasses(booking.status)}`}>
                                 {getStatusLabel(booking.status)}
                               </span>
                             </div>
-                            <p className={`${DESIGN_SYSTEM.typography.h2} text-primary-600`}>{formatCurrency(booking.totalPrice)}</p>
+                            <p className="text-2xl font-bold text-primary-600 mt-2">{formatCurrency(booking.totalPrice)}</p>
                           </div>
                         </div>
 
-                        <div className={`${DESIGN_SYSTEM.components.card.base} bg-gradient-to-r from-gray-50 to-gray-100 ${DESIGN_SYSTEM.spacing.cardSmall} mb-4`}>
+                        <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-4 mb-4">
                           <div className="flex items-center gap-2 mb-2">
-                            <User size={16} className="text-gray-600 flex-shrink-0" />
-                            <span className={`${DESIGN_SYSTEM.typography.h4} truncate`}>{booking.user.name}</span>
+                            <User size={16} className="text-gray-600" />
+                            <span className="font-semibold text-gray-900">{booking.user.name}</span>
                           </div>
-                          <p className={`${DESIGN_SYSTEM.typography.bodySmall} truncate`}>📧 {booking.user.email}</p>
+                          <p className="text-sm text-gray-600">📧 {booking.user.email}</p>
                           {booking.user.phone && (
-                            <p className={DESIGN_SYSTEM.typography.bodySmall}>📱 {booking.user.phone}</p>
+                            <p className="text-sm text-gray-600">📱 {booking.user.phone}</p>
                           )}
                         </div>
 
-                        <div className={`${DESIGN_SYSTEM.spacing.gapSmall} mb-4`}>
+                        <div className="space-y-2 text-sm text-gray-600 mb-4">
                           <div className="flex items-center gap-2">
-                            <Calendar size={16} className="text-primary-600 flex-shrink-0" />
-                            <span className={DESIGN_SYSTEM.typography.bodySmall}>
-                              {new Date(booking.scheduledDate).toLocaleDateString('es-ES', {
-                                weekday: 'long',
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric'
-                              })}
-                            </span>
+                            <Calendar size={16} className="text-primary-600" />
+                            <span>{new Date(booking.scheduledDate).toLocaleDateString('es-ES', {
+                              weekday: 'long',
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Clock size={16} className="text-primary-600 flex-shrink-0" />
-                            <span className={DESIGN_SYSTEM.typography.bodySmall}>{booking.scheduledTime}</span>
+                            <Clock size={16} className="text-primary-600" />
+                            <span>{booking.scheduledTime}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <MapPin size={16} className="text-primary-600 flex-shrink-0" />
-                            <span className={`${DESIGN_SYSTEM.typography.bodySmall} truncate`}>{booking.address}</span>
+                            <MapPin size={16} className="text-primary-600" />
+                            <span>{booking.address}</span>
                           </div>
                         </div>
 
                         {booking.notes && (
-                          <div className={`${DESIGN_SYSTEM.components.card.base} bg-yellow-50 border-yellow-200 ${DESIGN_SYSTEM.spacing.cardSmall} mb-4`}>
-                            <p className={DESIGN_SYSTEM.typography.bodySmall}><strong>Notas:</strong> {booking.notes}</p>
+                          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-4">
+                            <p className="text-sm text-gray-700"><strong>Notas:</strong> {booking.notes}</p>
                           </div>
                         )}
 
@@ -617,24 +623,24 @@ function PartnerDashboardContent() {
                             <>
                               <button
                                 onClick={() => updateBookingStatus(booking.id, 'CONFIRMED', booking.service.name)}
-                                className={`${DESIGN_SYSTEM.components.button.success} flex-1 flex items-center justify-center gap-2`}
+                                className="flex-1 bg-blue-600 text-white px-4 py-3 rounded-xl hover:bg-blue-700 transition font-medium flex items-center justify-center gap-2"
                               >
                                 <CheckCircle size={18} />
-                                <span className={DESIGN_SYSTEM.responsive.hideOnMobile}>Confirmar</span>
+                                Confirmar
                               </button>
                               <button
                                 onClick={() => updateBookingStatus(booking.id, 'CANCELLED', booking.service.name)}
-                                className={`${DESIGN_SYSTEM.components.button.danger} flex-1 flex items-center justify-center gap-2`}
+                                className="flex-1 bg-red-600 text-white px-4 py-3 rounded-xl hover:bg-red-700 transition font-medium flex items-center justify-center gap-2"
                               >
                                 <XCircle size={18} />
-                                <span className={DESIGN_SYSTEM.responsive.hideOnMobile}>Rechazar</span>
+                                Rechazar
                               </button>
                             </>
                           )}
                           {booking.status === 'CONFIRMED' && (
                             <button
                               onClick={() => updateBookingStatus(booking.id, 'IN_PROGRESS', booking.service.name)}
-                              className={`${DESIGN_SYSTEM.components.button.primary} w-full bg-purple-600 hover:bg-purple-700`}
+                              className="w-full bg-purple-600 text-white px-4 py-3 rounded-xl hover:bg-purple-700 transition font-medium"
                             >
                               Iniciar Servicio
                             </button>
@@ -642,7 +648,7 @@ function PartnerDashboardContent() {
                           {booking.status === 'IN_PROGRESS' && (
                             <button
                               onClick={() => updateBookingStatus(booking.id, 'COMPLETED', booking.service.name)}
-                              className={`${DESIGN_SYSTEM.components.button.success} w-full`}
+                              className="w-full bg-green-600 text-white px-4 py-3 rounded-xl hover:bg-green-700 transition font-medium"
                             >
                               Marcar Completado
                             </button>
