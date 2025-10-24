@@ -177,68 +177,10 @@ export default function VerificationPage() {
     }
   }
 
-  const [activeSubmenu, setActiveSubmenu] = React.useState<'all' | 'identity' | 'education'>('all')
-
-  const getDocumentLabel = (type: string) => {
-    const allTypes = [...DOCUMENT_TYPES.IDENTITY, ...DOCUMENT_TYPES.EDUCATION]
-    return allTypes.find(t => t.value === type)?.label || type
+  const rn allTypes.find(t => t.value === type)?.label || type
   }
 
-  const SubmenuNav = () => (
-    <div className="mt-6 mb-4">
-      <nav className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
-        <button
-          onClick={() => setActiveSubmenu('all')}
-          className={`px-3 py-2 text-sm font-medium rounded ${activeSubmenu === 'all' ? 'bg-primary-600 text-white' : 'text-gray-600 bg-white border'}`}
-        >
-          Todos
-        </button>
-
-        <button
-          onClick={() => setActiveSubmenu('identity')}
-          className={`px-3 py-2 text-sm font-medium rounded ${activeSubmenu === 'identity' ? 'bg-primary-600 text-white' : 'text-gray-600 bg-white border'}`}
-        >
-          Identidad
-        </button>
-
-        <button
-          onClick={() => setActiveSubmenu('education')}
-          className={`px-3 py-2 text-sm font-medium rounded ${activeSubmenu === 'education' ? 'bg-primary-600 text-white' : 'text-gray-600 bg-white border'}`}
-        >
-          Educación
-        </button>
-      </nav>
-    </div>
-  )
-
-  const hasIdentityDoc = documents.some(d =>
-    DOCUMENT_TYPES.IDENTITY.some(t => t.value === d.type) && d.status === 'APPROVED'
-  )
-
-  const hasEducationDoc = documents.some(d =>
-    DOCUMENT_TYPES.EDUCATION.some(t => t.value === d.type) && d.status === 'APPROVED'
-  )
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <header className="bg-white shadow-sm sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Verificación de Documentos</h1>
-                <p className="hidden sm:block text-sm text-gray-600">Sube tus documentos para verificar tu identidad y educación</p>
-              </div>
-            </div>
-          </div>
+       </div>
         </div>
 
         <div className="border-t border-gray-200 bg-gray-50">
