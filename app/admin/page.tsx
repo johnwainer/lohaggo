@@ -13,6 +13,7 @@ import RequestsSection from '@/components/admin/sections/RequestsSection'
 import AnalyticsSection from '@/components/admin/sections/AnalyticsSection'
 import NotificationsSection from '@/components/admin/sections/NotificationsSection'
 import SettingsSection from '@/components/admin/sections/SettingsSection'
+import DocumentsSection from '@/components/admin/sections/DocumentsSection'
 
 export default function AdminDashboard() {
   const { data: session, status } = useSession()
@@ -43,7 +44,6 @@ export default function AdminDashboard() {
   if (status !== 'authenticated' || session?.user?.role !== 'ADMIN') {
     return null
   }
-
   const renderSection = () => {
     switch (activeSection) {
       case 'dashboard':
@@ -54,6 +54,8 @@ export default function AdminDashboard() {
         return <UsersSection />
       case 'partners':
         return <PartnersSection />
+      case 'documents':
+        return <DocumentsSection />
       case 'services':
         return <ServicesSection />
       case 'requests':
@@ -67,6 +69,7 @@ export default function AdminDashboard() {
       default:
         return <DashboardSection />
     }
+  }
   }
 
   return (
