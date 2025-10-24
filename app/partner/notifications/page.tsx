@@ -157,7 +157,7 @@ export default function PartnerNotificationsPage() {
                 onClick={() => router.push('/partner')}
                 className="flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
               >
-                <Home size={18} />
+                <Home size={20} />
                 <span>Resumen</span>
               </button>
 
@@ -165,7 +165,7 @@ export default function PartnerNotificationsPage() {
                 onClick={() => router.push('/partner')}
                 className="flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
               >
-                <Package size={18} />
+                <Package size={20} />
                 <span>Mis Reservas</span>
                 {bookingsCount > 0 && (
                   <span className="bg-primary-600 text-white text-xs px-2 py-0.5 rounded-full">
@@ -178,7 +178,7 @@ export default function PartnerNotificationsPage() {
                 onClick={() => router.push('/partner')}
                 className="flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
               >
-                <Bell size={18} />
+                <Bell size={20} />
                 <span>Para Mí</span>
                 {myRequestsCount > 0 && (
                   <span className="bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full">
@@ -191,7 +191,7 @@ export default function PartnerNotificationsPage() {
                 onClick={() => router.push('/partner')}
                 className="flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
               >
-                <Activity size={18} />
+                <Activity size={20} />
                 <span>Todas</span>
               </button>
 
@@ -199,7 +199,7 @@ export default function PartnerNotificationsPage() {
                 onClick={() => router.push('/partner/notifications')}
                 className="flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 border-primary-600 text-primary-600 transition whitespace-nowrap"
               >
-                <Bell size={18} />
+                <Bell size={20} />
                 <span>Notificaciones</span>
               </button>
 
@@ -207,7 +207,7 @@ export default function PartnerNotificationsPage() {
                 onClick={() => router.push('/partner/services')}
                 className="flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
               >
-                <Settings size={18} />
+                <Settings size={20} />
                 <span>Mis Servicios</span>
               </button>
             </nav>
