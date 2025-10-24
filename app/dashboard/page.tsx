@@ -41,8 +41,6 @@ interface Booking {
     partnerToClientRating: number | null
   }
 }
-}
-
 interface ServiceRequest {
   id: string
   address: string
