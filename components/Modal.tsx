@@ -1,22 +1,23 @@
 'use client'
 
 import { X } from 'lucide-react'
-import { useEffect } from 'react'
+import { useEffect, ReactNode } from 'react'
 
 interface ModalProps {
-  isOpen: boolean
+  isOpen?: boolean
   onClose: () => void
   title: string
-  message: string
+  message?: string
   type?: 'success' | 'error' | 'warning' | 'info'
   confirmText?: string
   cancelText?: string
   onConfirm?: () => void
   showCancel?: boolean
+  children?: ReactNode
 }
 
 export default function Modal({
-  isOpen,
+  isOpen = true,
   onClose,
   title,
   message,
@@ -24,7 +25,8 @@ export default function Modal({
   confirmText = 'Aceptar',
   cancelText = 'Cancelar',
   onConfirm,
-  showCancel = false
+  showCancel = false,
+  children
 }: ModalProps) {
   useEffect(() => {
     if (isOpen) {
@@ -77,11 +79,11 @@ export default function Modal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div 
+      <div
         className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"
         onClick={onClose}
       />
-      
+
       <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full animate-fadeIn">
         <div className={`${styles.bg} ${styles.border} border-b px-6 py-4 rounded-t-lg`}>
           <div className="flex items-center justify-between">
@@ -98,27 +100,31 @@ export default function Modal({
         </div>
 
         <div className="px-6 py-4">
-          <p className="text-gray-700 whitespace-pre-line">
-            {message}
-          </p>
+          {children ? children : (
+            <p className="text-gray-700 whitespace-pre-line">
+              {message}
+            </p>
+          )}
         </div>
 
-        <div className="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-3">
-          {showCancel && (
+        {!children && (
+          <div className="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-3">
+            {showCancel && (
+              <button
+                onClick={onClose}
+                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                {cancelText}
+              </button>
+            )}
             <button
-              onClick={onClose}
-              className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              onClick={handleConfirm}
+              className={`px-4 py-2 text-white rounded-lg transition-colors ${styles.button}`}
             >
-              {cancelText}
+              {confirmText}
             </button>
-          )}
-          <button
-            onClick={handleConfirm}
-            className={`px-4 py-2 text-white rounded-lg transition-colors ${styles.button}`}
-          >
-            {confirmText}
-          </button>
-        </div>
+          </div>
+        )}
       </div>
     </div>
   )
