@@ -116,6 +116,8 @@ export default function NotificationsPage() {
     }
   }
 
+  const unreadCount = notifications.filter(n => !n.read).length
+
   if (status === 'loading' || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100">
@@ -126,8 +128,6 @@ export default function NotificationsPage() {
       </div>
     )
   }
-
-  const unreadCount = notifications.filter(n => !n.read).length
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
