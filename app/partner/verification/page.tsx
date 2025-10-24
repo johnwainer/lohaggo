@@ -5,7 +5,8 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import {
   Upload, FileText, CheckCircle, XCircle, Clock, Award, Shield,
-  GraduationCap, CreditCard, AlertCircle, Trash2, Eye
+  GraduationCap, CreditCard, AlertCircle, Trash2, Eye, Home, Package,
+  Bell, Activity, Settings, MessageSquare
 } from 'lucide-react'
 import Modal from '@/components/Modal'
 
@@ -47,6 +48,8 @@ export default function VerificationPage() {
   const [selectedType, setSelectedType] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [bookingsCount, setBookingsCount] = useState(0)
+  const [requestsCount, setRequestsCount] = useState(0)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -58,7 +61,29 @@ export default function VerificationPage() {
 
   useEffect(() => {
     fetchDocuments()
+    fetchCounts()
   }, [])
+
+  const fetchCounts = async () => {
+    try {
+      const [bookingsRes, requestsRes] = await Promise.all([
+        fetch('/api/bookings'),
+        fetch('/api/partner/service-requests')
+      ])
+
+      if (bookingsRes.ok) {
+        const bookingsData = await bookingsRes.json()
+        setBookingsCount(Array.isArray(bookingsData) ? bookingsData.length : 0)
+      }
+
+      if (requestsRes.ok) {
+        const requestsData = await requestsRes.json()
+        setRequestsCount(Array.isArray(requestsData) ? requestsData.length : 0)
+      }
+    } catch (error) {
+      console.error('Error fetching counts:', error)
+    }
+  }
 
   const fetchDocuments = async () => {
     try {
@@ -152,10 +177,39 @@ export default function VerificationPage() {
     }
   }
 
+  const [activeSubmenu, setActiveSubmenu] = React.useState<'all' | 'identity' | 'education'>('all')
+
   const getDocumentLabel = (type: string) => {
     const allTypes = [...DOCUMENT_TYPES.IDENTITY, ...DOCUMENT_TYPES.EDUCATION]
     return allTypes.find(t => t.value === type)?.label || type
   }
+
+  const SubmenuNav = () => (
+    <div className="mt-6 mb-4">
+      <nav className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+        <button
+          onClick={() => setActiveSubmenu('all')}
+          className={`px-3 py-2 text-sm font-medium rounded ${activeSubmenu === 'all' ? 'bg-primary-600 text-white' : 'text-gray-600 bg-white border'}`}
+        >
+          Todos
+        </button>
+
+        <button
+          onClick={() => setActiveSubmenu('identity')}
+          className={`px-3 py-2 text-sm font-medium rounded ${activeSubmenu === 'identity' ? 'bg-primary-600 text-white' : 'text-gray-600 bg-white border'}`}
+        >
+          Identidad
+        </button>
+
+        <button
+          onClick={() => setActiveSubmenu('education')}
+          className={`px-3 py-2 text-sm font-medium rounded ${activeSubmenu === 'education' ? 'bg-primary-600 text-white' : 'text-gray-600 bg-white border'}`}
+        >
+          Educación
+        </button>
+      </nav>
+    </div>
+  )
 
   const hasIdentityDoc = documents.some(d =>
     DOCUMENT_TYPES.IDENTITY.some(t => t.value === d.type) && d.status === 'APPROVED'
@@ -174,15 +228,93 @@ export default function VerificationPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-6xl mx-auto px-4">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Verificación de Documentos</h1>
-          <p className="text-gray-600">
-            Sube tus documentos para verificar tu identidad y educación. Esto te ayudará a desbloquear logros y aumentar tu credibilidad.
-          </p>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      <header className="bg-white shadow-sm sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Verificación de Documentos</h1>
+                <p className="hidden sm:block text-sm text-gray-600">Sube tus documentos para verificar tu identidad y educación</p>
+              </div>
+            </div>
+          </div>
         </div>
 
+        <div className="border-t border-gray-200 bg-gray-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <nav className="flex gap-0.5 sm:gap-1 overflow-x-auto scrollbar-hide">
+              <button
+                onClick={() => router.push('/partner')}
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
+              >
+                <Home size={20} className="sm:w-[22px] sm:h-[22px]" />
+                <span className="hidden sm:inline">Resumen</span>
+              </button>
+
+              <button
+                onClick={() => router.push('/partner?tab=bookings')}
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
+              >
+                <Package size={20} className="sm:w-[22px] sm:h-[22px]" />
+                <span className="hidden sm:inline">Mis Reservas</span>
+                {bookingsCount > 0 && (
+                  <span className="bg-primary-600 text-white text-[10px] px-2 py-0.5 rounded-full ml-2">
+                    {bookingsCount}
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={() => router.push('/partner?tab=my-requests')}
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
+              >
+                <MessageSquare size={20} className="sm:w-[22px] sm:h-[22px]" />
+                <span className="hidden sm:inline">Para Mí</span>
+                {requestsCount > 0 && (
+                  <span className="bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded-full ml-2">
+                    {requestsCount}
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={() => router.push('/partner?tab=all-requests')}
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
+              >
+                <Activity size={20} className="sm:w-[22px] sm:h-[22px]" />
+                <span className="hidden sm:inline">Todas</span>
+              </button>
+
+              <button
+                onClick={() => router.push('/partner/notifications')}
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
+              >
+                <Bell size={20} className="sm:w-[22px] sm:h-[22px]" />
+                <span className="hidden sm:inline">Notificaciones</span>
+              </button>
+
+              <button
+                onClick={() => router.push('/partner/services')}
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
+              >
+                <Settings size={20} className="sm:w-[22px] sm:h-[22px]" />
+                <span className="hidden sm:inline">Mis Servicios</span>
+              </button>
+
+              <button
+                onClick={() => router.push('/partner/verification')}
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-primary-600 text-primary-600 transition whitespace-nowrap"
+              >
+                <Shield size={20} className="sm:w-[22px] sm:h-[22px]" />
+                <span className="hidden sm:inline">Verificación</span>
+              </button>
+            </nav>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-6xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className={`bg-white rounded-lg shadow-md p-6 border-2 ${hasIdentityDoc ? 'border-green-500' : 'border-gray-200'}`}>
             <div className="flex items-center justify-between mb-4">
@@ -256,25 +388,39 @@ export default function VerificationPage() {
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="flex items-center gap-2">
-                        {getStatusIcon(doc.status)}
-                        <span className="text-sm font-medium">{getStatusText(doc.status)}</span>
+                        {doc.status === 'APPROVED' && (
+                          <span className="flex items-center gap-1 text-green-600 text-sm font-medium">
+                            <CheckCircle className="w-4 h-4" />
+                            Aprobado
+                          </span>
+                        )}
+                        {doc.status === 'REJECTED' && (
+                          <span className="flex items-center gap-1 text-red-600 text-sm font-medium">
+                            <XCircle className="w-4 h-4" />
+                            Rechazado
+                          </span>
+                        )}
+                        {doc.status === 'PENDING' && (
+                          <span className="flex items-center gap-1 text-yellow-600 text-sm font-medium">
+                            <Clock className="w-4 h-4" />
+                            Pendiente
+                          </span>
+                        )}
                       </div>
-                      <a
-                        href={doc.documentUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        onClick={() => window.open(doc.documentUrl, '_blank')}
                         className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Ver documento"
                       >
                         <Eye className="w-5 h-5" />
-                      </a>
-                      {doc.status === 'PENDING' && (
-                        <button
-                          onClick={() => handleDelete(doc.id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
-                      )}
+                      </button>
+                      <button
+                        onClick={() => handleDelete(doc.id)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Eliminar documento"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -282,43 +428,45 @@ export default function VerificationPage() {
             </div>
           )}
         </div>
-      </div>
+      </main>
 
       {showUploadModal && (
-        <Modal onClose={() => setShowUploadModal(false)} title="Subir Documento">
-          <div className="space-y-4">
+        <Modal onClose={() => setShowUploadModal(false)}>
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-gray-900">Subir Documento</h2>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Categoría
               </label>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="flex gap-4">
                 <button
                   onClick={() => {
                     setSelectedCategory('IDENTITY')
                     setSelectedType('')
                   }}
-                  className={`p-4 border-2 rounded-lg transition-colors ${
+                  className={`flex-1 px-4 py-3 rounded-lg border-2 transition-colors ${
                     selectedCategory === 'IDENTITY'
-                      ? 'border-blue-600 bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? 'border-blue-600 bg-blue-50 text-blue-700'
+                      : 'border-gray-300 hover:border-gray-400'
                   }`}
                 >
-                  <CreditCard className="w-8 h-8 mx-auto mb-2 text-blue-600" />
-                  <p className="text-sm font-medium">Identificación</p>
+                  <CreditCard className="w-6 h-6 mx-auto mb-2" />
+                  <span className="font-medium">Identificación</span>
                 </button>
                 <button
                   onClick={() => {
                     setSelectedCategory('EDUCATION')
                     setSelectedType('')
                   }}
-                  className={`p-4 border-2 rounded-lg transition-colors ${
+                  className={`flex-1 px-4 py-3 rounded-lg border-2 transition-colors ${
                     selectedCategory === 'EDUCATION'
-                      ? 'border-purple-600 bg-purple-50'
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? 'border-purple-600 bg-purple-50 text-purple-700'
+                      : 'border-gray-300 hover:border-gray-400'
                   }`}
                 >
-                  <GraduationCap className="w-8 h-8 mx-auto mb-2 text-purple-600" />
-                  <p className="text-sm font-medium">Educación</p>
+                  <GraduationCap className="w-6 h-6 mx-auto mb-2" />
+                  <span className="font-medium">Educación</span>
                 </button>
               </div>
             </div>
