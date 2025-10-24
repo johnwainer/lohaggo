@@ -528,10 +528,10 @@ function PartnerDashboardContent() {
                       className="w-full pl-10 pr-3 py-3 sm:pr-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     />
                   </div>
-                  <div className="flex gap-2 flex-wrap items-center">
+                  <div className="flex gap-2 flex-wrap sm:flex-nowrap items-center">
                     <button
                       onClick={() => setFilter('')}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap ${
                         filter === ''
                           ? 'bg-primary-600 text-white shadow-lg'
                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -543,7 +543,7 @@ function PartnerDashboardContent() {
                       <button
                         key={key}
                         onClick={() => setFilter(key)}
-                        className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap ${
                           filter === key
                             ? 'bg-primary-600 text-white shadow-lg'
                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
