@@ -343,14 +343,15 @@ export default function VerificationPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Archivo
+                Archivo (Solo PDF)
               </label>
               <input
                 type="file"
-                accept="image/*,.pdf"
+                accept=".pdf,application/pdf"
                 onChange={handleFileSelect}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
+              <p className="mt-1 text-xs text-gray-500">Solo se permiten archivos PDF</p>
               {previewUrl && (
                 <div className="mt-4">
                   {selectedFile?.type.startsWith('image/') ? (

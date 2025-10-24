@@ -64,6 +64,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Archivo, tipo y partnerId son requeridos' }, { status: 400 })
     }
 
+    if (file.type !== 'application/pdf') {
+      return NextResponse.json({ error: 'Solo se permiten archivos PDF' }, { status: 400 })
+    }
+
     const partnerProfile = await prisma.partnerProfile.findUnique({
       where: { id: partnerId },
       include: { user: true }
