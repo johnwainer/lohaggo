@@ -255,9 +255,7 @@ model RequestPhoto {
   @@index([serviceRequestId])
 }
 
-/*
-  New enums and models for document verification and achievements
-*/
+// New enums and models for document verification and achievements
 
 enum DocumentType {
   CEDULA_CIUDADANIA
