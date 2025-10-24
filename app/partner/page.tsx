@@ -6,13 +6,14 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Calendar, Clock, MapPin, DollarSign, Package, User, CheckCircle, XCircle,
   Send, AlertCircle, TrendingUp, Activity, Filter, Search, Menu, X,
-  Home, Briefcase, Bell, Settings, LogOut, ChevronRight, Eye, MessageSquare, Shield
+  Home, Briefcase, Bell, Settings, LogOut, ChevronRight, Eye, MessageSquare, Shield, Star
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { DESIGN_SYSTEM, getStatusClasses, getStatusLabel } from '@/lib/design-system'
 import Modal from '@/components/Modal'
 import ConfirmModal from '@/components/ConfirmModal'
 import ImageGalleryModal from '@/components/ImageGalleryModal'
+import RatingModal from '@/components/RatingModal'
 import PartnerHeader from '@/components/partner/PartnerHeader'
 import StatCard from '@/components/shared/StatCard'
 import LoadingSpinner from '@/components/shared/LoadingSpinner'
@@ -35,6 +36,11 @@ interface Booking {
     name: string
     email: string
     phone: string
+  }
+  review?: {
+    id: string
+    clientToPartnerRating: number | null
+    partnerToClientRating: number | null
   }
 }
 
@@ -124,6 +130,18 @@ function PartnerDashboardContent() {
     message: '',
     type: 'warning',
     onConfirm: () => {}
+  })
+
+  const [ratingModal, setRatingModal] = useState<{
+    isOpen: boolean
+    bookingId: string
+    serviceName: string
+    clientName: string
+  }>({
+    isOpen: false,
+    bookingId: '',
+    serviceName: '',
+    clientName: ''
   })
 
   const fetchBookings = async () => {
@@ -367,6 +385,67 @@ function PartnerDashboardContent() {
           onClose={() => setImageGallery({ isOpen: false, photos: [], initialIndex: 0 })}
         />
       )}
+
+      <Modal
+        isOpen={modal.isOpen}
+        onClose={() => setModal({ ...modal, isOpen: false })}
+        title={modal.title}
+        message={modal.message}
+        type={modal.type}
+      />
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        type={confirmModal.type}
+      />
+
+      <RatingModal
+        isOpen={ratingModal.isOpen}
+        onClose={() => setRatingModal({ isOpen: false, bookingId: '', serviceName: '', clientName: '' })}
+        bookingId={ratingModal.bookingId}
+        serviceName={ratingModal.serviceName}
+        reviewType="partner"
+        targetName={ratingModal.clientName}
+        onSuccess={() => {
+          setModal({
+            isOpen: true,
+            title: 'Calificación Enviada',
+            message: 'Tu calificación ha sido enviada exitosamente.',
+            type: 'success'
+          })
+          fetchBookings()
+        }}
+      />
+
+      {imageGallery.isOpen && (
+        <ImageGalleryModal
+          photos={imageGallery.photos}
+          initialIndex={imageGallery.initialIndex}
+          onClose={() => setImageGallery({ isOpen: false, photos: [], initialIndex: 0 })}
+        />
+      )}
+
+      <RatingModal
+        isOpen={ratingModal.isOpen}
+        onClose={() => setRatingModal({ isOpen: false, bookingId: '', serviceName: '', clientName: '' })}
+        bookingId={ratingModal.bookingId}
+        serviceName={ratingModal.serviceName}
+        reviewType="partner"
+        targetName={ratingModal.clientName}
+        onSuccess={() => {
+          setModal({
+            isOpen: true,
+            title: 'Calificación Enviada',
+            message: 'Tu calificación ha sido enviada exitosamente.',
+            type: 'success'
+          })
+          fetchBookings()
+        }}
+      />
 
       {/* Main Content */}
       <div>
@@ -615,6 +694,39 @@ function PartnerDashboardContent() {
                         {booking.notes && (
                           <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-4">
                             <p className="text-sm text-gray-700"><strong>Notas:</strong> {booking.notes}</p>
+                          </div>
+                        )}
+
+                        {booking.status === 'COMPLETED' && !booking.review?.partnerToClientRating && (
+                          <button
+                            onClick={() => setRatingModal({
+                              isOpen: true,
+                              bookingId: booking.id,
+                              serviceName: booking.service.name,
+                              clientName: booking.user.name
+                            })}
+                            className="w-full bg-yellow-500 text-white px-4 py-3 rounded-xl hover:bg-yellow-600 transition font-medium flex items-center justify-center gap-2 mb-3"
+                          >
+                            <Star size={18} />
+                            Calificar Cliente
+                          </button>
+                        )}
+
+                        {booking.status === 'COMPLETED' && booking.review?.partnerToClientRating && (
+                          <div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-3">
+                            <div className="flex items-center gap-2 text-green-700">
+                              <CheckCircle size={16} />
+                              <span className="text-sm font-medium">Cliente calificado</span>
+                              <div className="flex ml-auto">
+                                {[...Array(5)].map((_, i) => (
+                                  <Star
+                                    key={i}
+                                    size={14}
+                                    className={i < (booking.review?.partnerToClientRating || 0) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}
+                                  />
+                                ))}
+                              </div>
+                            </div>
                           </div>
                         )}
 

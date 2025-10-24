@@ -6,12 +6,13 @@ import { useRouter } from 'next/navigation'
 import {
   MessageSquare, Calendar, Clock, MapPin, Package, CheckCircle, DollarSign,
   TrendingUp, Activity, Search, Menu, X, Home, Bell,
-  Settings, LogOut, ChevronRight, Plus, AlertCircle, User, XCircle
+  Settings, LogOut, ChevronRight, Plus, AlertCircle, User, XCircle, Star
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import Modal from '@/components/Modal'
 import ConfirmModal from '@/components/ConfirmModal'
 import ImageGalleryModal from '@/components/ImageGalleryModal'
+import RatingModal from '@/components/RatingModal'
 
 interface Booking {
   id: string
@@ -29,6 +30,17 @@ interface Booking {
       name: string
     }
   }
+  partner?: {
+    user: {
+      name: string
+    }
+  }
+  review?: {
+    id: string
+    clientToPartnerRating: number | null
+    partnerToClientRating: number | null
+  }
+}
 }
 
 interface ServiceRequest {
@@ -133,6 +145,19 @@ export default function DashboardPage() {
     message: '',
     type: 'warning',
     onConfirm: () => {}
+  })
+
+  const [ratingModal, setRatingModal] = useState<{
+    isOpen: boolean
+    bookingId: string
+    serviceName: string
+    partnerName: string
+  }>({
+    isOpen: false,
+    bookingId: '',
+    serviceName: '',
+    partnerName: ''
+  })
   })
 
   useEffect(() => {
@@ -650,6 +675,39 @@ export default function DashboardPage() {
                           </div>
                         )}
 
+                        {booking.status === 'COMPLETED' && !booking.review?.clientToPartnerRating && (
+                          <button
+                            onClick={() => setRatingModal({
+                              isOpen: true,
+                              bookingId: booking.id,
+                              serviceName: booking.service.name,
+                              partnerName: booking.partner?.user.name || 'el socio'
+                            })}
+                            className="w-full bg-yellow-500 text-white px-4 py-3 rounded-xl hover:bg-yellow-600 transition font-medium flex items-center justify-center gap-2 mb-3"
+                          >
+                            <Star size={18} />
+                            Calificar Servicio
+                          </button>
+                        )}
+
+                        {booking.status === 'COMPLETED' && booking.review?.clientToPartnerRating && (
+                          <div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-3">
+                            <div className="flex items-center gap-2 text-green-700">
+                              <CheckCircle size={16} />
+                              <span className="text-sm font-medium">Servicio calificado</span>
+                              <div className="flex ml-auto">
+                                {[...Array(5)].map((_, i) => (
+                                  <Star
+                                    key={i}
+                                    size={14}
+                                    className={i < (booking.review?.clientToPartnerRating || 0) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
                         {(booking.status === 'PENDING' || booking.status === 'CONFIRMED') && (
                           <button
                             onClick={() => cancelBooking(booking.id, booking.service.name)}
@@ -826,6 +884,48 @@ export default function DashboardPage() {
           )}
         </main>
       </div>
+
+      <Modal
+        isOpen={modal.isOpen}
+        onClose={() => setModal({ ...modal, isOpen: false })}
+        title={modal.title}
+        message={modal.message}
+        type={modal.type}
+      />
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        type={confirmModal.type}
+      />
+
+      <ImageGalleryModal
+        isOpen={imageGallery.isOpen}
+        onClose={() => setImageGallery({ isOpen: false, photos: [], initialIndex: 0 })}
+        photos={imageGallery.photos}
+        initialIndex={imageGallery.initialIndex}
+      />
+
+      <RatingModal
+        isOpen={ratingModal.isOpen}
+        onClose={() => setRatingModal({ isOpen: false, bookingId: '', serviceName: '', partnerName: '' })}
+        bookingId={ratingModal.bookingId}
+        serviceName={ratingModal.serviceName}
+        reviewType="client"
+        targetName={ratingModal.partnerName}
+        onSuccess={() => {
+          setModal({
+            isOpen: true,
+            title: 'Calificación Enviada',
+            message: 'Tu calificación ha sido enviada exitosamente.',
+            type: 'success'
+          })
+          fetchBookings()
+        }}
+      />
     </div>
   )
 }

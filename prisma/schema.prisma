@@ -64,6 +64,8 @@ model User {
   phone         String?
   role          UserRole  @default(CLIENT)
   pushSubscription String? @db.Text
+  clientRating   Float     @default(0)
+  clientTotalReviews Int   @default(0)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -169,6 +171,32 @@ model Booking {
   totalPrice    Float
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
+
+  review        Review?
+}
+
+model Review {
+  id              String    @id @default(cuid())
+  bookingId       String    @unique
+  booking         Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  // Calificación del cliente al socio
+  clientToPartnerRating    Int?
+  clientToPartnerComment   String?
+  clientReviewedAt         DateTime?
+
+  // Calificación del socio al cliente
+  partnerToClientRating    Int?
+  partnerToClientComment   String?
+  partnerReviewedAt        DateTime?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([bookingId])
+}
+
+  @@index([bookingId])
 }
 
 model ServiceRequest {
