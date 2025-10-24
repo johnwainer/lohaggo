@@ -157,7 +157,6 @@ export default function DashboardPage() {
     serviceName: '',
     partnerName: ''
   })
-  })
 
   useEffect(() => {
     if (status === 'unauthenticated') {
