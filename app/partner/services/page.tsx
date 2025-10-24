@@ -251,7 +251,7 @@ export default function ServicesManagementPage() {
               <div className="flex items-center gap-4">
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900">Gestión de Servicios</h1>
-                  <p className="text-sm text-gray-600">Administra los servicios que ofreces</p>
+                  <p className="hidden sm:block text-sm text-gray-600">Administra los servicios que ofreces</p>
                 </div>
               </div>
             </div>
