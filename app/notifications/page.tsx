@@ -125,46 +125,47 @@ export default function NotificationsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <header className="bg-white shadow-sm sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Notificaciones</h1>
-                <p className="text-sm text-gray-600">{unreadCount} sin leer</p>
+            <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+              <div className="min-w-0 flex-1">
+                <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">Notificaciones</h1>
+                <p className="text-xs sm:text-sm text-gray-600">{unreadCount} sin leer</p>
               </div>
             </div>
 
             {unreadCount > 0 && (
               <button
                 onClick={markAllAsRead}
-                className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition"
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition text-xs sm:text-sm flex-shrink-0"
               >
-                <CheckCheck size={18} />
+                <CheckCheck size={16} className="sm:w-[18px] sm:h-[18px]" />
                 <span className="hidden sm:inline">Marcar todas como leídas</span>
+                <span className="sm:hidden">Marcar</span>
               </button>
             )}
           </div>
         </div>
 
         <div className="border-t border-gray-200 bg-gray-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <nav className="flex gap-1 overflow-x-auto">
+          <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
+            <nav className="flex gap-0.5 sm:gap-1 overflow-x-auto scrollbar-hide">
               <button
                 onClick={() => router.push('/dashboard')}
-                className="flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
               >
-                <Home size={18} />
-                <span>Resumen</span>
+                <Home size={16} className="sm:w-[18px] sm:h-[18px]" />
+                <span className="hidden xs:inline">Resumen</span>
               </button>
 
               <button
                 onClick={() => router.push('/dashboard')}
-                className="flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
               >
-                <Package size={18} />
-                <span>Mis Reservas</span>
+                <Package size={16} className="sm:w-[18px] sm:h-[18px]" />
+                <span className="hidden xs:inline">Mis Reservas</span>
                 {bookingsCount > 0 && (
-                  <span className="bg-primary-600 text-white text-xs px-2 py-0.5 rounded-full">
+                  <span className="bg-primary-600 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
                     {bookingsCount}
                   </span>
                 )}
@@ -172,12 +173,12 @@ export default function NotificationsPage() {
 
               <button
                 onClick={() => router.push('/dashboard')}
-                className="flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
               >
-                <Bell size={18} />
-                <span>Mis Solicitudes</span>
+                <Bell size={16} className="sm:w-[18px] sm:h-[18px]" />
+                <span className="hidden xs:inline">Mis Solicitudes</span>
                 {requestsCount > 0 && (
-                  <span className="bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full">
+                  <span className="bg-orange-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
                     {requestsCount}
                   </span>
                 )}
@@ -185,45 +186,45 @@ export default function NotificationsPage() {
 
               <button
                 onClick={() => router.push('/notifications')}
-                className="flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 border-primary-600 text-primary-600 transition whitespace-nowrap"
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-primary-600 text-primary-600 transition whitespace-nowrap"
               >
-                <Bell size={18} />
-                <span>Notificaciones</span>
+                <Bell size={16} className="sm:w-[18px] sm:h-[18px]" />
+                <span className="hidden xs:inline">Notificaciones</span>
               </button>
 
               <button
                 onClick={() => router.push('/dashboard/addresses')}
-                className="flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
               >
-                <MapPin size={18} />
-                <span>Mis Direcciones</span>
+                <MapPin size={16} className="sm:w-[18px] sm:h-[18px]" />
+                <span className="hidden xs:inline">Mis Direcciones</span>
               </button>
             </nav>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg overflow-hidden">
           {isSupported && !isSubscribed && (
-            <div className="p-6 bg-blue-50 border-b border-blue-200">
-              <p className="text-sm text-blue-800 mb-3">
+            <div className="p-4 sm:p-6 bg-blue-50 border-b border-blue-200">
+              <p className="text-xs sm:text-sm text-blue-800 mb-2 sm:mb-3">
                 Activa las notificaciones push para recibir alertas en tiempo real
               </p>
               <button
                 onClick={handleEnablePushNotifications}
-                className="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition font-medium"
+                className="text-xs sm:text-sm bg-blue-600 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-blue-700 transition font-medium"
               >
                 Activar notificaciones push
               </button>
             </div>
           )}
 
-          <div className="p-6 border-b">
+          <div className="p-4 sm:p-6 border-b">
             <div className="flex gap-2">
               <button
                 onClick={() => setFilter('all')}
-                className={`px-4 py-2 rounded-lg transition font-medium ${
+                className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg transition font-medium text-xs sm:text-sm ${
                   filter === 'all'
                     ? 'bg-primary-600 text-white shadow-lg'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -233,27 +234,28 @@ export default function NotificationsPage() {
               </button>
               <button
                 onClick={() => setFilter('unread')}
-                className={`px-4 py-2 rounded-lg transition font-medium ${
+                className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg transition font-medium text-xs sm:text-sm ${
                   filter === 'unread'
                     ? 'bg-primary-600 text-white shadow-lg'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                No leídas ({unreadCount})
+                <span className="hidden xs:inline">No leídas</span>
+                <span className="xs:hidden">Sin leer</span> ({unreadCount})
               </button>
             </div>
           </div>
 
           <div className="divide-y">
             {notifications.length === 0 ? (
-              <div className="p-12 text-center">
-                <Bell className="mx-auto text-gray-300 mb-4" size={64} />
-                <p className="text-gray-600 text-lg font-medium">
+              <div className="p-8 sm:p-12 text-center">
+                <Bell className="mx-auto text-gray-300 mb-3 sm:mb-4" size={48} />
+                <p className="text-gray-600 text-base sm:text-lg font-medium">
                   {filter === 'unread'
                     ? 'No tienes notificaciones sin leer'
                     : 'No tienes notificaciones'}
                 </p>
-                <p className="text-gray-500 text-sm mt-2">
+                <p className="text-gray-500 text-xs sm:text-sm mt-2">
                   Aquí aparecerán las actualizaciones de tus reservas y solicitudes
                 </p>
               </div>
@@ -261,22 +263,22 @@ export default function NotificationsPage() {
               notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`p-6 hover:bg-gray-50 transition ${
+                  className={`p-4 sm:p-6 hover:bg-gray-50 transition ${
                     !notification.read ? 'bg-blue-50 border-l-4 border-primary-600' : ''
                   }`}
                 >
-                  <div className="flex items-start gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between mb-2">
-                        <h3 className="font-semibold text-lg text-gray-900">
+                  <div className="flex items-start gap-3 sm:gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between mb-2 gap-2">
+                        <h3 className="font-semibold text-base sm:text-lg text-gray-900 flex-1">
                           {notification.title}
                         </h3>
                         {!notification.read && (
-                          <div className="w-3 h-3 bg-primary-600 rounded-full animate-pulse" />
+                          <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-primary-600 rounded-full animate-pulse flex-shrink-0" />
                         )}
                       </div>
-                      <p className="text-gray-700 mb-3">{notification.message}</p>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-gray-700 mb-2 sm:mb-3 text-sm sm:text-base">{notification.message}</p>
+                      <p className="text-xs sm:text-sm text-gray-500">
                         {new Date(notification.createdAt).toLocaleString('es-ES', {
                           weekday: 'long',
                           year: 'numeric',
@@ -291,9 +293,9 @@ export default function NotificationsPage() {
                     {!notification.read && (
                       <button
                         onClick={() => markAsRead(notification.id)}
-                        className="flex items-center gap-2 px-3 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium"
+                        className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium flex-shrink-0"
                       >
-                        <Check size={16} />
+                        <Check size={14} className="sm:w-4 sm:h-4" />
                         <span className="hidden sm:inline">Marcar como leída</span>
                       </button>
                     )}
