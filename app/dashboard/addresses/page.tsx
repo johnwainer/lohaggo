@@ -232,7 +232,7 @@ export default function AddressesPage() {
                 onClick={() => router.push('/dashboard')}
                 className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
               >
-                <Home size={16} className="sm:w-[18px] sm:h-[18px]" />
+                <Home size={20} className="sm:w-[22px] sm:h-[22px]" />
                 <span className="hidden xs:inline">Resumen</span>
               </button>
 
@@ -240,7 +240,7 @@ export default function AddressesPage() {
                 onClick={() => router.push('/dashboard')}
                 className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
               >
-                <Package size={16} className="sm:w-[18px] sm:h-[18px]" />
+                <Package size={20} className="sm:w-[22px] sm:h-[22px]" />
                 <span className="hidden xs:inline">Mis Reservas</span>
                 {bookingsCount > 0 && (
                   <span className="bg-primary-600 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
@@ -253,7 +253,7 @@ export default function AddressesPage() {
                 onClick={() => router.push('/dashboard')}
                 className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
               >
-                <Bell size={16} className="sm:w-[18px] sm:h-[18px]" />
+                <Bell size={20} className="sm:w-[22px] sm:h-[22px]" />
                 <span className="hidden xs:inline">Mis Solicitudes</span>
                 {requestsCount > 0 && (
                   <span className="bg-orange-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
@@ -266,14 +266,14 @@ export default function AddressesPage() {
                 onClick={() => router.push('/notifications')}
                 className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
               >
-                <Bell size={16} className="sm:w-[18px] sm:h-[18px]" />
+                <Bell size={20} className="sm:w-[22px] sm:h-[22px]" />
                 <span className="hidden xs:inline">Notificaciones</span>
               </button>
 
               <button
                 className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-primary-600 text-primary-600 transition whitespace-nowrap"
               >
-                <MapPin size={16} className="sm:w-[18px] sm:h-[18px]" />
+                <MapPin size={20} className="sm:w-[22px] sm:h-[22px]" />
                 <span className="hidden xs:inline">Mis Direcciones</span>
               </button>
             </nav>

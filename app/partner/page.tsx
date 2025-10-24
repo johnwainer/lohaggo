@@ -414,7 +414,7 @@ export default function PartnerDashboard() {
                       : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                   }`}
                 >
-                  <Home size={16} className="sm:w-[18px] sm:h-[18px]" />
+                  <Home size={20} className="sm:w-[22px] sm:h-[22px]" />
                   <span className="hidden sm:inline">Resumen</span>
                 </button>
 
@@ -426,7 +426,7 @@ export default function PartnerDashboard() {
                       : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                   }`}
                 >
-                  <Package size={16} className="sm:w-[18px] sm:h-[18px]" />
+                  <Package size={20} className="sm:w-[22px] sm:h-[22px]" />
                   <span className="hidden sm:inline">Mis Reservas</span>
                   {bookings.length > 0 && (
                     <span className="bg-primary-600 text-white text-[10px] px-2 py-0.5 rounded-full ml-2">
@@ -443,7 +443,7 @@ export default function PartnerDashboard() {
                       : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                   }`}
                 >
-                  <Bell size={16} className="sm:w-[18px] sm:h-[18px]" />
+                  <Bell size={20} className="sm:w-[22px] sm:h-[22px]" />
                   <span className="hidden sm:inline">Para Mí</span>
                   {serviceRequests.length > 0 && (
                     <span className="bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded-full ml-2">
@@ -460,7 +460,7 @@ export default function PartnerDashboard() {
                       : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                   }`}
                 >
-                  <Activity size={16} className="sm:w-[18px] sm:h-[18px]" />
+                  <Activity size={20} className="sm:w-[22px] sm:h-[22px]" />
                   <span className="hidden sm:inline">Todas</span>
                 </button>
 
@@ -468,7 +468,7 @@ export default function PartnerDashboard() {
                   onClick={() => router.push('/partner/notifications')}
                   className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
                 >
-                  <Bell size={16} className="sm:w-[18px] sm:h-[18px]" />
+                  <Bell size={20} className="sm:w-[22px] sm:h-[22px]" />
                   <span className="hidden sm:inline">Notificaciones</span>
                 </button>
 
@@ -476,7 +476,7 @@ export default function PartnerDashboard() {
                   onClick={() => router.push('/partner/services')}
                   className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
                 >
-                  <Settings size={16} className="sm:w-[18px] sm:h-[18px]" />
+                  <Settings size={20} className="sm:w-[22px] sm:h-[22px]" />
                   <span className="hidden sm:inline">Mis Servicios</span>
                 </button>
               </nav>
