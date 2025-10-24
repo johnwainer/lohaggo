@@ -214,36 +214,36 @@ export default function AddressesPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Header con submenú */}
       <header className="bg-white shadow-sm sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Mis Direcciones</h1>
-                <p className="text-sm text-gray-600">Administra tus direcciones de servicio</p>
+            <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+              <div className="min-w-0 flex-1">
+                <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">Mis Direcciones</h1>
+                <p className="text-xs sm:text-sm text-gray-600 truncate hidden sm:block">Administra tus direcciones de servicio</p>
               </div>
             </div>
           </div>
         </div>
 
         <div className="border-t border-gray-200 bg-gray-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <nav className="flex gap-1 overflow-x-auto">
+          <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
+            <nav className="flex gap-0.5 sm:gap-1 overflow-x-auto scrollbar-hide">
               <button
                 onClick={() => router.push('/dashboard')}
-                className="flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
               >
-                <Home size={18} />
-                <span>Resumen</span>
+                <Home size={16} className="sm:w-[18px] sm:h-[18px]" />
+                <span className="hidden xs:inline">Resumen</span>
               </button>
 
               <button
                 onClick={() => router.push('/dashboard')}
-                className="flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
               >
-                <Package size={18} />
-                <span>Mis Reservas</span>
+                <Package size={16} className="sm:w-[18px] sm:h-[18px]" />
+                <span className="hidden xs:inline">Mis Reservas</span>
                 {bookingsCount > 0 && (
-                  <span className="bg-primary-600 text-white text-xs px-2 py-0.5 rounded-full">
+                  <span className="bg-primary-600 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
                     {bookingsCount}
                   </span>
                 )}
@@ -251,12 +251,12 @@ export default function AddressesPage() {
 
               <button
                 onClick={() => router.push('/dashboard')}
-                className="flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
               >
-                <Bell size={18} />
-                <span>Mis Solicitudes</span>
+                <Bell size={16} className="sm:w-[18px] sm:h-[18px]" />
+                <span className="hidden xs:inline">Mis Solicitudes</span>
                 {requestsCount > 0 && (
-                  <span className="bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full">
+                  <span className="bg-orange-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
                     {requestsCount}
                   </span>
                 )}
@@ -264,55 +264,57 @@ export default function AddressesPage() {
 
               <button
                 onClick={() => router.push('/notifications')}
-                className="flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
               >
-                <Bell size={18} />
-                <span>Notificaciones</span>
+                <Bell size={16} className="sm:w-[18px] sm:h-[18px]" />
+                <span className="hidden xs:inline">Notificaciones</span>
               </button>
 
               <button
-                className="flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 border-primary-600 text-primary-600 transition whitespace-nowrap"
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-primary-600 text-primary-600 transition whitespace-nowrap"
               >
-                <MapPin size={18} />
-                <span>Mis Direcciones</span>
+                <MapPin size={16} className="sm:w-[18px] sm:h-[18px]" />
+                <span className="hidden xs:inline">Mis Direcciones</span>
               </button>
             </nav>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-3xl font-bold text-gray-900">Mis Direcciones</h2>
-              <p className="text-gray-600 mt-1">Administra tus direcciones de servicio</p>
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
+        <div className="mb-4 sm:mb-6">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <h2 className="text-xl sm:text-3xl font-bold text-gray-900 truncate">Mis Direcciones</h2>
+              <p className="text-gray-600 mt-1 text-xs sm:text-base hidden sm:block">Administra tus direcciones de servicio</p>
             </div>
             <button
               onClick={() => handleOpenModal()}
-              className="flex items-center gap-2 bg-[#FF2D55] text-white px-6 py-3 rounded-lg hover:bg-[#E02849] transition font-medium"
+              className="flex items-center gap-1.5 sm:gap-2 bg-[#FF2D55] text-white px-3 sm:px-6 py-2 sm:py-3 rounded-lg hover:bg-[#E02849] transition font-medium text-xs sm:text-base flex-shrink-0"
             >
-              <Plus size={20} />
-              Agregar Dirección
+              <Plus size={16} className="sm:w-[18px] sm:h-[18px]" />
+              <span className="hidden xs:inline">Agregar Dirección</span>
+              <span className="xs:hidden">Agregar</span>
             </button>
           </div>
         </div>
 
         {addresses.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-            <MapPin className="mx-auto text-gray-400 mb-4" size={64} />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+          <div className="bg-white rounded-xl shadow-sm p-8 sm:p-12 text-center">
+            <MapPin className="mx-auto text-gray-400 mb-3 sm:mb-4" size={48} />
+            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">
               No tienes direcciones guardadas
             </h3>
-            <p className="text-gray-600 mb-6">
+            <p className="text-gray-600 mb-4 sm:mb-6 text-sm sm:text-base">
               Agrega una dirección para solicitar servicios más rápido
             </p>
             <button
               onClick={() => handleOpenModal()}
-              className="inline-flex items-center gap-2 bg-[#FF2D55] text-white px-6 py-3 rounded-lg hover:bg-[#E02849] transition font-medium"
+              className="inline-flex items-center gap-2 bg-[#FF2D55] text-white px-5 py-2.5 sm:px-6 sm:py-3 rounded-lg hover:bg-[#E02849] transition font-medium"
             >
-              <Plus size={20} />
-              Agregar Primera Dirección
+              <Plus size={18} />
+              <span className="hidden xs:inline">Agregar Primera Dirección</span>
+              <span className="xs:hidden">Agregar</span>
             </button>
           </div>
         ) : (
