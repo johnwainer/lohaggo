@@ -358,7 +358,7 @@ export default function DashboardPage() {
                   }`}
                 >
                   <Home size={20} className="sm:w-[22px] sm:h-[22px]" />
-                  <span className="hidden xs:inline">Resumen</span>
+                  <span className="hidden sm:inline">Resumen</span>
                 </button>
 
                 <button
@@ -370,7 +370,7 @@ export default function DashboardPage() {
                   }`}
                 >
                   <Package size={20} className="sm:w-[22px] sm:h-[22px]" />
-                  <span className="hidden xs:inline">Mis Reservas</span>
+                  <span className="hidden sm:inline">Mis Reservas</span>
                   {bookings.length > 0 && (
                     <span className="bg-primary-600 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
                       {bookings.length}
@@ -386,8 +386,8 @@ export default function DashboardPage() {
                       : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                   }`}
                 >
-                  <Bell size={20} className="sm:w-[22px] sm:h-[22px]" />
-                  <span className="hidden xs:inline">Mis Solicitudes</span>
+                  <MessageSquare size={20} className="sm:w-[22px] sm:h-[22px]" />
+                  <span className="hidden sm:inline">Mis Solicitudes</span>
                   {serviceRequests.length > 0 && (
                     <span className="bg-orange-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
                       {serviceRequests.length}
@@ -400,7 +400,7 @@ export default function DashboardPage() {
                   className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
                 >
                   <Bell size={20} className="sm:w-[22px] sm:h-[22px]" />
-                  <span className="hidden xs:inline">Notificaciones</span>
+                  <span className="hidden sm:inline">Notificaciones</span>
                 </button>
 
                 <button
@@ -408,7 +408,7 @@ export default function DashboardPage() {
                   className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
                 >
                   <MapPin size={20} className="sm:w-[22px] sm:h-[22px]" />
-                  <span className="hidden xs:inline">Mis Direcciones</span>
+                  <span className="hidden sm:inline">Mis Direcciones</span>
                 </button>
               </nav>
             </div>
