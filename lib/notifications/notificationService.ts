@@ -262,10 +262,10 @@ export async function notifyBookingStatusChange(bookingId: string, status: strin
 
     if (!booking) return
 
-    const statusMessages: Record<string, { title: string; message: string; type: NotificationType }> = {
+    const clientMessages: Record<string, { title: string; message: string; type: NotificationType }> = {
       CONFIRMED: {
         title: "Reserva confirmada",
-        message: `Tu reserva de ${booking.service.name} ha sido confirmada`,
+        message: `Tu reserva de ${booking.service.name} ha sido confirmada por ${booking.partner?.user.name || 'el socio'}`,
         type: "BOOKING_CONFIRMED"
       },
       CANCELLED: {
@@ -285,31 +285,57 @@ export async function notifyBookingStatusChange(bookingId: string, status: strin
       }
     }
 
-    const statusInfo = statusMessages[status]
-    if (!statusInfo) return
-
-    await createNotification({
-      userId: booking.userId,
-      type: statusInfo.type,
-      title: statusInfo.title,
-      message: statusInfo.message,
-      data: {
-        bookingId: booking.id,
-        serviceId: booking.serviceId
-      }
-    })
-
-    if (booking.partner && status === "CANCELLED") {
-      await createNotification({
-        userId: booking.partner.userId,
-        type: "BOOKING_CANCELLED",
+    const partnerMessages: Record<string, { title: string; message: string; type: NotificationType }> = {
+      CONFIRMED: {
+        title: "Reserva confirmada",
+        message: `Has confirmado la reserva de ${booking.service.name} con ${booking.user.name}`,
+        type: "BOOKING_CONFIRMED"
+      },
+      CANCELLED: {
         title: "Reserva cancelada",
         message: `La reserva de ${booking.service.name} con ${booking.user.name} ha sido cancelada`,
+        type: "BOOKING_CANCELLED"
+      },
+      IN_PROGRESS: {
+        title: "Servicio iniciado",
+        message: `Has iniciado el servicio de ${booking.service.name} con ${booking.user.name}`,
+        type: "BOOKING_IN_PROGRESS"
+      },
+      COMPLETED: {
+        title: "Servicio completado",
+        message: `Has completado el servicio de ${booking.service.name} con ${booking.user.name}`,
+        type: "BOOKING_COMPLETED"
+      }
+    }
+
+    const clientStatusInfo = clientMessages[status]
+    if (clientStatusInfo) {
+      await createNotification({
+        userId: booking.userId,
+        type: clientStatusInfo.type,
+        title: clientStatusInfo.title,
+        message: clientStatusInfo.message,
         data: {
           bookingId: booking.id,
           serviceId: booking.serviceId
         }
       })
+    }
+
+    if (booking.partner) {
+      const partnerStatusInfo = partnerMessages[status]
+      if (partnerStatusInfo) {
+        await createNotification({
+          userId: booking.partner.userId,
+          type: partnerStatusInfo.type,
+          title: partnerStatusInfo.title,
+          message: partnerStatusInfo.message,
+          data: {
+            bookingId: booking.id,
+            serviceId: booking.serviceId
+          }
+        })
+      }
     }
   } catch (error) {
     console.error("Error notifying booking status change:", error)
