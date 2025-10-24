@@ -124,6 +124,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Archivo y tipo son requeridos' }, { status: 400 })
     }
 
+    if (file.type !== 'application/pdf') {
+      return NextResponse.json({ error: 'Solo se permiten archivos PDF' }, { status: 400 })
+    }
+
     const { url, publicId } = await uploadToCloudinary(file, 'haggo/documents')
 
     const document = await prisma.verificationDocument.create({
