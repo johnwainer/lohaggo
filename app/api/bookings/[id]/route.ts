@@ -100,6 +100,9 @@ export async function DELETE(
       )
     }
 
+    // Notify partner/client about cancellation before deleting the booking
+    await notifyBookingStatusChange(params.id, 'CANCELLED')
+
     await prisma.booking.delete({
       where: { id: params.id }
     })

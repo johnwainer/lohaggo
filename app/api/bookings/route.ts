@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth"
+import { createNotification } from "@/lib/notifications/notificationService"
 
 export const dynamic = 'force-dynamic'
 
@@ -81,7 +82,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { serviceId, scheduledDate, scheduledTime, address, notes, totalPrice } = body
+    const { serviceId, scheduledDate, scheduledTime, address, notes, totalPrice, partnerId } = body
 
     if (!serviceId || !scheduledDate || !scheduledTime || !address || !totalPrice) {
       return NextResponse.json(
@@ -94,6 +95,7 @@ export async function POST(request: Request) {
       data: {
         userId: user.id,
         serviceId,
+        partnerId: partnerId || null,
         scheduledDate: new Date(scheduledDate),
         scheduledTime,
         address,
@@ -109,9 +111,27 @@ export async function POST(request: Request) {
             email: true,
             phone: true,
           }
+        },
+        partner: {
+          include: {
+            user: true
+          }
         }
       }
     })
+
+    if (booking.partner) {
+      await createNotification({
+        userId: booking.partner.userId,
+        type: "BOOKING_CONFIRMED",
+        title: "Nueva reserva pendiente",
+        message: `${booking.user.name} ha solicitado el servicio de ${booking.service.name}`,
+        data: {
+          bookingId: booking.id,
+          serviceId: booking.serviceId
+        }
+      })
+    }
 
     return NextResponse.json(booking, { status: 201 })
   } catch (error) {
