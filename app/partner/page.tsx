@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Calendar, Clock, MapPin, DollarSign, Package, User, CheckCircle, XCircle,
   Send, AlertCircle, TrendingUp, Activity, Filter, Search, Menu, X,
-  Home, Briefcase, Bell, Settings, LogOut, ChevronRight, Eye, MessageSquare
+  Home, Briefcase, Bell, Settings, LogOut, ChevronRight, Eye, MessageSquare, Shield
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import Modal from '@/components/Modal'
@@ -486,6 +486,14 @@ function PartnerDashboardContent() {
                 >
                   <Settings size={20} className="sm:w-[22px] sm:h-[22px]" />
                   <span className="hidden sm:inline">Mis Servicios</span>
+                </button>
+
+                <button
+                  onClick={() => router.push('/partner/verification')}
+                  className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
+                >
+                  <Shield size={20} className="sm:w-[22px] sm:h-[22px]" />
+                  <span className="hidden sm:inline">Verificación</span>
                 </button>
               </nav>
             </div>
