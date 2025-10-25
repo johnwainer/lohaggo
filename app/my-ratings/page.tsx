@@ -41,8 +41,8 @@ export default function MyRatingsPage() {
   const [reviews, setReviews] = useState<Review[]>([])
   const [loading, setLoading] = useState(true)
   const [userRole, setUserRole] = useState<'CLIENT' | 'PARTNER' | null>(null)
-  const [bookings, setBookings] = useState<any[]>([])
-  const [serviceRequests, setServiceRequests] = useState<any[]>([])
+  const [bookingsCount, setBookingsCount] = useState(0)
+  const [requestsCount, setRequestsCount] = useState(0)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -61,18 +61,18 @@ export default function MyRatingsPage() {
   const fetchPartnerData = async () => {
     try {
       const [bookingsRes, requestsRes] = await Promise.all([
-        fetch('/api/partner/bookings'),
+        fetch('/api/bookings'),
         fetch('/api/partner/service-requests')
       ])
 
       if (bookingsRes.ok) {
         const bookingsData = await bookingsRes.json()
-        setBookings(bookingsData)
+        setBookingsCount(Array.isArray(bookingsData) ? bookingsData.length : 0)
       }
 
       if (requestsRes.ok) {
         const requestsData = await requestsRes.json()
-        setServiceRequests(requestsData.myRequests || [])
+        setRequestsCount(Array.isArray(requestsData) ? requestsData.length : 0)
       }
     } catch (error) {
       console.error('Error fetching partner data:', error)
@@ -174,9 +174,9 @@ export default function MyRatingsPage() {
                   >
                     <Package size={20} className="sm:w-[22px] sm:h-[22px]" />
                     <span className="hidden sm:inline">Mis Reservas</span>
-                    {bookings.length > 0 && (
+                    {bookingsCount > 0 && (
                       <span className="bg-primary-600 text-white text-[10px] px-2 py-0.5 rounded-full ml-2">
-                        {bookings.length}
+                        {bookingsCount}
                       </span>
                     )}
                   </button>
@@ -187,9 +187,9 @@ export default function MyRatingsPage() {
                   >
                     <MessageSquare size={20} className="sm:w-[22px] sm:h-[22px]" />
                     <span className="hidden sm:inline">Para Mí</span>
-                    {serviceRequests.length > 0 && (
+                    {requestsCount > 0 && (
                       <span className="bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded-full ml-2">
-                        {serviceRequests.length}
+                        {requestsCount}
                       </span>
                     )}
                   </button>
