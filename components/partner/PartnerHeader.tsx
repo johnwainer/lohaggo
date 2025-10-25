@@ -71,12 +71,6 @@ export default function PartnerHeader({
       path: '/partner/notifications',
     },
     {
-      id: 'my-ratings',
-      label: 'Mis Calificaciones',
-      icon: <Star size={20} className="sm:w-[22px] sm:h-[22px]" />,
-      path: '/my-ratings',
-    },
-    {
       id: 'services',
       label: 'Mis Servicios',
       icon: <Settings size={20} className="sm:w-[22px] sm:h-[22px]" />,
