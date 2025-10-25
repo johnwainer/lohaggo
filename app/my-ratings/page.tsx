@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { Star, ArrowLeft, Calendar, MessageSquare, User } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
+import PartnerHeader from '@/components/partner/PartnerHeader'
 
 interface Review {
   id: string
@@ -58,7 +59,7 @@ export default function MyRatingsPage() {
     try {
       const res = await fetch('/api/my-ratings')
       const data = await res.json()
-      
+
       if (res.ok) {
         setReviews(data.reviews)
         setUserRole(data.userRole)
@@ -86,10 +87,10 @@ export default function MyRatingsPage() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
-    return date.toLocaleDateString('es-ES', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+    return date.toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
     })
   }
 
@@ -106,54 +107,62 @@ export default function MyRatingsPage() {
 
   const averageRating = reviews.length > 0
     ? reviews.reduce((acc, review) => {
-        const rating = userRole === 'CLIENT' 
-          ? review.partnerToClientRating 
+        const rating = userRole === 'CLIENT'
+          ? review.partnerToClientRating
           : review.clientToPartnerRating
         return acc + (rating || 0)
-      }, 0) / reviews.filter(r => 
+      }, 0) / reviews.filter(r =>
         userRole === 'CLIENT' ? r.partnerToClientRating : r.clientToPartnerRating
       ).length
     : 0
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <button
-            onClick={() => router.back()}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4 transition"
-          >
-            <ArrowLeft size={20} />
-            Volver
-          </button>
-          
-          <div className="bg-white rounded-2xl shadow-lg p-6">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Mis Calificaciones</h1>
-            <p className="text-gray-600 mb-4">
-              {userRole === 'CLIENT' 
-                ? 'Calificaciones que has recibido de los socios' 
-                : 'Calificaciones que has recibido de los clientes'}
-            </p>
-            
-            {reviews.filter(r => userRole === 'CLIENT' ? r.partnerToClientRating : r.clientToPartnerRating).length > 0 && (
-              <div className="flex items-center gap-4 pt-4 border-t">
-                <div className="flex items-center gap-2">
-                  <Star size={24} className="fill-yellow-400 text-yellow-400" />
-                  <span className="text-3xl font-bold text-gray-900">
-                    {averageRating.toFixed(1)}
-                  </span>
-                </div>
-                <div className="text-gray-600">
-                  <p className="font-medium">Promedio general</p>
-                  <p className="text-sm">
-                    {reviews.filter(r => userRole === 'CLIENT' ? r.partnerToClientRating : r.clientToPartnerRating).length} calificaciones
+      {userRole === 'PARTNER' ? (
+        <PartnerHeader
+          title="Mis Calificaciones"
+          subtitle="Calificaciones que has recibido de los clientes"
+          showNavigation={false}
+        />
+      ) : (
+        <header className="bg-white shadow-sm sticky top-0 z-40">
+          <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+                <div className="min-w-0 flex-1">
+                  <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">
+                    Mis Calificaciones
+                  </h1>
+                  <p className="text-xs sm:text-sm text-gray-600 truncate hidden sm:block">
+                    Calificaciones que has recibido de los socios
                   </p>
                 </div>
               </div>
-            )}
+            </div>
           </div>
-        </div>
+        </header>
+      )}
+
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Stats Card */}
+        {reviews.filter(r => userRole === 'CLIENT' ? r.partnerToClientRating : r.clientToPartnerRating).length > 0 && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Star size={24} className="fill-yellow-400 text-yellow-400" />
+                <span className="text-3xl font-bold text-gray-900">
+                  {averageRating.toFixed(1)}
+                </span>
+              </div>
+              <div className="text-gray-600">
+                <p className="font-medium">Promedio general</p>
+                <p className="text-sm">
+                  {reviews.filter(r => userRole === 'CLIENT' ? r.partnerToClientRating : r.clientToPartnerRating).length} calificaciones
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Reviews List */}
         {reviews.length === 0 ? (
