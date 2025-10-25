@@ -174,11 +174,13 @@ export default function MyRatingsPage() {
                   >
                     <Package size={20} className="sm:w-[22px] sm:h-[22px]" />
                     <span className="hidden sm:inline">Mis Reservas</span>
-                    {bookingsCount > 0 && (
-                      <span className="bg-primary-600 text-white text-[10px] px-2 py-0.5 rounded-full ml-2">
-                        {bookingsCount}
-                      </span>
-                    )}
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full ml-2 ${
+                      bookingsCount > 0
+                        ? 'bg-primary-600 text-white'
+                        : 'text-gray-400'
+                    }`}>
+                      {bookingsCount}
+                    </span>
                   </button>
 
                   <button
@@ -187,11 +189,13 @@ export default function MyRatingsPage() {
                   >
                     <MessageSquare size={20} className="sm:w-[22px] sm:h-[22px]" />
                     <span className="hidden sm:inline">Para Mí</span>
-                    {requestsCount > 0 && (
-                      <span className="bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded-full ml-2">
-                        {requestsCount}
-                      </span>
-                    )}
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full ml-2 ${
+                      requestsCount > 0
+                        ? 'bg-orange-500 text-white'
+                        : 'text-gray-400'
+                    }`}>
+                      {requestsCount}
+                    </span>
                   </button>
 
                   <button
