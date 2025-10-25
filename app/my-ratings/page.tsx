@@ -149,7 +149,7 @@ export default function MyRatingsPage() {
           title="Mis Calificaciones"
           subtitle="Calificaciones que has recibido de los clientes"
           showNavigation={true}
-          activeTab="overview"
+          activeTab=""
           bookingsCount={bookings.length}
           requestsCount={serviceRequests.length}
           onTabChange={(tab) => router.push('/partner')}
