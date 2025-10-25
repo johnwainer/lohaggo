@@ -42,6 +42,8 @@ export default function MyRatingsPage() {
   const [reviews, setReviews] = useState<Review[]>([])
   const [loading, setLoading] = useState(true)
   const [userRole, setUserRole] = useState<'CLIENT' | 'PARTNER' | null>(null)
+  const [bookings, setBookings] = useState<any[]>([])
+  const [serviceRequests, setServiceRequests] = useState<any[]>([])
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -51,8 +53,32 @@ export default function MyRatingsPage() {
 
     if (status === 'authenticated') {
       fetchReviews()
+      if (session?.user?.role === 'PARTNER') {
+        fetchPartnerData()
+      }
     }
   }, [status])
+
+  const fetchPartnerData = async () => {
+    try {
+      const [bookingsRes, requestsRes] = await Promise.all([
+        fetch('/api/partner/bookings'),
+        fetch('/api/partner/service-requests')
+      ])
+
+      if (bookingsRes.ok) {
+        const bookingsData = await bookingsRes.json()
+        setBookings(bookingsData)
+      }
+
+      if (requestsRes.ok) {
+        const requestsData = await requestsRes.json()
+        setServiceRequests(requestsData.myRequests || [])
+      }
+    } catch (error) {
+      console.error('Error fetching partner data:', error)
+    }
+  }
 
   const fetchReviews = async () => {
     setLoading(true)
@@ -123,6 +149,10 @@ export default function MyRatingsPage() {
           title="Mis Calificaciones"
           subtitle="Calificaciones que has recibido de los clientes"
           showNavigation={true}
+          activeTab="overview"
+          bookingsCount={bookings.length}
+          requestsCount={serviceRequests.length}
+          onTabChange={(tab) => router.push('/partner')}
         />
       ) : (
         <header className="bg-white shadow-sm sticky top-0 z-40">
