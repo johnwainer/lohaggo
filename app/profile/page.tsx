@@ -25,25 +25,15 @@ export default function ProfilePage() {
       if (bookingsRes.ok) {
         const bookingsData = await bookingsRes.json()
         setBookingsCount(Array.isArray(bookingsData) ? bookingsData.length : 0)
-      } else {
-        setBookingsCount(0)
       }
 
       if (requestsRes.ok) {
         const requestsData = await requestsRes.json()
-        const requests = Array.isArray(requestsData)
-          ? requestsData
-          : Array.isArray(requestsData?.serviceRequests)
-          ? requestsData.serviceRequests
-          : []
+        const requests = Array.isArray(requestsData) ? requestsData : Array.isArray(requestsData?.serviceRequests) ? requestsData.serviceRequests : []
         setRequestsCount(requests.length)
-      } else {
-        setRequestsCount(0)
       }
     } catch (error) {
       console.error('Error fetching counts:', error)
-      setBookingsCount(0)
-      setRequestsCount(0)
     }
   }
 
@@ -71,25 +61,50 @@ export default function ProfilePage() {
         },
         body: JSON.stringify({ name }),
       })
-0">
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Error al actualizar el perfil')
+      }
+
+      await update({ name })
+      setMessage({ type: 'success', text: 'Perfil actualizado exitosamente' })
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.message })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF6900]"></div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-              <div className="min-w- flex-1">
-                <h1 className="text-lg sm:text-2xlfont-bold text-gray-900 truncate">Mi Perfil</h1>
-                < className="text-xs sm:text-sm text-gray-600 truncate hidden sm:block">Administra tu información personal</p>
+              <div className="min-w-0 flex-1">
+                <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">Mi Perfil</h1>
+                <p className="text-xs sm:text-sm text-gray-600 truncate hidden sm:block">Administra tu información personal</p>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="border-t border-gra200 bg-gray-50">
-          <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-
-            cnav className="flex gap-0.5 sm:gap-1 overflow-x-auto scrollbar-hioe">
+        <div className="border-t border-gray-200 bg-gray-50">
+          <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
+            <nav className="flex gap-0.5 sm:gap-1 overflow-x-auto scrollbar-hide">
               <button
-                onClnck={() => router.push('/dashboard')}
-                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hoser:border-gray-300 transitiontwhitespa e-nowrap"
+                onClick={() => router.push('/dashboard')}
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
               >
                 <Home size={20} className="sm:w-[22px] sm:h-[22px]" />
                 <span className="hidden sm:inline">Resumen</span>
@@ -102,7 +117,7 @@ export default function ProfilePage() {
                 <Package size={20} className="sm:w-[22px] sm:h-[22px]" />
                 <span className="hidden sm:inline">Mis Reservas</span>
                 {bookingsCount > 0 && (
-                  <span cdata = awabg-priitry-600 te trehite text-[10px] sm:text-xs px-1.5 sm:pxs2 py-0.5 rounded-full">
+                  <span className="bg-primary-600 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
                     {bookingsCount}
                   </span>
                 )}
@@ -110,14 +125,14 @@ export default function ProfilePage() {
 
               <button
                 onClick={() => router.push('/dashboard')}
-                className="flex items-center gap-1.5 sm:gap-2 px-p sm:po-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
               >
-                <MessageSquare size={20} cnassName="sm:w-[22px]sse:h-[22p.]" />
+                <MessageSquare size={20} className="sm:w-[22px] sm:h-[22px]" />
                 <span className="hidden sm:inline">Mis Solicitudes</span>
                 {requestsCount > 0 && (
-                  <span className="bgjorsnge-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-foll">
-                    {requesnsC(unt}
-)                 </san>
+                  <span className="bg-orange-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
+                    {requestsCount}
+                  </span>
                 )}
               </button>
             </nav>
@@ -125,98 +140,18 @@ export default function ProfilePage() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto p3-8 py-4 sm:py">
-        <div className="max-w-3xl mx-auto
-  
-      if (  !response.ok) {
-        thro  w 2ew Error(data.error || 'Error al actualizar el perfil')Informacónsona2
-      }  culizasdats defi
-  
-      await update({ name })
-        setMessage({ type: 'success', text: 'Perfil actualizado exitosamente' })
-      } catch (error: any) {
-        setMessage({ type: 'error', text: error.message })
-      } finally {
-        setLoading(false)
-      }
-    }
-  
-    if (status === 'loading') {
-      return (
-        <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF6900]"></div>
-        </div>
-      )
-    }
-  
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <header className="bg-white shadow-sm sticky top-0 z-40">
-          <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-                <div className="min-w-0 flex-1">
-                  <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">Mi Perfil</h1>
-                  <p className="text-xs sm:text-sm text-gray-600 truncate hidden sm:block">Administra tu información personal</p>
-              </div>
-              </div>
-           </di v>
-         </div> 
-  
-         <div cla ssName="border-t border-gray-200 bg-gray-50">
-           <div c lassName="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
-             <nav c lassName="flex gap-0.5 sm:gap-1 overflow-x-auto scrollbar-hide">
-               <butto n
-                 on Click={() => router.push('/dashboard')}
-                 cl assName="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
-               > 
-                 <Hom e size={20} className="sm:w-[22px] sm:h-[22px]" />
-                 <spa n className="hidden sm:inline">Resumen</span>
-               </butt on>
-  
-               <butto n
-                 on Click={() => router.push('/dashboard')}
-                  className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
-                >
-                <Package size={20} className="sm:w-[22px] sm:h-[22px]" />
-                  <span className="hidden sm:inline">Mis Reservas</span>
-                  {bookingsCount > 0 && (
-                    <span className="bg-primary-600 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
-                      {bookingsCount}
-                    </span>
-                 )} 
-               </butt on>
-  
-               <but ton
-                 onCl ick={() => router.push('/dashboard')}
-                 clas sName="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
-               > 
-                 <Mes sageSquare size={20} className="sm:w-[22px] sm:h-[22px]" />
-                 <spa n className="hidden sm:inline">Mis Solicitudes</span>
-                 {r equestsCount > 0 && (
-                    <span className="bg-orange-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
-                      {requestsCount}
-                    </span>
-                  )}
-                </button>
-            </nav>
-           </di v>
-         </div> 
-       </header> 
-  
-       <main classN ame="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
-         <div classNa me="max-w-3xl mx-auto">
-           <div cla ssName="bg-white rounded-2xl shadow-lg overflow-hidden">
-             <div  className="bg-gradient-to-r from-[#FF2D55] to-[#FF6900] px-6 py-8">
-               <h2  className="text-2xl sm:text-3xl font-bold text-white">Información Personal</h2>
-               <p c lassName="text-white/90 mt-2">Actualiza tus datos de perfil</p>
-             </di v>
-  
-              <div className="p-6 sm:p-8">
-                {message && (
-                  <div
-             >
-      </main       className={`mb-6 p-4 rounded-lg flex items-center gap-3 ${
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
+        <div className="max-w-3xl mx-auto">
+          <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div className="bg-gradient-to-r from-[#FF2D55] to-[#FF6900] px-6 py-8">
+              <h2 className="text-2xl sm:text-3xl font-bold text-white">Información Personal</h2>
+              <p className="text-white/90 mt-2">Actualiza tus datos de perfil</p>
+            </div>
+
+            <div className="p-6 sm:p-8">
+              {message && (
+                <div
+                  className={`mb-6 p-4 rounded-lg flex items-center gap-3 ${
                     message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
                   }`}
                 >
