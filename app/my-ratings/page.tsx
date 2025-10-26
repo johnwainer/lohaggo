@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { Star, ArrowLeft, Calendar, MessageSquare, User, MapPin, Package, Activity, Bell, Settings, Shield } from 'lucide-react'
+import { Star, ArrowLeft, Calendar, MessageSquare, User, MapPin, Package, Activity, Bell, Settings, Shield, Home } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 
 interface Review {
@@ -255,26 +255,35 @@ export default function MyRatingsPage() {
             <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
               <nav className="flex gap-0.5 sm:gap-1 overflow-x-auto scrollbar-hide">
                 <button
-                  onClick={() => router.push('/dashboard')}
+                  onClick={() => router.push('/dashboard?tab=overview')}
                   className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
                 >
-                  <User size={20} className="sm:w-[22px] sm:h-[22px]" />
+                  <Home size={20} className="sm:w-[22px] sm:h-[22px]" />
                   <span className="hidden sm:inline">Resumen</span>
+                </button>
+
+                <button
+                  onClick={() => router.push('/dashboard?tab=bookings')}
+                  className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
+                >
+                  <Package size={20} className="sm:w-[22px] sm:h-[22px]" />
+                  <span className="hidden sm:inline">Mis Reservas</span>
+                </button>
+
+                <button
+                  onClick={() => router.push('/dashboard?tab=requests')}
+                  className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
+                >
+                  <MessageSquare size={20} className="sm:w-[22px] sm:h-[22px]" />
+                  <span className="hidden sm:inline">Mis Solicitudes</span>
                 </button>
 
                 <button
                   onClick={() => router.push('/notifications')}
                   className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
                 >
-                  <MessageSquare size={20} className="sm:w-[22px] sm:h-[22px]" />
+                  <Bell size={20} className="sm:w-[22px] sm:h-[22px]" />
                   <span className="hidden sm:inline">Notificaciones</span>
-                </button>
-
-                <button
-                  className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-primary-600 text-primary-600 transition whitespace-nowrap"
-                >
-                  <Star size={20} className="sm:w-[22px] sm:h-[22px]" />
-                  <span className="hidden sm:inline">Mis Calificaciones</span>
                 </button>
 
                 <button
