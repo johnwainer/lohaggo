@@ -75,7 +75,7 @@ export default function ProfilePage() {
 
     try {
       const formData = new FormData()
-      formData.append('file', file)
+      formData.append('photos', file)
 
       const uploadResponse = await fetch('/api/upload-photos', {
         method: 'POST',
