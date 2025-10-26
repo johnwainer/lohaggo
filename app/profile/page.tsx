@@ -53,8 +53,7 @@ export default function ProfilePage() {
     }
   }, [session, status, router])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    }
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
