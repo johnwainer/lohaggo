@@ -294,158 +294,110 @@ export default function ProfilePage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
-        <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-6">
-          <aside className="w-full lg:w-80 flex-shrink-0 order-2 lg:order-2">
-            <div className="bg-white rounded-2xl shadow-lg p-6 sticky top-6">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="h-12 w-12 bg-gray-200 rounded-full flex items-center justify-center text-xl text-gray-500">
-                  {session?.user?.name ? session.user.name.charAt(0) : 'U'}
-                </div>
-                <div>
-                  <p className="font-semibold text-gray-900">{session?.user?.name || 'Usuario'}</p>
-                  <p className="text-sm text-gray-500">{session?.user?.email}</p>
-                </div>
+        <div className="flex flex-col lg:flex-row gap-6">
+          <div className="flex-1">
+            <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+              <div className="bg-gradient-to-r from-[#FF2D55] to-[#FF6900] px-6 py-8">
+                <h2 className="text-2xl sm:text-3xl font-bold text-white">Información Personal</h2>
+                <p className="text-white/90 mt-2">Actualiza tus datos de perfil</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-gray-900">{bookingsCount || 0}</p>
-                  <p className="text-xs text-gray-500">Reservas</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-gray-900">{requestsCount || 0}</p>
-                  <p className="text-xs text-gray-500">Solicitudes</p>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <button onClick={() => router.push('/dashboard')} className="text-sm text-left text-[#FF6900] font-medium">
-                  Ver mi dashboard
-                </button>
-                <button onClick={() => router.push('/dashboard/addresses')} className="text-sm text-left text-gray-600">
-                  Mis direcciones
-                </button>
-                {isPartner && (
-                  <button onClick={() => router.push('/partner')} className="text-sm text-left text-gray-600">
-                    Panel de partner
-                  </button>
+              <div className="p-6 sm:p-8">
+                {message && (
+                  <div
+                    className={`mb-6 p-4 rounded-lg flex items-center gap-3 ${
+                      message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+                    }`}
+                  >
+                    {message.type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
+                    <span>{message.text}</span>
+                  </div>
                 )}
-              </div>
-            </div>
-          </aside>
 
-          <div className="flex-1 order-1 lg:order-1">
-
-          <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-            <div className="bg-gradient-to-r from-[#FF2D55] to-[#FF6900] px-6 py-8">
-              <h2 className="text-2xl sm:text-3xl font-bold text-white">Información Personal</h2>
-              <p className="text-white/90 mt-2">Actualiza tus datos de perfil</p>
-            </div>
-
-            <div className="p-6 sm:p-8">
-              {message && (
-                <div
-                  className={`mb-6 p-4 rounded-lg flex items-center gap-3 ${
-                    message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
-                  }`}
-                >
-                  {message.type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
-                  <span>{message.text}</span>
-                </div>
-              )}
-
-              <div className="flex justify-center mb-8">
-                <div className="relative">
-                  {image ? (
-                    <img
-                      src={image}
-                      alt="Profile"
-                      className="w-24 h-24 sm:w-32 sm:h-32 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-[#FF2D55] to-[#FF6900] rounded-full flex items-center justify-center text-white text-3xl sm:text-4xl font-bold">
-                      {name?.charAt(0).toUpperCase() || 'U'}
+                <div className="flex justify-center mb-8">
+                  <div className="relative group">
+                    <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
+                      {image ? (
+                        <img src={image} alt="Profile" className="w-full h-full object-cover" />
+                      ) : (
+                        <User size={48} className="text-gray-400" />
+                      )}
                     </div>
-                  )}
-                  <input
-                    type="file"
-                    id="profile-image"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                    disabled={uploadingImage}
-                  />
-                  <label
-                    htmlFor="profile-image"
-                    className={`absolute bottom-0 right-0 bg-white rounded-full p-2 shadow-lg border-2 border-gray-200 hover:bg-gray-50 transition cursor-pointer ${
-                      uploadingImage ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
-                    title="Cambiar foto"
-                  >
-                    {uploadingImage ? (
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#FF6900]"></div>
-                    ) : (
-                      <Camera size={20} className="text-gray-600" />
+                    <label
+                      htmlFor="avatar-upload"
+                      className="absolute bottom-0 right-0 bg-[#FF6900] text-white p-3 rounded-full cursor-pointer hover:bg-[#FF2D55] transition-colors shadow-lg"
+                    >
+                      <Camera size={20} />
+                      <input
+                        id="avatar-upload"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="hidden"
+                        disabled={uploadingImage}
+                      />
+                    </label>
+                    {uploadingImage && (
+                      <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                      </div>
                     )}
-                  </label>
+                  </div>
                 </div>
+
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div>
+                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                      Nombre completo
+                    </label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                      <input
+                        type="text"
+                        id="name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6900] focus:border-transparent"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                      Correo electrónico
+                    </label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                      <input
+                        type="email"
+                        id="email"
+                        value={email}
+                        disabled
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+                      />
+                    </div>
+                    <p className="mt-2 text-sm text-gray-500">El correo electrónico no se puede modificar</p>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className={`flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white font-medium rounded-lg hover:shadow-lg transition-all ${
+                        loading ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
+                    >
+                      <Save size={20} />
+                      {loading ? 'Guardando...' : 'Guardar cambios'}
+                    </button>
+                  </div>
+                </form>
               </div>
-
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                    Nombre completo
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <User size={20} className="text-gray-400" />
-                    </div>
-                    <input
-                      type="text"
-                      id="name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6900] focus:border-transparent"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                    Correo electrónico
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Mail size={20} className="text-gray-400" />
-                    </div>
-                    <input
-                      type="email"
-                      id="email"
-                      value={email}
-                      disabled
-                      className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
-                    />
-                  </div>
-                  <p className="mt-2 text-sm text-gray-500">
-                    El correo electrónico no se puede modificar
-                  </p>
-                </div>
-
-                <div className="flex justify-end pt-4">
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className={`flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white rounded-lg hover:from-[#FF1D45] hover:to-[#FF5900] transition font-medium shadow-lg ${
-                      loading ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
-                  >
-                    <Save size={20} />
-                    {loading ? 'Guardando...' : 'Guardar cambios'}
-                  </button>
-                </div>
-              </form>
             </div>
+          </div>
+
+          <aside className="lg:w-80 space-y-4">
           </div>
 
           <aside className="lg:w-80 space-y-4">
