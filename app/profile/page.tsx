@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { User, Mail, Camera, Save, AlertCircle, CheckCircle } from 'lucide-react'
-import { DESIGN_SYSTEM } from '@/lib/design-system'
 
 export default function ProfilePage() {
   const { data: session, status, update } = useSession()
@@ -56,7 +55,7 @@ export default function ProfilePage() {
   if (status === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF6900]"></div>
       </div>
     )
   }
@@ -65,9 +64,9 @@ export default function ProfilePage() {
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-          <div className="bg-gradient-to-r from-primary-600 to-primary-700 px-6 py-8">
+          <div className="bg-gradient-to-r from-[#FF2D55] to-[#FF6900] px-6 py-8">
             <h1 className="text-2xl sm:text-3xl font-bold text-white">Mi Perfil</h1>
-            <p className="text-primary-100 mt-2">Administra tu información personal</p>
+            <p className="text-white/90 mt-2">Administra tu información personal</p>
           </div>
 
           <div className="p-6 sm:p-8">
@@ -84,7 +83,7 @@ export default function ProfilePage() {
 
             <div className="flex justify-center mb-8">
               <div className="relative">
-                <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-primary-600 to-primary-700 rounded-full flex items-center justify-center text-white text-3xl sm:text-4xl font-bold">
+                <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-[#FF2D55] to-[#FF6900] rounded-full flex items-center justify-center text-white text-3xl sm:text-4xl font-bold">
                   {name?.charAt(0).toUpperCase() || 'U'}
                 </div>
                 <button
@@ -110,7 +109,7 @@ export default function ProfilePage() {
                     id="name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6900] focus:border-transparent"
                     required
                   />
                 </div>
@@ -141,7 +140,7 @@ export default function ProfilePage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className={`flex items-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium ${
+                  className={`flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white rounded-lg hover:from-[#FF1D45] hover:to-[#FF5900] transition font-medium shadow-lg ${
                     loading ? 'opacity-50 cursor-not-allowed' : ''
                   }`}
                 >
