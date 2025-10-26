@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { User, Mail, Camera, Save, AlertCircle, CheckCircle, Home, Package, MessageSquare, Activity } from 'lucide-react'
+import { User, Mail, Camera, Save, AlertCircle, CheckCircle, Home, Package, MessageSquare, Activity, Star, MapPin, Shield, Briefcase, Award, ChevronRight } from 'lucide-react'
 
 export default function ProfilePage() {
   const { data: session, status, update } = useSession()
@@ -16,6 +16,10 @@ export default function ProfilePage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [bookingsCount, setBookingsCount] = useState(0)
   const [requestsCount, setRequestsCount] = useState(0)
+  const [partnerData, setPartnerData] = useState<any>(null)
+  const [addressesCount, setAddressesCount] = useState(0)
+  const [clientRating, setClientRating] = useState(0)
+  const [clientReviews, setClientReviews] = useState(0)
 
   const isPartner = session?.user?.role === 'PARTNER'
 
@@ -41,12 +45,52 @@ export default function ProfilePage() {
     }
   }
 
+  const fetchPartnerData = async () => {
+    try {
+      const res = await fetch('/api/partner/profile')
+      if (res.ok) {
+        const data = await res.json()
+        setPartnerData(data)
+      }
+    } catch (error) {
+      console.error('Error fetching partner data:', error)
+    }
+  }
+
+  const fetchClientData = async () => {
+    try {
+      const addressesRes = await fetch('/api/addresses')
+      if (addressesRes.ok) {
+        const addresses = await addressesRes.json()
+        setAddressesCount(Array.isArray(addresses) ? addresses.length : 0)
+      }
+
+      if (session?.user) {
+        setClientRating(session.user.clientRating || 0)
+        setClientReviews(session.user.clientTotalReviews || 0)
+      }
+    } catch (error) {
+      console.error('Error fetching client data:', error)
+    }
+  }
+
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/login')
     }
     if (session?.user) {
       setName(session.user.name || '')
+      setEmail(session.user.email || '')
+      setImage(session.user.image || null)
+      fetchCounts()
+
+      if (session.user.role === 'PARTNER') {
+        fetchPartnerData()
+      } else {
+        fetchClientData()
+      }
+    }
+  }, [session, status, router])
       setEmail(session.user.email || '')
       setImage(session.user.image || null)
       fetchCounts()
@@ -255,7 +299,106 @@ export default function ProfilePage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-6xl mx-auto space-y-6">
+          {isPartner ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+              <button
+                onClick={() => router.push('/partner/services')}
+                className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 text-left group"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl">
+                    <Briefcase className="text-white" size={24} />
+                  </div>
+                  <ChevronRight className="text-gray-400 group-hover:text-[#FF6900] transition-colors" size={20} />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">Mis Servicios</h3>
+                <p className="text-3xl font-bold text-blue-600 mb-2">
+                  {partnerData?.services?.length || 0}
+                </p>
+                <p className="text-sm text-gray-600">Servicios activos</p>
+              </button>
+
+              <button
+                onClick={() => router.push('/partner')}
+                className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 text-left group"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="p-3 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-xl">
+                    <Star className="text-white" size={24} />
+                  </div>
+                  <ChevronRight className="text-gray-400 group-hover:text-[#FF6900] transition-colors" size={20} />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">Calificación</h3>
+                <div className="flex items-center gap-2 mb-2">
+                  <p className="text-3xl font-bold text-yellow-600">
+                    {partnerData?.rating?.toFixed(1) || '0.0'}
+                  </p>
+                  <Star className="text-yellow-500 fill-yellow-500" size={20} />
+                </div>
+                <p className="text-sm text-gray-600">{partnerData?.totalReviews || 0} reseñas</p>
+              </button>
+
+              <button
+                onClick={() => router.push('/partner/verification')}
+                className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 text-left group"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className={`p-3 rounded-xl ${partnerData?.verified ? 'bg-gradient-to-br from-green-500 to-green-600' : 'bg-gradient-to-br from-gray-400 to-gray-500'}`}>
+                    <Shield className="text-white" size={24} />
+                  </div>
+                  <ChevronRight className="text-gray-400 group-hover:text-[#FF6900] transition-colors" size={20} />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">Verificación</h3>
+                <p className={`text-2xl font-bold mb-2 ${partnerData?.verified ? 'text-green-600' : 'text-gray-600'}`}>
+                  {partnerData?.verified ? 'Verificado' : 'Pendiente'}
+                </p>
+                <p className="text-sm text-gray-600">
+                  {partnerData?.verified ? 'Perfil verificado' : 'Completa tu verificación'}
+                </p>
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+              <button
+                onClick={() => router.push('/dashboard')}
+                className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 text-left group"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="p-3 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-xl">
+                    <Star className="text-white" size={24} />
+                  </div>
+                  <ChevronRight className="text-gray-400 group-hover:text-[#FF6900] transition-colors" size={20} />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">Mis Calificaciones</h3>
+                <div className="flex items-center gap-2 mb-2">
+                  <p className="text-3xl font-bold text-yellow-600">
+                    {clientRating?.toFixed(1) || '0.0'}
+                  </p>
+                  <Star className="text-yellow-500 fill-yellow-500" size={20} />
+                </div>
+                <p className="text-sm text-gray-600">{clientReviews || 0} reseñas recibidas</p>
+              </button>
+
+              <button
+                onClick={() => router.push('/dashboard/addresses')}
+                className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 text-left group"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="p-3 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl">
+                    <MapPin className="text-white" size={24} />
+                  </div>
+                  <ChevronRight className="text-gray-400 group-hover:text-[#FF6900] transition-colors" size={20} />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">Mis Direcciones</h3>
+                <p className="text-3xl font-bold text-purple-600 mb-2">
+                  {addressesCount}
+                </p>
+                <p className="text-sm text-gray-600">Direcciones guardadas</p>
+              </button>
+            </div>
+          )}
+
           <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
             <div className="bg-gradient-to-r from-[#FF2D55] to-[#FF6900] px-6 py-8">
               <h2 className="text-2xl sm:text-3xl font-bold text-white">Información Personal</h2>

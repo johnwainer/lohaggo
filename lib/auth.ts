@@ -41,7 +41,9 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           image: user.image,
           role: user.role,
-          partnerId: user.partnerProfile?.id
+          partnerId: user.partnerProfile?.id,
+          clientRating: user.clientRating,
+          clientTotalReviews: user.clientTotalReviews
         }
       }
     })
@@ -52,6 +54,8 @@ export const authOptions: NextAuthOptions = {
         token.role = user.role
         token.partnerId = user.partnerId
         token.image = user.image
+        token.clientRating = user.clientRating
+        token.clientTotalReviews = user.clientTotalReviews
       }
       if (trigger === 'update' && session?.name) {
         token.name = session.name
@@ -68,6 +72,8 @@ export const authOptions: NextAuthOptions = {
         session.user.partnerId = token.partnerId as string | undefined
         session.user.name = token.name as string
         session.user.image = token.image as string | null | undefined
+        session.user.clientRating = token.clientRating as number | undefined
+        session.user.clientTotalReviews = token.clientTotalReviews as number | undefined
       }
       return session
     }
