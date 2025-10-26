@@ -7,6 +7,8 @@ declare module "next-auth" {
       role: string
       partnerId?: string
       image?: string | null
+      clientRating?: number
+      clientTotalReviews?: number
     } & DefaultSession["user"]
   }
 
@@ -14,6 +16,8 @@ declare module "next-auth" {
     role: string
     partnerId?: string
     image?: string | null
+    clientRating?: number
+    clientTotalReviews?: number
   }
 }
 
@@ -22,5 +26,7 @@ declare module "next-auth/jwt" {
     role: string
     partnerId?: string
     image?: string | null
+    clientRating?: number
+    clientTotalReviews?: number
   }
 }
