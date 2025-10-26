@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { User, Mail, Camera, Save, AlertCircle, CheckCircle, Home, Package, MessageSquare, Activity, Star, MapPin, Shield, Briefcase, Award, ChevronRight } from 'lucide-react'
+import { User, Mail, Camera, Save, AlertCircle, CheckCircle, Home, Package, MessageSquare, Activity, Star, MapPin, Shield, Briefcase, ChevronRight } from 'lucide-react'
 
 export default function ProfilePage() {
   const { data: session, status, update } = useSession()
@@ -398,12 +398,6 @@ export default function ProfilePage() {
           </div>
 
           <aside className="lg:w-80 space-y-4">
-            {isPartner ? (
-              <>
-                <button
-                  onClick={() => router.push('/partner/services')}
-                  className="w-full bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 text-left group"
-                >
             {isPartner ? (
               <>
                 <button
