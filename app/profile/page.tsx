@@ -294,105 +294,47 @@ export default function ProfilePage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
-        <div className="max-w-6xl mx-auto space-y-6">
-          {isPartner ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
-              <button
-                onClick={() => router.push('/partner/services')}
-                className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 text-left group"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl">
-                    <Briefcase className="text-white" size={24} />
-                  </div>
-                  <ChevronRight className="text-gray-400 group-hover:text-[#FF6900] transition-colors" size={20} />
+        <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-6">
+          <aside className="w-full lg:w-80 flex-shrink-0 order-2 lg:order-2">
+            <div className="bg-white rounded-2xl shadow-lg p-6 sticky top-6">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="h-12 w-12 bg-gray-200 rounded-full flex items-center justify-center text-xl text-gray-500">
+                  {session?.user?.name ? session.user.name.charAt(0) : 'U'}
                 </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">Mis Servicios</h3>
-                <p className="text-3xl font-bold text-blue-600 mb-2">
-                  {partnerData?.services?.length || 0}
-                </p>
-                <p className="text-sm text-gray-600">Servicios activos</p>
-              </button>
+                <div>
+                  <p className="font-semibold text-gray-900">{session?.user?.name || 'Usuario'}</p>
+                  <p className="text-sm text-gray-500">{session?.user?.email}</p>
+                </div>
+              </div>
 
-              <button
-                onClick={() => router.push('/partner')}
-                className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 text-left group"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="p-3 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-xl">
-                    <Star className="text-white" size={24} />
-                  </div>
-                  <ChevronRight className="text-gray-400 group-hover:text-[#FF6900] transition-colors" size={20} />
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-gray-900">{bookingsCount || 0}</p>
+                  <p className="text-xs text-gray-500">Reservas</p>
                 </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">Calificación</h3>
-                <div className="flex items-center gap-2 mb-2">
-                  <p className="text-3xl font-bold text-yellow-600">
-                    {partnerData?.rating?.toFixed(1) || '0.0'}
-                  </p>
-                  <Star className="text-yellow-500 fill-yellow-500" size={20} />
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-gray-900">{requestsCount || 0}</p>
+                  <p className="text-xs text-gray-500">Solicitudes</p>
                 </div>
-                <p className="text-sm text-gray-600">{partnerData?.totalReviews || 0} reseñas</p>
-              </button>
+              </div>
 
-              <button
-                onClick={() => router.push('/partner/verification')}
-                className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 text-left group"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className={`p-3 rounded-xl ${partnerData?.verified ? 'bg-gradient-to-br from-green-500 to-green-600' : 'bg-gradient-to-br from-gray-400 to-gray-500'}`}>
-                    <Shield className="text-white" size={24} />
-                  </div>
-                  <ChevronRight className="text-gray-400 group-hover:text-[#FF6900] transition-colors" size={20} />
-                </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">Verificación</h3>
-                <p className={`text-2xl font-bold mb-2 ${partnerData?.verified ? 'text-green-600' : 'text-gray-600'}`}>
-                  {partnerData?.verified ? 'Verificado' : 'Pendiente'}
-                </p>
-                <p className="text-sm text-gray-600">
-                  {partnerData?.verified ? 'Perfil verificado' : 'Completa tu verificación'}
-                </p>
-              </button>
+              <div className="flex flex-col gap-2">
+                <button onClick={() => router.push('/dashboard')} className="text-sm text-left text-[#FF6900] font-medium">
+                  Ver mi dashboard
+                </button>
+                <button onClick={() => router.push('/dashboard/addresses')} className="text-sm text-left text-gray-600">
+                  Mis direcciones
+                </button>
+                {isPartner && (
+                  <button onClick={() => router.push('/partner')} className="text-sm text-left text-gray-600">
+                    Panel de partner
+                  </button>
+                )}
+              </div>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-              <button
-                onClick={() => router.push('/dashboard')}
-                className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 text-left group"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="p-3 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-xl">
-                    <Star className="text-white" size={24} />
-                  </div>
-                  <ChevronRight className="text-gray-400 group-hover:text-[#FF6900] transition-colors" size={20} />
-                </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">Mis Calificaciones</h3>
-                <div className="flex items-center gap-2 mb-2">
-                  <p className="text-3xl font-bold text-yellow-600">
-                    {clientRating?.toFixed(1) || '0.0'}
-                  </p>
-                  <Star className="text-yellow-500 fill-yellow-500" size={20} />
-                </div>
-                <p className="text-sm text-gray-600">{clientReviews || 0} reseñas recibidas</p>
-              </button>
+          </aside>
 
-              <button
-                onClick={() => router.push('/dashboard/addresses')}
-                className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 text-left group"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="p-3 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl">
-                    <MapPin className="text-white" size={24} />
-                  </div>
-                  <ChevronRight className="text-gray-400 group-hover:text-[#FF6900] transition-colors" size={20} />
-                </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">Mis Direcciones</h3>
-                <p className="text-3xl font-bold text-purple-600 mb-2">
-                  {addressesCount}
-                </p>
-                <p className="text-sm text-gray-600">Direcciones guardadas</p>
-              </button>
-            </div>
-          )}
+          <div className="flex-1 order-1 lg:order-1">
 
           <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
             <div className="bg-gradient-to-r from-[#FF2D55] to-[#FF6900] px-6 py-8">
@@ -505,6 +447,107 @@ export default function ProfilePage() {
               </form>
             </div>
           </div>
+
+          <aside className="lg:w-80 space-y-4">
+            {isPartner ? (
+              <>
+                <button
+                  onClick={() => router.push('/partner/services')}
+                  className="w-full bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 text-left group"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl">
+                      <Briefcase className="text-white" size={24} />
+                    </div>
+                    <ChevronRight className="text-gray-400 group-hover:text-[#FF6900] transition-colors" size={20} />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">Mis Servicios</h3>
+                  <p className="text-3xl font-bold text-blue-600 mb-2">
+                    {partnerData?.services?.length || 0}
+                  </p>
+                  <p className="text-sm text-gray-600">Servicios activos</p>
+                </button>
+
+                <button
+                  onClick={() => router.push('/partner')}
+                  className="w-full bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 text-left group"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="p-3 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-xl">
+                      <Star className="text-white" size={24} />
+                    </div>
+                    <ChevronRight className="text-gray-400 group-hover:text-[#FF6900] transition-colors" size={20} />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">Calificación</h3>
+                  <div className="flex items-center gap-2 mb-2">
+                    <p className="text-3xl font-bold text-yellow-600">
+                      {partnerData?.rating?.toFixed(1) || '0.0'}
+                    </p>
+                    <Star className="text-yellow-500 fill-yellow-500" size={20} />
+                  </div>
+                  <p className="text-sm text-gray-600">{partnerData?.totalReviews || 0} reseñas</p>
+                </button>
+
+                <button
+                  onClick={() => router.push('/partner/verification')}
+                  className="w-full bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 text-left group"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className={`p-3 rounded-xl ${partnerData?.verified ? 'bg-gradient-to-br from-green-500 to-green-600' : 'bg-gradient-to-br from-gray-400 to-gray-500'}`}>
+                      <Shield className="text-white" size={24} />
+                    </div>
+                    <ChevronRight className="text-gray-400 group-hover:text-[#FF6900] transition-colors" size={20} />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">Verificación</h3>
+                  <p className={`text-2xl font-bold mb-2 ${partnerData?.verified ? 'text-green-600' : 'text-gray-600'}`}>
+                    {partnerData?.verified ? 'Verificado' : 'Pendiente'}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    {partnerData?.verified ? 'Perfil verificado' : 'Completa tu verificación'}
+                  </p>
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => router.push('/dashboard')}
+                  className="w-full bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 text-left group"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="p-3 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-xl">
+                      <Star className="text-white" size={24} />
+                    </div>
+                    <ChevronRight className="text-gray-400 group-hover:text-[#FF6900] transition-colors" size={20} />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">Mis Calificaciones</h3>
+                  <div className="flex items-center gap-2 mb-2">
+                    <p className="text-3xl font-bold text-yellow-600">
+                      {clientRating?.toFixed(1) || '0.0'}
+                    </p>
+                    <Star className="text-yellow-500 fill-yellow-500" size={20} />
+                  </div>
+                  <p className="text-sm text-gray-600">{clientReviews || 0} reseñas recibidas</p>
+                </button>
+
+                <button
+                  onClick={() => router.push('/dashboard/addresses')}
+                  className="w-full bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 text-left group"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="p-3 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl">
+                      <MapPin className="text-white" size={24} />
+                    </div>
+                    <ChevronRight className="text-gray-400 group-hover:text-[#FF6900] transition-colors" size={20} />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">Mis Direcciones</h3>
+                  <p className="text-3xl font-bold text-purple-600 mb-2">
+                    {addressesCount}
+                  </p>
+                  <p className="text-sm text-gray-600">Direcciones guardadas</p>
+                </button>
+              </>
+            )}
+          </aside>
         </div>
       </main>
     </div>
