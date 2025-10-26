@@ -218,6 +218,16 @@ export function Navbar() {
                           </Link>
                         </>
                       )}
+                      {session.user.role === 'CLIENT' && (
+                        <Link
+                          href="/dashboard/addresses"
+                          className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold"
+                          onClick={() => setUserMenuOpen(false)}
+                        >
+                          <MapPin size={16} />
+                          <span>Mis Direcciones</span>
+                        </Link>
+                      )}
                       <button
                         onClick={() => signOut()}
                         className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors font-bold"

@@ -269,13 +269,6 @@ export default function AddressesPage() {
                 <Bell size={20} className="sm:w-[22px] sm:h-[22px]" />
                 <span className="hidden sm:inline">Notificaciones</span>
               </button>
-
-              <button
-                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-primary-600 text-primary-600 transition whitespace-nowrap"
-              >
-                <MapPin size={20} className="sm:w-[22px] sm:h-[22px]" />
-                <span className="hidden sm:inline">Mis Direcciones</span>
-              </button>
             </nav>
           </div>
         </div>
