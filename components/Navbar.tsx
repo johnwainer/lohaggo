@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useSession, signOut } from 'next-auth/react'
 import { usePathname } from 'next/navigation'
-import { Menu, X, LogOut, LayoutDashboard, Sparkles, ChevronDown, MapPin, Star } from 'lucide-react'
+import { Menu, X, LogOut, LayoutDashboard, Sparkles, ChevronDown, MapPin, Star, Settings, Shield } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useCity } from '@/lib/city-context'
 import NotificationBell from './NotificationBell'
@@ -198,6 +198,26 @@ export function Navbar() {
                         <Star size={16} />
                         <span>Mis Calificaciones</span>
                       </Link>
+                      {session.user.role === 'PARTNER' && (
+                        <>
+                          <Link
+                            href="/partner/services"
+                            className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold"
+                            onClick={() => setUserMenuOpen(false)}
+                          >
+                            <Settings size={16} />
+                            <span>Mis Servicios</span>
+                          </Link>
+                          <Link
+                            href="/partner/verification"
+                            className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold"
+                            onClick={() => setUserMenuOpen(false)}
+                          >
+                            <Shield size={16} />
+                            <span>Verificación</span>
+                          </Link>
+                        </>
+                      )}
                       <button
                         onClick={() => signOut()}
                         className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors font-bold"

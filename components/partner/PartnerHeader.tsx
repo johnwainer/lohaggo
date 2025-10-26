@@ -70,18 +70,6 @@ export default function PartnerHeader({
       icon: <Bell size={20} className="sm:w-[22px] sm:h-[22px]" />,
       path: '/partner/notifications',
     },
-    {
-      id: 'services',
-      label: 'Mis Servicios',
-      icon: <Settings size={20} className="sm:w-[22px] sm:h-[22px]" />,
-      path: '/partner/services',
-    },
-    {
-      id: 'verification',
-      label: 'Verificación',
-      icon: <Shield size={20} className="sm:w-[22px] sm:h-[22px]" />,
-      path: '/partner/verification',
-    },
   ]
 
   const handleNavClick = (item: NavItem) => {
