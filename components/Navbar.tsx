@@ -13,6 +13,7 @@ export function Navbar() {
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const userMenuRef = useRef<HTMLDivElement>(null)
 
   const getDashboardLink = () => {
     if (!session?.user) return null
@@ -28,6 +29,20 @@ export function Navbar() {
         return '/dashboard'
     }
   }
+
+  useEffect(() => {
+    const handler = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false)
+      }
+    }
+    if (userMenuOpen) {
+      document.addEventListener('mousedown', handler)
+    }
+    return () => {
+      document.removeEventListener('mousedown', handler)
+    }
+  }, [userMenuOpen])
 
   // CitySelector component defined inside the same file so it can use the shared city context/hooks.
   function CitySelector() {
@@ -169,7 +184,7 @@ export function Navbar() {
 
                 <NotificationBell />
 
-                <div className="relative ml-4">
+                <div className="relative ml-4" ref={userMenuRef}>
                   <button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
                     className="flex items-center space-x-3 bg-gray-50 hover:bg-gray-100 px-4 py-2.5 rounded-xl transition-all border-2 border-gray-200 hover:border-[#FF2D55]/30"
