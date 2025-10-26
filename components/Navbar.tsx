@@ -189,9 +189,17 @@ export function Navbar() {
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
                     className="flex items-center space-x-3 bg-gray-50 hover:bg-gray-100 px-4 py-2.5 rounded-xl transition-all border-2 border-gray-200 hover:border-[#FF2D55]/30"
                   >
-                    <div className="w-9 h-9 bg-gradient-to-br from-[#FF2D55] to-[#FF6900] rounded-full flex items-center justify-center text-white font-black text-sm">
-                      {session.user.name?.charAt(0).toUpperCase()}
-                    </div>
+                    {session.user.image ? (
+                      <img
+                        src={session.user.image}
+                        alt="Profile"
+                        className="w-9 h-9 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-9 h-9 bg-gradient-to-br from-[#FF2D55] to-[#FF6900] rounded-full flex items-center justify-center text-white font-black text-sm">
+                        {session.user.name?.charAt(0).toUpperCase()}
+                      </div>
+                    )}
                     <span className="text-sm font-bold text-gray-700">{session.user.name}</span>
                     <ChevronDown size={16} className={`text-gray-500 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
                   </button>
@@ -350,9 +358,17 @@ export function Navbar() {
                 </Link>
                 <div className="border-t border-gray-200 pt-4 mt-4">
                   <div className="flex items-center space-x-3 px-4 py-2 mb-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-[#FF2D55] to-[#FF6900] rounded-full flex items-center justify-center text-white font-black">
-                      {session.user.name?.charAt(0).toUpperCase()}
-                    </div>
+                    {session.user.image ? (
+                      <img
+                        src={session.user.image}
+                        alt="Profile"
+                        className="w-10 h-10 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 bg-gradient-to-br from-[#FF2D55] to-[#FF6900] rounded-full flex items-center justify-center text-white font-black">
+                        {session.user.name?.charAt(0).toUpperCase()}
+                      </div>
+                    )}
                     <div>
                       <p className="text-sm font-bold text-gray-900">{session.user.name}</p>
                       <p className="text-xs text-gray-500 font-medium">{session.user.email}</p>

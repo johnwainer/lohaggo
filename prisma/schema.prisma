@@ -62,6 +62,7 @@ model User {
   name          String
   password      String
   phone         String?
+  image         String?
   role          UserRole  @default(CLIENT)
   pushSubscription String? @db.Text
   clientRating   Float     @default(0)
