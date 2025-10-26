@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { User, Mail, Camera, Save, AlertCircle, CheckCircle, Home, Package, MessageSquare } from 'lucide-react'
+import { User, Mail, Camera, Save, AlertCircle, CheckCircle, Home, Package, MessageSquare, Activity } from 'lucide-react'
 
 export default function ProfilePage() {
   const { data: session, status, update } = useSession()
@@ -14,6 +14,8 @@ export default function ProfilePage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [bookingsCount, setBookingsCount] = useState(0)
   const [requestsCount, setRequestsCount] = useState(0)
+
+  const isPartner = session?.user?.role === 'PARTNER'
 
   const fetchCounts = async () => {
     try {
@@ -102,39 +104,87 @@ export default function ProfilePage() {
         <div className="border-t border-gray-200 bg-gray-50">
           <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
             <nav className="flex gap-0.5 sm:gap-1 overflow-x-auto scrollbar-hide">
-              <button
-                onClick={() => router.push('/dashboard')}
-                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
-              >
-                <Home size={20} className="sm:w-[22px] sm:h-[22px]" />
-                <span className="hidden sm:inline">Resumen</span>
-              </button>
+              {isPartner ? (
+                <>
+                  <button
+                    onClick={() => router.push('/partner')}
+                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
+                  >
+                    <Home size={20} className="sm:w-[22px] sm:h-[22px]" />
+                    <span className="hidden sm:inline">Resumen</span>
+                  </button>
 
-              <button
-                onClick={() => router.push('/dashboard')}
-                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
-              >
-                <Package size={20} className="sm:w-[22px] sm:h-[22px]" />
-                <span className="hidden sm:inline">Mis Reservas</span>
-                {bookingsCount > 0 && (
-                  <span className="bg-primary-600 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
-                    {bookingsCount}
-                  </span>
-                )}
-              </button>
+                  <button
+                    onClick={() => router.push('/partner?tab=bookings')}
+                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
+                  >
+                    <Package size={20} className="sm:w-[22px] sm:h-[22px]" />
+                    <span className="hidden sm:inline">Mis Reservas</span>
+                    {bookingsCount > 0 && (
+                      <span className="bg-primary-600 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
+                        {bookingsCount}
+                      </span>
+                    )}
+                  </button>
 
-              <button
-                onClick={() => router.push('/dashboard')}
-                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
-              >
-                <MessageSquare size={20} className="sm:w-[22px] sm:h-[22px]" />
-                <span className="hidden sm:inline">Mis Solicitudes</span>
-                {requestsCount > 0 && (
-                  <span className="bg-orange-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
-                    {requestsCount}
-                  </span>
-                )}
-              </button>
+                  <button
+                    onClick={() => router.push('/partner?tab=my-requests')}
+                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
+                  >
+                    <MessageSquare size={20} className="sm:w-[22px] sm:h-[22px]" />
+                    <span className="hidden sm:inline">Para Mí</span>
+                    {requestsCount > 0 && (
+                      <span className="bg-orange-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
+                        {requestsCount}
+                      </span>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => router.push('/partner?tab=all-requests')}
+                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
+                  >
+                    <Activity size={20} className="sm:w-[22px] sm:h-[22px]" />
+                    <span className="hidden sm:inline">Todas</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => router.push('/dashboard')}
+                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
+                  >
+                    <Home size={20} className="sm:w-[22px] sm:h-[22px]" />
+                    <span className="hidden sm:inline">Resumen</span>
+                  </button>
+
+                  <button
+                    onClick={() => router.push('/dashboard')}
+                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
+                  >
+                    <Package size={20} className="sm:w-[22px] sm:h-[22px]" />
+                    <span className="hidden sm:inline">Mis Reservas</span>
+                    {bookingsCount > 0 && (
+                      <span className="bg-primary-600 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
+                        {bookingsCount}
+                      </span>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => router.push('/dashboard')}
+                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
+                  >
+                    <MessageSquare size={20} className="sm:w-[22px] sm:h-[22px]" />
+                    <span className="hidden sm:inline">Mis Solicitudes</span>
+                    {requestsCount > 0 && (
+                      <span className="bg-orange-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
+                        {requestsCount}
+                      </span>
+                    )}
+                  </button>
+                </>
+              )}
             </nav>
           </div>
         </div>
