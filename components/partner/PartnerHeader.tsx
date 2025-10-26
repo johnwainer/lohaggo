@@ -64,12 +64,6 @@ export default function PartnerHeader({
       icon: <Activity size={20} className="sm:w-[22px] sm:h-[22px]" />,
       onClick: () => onTabChange?.('all-requests'),
     },
-    {
-      id: 'notifications',
-      label: 'Notificaciones',
-      icon: <Bell size={20} className="sm:w-[22px] sm:h-[22px]" />,
-      path: '/partner/notifications',
-    },
   ]
 
   const handleNavClick = (item: NavItem) => {
