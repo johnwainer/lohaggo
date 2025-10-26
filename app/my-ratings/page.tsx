@@ -43,6 +43,8 @@ export default function MyRatingsPage() {
   const [userRole, setUserRole] = useState<'CLIENT' | 'PARTNER' | null>(null)
   const [bookingsCount, setBookingsCount] = useState(0)
   const [requestsCount, setRequestsCount] = useState(0)
+  const [clientBookings, setClientBookings] = useState<any[]>([])
+  const [clientServiceRequests, setClientServiceRequests] = useState<any[]>([])
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -54,6 +56,8 @@ export default function MyRatingsPage() {
       fetchReviews()
       if (session?.user?.role === 'PARTNER') {
         fetchPartnerData()
+      } else if (session?.user?.role === 'CLIENT') {
+        fetchClientData()
       }
     }
   }, [status])
@@ -76,6 +80,33 @@ export default function MyRatingsPage() {
       }
     } catch (error) {
       console.error('Error fetching partner data:', error)
+    }
+  }
+
+  const fetchClientData = async () => {
+    try {
+      const [bookingsRes, requestsRes] = await Promise.all([
+        fetch('/api/bookings'),
+        fetch('/api/service-requests')
+      ])
+
+      if (bookingsRes.ok) {
+        const bookingsData = await bookingsRes.json()
+        setClientBookings(Array.isArray(bookingsData) ? bookingsData : [])
+      }
+
+      if (requestsRes.ok) {
+        const requestsData = await requestsRes.json()
+        // Normalize possible different shapes from the API
+        const rawRequests = Array.isArray(requestsData)
+          ? requestsData
+          : Array.isArray(requestsData?.serviceRequests)
+          ? requestsData.serviceRequests
+          : []
+        setClientServiceRequests(rawRequests)
+      }
+    } catch (error) {
+      console.error('Error fetching client data:', error)
     }
   }
 
@@ -268,6 +299,11 @@ export default function MyRatingsPage() {
                 >
                   <Package size={20} className="sm:w-[22px] sm:h-[22px]" />
                   <span className="hidden sm:inline">Mis Reservas</span>
+                  {clientBookings.length > 0 && (
+                    <span className="bg-primary-600 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
+                      {clientBookings.length}
+                    </span>
+                  )}
                 </button>
 
                 <button
@@ -276,6 +312,11 @@ export default function MyRatingsPage() {
                 >
                   <MessageSquare size={20} className="sm:w-[22px] sm:h-[22px]" />
                   <span className="hidden sm:inline">Mis Solicitudes</span>
+                  {clientServiceRequests.length > 0 && (
+                    <span className="bg-orange-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
+                      {clientServiceRequests.length}
+                    </span>
+                  )}
                 </button>
 
                 <button
