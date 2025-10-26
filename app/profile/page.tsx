@@ -10,7 +10,9 @@ export default function ProfilePage() {
   const router = useRouter()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [image, setImage] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [bookingsCount, setBookingsCount] = useState(0)
   const [requestsCount, setRequestsCount] = useState(0)
@@ -46,9 +48,70 @@ export default function ProfilePage() {
     if (session?.user) {
       setName(session.user.name || '')
       setEmail(session.user.email || '')
+      setImage(session.user.image || null)
       fetchCounts()
     }
   }, [session, status, router])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    }
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage({ type: 'error', text: 'La imagen no debe superar 5MB' })
+      return
+    }
+
+    if (!file.type.startsWith('image/')) {
+      setMessage({ type: 'error', text: 'Solo se permiten archivos de imagen' })
+      return
+    }
+
+    setUploadingImage(true)
+    setMessage(null)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const uploadResponse = await fetch('/api/upload-photos', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!uploadResponse.ok) {
+        throw new Error('Error al subir la imagen')
+      }
+
+      const { urls } = await uploadResponse.json()
+      const imageUrl = urls[0]
+
+      const response = await fetch('/api/user/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name, image: imageUrl }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Error al actualizar el perfil')
+      }
+
+      setImage(imageUrl)
+      await update({ image: imageUrl })
+      setMessage({ type: 'success', text: 'Foto de perfil actualizada exitosamente' })
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.message })
+    } finally {
+      setUploadingImage(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -70,7 +133,7 @@ export default function ProfilePage() {
         throw new Error(data.error || 'Error al actualizar el perfil')
       }
 
-      await update({ name: data.name })
+      await update({ name: data.name, image: data.image })
       setMessage({ type: 'success', text: 'Perfil actualizado exitosamente' })
 
       setTimeout(() => {
@@ -216,15 +279,38 @@ export default function ProfilePage() {
 
               <div className="flex justify-center mb-8">
                 <div className="relative">
-                  <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-[#FF2D55] to-[#FF6900] rounded-full flex items-center justify-center text-white text-3xl sm:text-4xl font-bold">
-                    {name?.charAt(0).toUpperCase() || 'U'}
-                  </div>
-                  <button
-                    className="absolute bottom-0 right-0 bg-white rounded-full p-2 shadow-lg border-2 border-gray-200 hover:bg-gray-50 transition"
-                    title="Cambiar foto (próximamente)"
+                  {image ? (
+                    <img
+                      src={image}
+                      alt="Profile"
+                      className="w-24 h-24 sm:w-32 sm:h-32 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gradient-to-br from-[#FF2D55] to-[#FF6900] rounded-full flex items-center justify-center text-white text-3xl sm:text-4xl font-bold">
+                      {name?.charAt(0).toUpperCase() || 'U'}
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    id="profile-image"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    disabled={uploadingImage}
+                  />
+                  <label
+                    htmlFor="profile-image"
+                    className={`absolute bottom-0 right-0 bg-white rounded-full p-2 shadow-lg border-2 border-gray-200 hover:bg-gray-50 transition cursor-pointer ${
+                      uploadingImage ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                    title="Cambiar foto"
                   >
-                    <Camera size={20} className="text-gray-600" />
-                  </button>
+                    {uploadingImage ? (
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#FF6900]"></div>
+                    ) : (
+                      <Camera size={20} className="text-gray-600" />
+                    )}
+                  </label>
                 </div>
               </div>
 

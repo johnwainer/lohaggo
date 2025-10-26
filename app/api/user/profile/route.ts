@@ -11,19 +11,26 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
-    const { name } = await request.json()
+    const { name, image } = await request.json()
 
     if (!name || name.trim().length === 0) {
       return NextResponse.json({ error: 'El nombre es requerido' }, { status: 400 })
     }
 
+    const updateData: any = { name: name.trim() }
+
+    if (image !== undefined) {
+      updateData.image = image
+    }
+
     const updatedUser = await prisma.user.update({
       where: { email: session.user.email },
-      data: { name: name.trim() },
+      data: updateData,
       select: {
         id: true,
         name: true,
         email: true,
+        image: true,
         role: true,
       },
     })
