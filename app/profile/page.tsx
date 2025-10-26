@@ -25,40 +25,25 @@ export default function ProfilePage() {
       if (bookingsRes.ok) {
         const bookingsData = await bookingsRes.json()
         setBookingsCount(Array.isArray(bookingsData) ? bookingsData.length : 0)
+      } else {
+        setBookingsCount(0)
       }
 
       if (requestsRes.ok) {
         const requestsData = await requestsRes.json()
-        const requests = Array.isArray(requestsData) ? requestsData : Array.isArray(requestsData?.serviceRequests) ? requestsData.serviceRequests : []
+        const requests = Array.isArray(requestsData)
+          ? requestsData
+          : Array.isArray(requestsData?.serviceRequests)
+          ? requestsData.serviceRequests
+          : []
         setRequestsCount(requests.length)
+      } else {
+        setRequestsCount(0)
       }
     } catch (error) {
       console.error('Error fetching counts:', error)
-    }  const [bookingsCount, setBookingsCount] = useState(0)
-  }
-
-  const [requestsCount, setRequestsCount] = useState(0)
-
-  const fetchCounts = async () => {
-    try {
-      const [bookingsRes, requestsRes] = await Promise.all([
-        fetch('/api/bookings'),
-        fetch('/api/service-requests')
-      fetchCounts()
-      ])
-
-      if (bookingsRes.ok) {
-        const bookingsData = await bookingsRes.json()
-        setBookingsCount(Array.isArray(bookingsData) ? bookingsData.length : 0)
-      }
-
-      if (requestsRes.ok) {
-        const requestsData = await requestsRes.json()
-        const requests = Array.isArray(requestsData) ? requestsData : Array.isArray(requestsData?.serviceRequests) ? requestsData.serviceRequests : []
-        setRequestsCount(requests.length)
-      }
-    } catch (error) {
-      console.error('Error fetching counts:', error)
+      setBookingsCount(0)
+      setRequestsCount(0)
     }
   }
 
