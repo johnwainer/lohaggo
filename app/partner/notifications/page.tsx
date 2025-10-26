@@ -197,13 +197,6 @@ export default function PartnerNotificationsPage() {
                 <span className="hidden sm:inline">Todas</span>
               </button>
 
-              <button
-                onClick={() => router.push('/partner/notifications')}
-                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-primary-600 text-primary-600 transition whitespace-nowrap"
-              >
-                <Bell size={20} className="sm:w-[22px] sm:h-[22px]" />
-                <span className="hidden sm:inline">Notificaciones</span>
-              </button>
             </nav>
           </div>
         </div>
