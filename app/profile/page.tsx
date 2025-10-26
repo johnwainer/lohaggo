@@ -398,9 +398,12 @@ export default function ProfilePage() {
           </div>
 
           <aside className="lg:w-80 space-y-4">
-          </div>
-
-          <aside className="lg:w-80 space-y-4">
+            {isPartner ? (
+              <>
+                <button
+                  onClick={() => router.push('/partner/services')}
+                  className="w-full bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 text-left group"
+                >
             {isPartner ? (
               <>
                 <button
