@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { User, Mail, Camera, Save, AlertCircle, CheckCircle,,Home, Package, MessageSquare  Home, Package, MessageSquare } from 'lucide-react'
+import { User, Mail, Camera, Save, AlertCircle, CheckCircle, Home, Package, MessageSquare } from 'lucide-react'
 
 export default function ProfilePage() {
   const { data: session, status, update } = useSession()
