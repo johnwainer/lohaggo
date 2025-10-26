@@ -54,8 +54,6 @@ export default function ProfilePage() {
   }, [session, status, router])
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
@@ -374,4 +372,3 @@ export default function ProfilePage() {
     </div>
   )
 }
-
