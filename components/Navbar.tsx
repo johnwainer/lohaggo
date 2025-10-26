@@ -191,6 +191,14 @@ export function Navbar() {
                         </span>
                       </div>
                       <Link
+                        href="/profile"
+                        className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold"
+                        onClick={() => setUserMenuOpen(false)}
+                      >
+                        <User size={16} />
+                        <span>Mi Perfil</span>
+                      </Link>
+                      <Link
                         href="/my-ratings"
                         className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold"
                         onClick={() => setUserMenuOpen(false)}
@@ -235,14 +243,6 @@ export function Navbar() {
                       >
                         <Bell size={16} />
                         <span>Notificaciones</span>
-                      </Link>
-                      <Link
-                        href="/profile"
-                        className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold"
-                        onClick={() => setUserMenuOpen(false)}
-                      >
-                        <User size={16} />
-                        <span>Mi Perfil</span>
                       </Link>
                       <button
                         onClick={() => signOut()}
