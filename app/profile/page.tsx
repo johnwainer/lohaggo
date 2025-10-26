@@ -91,11 +91,6 @@ export default function ProfilePage() {
       }
     }
   }, [session, status, router])
-      setEmail(session.user.email || '')
-      setImage(session.user.image || null)
-      fetchCounts()
-    }
-  }, [session, status, router])
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
