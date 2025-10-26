@@ -70,8 +70,12 @@ export default function ProfilePage() {
         throw new Error(data.error || 'Error al actualizar el perfil')
       }
 
-      await update({ name })
+      await update({ name: data.name })
       setMessage({ type: 'success', text: 'Perfil actualizado exitosamente' })
+
+      setTimeout(() => {
+        window.location.reload()
+      }, 1000)
     } catch (error: any) {
       setMessage({ type: 'error', text: error.message })
     } finally {
