@@ -20,7 +20,7 @@ export default async function Home() {
         select: { partners: true }
       }
     },
-    take: 8,
+    take: 20,
     orderBy: { name: 'asc' }
   })
 
