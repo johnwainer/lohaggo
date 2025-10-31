@@ -336,7 +336,7 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
         {/* Service Header */}
         <div className="bg-white rounded-xl shadow-md p-4 md:p-8 mb-6 md:mb-8">
           <div className="flex flex-col sm:flex-row items-start gap-4 md:gap-6">
-            <div className="text-5xl md:text-6xl emoji-icon">{service.icon}</div>
+            <div className="emoji-icon" style={{ fontSize: '3em' }}>{service.icon}</div>
             <div className="flex-1 w-full">
               <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3 md:mb-2">
                 <h1 className="text-2xl md:text-3xl font-bold">{service.name}</h1>
