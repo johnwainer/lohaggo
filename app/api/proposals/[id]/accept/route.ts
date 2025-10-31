@@ -52,6 +52,14 @@ export async function POST(
       return NextResponse.json({ error: 'Esta propuesta ya no está disponible' }, { status: 400 })
     }
 
+    const platformConfig = await prisma.platformConfig.findFirst({
+      where: { key: 'default' }
+    }) || await prisma.platformConfig.findFirst()
+
+    if (!platformConfig) {
+      return NextResponse.json({ error: 'Configuración de plataforma no encontrada' }, { status: 500 })
+    }
+
     const result = await prisma.$transaction(async (tx) => {
       await tx.proposal.update({
         where: { id: proposalId },
@@ -89,7 +97,9 @@ export async function POST(
           notes: proposal.serviceRequest.notes,
           city: proposal.serviceRequest.city,
           status: 'PENDING',
-          totalPrice: proposal.price
+          totalPrice: proposal.price,
+          clientCommissionRate: platformConfig.clientCommissionRate,
+          partnerCommissionRate: platformConfig.partnerCommissionRate
         },
         include: {
           service: true,

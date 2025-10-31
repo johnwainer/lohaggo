@@ -366,7 +366,7 @@ export default function ServicesManagementPage() {
                       <div className="p-6">
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex items-start gap-4">
-                            <div className="text-4xl">{service.icon}</div>
+                            <div className="text-4xl emoji-icon">{service.icon}</div>
                             <div>
                               <h3 className="text-lg font-semibold text-gray-900">{service.name}</h3>
                               <p className="text-sm text-gray-600 mt-1">{service.description}</p>
@@ -530,7 +530,7 @@ export default function ServicesManagementPage() {
                             onClick={() => !service.isActive && handleAddService(service)}
                           >
                             <div className="flex items-start gap-3">
-                              <div className="text-3xl">{service.icon}</div>
+                              <div className="text-3xl emoji-icon">{service.icon}</div>
                               <div className="flex-1">
                                 <h3 className="font-semibold text-gray-900">{service.name}</h3>
                                 <p className="text-sm text-gray-600 mt-1">{service.description}</p>

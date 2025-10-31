@@ -1,6 +1,6 @@
 'use client'
 
-import { LayoutDashboard, Calendar, Users, UserCheck, Package, FileText, BarChart3, Bell, Settings, LogOut, MessageSquare, Menu, X, Shield } from 'lucide-react'
+import { LayoutDashboard, Calendar, Users, UserCheck, Package, FileText, BarChart3, Bell, Settings, LogOut, MessageSquare, Menu, X, Shield, DollarSign, Wallet } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { signOut } from 'next-auth/react'
@@ -21,7 +21,9 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
     { id: 'partners', label: 'Socios', icon: UserCheck },
     { id: 'documents', label: 'Verificación', icon: Shield },
     { id: 'services', label: 'Servicios', icon: Package },
-    { id: 'requests', label: 'Solicitudes', icon: FileText },
+    { id: 'payments', label: 'Pagos', icon: DollarSign },
+    { id: 'commissions', label: 'Comisiones', icon: DollarSign },
+    { id: 'payouts', label: 'Pagos a Socios', icon: Wallet },
     { id: 'analytics', label: 'Analíticas', icon: BarChart3 },
     { id: 'notifications', label: 'Notificaciones', icon: Bell },
     { id: 'settings', label: 'Configuración', icon: Settings },

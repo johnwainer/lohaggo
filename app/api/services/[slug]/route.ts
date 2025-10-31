@@ -22,6 +22,15 @@ export async function GET(
                     name: true,
                     phone: true,
                   }
+                },
+                documents: {
+                  where: {
+                    status: 'APPROVED'
+                  },
+                  select: {
+                    type: true,
+                    status: true
+                  }
                 }
               }
             }

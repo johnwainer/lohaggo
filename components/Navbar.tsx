@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useSession, signOut } from 'next-auth/react'
 import { usePathname } from 'next/navigation'
-import { Menu, X, LogOut, LayoutDashboard, Sparkles, ChevronDown, MapPin, Star, Settings, Shield, Bell, User } from 'lucide-react'
+import { Menu, X, LogOut, LayoutDashboard, Sparkles, ChevronDown, MapPin, Star, Settings, Shield, Bell, User, CreditCard } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useCity } from '@/lib/city-context'
 import NotificationBell from './NotificationBell'
@@ -250,14 +250,24 @@ export function Navbar() {
                         </>
                       )}
                       {session.user.role === 'CLIENT' && (
-                        <Link
-                          href="/dashboard/addresses"
-                          className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold"
-                          onClick={() => setUserMenuOpen(false)}
-                        >
-                          <MapPin size={16} />
-                          <span>Mis Direcciones</span>
-                        </Link>
+                        <>
+                          <Link
+                            href="/dashboard/addresses"
+                            className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold"
+                            onClick={() => setUserMenuOpen(false)}
+                          >
+                            <MapPin size={16} />
+                            <span>Mis Direcciones</span>
+                          </Link>
+                          <Link
+                            href="/dashboard/payment-methods"
+                            className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold"
+                            onClick={() => setUserMenuOpen(false)}
+                          >
+                            <CreditCard size={16} />
+                            <span>Mis Métodos de Pago</span>
+                          </Link>
+                        </>
                       )}
                       <Link
                         href={session.user.role === 'PARTNER' ? '/partner/notifications' : '/notifications'}
@@ -382,6 +392,16 @@ export function Navbar() {
                     <User size={18} />
                     <span>Mi Perfil</span>
                   </Link>
+                  {session.user.role === 'CLIENT' && (
+                    <Link
+                      href="/dashboard/payment-methods"
+                      className="w-full flex items-center justify-center space-x-2 bg-gray-100 text-gray-700 px-4 py-3 rounded-xl hover:bg-gray-200 transition-all font-bold mb-2"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <CreditCard size={18} />
+                      <span>Mis Métodos de Pago</span>
+                    </Link>
+                  )}
                   <button
                     onClick={() => signOut()}
                     className="w-full flex items-center justify-center space-x-2 bg-red-500 text-white px-4 py-3 rounded-xl hover:bg-red-600 transition-all font-bold"

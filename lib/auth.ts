@@ -90,12 +90,12 @@ export const authOptions: NextAuthOptions = {
 export async function getCurrentUser() {
   const session = await getServerSession(authOptions)
 
-  if (!session?.user?.email) {
+  if (!session?.user?.id) {
     return null
   }
 
   const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
+    where: { id: session.user.id },
     include: { partnerProfile: true }
   })
 

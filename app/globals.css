@@ -115,3 +115,54 @@ html {
     animation-delay: 1000ms;
   }
 }
+
+/* Emoji styling for better rendering across the app */
+.emoji,
+.emoji-icon,
+[data-emoji] {
+  /* Prefer platform color emoji fonts, with fallbacks */
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", "Twemoji Mozilla", sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1;
+  font-size: 1em; /* respect surrounding text sizing */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Helps with color emoji rendering and prevents blurriness on some platforms */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-font-feature-settings: "liga" 0; /* disable ligatures that can affect emoji rendering */
+  font-variant-emoji: normal;
+}
+
+/* Ensure emoji images (e.g., twemoji) render crisply */
+img.emoji,
+img.emoji-img {
+  display: inline-block;
+  vertical-align: middle;
+  width: auto;
+  height: 1em;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
+  /* Prevent layout shift when using SVG/PNG emoji assets */
+  max-height: 1em;
+}
+
+/* Utility to ensure individual emoji characters don't wrap weirdly */
+.emoji-no-wrap {
+  white-space: nowrap;
+}
+
+/* Make sure buttons/inputs that contain emoji inherit proper smoothing */
+button .emoji,
+input .emoji,
+textarea .emoji {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
