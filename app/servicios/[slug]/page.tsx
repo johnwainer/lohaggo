@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { DollarSign, Clock, Star, CheckCircle, MapPin, Plus, Calendar, X, ChevronRight, Camera, Upload, Trash2 } from 'lucide-react'
+import { DollarSign, Clock, Star, CheckCircle, MapPin, Plus, Calendar, X, ChevronRight, Camera, Upload, Trash2, Shield, CreditCard, GraduationCap, ShieldCheck } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { formatCurrency } from '@/lib/utils'
 import { CityId } from '@/lib/city-context'
@@ -30,6 +30,10 @@ interface Service {
         name: string
         phone: string
       }
+      documents?: Array<{
+        type: string
+        status: string
+      }>
     }
   }>
 }
@@ -283,13 +287,56 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
     )
   }
 
+  const getVerificationBadges = (documents?: Array<{ type: string; status: string }>) => {
+    if (!documents || documents.length === 0) return null
+
+    const IDENTITY_TYPES = ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP']
+    const EDUCATION_TYPES = ['DIPLOMA_BACHILLERATO', 'DIPLOMA_TECNICO', 'DIPLOMA_TECNOLOGO', 'DIPLOMA_PROFESIONAL', 'DIPLOMA_POSGRADO', 'CERTIFICADO_CURSO']
+
+    const hasIdentity = documents.some(d => IDENTITY_TYPES.includes(d.type) && d.status === 'APPROVED')
+    const hasEducation = documents.some(d => EDUCATION_TYPES.includes(d.type) && d.status === 'APPROVED')
+    const hasBackground = documents.some(d => d.type === 'ANTECEDENTES' && d.status === 'APPROVED')
+
+    return (
+      <div className="flex items-center gap-2 mt-2">
+        {hasIdentity && (
+          <div className="group relative flex items-center gap-1 bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full text-xs font-medium border border-blue-200">
+            <CreditCard size={14} />
+            <span>ID</span>
+            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-lg z-10">
+              Identidad verificada
+            </span>
+          </div>
+        )}
+        {hasEducation && (
+          <div className="group relative flex items-center gap-1 bg-purple-50 text-purple-700 px-2.5 py-1 rounded-full text-xs font-medium border border-purple-200">
+            <GraduationCap size={14} />
+            <span>EDU</span>
+            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-lg z-10">
+              Educación verificada
+            </span>
+          </div>
+        )}
+        {hasBackground && (
+          <div className="group relative flex items-center gap-1 bg-green-50 text-green-700 px-2.5 py-1 rounded-full text-xs font-medium border border-green-200">
+            <Shield size={14} />
+            <span>ANT</span>
+            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-lg z-10">
+              Antecedentes verificados
+            </span>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
         {/* Service Header */}
         <div className="bg-white rounded-xl shadow-md p-4 md:p-8 mb-6 md:mb-8">
           <div className="flex flex-col sm:flex-row items-start gap-4 md:gap-6">
-            <div className="text-5xl md:text-6xl">{service.icon}</div>
+            <div className="text-5xl md:text-6xl emoji-icon">{service.icon}</div>
             <div className="flex-1 w-full">
               <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3 md:mb-2">
                 <h1 className="text-2xl md:text-3xl font-bold">{service.name}</h1>
@@ -350,11 +397,19 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
                   className="border rounded-lg p-4 md:p-6 flex flex-col md:block"
                 >
                   <div className="flex items-start justify-between mb-3 md:mb-4">
-                    <div>
-                      <h3 className="font-semibold text-base md:text-lg">{partnerService.partner.user.name}</h3>
-                      {partnerService.partner.verified && (
-                        <span className="text-green-600 text-xs md:text-sm">✓ Verificado</span>
-                      )}
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-semibold text-base md:text-lg">{partnerService.partner.user.name}</h3>
+                        {partnerService.partner.verified && (
+                          <div className="group relative">
+                            <ShieldCheck size={16} className="text-green-600" />
+                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-lg z-10">
+                              Socio verificado
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      {getVerificationBadges(partnerService.partner.documents)}
                     </div>
                     <div className="text-right">
                       <div className="flex items-center gap-1 text-yellow-500 justify-end">

@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation'
 import {
   MessageSquare, Calendar, Clock, MapPin, Package, CheckCircle, DollarSign,
   TrendingUp, Activity, Search, Menu, X, Home, Bell,
-  Settings, LogOut, ChevronRight, Plus, AlertCircle, User, XCircle, Star
+  Settings, LogOut, ChevronRight, Plus, AlertCircle, User, XCircle, Star,
+  Shield, CreditCard, GraduationCap, ShieldCheck
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import Modal from '@/components/Modal'
@@ -40,6 +41,11 @@ interface Booking {
     clientToPartnerRating: number | null
     partnerToClientRating: number | null
   }
+  payment?: {
+    id: string
+    status: string
+    totalAmount: number
+  }
 }
 
 interface ServiceRequest {
@@ -71,9 +77,14 @@ interface ServiceRequest {
     notes?: string
     status: string
     partner: {
+      verified: boolean
       user: {
         name: string
       }
+      documents?: Array<{
+        type: string
+        status: string
+      }>
     }
   }>
 }
@@ -113,6 +124,7 @@ export default function DashboardPage() {
   const router = useRouter()
   const [bookings, setBookings] = useState<Booking[]>([])
   const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([])
+  const [clientCommissionRate, setClientCommissionRate] = useState<number>(5.0)
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string>('')
   const [searchTerm, setSearchTerm] = useState('')
@@ -158,6 +170,36 @@ export default function DashboardPage() {
     partnerName: ''
   })
 
+  const [paymentModal, setPaymentModal] = useState<{
+    isOpen: boolean
+    bookingId: string
+    serviceName: string
+    amount: number
+  }>({
+    isOpen: false,
+    bookingId: '',
+    serviceName: '',
+    amount: 0
+  })
+
+  const [paymentBreakdown, setPaymentBreakdown] = useState<{
+    serviceAmount: number
+    clientCommission: number
+    clientCommissionRate: number
+    totalAmount: number
+  } | null>(null)
+
+  const [paymentMethods, setPaymentMethods] = useState<Array<{
+    id: string
+    lastFourDigits: string
+    cardBrand: string
+    isDefault: boolean
+  }>>([])
+
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('')
+  const [processingPayment, setProcessingPayment] = useState(false)
+  const [loadingBreakdown, setLoadingBreakdown] = useState(false)
+
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/login')
@@ -195,6 +237,8 @@ export default function DashboardPage() {
       const res = await fetch('/api/service-requests')
       const data = await res.json()
 
+      console.log('📊 Service Requests Response:', data)
+
       const rawRequests = Array.isArray(data)
         ? data
         : Array.isArray(data?.serviceRequests)
@@ -207,6 +251,13 @@ export default function DashboardPage() {
       })) as ServiceRequest[]
 
       setServiceRequests(normalizedRequests)
+
+      if (data?.clientCommissionRate !== undefined) {
+        console.log('💰 Client Commission Rate from API:', data.clientCommissionRate)
+        setClientCommissionRate(data.clientCommissionRate)
+      } else {
+        console.warn('⚠️ No clientCommissionRate in response, using default:', clientCommissionRate)
+      }
     } catch (error) {
       console.error('Error fetching service requests:', error)
       setServiceRequests([])
@@ -295,6 +346,105 @@ export default function DashboardPage() {
     })
   }
 
+  const openPaymentModal = async (bookingId: string, serviceName: string, amount: number) => {
+    setLoadingBreakdown(true)
+    setPaymentBreakdown(null)
+
+    try {
+      const res = await fetch('/api/payment-methods')
+      if (res.ok) {
+        const methods = await res.json()
+        setPaymentMethods(Array.isArray(methods) ? methods : [])
+        const defaultMethod = Array.isArray(methods) ? methods.find((m: any) => m.isDefault) : undefined
+        setSelectedPaymentMethod(defaultMethod?.id || '')
+      }
+    } catch (error) {
+      console.error('Error loading payment methods:', error)
+    }
+
+    try {
+      const breakdownRes = await fetch('/api/payments/breakdown', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ bookingId }),
+      })
+
+      if (breakdownRes.ok) {
+        const data = await breakdownRes.json()
+        setPaymentBreakdown(data.breakdown)
+      }
+    } catch (error) {
+      console.error('Error loading payment breakdown:', error)
+    } finally {
+      setLoadingBreakdown(false)
+    }
+
+    setPaymentModal({
+      isOpen: true,
+      bookingId,
+      serviceName,
+      amount
+    })
+  }
+
+  const processPayment = async () => {
+    if (!selectedPaymentMethod && paymentMethods.length > 0) {
+      setModal({
+        isOpen: true,
+        title: 'Método de Pago Requerido',
+        message: 'Por favor selecciona un método de pago.',
+        type: 'warning'
+      })
+      return
+    }
+
+    setProcessingPayment(true)
+
+    try {
+      const res = await fetch('/api/payments/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookingId: paymentModal.bookingId,
+          paymentMethodId: selectedPaymentMethod || null
+        })
+      })
+
+      const data = await res.json()
+
+      if (res.ok) {
+        const totalPaid = paymentBreakdown?.totalAmount || paymentModal.amount
+        setModal({
+          isOpen: true,
+          title: '¡Pago Exitoso!',
+          message: `El pago de ${formatCurrency(totalPaid)} ha sido procesado exitosamente.`,
+          type: 'success'
+        })
+        setPaymentModal({ isOpen: false, bookingId: '', serviceName: '', amount: 0 })
+        setPaymentBreakdown(null)
+        fetchBookings()
+      } else {
+        setModal({
+          isOpen: true,
+          title: 'Error en el Pago',
+          message: data.error || 'No se pudo procesar el pago.',
+          type: 'error'
+        })
+      }
+    } catch (error) {
+      setModal({
+        isOpen: true,
+        title: 'Error de Conexión',
+        message: 'No se pudo conectar con el servidor.',
+        type: 'error'
+      })
+    } finally {
+      setProcessingPayment(false)
+    }
+  }
+
   if (status === 'loading' || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100">
@@ -326,6 +476,46 @@ export default function DashboardPage() {
     request.address.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
+  const getVerificationBadges = (documents?: Array<{ type: string; status: string }>) => {
+    if (!documents || documents.length === 0) return null
+
+    const IDENTITY_TYPES = ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP']
+    const EDUCATION_TYPES = ['DIPLOMA_BACHILLERATO', 'DIPLOMA_TECNICO', 'DIPLOMA_TECNOLOGO', 'DIPLOMA_PROFESIONAL', 'DIPLOMA_POSGRADO', 'CERTIFICADO_CURSO']
+
+    const hasIdentity = documents.some(d => IDENTITY_TYPES.includes(d.type) && d.status === 'APPROVED')
+    const hasEducation = documents.some(d => EDUCATION_TYPES.includes(d.type) && d.status === 'APPROVED')
+    const hasBackground = documents.some(d => d.type === 'ANTECEDENTES' && d.status === 'APPROVED')
+
+    return (
+      <div className="flex items-center gap-1.5 ml-2">
+        {hasIdentity && (
+          <div className="group relative">
+            <CreditCard size={16} className="text-blue-600" />
+            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+              Identidad verificada
+            </span>
+          </div>
+        )}
+        {hasEducation && (
+          <div className="group relative">
+            <GraduationCap size={16} className="text-purple-600" />
+            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+              Educación verificada
+            </span>
+          </div>
+        )}
+        {hasBackground && (
+          <div className="group relative">
+            <Shield size={16} className="text-green-600" />
+            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+              Antecedentes verificados
+            </span>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <Modal
@@ -347,6 +537,99 @@ export default function DashboardPage() {
       />
 
       {imageGallery.isOpen && <ImageGalleryModal photos={imageGallery.photos} initialIndex={imageGallery.initialIndex} onClose={() => setImageGallery({ isOpen: false, photos: [], initialIndex: 0 })} />}
+
+      {paymentModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Pagar Servicio</h3>
+            <p className="text-gray-600 mb-4">Servicio: <span className="font-semibold">{paymentModal.serviceName}</span></p>
+
+            {loadingBreakdown ? (
+              <div className="bg-gray-50 rounded-xl p-6 mb-6 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+              </div>
+            ) : paymentBreakdown ? (
+              <div className="bg-gray-50 rounded-xl p-4 mb-6 space-y-3">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-600">Precio del servicio</span>
+                  <span className="font-medium text-gray-900">
+                    ${paymentBreakdown.serviceAmount.toLocaleString('es-CO')} COP
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center text-sm pb-3 border-b border-gray-200">
+                  <span className="text-gray-600">
+                    Tarifa de servicio ({paymentBreakdown.clientCommissionRate}%)
+                  </span>
+                  <span className="font-medium text-gray-600">
+                    +${paymentBreakdown.clientCommission.toLocaleString('es-CO')} COP
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center pt-2">
+                  <span className="text-lg font-bold text-gray-900">Total a Pagar</span>
+                  <span className="text-2xl font-bold text-primary-600">
+                    ${paymentBreakdown.totalAmount.toLocaleString('es-CO')} COP
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <p className="text-2xl font-bold text-primary-600 mb-6">Total: {formatCurrency(paymentModal.amount)}</p>
+            )}
+
+            {paymentMethods.length > 0 ? (
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Método de Pago</label>
+                <select
+                  value={selectedPaymentMethod}
+                  onChange={(e) => setSelectedPaymentMethod(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                >
+                  {paymentMethods.map((method) => (
+                    <option key={method.id} value={method.id}>
+                      {method.cardBrand} •••• {method.lastFourDigits} {method.isDefault ? '(Predeterminada)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
+                <p className="text-sm text-yellow-800">No tienes métodos de pago guardados. Se procesará con Mercado Pago.</p>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setPaymentModal({ isOpen: false, bookingId: '', serviceName: '', amount: 0 })
+                  setPaymentBreakdown(null)
+                }}
+                disabled={processingPayment}
+                className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition font-medium disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={processPayment}
+                disabled={processingPayment || loadingBreakdown}
+                className="flex-1 bg-primary-600 text-white px-4 py-3 rounded-xl hover:bg-primary-700 transition font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {processingPayment ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Procesando...
+                  </>
+                ) : (
+                  <>
+                    <DollarSign size={18} />
+                    Pagar
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div>
         <header className="bg-white shadow-sm sticky top-0 z-40">
@@ -691,6 +974,34 @@ export default function DashboardPage() {
                           </div>
                         )}
 
+                        {booking.status === 'COMPLETED' && !booking.payment && (
+                          <button
+                            onClick={() => openPaymentModal(booking.id, booking.service.name, booking.totalPrice)}
+                            className="w-full bg-green-600 text-white px-4 py-3 rounded-xl hover:bg-green-700 transition font-medium flex items-center justify-center gap-2 mb-3"
+                          >
+                            <DollarSign size={18} />
+                            Pagar Servicio
+                          </button>
+                        )}
+
+                        {booking.status === 'COMPLETED' && booking.payment?.status === 'APPROVED' && (
+                          <div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-3">
+                            <div className="flex items-center gap-2 text-green-700">
+                              <CheckCircle size={16} />
+                              <span className="text-sm font-medium">Servicio pagado - {formatCurrency(booking.payment.totalAmount)}</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {booking.status === 'COMPLETED' && booking.payment?.status === 'PENDING' && (
+                          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-3">
+                            <div className="flex items-center gap-2 text-yellow-700">
+                              <Clock size={16} />
+                              <span className="text-sm font-medium">Pago pendiente</span>
+                            </div>
+                          </div>
+                        )}
+
                         {(booking.status === 'PENDING' || booking.status === 'CONFIRMED') && (
                           <button
                             onClick={() => cancelBooking(booking.id, booking.service.name)}
@@ -822,16 +1133,44 @@ export default function DashboardPage() {
                                 <div key={proposal.id} className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-4">
                                   <div className="flex items-center justify-between">
                                     <div className="flex-1">
-                                      <div className="flex items-center gap-2 mb-2">
-                                        <User size={16} className="text-gray-600" />
-                                        <span className="font-semibold text-gray-900">{proposal.partner.user.name}</span>
+                                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                        <div className="flex items-center gap-2">
+                                          <User size={16} className="text-gray-600" />
+                                          <span className="font-semibold text-gray-900">{proposal.partner.user.name}</span>
+                                          {proposal.partner.verified && (
+                                            <div className="group relative">
+                                              <ShieldCheck size={16} className="text-green-600" />
+                                              <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                                                Socio verificado
+                                              </span>
+                                            </div>
+                                          )}
+                                        </div>
+                                        {getVerificationBadges(proposal.partner.documents)}
                                         {proposal.status === 'ACCEPTED' && (
                                           <span className="bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded-full border border-green-200">
                                             ✓ Aceptada
                                           </span>
                                         )}
                                       </div>
-                                      <p className="text-2xl font-bold text-primary-600 mb-2">{formatCurrency(proposal.price)}</p>
+
+                                      <div className="bg-white rounded-lg p-3 mb-2 border-2 border-primary-200">
+                                        <div className="space-y-2">
+                                          <div className="flex justify-between items-center text-sm">
+                                            <span className="text-gray-600">Precio del servicio:</span>
+                                            <span className="font-semibold text-gray-900">{formatCurrency(proposal.price)}</span>
+                                          </div>
+                                          <div className="flex justify-between items-center text-sm">
+                                            <span className="text-gray-600">Tarifa de servicio ({clientCommissionRate}%):</span>
+                                            <span className="font-semibold text-gray-900">{formatCurrency(proposal.price * (clientCommissionRate / 100))}</span>
+                                          </div>
+                                          <div className="border-t pt-2 flex justify-between items-center">
+                                            <span className="font-bold text-gray-900">Total a pagar:</span>
+                                            <span className="text-2xl font-bold text-primary-600">{formatCurrency(proposal.price * (1 + clientCommissionRate / 100))}</span>
+                                          </div>
+                                        </div>
+                                      </div>
+
                                       {proposal.notes && (
                                         <p className="text-sm text-gray-600 bg-white rounded-lg p-2">{proposal.notes}</p>
                                       )}

@@ -9,11 +9,13 @@ import BookingsSection from '@/components/admin/sections/BookingsSection'
 import UsersSection from '@/components/admin/sections/UsersSection'
 import PartnersSection from '@/components/admin/sections/PartnersSection'
 import ServicesSection from '@/components/admin/sections/ServicesSection'
-import RequestsSection from '@/components/admin/sections/RequestsSection'
 import AnalyticsSection from '@/components/admin/sections/AnalyticsSection'
 import NotificationsSection from '@/components/admin/sections/NotificationsSection'
 import SettingsSection from '@/components/admin/sections/SettingsSection'
 import DocumentsSection from '@/components/admin/sections/DocumentsSection'
+import CommissionsSection from '@/components/admin/sections/CommissionsSection'
+import PayoutsSection from '@/components/admin/sections/PayoutsSection'
+import PaymentsSection from '@/components/admin/sections/PaymentsSection'
 
 export default function AdminDashboard() {
   const { data: session, status } = useSession()
@@ -58,14 +60,18 @@ export default function AdminDashboard() {
         return <DocumentsSection />
       case 'services':
         return <ServicesSection />
-      case 'requests':
-        return <RequestsSection />
+      case 'payments':
+        return <PaymentsSection />
       case 'analytics':
         return <AnalyticsSection />
       case 'notifications':
         return <NotificationsSection />
       case 'settings':
         return <SettingsSection />
+      case 'commissions':
+        return <CommissionsSection />
+      case 'payouts':
+        return <PayoutsSection />
       default:
         return <DashboardSection />
     }

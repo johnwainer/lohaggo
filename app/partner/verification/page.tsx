@@ -190,6 +190,10 @@ export default function VerificationPage() {
     DOCUMENT_TYPES.EDUCATION.some(t => t.value === d.type) && d.status === 'APPROVED'
   )
 
+  const hasBackgroundDoc = documents.some(d =>
+    d.type === 'ANTECEDENTES' && d.status === 'APPROVED'
+  )
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -286,10 +290,10 @@ export default function VerificationPage() {
             </p>
           </div>
 
-          <div className="bg-white rounded-lg shadow-md p-6 border-2 border-gray-200">
+          <div className={`bg-white rounded-lg shadow-md p-6 border-2 ${hasBackgroundDoc ? 'border-green-500' : 'border-gray-200'}`}>
             <div className="flex items-center justify-between mb-4">
               <Shield className="w-8 h-8 text-green-600" />
-              <AlertCircle className="w-6 h-6 text-gray-400" />
+              {hasBackgroundDoc ? <CheckCircle className="w-6 h-6 text-green-500" /> : <AlertCircle className="w-6 h-6 text-gray-400" />}
             </div>
             <h3 className="text-lg font-semibold mb-2">Antecedentes</h3>
             <p className="text-sm text-gray-600">

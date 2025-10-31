@@ -8,6 +8,7 @@ import {
   Filter, Search, CreditCard, GraduationCap, Shield, Upload
 } from 'lucide-react'
 import Modal from '@/components/Modal'
+import Sidebar from '@/components/admin/Sidebar'
 
 
 interface Document {
@@ -224,186 +225,200 @@ export default function AdminDocumentsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="flex min-h-screen bg-gray-50">
+        <Sidebar activeSection="documents" onSectionChange={(section) => {
+          if (section !== 'documents') {
+            router.push('/admin')
+          }
+        }} />
+        <main className="flex-1 overflow-auto ml-0 lg:ml-64">
+          <div className="p-3 sm:p-6 lg:p-8 flex items-center justify-center min-h-screen">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          </div>
+        </main>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Gestión de Documentos</h1>
-          <p className="text-gray-600">
-            Revisa y aprueba los documentos de verificación de los socios
-          </p>
-        </div>
+    <div className="flex min-h-screen bg-gray-50">
+      <Sidebar activeSection="documents" onSectionChange={(section) => {
+        if (section !== 'documents') {
+          router.push('/admin')
+        }
+      }} />
+      <main className="flex-1 overflow-auto ml-0 lg:ml-64">
+        <div className="p-3 sm:p-6 lg:p-8">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Gestión de Documentos</h1>
+            <p className="text-gray-600">
+              Revisa y aprueba los documentos de verificación de los socios
+            </p>
+          </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-yellow-600 font-medium">Pendientes</p>
-                  <p className="text-2xl font-bold text-yellow-900">{pendingCount}</p>
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-yellow-600 font-medium">Pendientes</p>
+                    <p className="text-2xl font-bold text-yellow-900">{pendingCount}</p>
+                  </div>
+                  <Clock className="w-8 h-8 text-yellow-600" />
                 </div>
-                <Clock className="w-8 h-8 text-yellow-600" />
+              </div>
+              <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-green-600 font-medium">Aprobados</p>
+                    <p className="text-2xl font-bold text-green-900">
+                      {documents.filter(d => d.status === 'APPROVED').length}
+                    </p>
+                  </div>
+                  <CheckCircle className="w-8 h-8 text-green-600" />
+                </div>
+              </div>
+              <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-red-600 font-medium">Rechazados</p>
+                    <p className="text-2xl font-bold text-red-900">
+                      {documents.filter(d => d.status === 'REJECTED').length}
+                    </p>
+                  </div>
+                  <XCircle className="w-8 h-8 text-red-600" />
+                </div>
               </div>
             </div>
-            <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-green-600 font-medium">Aprobados</p>
-                  <p className="text-2xl font-bold text-green-900">
-                    {documents.filter(d => d.status === 'APPROVED').length}
-                  </p>
-                </div>
-                <CheckCircle className="w-8 h-8 text-green-600" />
+
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  placeholder="Buscar por nombre o email..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
               </div>
-            </div>
-            <div className="bg-red-50 rounded-lg p-4 border border-red-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-red-600 font-medium">Rechazados</p>
-                  <p className="text-2xl font-bold text-red-900">
-                    {documents.filter(d => d.status === 'REJECTED').length}
-                  </p>
-                </div>
-                <XCircle className="w-8 h-8 text-red-600" />
-              </div>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="all">Todos los estados</option>
+                <option value="PENDING">Pendientes</option>
+                <option value="APPROVED">Aprobados</option>
+                <option value="REJECTED">Rechazados</option>
+              </select>
+              <button
+                onClick={() => setShowBackgroundModal(true)}
+                className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <Shield className="w-5 h-5" />
+                Subir Antecedentes
+              </button>
             </div>
           </div>
 
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Buscar por nombre o email..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all">Todos los estados</option>
-              <option value="PENDING">Pendientes</option>
-              <option value="APPROVED">Aprobados</option>
-              <option value="REJECTED">Rechazados</option>
-            </select>
-            <button
-              onClick={() => setShowBackgroundModal(true)}
-              className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
-            >
-              <Shield className="w-5 h-5" />
-              Subir Antecedentes
-            </button>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          {filteredDocuments.length === 0 ? (
-            <div className="text-center py-12">
-              <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">No hay documentos para mostrar</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Socio
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Tipo de Documento
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Estado
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Fecha
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Acciones
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredDocuments.map((doc) => (
-                    <tr key={doc.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0 h-10 w-10 bg-gray-200 rounded-full flex items-center justify-center">
-                            <User className="w-6 h-6 text-gray-600" />
-                          </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">{doc.partner.user.name}</div>
-                            <div className="text-sm text-gray-500">{doc.partner.user.email}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          {getDocumentIcon(doc.type)}
-                          <span className="text-sm text-gray-900">{DOCUMENT_LABELS[doc.type]}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {getStatusBadge(doc.status)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(doc.createdAt).toLocaleDateString('es-CO')}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex items-center gap-2">
-                          <a
-                            href={doc.documentUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-900"
-                          >
-                            <Eye className="w-5 h-5" />
-                          </a>
-                          {doc.status === 'PENDING' && (
-                            <>
-                              <button
-                                onClick={() => {
-                                  setSelectedDocument(doc)
-                                  setReviewAction('APPROVED')
-                                  setShowReviewModal(true)
-                                }}
-                                className="text-green-600 hover:text-green-900"
-                              >
-                                <CheckCircle className="w-5 h-5" />
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setSelectedDocument(doc)
-                                  setReviewAction('REJECTED')
-                                  setShowReviewModal(true)
-                                }}
-                                className="text-red-600 hover:text-red-900"
-                              >
-                                <XCircle className="w-5 h-5" />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
+          <div className="bg-white rounded-lg shadow-md overflow-hidden">
+            {filteredDocuments.length === 0 ? (
+              <div className="text-center py-12">
+                <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500">No hay documentos para mostrar</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Socio
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Tipo de Documento
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Estado
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Fecha
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Acciones
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </div>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {filteredDocuments.map((doc) => (
+                      <tr key={doc.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-10 w-10 bg-gray-200 rounded-full flex items-center justify-center">
+                              <User className="w-6 h-6 text-gray-600" />
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900">{doc.partner.user.name}</div>
+                              <div className="text-sm text-gray-500">{doc.partner.user.email}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            {getDocumentIcon(doc.type)}
+                            <span className="text-sm text-gray-900">{DOCUMENT_LABELS[doc.type]}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {getStatusBadge(doc.status)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {new Date(doc.createdAt).toLocaleDateString('es-CO')}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <div className="flex items-center gap-2">
+                            <a
+                              href={doc.documentUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-900"
+                            >
+                              <Eye className="w-5 h-5" />
+                            </a>
+                            {doc.status === 'PENDING' && (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setSelectedDocument(doc)
+                                    setReviewAction('APPROVED')
+                                    setShowReviewModal(true)
+                                  }}
+                                  className="text-green-600 hover:text-green-900"
+                                >
+                                  <CheckCircle className="w-5 h-5" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setSelectedDocument(doc)
+                                    setReviewAction('REJECTED')
+                                    setShowReviewModal(true)
+                                  }}
+                                  className="text-red-600 hover:text-red-900"
+                                >
+                                  <XCircle className="w-5 h-5" />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
 
       {showReviewModal && selectedDocument && (
         <Modal
@@ -542,6 +557,8 @@ export default function AdminDocumentsPage() {
           </div>
         </Modal>
       )}
+        </div>
+      </main>
     </div>
   )
 }

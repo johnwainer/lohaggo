@@ -83,39 +83,76 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
-    const serviceRequests = await prisma.serviceRequest.findMany({
-      where: {
-        userId: session.user.id
-      },
-      include: {
-        service: {
-          include: {
-            category: true
-          }
+    const [serviceRequests, platformConfig] = await Promise.all([
+      prisma.serviceRequest.findMany({
+        where: {
+          userId: session.user.id
         },
-        proposals: {
-          include: {
-            partner: {
-              include: {
-                user: {
-                  select: {
-                    name: true,
-                    email: true,
-                    phone: true
+        include: {
+          service: {
+            include: {
+              category: true
+            }
+          },
+          proposals: {
+            include: {
+              partner: {
+                include: {
+                  user: {
+                    select: {
+                      name: true,
+                      email: true,
+                      phone: true
+                    }
+                  },
+                  documents: {
+                    where: {
+                      status: 'APPROVED'
+                    },
+                    select: {
+                      type: true,
+                      status: true
+                    }
                   }
                 }
               }
             }
-          }
+          },
+          photos: true
         },
-        photos: true
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    })
+        orderBy: {
+          createdAt: 'desc'
+        }
+      }),
+      prisma.platformConfig.findFirst({
+        orderBy: {
+          createdAt: 'asc'
+        }
+      })
+    ])
 
-    return NextResponse.json(serviceRequests)
+    let clientCommissionRate = 5.0
+
+    if (platformConfig) {
+      clientCommissionRate = platformConfig.clientCommissionRate
+    } else {
+      const newConfig = await prisma.platformConfig.create({
+        data: {
+          key: 'default',
+          commissionRate: 15.0,
+          clientCommissionRate: 5.0,
+          partnerCommissionRate: 20.0,
+          minServicePrice: 10000,
+          maxServicePrice: 10000000,
+        }
+      })
+      clientCommissionRate = newConfig.clientCommissionRate
+    }
+
+    return NextResponse.json({
+      serviceRequests,
+      clientCommissionRate
+    })
   } catch (error) {
     console.error('Error fetching service requests:', error)
     return NextResponse.json(

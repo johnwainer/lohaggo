@@ -55,7 +55,6 @@ const services = [
   { name: "Clases de música", slug: "clases-musica", description: "Clases de instrumentos musicales", icon: "🎸", category: "educacion", basePrice: 80000, duration: 60, popular: false },
   { name: "Clases de cocina", slug: "clases-cocina", description: "Aprende a cocinar con profesionales", icon: "👨‍🍳", category: "educacion", basePrice: 90000, duration: 120, popular: false },
   { name: "Catering", slug: "catering", description: "Servicio de comida para eventos", icon: "🍽️", category: "eventos", basePrice: 400000, duration: 240, popular: false },
-  { name: "Fotografía", slug: "fotografia", description: "Fotografía profesional para eventos", icon: "📷", category: "eventos", basePrice: 300000, duration: 240, popular: false },
   { name: "Fotografía", slug: "fotografia", description: "Fotografía profesional para eventos", icon: "📷", category: "eventos", basePrice: 300000, duration: 240, popular: true },
   { name: "DJ", slug: "dj", description: "Música y animación para fiestas", icon: "🎧", category: "eventos", basePrice: 360000, duration: 240, popular: false },
   { name: "Decoración de eventos", slug: "decoracion-eventos", description: "Decoración profesional para eventos", icon: "🎈", category: "eventos", basePrice: 240000, duration: 180, popular: false },
@@ -65,9 +64,6 @@ const services = [
   { name: "Paseo de perros", slug: "paseo-perros", description: "Paseo y ejercicio para tu mascota", icon: "🦮", category: "mascotas", basePrice: 30000, duration: 60, popular: true },
   { name: "Entrenamiento canino", slug: "entrenamiento-canino", description: "Adiestramiento profesional de perros", icon: "🎾", category: "mascotas", basePrice: 100000, duration: 60, popular: false },
   { name: "Lavado de autos", slug: "lavado-autos", description: "Lavado y detallado de vehículos", icon: "🚗", category: "transporte", basePrice: 60000, duration: 90, popular: false },
-  { name: "Costura y arreglos", slug: "costura", description: "Arreglos de ropa y confección", icon: "🧵", category: "hogar", basePrice: 40000, duration: 60, popular: false },
-  { name: "Asesoría legal", slug: "asesoria-legal", description: "Consultas legales básicas", icon: "⚖️", category: "educacion", basePrice: 160000, duration: 60, popular: false },
-  { name: "Lavado de autos", slug: "lavado-autos", description: "Lavado y detallado de vehículos", icon: "🚗", category: "transporte", basePrice: 60000, duration: 90, popular: true },
   { name: "Costura y arreglos", slug: "costura", description: "Arreglos de ropa y confección", icon: "🧵", category: "hogar", basePrice: 40000, duration: 60, popular: false },
   { name: "Asesoría legal", slug: "asesoria-legal", description: "Consultas legales básicas", icon: "⚖️", category: "educacion", basePrice: 160000, duration: 60, popular: false },
 ]
@@ -342,12 +338,12 @@ async function main() {
 
   // Reserva completada
   const plomeria = serviceMap['plomeria']
-  if (plomeria && partners[0]) {
+  if (plomeria && partners[0] && partners[0].partnerProfile) {
     await prisma.booking.create({
       data: {
         userId: client1.id,
         serviceId: plomeria.id,
-        partnerId: partners[0].id,
+        partnerId: partners[0].partnerProfile.id,
         scheduledDate: yesterday,
         scheduledTime: '15:00',
         status: 'COMPLETED',
@@ -360,12 +356,12 @@ async function main() {
 
   // Reserva confirmada para mañana
   const electricidad = serviceMap['electricidad']
-  if (electricidad && partners[1]) {
+  if (electricidad && partners[1] && partners[1].partnerProfile) {
     await prisma.booking.create({
       data: {
         userId: client2.id,
         serviceId: electricidad.id,
-        partnerId: partners[1].id,
+        partnerId: partners[1].partnerProfile.id,
         scheduledDate: tomorrow,
         scheduledTime: '10:00',
         status: 'CONFIRMED',
@@ -378,12 +374,12 @@ async function main() {
 
   // Reserva pendiente para la próxima semana
   const limpiezaHogar = serviceMap['limpieza-hogar']
-  if (limpiezaHogar && partners[2]) {
+  if (limpiezaHogar && partners[2] && partners[2].partnerProfile) {
     await prisma.booking.create({
       data: {
         userId: client3.id,
         serviceId: limpiezaHogar.id,
-        partnerId: partners[2].id,
+        partnerId: partners[2].partnerProfile.id,
         scheduledDate: nextWeek,
         scheduledTime: '14:00',
         status: 'PENDING',

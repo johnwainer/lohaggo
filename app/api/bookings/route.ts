@@ -70,6 +70,13 @@ export async function GET(request: Request) {
             clientToPartnerRating: true,
             partnerToClientRating: true
           }
+        },
+        payment: {
+          select: {
+            id: true,
+            status: true,
+            totalAmount: true
+          }
         }
       },
       orderBy: {
