@@ -152,7 +152,7 @@ function ServiciosContent() {
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
                   }`}
                 >
-                  <span className="text-2xl md:text-3xl emoji-icon">{category.icon}</span>
+                  <span className="emoji-icon" style={{ fontSize: '3em' }}>{category.icon}</span>
                   <span className="hidden sm:inline">{category.name}</span>
                 </button>
               ))}
@@ -207,7 +207,7 @@ function ServiciosContent() {
                 >
                   <div className="p-4 md:p-6">
                     <div className="flex items-start justify-between mb-3 md:mb-4">
-                      <span className="text-5xl md:text-6xl emoji-icon group-hover:scale-110 transition-transform inline-block">
+                      <span className="emoji-icon group-hover:scale-110 transition-transform inline-block" style={{ fontSize: '3em' }}>
                         {service.icon}
                       </span>
                       <span className="bg-gradient-to-r from-[#FF2D55]/10 to-[#FF6900]/10 text-[#FF2D55] text-xs font-bold px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-[#FF2D55]/20">
