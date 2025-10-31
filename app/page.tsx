@@ -108,7 +108,10 @@ export default async function Home() {
                     className="flex-shrink-0 w-36 md:w-32 group"
                   >
                     <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 text-center hover:from-[#FF2D55]/10 hover:to-[#FF6900]/10 transition-all hover:shadow-lg border-2 border-transparent hover:border-[#FF2D55]/20">
-                      <div className="flex items-center justify-center w-20 h-20 md:w-16 md:h-16 mx-auto mb-3 text-6xl md:text-5xl group-hover:scale-110 transition-transform emoji-icon">
+                      <div
+                        className="flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform emoji-icon"
+                        style={{ fontSize: '3em' }}
+                      >
                         {category.icon}
                       </div>
                       <h3 className="font-bold text-sm text-gray-800 group-hover:text-[#FF2D55] transition line-clamp-2">
@@ -183,7 +186,7 @@ export default async function Home() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {popularServices.map((service: any) => (
               <Link
                 key={service.id}
@@ -191,7 +194,7 @@ export default async function Home() {
                 className="bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all overflow-hidden group border-2 border-gray-100 hover:border-[#FF2D55]/30"
               >
                 <div className="h-48 md:h-44 bg-gradient-to-br from-[#FF2D55]/90 to-[#FF6900]/90 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <span className="text-7xl md:text-6xl emoji-icon">{service.icon}</span>
+                  <span className="emoji-icon" style={{ fontSize: '3em' }}>{service.icon}</span>
                 </div>
                 <div className="p-5">
                   <div className="flex items-center gap-2 mb-3">
