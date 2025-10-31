@@ -389,7 +389,7 @@ export function Navbar() {
                   </div>
                   <Link
                     href="/profile"
-                    className="w-full flex items-center space-x-2 bg-gray-100 text-gray-700 px-4 py-3 rounded-xl hover:bg-gray-200 transition-all font-bold mb-2"
+                    className="flex items-center space-x-2 text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     <User size={18} />
@@ -397,7 +397,7 @@ export function Navbar() {
                   </Link>
                   <Link
                     href="/my-ratings"
-                    className="w-full flex items-center space-x-2 bg-gray-100 text-gray-700 px-4 py-3 rounded-xl hover:bg-gray-200 transition-all font-bold mb-2"
+                    className="flex items-center space-x-2 text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     <Star size={18} />
@@ -407,7 +407,7 @@ export function Navbar() {
                     <>
                       <Link
                         href="/partner/services"
-                        className="w-full flex items-center space-x-2 bg-gray-100 text-gray-700 px-4 py-3 rounded-xl hover:bg-gray-200 transition-all font-bold mb-2"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
                         onClick={() => setMobileMenuOpen(false)}
                       >
                         <Settings size={18} />
@@ -415,7 +415,7 @@ export function Navbar() {
                       </Link>
                       <Link
                         href="/partner/verification"
-                        className="w-full flex items-center space-x-2 bg-gray-100 text-gray-700 px-4 py-3 rounded-xl hover:bg-gray-200 transition-all font-bold mb-2"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
                         onClick={() => setMobileMenuOpen(false)}
                       >
                         <Shield size={18} />
@@ -427,7 +427,7 @@ export function Navbar() {
                     <>
                       <Link
                         href="/dashboard/addresses"
-                        className="w-full flex items-center space-x-2 bg-gray-100 text-gray-700 px-4 py-3 rounded-xl hover:bg-gray-200 transition-all font-bold mb-2"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
                         onClick={() => setMobileMenuOpen(false)}
                       >
                         <MapPin size={18} />
@@ -435,7 +435,7 @@ export function Navbar() {
                       </Link>
                       <Link
                         href="/dashboard/payment-methods"
-                        className="w-full flex items-center space-x-2 bg-gray-100 text-gray-700 px-4 py-3 rounded-xl hover:bg-gray-200 transition-all font-bold mb-2"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
                         onClick={() => setMobileMenuOpen(false)}
                       >
                         <CreditCard size={18} />
@@ -445,7 +445,7 @@ export function Navbar() {
                   )}
                   <Link
                     href={session.user.role === 'PARTNER' ? '/partner/notifications' : '/notifications'}
-                    className="w-full flex items-center space-x-2 bg-gray-100 text-gray-700 px-4 py-3 rounded-xl hover:bg-gray-200 transition-all font-bold mb-2"
+                    className="flex items-center space-x-2 text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     <Bell size={18} />
@@ -453,7 +453,7 @@ export function Navbar() {
                   </Link>
                   <button
                     onClick={() => signOut()}
-                    className="w-full flex items-center justify-center space-x-2 bg-red-500 text-white px-4 py-3 rounded-xl hover:bg-red-600 transition-all font-bold"
+                    className="w-full flex items-center space-x-2 text-red-600 hover:text-red-700 hover:bg-red-50 px-4 py-3 rounded-xl text-sm font-bold transition-all"
                   >
                     <LogOut size={18} />
                     <span>Cerrar sesión</span>
