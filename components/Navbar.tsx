@@ -366,8 +366,8 @@ export function Navbar() {
                   <LayoutDashboard size={18} />
                   <span>Panel</span>
                 </Link>
-                <div className="border-t border-gray-200 pt-4 mt-4">
-                  <div className="flex items-center space-x-3 px-4 py-2 mb-3">
+                <div className="border-t border-gray-200 pt-2 mt-2 space-y-2">
+                  <div className="flex items-center space-x-3 px-4 py-2 mb-1">
                     {session.user.image ? (
                       <img
                         src={session.user.image}
