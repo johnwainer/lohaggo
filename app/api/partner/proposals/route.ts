@@ -34,7 +34,10 @@ export async function POST(req: NextRequest) {
 
     // Verify service request exists and is active
     const serviceRequest = await prisma.serviceRequest.findUnique({
-      where: { id: body.serviceRequestId }
+      where: { id: body.serviceRequestId },
+      include: {
+        service: true
+      }
     })
 
     if (!serviceRequest) {
@@ -47,6 +50,18 @@ export async function POST(req: NextRequest) {
 
     if (new Date(serviceRequest.expiresAt) < new Date()) {
       return NextResponse.json({ error: 'Esta solicitud ha expirado' }, { status: 400 })
+    }
+
+    // Validate price is not less than base price
+    const proposalPrice = parseFloat(body.price)
+    if (Number.isNaN(proposalPrice)) {
+      return NextResponse.json({ error: 'Precio inválido' }, { status: 400 })
+    }
+
+    if (proposalPrice < serviceRequest.service.basePrice) {
+      return NextResponse.json({
+        error: `El precio de la propuesta no puede ser menor al precio base del servicio ($${serviceRequest.service.basePrice})`
+      }, { status: 400 })
     }
 
     // Check if partner already has a proposal for this request
@@ -63,12 +78,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Ya has enviado una propuesta para esta solicitud' }, { status: 400 })
     }
 
-    // Create proposal
+    // Create proposal (use validated proposalPrice variable)
     const proposal = await prisma.proposal.create({
       data: {
         serviceRequestId: body.serviceRequestId,
         partnerId: partnerProfile.id,
-        price: parseFloat(body.price),
+        price: proposalPrice,
         notes: body.notes || null,
         status: 'PENDING'
       },

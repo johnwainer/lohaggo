@@ -17,6 +17,7 @@ interface ServiceRequest {
     id: string
     name: string
     icon: string
+    basePrice: number
     category: {
       name: string
     }
@@ -83,6 +84,14 @@ export default function PartnerRequestsPage() {
     e.preventDefault()
     if (!selectedRequest) return
 
+    const priceValue = parseFloat(proposalData.price)
+    const basePrice = selectedRequest.service.basePrice
+
+    if (priceValue < basePrice) {
+      alert(`El precio de tu propuesta no puede ser menor al precio base del servicio ($${basePrice})`)
+      return
+    }
+
     setSubmitting(true)
     try {
       const res = await fetch('/api/proposals', {
@@ -90,7 +99,7 @@ export default function PartnerRequestsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           serviceRequestId: selectedRequest.id,
-          price: proposalData.price,
+          price: priceValue,
           notes: proposalData.notes
         })
       })
@@ -98,7 +107,7 @@ export default function PartnerRequestsPage() {
       if (res.ok) {
         alert('¡Propuesta enviada exitosamente!')
         setShowProposalModal(false)
-        fetchActiveRequests() // Recargar la lista
+        fetchActiveRequests()
       } else {
         const error = await res.json()
         alert(error.error || 'Error al enviar propuesta')
@@ -227,14 +236,22 @@ export default function PartnerRequestsPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Precio *
                   </label>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+                    <p className="text-sm text-blue-800">
+                      <span className="font-semibold">Precio base mínimo:</span> ${selectedRequest.service.basePrice}
+                    </p>
+                    <p className="text-xs text-blue-600 mt-1">
+                      Tu propuesta debe ser igual o mayor a este valor
+                    </p>
+                  </div>
                   <div className="relative">
                     <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
                     <input
                       type="number"
                       required
-                      min="0"
-                      step="1000"
-                      placeholder="50000"
+                      min={selectedRequest.service.basePrice}
+                      step="0.01"
+                      placeholder={selectedRequest.service.basePrice.toString()}
                       value={proposalData.price}
                       onChange={(e) => setProposalData({ ...proposalData, price: e.target.value })}
                       className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"

@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Calendar, Clock, MapPin, DollarSign, Package, User, CheckCircle, XCircle,
   Send, AlertCircle, TrendingUp, Activity, Filter, Search, Menu, X,
-  Home, Briefcase, Bell, Settings, LogOut, ChevronRight, Eye, MessageSquare, Shield, Star
+  Home, Briefcase, Bell, Settings, LogOut, ChevronRight, Eye, MessageSquare, Shield, Star, MessageCircle
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { DESIGN_SYSTEM, getStatusClasses, getStatusLabel } from '@/lib/design-system'
@@ -14,6 +14,7 @@ import Modal from '@/components/Modal'
 import ConfirmModal from '@/components/ConfirmModal'
 import ImageGalleryModal from '@/components/ImageGalleryModal'
 import RatingModal from '@/components/RatingModal'
+import ChatModal from '@/components/ChatModal'
 import PartnerHeader from '@/components/partner/PartnerHeader'
 import StatCard from '@/components/shared/StatCard'
 import LoadingSpinner from '@/components/shared/LoadingSpinner'
@@ -58,6 +59,7 @@ interface ServiceRequest {
   service: {
     name: string
     icon: string
+    basePrice: number
     category: {
       name: string
     }
@@ -78,6 +80,9 @@ interface ServiceRequest {
     notes: string
     status: string
   }>
+  _count?: {
+    proposals: number
+  }
 }
 
 function PartnerDashboardContent() {
@@ -116,6 +121,18 @@ function PartnerDashboardContent() {
     title: '',
     message: '',
     type: 'info'
+  })
+
+  const [chatModal, setChatModal] = useState<{
+    isOpen: boolean
+    proposalId: string
+    partnerName: string
+    serviceName: string
+  }>({
+    isOpen: false,
+    proposalId: '',
+    partnerName: '',
+    serviceName: ''
   })
 
   const [confirmModal, setConfirmModal] = useState<{
@@ -291,13 +308,26 @@ function PartnerDashboardContent() {
       return
     }
 
+    const priceValue = parseFloat(proposalPrice)
+    const basePrice = selectedRequest.service.basePrice
+
+    if (priceValue < basePrice) {
+      setModal({
+        isOpen: true,
+        title: 'Precio Inválido',
+        message: `El precio de tu propuesta no puede ser menor al precio base del servicio (${formatCurrency(basePrice)}).`,
+        type: 'warning'
+      })
+      return
+    }
+
     try {
       const res = await fetch('/api/partner/proposals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           serviceRequestId: selectedRequest.id,
-          price: parseFloat(proposalPrice),
+          price: priceValue,
           notes: proposalNotes
         })
       })
@@ -306,7 +336,7 @@ function PartnerDashboardContent() {
         setModal({
           isOpen: true,
           title: '¡Propuesta Enviada!',
-          message: `Tu propuesta de ${formatCurrency(parseFloat(proposalPrice))} ha sido enviada exitosamente.`,
+          message: `Tu propuesta de ${formatCurrency(priceValue)} ha sido enviada exitosamente.`,
           type: 'success'
         })
         setShowProposalModal(false)
@@ -873,11 +903,27 @@ function PartnerDashboardContent() {
                         )}
 
                         {request.proposals.length > 0 ? (
-                          <div className={`${DESIGN_SYSTEM.components.card.base} ${DESIGN_SYSTEM.colors.success.bg} border-${DESIGN_SYSTEM.colors.success.border} ${DESIGN_SYSTEM.spacing.cardSmall}`}>
-                            <p className={`${DESIGN_SYSTEM.typography.bodySmall} font-semibold ${DESIGN_SYSTEM.colors.success.text} flex items-center gap-2`}>
-                              <CheckCircle size={16} />
-                              Ya enviaste una propuesta
-                            </p>
+                          <div className="space-y-3">
+                            <div className={`${DESIGN_SYSTEM.components.card.base} ${DESIGN_SYSTEM.colors.success.bg} border-${DESIGN_SYSTEM.colors.success.border} ${DESIGN_SYSTEM.spacing.cardSmall}`}>
+                              <p className={`${DESIGN_SYSTEM.typography.bodySmall} font-semibold ${DESIGN_SYSTEM.colors.success.text} flex items-center gap-2`}>
+                                <CheckCircle size={16} />
+                                Ya enviaste una propuesta
+                              </p>
+                            </div>
+                            {(request.proposals[0].status === 'ACCEPTED' || (request.status === 'ACTIVE' && request.proposals[0].status === 'PENDING')) && (
+                              <button
+                                onClick={() => setChatModal({
+                                  isOpen: true,
+                                  proposalId: request.proposals[0].id,
+                                  partnerName: request.user.name,
+                                  serviceName: request.service.name
+                                })}
+                                className="w-full bg-white border-2 border-[#FF2D55] text-[#FF2D55] px-4 py-3 rounded-xl hover:bg-[#FF2D55] hover:text-white transition font-bold flex items-center justify-center gap-2"
+                              >
+                                <MessageCircle size={18} />
+                                Chat con Cliente
+                              </button>
+                            )}
                           </div>
                         ) : (
                           <button
@@ -1021,13 +1067,24 @@ function PartnerDashboardContent() {
                 <label className={`${DESIGN_SYSTEM.typography.label} mb-2 block`}>
                   Precio de tu Propuesta *
                 </label>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+                  <p className="text-sm text-blue-800">
+                    <span className="font-semibold">Precio base mínimo:</span> {formatCurrency(selectedRequest.service.basePrice)}
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    Tu propuesta debe ser igual o mayor a este valor
+                  </p>
+                </div>
                 <div className="relative">
                   <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                   <input
                     type="number"
                     value={proposalPrice}
                     onChange={(e) => setProposalPrice(e.target.value)}
-                    placeholder="0.00"
+                    placeholder={selectedRequest.service.basePrice.toString()}
+                    min={selectedRequest.service.basePrice}
+                    step="0.01"
+                    required
                     className={`${DESIGN_SYSTEM.components.input.base} pl-10`}
                   />
                 </div>
@@ -1067,6 +1124,15 @@ function PartnerDashboardContent() {
       )}
 
       {/* Mobile Sidebar Overlay */}
+
+      {chatModal.isOpen && (
+        <ChatModal
+          proposalId={chatModal.proposalId}
+          partnerName={chatModal.partnerName}
+          serviceName={chatModal.serviceName}
+          onClose={() => setChatModal({ isOpen: false, proposalId: '', partnerName: '', serviceName: '' })}
+        />
+      )}
     </div>
   )
 }
