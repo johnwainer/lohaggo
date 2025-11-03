@@ -25,6 +25,7 @@ interface Booking {
   status: string
   totalPrice: number
   createdAt: string
+  proposalId?: string
   service: {
     name: string
     icon: string
@@ -1025,6 +1026,21 @@ export default function DashboardPage() {
                               <span className="text-sm font-medium">Pago pendiente</span>
                             </div>
                           </div>
+                        )}
+
+                        {booking.proposalId && (
+                          <button
+                            onClick={() => setChatModal({
+                              isOpen: true,
+                              proposalId: booking.proposalId!,
+                              partnerName: booking.partner?.user.name || 'Socio',
+                              serviceName: booking.service.name
+                            })}
+                            className="w-full bg-blue-600 text-white px-4 py-3 rounded-xl hover:bg-blue-700 transition font-medium flex items-center justify-center gap-2 mb-3"
+                          >
+                            <MessageCircle size={18} />
+                            Chat con el Socio
+                          </button>
                         )}
 
                         {(booking.status === 'PENDING' || booking.status === 'CONFIRMED') && (

@@ -2,21 +2,49 @@
 
 Una plataforma moderna para solicitar servicios (plomería, limpieza, electricidad, etc.) con paneles para clientes, socios y administradores.
 
-## 🚀 Características
+## 🚀 Características Principales
 
+### Sistema de Servicios
 - **50+ Servicios** organizados en 10 categorías
+- **Sistema de Solicitudes**: Los clientes publican solicitudes y los socios envían propuestas
+- **Subida de Fotos**: Los clientes pueden adjuntar hasta 5 fotos a sus solicitudes
+- **Búsqueda y Filtros**: Búsqueda por nombre, categoría y ordenamiento por popularidad/precio
+
+### Sistema de Usuarios
 - **3 Tipos de Usuarios**: Clientes, Socios (Proveedores) y Administradores
-- **Sistema de Solicitudes**: Los clientes publican solicitudes y los partners envían propuestas
-- **Sistema de Pagos**: Integración completa con Mercado Pago
+- **Autenticación Segura** con NextAuth.js
+- **Perfiles Completos**: Información detallada de clientes y socios
+- **Gestión de Direcciones**: Los clientes pueden guardar múltiples direcciones
+
+### Sistema de Pagos
+- **Integración con Mercado Pago**: Procesamiento seguro de pagos
 - **Comisiones Congeladas**: Las tarifas se guardan al momento de aceptar el servicio
 - **Payouts Automáticos**: Distribución automática de pagos a socios
-- **Subida de Fotos**: Los clientes pueden adjuntar fotos a sus solicitudes
-- **Notificaciones en Tiempo Real**: Sistema de notificaciones push
-- **Gestión de Direcciones**: Los clientes pueden guardar múltiples direcciones
 - **Panel de Administración**: Control completo de comisiones, pagos y payouts
-- **Autenticación** con NextAuth.js
+
+### Sistema de Comunicación
+- **Chat en Tiempo Real**: Comunicación directa entre clientes y socios
+- **Mensajería Modal**: Chat integrado en "Mis Solicitudes" y "Mis Reservas"
+- **Validación de Contenido**: Prevención de intercambio de información de contacto
+- **Polling Automático**: Actualización de mensajes cada 3 segundos
+
+### Sistema de Calificaciones
+- **Calificaciones Bidireccionales**: Clientes califican a socios y viceversa
+- **Sistema de Estrellas**: Calificación de 1 a 5 estrellas
+- **Comentarios Opcionales**: Feedback detallado sobre el servicio
+- **Historial de Calificaciones**: Visualización de todas las calificaciones recibidas
+
+### Sistema de Notificaciones
+- **Notificaciones en Tiempo Real**: Alertas instantáneas de eventos importantes
+- **Múltiples Tipos**: Nueva propuesta, propuesta aceptada, pago recibido, etc.
+- **Badge de No Leídas**: Contador visual de notificaciones pendientes
+- **Historial Completo**: Acceso a todas las notificaciones históricas
+
+### Diseño y UX
 - **Diseño Moderno** inspirado en Uber y Rappi
-- **Responsive** - Funciona en móviles, tablets y desktop
+- **Responsive**: Funciona perfectamente en móviles, tablets y desktop
+- **Interfaz Intuitiva**: Navegación clara y sencilla
+- **Feedback Visual**: Estados de carga, confirmaciones y errores claros
 
 ## 🛠️ Tecnologías
 
@@ -24,16 +52,17 @@ Una plataforma moderna para solicitar servicios (plomería, limpieza, electricid
 - **TypeScript**
 - **Prisma** (ORM)
 - **PostgreSQL** (Base de datos)
-- **Vercel Postgres** (Base de datos en producción)
+- **Supabase** (Base de datos en producción)
 - **Mercado Pago** (Procesamiento de pagos)
 - **Cloudinary** (Almacenamiento de imágenes)
 - **NextAuth.js** (Autenticación)
 - **Tailwind CSS** (Estilos)
+- **Lucide React** (Iconos)
 
 ## 📋 Requisitos Previos
 
 - Node.js 18+ instalado
-- PostgreSQL instalado (para desarrollo local) o cuenta de Vercel
+- PostgreSQL instalado (para desarrollo local) o cuenta de Supabase
 - Cuenta de Cloudinary (para subida de fotos)
 - Cuenta de Mercado Pago (para procesamiento de pagos)
 - npm o yarn
@@ -76,9 +105,6 @@ NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY="tu-public-key"
 # Aplicar migraciones
 npx prisma migrate deploy
 
-# O usar el archivo SQL consolidado
-psql -U usuario -d haggo_db -f database_migration.sql
-
 # Poblar con datos iniciales
 npx prisma db seed
 ```
@@ -91,14 +117,14 @@ npm run dev
 
 La aplicación estará disponible en `http://localhost:3000`
 
-## 🚀 Deploy en Vercel
+## 🚀 Deploy en Producción (Supabase + Vercel)
 
-### 1. Configurar Base de Datos (Vercel Postgres)
+### 1. Configurar Base de Datos (Supabase)
 
-1. Crea un proyecto en [Vercel](https://vercel.com)
-2. Ve a Storage → Create Database → Postgres
-3. Copia la **Connection String**
-4. Ejecuta el archivo `migration-production.sql` en el Query Editor
+1. Crea un proyecto en [Supabase](https://supabase.com)
+2. Ve a Settings → Database → Connection String
+3. Copia la **Connection String** (modo Transaction)
+4. Ejecuta el SQL de migración (ver sección SQL más abajo)
 
 ### 2. Configurar Cloudinary
 
@@ -141,17 +167,6 @@ git push origin main
 
 Vercel hará el deploy automáticamente.
 
-### 6. Ejecutar Migración de Base de Datos
-
-Después del primer deploy, ejecuta el SQL en Vercel Postgres:
-
-1. Ve a Storage → Postgres → Query
-2. Copia y pega el contenido de `migration-production.sql`
-3. Haz clic en "Run Query"
-4. Verifica que todas las tablas se hayan creado correctamente
-
-**Ver instrucciones detalladas en:** `DEPLOYMENT_INSTRUCTIONS.md`
-
 ## 👥 Usuarios de Prueba
 
 Después de ejecutar el seed, puedes usar estos usuarios:
@@ -164,6 +179,10 @@ Después de ejecutar el seed, puedes usar estos usuarios:
 - **Email**: partner@test.com
 - **Contraseña**: password123
 
+### Administrador
+- **Email**: admin@test.com
+- **Contraseña**: password123
+
 ## 📱 Estructura de la Aplicación
 
 ### Páginas Públicas
@@ -174,11 +193,31 @@ Después de ejecutar el seed, puedes usar estos usuarios:
 - `/register` - Registro de nuevos usuarios
 
 ### Paneles Privados
-- `/dashboard` - Panel de cliente (crear solicitudes, ver propuestas, realizar pagos)
-- `/dashboard/addresses` - Gestión de direcciones guardadas
-- `/dashboard/payment-methods` - Gestión de métodos de pago
-- `/partner` - Panel de socio (ver solicitudes, enviar propuestas, recibir payouts)
-- `/admin` - Panel administrativo (estadísticas, comisiones, pagos y payouts)
+
+#### Cliente (`/dashboard`)
+- **Mis Solicitudes**: Ver solicitudes activas y propuestas recibidas
+- **Mis Reservas**: Gestionar servicios contratados
+- **Chat**: Comunicación con socios (modal integrado)
+- **Calificaciones**: Calificar servicios completados
+- **Direcciones**: Gestión de direcciones guardadas
+- **Notificaciones**: Ver todas las notificaciones
+
+#### Socio (`/partner`)
+- **Solicitudes Disponibles**: Ver y responder a solicitudes de clientes
+- **Mis Propuestas**: Seguimiento de propuestas enviadas
+- **Mis Reservas**: Gestionar servicios contratados
+- **Chat**: Comunicación con clientes (modal integrado)
+- **Calificaciones**: Calificar clientes
+- **Estadísticas**: Ingresos, servicios completados, calificación promedio
+- **Notificaciones**: Ver todas las notificaciones
+
+#### Administrador (`/admin`)
+- **Dashboard**: Estadísticas generales de la plataforma
+- **Comisiones**: Configurar tarifas de cliente y socio
+- **Pagos**: Ver todos los pagos procesados
+- **Payouts**: Gestionar pagos a socios
+- **Usuarios**: Administrar clientes y socios
+- **Servicios**: Gestionar catálogo de servicios
 
 ## 💰 Sistema de Pagos y Comisiones
 
@@ -206,53 +245,71 @@ Para un servicio de $10,000:
 - **Comisión socio (20%)**: $2,000
 - **Payout al socio**: $8,000
 
-### Panel de Administración
+## 💬 Sistema de Chat
 
-Desde `/admin` puedes:
-- Ver todos los pagos y su estado
-- Ver todos los payouts pendientes y completados
-- Configurar tarifas de comisión (cliente y socio)
-- Procesar payouts manualmente si es necesario
-- Ver estadísticas de ingresos por comisiones
+### Características
+- **Modal Integrado**: Chat sin salir de la página actual
+- **Tiempo Real**: Polling cada 3 segundos para nuevos mensajes
+- **Validación**: Prevención de intercambio de teléfonos, emails, WhatsApp
+- **Mensajes del Sistema**: Alertas automáticas sobre restricciones
+- **Scroll Automático**: Siempre muestra el último mensaje
+- **Marcado de Leídos**: Los mensajes se marcan como leídos automáticamente
+
+### Ubicación
+- **Mis Solicitudes**: Chat disponible cuando hay propuesta aceptada
+- **Mis Reservas**: Chat disponible en todas las reservas activas
+
+## ⭐ Sistema de Calificaciones
+
+### Características
+- **Bidireccional**: Cliente califica a socio y viceversa
+- **Estrellas**: Sistema de 1 a 5 estrellas
+- **Comentarios**: Feedback opcional detallado
+- **Una vez por servicio**: Solo se puede calificar después de completar el servicio
+- **Promedio visible**: Calificación promedio visible en perfiles
+
+### Flujo
+1. Servicio se marca como **COMPLETED**
+2. Aparece botón "Calificar" en la reserva
+3. Usuario completa calificación (estrellas + comentario opcional)
+4. Calificación se guarda y promedio se actualiza
+
+## 🔔 Sistema de Notificaciones
+
+### Tipos de Notificaciones
+
+#### Para Clientes
+- Nueva propuesta recibida
+- Propuesta aceptada
+- Pago procesado exitosamente
+- Servicio completado
+- Socio te ha calificado
+
+#### Para Socios
+- Nueva solicitud disponible
+- Propuesta aceptada por cliente
+- Pago recibido
+- Nuevo payout disponible
+- Cliente te ha calificado
+
+### Características
+- **Badge de contador**: Muestra cantidad de notificaciones no leídas
+- **Marca como leída**: Click en notificación la marca como leída
+- **Historial completo**: Acceso a todas las notificaciones
+- **Tiempo relativo**: "Hace 5 minutos", "Hace 2 horas", etc.
 
 ## 🎨 Categorías de Servicios
 
-1. **Hogar** - Plomería, Electricidad, Carpintería, etc.
-2. **Limpieza** - Limpieza de hogar, oficinas, alfombras, etc.
-3. **Reparaciones** - Electrodomésticos, cerrajería, aires acondicionados, etc.
-4. **Belleza** - Peluquería, Manicure, Masajes, etc.
-5. **Salud** - Enfermería, fisioterapia, nutrición, etc.
-6. **Tecnología** - Reparación de computadoras, instalación de software, etc.
-7. **Transporte** - Mudanzas, mensajería, transporte de mascotas, etc.
-8. **Educación** - Clases particulares, tutorías, idiomas, etc.
-9. **Eventos** - Fotografía, catering, decoración, etc.
-10. **Mascotas** - Veterinaria, peluquería, paseos, etc.
-
-## 📂 Archivos Importantes
-
-### Configuración
-- `.env.local` - Variables de entorno locales (no incluido en git)
-- `prisma/schema.prisma` - Esquema de la base de datos
-
-### Migraciones y Scripts
-- `migration-production.sql` - Migración SQL para producción (incluye comisiones)
-- `database_migration.sql` - Migración completa de base de datos con datos iniciales
-- `scripts/update-config.ts` - Script para actualizar configuración de comisiones
-- `scripts/update-bookings-rates.ts` - Script para actualizar tarifas en bookings existentes
-- `scripts/check-config.ts` - Script para verificar configuración actual
-
-### Documentación
-- `README.md` - Este archivo
-- `DEPLOYMENT_INSTRUCTIONS.md` - Guía detallada de despliegue
-- `PAYMENT_SYSTEM.md` - Documentación del sistema de pagos
-- `ARCHITECTURE.md` - Documentación de la arquitectura del proyecto
-
-### APIs Importantes
-- `app/api/payments/create/route.ts` - Crear intención de pago
-- `app/api/payments/process/route.ts` - Procesar pago con Mercado Pago
-- `app/api/payments/webhook/route.ts` - Webhook de Mercado Pago (crea payouts)
-- `app/api/payouts/process/route.ts` - Procesar payouts a socios
-- `app/api/admin/commission-config/route.ts` - Gestión de comisiones
+1. **Hogar** - Plomería, Electricidad, Carpintería, Pintura, Jardinería
+2. **Limpieza** - Limpieza de hogar, oficinas, alfombras, cristales, post-construcción
+3. **Reparaciones** - Electrodomésticos, cerrajería, aires acondicionados, techos
+4. **Belleza** - Peluquería, Manicure, Pedicure, Masajes, Maquillaje
+5. **Salud** - Enfermería, Fisioterapia, Nutrición, Cuidado de ancianos
+6. **Tecnología** - Reparación de computadoras, instalación de software, redes
+7. **Transporte** - Mudanzas, mensajería, transporte de mascotas, fletes
+8. **Educación** - Clases particulares, tutorías, idiomas, música
+9. **Eventos** - Fotografía, catering, decoración, animación, DJ
+10. **Mascotas** - Veterinaria, peluquería, paseos, adiestramiento, guardería
 
 ## 🔧 Comandos Útiles
 
@@ -269,31 +326,26 @@ npx prisma migrate deploy # Aplicar migraciones
 npx prisma db seed       # Poblar con datos iniciales
 npx prisma generate      # Regenerar cliente de Prisma
 
-# Scripts de utilidad
-npx tsx scripts/check-config.ts           # Ver configuración actual
-npx tsx scripts/update-config.ts          # Actualizar comisiones
-npx tsx scripts/update-bookings-rates.ts  # Actualizar tarifas en bookings
-
 # Linting y formato
 npm run lint             # Ejecutar linter
 ```
 
 ## 🐛 Troubleshooting
 
-### Error de conexión a base de datos en Vercel
+### Error de conexión a base de datos
 
 Si ves el error `Can't reach database server`:
 
-1. Verifica que tu base de datos de Vercel Postgres esté activa
-2. Asegúrate de usar `?sslmode=require` al final de la URL
-3. Verifica que todas las variables de entorno estén configuradas en Vercel
-4. Ejecuta el archivo `migration-production.sql` en Vercel Postgres Query Editor
+1. Verifica que tu base de datos esté activa
+2. Asegúrate de usar `?sslmode=require` al final de la URL (Supabase)
+3. Verifica que todas las variables de entorno estén configuradas
+4. Ejecuta las migraciones SQL
 
 ### Fotos no se suben
 
 1. Verifica que las credenciales de Cloudinary estén correctas
-2. Asegúrate de que las variables de entorno estén configuradas en Vercel
-3. Revisa los logs de Vercel para más detalles
+2. Asegúrate de que las variables de entorno estén configuradas
+3. Revisa los logs para más detalles
 
 ### Errores de TypeScript
 
@@ -313,88 +365,17 @@ npm run dev
 3. Revisa los logs en `/admin` sección de Pagos
 4. Verifica que la URL del webhook sea: `https://tu-dominio.vercel.app/api/payments/webhook`
 
-### Comisiones incorrectas
+### Chat no funciona
 
-1. Verifica la configuración en `/admin` sección de Comisiones
-2. Ejecuta el script de verificación:
-   ```bash
-   npx tsx scripts/check-config.ts
-   ```
-3. Si es necesario, actualiza las tarifas:
-   ```bash
-   npx tsx scripts/update-config.ts
-   ```
+1. Verifica que `proposalId` exista en la reserva
+2. Revisa los logs de la API `/api/chats`
+3. Verifica que el polling esté activo (cada 3 segundos)
 
-### Bookings sin tarifas guardadas
+### Notificaciones no aparecen
 
-Si tienes bookings antiguos sin tarifas, ejecuta:
-```bash
-npx tsx scripts/update-bookings-rates.ts
-```
-
-O ejecuta este SQL en la base de datos:
-```sql
-UPDATE "Booking"
-SET
-  "clientCommissionRate" = 5.0,
-  "partnerCommissionRate" = 20.0
-WHERE
-  "clientCommissionRate" IS NULL;
-```
-
-### Payouts no se crean automáticamente
-
-1. Verifica que el webhook de Mercado Pago esté funcionando
-2. Revisa los logs en `/api/payments/webhook`
-3. Verifica que el pago tenga estado `approved` en Mercado Pago
-4. Manualmente puedes crear payouts desde `/admin` sección de Payouts
-
-### Error "Commission config not found"
-
-1. Ejecuta el script para crear la configuración inicial:
-   ```bash
-   npx tsx scripts/update-config.ts
-   ```
-2. O ejecuta este SQL en la base de datos:
-   ```sql
-   INSERT INTO "CommissionConfig" ("id", "clientCommissionRate", "partnerCommissionRate")
-   VALUES (1, 5.0, 20.0)
-   ON CONFLICT ("id") DO UPDATE SET
-     "clientCommissionRate" = EXCLUDED."clientCommissionRate",
-     "partnerCommissionRate" = EXCLUDED."partnerCommissionRate";
-   ```
-
-### Webhook de Mercado Pago no funciona
-
-1. Verifica que la URL del webhook esté configurada en tu aplicación de Mercado Pago
-2. La URL debe ser: `https://tu-dominio.vercel.app/api/payments/webhook`
-3. Asegúrate de que esté configurado para eventos de `payment`
-4. Verifica que el endpoint responda con status 200
-5. Revisa los logs de webhook en el dashboard de Mercado Pago
-
-### Cálculos de comisiones incorrectos
-
-Si los montos no coinciden, verifica:
-
-1. **Fórmulas de cálculo**:
-   - Total a pagar = Precio + (Precio × Comisión Cliente / 100)
-   - Payout al socio = Precio - (Precio × Comisión Socio / 100)
-
-2. **Ejemplo para servicio de $10,000**:
-   - Comisión cliente 5%: $10,000 + $500 = $10,500 (total a pagar)
-   - Comisión socio 20%: $10,000 - $2,000 = $8,000 (payout)
-
-3. **Verificar en base de datos**:
-   ```sql
-   SELECT
-     "servicePrice",
-     "clientCommissionRate",
-     "partnerCommissionRate",
-     "totalAmount",
-     "partnerPayout"
-   FROM "Booking"
-   WHERE "id" = 'tu-booking-id';
-   ```
+1. Verifica que el servicio de notificaciones esté funcionando
+2. Revisa los logs de `/api/notifications`
+3. Verifica que el usuario tenga el rol correcto
 
 ## 📄 Licencia
 

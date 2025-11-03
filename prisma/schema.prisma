@@ -111,6 +111,7 @@ model Booking {
   userId                String
   serviceId             String
   partnerId             String?
+  proposalId            String?
   scheduledDate         DateTime
   scheduledTime         String
   address               String
@@ -123,6 +124,7 @@ model Booking {
   createdAt             DateTime        @default(now())
   updatedAt             DateTime        @updatedAt
   partner               PartnerProfile? @relation(fields: [partnerId], references: [id])
+  proposal              Proposal?       @relation(fields: [proposalId], references: [id])
   service               Service         @relation(fields: [serviceId], references: [id])
   user                  User            @relation(fields: [userId], references: [id])
   payment               Payment?
@@ -174,6 +176,7 @@ model Proposal {
   status           ProposalStatus @default(PENDING)
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
+  bookings         Booking[]
   partner          PartnerProfile @relation(fields: [partnerId], references: [id])
   serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
 
