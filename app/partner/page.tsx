@@ -136,6 +136,8 @@ function PartnerDashboardContent() {
     serviceName: ''
   })
 
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
+
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean
     title: string
@@ -225,6 +227,48 @@ function PartnerDashboardContent() {
       setActiveTab(tab as 'overview' | 'bookings' | 'my-requests' | 'all-requests')
     }
   }, [searchParams])
+
+  useEffect(() => {
+    if (status === 'authenticated' && (bookings.length > 0 || serviceRequests.length > 0)) {
+      fetchUnreadCounts()
+      const interval = setInterval(fetchUnreadCounts, 5000)
+      return () => clearInterval(interval)
+    }
+  }, [status, bookings, serviceRequests])
+
+  const fetchUnreadCounts = async () => {
+    try {
+      const bookingsWithProposals = bookings.filter(b => b.proposalId)
+      const proposalsFromRequests = serviceRequests
+        .filter(r => r.proposals && r.proposals.length > 0)
+        .map(r => r.proposals[0].id)
+
+      const allProposalIds = [
+        ...bookingsWithProposals.map(b => b.proposalId!),
+        ...proposalsFromRequests
+      ]
+
+      const counts: Record<string, number> = {}
+
+      await Promise.all(
+        allProposalIds.map(async (proposalId) => {
+          try {
+            const res = await fetch(`/api/chat/unread-count?proposalId=${proposalId}`)
+            if (res.ok) {
+              const data = await res.json()
+              counts[proposalId] = data.count || 0
+            }
+          } catch (error) {
+            console.error(`Error fetching unread count for ${proposalId}:`, error)
+          }
+        })
+      )
+
+      setUnreadCounts(counts)
+    } catch (error) {
+      console.error('Error fetching unread counts:', error)
+    }
+  }
 
   const updateBookingStatus = async (id: string, newStatus: string, serviceName: string) => {
     const statusMessages: Record<string, { title: string, message: string }> = {
@@ -770,10 +814,15 @@ function PartnerDashboardContent() {
                               partnerName: booking.user.name,
                               serviceName: booking.service.name
                             })}
-                            className="w-full bg-blue-600 text-white px-4 py-3 rounded-xl hover:bg-blue-700 transition font-medium flex items-center justify-center gap-2 mb-3"
+                            className="w-full bg-blue-600 text-white px-4 py-3 rounded-xl hover:bg-blue-700 transition font-medium flex items-center justify-center gap-2 mb-3 relative"
                           >
                             <MessageCircle size={18} />
                             Chat con el Cliente
+                            {unreadCounts[booking.proposalId!] > 0 && (
+                              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center animate-pulse shadow-lg">
+                                {unreadCounts[booking.proposalId!]}
+                              </span>
+                            )}
                           </button>
                         )}
 
@@ -935,10 +984,15 @@ function PartnerDashboardContent() {
                                   partnerName: request.user.name,
                                   serviceName: request.service.name
                                 })}
-                                className="w-full bg-white border-2 border-[#FF2D55] text-[#FF2D55] px-4 py-3 rounded-xl hover:bg-[#FF2D55] hover:text-white transition font-bold flex items-center justify-center gap-2"
+                                className="w-full bg-white border-2 border-[#FF2D55] text-[#FF2D55] px-4 py-3 rounded-xl hover:bg-[#FF2D55] hover:text-white transition font-bold flex items-center justify-center gap-2 relative"
                               >
                                 <MessageCircle size={18} />
                                 Chat con Cliente
+                                {unreadCounts[request.proposals[0].id] > 0 && (
+                                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center animate-pulse shadow-lg">
+                                    {unreadCounts[request.proposals[0].id]}
+                                  </span>
+                                )}
                               </button>
                             )}
                           </div>

@@ -196,6 +196,8 @@ export default function DashboardPage() {
     serviceName: ''
   })
 
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
+
   const [paymentBreakdown, setPaymentBreakdown] = useState<{
     serviceAmount: number
     clientCommission: number
@@ -228,6 +230,39 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchBookings()
   }, [filter])
+
+  useEffect(() => {
+    if (status === 'authenticated' && bookings.length > 0) {
+      fetchUnreadCounts()
+      const interval = setInterval(fetchUnreadCounts, 5000)
+      return () => clearInterval(interval)
+    }
+  }, [status, bookings])
+
+  const fetchUnreadCounts = async () => {
+    try {
+      const bookingsWithProposals = bookings.filter(b => b.proposalId)
+      const counts: Record<string, number> = {}
+
+      await Promise.all(
+        bookingsWithProposals.map(async (booking) => {
+          try {
+            const res = await fetch(`/api/chat/unread-count?proposalId=${booking.proposalId}`)
+            if (res.ok) {
+              const data = await res.json()
+              counts[booking.proposalId!] = data.count || 0
+            }
+          } catch (error) {
+            console.error(`Error fetching unread count for ${booking.proposalId}:`, error)
+          }
+        })
+      )
+
+      setUnreadCounts(counts)
+    } catch (error) {
+      console.error('Error fetching unread counts:', error)
+    }
+  }
 
   const fetchBookings = async () => {
     setLoading(true)
@@ -1036,10 +1071,15 @@ export default function DashboardPage() {
                               partnerName: booking.partner?.user.name || 'Socio',
                               serviceName: booking.service.name
                             })}
-                            className="w-full bg-blue-600 text-white px-4 py-3 rounded-xl hover:bg-blue-700 transition font-medium flex items-center justify-center gap-2 mb-3"
+                            className="w-full bg-blue-600 text-white px-4 py-3 rounded-xl hover:bg-blue-700 transition font-medium flex items-center justify-center gap-2 mb-3 relative"
                           >
                             <MessageCircle size={18} />
                             Chat con el Socio
+                            {unreadCounts[booking.proposalId] > 0 && (
+                              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center animate-pulse shadow-lg">
+                                {unreadCounts[booking.proposalId]}
+                              </span>
+                            )}
                           </button>
                         )}
 
