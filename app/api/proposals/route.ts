@@ -45,6 +45,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Esta solicitud ya no está activa' }, { status: 400 })
     }
 
+    // Validate price is not less than base price
+    const proposalPrice = parseFloat(price)
+    if (isNaN(proposalPrice)) {
+      return NextResponse.json({ error: 'Precio inválido' }, { status: 400 })
+    }
+    if (proposalPrice < serviceRequest.service.basePrice) {
+      return NextResponse.json({
+        error: `El precio de la propuesta no puede ser menor al precio base del servicio ($${serviceRequest.service.basePrice})`
+      }, { status: 400 })
+    }
+
     const partnerService = await prisma.partnerService.findFirst({
       where: {
         partnerId: partnerProfile.id,
@@ -77,7 +88,7 @@ export async function POST(req: NextRequest) {
       data: {
         serviceRequestId,
         partnerId: partnerProfile.id,
-        price: parseFloat(price),
+        price: proposalPrice,
         notes
       },
       include: {

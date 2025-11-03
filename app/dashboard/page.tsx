@@ -7,13 +7,14 @@ import {
   MessageSquare, Calendar, Clock, MapPin, Package, CheckCircle, DollarSign,
   TrendingUp, Activity, Search, Menu, X, Home, Bell,
   Settings, LogOut, ChevronRight, Plus, AlertCircle, User, XCircle, Star,
-  Shield, CreditCard, GraduationCap, ShieldCheck
+  Shield, CreditCard, GraduationCap, ShieldCheck, MessageCircle
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import Modal from '@/components/Modal'
 import ConfirmModal from '@/components/ConfirmModal'
 import ImageGalleryModal from '@/components/ImageGalleryModal'
 import RatingModal from '@/components/RatingModal'
+import ChatModal from '@/components/ChatModal'
 
 interface Booking {
   id: string
@@ -180,6 +181,18 @@ export default function DashboardPage() {
     bookingId: '',
     serviceName: '',
     amount: 0
+  })
+
+  const [chatModal, setChatModal] = useState<{
+    isOpen: boolean
+    proposalId: string
+    partnerName: string
+    serviceName: string
+  }>({
+    isOpen: false,
+    proposalId: '',
+    partnerName: '',
+    serviceName: ''
   })
 
   const [paymentBreakdown, setPaymentBreakdown] = useState<{
@@ -355,8 +368,20 @@ export default function DashboardPage() {
       if (res.ok) {
         const methods = await res.json()
         setPaymentMethods(Array.isArray(methods) ? methods : [])
-        const defaultMethod = Array.isArray(methods) ? methods.find((m: any) => m.isDefault) : undefined
-        setSelectedPaymentMethod(defaultMethod?.id || '')
+
+        if (Array.isArray(methods) && methods.length > 0) {
+          const defaultMethod = methods.find((m: any) => m.isDefault)
+          if (defaultMethod) {
+            setSelectedPaymentMethod(defaultMethod.id)
+          } else if (methods.length === 1) {
+            // Auto-select the only available method when there's exactly one
+            setSelectedPaymentMethod(methods[0].id)
+          } else {
+            setSelectedPaymentMethod('')
+          }
+        } else {
+          setSelectedPaymentMethod('')
+        }
       }
     } catch (error) {
       console.error('Error loading payment methods:', error)
@@ -1175,14 +1200,30 @@ export default function DashboardPage() {
                                         <p className="text-sm text-gray-600 bg-white rounded-lg p-2">{proposal.notes}</p>
                                       )}
                                     </div>
-                                    {request.status === 'ACTIVE' && proposal.status === 'PENDING' && (
-                                      <button
-                                        onClick={() => acceptProposal(proposal.id, proposal.partner.user.name, proposal.price)}
-                                        className="ml-4 bg-primary-600 text-white px-6 py-3 rounded-xl hover:bg-primary-700 transition font-medium"
-                                      >
-                                        Aceptar
-                                      </button>
-                                    )}
+                                    <div className="ml-4 flex flex-col gap-2">
+                                      {(proposal.status === 'ACCEPTED' || (request.status === 'ACTIVE' && proposal.status === 'PENDING')) && (
+                                        <button
+                                          onClick={() => setChatModal({
+                                            isOpen: true,
+                                            proposalId: proposal.id,
+                                            partnerName: proposal.partner.user.name,
+                                            serviceName: request.service.name
+                                          })}
+                                          className="bg-white border-2 border-[#FF2D55] text-[#FF2D55] px-4 py-2 rounded-xl hover:bg-[#FF2D55] hover:text-white transition font-medium flex items-center gap-2"
+                                        >
+                                          <MessageCircle size={18} />
+                                          <span className="hidden sm:inline">Chat</span>
+                                        </button>
+                                      )}
+                                      {request.status === 'ACTIVE' && proposal.status === 'PENDING' && (
+                                        <button
+                                          onClick={() => acceptProposal(proposal.id, proposal.partner.user.name, proposal.price)}
+                                          className="bg-primary-600 text-white px-4 py-2 rounded-xl hover:bg-primary-700 transition font-medium"
+                                        >
+                                          Aceptar
+                                        </button>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
                               ))}
@@ -1249,6 +1290,15 @@ export default function DashboardPage() {
           fetchBookings()
         }}
       />
+
+      {chatModal.isOpen && (
+        <ChatModal
+          proposalId={chatModal.proposalId}
+          partnerName={chatModal.partnerName}
+          serviceName={chatModal.serviceName}
+          onClose={() => setChatModal({ isOpen: false, proposalId: '', partnerName: '', serviceName: '' })}
+        />
+      )}
     </div>
   )
 }
