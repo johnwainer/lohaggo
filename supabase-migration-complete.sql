@@ -422,6 +422,10 @@ CREATE TABLE "Chat" (
   "partnerId" TEXT NOT NULL,
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" TIMESTAMP(3) NOT NULL,
+  FOREIGN KEY ("serviceRequestId") REFERENCES "ServiceRequest"("id"),
+  FOREIGN KEY ("proposalId") REFERENCES "Proposal"("id"),
+  FOREIGN KEY ("clientId") REFERENCES "User"("id"),
+  FOREIGN KEY ("partnerId") REFERENCES "PartnerProfile"("id"),
   UNIQUE ("serviceRequestId", "clientId", "partnerId")
 );
 
