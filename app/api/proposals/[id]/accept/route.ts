@@ -91,6 +91,7 @@ export async function POST(
           userId: proposal.serviceRequest.userId,
           serviceId: proposal.serviceRequest.serviceId,
           partnerId: proposal.partnerId,
+          proposalId: proposalId,
           scheduledDate: new Date(),
           scheduledTime: '09:00',
           address: proposal.serviceRequest.address,
@@ -137,6 +138,10 @@ export async function POST(
     })
   } catch (error) {
     console.error('Error accepting proposal:', error)
-    return NextResponse.json({ error: 'Error al aceptar la propuesta' }, { status: 500 })
+    console.error('Error details:', JSON.stringify(error, Object.getOwnPropertyNames(error)))
+    return NextResponse.json({
+      error: 'Error al aceptar la propuesta',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 })
   }
 }

@@ -29,6 +29,7 @@ interface Booking {
   status: string
   totalPrice: number
   createdAt: string
+  proposalId?: string
   service: {
     name: string
     icon: string
@@ -169,9 +170,10 @@ function PartnerDashboardContent() {
 
       const res = await fetch(url)
       const data = await res.json()
-      setBookings(data)
+      setBookings(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error('Error fetching bookings:', error)
+      setBookings([])
     } finally {
       setLoading(false)
     }
@@ -758,6 +760,21 @@ function PartnerDashboardContent() {
                               </div>
                             </div>
                           </div>
+                        )}
+
+                        {booking.proposalId && (
+                          <button
+                            onClick={() => setChatModal({
+                              isOpen: true,
+                              proposalId: booking.proposalId!,
+                              partnerName: booking.user.name,
+                              serviceName: booking.service.name
+                            })}
+                            className="w-full bg-blue-600 text-white px-4 py-3 rounded-xl hover:bg-blue-700 transition font-medium flex items-center justify-center gap-2 mb-3"
+                          >
+                            <MessageCircle size={18} />
+                            Chat con el Cliente
+                          </button>
                         )}
 
                         <div className="flex gap-2">
