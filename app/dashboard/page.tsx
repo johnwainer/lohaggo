@@ -1212,51 +1212,50 @@ export default function DashboardPage() {
                             <div className="space-y-3">
                               {request.proposals.map((proposal) => (
                                 <div key={proposal.id} className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-4">
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex-1">
-                                      <div className="flex items-center gap-2 mb-2 flex-wrap">
-                                        <div className="flex items-center gap-2">
-                                          <User size={16} className="text-gray-600" />
-                                          <span className="font-semibold text-gray-900">{proposal.partner.user.name}</span>
-                                          {proposal.partner.verified && (
-                                            <div className="group relative">
-                                              <ShieldCheck size={16} className="text-green-600" />
-                                              <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                                                Socio verificado
-                                              </span>
-                                            </div>
-                                          )}
-                                        </div>
-                                        {getVerificationBadges(proposal.partner.documents)}
-                                        {proposal.status === 'ACCEPTED' && (
-                                          <span className="bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded-full border border-green-200">
-                                            ✓ Aceptada
-                                          </span>
+                                  <div className="flex flex-col gap-3">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <div className="flex items-center gap-2">
+                                        <User size={16} className="text-gray-600" />
+                                        <span className="font-semibold text-gray-900">{proposal.partner.user.name}</span>
+                                        {proposal.partner.verified && (
+                                          <div className="group relative">
+                                            <ShieldCheck size={16} className="text-green-600" />
+                                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                                              Socio verificado
+                                            </span>
+                                          </div>
                                         )}
                                       </div>
-
-                                      <div className="bg-white rounded-lg p-3 mb-2 border-2 border-primary-200">
-                                        <div className="space-y-2">
-                                          <div className="flex justify-between items-center text-sm">
-                                            <span className="text-gray-600">Precio del servicio:</span>
-                                            <span className="font-semibold text-gray-900">{formatCurrency(proposal.price)}</span>
-                                          </div>
-                                          <div className="flex justify-between items-center text-sm">
-                                            <span className="text-gray-600">Tarifa de servicio ({clientCommissionRate}%):</span>
-                                            <span className="font-semibold text-gray-900">{formatCurrency(proposal.price * (clientCommissionRate / 100))}</span>
-                                          </div>
-                                          <div className="border-t pt-2 flex justify-between items-center">
-                                            <span className="font-bold text-gray-900">Total a pagar:</span>
-                                            <span className="text-2xl font-bold text-primary-600">{formatCurrency(proposal.price * (1 + clientCommissionRate / 100))}</span>
-                                          </div>
-                                        </div>
-                                      </div>
-
-                                      {proposal.notes && (
-                                        <p className="text-sm text-gray-600 bg-white rounded-lg p-2">{proposal.notes}</p>
+                                      {getVerificationBadges(proposal.partner.documents)}
+                                      {proposal.status === 'ACCEPTED' && (
+                                        <span className="bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded-full border border-green-200">
+                                          ✓ Aceptada
+                                        </span>
                                       )}
                                     </div>
-                                    <div className="ml-4 flex flex-col gap-2">
+
+                                    <div className="bg-white rounded-lg p-3 border-2 border-primary-200">
+                                      <div className="space-y-2">
+                                        <div className="flex justify-between items-center text-sm">
+                                          <span className="text-gray-600">Precio del servicio:</span>
+                                          <span className="font-semibold text-gray-900">{formatCurrency(proposal.price)}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center text-sm">
+                                          <span className="text-gray-600">Tarifa de servicio ({clientCommissionRate}%):</span>
+                                          <span className="font-semibold text-gray-900">{formatCurrency(proposal.price * (clientCommissionRate / 100))}</span>
+                                        </div>
+                                        <div className="border-t pt-2 flex justify-between items-center">
+                                          <span className="font-bold text-gray-900">Total a pagar:</span>
+                                          <span className="text-xl sm:text-2xl font-bold text-primary-600">{formatCurrency(proposal.price * (1 + clientCommissionRate / 100))}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {proposal.notes && (
+                                      <p className="text-sm text-gray-600 bg-white rounded-lg p-3">{proposal.notes}</p>
+                                    )}
+
+                                    <div className="flex flex-col sm:flex-row gap-2">
                                       {(proposal.status === 'ACCEPTED' || (request.status === 'ACTIVE' && proposal.status === 'PENDING')) && (
                                         <button
                                           onClick={() => setChatModal({
@@ -1265,18 +1264,24 @@ export default function DashboardPage() {
                                             partnerName: proposal.partner.user.name,
                                             serviceName: request.service.name
                                           })}
-                                          className="bg-white border-2 border-[#FF2D55] text-[#FF2D55] px-4 py-2 rounded-xl hover:bg-[#FF2D55] hover:text-white transition font-medium flex items-center gap-2"
+                                          className="w-full bg-white border-2 border-[#FF2D55] text-[#FF2D55] px-4 py-3 rounded-xl hover:bg-[#FF2D55] hover:text-white transition font-medium flex items-center justify-center gap-2 relative"
                                         >
                                           <MessageCircle size={18} />
-                                          <span className="hidden sm:inline">Chat</span>
+                                          Chat con el Socio
+                                          {unreadCounts[proposal.id] > 0 && (
+                                            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center animate-pulse shadow-lg">
+                                              {unreadCounts[proposal.id]}
+                                            </span>
+                                          )}
                                         </button>
                                       )}
                                       {request.status === 'ACTIVE' && proposal.status === 'PENDING' && (
                                         <button
                                           onClick={() => acceptProposal(proposal.id, proposal.partner.user.name, proposal.price)}
-                                          className="bg-primary-600 text-white px-4 py-2 rounded-xl hover:bg-primary-700 transition font-medium"
+                                          className="w-full bg-primary-600 text-white px-4 py-3 rounded-xl hover:bg-primary-700 transition font-medium flex items-center justify-center gap-2"
                                         >
-                                          Aceptar
+                                          <CheckCircle size={18} />
+                                          Aceptar Propuesta
                                         </button>
                                       )}
                                     </div>
