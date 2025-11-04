@@ -248,6 +248,8 @@ function PartnerDashboardContent() {
         ...proposalsFromRequests
       ]
 
+      console.log('[PARTNER] Fetching unread counts for proposals:', allProposalIds)
+
       const counts: Record<string, number> = {}
 
       await Promise.all(
@@ -257,16 +259,26 @@ function PartnerDashboardContent() {
             if (res.ok) {
               const data = await res.json()
               counts[proposalId] = data.count || 0
+              console.log(`[PARTNER] Unread count for ${proposalId}:`, data.count)
+            } else {
+              // log status and body for debugging non-OK responses
+              try {
+                const text = await res.text()
+                console.error(`[PARTNER] Error response for ${proposalId}:`, res.status, text)
+              } catch (readErr) {
+                console.error(`[PARTNER] Error response for ${proposalId}:`, res.status, 'and failed to read body', readErr)
+              }
             }
           } catch (error) {
-            console.error(`Error fetching unread count for ${proposalId}:`, error)
+            console.error(`[PARTNER] Error fetching unread count for ${proposalId}:`, error)
           }
         })
       )
 
+      console.log('[PARTNER] Final unread counts:', counts)
       setUnreadCounts(counts)
     } catch (error) {
-      console.error('Error fetching unread counts:', error)
+      console.error('[PARTNER] Error fetching unread counts:', error)
     }
   }
 
