@@ -71,7 +71,8 @@ async function deleteFromCloudinary(publicId: string): Promise<void> {
   )
 
   if (!response.ok) {
-    logger.error('Failed to delete from Cloudinary',  || undefined)
+    const errorText = await response.text()
+    logger.error('Failed to delete from Cloudinary', { error: errorText })
   }
 }
 
