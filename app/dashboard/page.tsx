@@ -1017,7 +1017,7 @@ export default function DashboardPage() {
                           </button>
                         )}
 
-                        {booking.status === 'COMPLETED' && booking.review?.clientToPartnerRating && (
+                        {booking.status === 'COMPLETED' && booking.payment?.status === 'APPROVED' && booking.review?.clientToPartnerRating && (
                           <div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-3">
                             <div className="flex items-center gap-2 text-green-700">
                               <CheckCircle size={16} />
@@ -1083,7 +1083,7 @@ export default function DashboardPage() {
                           </button>
                         )}
 
-                        {(booking.status === 'PENDING' || booking.status === 'CONFIRMED') && booking.payment?.status !== 'APPROVED' && booking.payment?.status !== 'APPROVED' && (
+                        {(booking.status === 'PENDING' || booking.status === 'CONFIRMED') && booking.payment?.status !== 'APPROVED' && (
                           <button
                             onClick={() => cancelBooking(booking.id, booking.service.name)}
                             className="w-full bg-red-600 text-white px-4 py-3 rounded-xl hover:bg-red-700 transition font-medium flex items-center justify-center gap-2"
