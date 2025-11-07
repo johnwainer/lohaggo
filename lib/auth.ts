@@ -83,8 +83,30 @@ export const authOptions: NextAuthOptions = {
   },
   session: {
     strategy: "jwt",
+    // session max age in seconds (defaults to 24 hours). Can be overridden via env.
+    maxAge: parseInt(process.env.SESSION_MAX_AGE || "86400", 10),
+    // how often to update the session in seconds (defaults to 1 hour).
+    updateAge: parseInt(process.env.SESSION_UPDATE_AGE || "3600", 10),
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  cookies: {
+    // Secure cookie settings for session token. Name prefixed with "__Secure-" in production
+    // to enforce secure cookies in browsers that respect the prefix.
+    sessionToken: {
+      name:
+        process.env.NODE_ENV === "production"
+          ? "__Secure-next-auth.session-token"
+          : "next-auth.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+  },
+  // Support for secret rotation: prefer a CURRENT secret but fall back to the legacy secret.
+  // If you need multiple active secrets, you can provide an array here (NextAuth supports that).
+  secret: process.env.NEXTAUTH_SECRET_CURRENT || process.env.NEXTAUTH_SECRET,
 }
 
 export async function getCurrentUser() {
