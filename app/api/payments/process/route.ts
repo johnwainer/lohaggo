@@ -8,6 +8,7 @@ import { paymentRateLimiter } from '@/lib/rate-limit'
 const logger = createLogger('payments-process')
 
 async function handlePOST(req: NextRequest) {
+  try {
     const session = await getServerSession(authOptions)
 
     if (!session?.user) {
