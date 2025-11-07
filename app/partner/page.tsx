@@ -805,7 +805,7 @@ function PartnerDashboardContent() {
                           </button>
                         )}
 
-                        {booking.status === 'COMPLETED' && booking.review?.partnerToClientRating && (
+                        {booking.status === 'COMPLETED' && booking.payment?.status === 'APPROVED' && booking.review?.partnerToClientRating && (
                           <div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-3">
                             <div className="flex items-center gap-2 text-green-700">
                               <CheckCircle size={16} />
@@ -823,7 +823,7 @@ function PartnerDashboardContent() {
                           </div>
                         )}
 
-                        {booking.proposalId && (
+                        {booking.proposalId && booking.payment?.status !== 'APPROVED' && (
                           <button
                             onClick={() => setChatModal({
                               isOpen: true,
@@ -843,42 +843,44 @@ function PartnerDashboardContent() {
                           </button>
                         )}
 
-                        <div className="flex gap-2">
-                          {booking.status === 'PENDING' && (
-                            <>
+                        {booking.payment?.status !== 'APPROVED' && (
+                          <div className="flex gap-2">
+                            {booking.status === 'PENDING' && (
+                              <>
+                                <button
+                                  onClick={() => updateBookingStatus(booking.id, 'CONFIRMED', booking.service.name)}
+                                  className="flex-1 bg-blue-600 text-white px-4 py-3 rounded-xl hover:bg-blue-700 transition font-medium flex items-center justify-center gap-2"
+                                >
+                                  <CheckCircle size={18} />
+                                  Confirmar
+                                </button>
+                                <button
+                                  onClick={() => updateBookingStatus(booking.id, 'CANCELLED', booking.service.name)}
+                                  className="flex-1 bg-red-600 text-white px-4 py-3 rounded-xl hover:bg-red-700 transition font-medium flex items-center justify-center gap-2"
+                                >
+                                  <XCircle size={18} />
+                                  Rechazar
+                                </button>
+                              </>
+                            )}
+                            {booking.status === 'CONFIRMED' && (
                               <button
-                                onClick={() => updateBookingStatus(booking.id, 'CONFIRMED', booking.service.name)}
-                                className="flex-1 bg-blue-600 text-white px-4 py-3 rounded-xl hover:bg-blue-700 transition font-medium flex items-center justify-center gap-2"
+                                onClick={() => updateBookingStatus(booking.id, 'IN_PROGRESS', booking.service.name)}
+                                className="w-full bg-purple-600 text-white px-4 py-3 rounded-xl hover:bg-purple-700 transition font-medium"
                               >
-                                <CheckCircle size={18} />
-                                Confirmar
+                                Iniciar Servicio
                               </button>
+                            )}
+                            {booking.status === 'IN_PROGRESS' && (
                               <button
-                                onClick={() => updateBookingStatus(booking.id, 'CANCELLED', booking.service.name)}
-                                className="flex-1 bg-red-600 text-white px-4 py-3 rounded-xl hover:bg-red-700 transition font-medium flex items-center justify-center gap-2"
+                                onClick={() => updateBookingStatus(booking.id, 'COMPLETED', booking.service.name)}
+                                className="w-full bg-green-600 text-white px-4 py-3 rounded-xl hover:bg-green-700 transition font-medium"
                               >
-                                <XCircle size={18} />
-                                Rechazar
+                                Marcar Completado
                               </button>
-                            </>
-                          )}
-                          {booking.status === 'CONFIRMED' && (
-                            <button
-                              onClick={() => updateBookingStatus(booking.id, 'IN_PROGRESS', booking.service.name)}
-                              className="w-full bg-purple-600 text-white px-4 py-3 rounded-xl hover:bg-purple-700 transition font-medium"
-                            >
-                              Iniciar Servicio
-                            </button>
-                          )}
-                          {booking.status === 'IN_PROGRESS' && (
-                            <button
-                              onClick={() => updateBookingStatus(booking.id, 'COMPLETED', booking.service.name)}
-                              className="w-full bg-green-600 text-white px-4 py-3 rounded-xl hover:bg-green-700 transition font-medium"
-                            >
-                              Marcar Completado
-                            </button>
-                          )}
-                        </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
