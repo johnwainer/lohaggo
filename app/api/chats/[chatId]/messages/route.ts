@@ -219,7 +219,7 @@ export async function POST(
 
       return NextResponse.json({
         error: 'mensaje_bloqueado',
-        message: `⚠️ Por tu seguridad, no puedes compartir ${validation.reason} a través del chat.\n\nMantén toda la comunicación dentro de la plataforma para proteger tus datos.`,
+        message: `⚠️ Por tu seguridad, no puedes compartir ${contactValidation.reason} a través del chat.\n\nMantén toda la comunicación dentro de la plataforma para proteger tus datos.`,
         blocked: true,
         systemMessage
       }, { status: 400 })
