@@ -2,8 +2,12 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth"
 import { createNotification } from "@/lib/notifications/notificationService"
+import { createLogger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
+
+
+const logger = createLogger('reviews')
 
 export async function POST(request: Request) {
   try {
@@ -203,7 +207,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(review, { status: 201 })
   } catch (error) {
-    console.error("Error creating review:", error)
+    logger.error('Error creating review:', error || undefined)
     return NextResponse.json(
       { error: "Error al crear calificación" },
       { status: 500 }
@@ -257,7 +261,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ error: "bookingId requerido" }, { status: 400 })
   } catch (error) {
-    console.error("Error fetching review:", error)
+    logger.error('Error fetching review:', error || undefined)
     return NextResponse.json(
       { error: "Error al obtener calificación" },
       { status: 500 }

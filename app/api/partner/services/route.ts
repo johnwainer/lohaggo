@@ -2,11 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { createLogger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
  // GET - Obtener todos los servicios disponibles y los del partner
- export async function GET(request: NextRequest) {
+ 
+const logger = createLogger('partner-services')
+
+export async function GET(request: NextRequest) {
    try {
      const session = await getServerSession(authOptions)
      const { searchParams } = new URL(request.url)
@@ -83,7 +87,7 @@ export const dynamic = 'force-dynamic'
       partnerId: partnerProfile.id
     })
   } catch (error) {
-    console.error('Error fetching services:', error)
+    logger.error('Error fetching services:', error)
     return NextResponse.json({ error: 'Error al obtener servicios' }, { status: 500 })
   }
 }
@@ -193,7 +197,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(partnerService)
   } catch (error) {
-    console.error('Error saving service:', error)
+    logger.error('Error saving service:', error)
     return NextResponse.json({ error: 'Error al guardar servicio' }, { status: 500 })
   }
 }
@@ -238,7 +242,7 @@ export async function DELETE(req: NextRequest) {
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Error deleting service:', error)
+    logger.error('Error deleting service:', error)
     return NextResponse.json({ error: 'Error al eliminar servicio' }, { status: 500 })
   }
 }

@@ -2,8 +2,12 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { createLogger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
+
+
+const logger = createLogger('addresses-id')
 
 export async function PUT(
   request: Request,
@@ -61,7 +65,7 @@ export async function PUT(
 
     return NextResponse.json(updatedAddress)
   } catch (error) {
-    console.error('Error updating address:', error)
+    logger.error('Error updating address:', error || undefined)
     return NextResponse.json({ error: 'Error al actualizar dirección' }, { status: 500 })
   }
 }
@@ -97,7 +101,7 @@ export async function DELETE(
 
     return NextResponse.json({ message: 'Dirección eliminada exitosamente' })
   } catch (error) {
-    console.error('Error deleting address:', error)
+    logger.error('Error deleting address:', error || undefined)
     return NextResponse.json({ error: 'Error al eliminar dirección' }, { status: 500 })
   }
 }

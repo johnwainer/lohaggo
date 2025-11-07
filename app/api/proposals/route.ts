@@ -3,10 +3,14 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { notifyNewProposal } from '@/lib/notifications/notificationService'
+import { createLogger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
 // POST - Crear una nueva propuesta para una solicitud de servicio
+
+const logger = createLogger('proposals')
+
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -118,7 +122,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(proposal)
   } catch (error) {
-    console.error('Error creating proposal:', error)
+    logger.error('Error creating proposal:', error || undefined)
     return NextResponse.json({ error: 'Error al crear la propuesta' }, { status: 500 })
   }
 }
@@ -169,7 +173,7 @@ export async function GET() {
 
     return NextResponse.json(proposals)
   } catch (error) {
-    console.error('Error fetching proposals:', error)
+    logger.error('Error fetching proposals:', error || undefined)
     return NextResponse.json({ error: 'Error al obtener las propuestas' }, { status: 500 })
   }
 }

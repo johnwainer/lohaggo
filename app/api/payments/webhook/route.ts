@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import mercadopago from '@/lib/mercadopago';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('payments-webhook');
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,7 +13,7 @@ export async function POST(req: NextRequest) {
     if (type === 'payment') {
       const paymentId = data?.id;
       if (!paymentId) {
-        console.log('Webhook payment sin id:', body);
+        logger.warn('Webhook payment received without id', { type });
         return NextResponse.json({ received: true });
       }
 
@@ -19,11 +22,10 @@ export async function POST(req: NextRequest) {
       });
 
       if (!payment) {
-        console.log('Pago no encontrado en BD:', paymentId);
+        logger.warn('Payment not found in database', { paymentId });
         return NextResponse.json({ received: true });
       }
 
-      // Obtener detalle del pago desde MercadoPago
       const mpResponse = await mercadopago.payment.get({ id: String(paymentId) });
       const mpPayment = mpResponse;
 
@@ -48,7 +50,6 @@ export async function POST(req: NextRequest) {
           status = 'PENDING';
       }
 
-      // Guardar respuesta cruda de MP y estado
       await prisma.payment.update({
         where: { id: payment.id },
         data: {
@@ -72,7 +73,6 @@ export async function POST(req: NextRequest) {
           },
         });
 
-        // Notificar al cliente
         await prisma.notification.create({
           data: {
             userId: booking.userId,
@@ -82,7 +82,6 @@ export async function POST(req: NextRequest) {
           },
         });
 
-        // Notificar al partner si tiene suscripción push
         if (booking.partner?.user?.pushSubscription) {
           await prisma.notification.create({
             data: {
@@ -94,34 +93,37 @@ export async function POST(req: NextRequest) {
           });
         }
 
-        // Generar payout para el partner usando la tarifa guardada en el booking
         let partnerCommissionRate: number;
 
         if (booking.partnerCommissionRate !== null && booking.partnerCommissionRate !== undefined) {
           partnerCommissionRate = Number(booking.partnerCommissionRate);
-          console.log('✅ Usando tarifa de socio guardada en el booking:', partnerCommissionRate);
+          logger.debug('Using saved partner commission rate from booking', {
+            bookingId: booking.id,
+            rateSource: 'booking'
+          });
         } else {
           const config = await prisma.platformConfig.findFirst();
           if (!config) {
-            console.error('No se encontró configuración de la plataforma');
+            logger.error('Platform configuration not found');
             return NextResponse.json({ received: true });
           }
           partnerCommissionRate = Number(config.partnerCommissionRate);
-          console.log('⚠️ Usando tarifa de socio actual de la plataforma:', partnerCommissionRate);
+          logger.warn('Using current platform partner commission rate', {
+            bookingId: booking.id,
+            rateSource: 'platform'
+          });
         }
 
         const serviceAmount = Number(payment.serviceAmount ?? payment.totalAmount ?? 0);
         const partnerCommission = (serviceAmount * partnerCommissionRate) / 100;
         const netAmount = serviceAmount - partnerCommission;
 
-        console.log('💰 Creando payout:', {
-          serviceAmount,
+        logger.info('Creating payout for partner', {
+          bookingId: booking.id,
+          paymentId: payment.id,
           partnerCommissionRate,
-          partnerCommission,
-          netAmount,
         });
 
-        // Asegurarse de que partnerId no sea null antes de crear el payout.
         if (booking.partnerId) {
           await prisma.payout.create({
             data: {
@@ -135,14 +137,17 @@ export async function POST(req: NextRequest) {
             },
           });
         } else {
-          console.warn('No se creó payout: booking sin partnerId', { bookingId: booking.id, paymentId: payment.id });
+          logger.warn('Payout not created: booking without partnerId', {
+            bookingId: booking.id,
+            paymentId: payment.id
+          });
         }
       }
     }
 
     return NextResponse.json({ received: true });
   } catch (error) {
-    console.error('Error en webhook:', error);
+    logger.error('Error processing webhook', error);
     return NextResponse.json(
       { error: 'Error al procesar webhook' },
       { status: 500 }

@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { createLogger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
+
+
+const logger = createLogger('categories')
 
 export async function GET() {
   try {
@@ -16,7 +20,7 @@ export async function GET() {
 
     return NextResponse.json(categories)
   } catch (error) {
-    console.error("Error fetching categories:", error)
+    logger.error('Error fetching categories:', error || undefined)
     return NextResponse.json(
       { error: "Error al obtener categorías" },
       { status: 500 }

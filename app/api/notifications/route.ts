@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth"
+import { createLogger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
+
+
+const logger = createLogger('notifications')
 
 export async function GET(request: Request) {
   try {
@@ -33,7 +37,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(notifications)
   } catch (error) {
-    console.error("Error fetching notifications:", error)
+    logger.error('Error fetching notifications:', error || undefined)
     return NextResponse.json(
       { error: "Error al obtener notificaciones" },
       { status: 500 }
@@ -86,7 +90,7 @@ export async function PATCH(request: Request) {
       { status: 400 }
     )
   } catch (error) {
-    console.error("Error updating notification:", error)
+    logger.error('Error updating notification:', error || undefined)
     return NextResponse.json(
       { error: "Error al actualizar notificación" },
       { status: 500 }

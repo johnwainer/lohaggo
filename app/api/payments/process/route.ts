@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { createLogger } from '@/lib/logger'
+
+const logger = createLogger('payments-process')
 
 export async function POST(req: NextRequest) {
   try {
@@ -59,7 +62,10 @@ export async function POST(req: NextRequest) {
     ) {
       clientCommissionRate = Number(booking.clientCommissionRate)
       partnerCommissionRate = Number(booking.partnerCommissionRate)
-      console.log('✅ Usando tarifas guardadas en el booking:', { clientCommissionRate, partnerCommissionRate })
+      logger.debug('Using saved commission rates from booking', {
+        bookingId,
+        rateSource: 'booking'
+      })
     } else {
       const config = await prisma.platformConfig.findFirst()
       if (!config) {
@@ -70,18 +76,20 @@ export async function POST(req: NextRequest) {
       }
       clientCommissionRate = Number(config.clientCommissionRate)
       partnerCommissionRate = Number(config.partnerCommissionRate)
-      console.log('⚠️ Usando tarifas actuales de la plataforma:', { clientCommissionRate, partnerCommissionRate })
+      logger.warn('Using current platform commission rates', {
+        bookingId,
+        rateSource: 'platform'
+      })
     }
 
     const serviceAmount = booking.totalPrice
     const clientCommission = (serviceAmount * clientCommissionRate) / 100
     const totalAmount = serviceAmount + clientCommission
 
-    console.log('💰 Desglose del pago:', {
-      serviceAmount,
+    logger.info('Processing payment', {
+      bookingId,
+      userId: session.user.id,
       clientCommissionRate,
-      clientCommission,
-      totalAmount,
       partnerCommissionRate,
     })
 
@@ -130,12 +138,10 @@ export async function POST(req: NextRequest) {
       paymentId = newPayment.id
     }
 
-    // Crear payout para el partner si existe
     if (booking.partnerId) {
       const partnerCommission = (serviceAmount * partnerCommissionRate) / 100
       const netAmount = serviceAmount - partnerCommission
 
-      // Verificar si ya existe un payout para este pago
       const existingPayout = await prisma.payout.findUnique({
         where: { paymentId },
       })
@@ -155,7 +161,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Actualizar estado de la reserva
     await prisma.booking.update({
       where: { id: bookingId },
       data: { status: 'CONFIRMED' },
@@ -167,7 +172,7 @@ export async function POST(req: NextRequest) {
       amount: totalAmount,
     })
   } catch (error) {
-    console.error('Error al procesar pago:', error)
+    logger.error('Error processing payment', error)
     return NextResponse.json(
       { error: 'Error al procesar el pago' },
       { status: 500 }

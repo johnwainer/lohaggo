@@ -2,8 +2,12 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { createLogger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
+
+
+const logger = createLogger('admin-partners')
 
 export async function GET() {
   try {
@@ -46,7 +50,7 @@ export async function GET() {
 
     return NextResponse.json(partners)
   } catch (error) {
-    console.error('Error fetching partners:', error)
+    logger.error('Error fetching partners:', error || undefined)
     return NextResponse.json({ error: 'Error al obtener socios' }, { status: 500 })
   }
 }
@@ -69,7 +73,7 @@ export async function PATCH(request: Request) {
 
     return NextResponse.json(partner)
   } catch (error) {
-    console.error('Error updating partner:', error)
+    logger.error('Error updating partner:', error || undefined)
     return NextResponse.json({ error: 'Error al actualizar socio' }, { status: 500 })
   }
 }

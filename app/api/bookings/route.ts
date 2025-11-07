@@ -2,8 +2,12 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth"
 import { createNotification } from "@/lib/notifications/notificationService"
+import { createLogger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
+
+
+const logger = createLogger('bookings')
 
 export async function GET(request: Request) {
   try {
@@ -86,7 +90,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(bookings)
   } catch (error) {
-    console.error("Error fetching bookings:", error)
+    logger.error('Error fetching bookings:', error)
     return NextResponse.json(
       { error: "Error al obtener reservas" },
       { status: 500 }
@@ -159,7 +163,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(booking, { status: 201 })
   } catch (error) {
-    console.error("Error creating booking:", error)
+    logger.error('Error creating booking:', error)
     return NextResponse.json(
       { error: "Error al crear reserva" },
       { status: 500 }

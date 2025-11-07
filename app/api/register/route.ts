@@ -1,6 +1,9 @@
-import { NextResponse } from "next/server"
+import { NextResponse } from 'next/server'
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
+import { createLogger } from '@/lib/logger'
+
+const logger = createLogger('register')
 
 export const dynamic = 'force-dynamic'
 

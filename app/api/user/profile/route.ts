@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { createLogger } from '@/lib/logger'
+
+
+const logger = createLogger('user-profile')
 
 export async function PUT(request: Request) {
   try {
@@ -37,7 +41,7 @@ export async function PUT(request: Request) {
 
     return NextResponse.json(updatedUser)
   } catch (error) {
-    console.error('Error updating profile:', error)
+    logger.error('Error updating profile:', error)
     return NextResponse.json({ error: 'Error al actualizar el perfil' }, { status: 500 })
   }
 }

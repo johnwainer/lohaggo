@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { createLogger } from '@/lib/logger'
+
+
+const logger = createLogger('payouts-list')
 
 export async function GET(req: NextRequest) {
   try {
@@ -48,7 +52,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(payouts);
   } catch (error) {
-    console.error('Error al obtener pagos pendientes:', error);
+    logger.error('Error al obtener pagos pendientes:', error || undefined);
     return NextResponse.json(
       { error: 'Error al obtener pagos pendientes' },
       { status: 500 }

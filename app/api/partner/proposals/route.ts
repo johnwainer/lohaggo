@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { createLogger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
+
+
+const logger = createLogger('partner-proposals')
 
 export async function POST(req: NextRequest) {
   try {
@@ -104,7 +108,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(proposal, { status: 201 })
   } catch (error) {
-    console.error('Error creating proposal:', error)
+    logger.error('Error creating proposal:', error || undefined)
     return NextResponse.json(
       { error: 'Error al crear la propuesta' },
       { status: 500 }

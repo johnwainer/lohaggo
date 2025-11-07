@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { createLogger } from '@/lib/logger'
+
+
+const logger = createLogger('admin-delete-last-payment')
 
 export async function DELETE() {
   try {
@@ -60,7 +64,7 @@ export async function DELETE() {
       payment: paymentInfo,
     })
   } catch (error) {
-    console.error('Error al eliminar pago:', error)
+    logger.error('Error al eliminar pago:', error || undefined)
     return NextResponse.json(
       { error: 'Error al eliminar el pago' },
       { status: 500 }

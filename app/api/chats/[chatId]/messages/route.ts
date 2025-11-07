@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { createLogger } from '@/lib/logger'
 
 function detectContactInfo(message: string): { isValid: boolean; reason?: string } {
   const lowerMessage = message.toLowerCase()
@@ -121,6 +122,9 @@ function detectContactInfo(message: string): { isValid: boolean; reason?: string
   
   return { isValid: true }
 }
+
+
+const logger = createLogger('chats-chatId-messages')
 
 export async function POST(
   request: Request,
@@ -278,7 +282,7 @@ export async function POST(
 
     return NextResponse.json(message)
   } catch (error) {
-    console.error('Error sending message:', error)
+    logger.error('Error sending message:', error || undefined)
     return NextResponse.json({ error: 'Error al enviar mensaje' }, { status: 500 })
   }
 }
@@ -329,7 +333,7 @@ export async function PATCH(
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Error marking messages as read:', error)
+    logger.error('Error marking messages as read:', error || undefined)
     return NextResponse.json({ error: 'Error al marcar mensajes como leídos' }, { status: 500 })
   }
 }

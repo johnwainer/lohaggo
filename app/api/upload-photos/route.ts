@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { existsSync } from 'fs'
+import { createLogger } from '@/lib/logger'
 
 // Cloudinary configuration (optional - for production)
 const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
@@ -39,7 +40,7 @@ async function uploadToCloudinary(file: File): Promise<{ url: string; publicId: 
 
   if (!response.ok) {
     const error = await response.text()
-    console.error('Cloudinary error:', error)
+    logger.error('Cloudinary error:', error || undefined)
     throw new Error('Failed to upload to Cloudinary')
   }
 
@@ -69,6 +70,9 @@ async function uploadToLocal(file: File): Promise<string> {
   await writeFile(filepath, buffer)
   return `/uploads/requests/${filename}`
 }
+
+
+const logger = createLogger('upload-photos')
 
 export async function POST(request: NextRequest) {
   try {
@@ -110,7 +114,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ urls, publicIds })
   } catch (error) {
-    console.error('Error uploading photos:', error)
+    logger.error('Error uploading photos:', error || undefined)
     return NextResponse.json(
       { error: 'Error al subir las fotos' },
       { status: 500 }

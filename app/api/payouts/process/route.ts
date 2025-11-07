@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { createLogger } from '@/lib/logger'
+
+
+const logger = createLogger('payouts-process')
 
 export async function POST(req: NextRequest) {
   try {
@@ -82,7 +86,7 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Error al procesar pago:', error);
+    logger.error('Error al procesar pago:', error || undefined);
     return NextResponse.json(
       { error: 'Error al procesar pago' },
       { status: 500 }

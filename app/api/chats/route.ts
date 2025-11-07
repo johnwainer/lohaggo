@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { createLogger } from '@/lib/logger'
+
+
+const logger = createLogger('chats')
 
 export async function GET(request: Request) {
   try {
@@ -69,7 +73,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(chats)
   } catch (error) {
-    console.error('Error fetching chats:', error)
+    logger.error('Error fetching chats:', error || undefined)
     return NextResponse.json({ error: 'Error al obtener chats' }, { status: 500 })
   }
 }
@@ -124,7 +128,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(chat)
   } catch (error) {
-    console.error('Error creating chat:', error)
+    logger.error('Error creating chat:', error || undefined)
     return NextResponse.json({ error: 'Error al crear chat' }, { status: 500 })
   }
 }

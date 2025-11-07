@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { createLogger } from '@/lib/logger';
 
-export async function GET(req: NextRequest) {
+const logger = createLogger('admin-commission-config');
+
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
 
@@ -28,7 +31,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(config);
   } catch (error) {
-    console.error('Error al obtener configuración:', error);
+    logger.error('Error fetching commission configuration', error);
     return NextResponse.json(
       { error: 'Error al obtener configuración' },
       { status: 500 }
@@ -56,7 +59,6 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    // Validar rangos razonables
     if (clientCommissionRate < 0 || clientCommissionRate > 50) {
       return NextResponse.json(
         { error: 'La comisión del cliente debe estar entre 0% y 50%' },
@@ -96,14 +98,15 @@ export async function PUT(req: NextRequest) {
       });
     }
 
-    console.log('✅ Configuración actualizada:', {
+    logger.info('Commission configuration updated', {
+      adminId: session.user.id,
       clientCommissionRate: config.clientCommissionRate,
       partnerCommissionRate: config.partnerCommissionRate,
     });
 
     return NextResponse.json(config);
   } catch (error) {
-    console.error('Error al actualizar configuración:', error);
+    logger.error('Error updating commission configuration', error);
     return NextResponse.json(
       { error: 'Error al actualizar configuración' },
       { status: 500 }
