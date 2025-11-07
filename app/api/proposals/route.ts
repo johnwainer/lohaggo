@@ -90,9 +90,7 @@ export async function POST(req: NextRequest) {
         serviceRequestId: validatedData.serviceRequestId,
         partnerId: partnerProfile.id,
         price: validatedData.price,
-        estimatedDuration: validatedData.estimatedDuration,
-        description: validatedData.description,
-        availability: validatedData.availability
+        notes: validatedData.description
       },
       include: {
         partner: {
