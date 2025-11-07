@@ -1083,7 +1083,7 @@ export default function DashboardPage() {
                           </button>
                         )}
 
-                        {(booking.status === 'PENDING' || booking.status === 'CONFIRMED') && (
+                        {(booking.status === 'PENDING' || booking.status === 'CONFIRMED') && booking.payment?.status !== 'APPROVED' && booking.payment?.status !== 'APPROVED' && (
                           <button
                             onClick={() => cancelBooking(booking.id, booking.service.name)}
                             className="w-full bg-red-600 text-white px-4 py-3 rounded-xl hover:bg-red-700 transition font-medium flex items-center justify-center gap-2"
