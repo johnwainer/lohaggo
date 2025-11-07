@@ -44,6 +44,11 @@ interface Booking {
     clientToPartnerRating: number | null
     partnerToClientRating: number | null
   }
+  payment?: {
+    id: string
+    status: string
+    totalAmount: number
+  }
 }
 
 interface ServiceRequest {
@@ -785,7 +790,7 @@ function PartnerDashboardContent() {
                           </div>
                         )}
 
-                        {booking.status === 'COMPLETED' && !booking.review?.partnerToClientRating && (
+                        {booking.status === 'COMPLETED' && booking.payment?.status === 'APPROVED' && !booking.review?.partnerToClientRating && (
                           <button
                             onClick={() => setRatingModal({
                               isOpen: true,
