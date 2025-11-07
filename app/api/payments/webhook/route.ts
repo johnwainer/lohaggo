@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import mercadopago from '@/lib/mercadopago';
 import { createLogger } from '@/lib/logger';
+import { webhookRateLimiter } from '@/lib/rate-limit';
 
 const logger = createLogger('payments-webhook');
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   try {
     const body = await req.json();
     const { type, data } = body;
@@ -153,5 +154,9 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+export async function POST(req: NextRequest) {
+  return webhookRateLimiter(req, handlePOST);
 }
     

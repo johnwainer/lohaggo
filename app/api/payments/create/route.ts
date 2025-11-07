@@ -4,10 +4,11 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import mercadopago from '@/lib/mercadopago';
 import { createLogger } from '@/lib/logger';
+import { paymentRateLimiter } from '@/lib/rate-limit';
 
 const logger = createLogger('payments-create');
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
@@ -169,4 +170,8 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+export async function POST(req: NextRequest) {
+  return paymentRateLimiter(req, handlePOST);
 }

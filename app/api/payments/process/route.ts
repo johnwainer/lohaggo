@@ -3,11 +3,11 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
+import { paymentRateLimiter } from '@/lib/rate-limit'
 
 const logger = createLogger('payments-process')
 
-export async function POST(req: NextRequest) {
-  try {
+async function handlePOST(req: NextRequest) {
     const session = await getServerSession(authOptions)
 
     if (!session?.user) {
@@ -178,4 +178,8 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+export async function POST(req: NextRequest) {
+  return paymentRateLimiter(req, handlePOST);
 }
