@@ -1002,7 +1002,7 @@ export default function DashboardPage() {
                           </div>
                         )}
 
-                        {booking.status === 'COMPLETED' && booking.payment?.status === 'APPROVED' && !booking.review?.clientToPartnerRating && (
+                        {booking.status === 'COMPLETED' && !booking.review?.clientToPartnerRating && (
                           <button
                             onClick={() => setRatingModal({
                               isOpen: true,
@@ -1017,7 +1017,7 @@ export default function DashboardPage() {
                           </button>
                         )}
 
-                        {booking.status === 'COMPLETED' && booking.payment?.status === 'APPROVED' && booking.review?.clientToPartnerRating && (
+                        {booking.status === 'COMPLETED' && booking.review?.clientToPartnerRating && (
                           <div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-3">
                             <div className="flex items-center gap-2 text-green-700">
                               <CheckCircle size={16} />

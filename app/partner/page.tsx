@@ -790,7 +790,7 @@ function PartnerDashboardContent() {
                           </div>
                         )}
 
-                        {booking.status === 'COMPLETED' && booking.payment?.status === 'APPROVED' && !booking.review?.partnerToClientRating && (
+                        {booking.status === 'COMPLETED' && !booking.review?.partnerToClientRating && (
                           <button
                             onClick={() => setRatingModal({
                               isOpen: true,
@@ -805,7 +805,7 @@ function PartnerDashboardContent() {
                           </button>
                         )}
 
-                        {booking.status === 'COMPLETED' && booking.payment?.status === 'APPROVED' && booking.review?.partnerToClientRating && (
+                        {booking.status === 'COMPLETED' && booking.review?.partnerToClientRating && (
                           <div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-3">
                             <div className="flex items-center gap-2 text-green-700">
                               <CheckCircle size={16} />
