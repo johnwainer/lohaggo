@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth"
 import { createNotification } from "@/lib/notifications/notificationService"
 import { createLogger } from '@/lib/logger'
+import { validateRequest } from '@/lib/validation'
+import { bookingCreateSchema } from '@/lib/validation/booking-schemas'
 
 export const dynamic = 'force-dynamic'
 
@@ -110,14 +112,13 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { serviceId, scheduledDate, scheduledTime, address, notes, totalPrice, partnerId } = body
 
-    if (!serviceId || !scheduledDate || !scheduledTime || !address || !totalPrice) {
-      return NextResponse.json(
-        { error: "Faltan campos requeridos" },
-        { status: 400 }
-      )
+    const validation = await validateRequest(bookingCreateSchema, body)
+    if (!validation.success) {
+      return validation.error
     }
+
+    const { serviceId, scheduledDate, scheduledTime, address, notes, totalPrice, partnerId, proposalId } = validation.data
 
     const booking = await prisma.booking.create({
       data: {

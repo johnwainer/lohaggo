@@ -3,11 +3,17 @@ import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth"
 import { createNotification } from "@/lib/notifications/notificationService"
 import { createLogger } from '@/lib/logger'
+import { reviewSchema, validateRequest } from '@/lib/validation'
+import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
 
 
 const logger = createLogger('reviews')
+
+const reviewWithTypeSchema = reviewSchema.extend({
+  reviewType: z.enum(['client', 'partner'], { errorMap: () => ({ message: 'Tipo de reseña inválido' }) })
+})
 
 export async function POST(request: Request) {
   try {
@@ -21,21 +27,13 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { bookingId, rating, comment, reviewType } = body
 
-    if (!bookingId || !rating || !reviewType) {
-      return NextResponse.json(
-        { error: "Faltan campos requeridos" },
-        { status: 400 }
-      )
+    const validation = await validateRequest(reviewWithTypeSchema, body)
+    if (!validation.success) {
+      return validation.error
     }
 
-    if (rating < 1 || rating > 5) {
-      return NextResponse.json(
-        { error: "La calificación debe estar entre 1 y 5" },
-        { status: 400 }
-      )
-    }
+    const { bookingId, rating, comment, reviewType } = validation.data
 
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
