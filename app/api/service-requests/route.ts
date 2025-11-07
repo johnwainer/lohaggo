@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { notifyNewServiceRequest } from '@/lib/notifications/notificationService'
 import { createLogger } from '@/lib/logger'
 import { serviceRequestSchema, validateRequest } from '@/lib/validation'
+import { City } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
 
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
         serviceId: validatedData.serviceId,
         address: validatedData.address,
         notes: validatedData.notes || null,
-        city: validatedData.city || 'MEDELLIN',
+        city: (validatedData.city as City) || City.MEDELLIN,
         preferredDate: validatedData.preferredDate ? new Date(validatedData.preferredDate) : null,
         preferredTime: validatedData.preferredTime || null,
         isUrgent: validatedData.isUrgent || false,
