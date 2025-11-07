@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { notifyNewServiceRequest } from '@/lib/notifications/notificationService'
 import { createLogger } from '@/lib/logger'
+import { serviceRequestSchema, validateRequest } from '@/lib/validation'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,13 +21,12 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json()
 
-    if (!body.serviceId || !body.address) {
-      return NextResponse.json({ error: 'Servicio y dirección son requeridos' }, { status: 400 })
+    const validation = await validateRequest(serviceRequestSchema, body)
+    if (!validation.success) {
+      return validation.error
     }
 
-    if (!body.isUrgent && !body.preferredDate) {
-      return NextResponse.json({ error: 'Debes indicar si necesitas el servicio urgente o seleccionar una fecha' }, { status: 400 })
-    }
+    const validatedData = validation.data
 
     const expiresAt = new Date()
     expiresAt.setHours(expiresAt.getHours() + 24)
@@ -34,17 +34,17 @@ export async function POST(req: NextRequest) {
     const serviceRequest = await prisma.serviceRequest.create({
       data: {
         userId: session.user.id,
-        serviceId: body.serviceId,
-        address: body.address,
-        notes: body.notes || null,
-        city: body.city || 'MEDELLIN',
-        preferredDate: body.preferredDate ? new Date(body.preferredDate) : null,
-        preferredTime: body.preferredTime || null,
-        isUrgent: body.isUrgent || false,
+        serviceId: validatedData.serviceId,
+        address: validatedData.address,
+        notes: validatedData.notes || null,
+        city: validatedData.city || 'MEDELLIN',
+        preferredDate: validatedData.preferredDate ? new Date(validatedData.preferredDate) : null,
+        preferredTime: validatedData.preferredTime || null,
+        isUrgent: validatedData.isUrgent || false,
         status: 'ACTIVE',
         expiresAt: expiresAt,
-        photos: body.photoUrls && body.photoUrls.length > 0 ? {
-          create: body.photoUrls.map((url: string, index: number) => ({
+        photos: validatedData.photoUrls && validatedData.photoUrls.length > 0 ? {
+          create: validatedData.photoUrls.map((url: string, index: number) => ({
             url,
             order: index
           }))

@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
+import { userProfileSchema, validateRequest, sanitizeUrl } from '@/lib/validation'
 
 
 const logger = createLogger('user-profile')
@@ -15,16 +16,31 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
-    const { name, image } = await request.json()
+    const body = await request.json()
 
-    if (!name || name.trim().length === 0) {
-      return NextResponse.json({ error: 'El nombre es requerido' }, { status: 400 })
+    const validation = await validateRequest(userProfileSchema, body)
+    if (!validation.success) {
+      return validation.error
     }
 
-    const updateData: any = { name: name.trim() }
+    const { name, phone, email } = validation.data
 
-    if (image !== undefined) {
-      updateData.image = image
+    const updateData: any = { name }
+
+    if (phone) {
+      updateData.phone = phone
+    }
+
+    if (body.image !== undefined) {
+      if (body.image) {
+        try {
+          updateData.image = sanitizeUrl(body.image)
+        } catch {
+          return NextResponse.json({ error: 'URL de imagen inválida' }, { status: 400 })
+        }
+      } else {
+        updateData.image = null
+      }
     }
 
     const updatedUser = await prisma.user.update({
@@ -36,6 +52,7 @@ export async function PUT(request: Request) {
         email: true,
         image: true,
         role: true,
+        phone: true
       },
     })
 

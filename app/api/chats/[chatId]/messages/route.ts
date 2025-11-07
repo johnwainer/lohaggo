@@ -1,8 +1,9 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
+import { chatMessageSchema, validateRequest } from '@/lib/validation'
 
 function detectContactInfo(message: string): { isValid: boolean; reason?: string } {
   const lowerMessage = message.toLowerCase()
@@ -119,7 +120,7 @@ function detectContactInfo(message: string): { isValid: boolean; reason?: string
       }
     }
   }
-  
+
   return { isValid: true }
 }
 
@@ -136,14 +137,21 @@ export async function POST(
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
-    const { content } = await request.json()
+    const body = await request.json()
 
-    if (!content || content.trim() === '') {
-      return NextResponse.json({ error: 'El mensaje no puede estar vacío' }, { status: 400 })
+    const validation = await validateRequest(chatMessageSchema, {
+      chatId: params.chatId,
+      content: body.content
+    })
+
+    if (!validation.success) {
+      return validation.error
     }
 
-    const validation = detectContactInfo(content)
-    if (!validation.isValid) {
+    const { content } = validation.data
+
+    const contactValidation = detectContactInfo(content)
+    if (!contactValidation.isValid) {
       const chat = await prisma.chat.findUnique({
         where: { id: params.chatId }
       })

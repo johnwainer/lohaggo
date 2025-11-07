@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import mercadopago from '@/lib/mercadopago'
 import { createLogger } from '@/lib/logger'
+import { z } from 'zod'
+import { validateRequest } from '@/lib/validation'
 
 const logger = createLogger('payment-methods')
 
@@ -16,6 +18,15 @@ function extractMercadoPagoError(error: any): string {
   }
   return 'Error en Mercado Pago'
 }
+
+const paymentMethodCreateSchema = z.object({
+  cardNumber: z.string().regex(/^\d{13,19}$/, 'Número de tarjeta inválido'),
+  cardholderName: z.string().min(2, 'Nombre del titular inválido').max(100),
+  expirationMonth: z.number().int().min(1, 'Mes de vencimiento inválido').max(12, 'Mes de vencimiento inválido'),
+  expirationYear: z.number().int().min(new Date().getFullYear(), 'Año de vencimiento inválido'),
+  cvv: z.string().regex(/^\d{3,4}$/, 'CVV inválido'),
+  setDefault: z.boolean().optional()
+})
 
 export async function GET() {
   try {
@@ -79,7 +90,13 @@ export async function POST(request: Request) {
 
     logger.debug('Processing payment method creation', { userId: session.user.id })
 
-    const body = await request.json().catch(() => ({}))
+    const body = await request.json()
+
+    const validation = await validateRequest(paymentMethodCreateSchema, body, false)
+    if (!validation.success) {
+      return validation.error
+    }
+
     const {
       cardNumber,
       cardholderName,
@@ -87,17 +104,7 @@ export async function POST(request: Request) {
       expirationYear,
       cvv,
       setDefault,
-    } = body ?? {}
-
-    if (typeof cardNumber !== 'string' || cardNumber.replace(/\s+/g, '').length < 13) {
-      return NextResponse.json({ error: 'Número de tarjeta inválido' }, { status: 400 })
-    }
-
-    if (typeof cardholderName !== 'string' || !cardholderName.trim()) {
-      return NextResponse.json({ error: 'Nombre del titular inválido' }, { status: 400 })
-    }
-
-    if (!Number.isInteger(expirationMonth) || expirationMonth < 1 || expirationMonth > 12) {
+    } = validation.data
       return NextResponse.json({ error: 'Mes de vencimiento inválido' }, { status: 400 })
     }
 

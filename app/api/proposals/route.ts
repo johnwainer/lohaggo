@@ -4,10 +4,9 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { notifyNewProposal } from '@/lib/notifications/notificationService'
 import { createLogger } from '@/lib/logger'
+import { proposalSchema, validateRequest } from '@/lib/validation'
 
 export const dynamic = 'force-dynamic'
-
-// POST - Crear una nueva propuesta para una solicitud de servicio
 
 const logger = createLogger('proposals')
 
@@ -19,11 +18,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
-    const { serviceRequestId, price, notes } = await req.json()
+    const body = await req.json()
 
-    if (!serviceRequestId || !price) {
-      return NextResponse.json({ error: 'ID de solicitud y precio son requeridos' }, { status: 400 })
+    const validation = await validateRequest(proposalSchema, body)
+    if (!validation.success) {
+      return validation.error
     }
+
+    const validatedData = validation.data
 
     const partnerProfile = await prisma.partnerProfile.findUnique({
       where: { userId: session.user.id }
@@ -34,7 +36,7 @@ export async function POST(req: NextRequest) {
     }
 
     const serviceRequest = await prisma.serviceRequest.findUnique({
-      where: { id: serviceRequestId },
+      where: { id: validatedData.serviceRequestId },
       include: {
         service: true,
         photos: true
@@ -49,12 +51,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Esta solicitud ya no está activa' }, { status: 400 })
     }
 
-    // Validate price is not less than base price
-    const proposalPrice = parseFloat(price)
-    if (isNaN(proposalPrice)) {
-      return NextResponse.json({ error: 'Precio inválido' }, { status: 400 })
-    }
-    if (proposalPrice < serviceRequest.service.basePrice) {
+    if (validatedData.price < serviceRequest.service.basePrice) {
       return NextResponse.json({
         error: `El precio de la propuesta no puede ser menor al precio base del servicio ($${serviceRequest.service.basePrice})`
       }, { status: 400 })
@@ -78,7 +75,7 @@ export async function POST(req: NextRequest) {
     const existingProposal = await prisma.proposal.findUnique({
       where: {
         serviceRequestId_partnerId: {
-          serviceRequestId,
+          serviceRequestId: validatedData.serviceRequestId,
           partnerId: partnerProfile.id
         }
       }
@@ -90,10 +87,12 @@ export async function POST(req: NextRequest) {
 
     const proposal = await prisma.proposal.create({
       data: {
-        serviceRequestId,
+        serviceRequestId: validatedData.serviceRequestId,
         partnerId: partnerProfile.id,
-        price: proposalPrice,
-        notes
+        price: validatedData.price,
+        estimatedDuration: validatedData.estimatedDuration,
+        description: validatedData.description,
+        availability: validatedData.availability
       },
       include: {
         partner: {

@@ -3,11 +3,23 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
+import { addressSchema, validateRequest } from '@/lib/validation'
+import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
 
 
 const logger = createLogger('addresses')
+
+const addressCreateSchema = addressSchema.extend({
+  label: z.string().min(1, 'La etiqueta es requerida').max(50),
+  number: z.string().min(1, 'El número es requerido').max(20),
+  complement: z.string().max(100).optional(),
+  neighborhood: z.string().min(2, 'El barrio es requerido').max(100),
+  postalCode: z.string().max(20).optional(),
+  instructions: z.string().max(500).optional(),
+  isPrimary: z.boolean().optional()
+})
 
 export async function GET() {
   try {
@@ -44,13 +56,15 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { label, street, number, complement, neighborhood, city, postalCode, instructions, isPrimary } = body
 
-    if (!label || !street || !number || !neighborhood || !city) {
-      return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 })
+    const validation = await validateRequest(addressCreateSchema, body)
+    if (!validation.success) {
+      return validation.error
     }
 
-    if (isPrimary) {
+    const validatedData = validation.data
+
+    if (validatedData.isPrimary) {
       await prisma.address.updateMany({
         where: {
           userId: session.user.id,
@@ -65,15 +79,15 @@ export async function POST(request: Request) {
     const address = await prisma.address.create({
       data: {
         userId: session.user.id,
-        label,
-        street,
-        number,
-        complement,
-        neighborhood,
-        city,
-        postalCode,
-        instructions,
-        isPrimary: isPrimary || false
+        label: validatedData.label,
+        street: validatedData.street,
+        number: validatedData.number,
+        complement: validatedData.complement,
+        neighborhood: validatedData.neighborhood,
+        city: validatedData.city,
+        postalCode: validatedData.postalCode,
+        instructions: validatedData.instructions,
+        isPrimary: validatedData.isPrimary || false
       }
     })
 
