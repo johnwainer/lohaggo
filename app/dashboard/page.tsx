@@ -1002,17 +1002,6 @@ export default function DashboardPage() {
                           </div>
                         )}
 
-                        {(() => {
-                          console.log('🔍 Debug Rating Button:', {
-                            bookingId: booking.id,
-                            status: booking.status,
-                            hasReview: !!booking.review,
-                            clientToPartnerRating: booking.review?.clientToPartnerRating,
-                            shouldShow: booking.status === 'COMPLETED' && !booking.review?.clientToPartnerRating
-                          })
-                          return null
-                        })()}
-
                         {booking.status === 'COMPLETED' && !booking.review?.clientToPartnerRating && (
                           <button
                             onClick={() => setRatingModal({
