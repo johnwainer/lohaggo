@@ -1002,7 +1002,7 @@ export default function DashboardPage() {
                           </div>
                         )}
 
-                        {booking.status === 'COMPLETED' && !booking.review?.clientToPartnerRating && (
+                        {booking.status === 'COMPLETED' && booking.payment?.status === 'APPROVED' && !booking.review?.clientToPartnerRating && (
                           <button
                             onClick={() => setRatingModal({
                               isOpen: true,
