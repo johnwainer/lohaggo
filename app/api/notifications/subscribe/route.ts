@@ -2,14 +2,15 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth"
 import { createLogger } from '@/lib/logger'
-
+import { handleApiError } from '@/lib/errors'
+import { validatePushSubscription, sanitizePushSubscription } from '@/lib/notifications/pushValidation'
 
 const logger = createLogger('notifications-subscribe')
 
 export async function POST(request: Request) {
   try {
     const user = await getCurrentUser()
-    
+
     if (!user) {
       return NextResponse.json(
         { error: "No autorizado" },
@@ -27,19 +28,29 @@ export async function POST(request: Request) {
       )
     }
 
+    const validation = validatePushSubscription(subscription)
+
+    if (!validation.success) {
+      logger.warn('Invalid push subscription format', { error: validation.error, userId: user.id })
+      return NextResponse.json(
+        { error: `Formato de suscripción inválido: ${validation.error}` },
+        { status: 400 }
+      )
+    }
+
+    const sanitizedSubscription = sanitizePushSubscription(validation.data)
+
     await prisma.user.update({
       where: { id: user.id },
       data: {
-        pushSubscription: JSON.stringify(subscription)
+        pushSubscription: sanitizedSubscription
       }
     })
 
+    logger.info('Push subscription saved successfully', { userId: user.id })
+
     return NextResponse.json({ success: true })
   } catch (error) {
-    logger.error('Error subscribing to push notifications:', error || undefined)
-    return NextResponse.json(
-      { error: "Error al suscribirse" },
-      { status: 500 }
-    )
+    return handleApiError(error, 'notifications-subscribe')
   }
 }

@@ -1,17 +1,26 @@
 import { prisma } from "@/lib/prisma"
 import webpush from "web-push"
+import { createLogger } from '@/lib/logger'
+import { validateVapidKeys, parsePushSubscription } from './pushValidation'
+
+const logger = createLogger('notification-service')
 
 const vapidKeys = {
   publicKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "",
   privateKey: process.env.VAPID_PRIVATE_KEY || ""
 }
 
-if (vapidKeys.publicKey && vapidKeys.privateKey) {
+const vapidValidation = validateVapidKeys(vapidKeys.publicKey, vapidKeys.privateKey)
+
+if (vapidValidation.valid) {
   webpush.setVapidDetails(
     "mailto:admin@haggo.com",
     vapidKeys.publicKey,
     vapidKeys.privateKey
   )
+  logger.info('VAPID keys configured successfully')
+} else {
+  logger.warn('VAPID keys not configured or invalid', { error: vapidValidation.error })
 }
 
 export type NotificationType =
@@ -62,7 +71,7 @@ export async function createNotification({
 
     return notification
   } catch (error) {
-    console.error("Error creating notification:", error)
+    logger.error("Error creating notification:", error)
     throw error
   }
 }
@@ -74,6 +83,11 @@ interface PushPayload {
 }
 
 async function sendPushNotification(userId: string, payload: PushPayload) {
+  if (!vapidValidation.valid) {
+    logger.debug('Push notifications disabled - VAPID keys not configured')
+    return
+  }
+
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId }
@@ -83,14 +97,36 @@ async function sendPushNotification(userId: string, payload: PushPayload) {
       return
     }
 
-    const subscription = JSON.parse(user.pushSubscription)
+    const subscription = parsePushSubscription(user.pushSubscription)
+
+    if (!subscription) {
+      logger.warn('Invalid push subscription format for user', { userId })
+      await prisma.user.update({
+        where: { id: userId },
+        data: { pushSubscription: null }
+      })
+      return
+    }
 
     await webpush.sendNotification(
       subscription,
       JSON.stringify(payload)
     )
+
+    logger.debug('Push notification sent successfully', { userId })
   } catch (error) {
-    console.error("Error sending push notification:", error)
+    logger.error("Error sending push notification:", error)
+
+    if (error && typeof error === 'object' && 'statusCode' in error) {
+      const statusCode = (error as any).statusCode
+      if (statusCode === 410 || statusCode === 404) {
+        logger.info('Push subscription expired or invalid, removing', { userId })
+        await prisma.user.update({
+          where: { id: userId },
+          data: { pushSubscription: null }
+        })
+      }
+    }
   }
 }
 
