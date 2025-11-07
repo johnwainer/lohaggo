@@ -1,13 +1,14 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
 import { createLogger } from '@/lib/logger'
+import { registerRateLimiter } from '@/lib/rate-limit'
 
 const logger = createLogger('register')
 
 export const dynamic = 'force-dynamic'
 
-export async function POST(request: Request) {
+async function handlePOST(request: NextRequest) {
   try {
     const body = await request.json()
     const { email, password, name, phone, role, city, services } = body
@@ -95,10 +96,14 @@ export async function POST(request: Request) {
       role: user.role,
     }, { status: 201 })
   } catch (error) {
-    console.error("Error registering user:", error)
+    logger.error('Error registering user', { error })
     return NextResponse.json(
       { error: "Error al registrar usuario" },
       { status: 500 }
     )
   }
+}
+
+export async function POST(request: NextRequest) {
+  return registerRateLimiter(request, handlePOST);
 }
