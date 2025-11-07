@@ -3,53 +3,10 @@ import { writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { existsSync } from 'fs'
 import { createLogger } from '@/lib/logger'
+import { cloudinaryService } from '@/lib/cloudinary'
+import { handleApiError } from '@/lib/errors'
 
-// Cloudinary configuration (optional - for production)
-const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
-const CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY
-const CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET
-
-const USE_CLOUDINARY = !!(CLOUDINARY_CLOUD_NAME && CLOUDINARY_API_KEY && CLOUDINARY_API_SECRET)
-
-async function uploadToCloudinary(file: File): Promise<{ url: string; publicId: string }> {
-  const arrayBuffer = await file.arrayBuffer()
-  const buffer = Buffer.from(arrayBuffer)
-  const base64 = buffer.toString('base64')
-  const dataURI = `data:${file.type};base64,${base64}`
-
-  const timestamp = Math.round(Date.now() / 1000)
-  const signature = require('crypto')
-    .createHash('sha1')
-    .update(`folder=service-requests&timestamp=${timestamp}${CLOUDINARY_API_SECRET}`)
-    .digest('hex')
-
-  const formData = new FormData()
-  formData.append('file', dataURI)
-  formData.append('folder', 'service-requests')
-  formData.append('timestamp', timestamp.toString())
-  formData.append('api_key', CLOUDINARY_API_KEY!)
-  formData.append('signature', signature)
-
-  const response = await fetch(
-    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
-    {
-      method: 'POST',
-      body: formData
-    }
-  )
-
-  if (!response.ok) {
-    const error = await response.text()
-    logger.error('Cloudinary error:', error || undefined)
-    throw new Error('Failed to upload to Cloudinary')
-  }
-
-  const data = await response.json()
-  return {
-    url: data.secure_url,
-    publicId: data.public_id
-  }
-}
+const logger = createLogger('upload-photos')
 
 async function uploadToLocal(file: File): Promise<string> {
   const bytes = await file.arrayBuffer()
@@ -71,9 +28,6 @@ async function uploadToLocal(file: File): Promise<string> {
   return `/uploads/requests/${filename}`
 }
 
-
-const logger = createLogger('upload-photos')
-
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
@@ -86,38 +40,52 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (photos.length > 5) {
+    if (photos.length > 10) {
       return NextResponse.json(
-        { error: 'Máximo 5 fotos permitidas' },
+        { error: 'Máximo 10 fotos permitidas' },
         { status: 400 }
       )
     }
 
-    const urls: string[] = []
-    const publicIds: string[] = []
+    const uploadedUrls: string[] = []
 
-    if (USE_CLOUDINARY) {
-      // Upload to Cloudinary (production)
-      for (const photo of photos) {
-        const { url, publicId } = await uploadToCloudinary(photo)
-        urls.push(url)
-        publicIds.push(publicId)
+    for (const photo of photos) {
+      if (!photo.type.startsWith('image/')) {
+        return NextResponse.json(
+          { error: 'Solo se permiten archivos de imagen' },
+          { status: 400 }
+        )
       }
-    } else {
-      // Upload to local filesystem (development)
-      for (const photo of photos) {
-        const url = await uploadToLocal(photo)
-        urls.push(url)
-        publicIds.push('') // No publicId for local files
+
+      if (photo.size > 10 * 1024 * 1024) {
+        return NextResponse.json(
+          { error: 'El tamaño máximo por foto es 10MB' },
+          { status: 400 }
+        )
+      }
+
+      try {
+        let url: string
+
+        if (cloudinaryService.isEnabled()) {
+          const result = await cloudinaryService.upload(photo, 'haggo/service-requests')
+          url = result.url
+        } else {
+          url = await uploadToLocal(photo)
+        }
+
+        uploadedUrls.push(url)
+      } catch (error) {
+        logger.error('Error uploading photo', error)
+        return NextResponse.json(
+          { error: 'Error al subir una de las fotos' },
+          { status: 500 }
+        )
       }
     }
 
-    return NextResponse.json({ urls, publicIds })
+    return NextResponse.json({ urls: uploadedUrls })
   } catch (error) {
-    logger.error('Error uploading photos:', error || undefined)
-    return NextResponse.json(
-      { error: 'Error al subir las fotos' },
-      { status: 500 }
-    )
+    return handleApiError(error, 'upload-photos')
   }
 }
