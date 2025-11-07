@@ -843,7 +843,7 @@ function PartnerDashboardContent() {
                           </button>
                         )}
 
-                        {booking.payment?.status !== 'APPROVED' && (
+                        {booking.payment?.status !== 'APPROVED' && booking.status !== 'COMPLETED' && (
                           <div className="flex gap-2">
                             {booking.status === 'PENDING' && (
                               <>
