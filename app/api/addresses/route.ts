@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
 import { addressSchema, validateRequest } from '@/lib/validation'
 import { z } from 'zod'
+import { City } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,7 +19,8 @@ const addressCreateSchema = addressSchema.extend({
   neighborhood: z.string().min(2, 'El barrio es requerido').max(100),
   postalCode: z.string().max(20).optional(),
   instructions: z.string().max(500).optional(),
-  isPrimary: z.boolean().optional()
+  isPrimary: z.boolean().optional(),
+  city: z.nativeEnum(City, { errorMap: () => ({ message: 'Ciudad inválida' }) })
 })
 
 export async function GET() {

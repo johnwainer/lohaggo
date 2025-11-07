@@ -30,7 +30,7 @@ export const reviewSchema = z.object({
 
 export const addressSchema = z.object({
   street: z.string().min(5, 'La calle debe tener al menos 5 caracteres').max(200),
-  city: z.string().min(2, 'La ciudad debe tener al menos 2 caracteres').max(100),
+  city: z.string(),
   state: z.string().max(100).optional(),
   zipCode: z.string().max(20).optional(),
   country: z.string().min(2).max(100).optional(),
