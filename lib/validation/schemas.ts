@@ -26,7 +26,7 @@ export const proposalSchema = z.object({
 export const reviewSchema = z.object({
   bookingId: z.string().min(1, 'La reserva es requerida'),
   rating: z.number().int().min(1, 'La calificación mínima es 1').max(5, 'La calificación máxima es 5'),
-  comment: z.string().min(10, 'El comentario debe tener al menos 10 caracteres').max(1000, 'El comentario es demasiado largo').optional()
+  comment: z.string().max(1000, 'El comentario es demasiado largo').optional()
 })
 
 export const addressSchema = z.object({
