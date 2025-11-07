@@ -790,6 +790,17 @@ function PartnerDashboardContent() {
                           </div>
                         )}
 
+                        {(() => {
+                          console.log('🔍 Debug Partner Rating Button:', {
+                            bookingId: booking.id,
+                            status: booking.status,
+                            hasReview: !!booking.review,
+                            partnerToClientRating: booking.review?.partnerToClientRating,
+                            shouldShow: booking.status === 'COMPLETED' && !booking.review?.partnerToClientRating
+                          })
+                          return null
+                        })()}
+
                         {booking.status === 'COMPLETED' && !booking.review?.partnerToClientRating && (
                           <button
                             onClick={() => setRatingModal({
