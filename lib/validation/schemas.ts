@@ -1,10 +1,11 @@
 import { z } from 'zod'
+import { City } from '@prisma/client'
 
 export const serviceRequestSchema = z.object({
   serviceId: z.string().min(1, 'El servicio es requerido'),
   address: z.string().min(5, 'La dirección debe tener al menos 5 caracteres').max(500, 'La dirección es demasiado larga'),
   notes: z.string().max(2000, 'Las notas son demasiado largas').optional(),
-  city: z.string().max(100).optional(),
+  city: z.nativeEnum(City, { errorMap: () => ({ message: 'Ciudad inválida' }) }).optional(),
   preferredDate: z.string().datetime().optional(),
   preferredTime: z.string().max(50).optional(),
   isUrgent: z.boolean().optional(),
