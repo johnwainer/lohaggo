@@ -27,18 +27,19 @@ export function validateContentType(request: NextRequest, expectedType: string =
 
 export function sanitizeQueryParams(searchParams: URLSearchParams): Record<string, string> {
   const sanitized: Record<string, string> = {}
-  
-  for (const [key, value] of searchParams.entries()) {
+
+  const entries = Array.from(searchParams.entries())
+  for (const [key, value] of entries) {
     if (key.length > 100 || value.length > 1000) continue
-    
+
     const cleanKey = key.replace(/[^\w-]/g, '')
     const cleanValue = value.replace(/[<>]/g, '')
-    
+
     if (cleanKey && cleanValue) {
       sanitized[cleanKey] = cleanValue
     }
   }
-  
+
   return sanitized
 }
 
