@@ -3,52 +3,8 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
-
-const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
-const CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY
-const CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET
-
-async function uploadToCloudinary(file: File, folder: string): Promise<{ url: string; publicId: string }> {
-  const arrayBuffer = await file.arrayBuffer()
-  const buffer = Buffer.from(arrayBuffer)
-  const base64 = buffer.toString('base64')
-  const dataURI = `data:${file.type};base64,${base64}`
-
-  const timestamp = Math.round(Date.now() / 1000)
-  const signature = require('crypto')
-    .createHash('sha1')
-    .update(`folder=${folder}&timestamp=${timestamp}${CLOUDINARY_API_SECRET}`)
-    .digest('hex')
-
-  const formData = new FormData()
-  formData.append('file', dataURI)
-  formData.append('folder', folder)
-  formData.append('timestamp', timestamp.toString())
-  formData.append('api_key', CLOUDINARY_API_KEY!)
-  formData.append('signature', signature)
-
-  const uploadType = file.type === 'application/pdf' ? 'raw' : 'image'
-  const response = await fetch(
-    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${uploadType}/upload`,
-    {
-      method: 'POST',
-      body: formData
-    }
-  )
-
-  if (!response.ok) {
-    const error = await response.text()
-    logger.error('Cloudinary error:', error)
-    throw new Error('Failed to upload to Cloudinary')
-  }
-
-  const data = await response.json()
-  return {
-    url: data.secure_url,
-    publicId: data.public_id
-  }
-}
-
+import { cloudinaryService } from '@/lib/cloudinary'
+import { handleApiError } from '@/lib/errors'
 
 const logger = createLogger('admin-documents-background')
 
@@ -81,7 +37,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Socio no encontrado' }, { status: 404 })
     }
 
-    const { url, publicId } = await uploadToCloudinary(file, 'haggo/documents/background')
+    const { url, publicId } = await cloudinaryService.upload(file, 'haggo/documents/background')
 
     const document = await prisma.verificationDocument.create({
       data: {
@@ -141,7 +97,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(document)
   } catch (error) {
-    logger.error('Error uploading background check:', error)
-    return NextResponse.json({ error: 'Error al subir antecedentes' }, { status: 500 })
+    return handleApiError(error, 'admin-documents-background')
   }
 }
