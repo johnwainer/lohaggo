@@ -4,6 +4,7 @@ import mercadopago from '@/lib/mercadopago';
 import { createLogger } from '@/lib/logger';
 import { webhookRateLimiter } from '@/lib/rate-limit';
 import crypto from 'crypto';
+import { handleApiError } from '@/lib/errors';
 
 const logger = createLogger('payments-webhook');
 
@@ -222,11 +223,7 @@ async function handlePOST(req: NextRequest) {
 
     return NextResponse.json({ received: true });
   } catch (error) {
-    logger.error('Error processing webhook', error);
-    return NextResponse.json(
-      { error: 'Error al procesar webhook' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'payments-webhook');
   }
 }
 

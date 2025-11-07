@@ -51,14 +51,30 @@ const logger = pino({
     },
   },
   serializers: {
-    err: pino.stdSerializers.err,
-    error: pino.stdSerializers.err,
+    err: (err: Error) => {
+      if (isProduction) {
+        return {
+          type: err.name,
+          message: err.message,
+        }
+      }
+      return pino.stdSerializers.err(err)
+    },
+    error: (err: Error) => {
+      if (isProduction) {
+        return {
+          type: err.name,
+          message: err.message,
+        }
+      }
+      return pino.stdSerializers.err(err)
+    },
   },
 })
 
 export function sanitizeForLog(data: any): any {
   if (!data) return data
-  
+
   if (typeof data === 'string') {
     return data
   }
@@ -85,6 +101,27 @@ export function sanitizeForLog(data: any): any {
   return data
 }
 
+export function sanitizeError(error: any): any {
+  if (!error) return null
+
+  if (isProduction) {
+    return {
+      message: error?.message || 'Error interno del servidor',
+      type: error?.name || 'Error',
+    }
+  }
+
+  if (error instanceof Error) {
+    return {
+      message: error.message,
+      type: error.name,
+      stack: error.stack,
+    }
+  }
+
+  return error
+}
+
 export function createLogger(context: string) {
   return {
     info: (message: string, data?: any) => {
@@ -92,11 +129,11 @@ export function createLogger(context: string) {
     },
     error: (message: string, error?: any, data?: any) => {
       logger.error(
-        { 
-          context, 
+        {
+          context,
           err: error instanceof Error ? error : undefined,
-          ...sanitizeForLog(data) 
-        }, 
+          ...sanitizeForLog(data)
+        },
         message
       )
     },
