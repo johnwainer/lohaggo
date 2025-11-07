@@ -105,19 +105,10 @@ export async function POST(request: Request) {
       cvv,
       setDefault,
     } = validation.data
-      return NextResponse.json({ error: 'Mes de vencimiento inválido' }, { status: 400 })
-    }
-
-    if (!Number.isInteger(expirationYear) || expirationYear < new Date().getFullYear() || expirationYear > new Date().getFullYear() + 20) {
-      return NextResponse.json({ error: 'Año de vencimiento inválido' }, { status: 400 })
-    }
-
-    if (typeof cvv !== 'string' || cvv.length < 3 || cvv.length > 4) {
-      return NextResponse.json({ error: 'CVV inválido' }, { status: 400 })
-    }
 
     const userId = session.user.id
     const userEmail = session.user.email!
+    const userName = session.user.name ?? ''
     const userName = session.user.name ?? ''
 
     let customerId: string | null = null
