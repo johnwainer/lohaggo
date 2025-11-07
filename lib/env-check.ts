@@ -1,5 +1,6 @@
-// Script para verificar las variables de entorno en Vercel
-// Este archivo ayuda a debuggear problemas con las variables de entorno
+import { createLogger } from './logger'
+
+const logger = createLogger('env-check')
 
 export function checkEnvVars() {
   const requiredVars = [
@@ -11,25 +12,27 @@ export function checkEnvVars() {
   const missingVars = requiredVars.filter(varName => !process.env[varName])
 
   if (missingVars.length > 0) {
-    console.error('❌ Missing environment variables:', missingVars)
-    console.error('Available env vars:', Object.keys(process.env).filter(key => 
-      key.startsWith('DATABASE') || 
-      key.startsWith('NEXTAUTH') || 
+    const availableVars = Object.keys(process.env).filter(key =>
+      key.startsWith('DATABASE') ||
+      key.startsWith('NEXTAUTH') ||
       key.startsWith('SUPABASE')
-    ))
+    )
+    logger.error('Missing required environment variables', {
+      missingVars,
+      availableVarsCount: availableVars.length
+    })
     return false
   }
 
-  console.log('✅ All required environment variables are set')
+  logger.info('All required environment variables are set')
   return true
 }
 
-// Log en desarrollo
 if (process.env.NODE_ENV === 'development') {
-  console.log('Environment check:', {
-    NODE_ENV: process.env.NODE_ENV,
-    DATABASE_URL: process.env.DATABASE_URL ? '✅ Set' : '❌ Missing',
-    NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET ? '✅ Set' : '❌ Missing',
-    NEXTAUTH_URL: process.env.NEXTAUTH_URL ? '✅ Set' : '❌ Missing',
+  logger.debug('Environment check', {
+    nodeEnv: process.env.NODE_ENV,
+    hasDatabaseUrl: !!process.env.DATABASE_URL,
+    hasNextAuthSecret: !!process.env.NEXTAUTH_SECRET,
+    hasNextAuthUrl: !!process.env.NEXTAUTH_URL,
   })
 }

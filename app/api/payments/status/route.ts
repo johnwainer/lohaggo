@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { createLogger } from '@/lib/logger'
+
+
+const logger = createLogger('payments-status')
 
 export async function GET(req: NextRequest) {
   try {
@@ -45,7 +49,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(payment);
   } catch (error) {
-    console.error('Error al obtener estado del pago:', error);
+    logger.error('Error al obtener estado del pago:', error);
     return NextResponse.json(
       { error: 'Error al obtener estado del pago' },
       { status: 500 }

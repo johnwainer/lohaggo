@@ -3,8 +3,12 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { notifyProposalAccepted, notifyProposalRejected } from '@/lib/notifications/notificationService'
+import { createLogger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
+
+
+const logger = createLogger('proposals-id-accept')
 
 export async function POST(
   request: NextRequest,
@@ -137,8 +141,8 @@ export async function POST(
       booking: result
     })
   } catch (error) {
-    console.error('Error accepting proposal:', error)
-    console.error('Error details:', JSON.stringify(error, Object.getOwnPropertyNames(error)))
+    logger.error('Error accepting proposal:', error || undefined)
+    logger.error('Error occurred', 'Error details:', JSON.stringify(error, Object.getOwnPropertyNames(error)))
     return NextResponse.json({
       error: 'Error al aceptar la propuesta',
       details: error instanceof Error ? error.message : 'Unknown error'

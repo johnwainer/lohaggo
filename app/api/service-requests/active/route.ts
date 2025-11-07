@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { createLogger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,6 +26,9 @@ interface ServiceRequestWithProposals {
 }
 
 // GET - Obtener solicitudes activas disponibles para el partner actual
+
+const logger = createLogger('service-requests-active')
+
 export async function GET() {
   try {
     const session = await getServerSession(authOptions)
@@ -115,7 +119,7 @@ export async function GET() {
 
     return NextResponse.json(availableRequests)
   } catch (error) {
-    console.error('Error fetching active service requests:', error)
+    logger.error('Error fetching active service requests:', error || undefined)
     return NextResponse.json({ error: 'Error al obtener las solicitudes activas' }, { status: 500 })
   }
 }

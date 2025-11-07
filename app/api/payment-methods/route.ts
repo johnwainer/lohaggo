@@ -3,6 +3,9 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import mercadopago from '@/lib/mercadopago'
+import { createLogger } from '@/lib/logger'
+
+const logger = createLogger('payment-methods')
 
 function extractMercadoPagoError(error: any): string {
   if (!error) return 'Error al comunicarse con Mercado Pago'
@@ -50,7 +53,7 @@ export async function GET() {
 
     return NextResponse.json(paymentMethods)
   } catch (error) {
-    console.error('Error fetching payment methods:', error)
+    logger.error('Error fetching payment methods', error)
     return NextResponse.json(
       { error: 'Error al obtener métodos de pago' },
       { status: 500 }
@@ -74,7 +77,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Solo clientes pueden acceder' }, { status: 403 })
     }
 
-    console.log('Session user:', session.user)
+    logger.debug('Processing payment method creation', { userId: session.user.id })
 
     const body = await request.json().catch(() => ({}))
     const {
@@ -106,14 +109,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'CVV inválido' }, { status: 400 })
     }
 
-    // Obtener información del usuario desde la sesión
     const userId = session.user.id
     const userEmail = session.user.email!
     const userName = session.user.name ?? ''
 
-    console.log('Usuario logueado:', { userId, userEmail, userName })
-
-    // Intentar obtener el customerId de MercadoPago si existe
     let customerId: string | null = null
 
     const userRecord = await prisma.user.findUnique({
@@ -133,12 +132,11 @@ export async function POST(request: Request) {
 
       if (existingCustomer?.id) {
         customerId = existingCustomer.id
-        // Intentar actualizar el usuario si existe en la BD
         await prisma.user.update({
           where: { id: userId },
           data: { mercadopagoCustomerId: customerId } as any,
-        }).catch(() => {
-          console.log('No se pudo actualizar mercadopagoCustomerId en BD')
+        }).catch((err) => {
+          logger.warn('Failed to update mercadopagoCustomerId', { userId, error: err.message })
         })
       } else {
         const [firstName = userName, ...rest] = (userName || '').split(' ').filter(Boolean)
@@ -163,12 +161,11 @@ export async function POST(request: Request) {
 
         customerId = createdCustomer.id
 
-        // Intentar actualizar el usuario si existe en la BD
         await prisma.user.update({
           where: { id: userId },
           data: { mercadopagoCustomerId: customerId } as any,
-        }).catch(() => {
-          console.log('No se pudo actualizar mercadopagoCustomerId en BD')
+        }).catch((err) => {
+          logger.warn('Failed to update mercadopagoCustomerId', { userId, error: err.message })
         })
       }
     }
@@ -262,7 +259,7 @@ export async function POST(request: Request) {
       { status: 201 }
     )
   } catch (error: any) {
-    console.error('Error creating payment method:', error)
+    logger.error('Error creating payment method', error)
     return NextResponse.json(
       { error: error?.message || 'Error al registrar el método de pago' },
       { status: 500 }

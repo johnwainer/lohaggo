@@ -2,12 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { createLogger } from '@/lib/logger'
+
+const logger = createLogger('chat-unread-count')
 
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user?.id) {
-      console.log('[UNREAD COUNT] No session found')
+      logger.warn('Unauthorized access attempt - no session')
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
@@ -15,18 +18,16 @@ export async function GET(request: NextRequest) {
     const proposalId = searchParams.get('proposalId')
 
     if (!proposalId) {
-      console.log('[UNREAD COUNT] No proposalId provided')
+      logger.warn('Missing proposalId parameter', { userId: session.user.id })
       return NextResponse.json({ error: 'proposalId requerido' }, { status: 400 })
     }
 
-    console.log('[UNREAD COUNT] Request from user:', {
+    logger.debug('Fetching unread count', {
       userId: session.user.id,
       role: session.user.role,
-      email: session.user.email,
       proposalId
     })
 
-    // Obtener el chat
     const chat = await prisma.chat.findUnique({
       where: { proposalId },
       select: {
@@ -37,14 +38,11 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    console.log('[UNREAD COUNT] Chat found:', chat)
-
     if (!chat) {
-      console.log('[UNREAD COUNT] No chat found for proposalId:', proposalId)
+      logger.debug('Chat not found', { proposalId })
       return NextResponse.json({ count: 0 })
     }
 
-    // Verificar que el usuario sea parte del chat
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       include: {
@@ -54,29 +52,24 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    console.log('[UNREAD COUNT] User data:', {
-      userId: user?.id,
-      userRole: user?.role,
-      partnerProfileId: user?.partnerProfile?.id,
-      chatClientId: chat.clientId,
-      chatPartnerId: chat.partnerId
-    })
-
     const isClient = chat.clientId === session.user.id
     const isPartner = user?.partnerProfile?.id === chat.partnerId
 
-    console.log('[UNREAD COUNT] Authorization check:', {
+    logger.debug('Authorization check', {
+      userId: session.user.id,
       isClient,
       isPartner,
-      willAllow: isClient || isPartner
+      chatId: chat.id
     })
 
     if (!isClient && !isPartner) {
-      console.log('[UNREAD COUNT] User not authorized for this chat')
+      logger.warn('User not authorized for chat', {
+        userId: session.user.id,
+        chatId: chat.id
+      })
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     }
 
-    // Contar mensajes no leídos del otro usuario
     const unreadMessages = await prisma.chatMessage.findMany({
       where: {
         chatId: chat.id,
@@ -91,19 +84,14 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    console.log('[UNREAD COUNT] Unread messages:', {
-      count: unreadMessages.length,
-      messages: unreadMessages.map(m => ({
-        id: m.id,
-        senderId: m.senderId,
-        preview: m.content.substring(0, 50),
-        createdAt: m.createdAt
-      }))
+    logger.debug('Unread messages retrieved', {
+      chatId: chat.id,
+      count: unreadMessages.length
     })
 
     return NextResponse.json({ count: unreadMessages.length })
   } catch (error) {
-    console.error('[UNREAD COUNT] Error:', error)
+    logger.error('Error fetching unread count', error)
     return NextResponse.json(
       { error: 'Error al obtener mensajes no leídos' },
       { status: 500 }

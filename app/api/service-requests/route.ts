@@ -3,8 +3,12 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { notifyNewServiceRequest } from '@/lib/notifications/notificationService'
+import { createLogger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
+
+
+const logger = createLogger('service-requests')
 
 export async function POST(req: NextRequest) {
   try {
@@ -67,7 +71,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(serviceRequest, { status: 201 })
   } catch (error) {
-    console.error('Error creating service request:', error)
+    logger.error('Error creating service request:', error || undefined)
     return NextResponse.json(
       { error: 'Error al crear la solicitud de servicio' },
       { status: 500 }
@@ -154,7 +158,7 @@ export async function GET(req: NextRequest) {
       clientCommissionRate
     })
   } catch (error) {
-    console.error('Error fetching service requests:', error)
+    logger.error('Error fetching service requests:', error || undefined)
     return NextResponse.json(
       { error: 'Error al obtener las solicitudes' },
       { status: 500 }

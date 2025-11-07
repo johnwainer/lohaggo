@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth"
+import { createLogger } from '@/lib/logger'
+
+
+const logger = createLogger('notifications-subscribe')
 
 export async function POST(request: Request) {
   try {
@@ -32,7 +36,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error("Error subscribing to push notifications:", error)
+    logger.error('Error subscribing to push notifications:', error || undefined)
     return NextResponse.json(
       { error: "Error al suscribirse" },
       { status: 500 }

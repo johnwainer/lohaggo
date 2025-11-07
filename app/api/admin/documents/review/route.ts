@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { createLogger } from '@/lib/logger'
 
 async function checkAndUnlockAchievements(partnerId: string) {
   const documents = await prisma.verificationDocument.findMany({
@@ -79,6 +80,9 @@ async function checkAndUnlockAchievements(partnerId: string) {
   }
 }
 
+
+const logger = createLogger('admin-documents-review')
+
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -134,7 +138,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(updatedDocument)
   } catch (error) {
-    console.error('Error reviewing document:', error)
+    logger.error('Error reviewing document:', error || undefined)
     return NextResponse.json({ error: 'Error al revisar documento' }, { status: 500 })
   }
 }

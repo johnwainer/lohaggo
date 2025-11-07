@@ -2,8 +2,12 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { createLogger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
+
+
+const logger = createLogger('admin-analytics')
 
 export async function GET() {
   try {
@@ -121,7 +125,7 @@ export async function GET() {
       revenueByCity
     })
   } catch (error) {
-    console.error('Error fetching analytics:', error)
+    logger.error('Error fetching analytics:', error || undefined)
     return NextResponse.json({ error: 'Error al obtener analíticas' }, { status: 500 })
   }
 }

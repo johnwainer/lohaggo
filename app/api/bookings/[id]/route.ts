@@ -2,8 +2,12 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth"
 import { notifyBookingStatusChange } from "@/lib/notifications/notificationService"
+import { createLogger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
+
+
+const logger = createLogger('bookings-id')
 
 export async function PATCH(
   request: Request,
@@ -59,7 +63,7 @@ export async function PATCH(
 
     return NextResponse.json(updatedBooking)
   } catch (error) {
-    console.error("Error updating booking:", error)
+    logger.error('Error updating booking:', error)
     return NextResponse.json(
       { error: "Error al actualizar reserva" },
       { status: 500 }
@@ -109,7 +113,7 @@ export async function DELETE(
 
     return NextResponse.json({ message: "Reserva cancelada" })
   } catch (error) {
-    console.error("Error deleting booking:", error)
+    logger.error('Error deleting booking:', error)
     return NextResponse.json(
       { error: "Error al cancelar reserva" },
       { status: 500 }

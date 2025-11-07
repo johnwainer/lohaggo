@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { createLogger } from '@/lib/logger'
+
+
+const logger = createLogger('payment-methods-id')
 
 export async function DELETE(
   request: Request,
@@ -54,7 +58,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Error deleting payment method:', error)
+    logger.error('Error deleting payment method:', error || undefined)
     return NextResponse.json(
       { error: 'Error al eliminar método de pago' },
       { status: 500 }

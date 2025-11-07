@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { createLogger } from '@/lib/logger'
+
+
+const logger = createLogger('payment-methods-id-set-default')
 
 export async function PATCH(
   request: Request,
@@ -46,7 +50,7 @@ export async function PATCH(
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Error setting default payment method:', error)
+    logger.error('Error setting default payment method:', error || undefined)
     return NextResponse.json(
       { error: 'Error al establecer método predeterminado' },
       { status: 500 }

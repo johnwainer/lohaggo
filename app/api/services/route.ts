@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { expandSearchTerms, calculateRelevanceScore } from "@/lib/searchSynonyms"
+import { createLogger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
+
+
+const logger = createLogger('services')
 
 export async function GET(request: Request) {
   try {
@@ -69,7 +73,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(services)
   } catch (error) {
-    console.error("Error fetching services:", error)
+    logger.error('Error fetching services:', error || undefined)
     return NextResponse.json(
       { error: "Error al obtener servicios" },
       { status: 500 }

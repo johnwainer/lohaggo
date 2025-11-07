@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { createLogger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
+
+
+const logger = createLogger('admin-service-requests')
 
 export async function GET(req: NextRequest) {
   try {
@@ -48,7 +52,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(serviceRequests)
   } catch (error) {
-    console.error('Error fetching service requests:', error)
+    logger.error('Error fetching service requests:', error || undefined)
     return NextResponse.json(
       { error: 'Error al obtener las solicitudes' },
       { status: 500 }

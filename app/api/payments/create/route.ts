@@ -3,6 +3,9 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import mercadopago from '@/lib/mercadopago';
+import { createLogger } from '@/lib/logger';
+
+const logger = createLogger('payments-create');
 
 export async function POST(req: NextRequest) {
   try {
@@ -60,7 +63,10 @@ export async function POST(req: NextRequest) {
 
     if (booking.clientCommissionRate !== null && booking.clientCommissionRate !== undefined) {
       clientCommissionRate = Number(booking.clientCommissionRate);
-      console.log('✅ Usando tarifa guardada en el booking:', clientCommissionRate);
+      logger.debug('Using saved client commission rate from booking', {
+        bookingId,
+        rateSource: 'booking'
+      });
     } else {
       const config = await prisma.platformConfig.findFirst();
       if (!config) {
@@ -70,14 +76,18 @@ export async function POST(req: NextRequest) {
         );
       }
       clientCommissionRate = Number(config.clientCommissionRate);
-      console.log('⚠️ Usando tarifa actual de la plataforma:', clientCommissionRate);
+      logger.warn('Using current platform client commission rate', {
+        bookingId,
+        rateSource: 'platform'
+      });
     }
 
     const serviceAmount = booking.totalPrice;
     const clientCommission = (serviceAmount * clientCommissionRate) / 100;
     const totalAmount = serviceAmount + clientCommission;
 
-    console.log('💰 Desglose del pago:', {
+    logger.info('Creating payment breakdown', {
+      bookingId,
       serviceAmount,
       clientCommissionRate,
       clientCommission,
@@ -153,7 +163,7 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Error al crear pago:', error);
+    logger.error('Error creating payment', { error });
     return NextResponse.json(
       { error: 'Error al crear el pago' },
       { status: 500 }

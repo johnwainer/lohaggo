@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { createLogger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
+
+
+const logger = createLogger('admin-users')
 
 export async function GET(request: NextRequest) {
   try {
@@ -47,7 +51,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(users)
   } catch (error) {
-    console.error('Error fetching users:', error)
+    logger.error('Error fetching users:', error || undefined)
     return NextResponse.json({ error: 'Error al obtener usuarios' }, { status: 500 })
   }
 }
@@ -70,7 +74,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json(user)
   } catch (error) {
-    console.error('Error updating user:', error)
+    logger.error('Error updating user:', error || undefined)
     return NextResponse.json({ error: 'Error al actualizar usuario' }, { status: 500 })
   }
 }
@@ -96,7 +100,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Error deleting user:', error)
+    logger.error('Error deleting user:', error || undefined)
     return NextResponse.json({ error: 'Error al eliminar usuario' }, { status: 500 })
   }
 }

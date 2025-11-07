@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { createLogger } from '@/lib/logger'
 
 const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
 const CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY
@@ -37,7 +38,7 @@ async function uploadToCloudinary(file: File, folder: string): Promise<{ url: st
 
   if (!response.ok) {
     const error = await response.text()
-    console.error('Cloudinary error:', error)
+    logger.error('Cloudinary error:', error || undefined)
     throw new Error('Failed to upload to Cloudinary')
   }
 
@@ -70,9 +71,12 @@ async function deleteFromCloudinary(publicId: string): Promise<void> {
   )
 
   if (!response.ok) {
-    console.error('Failed to delete from Cloudinary')
+    logger.error('Failed to delete from Cloudinary',  || undefined)
   }
 }
+
+
+const logger = createLogger('partner-documents')
 
 export async function GET(req: NextRequest) {
   try {
@@ -96,7 +100,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(partnerProfile.documents)
   } catch (error) {
-    console.error('Error fetching documents:', error)
+    logger.error('Error fetching documents:', error || undefined)
     return NextResponse.json({ error: 'Error al obtener documentos' }, { status: 500 })
   }
 }
@@ -151,7 +155,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(document)
   } catch (error) {
-    console.error('Error uploading document:', error)
+    logger.error('Error uploading document:', error || undefined)
     return NextResponse.json({ error: 'Error al subir documento' }, { status: 500 })
   }
 }
@@ -203,7 +207,7 @@ export async function DELETE(req: NextRequest) {
 
     return NextResponse.json({ message: 'Documento eliminado' })
   } catch (error) {
-    console.error('Error deleting document:', error)
+    logger.error('Error deleting document:', error || undefined)
     return NextResponse.json({ error: 'Error al eliminar documento' }, { status: 500 })
   }
 }

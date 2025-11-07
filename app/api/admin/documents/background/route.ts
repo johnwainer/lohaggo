@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { createLogger } from '@/lib/logger'
 
 const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
 const CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY
@@ -37,7 +38,7 @@ async function uploadToCloudinary(file: File, folder: string): Promise<{ url: st
 
   if (!response.ok) {
     const error = await response.text()
-    console.error('Cloudinary error:', error)
+    logger.error('Cloudinary error:', error)
     throw new Error('Failed to upload to Cloudinary')
   }
 
@@ -47,6 +48,9 @@ async function uploadToCloudinary(file: File, folder: string): Promise<{ url: st
     publicId: data.public_id
   }
 }
+
+
+const logger = createLogger('admin-documents-background')
 
 export async function POST(req: NextRequest) {
   try {
@@ -137,7 +141,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(document)
   } catch (error) {
-    console.error('Error uploading background check:', error)
+    logger.error('Error uploading background check:', error)
     return NextResponse.json({ error: 'Error al subir antecedentes' }, { status: 500 })
   }
 }
