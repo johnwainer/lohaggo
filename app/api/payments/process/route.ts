@@ -162,11 +162,6 @@ async function handlePOST(req: NextRequest) {
       }
     }
 
-    await prisma.booking.update({
-      where: { id: bookingId },
-      data: { status: 'CONFIRMED' },
-    })
-
     return NextResponse.json({
       success: true,
       message: 'Pago procesado exitosamente',
