@@ -109,7 +109,6 @@ export async function POST(request: Request) {
     const userId = session.user.id
     const userEmail = session.user.email!
     const userName = session.user.name ?? ''
-    const userName = session.user.name ?? ''
 
     let customerId: string | null = null
 
