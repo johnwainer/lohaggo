@@ -178,7 +178,7 @@ export async function POST(
         return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
       }
 
-      const warningMessage = `⚠️ MENSAJE BLOQUEADO\n\nSe intentó compartir ${validation.reason}. Por seguridad, no se permite compartir información de contacto.\n\nMantén la comunicación dentro de la plataforma.`
+      const warningMessage = `⚠️ MENSAJE BLOQUEADO\n\nSe intentó compartir ${contactValidation.reason}. Por seguridad, no se permite compartir información de contacto.\n\nMantén la comunicación dentro de la plataforma.`
 
       const systemMessage = await prisma.chatMessage.create({
         data: {
