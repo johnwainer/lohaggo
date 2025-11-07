@@ -6,6 +6,7 @@ import { notifyNewServiceRequest } from '@/lib/notifications/notificationService
 import { createLogger } from '@/lib/logger'
 import { serviceRequestSchema, validateRequest } from '@/lib/validation'
 import { City } from '@prisma/client'
+import { handleApiError } from '@/lib/errors'
 
 export const dynamic = 'force-dynamic'
 
@@ -72,11 +73,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(serviceRequest, { status: 201 })
   } catch (error) {
-    logger.error('Error creating service request:', error || undefined)
-    return NextResponse.json(
-      { error: 'Error al crear la solicitud de servicio' },
-      { status: 500 }
-    )
+    return handleApiError(error, 'service-requests-create')
   }
 }
 
@@ -159,10 +156,6 @@ export async function GET(req: NextRequest) {
       clientCommissionRate
     })
   } catch (error) {
-    logger.error('Error fetching service requests:', error || undefined)
-    return NextResponse.json(
-      { error: 'Error al obtener las solicitudes' },
-      { status: 500 }
-    )
+    return handleApiError(error, 'service-requests-get')
   }
 }
