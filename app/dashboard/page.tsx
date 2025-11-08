@@ -92,11 +92,11 @@ interface ServiceRequest {
 }
 
 const statusColors: Record<string, string> = {
-  PENDING: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-  CONFIRMED: 'bg-blue-100 text-blue-800 border-blue-200',
-  IN_PROGRESS: 'bg-purple-100 text-purple-800 border-purple-200',
-  COMPLETED: 'bg-green-100 text-green-800 border-green-200',
-  CANCELLED: 'bg-red-100 text-red-800 border-red-200',
+  PENDING: 'bg-secondary-100 text-secondary-800 border-secondary-200',
+  CONFIRMED: 'bg-primary-100 text-primary-800 border-primary-200',
+  IN_PROGRESS: 'bg-gray-100 text-gray-800 border-gray-300',
+  COMPLETED: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  CANCELLED: 'bg-gray-100 text-gray-700 border-gray-200',
 }
 
 const statusLabels: Record<string, string> = {
@@ -108,10 +108,10 @@ const statusLabels: Record<string, string> = {
 }
 
 const requestStatusColors: Record<string, string> = {
-  ACTIVE: 'bg-green-100 text-green-800 border-green-200',
-  ACCEPTED: 'bg-blue-100 text-blue-800 border-blue-200',
+  ACTIVE: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  ACCEPTED: 'bg-primary-100 text-primary-800 border-primary-200',
   EXPIRED: 'bg-gray-100 text-gray-800 border-gray-200',
-  CANCELLED: 'bg-red-100 text-red-800 border-red-200',
+  CANCELLED: 'bg-gray-100 text-gray-700 border-gray-200',
 }
 
 const requestStatusLabels: Record<string, string> = {
@@ -551,7 +551,7 @@ export default function DashboardPage() {
       <div className="flex items-center gap-1.5 ml-2">
         {hasIdentity && (
           <div className="group relative">
-            <CreditCard size={16} className="text-blue-600" />
+            <CreditCard size={16} className="text-primary-600" />
             <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
               Identidad verificada
             </span>
@@ -559,7 +559,7 @@ export default function DashboardPage() {
         )}
         {hasEducation && (
           <div className="group relative">
-            <GraduationCap size={16} className="text-purple-600" />
+            <GraduationCap size={16} className="text-secondary-600" />
             <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
               Educación verificada
             </span>
@@ -567,7 +567,7 @@ export default function DashboardPage() {
         )}
         {hasBackground && (
           <div className="group relative">
-            <Shield size={16} className="text-green-600" />
+            <Shield size={16} className="text-emerald-600" />
             <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
               Antecedentes verificados
             </span>
@@ -655,7 +655,7 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
-                <p className="text-sm text-yellow-800">No tienes métodos de pago guardados. Se procesará con Mercado Pago.</p>
+                <p className="text-sm text-secondary-800">No tienes métodos de pago guardados. Se procesará con Mercado Pago.</p>
               </div>
             )}
 
@@ -782,30 +782,30 @@ export default function DashboardPage() {
                   <p className="text-2xl sm:text-3xl font-bold text-gray-900">{bookings.length}</p>
                 </div>
 
-                <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border-l-4 border-yellow-500 hover:shadow-xl transition">
+                <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border-l-4 border-secondary-500 hover:shadow-xl transition">
                   <div className="flex items-center justify-between mb-3 sm:mb-4">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-yellow-100 rounded-lg sm:rounded-xl flex items-center justify-center">
-                      <Clock className="text-yellow-600" size={20} />
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-secondary-100 rounded-lg sm:rounded-xl flex items-center justify-center">
+                      <Clock className="text-secondary-600" size={20} />
                     </div>
                   </div>
                   <p className="text-gray-600 text-xs sm:text-sm font-medium mb-1">Pendientes</p>
                   <p className="text-2xl sm:text-3xl font-bold text-gray-900">{pendingCount}</p>
                 </div>
 
-                <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border-l-4 border-blue-500 hover:shadow-xl transition">
+                <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border-l-4 border-primary-500 hover:shadow-xl transition">
                   <div className="flex items-center justify-between mb-3 sm:mb-4">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-lg sm:rounded-xl flex items-center justify-center">
-                      <CheckCircle className="text-blue-600" size={20} />
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary-100 rounded-lg sm:rounded-xl flex items-center justify-center">
+                      <CheckCircle className="text-primary-600" size={20} />
                     </div>
                   </div>
                   <p className="text-gray-600 text-xs sm:text-sm font-medium mb-1">Confirmadas</p>
                   <p className="text-2xl sm:text-3xl font-bold text-gray-900">{confirmedCount}</p>
                 </div>
 
-                <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border-l-4 border-green-500 hover:shadow-xl transition">
+                <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border-l-4 border-emerald-500 hover:shadow-xl transition">
                   <div className="flex items-center justify-between mb-3 sm:mb-4">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-lg sm:rounded-xl flex items-center justify-center">
-                      <DollarSign className="text-green-600" size={20} />
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-100 rounded-lg sm:rounded-xl flex items-center justify-center">
+                      <DollarSign className="text-emerald-600" size={20} />
                     </div>
                   </div>
                   <p className="text-gray-600 text-xs sm:text-sm font-medium mb-1">Total Gastado</p>
@@ -814,29 +814,30 @@ export default function DashboardPage() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6">
-                <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border-l-4 border-green-500 hover:shadow-xl transition">
+                <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border-l-4 border-emerald-500 hover:shadow-xl transition">
                   <div className="flex items-center justify-between mb-3 sm:mb-4">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-lg sm:rounded-xl flex items-center justify-center">
-                      <Activity className="text-green-600" size={20} />
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-100 rounded-lg sm:rounded-xl flex items-center justify-center">
+                      <Activity className="text-emerald-600" size={20} />
                     </div>
                   </div>
                   <p className="text-gray-600 text-xs sm:text-sm font-medium mb-1">Solicitudes Activas</p>
                   <p className="text-2xl sm:text-3xl font-bold text-gray-900">{activeRequestsCount}</p>
                 </div>
 
-                <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border-l-4 border-blue-500 hover:shadow-xl transition">
+                <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border-l-4 border-primary-500 hover:shadow-xl transition">
                   <div className="flex items-center justify-between mb-3 sm:mb-4">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-lg sm:rounded-xl flex items-center justify-center">
-                      <MessageSquare className="text-blue-600" size={20} />
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary-100 rounded-lg sm:rounded-xl flex items-center justify-center">
+                      <MessageSquare className="text-primary-600" size={20} />
                     </div>
                   </div>
+                  <p className="text-gray-600 text-xs sm:text-sm font-medium mb-1">Propuestas Recibidas</p>
                   <p className="text-2xl sm:text-3xl font-bold text-gray-900">{totalProposals}</p>
                 </div>
 
-                <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border-l-4 border-purple-500 hover:shadow-xl transition">
+                <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border-l-4 border-secondary-500 hover:shadow-xl transition">
                   <div className="flex items-center justify-between mb-3 sm:mb-4">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-100 rounded-lg sm:rounded-xl flex items-center justify-center">
-                      <TrendingUp className="text-purple-600" size={20} />
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-secondary-100 rounded-lg sm:rounded-xl flex items-center justify-center">
+                      <TrendingUp className="text-secondary-600" size={20} />
                     </div>
                   </div>
                   <p className="text-gray-600 text-xs sm:text-sm font-medium mb-1">Servicios Favoritos</p>
@@ -852,26 +853,26 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <button
                     onClick={() => setActiveTab('bookings')}
-                    className="flex items-center gap-3 p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition group"
+                    className="flex items-center gap-3 p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 border-gray-200 hover:border-primary-500 hover:bg-primary-50 transition group"
                   >
-                    <Package className="text-blue-600 group-hover:scale-110 transition flex-shrink-0" size={20} />
+                    <Package className="text-primary-600 group-hover:scale-110 transition flex-shrink-0" size={20} />
                     <div className="text-left min-w-0 flex-1">
                       <p className="font-semibold text-gray-900 text-sm sm:text-base">Ver Reservas</p>
                       <p className="text-xs sm:text-sm text-gray-600">{bookings.length} activas</p>
                     </div>
-                    <ChevronRight className="ml-auto text-gray-400 group-hover:text-blue-600 flex-shrink-0" size={18} />
+                    <ChevronRight className="ml-auto text-gray-400 group-hover:text-primary-600 flex-shrink-0" size={18} />
                   </button>
 
                   <button
                     onClick={() => setActiveTab('requests')}
-                    className="flex items-center gap-3 p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 border-gray-200 hover:border-orange-500 hover:bg-orange-50 transition group"
+                    className="flex items-center gap-3 p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 border-gray-200 hover:border-secondary-500 hover:bg-secondary-50 transition group"
                   >
-                    <Bell className="text-orange-600 group-hover:scale-110 transition flex-shrink-0" size={20} />
+                    <Bell className="text-secondary-600 group-hover:scale-110 transition flex-shrink-0" size={20} />
                     <div className="text-left min-w-0 flex-1">
                       <p className="font-semibold text-gray-900 text-sm sm:text-base">Mis Solicitudes</p>
                       <p className="text-xs sm:text-sm text-gray-600">{totalProposals} propuestas</p>
                     </div>
-                    <ChevronRight className="ml-auto text-gray-400 group-hover:text-orange-600 flex-shrink-0" size={18} />
+                    <ChevronRight className="ml-auto text-gray-400 group-hover:text-secondary-600 flex-shrink-0" size={18} />
                   </button>
                 </div>
               </div>
