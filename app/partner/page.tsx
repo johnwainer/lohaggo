@@ -1103,9 +1103,9 @@ function PartnerDashboardContent() {
       {showProposalModal && selectedRequest && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className={`${DESIGN_SYSTEM.components.card.base} max-w-2xl w-full max-h-[90vh] overflow-y-auto`}>
-            <div className={`${DESIGN_SYSTEM.spacing.card} border-b bg-gradient-to-r from-primary-600 to-primary-700`}>
+            <div className={`${DESIGN_SYSTEM.spacing.card} border-b bg-gradient-to-r from-[#FF2D55] to-[#FF6900]`}>
               <h3 className={`${DESIGN_SYSTEM.typography.h2} text-white`}>Enviar Propuesta</h3>
-              <p className="text-primary-100 text-sm mt-1">Completa los detalles de tu oferta</p>
+              <p className="text-pink-100 text-sm mt-1">Completa los detalles de tu oferta</p>
             </div>
 
             <div className={`${DESIGN_SYSTEM.spacing.card} ${DESIGN_SYSTEM.spacing.gap}`}>
@@ -1199,13 +1199,13 @@ function PartnerDashboardContent() {
             <div className={`${DESIGN_SYSTEM.spacing.card} border-t bg-gray-50 flex gap-3`}>
               <button
                 onClick={() => setShowProposalModal(false)}
-                className={`${DESIGN_SYSTEM.components.button.secondary} flex-1`}
+                className="bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white px-4 py-2 rounded-lg font-medium hover:from-[#FF1D45] hover:to-[#FF5900] transition-colors duration-200 flex-1"
               >
                 Cancelar
               </button>
               <button
                 onClick={submitProposal}
-                className="bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white px-4 py-2 rounded-lg font-medium hover:from-[#FF1D45] hover:to-[#FF5900] transition-colors duration-200 disabled:bg-gray-300 disabled:cursor-not-allowed flex-1 flex items-center justify-center gap-2"
+                className="bg-secondary-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-secondary-600 transition-colors duration-200 disabled:bg-gray-300 disabled:cursor-not-allowed flex-1 flex items-center justify-center gap-2"
               >
                 <Send size={18} />
                 Enviar Propuesta
