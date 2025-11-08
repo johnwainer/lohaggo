@@ -207,19 +207,6 @@ export const DESIGN_SYSTEM = {
     gridCols3: 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
     gridCols4: 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4',
   },
-
-  responsive: {
-    hideOnMobile: 'hidden sm:block',
-    hideOnDesktop: 'block sm:hidden',
-    showOnMobile: 'block sm:hidden',
-    showOnDesktop: 'hidden sm:block',
-    flexCol: 'flex flex-col',
-    flexColSm: 'flex flex-col sm:flex-row',
-    gridCols1: 'grid grid-cols-1',
-    gridCols2: 'grid grid-cols-1 sm:grid-cols-2',
-    gridCols3: 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
-    gridCols4: 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4',
-  },
 }
 
 export const getStatusClasses = (status: string): string => {
