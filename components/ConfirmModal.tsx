@@ -57,10 +57,10 @@ export default function ConfirmModal({
       button: 'bg-blue-600 hover:bg-blue-700'
     },
     success: {
-      bg: 'bg-green-50',
-      border: 'border-green-200',
-      icon: 'text-green-600',
-      button: 'bg-green-600 hover:bg-green-700'
+      bg: 'bg-pink-50',
+      border: 'border-pink-200',
+      icon: 'text-[#FF2D55]',
+      button: 'bg-[#FF2D55] hover:bg-[#FF1D45]'
     },
     error: {
       bg: 'bg-red-50',
