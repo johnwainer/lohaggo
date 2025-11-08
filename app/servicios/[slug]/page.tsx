@@ -379,7 +379,7 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
             </div>
             <button
               onClick={handleRequest}
-              className="w-full sm:w-auto bg-primary-600 text-white px-6 md:px-8 py-3 rounded-lg hover:bg-primary-700 transition font-medium text-sm md:text-base"
+              className="w-full sm:w-auto bg-secondary-500 text-white px-6 md:px-8 py-3 rounded-lg hover:bg-secondary-600 transition font-medium text-sm md:text-base"
             >
               Solicitar servicio
             </button>
