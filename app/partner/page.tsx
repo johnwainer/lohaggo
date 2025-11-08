@@ -736,7 +736,7 @@ function PartnerDashboardContent() {
                   <p className="text-gray-500 text-sm mt-2">Las reservas aparecerán aquí cuando los clientes las realicen</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-6 mt-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                   {filteredBookings.map((booking) => (
                     <div key={booking.id} className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition overflow-hidden">
                       <div className="p-6">
@@ -912,7 +912,7 @@ function PartnerDashboardContent() {
                   description="Las solicitudes que coincidan con tus servicios aparecerán aquí"
                 />
               ) : (
-                <div className="grid grid-cols-1 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
                   {filteredRequests.map((request) => (
                     <div key={request.id} className={`${DESIGN_SYSTEM.components.card.base} ${DESIGN_SYSTEM.components.card.hover} overflow-hidden`}>
                       <div className={DESIGN_SYSTEM.spacing.card}>
