@@ -1020,7 +1020,7 @@ function PartnerDashboardContent() {
                         ) : (
                           <button
                             onClick={() => openProposalModal(request)}
-                            className={`${DESIGN_SYSTEM.components.button.primary} w-full flex items-center justify-center gap-2`}
+                            className="bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white px-4 py-2 rounded-lg font-medium hover:from-[#FF1D45] hover:to-[#FF5900] transition-colors duration-200 disabled:bg-gray-300 disabled:cursor-not-allowed w-full flex items-center justify-center gap-2"
                           >
                             <Send size={18} />
                             Enviar Propuesta
@@ -1205,7 +1205,7 @@ function PartnerDashboardContent() {
               </button>
               <button
                 onClick={submitProposal}
-                className={`${DESIGN_SYSTEM.components.button.primary} flex-1 flex items-center justify-center gap-2`}
+                className="bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white px-4 py-2 rounded-lg font-medium hover:from-[#FF1D45] hover:to-[#FF5900] transition-colors duration-200 disabled:bg-gray-300 disabled:cursor-not-allowed flex-1 flex items-center justify-center gap-2"
               >
                 <Send size={18} />
                 Enviar Propuesta
