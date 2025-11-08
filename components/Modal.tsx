@@ -43,10 +43,10 @@ export default function Modal({
 
   const typeStyles = {
     success: {
-      bg: 'bg-green-50',
-      border: 'border-green-200',
-      icon: 'text-green-600',
-      button: 'bg-green-600 hover:bg-green-700'
+      bg: 'bg-orange-50',
+      border: 'border-orange-200',
+      icon: 'text-[#FF6900]',
+      button: 'bg-gradient-to-r from-[#FF2D55] to-[#FF6900] hover:from-[#FF1D45] hover:to-[#FF5900]'
     },
     error: {
       bg: 'bg-red-50',
