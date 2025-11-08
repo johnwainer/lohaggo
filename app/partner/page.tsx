@@ -919,15 +919,17 @@ function PartnerDashboardContent() {
                         <div className="flex items-start gap-4 mb-4">
                           <div className="text-4xl">{request.service.icon}</div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
-                              <h3 className={`${DESIGN_SYSTEM.typography.h3} truncate`}>{request.service.name}</h3>
-                              {request.isUrgent && (
-                                <span className={`${DESIGN_SYSTEM.components.badge.error} font-bold self-start`}>
-                                  URGENTE
-                                </span>
-                              )}
+                            <div className="flex items-start justify-between gap-3 mb-2">
+                              <div className="flex-1 min-w-0">
+                                <h3 className={`${DESIGN_SYSTEM.typography.h3} truncate`}>{request.service.name}</h3>
+                                {request.isUrgent && (
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-secondary-100 text-secondary-800 border border-secondary-200 font-bold self-start">
+                                    URGENTE
+                                  </span>
+                                )}
+                              </div>
+                              <p className={DESIGN_SYSTEM.typography.bodySmall}>{request.service.category.name}</p>
                             </div>
-                            <p className={DESIGN_SYSTEM.typography.bodySmall}>{request.service.category.name}</p>
                           </div>
                         </div>
 
