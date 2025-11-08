@@ -30,15 +30,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(partnerProfile.documents)
   } catch (error) {
-    logger.error('Error fetching documents:', error || undefined)
-    // Delegate to centralized error handler if available, otherwise return generic response
-    try {
-      const handled = handleApiError(error, logger)
-      if (handled) return handled as NextResponse
-    } catch (e) {
-      logger.error('Error in handleApiError:', e || undefined)
-    }
-    return NextResponse.json({ error: 'Error al obtener documentos' }, { status: 500 })
+    return handleApiError(error, 'partner-documents-get')
   }
 }
 
