@@ -912,7 +912,7 @@ function PartnerDashboardContent() {
                   description="Las solicitudes que coincidan con tus servicios aparecerán aquí"
                 />
               ) : (
-                <div className={DESIGN_SYSTEM.responsive.gridCols1}>
+                <div className="grid grid-cols-1 gap-6">
                   {filteredRequests.map((request) => (
                     <div key={request.id} className={`${DESIGN_SYSTEM.components.card.base} ${DESIGN_SYSTEM.components.card.hover} overflow-hidden`}>
                       <div className={DESIGN_SYSTEM.spacing.card}>
