@@ -29,12 +29,13 @@ html {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(to bottom, #FF2D55, #FF6900);
+  background: linear-gradient(to bottom, #FF2D55, #ff5c16);
   border-radius: 5px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(to bottom, #FF1D45, #FF5900);
+  background: linear-gradient(to bottom, #FF1D45, #f04000);
+  border-radius: 5px;
 }
 
 .scrollbar-hide {
