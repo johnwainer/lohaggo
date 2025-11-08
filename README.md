@@ -1,6 +1,6 @@
 # Haggo - Plataforma de Servicios
 
-Una plataforma moderna para solicitar servicios (plomería, limpieza, electricidad, etc.) con paneles para clientes, socios y administradores.
+Una plataforma moderna y segura para solicitar servicios (plomería, limpieza, electricidad, etc.) con paneles para clientes, socios y administradores.
 
 ## 🚀 Características Principales
 
@@ -12,15 +12,17 @@ Una plataforma moderna para solicitar servicios (plomería, limpieza, electricid
 
 ### Sistema de Usuarios
 - **3 Tipos de Usuarios**: Clientes, Socios (Proveedores) y Administradores
-- **Autenticación Segura** con NextAuth.js
+- **Autenticación Segura** con NextAuth.js y bcrypt
 - **Perfiles Completos**: Información detallada de clientes y socios
 - **Gestión de Direcciones**: Los clientes pueden guardar múltiples direcciones
+- **Verificación de Socios**: Sistema de documentos con validación administrativa
 
 ### Sistema de Pagos
 - **Integración con Mercado Pago**: Procesamiento seguro de pagos
 - **Comisiones Congeladas**: Las tarifas se guardan al momento de aceptar el servicio
 - **Payouts Automáticos**: Distribución automática de pagos a socios
 - **Panel de Administración**: Control completo de comisiones, pagos y payouts
+- **Métodos de Pago**: Gestión de tarjetas guardadas con Mercado Pago
 
 ### Sistema de Comunicación
 - **Chat en Tiempo Real**: Comunicación directa entre clientes y socios
@@ -35,10 +37,21 @@ Una plataforma moderna para solicitar servicios (plomería, limpieza, electricid
 - **Historial de Calificaciones**: Visualización de todas las calificaciones recibidas
 
 ### Sistema de Notificaciones
-- **Notificaciones en Tiempo Real**: Alertas instantáneas de eventos importantes
+- **Notificaciones Push**: Alertas instantáneas con Web Push API
+- **Validación VAPID**: Claves validadas en startup con rotación programada
 - **Múltiples Tipos**: Nueva propuesta, propuesta aceptada, pago recibido, etc.
 - **Badge de No Leídas**: Contador visual de notificaciones pendientes
 - **Historial Completo**: Acceso a todas las notificaciones históricas
+- **Auto-limpieza**: Suscripciones expiradas se eliminan automáticamente
+
+### Seguridad y Validación
+- **Manejo Centralizado de Errores**: Sistema robusto con clases de error personalizadas
+- **Validación con Zod**: Schemas de validación para todos los inputs críticos
+- **Logging Estructurado**: Sistema de logs con Pino para monitoreo y debugging
+- **Sanitización de Datos**: Limpieza automática de inputs peligrosos
+- **Protección de Credenciales**: Cloudinary y VAPID keys con gestión segura
+- **Rate Limiting**: Protección contra abuso de APIs
+- **CSRF Protection**: Tokens de seguridad en formularios críticos
 
 ### Diseño y UX
 - **Diseño Moderno** inspirado en Uber y Rappi
@@ -48,16 +61,31 @@ Una plataforma moderna para solicitar servicios (plomería, limpieza, electricid
 
 ## 🛠️ Tecnologías
 
+### Core
 - **Next.js 14** (App Router)
 - **TypeScript**
+- **React 18**
+
+### Base de Datos
 - **Prisma** (ORM)
 - **PostgreSQL** (Base de datos)
 - **Supabase** (Base de datos en producción)
+
+### Autenticación y Seguridad
+- **NextAuth.js** (Autenticación)
+- **bcrypt** (Hash de contraseñas)
+- **Zod** (Validación de schemas)
+- **Pino** (Logging estructurado)
+
+### Pagos y Servicios Externos
 - **Mercado Pago** (Procesamiento de pagos)
 - **Cloudinary** (Almacenamiento de imágenes)
-- **NextAuth.js** (Autenticación)
+- **Web Push API** (Notificaciones push)
+
+### UI/UX
 - **Tailwind CSS** (Estilos)
 - **Lucide React** (Iconos)
+- **Radix UI** (Componentes accesibles)
 
 ## 📋 Requisitos Previos
 
@@ -90,13 +118,21 @@ NEXTAUTH_SECRET="tu-secreto-super-seguro-aqui"
 NEXTAUTH_URL="http://localhost:3000"
 
 # Cloudinary (para subida de fotos)
+# IMPORTANTE: Rotar credenciales cada 90 días
 NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME="tu-cloud-name"
 CLOUDINARY_API_KEY="tu-api-key"
 CLOUDINARY_API_SECRET="tu-api-secret"
+CLOUDINARY_LAST_ROTATION="2024-01-01"
 
 # Mercado Pago
 MERCADOPAGO_ACCESS_TOKEN="tu-access-token"
 NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY="tu-public-key"
+
+# Push Notifications
+# Generar con: npx web-push generate-vapid-keys
+# IMPORTANTE: Rotar cada 90 días
+NEXT_PUBLIC_VAPID_PUBLIC_KEY="tu-vapid-public-key"
+VAPID_PRIVATE_KEY="tu-vapid-private-key"
 ```
 
 3. **Configurar la base de datos**
@@ -124,7 +160,7 @@ La aplicación estará disponible en `http://localhost:3000`
 1. Crea un proyecto en [Supabase](https://supabase.com)
 2. Ve a Settings → Database → Connection String
 3. Copia la **Connection String** (modo Transaction)
-4. Ejecuta el SQL de migración (ver sección SQL más abajo)
+4. Ejecuta las migraciones con Prisma
 
 ### 2. Configurar Cloudinary
 
@@ -133,6 +169,7 @@ La aplicación estará disponible en `http://localhost:3000`
    - Cloud Name
    - API Key
    - API Secret
+3. **IMPORTANTE**: Configura rotación de credenciales cada 90 días
 
 ### 3. Configurar Mercado Pago
 
@@ -142,7 +179,15 @@ La aplicación estará disponible en `http://localhost:3000`
    - Access Token
    - Public Key
 
-### 4. Configurar Variables de Entorno en Vercel
+### 4. Generar VAPID Keys para Push Notifications
+
+```bash
+npx web-push generate-vapid-keys
+```
+
+Guarda las claves generadas para configurarlas en Vercel.
+
+### 5. Configurar Variables de Entorno en Vercel
 
 Ve a tu proyecto en Vercel → Settings → Environment Variables y agrega:
 
@@ -153,13 +198,16 @@ NEXTAUTH_URL=https://tu-dominio.vercel.app
 NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=tu-cloud-name
 CLOUDINARY_API_KEY=tu-api-key
 CLOUDINARY_API_SECRET=tu-api-secret
+CLOUDINARY_LAST_ROTATION=2024-01-01
 MERCADOPAGO_ACCESS_TOKEN=tu-access-token
 NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY=tu-public-key
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=tu-vapid-public-key
+VAPID_PRIVATE_KEY=tu-vapid-private-key
 ```
 
 **Importante**: Marca las 3 opciones (Production, Preview, Development) para cada variable.
 
-### 5. Deploy
+### 6. Deploy
 
 ```bash
 git push origin main
@@ -200,6 +248,7 @@ Después de ejecutar el seed, puedes usar estos usuarios:
 - **Chat**: Comunicación con socios (modal integrado)
 - **Calificaciones**: Calificar servicios completados
 - **Direcciones**: Gestión de direcciones guardadas
+- **Métodos de Pago**: Gestión de tarjetas guardadas
 - **Notificaciones**: Ver todas las notificaciones
 
 #### Socio (`/partner`)
@@ -208,6 +257,7 @@ Después de ejecutar el seed, puedes usar estos usuarios:
 - **Mis Reservas**: Gestionar servicios contratados
 - **Chat**: Comunicación con clientes (modal integrado)
 - **Calificaciones**: Calificar clientes
+- **Verificación**: Subir documentos para verificación
 - **Estadísticas**: Ingresos, servicios completados, calificación promedio
 - **Notificaciones**: Ver todas las notificaciones
 
@@ -218,6 +268,7 @@ Después de ejecutar el seed, puedes usar estos usuarios:
 - **Payouts**: Gestionar pagos a socios
 - **Usuarios**: Administrar clientes y socios
 - **Servicios**: Gestionar catálogo de servicios
+- **Verificación**: Aprobar/rechazar documentos de socios
 
 ## 💰 Sistema de Pagos y Comisiones
 
@@ -293,10 +344,39 @@ Para un servicio de $10,000:
 - Cliente te ha calificado
 
 ### Características
+- **Push Notifications**: Notificaciones del navegador con Web Push API
+- **VAPID Keys**: Validación automática en startup
 - **Badge de contador**: Muestra cantidad de notificaciones no leídas
 - **Marca como leída**: Click en notificación la marca como leída
 - **Historial completo**: Acceso a todas las notificaciones
 - **Tiempo relativo**: "Hace 5 minutos", "Hace 2 horas", etc.
+- **Auto-limpieza**: Suscripciones expiradas (410/404) se eliminan automáticamente
+
+## 🔒 Seguridad
+
+### Manejo de Errores
+- **Clases de Error Personalizadas**: `AppError`, `ValidationError`, `AuthenticationError`, etc.
+- **Handler Centralizado**: `handleApiError` para respuestas consistentes
+- **Logging Estructurado**: Pino logger con niveles de severidad
+- **Ocultamiento de Stack Traces**: En producción no se exponen detalles internos
+
+### Validación de Datos
+- **Zod Schemas**: Validación de todos los inputs críticos
+- **Sanitización**: Limpieza automática de datos peligrosos
+- **Type Safety**: TypeScript en todo el proyecto
+- **Push Subscriptions**: Validación de formato y claves requeridas
+
+### Gestión de Credenciales
+- **Cloudinary Service**: Centralizado con recordatorios de rotación
+- **VAPID Keys**: Validación de formato (87 chars base64url)
+- **Rotación Programada**: Alertas cada 90 días
+- **Environment Variables**: Nunca expuestas al cliente (excepto públicas)
+
+### Protección de APIs
+- **Autenticación**: NextAuth.js con sesiones seguras
+- **Autorización**: Verificación de roles en cada endpoint
+- **Rate Limiting**: Protección contra abuso
+- **CSRF Tokens**: En formularios críticos
 
 ## 🎨 Categorías de Servicios
 
@@ -326,6 +406,9 @@ npx prisma migrate deploy # Aplicar migraciones
 npx prisma db seed       # Poblar con datos iniciales
 npx prisma generate      # Regenerar cliente de Prisma
 
+# Seguridad
+npx web-push generate-vapid-keys  # Generar claves VAPID para push notifications
+
 # Linting y formato
 npm run lint             # Ejecutar linter
 ```
@@ -339,48 +422,57 @@ Si ves el error `Can't reach database server`:
 1. Verifica que tu base de datos esté activa
 2. Asegúrate de usar `?sslmode=require` al final de la URL (Supabase)
 3. Verifica que todas las variables de entorno estén configuradas
-4. Ejecuta las migraciones SQL
+4. Ejecuta las migraciones con Prisma
 
 ### Fotos no se suben
 
 1. Verifica que las credenciales de Cloudinary estén correctas
 2. Asegúrate de que las variables de entorno estén configuradas
 3. Revisa los logs para más detalles
+4. Verifica que no hayan expirado las credenciales (rotar cada 90 días)
+
+### Push Notifications no funcionan
+
+1. Verifica que las VAPID keys estén configuradas correctamente
+2. Genera nuevas claves con `npx web-push generate-vapid-keys`
+3. Asegúrate de que el navegador soporte Web Push API
+4. Revisa los logs de startup para errores de validación VAPID
 
 ### Errores de TypeScript
 
-```bash
-# Regenerar cliente de Prisma
-npx prisma generate
+1. Ejecuta `npx prisma generate` para regenerar el cliente
+2. Reinicia el servidor de desarrollo
+3. Verifica que todas las dependencias estén instaladas
 
-# Limpiar caché de Next.js
-rm -rf .next
-npm run dev
-```
+## 📝 Mantenimiento
 
-### Pagos no se procesan
+### Rotación de Credenciales
 
-1. Verifica que las credenciales de Mercado Pago sean de producción
-2. Asegúrate de que el webhook esté configurado en Mercado Pago
-3. Revisa los logs en `/admin` sección de Pagos
-4. Verifica que la URL del webhook sea: `https://tu-dominio.vercel.app/api/payments/webhook`
+**Cada 90 días debes rotar:**
 
-### Chat no funciona
+1. **Cloudinary Credentials**
+   - Genera nuevas API keys en Cloudinary Dashboard
+   - Actualiza variables de entorno
+   - Actualiza `CLOUDINARY_LAST_ROTATION`
 
-1. Verifica que `proposalId` exista en la reserva
-2. Revisa los logs de la API `/api/chats`
-3. Verifica que el polling esté activo (cada 3 segundos)
+2. **VAPID Keys**
+   - Genera nuevas con `npx web-push generate-vapid-keys`
+   - Actualiza variables de entorno
+   - Los usuarios deberán re-suscribirse automáticamente
 
-### Notificaciones no aparecen
+### Monitoreo
 
-1. Verifica que el servicio de notificaciones esté funcionando
-2. Revisa los logs de `/api/notifications`
-3. Verifica que el usuario tenga el rol correcto
+**Métricas clave a monitorear:**
+- Tasa de éxito de pagos
+- Tasa de éxito de push notifications
+- Errores en logs (nivel error/warn)
+- Suscripciones push expiradas
+- Tiempo de respuesta de APIs
 
 ## 📄 Licencia
 
 Este proyecto es privado y confidencial.
 
-## 🤝 Soporte
+## 👨‍💻 Soporte
 
-Para soporte, contacta al equipo de desarrollo.
+Para soporte técnico o consultas, contacta al equipo de desarrollo.
