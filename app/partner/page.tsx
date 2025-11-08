@@ -575,34 +575,34 @@ function PartnerDashboardContent() {
                   iconColor="text-primary-600"
                   iconBgColor="bg-primary-100"
                   borderColor="border-primary-500"
-                  trendIcon={<TrendingUp className="text-green-500" size={18} />}
+                  trendIcon={<TrendingUp className="text-emerald-500" size={18} />}
                 />
 
                 <StatCard
                   label="Pendientes"
                   value={pendingCount}
                   icon={Clock}
-                  iconColor="text-yellow-600"
-                  iconBgColor="bg-yellow-100"
-                  borderColor="border-yellow-500"
+                  iconColor="text-secondary-600"
+                  iconBgColor="bg-secondary-100"
+                  borderColor="border-secondary-500"
                 />
 
                 <StatCard
                   label="En Progreso"
                   value={inProgressCount}
                   icon={Activity}
-                  iconColor="text-purple-600"
-                  iconBgColor="bg-purple-100"
-                  borderColor="border-purple-500"
+                  iconColor="text-gray-600"
+                  iconBgColor="bg-gray-100"
+                  borderColor="border-gray-500"
                 />
 
                 <StatCard
                   label="Ganancias"
                   value={formatCurrency(partnerTotalEarnings)}
                   icon={DollarSign}
-                  iconColor="text-green-600"
-                  iconBgColor="bg-green-100"
-                  borderColor="border-green-500"
+                  iconColor="text-emerald-600"
+                  iconBgColor="bg-emerald-100"
+                  borderColor="border-emerald-500"
                 />
               </div>
 
@@ -627,26 +627,26 @@ function PartnerDashboardContent() {
 
                   <button
                     onClick={() => setActiveTab('my-requests')}
-                    className={`${DESIGN_SYSTEM.components.card.base} ${DESIGN_SYSTEM.components.card.interactive} ${DESIGN_SYSTEM.spacing.cardSmall} flex items-center gap-3 border-2 border-gray-200 hover:border-orange-500 hover:bg-orange-50 group`}
+                    className={`${DESIGN_SYSTEM.components.card.base} ${DESIGN_SYSTEM.components.card.interactive} ${DESIGN_SYSTEM.spacing.cardSmall} flex items-center gap-3 border-2 border-gray-200 hover:border-secondary-500 hover:bg-secondary-50 group`}
                   >
-                    <Bell className="text-orange-600 group-hover:scale-110 transition flex-shrink-0" size={20} />
+                    <Bell className="text-secondary-600 group-hover:scale-110 transition flex-shrink-0" size={20} />
                     <div className="text-left min-w-0 flex-1">
                       <p className={`${DESIGN_SYSTEM.typography.h4}`}>Solicitudes</p>
                       <p className={DESIGN_SYSTEM.typography.bodySmall}>{serviceRequests.length} nuevas</p>
                     </div>
-                    <ChevronRight className={`ml-auto text-gray-400 group-hover:text-orange-600 ${DESIGN_SYSTEM.responsive.hideOnMobile}`} size={18} />
+                    <ChevronRight className={`ml-auto text-gray-400 group-hover:text-secondary-600 ${DESIGN_SYSTEM.responsive.hideOnMobile}`} size={18} />
                   </button>
 
                   <button
                     onClick={() => router.push('/partner/services')}
-                    className={`${DESIGN_SYSTEM.components.card.base} ${DESIGN_SYSTEM.components.card.interactive} ${DESIGN_SYSTEM.spacing.cardSmall} flex items-center gap-3 border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 group`}
+                    className={`${DESIGN_SYSTEM.components.card.base} ${DESIGN_SYSTEM.components.card.interactive} ${DESIGN_SYSTEM.spacing.cardSmall} flex items-center gap-3 border-2 border-gray-200 hover:border-primary-500 hover:bg-primary-50 group`}
                   >
-                    <Settings className="text-blue-600 group-hover:scale-110 transition flex-shrink-0" size={20} />
+                    <Briefcase className="text-primary-600 group-hover:scale-110 transition flex-shrink-0" size={20} />
                     <div className="text-left min-w-0 flex-1">
                       <p className={`${DESIGN_SYSTEM.typography.h4}`}>Mis Servicios</p>
                       <p className={DESIGN_SYSTEM.typography.bodySmall}>Gestionar</p>
                     </div>
-                    <ChevronRight className={`ml-auto text-gray-400 group-hover:text-blue-600 ${DESIGN_SYSTEM.responsive.hideOnMobile}`} size={18} />
+                    <ChevronRight className={`ml-auto text-gray-400 group-hover:text-primary-600 ${DESIGN_SYSTEM.responsive.hideOnMobile}`} size={18} />
                   </button>
                 </div>
               </div>
@@ -785,7 +785,7 @@ function PartnerDashboardContent() {
                         </div>
 
                         {booking.notes && (
-                          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-4">
+                          <div className="bg-secondary-50 border border-secondary-200 rounded-xl p-3 mb-4">
                             <p className="text-sm text-gray-700"><strong>Notas:</strong> {booking.notes}</p>
                           </div>
                         )}
@@ -798,7 +798,7 @@ function PartnerDashboardContent() {
                               serviceName: booking.service.name,
                               clientName: booking.user.name
                             })}
-                            className="w-full bg-yellow-500 text-white px-4 py-3 rounded-xl hover:bg-yellow-600 transition font-medium flex items-center justify-center gap-2 mb-3"
+                            className="w-full bg-secondary-500 text-white px-4 py-3 rounded-xl hover:bg-secondary-600 transition font-medium flex items-center justify-center gap-2 mb-3"
                           >
                             <Star size={18} />
                             Calificar Cliente
@@ -806,8 +806,8 @@ function PartnerDashboardContent() {
                         )}
 
                         {booking.status === 'COMPLETED' && booking.review?.partnerToClientRating && (
-                          <div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-3">
-                            <div className="flex items-center gap-2 text-green-700">
+                          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 mb-3">
+                            <div className="flex items-center gap-2 text-emerald-700">
                               <CheckCircle size={16} />
                               <span className="text-sm font-medium">Cliente calificado</span>
                               <div className="flex ml-auto">
@@ -815,7 +815,7 @@ function PartnerDashboardContent() {
                                   <Star
                                     key={i}
                                     size={14}
-                                    className={i < (booking.review?.partnerToClientRating || 0) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}
+                                    className={i < (booking.review?.partnerToClientRating || 0) ? 'fill-secondary-400 text-secondary-400' : 'text-gray-300'}
                                   />
                                 ))}
                               </div>
@@ -1157,11 +1157,11 @@ function PartnerDashboardContent() {
                 <label className={`${DESIGN_SYSTEM.typography.label} mb-2 block`}>
                   Precio de tu Propuesta *
                 </label>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
-                  <p className="text-sm text-blue-800">
+                <div className="bg-primary-50 border border-primary-200 rounded-lg p-3 mb-3">
+                  <p className="text-sm text-primary-800">
                     <span className="font-semibold">Precio base mínimo:</span> {formatCurrency(selectedRequest.service.basePrice)}
                   </p>
-                  <p className="text-xs text-blue-600 mt-1">
+                  <p className="text-xs text-primary-600 mt-1">
                     Tu propuesta debe ser igual o mayor a este valor
                   </p>
                 </div>
