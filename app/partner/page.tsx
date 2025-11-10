@@ -543,7 +543,7 @@ function PartnerDashboardContent() {
         <main className={`${DESIGN_SYSTEM.layout.container} ${DESIGN_SYSTEM.spacing.container} ${DESIGN_SYSTEM.spacing.section}`}>
           {/* Overview Tab */}
           {activeTab === 'overview' && (
-            <div className={DESIGN_SYSTEM.spacing.gap}>
+            <div className={`${DESIGN_SYSTEM.spacing.gap} mt-6`}>
               {/* Stats Grid */}
               <div className={`${DESIGN_SYSTEM.responsive.gridCols4} ${DESIGN_SYSTEM.spacing.gap}`}>
                 <StatCard
