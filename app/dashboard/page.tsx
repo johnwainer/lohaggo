@@ -1265,7 +1265,7 @@ export default function DashboardPage() {
                                             partnerName: proposal.partner.user.name,
                                             serviceName: request.service.name
                                           })}
-                                          className="w-full bg-secondary-500 text-white px-4 py-3 rounded-xl hover:bg-secondary-600 transition font-medium flex items-center justify-center gap-2 relative"
+                                          className="w-full bg-white border-2 border-orange-500 text-orange-500 px-4 py-3 rounded-xl hover:bg-orange-500 hover:text-white transition font-medium flex items-center justify-center gap-2 relative"
                                         >
                                           <MessageCircle size={18} />
                                           Chat con el Socio
