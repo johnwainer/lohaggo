@@ -891,8 +891,8 @@ function PartnerDashboardContent() {
 
           {/* My Requests Tab */}
           {activeTab === 'my-requests' && (
-            <div className={DESIGN_SYSTEM.spacing.gap}>
-              <div className={`${DESIGN_SYSTEM.components.card.base} ${DESIGN_SYSTEM.spacing.card}`}>
+            <div className="space-y-4 sm:space-y-6">
+              <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                   <input
@@ -900,7 +900,7 @@ function PartnerDashboardContent() {
                     placeholder="Buscar solicitudes..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className={`${DESIGN_SYSTEM.components.input.base} pl-10`}
+                    className="w-full pl-10 pr-3 py-3 sm:pr-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   />
                 </div>
               </div>
