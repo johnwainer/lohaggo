@@ -585,7 +585,7 @@ function PartnerDashboardContent() {
               </div>
 
               {/* Quick Actions */}
-              <div className={`${DESIGN_SYSTEM.components.card.base} ${DESIGN_SYSTEM.spacing.card}`}>
+              <div className={`${DESIGN_SYSTEM.components.card.base} ${DESIGN_SYSTEM.spacing.card} shadow-lg`}>
                 <h3 className={`${DESIGN_SYSTEM.typography.h3} mb-4 flex items-center gap-2`}>
                   <Activity className="text-primary-600" size={20} />
                   Acciones Rápidas
@@ -630,7 +630,7 @@ function PartnerDashboardContent() {
               </div>
 
               {/* Recent Activity */}
-              <div className={`${DESIGN_SYSTEM.components.card.base} ${DESIGN_SYSTEM.spacing.card}`}>
+              <div className={`${DESIGN_SYSTEM.components.card.base} ${DESIGN_SYSTEM.spacing.card} shadow-lg`}>
                 <h3 className={`${DESIGN_SYSTEM.typography.h3} mb-4 flex items-center gap-2`}>
                   <Clock className="text-primary-600" size={20} />
                   Actividad Reciente
