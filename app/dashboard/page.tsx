@@ -1072,7 +1072,7 @@ export default function DashboardPage() {
                               partnerName: booking.partner?.user.name || 'Socio',
                               serviceName: booking.service.name
                             })}
-                            className="w-full bg-white border-2 border-orange-500 text-orange-500 px-4 py-3 rounded-xl hover:bg-orange-500 hover:text-white transition font-medium flex items-center justify-center gap-2 mb-3 relative"
+                            className="w-full bg-white border-2 border-secondary-500 text-secondary-500 px-4 py-3 rounded-xl hover:bg-secondary-500 hover:text-white transition font-medium flex items-center justify-center gap-2 mb-3 relative"
                           >
                             <MessageCircle size={18} />
                             Chat con el Socio
