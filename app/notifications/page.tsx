@@ -22,7 +22,7 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'unread'>('all')
-  const { isSupported, isSubscribed, subscribeToPush } = usePushNotifications()
+  const { isSupported, isSubscribed, subscribeToPush, permission, isLoading: pushLoading, error: pushError } = usePushNotifications()
   const [bookingsCount, setBookingsCount] = useState(0)
   const [requestsCount, setRequestsCount] = useState(0)
 
@@ -130,10 +130,8 @@ export default function NotificationsPage() {
 
   const handleEnablePushNotifications = async () => {
     const success = await subscribeToPush()
-    if (success) {
-      alert('¡Notificaciones push activadas!')
-    } else {
-      alert('No se pudieron activar las notificaciones push')
+    if (!success && pushError) {
+      console.error('Error enabling push notifications:', pushError)
     }
   }
 
@@ -221,17 +219,47 @@ export default function NotificationsPage() {
 
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
         <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg overflow-hidden">
-          {isSupported && !isSubscribed && (
-            <div className="p-4 sm:p-6 bg-blue-50 border-b border-blue-200">
-              <p className="text-xs sm:text-sm text-blue-800 mb-2 sm:mb-3">
-                Activa las notificaciones push para recibir alertas en tiempo real
-              </p>
-              <button
-                onClick={handleEnablePushNotifications}
-                className="text-xs sm:text-sm bg-blue-600 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-blue-700 transition font-medium"
-              >
-                Activar notificaciones push
-              </button>
+          {isSupported && !isSubscribed && permission !== 'denied' && (
+            <div className="p-4 sm:p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-200">
+              <div className="flex items-start gap-3">
+                <Bell className="text-blue-600 flex-shrink-0 mt-1" size={24} />
+                <div className="flex-1">
+                  <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-1">
+                    Activa las notificaciones push
+                  </h3>
+                  <p className="text-xs sm:text-sm text-gray-700 mb-3">
+                    Recibe alertas en tiempo real sobre tus reservas, propuestas y cambios de estado
+                  </p>
+                  {pushError && (
+                    <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-800">
+                      {pushError}
+                    </div>
+                  )}
+                  <button
+                    onClick={handleEnablePushNotifications}
+                    disabled={pushLoading}
+                    className="text-xs sm:text-sm bg-blue-600 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-blue-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {pushLoading ? 'Activando...' : 'Activar notificaciones push'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {permission === 'denied' && (
+            <div className="p-4 sm:p-6 bg-yellow-50 border-b border-yellow-200">
+              <div className="flex items-start gap-3">
+                <Bell className="text-yellow-600 flex-shrink-0 mt-1" size={24} />
+                <div className="flex-1">
+                  <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-1">
+                    Notificaciones bloqueadas
+                  </h3>
+                  <p className="text-xs sm:text-sm text-gray-700">
+                    Has bloqueado las notificaciones. Para activarlas, ve a la configuración de tu navegador y permite las notificaciones para este sitio.
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 
