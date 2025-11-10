@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 import { Bell } from 'lucide-react'
 import Link from 'next/link'
 
@@ -12,10 +13,12 @@ interface Notification {
   message: string
   read: boolean
   createdAt: string
+  data?: string
 }
 
 export default function NotificationBell() {
   const { data: session } = useSession()
+  const router = useRouter()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [showDropdown, setShowDropdown] = useState(false)
@@ -49,6 +52,26 @@ export default function NotificationBell() {
       fetchNotifications()
     } catch (error) {
       console.error('Error marking notification as read:', error)
+    }
+  }
+
+  const handleNotificationClick = async (notification: Notification) => {
+    await markAsRead(notification.id)
+    setShowDropdown(false)
+
+    let parsedData: any = {}
+    if (notification.data) {
+      try {
+        parsedData = JSON.parse(notification.data)
+      } catch (error) {
+        console.error('Error parsing notification data:', error)
+      }
+    }
+
+    const isPartner = session?.user?.role === 'PARTNER'
+
+    if (parsedData.bookingId || parsedData.serviceRequestId || parsedData.proposalId) {
+      router.push(isPartner ? '/partner' : '/dashboard')
     }
   }
 
@@ -98,10 +121,7 @@ export default function NotificationBell() {
                   <div
                     key={notification.id}
                     className="p-4 border-b hover:bg-gray-50 cursor-pointer transition"
-                    onClick={() => {
-                      markAsRead(notification.id)
-                      setShowDropdown(false)
-                    }}
+                    onClick={() => void handleNotificationClick(notification)}
                   >
                     <div className="flex items-start gap-3">
                       <div className="flex-1">
