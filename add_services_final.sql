@@ -12,16 +12,6 @@
 
 INSERT INTO "Category" (id, name, slug, icon, description, "order")
 VALUES 
-  ('cat-1', 'Hogar', 'hogar', '🏠', 'Servicios para el hogar', 1),
-  ('cat-2', 'Limpieza', 'limpieza', '🧹', 'Servicios de limpieza profesional', 2),
-  ('cat-3', 'Reparaciones', 'reparaciones', '🔧', 'Reparaciones y mantenimiento', 3),
-  ('cat-4', 'Belleza', 'belleza', '💅', 'Servicios de belleza y cuidado personal', 4),
-  ('cat-5', 'Salud', 'salud', '⚕️', 'Servicios de salud y bienestar', 5),
-  ('cat-6', 'Tecnología', 'tecnologia', '💻', 'Servicios tecnológicos y soporte', 6),
-  ('cat-7', 'Transporte', 'transporte', '🚗', 'Servicios de transporte', 7),
-  ('cat-8', 'Educación', 'educacion', '📚', 'Servicios educativos', 8),
-  ('cat-9', 'Eventos', 'eventos', '🎉', 'Servicios para eventos', 9),
-  ('cat-10', 'Mascotas', 'mascotas', '🐕', 'Servicios para mascotas', 10),
   ('cat-11', 'Automotriz', 'automotriz', '🚙', 'Servicios automotrices', 11),
   ('cat-12', 'Profesional', 'profesional', '💼', 'Servicios profesionales y consultoría', 12)
 ON CONFLICT (slug) DO NOTHING;
