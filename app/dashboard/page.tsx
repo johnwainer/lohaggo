@@ -1072,7 +1072,7 @@ export default function DashboardPage() {
                               partnerName: booking.partner?.user.name || 'Socio',
                               serviceName: booking.service.name
                             })}
-                            className="w-full bg-blue-600 text-white px-4 py-3 rounded-xl hover:bg-blue-700 transition font-medium flex items-center justify-center gap-2 mb-3 relative"
+                            className="w-full bg-secondary-500 text-white px-4 py-3 rounded-xl hover:bg-secondary-600 transition font-medium flex items-center justify-center gap-2 mb-3 relative"
                           >
                             <MessageCircle size={18} />
                             Chat con el Socio
@@ -1265,7 +1265,7 @@ export default function DashboardPage() {
                                             partnerName: proposal.partner.user.name,
                                             serviceName: request.service.name
                                           })}
-                                          className="w-full bg-white border-2 border-[#FF2D55] text-[#FF2D55] px-4 py-3 rounded-xl hover:bg-[#FF2D55] hover:text-white transition font-medium flex items-center justify-center gap-2 relative"
+                                          className="w-full bg-secondary-500 text-white px-4 py-3 rounded-xl hover:bg-secondary-600 transition font-medium flex items-center justify-center gap-2 relative"
                                         >
                                           <MessageCircle size={18} />
                                           Chat con el Socio
@@ -1279,7 +1279,7 @@ export default function DashboardPage() {
                                       {request.status === 'ACTIVE' && proposal.status === 'PENDING' && (
                                         <button
                                           onClick={() => acceptProposal(proposal.id, proposal.partner.user.name, proposal.price)}
-                                          className="w-full bg-primary-600 text-white px-4 py-3 rounded-xl hover:bg-primary-700 transition font-medium flex items-center justify-center gap-2"
+                                          className="w-full bg-secondary-500 text-white px-4 py-3 rounded-xl hover:bg-secondary-600 transition font-medium flex items-center justify-center gap-2"
                                         >
                                           <CheckCircle size={18} />
                                           Aceptar Propuesta
