@@ -45,12 +45,12 @@ export default function PartnerNotificationsPage() {
         fetch('/api/bookings'),
         fetch('/api/partner/service-requests')
       ])
-      
+
       if (bookingsRes.ok) {
         const bookings = await bookingsRes.json()
         setBookingsCount(bookings.length)
       }
-      
+
       if (requestsRes.ok) {
         const requests = await requestsRes.json()
         setMyRequestsCount(Array.isArray(requests) ? requests.length : 0)
@@ -63,7 +63,7 @@ export default function PartnerNotificationsPage() {
   const fetchNotifications = async () => {
     setLoading(true)
     try {
-      const url = filter === 'unread' 
+      const url = filter === 'unread'
         ? '/api/notifications?unreadOnly=true'
         : '/api/notifications'
       const res = await fetch(url)
@@ -189,14 +189,6 @@ export default function PartnerNotificationsPage() {
                 )}
               </button>
 
-              <button
-                onClick={() => router.push('/partner?tab=all-requests')}
-                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
-              >
-                <Activity size={20} className="sm:w-[22px] sm:h-[22px]" />
-                <span className="hidden sm:inline">Todas</span>
-              </button>
-
             </nav>
           </div>
         </div>
@@ -248,7 +240,7 @@ export default function PartnerNotificationsPage() {
               <div className="p-12 text-center">
                 <Bell className="mx-auto text-gray-300 mb-4" size={64} />
                 <p className="text-gray-600 text-lg font-medium">
-                  {filter === 'unread' 
+                  {filter === 'unread'
                     ? 'No tienes notificaciones sin leer'
                     : 'No tienes notificaciones'}
                 </p>
