@@ -13,7 +13,7 @@ export const serviceSynonyms: Record<string, string[]> = {
   'fumigación': ['fumigar', 'plagas', 'insectos', 'control de plagas', 'desinfección', 'exterminio'],
   'vidrio': ['vidriero', 'cristal', 'ventana', 'espejo', 'vitrina'],
   'tapicería': ['tapizar', 'muebles', 'sofá', 'silla', 'tela', 'cuero'],
-  'soldadura': ['soldar', 'soldador', 'metal', 'hierro', 'acero'],
+  'soldadura': ['soldar', 'soldador', 'metal', 'hierro', 'acero', 'soldadura eléctrica', 'soldadura mig', 'soldadura tig'],
   'techado': ['techo', 'tejado', 'goteras', 'impermeabilización', 'tejas'],
   'piscina': ['alberca', 'pileta', 'mantenimiento de piscina', 'limpieza de piscina'],
   'masaje': ['masajista', 'terapia', 'relajación', 'spa', 'masoterapia'],
@@ -41,41 +41,70 @@ export const serviceSynonyms: Record<string, string[]> = {
   'traducción': ['traductor', 'idioma', 'lenguaje'],
   'contabilidad': ['contador', 'contable', 'finanzas', 'impuestos'],
   'legal': ['abogado', 'jurídico', 'derecho', 'asesoría legal'],
-  'arquitectura': ['arquitecto', 'planos', 'diseño arquitectónico', 'construcción'],
+  'arquitectura': ['arquitecto', 'planos', 'diseño arquitectónico', 'construcción', 'remodelación', 'proyecto', 'obra'],
 
-  // Nuevos sinónimos para servicios agregados
-  'impermeabilización': ['impermeabilizar', 'filtración', 'humedad', 'goteras', 'terraza', 'azotea'],
-  'cortinas': ['persianas', 'blackout', 'roller', 'vertical', 'horizontal'],
-  'pulido': ['brillado', 'abrillantado', 'mármol', 'granito', 'piso'],
-  'cielo raso': ['drywall', 'plafón', 'falso techo', 'cielorraso', 'pvc'],
-  'herrería': ['herrero', 'rejas', 'portones', 'metal', 'hierro forjado'],
-  'enchapes': ['baldosas', 'cerámica', 'porcelanato', 'azulejos', 'revestimiento'],
-  'tanque': ['tanque de agua', 'cisterna', 'aljibe', 'reservorio'],
-  'desinfección': ['sanitización', 'desinfectar', 'higienizar', 'esterilizar'],
-  'tapizados': ['tapicería', 'sofá', 'muebles', 'colchón', 'limpieza profunda'],
-  'organización': ['organizador', 'orden', 'marie kondo', 'declutter'],
-  'lavadora': ['lavadora', 'secadora', 'lavasecadora', 'centrifugado'],
-  'nevera': ['refrigerador', 'frigorífico', 'congelador', 'freezer'],
-  'estufa': ['cocina', 'hornilla', 'horno', 'gas', 'eléctrica'],
-  'gas': ['gasodoméstico', 'instalación gas', 'fuga gas', 'certificado gas'],
-  'bicicleta': ['bici', 'cicla', 'rodado', 'frenos', 'cambios'],
-  'depilación': ['depilar', 'cera', 'láser', 'hilo', 'rasurar'],
-  'facial': ['limpieza facial', 'tratamiento facial', 'hidratación', 'anti-edad'],
-  'pestañas': ['extensiones', 'lifting', 'permanente', 'tinte'],
-  'micropigmentación': ['microblading', 'cejas', 'labios', 'delineado permanente'],
-  'keratina': ['alisado', 'botox capilar', 'tratamiento capilar', 'liso'],
-  'psicología': ['psicólogo', 'terapia', 'consulta psicológica', 'salud mental'],
-  'adultos mayores': ['tercera edad', 'ancianos', 'cuidador', 'acompañamiento'],
-  'inyecciones': ['inyección', 'vacuna', 'medicamento', 'enfermería'],
-  'respiratoria': ['terapia respiratoria', 'nebulización', 'pulmones', 'oxígeno'],
-  'cámaras': ['cctv', 'seguridad', 'vigilancia', 'alarma', 'dvr'],
-  'tv': ['televisor', 'televisión', 'home theater', 'montaje', 'soporte'],
-  'consolas': ['playstation', 'xbox', 'nintendo', 'switch', 'videojuegos'],
-  'paneles solares': ['energía solar', 'fotovoltaica', 'renovable', 'inversor'],
-  'smart home': ['domótica', 'casa inteligente', 'alexa', 'google home', 'automatización'],
-  'datos': ['recuperación', 'disco duro', 'backup', 'información perdida'],
-  'aceite': ['cambio aceite', 'filtro', 'lubricante', 'motor'],
-  'polarizado': ['lámina', 'insulfilm', 'tintado', 'vidrios'],
+  // HOGAR Y MANTENIMIENTO - Servicios nuevos con sinónimos expandidos
+  'impermeabilización': ['impermeabilizar', 'filtración', 'humedad', 'goteras', 'terraza', 'azotea', 'techo', 'sika', 'membrana', 'sellado', 'protección agua', 'anti goteras', 'filtraciones'],
+  'cortinas': ['persianas', 'blackout', 'roller', 'vertical', 'horizontal', 'enrollable', 'romana', 'sheer', 'instalación cortinas', 'medición cortinas', 'reparación persianas'],
+  'pulido': ['brillado', 'abrillantado', 'mármol', 'granito', 'piso', 'cristalizado', 'encerado', 'lustrado', 'brillo', 'pulir pisos', 'madera'],
+  'cielo raso': ['drywall', 'plafón', 'falso techo', 'cielorraso', 'pvc', 'aluminio', 'yeso', 'superboard', 'instalación techo'],
+  'herrería': ['herrero', 'rejas', 'portones', 'metal', 'hierro forjado', 'estructuras metálicas', 'barandas', 'escaleras', 'soldadura', 'fabricación metal'],
+  'enchapes': ['baldosas', 'cerámica', 'porcelanato', 'azulejos', 'revestimiento', 'piso', 'pared', 'baño', 'cocina', 'instalación baldosas'],
+  'tanque': ['tanque de agua', 'cisterna', 'aljibe', 'reservorio', 'limpieza tanque', 'desinfección tanque', 'agua potable'],
+  'riego': ['sistema de riego', 'aspersores', 'goteo', 'jardín', 'plantas', 'automatización riego', 'timer', 'válvulas'],
+  'piscinas': ['alberca', 'pileta', 'mantenimiento piscina', 'limpieza piscina', 'químicos', 'cloro', 'filtro', 'bomba'],
+  'puertas': ['puerta', 'ventana', 'ajuste', 'reparación', 'vidrio', 'chapa', 'bisagra', 'marco'],
+
+  // LIMPIEZA ESPECIALIZADA - Sinónimos expandidos
+  'post-construcción': ['post construcción', 'después obra', 'escombros', 'polvo', 'limpieza obra', 'remodelación', 'construcción'],
+  'desinfección': ['sanitización', 'desinfectar', 'higienizar', 'esterilizar', 'covid', 'virus', 'bacterias', 'fumigación', 'ozono'],
+  'tapizados': ['tapicería', 'sofá', 'muebles', 'colchón', 'limpieza profunda', 'sillas', 'alfombra', 'vapor', 'manchas'],
+  'organización': ['organizador', 'orden', 'marie kondo', 'declutter', 'ordenar', 'clasificar', 'closet', 'armario'],
+  'fachadas': ['fachada', 'edificio', 'casa', 'local', 'limpieza altura', 'presión', 'hidrolavadora'],
+  'cocinas industriales': ['cocina industrial', 'restaurante', 'cafetería', 'campana', 'grasa', 'horno', 'parrilla'],
+  'garajes': ['garaje', 'bodega', 'sótano', 'parqueadero', 'estacionamiento', 'limpieza profunda'],
+
+  // REPARACIONES Y MANTENIMIENTO - Sinónimos expandidos
+  'lavadora': ['lavadora', 'secadora', 'lavasecadora', 'centrifugado', 'reparación lavadora', 'mantenimiento lavadora', 'lg', 'samsung', 'whirlpool', 'mabe'],
+  'nevera': ['refrigerador', 'frigorífico', 'congelador', 'freezer', 'reparación nevera', 'no enfría', 'fuga gas', 'termostato'],
+  'estufa': ['cocina', 'hornilla', 'horno', 'gas', 'eléctrica', 'reparación estufa', 'quemador', 'encendido'],
+  'gas': ['gasodoméstico', 'instalación gas', 'fuga gas', 'certificado gas', 'tubería gas', 'regulador', 'válvula', 'gas natural', 'pipeta'],
+  'persianas': ['persiana', 'enrollable', 'vertical', 'horizontal', 'reparación persiana', 'motor', 'cadena', 'lamas'],
+  'bicicleta': ['bici', 'cicla', 'rodado', 'frenos', 'cambios', 'reparación bicicleta', 'mantenimiento bici', 'llanta', 'cadena', 'piñón'],
+  'tapicería muebles': ['tapizar', 'retapizar', 'sofá', 'silla', 'restauración', 'tela', 'cuero', 'espuma', 'resortes'],
+
+  // BELLEZA Y BIENESTAR - Sinónimos expandidos
+  'depilación': ['depilar', 'cera', 'láser', 'hilo', 'rasurar', 'depilación definitiva', 'ipl', 'luz pulsada', 'brasilera', 'axilas', 'piernas'],
+  'facial': ['limpieza facial', 'tratamiento facial', 'hidratación', 'anti-edad', 'peeling', 'mascarilla', 'piel', 'acné', 'manchas'],
+  'pestañas': ['extensiones', 'lifting', 'permanente', 'tinte', 'pestañas pelo a pelo', 'volumen', 'rizado', 'lash lift'],
+  'micropigmentación': ['microblading', 'cejas', 'labios', 'delineado permanente', 'tatuaje', 'pigmentación', 'pelo a pelo', 'ombré'],
+  'keratina': ['alisado', 'botox capilar', 'tratamiento capilar', 'liso', 'alisado brasilero', 'nanoplastia', 'progresivo'],
+  'spa': ['spa domicilio', 'masaje', 'relajación', 'jacuzzi', 'sauna', 'aromaterapia', 'piedras calientes', 'exfoliación'],
+  'asesoría imagen': ['personal shopper', 'estilismo', 'vestuario', 'colorimetría', 'armario', 'estilo personal', 'moda'],
+
+  // SALUD Y CUIDADO - Sinónimos expandidos
+  'psicología': ['psicólogo', 'terapia', 'consulta psicológica', 'salud mental', 'ansiedad', 'depresión', 'estrés', 'terapia online', 'psicoterapia'],
+  'adultos mayores': ['tercera edad', 'ancianos', 'cuidador', 'acompañamiento', 'enfermería geriátrica', 'abuelos', 'personas mayores'],
+  'inyecciones': ['inyección', 'vacuna', 'medicamento', 'enfermería', 'intramuscular', 'intravenosa', 'aplicación medicamentos'],
+  'respiratoria': ['terapia respiratoria', 'nebulización', 'pulmones', 'oxígeno', 'fisioterapia respiratoria', 'epoc', 'asma'],
+  'terapia ocupacional': ['rehabilitación', 'funcional', 'motricidad', 'actividades diarias', 'terapeuta ocupacional'],
+
+  // TECNOLOGÍA Y SEGURIDAD - Sinónimos expandidos
+  'cámaras': ['cctv', 'seguridad', 'vigilancia', 'alarma', 'dvr', 'nvr', 'ip', 'hikvision', 'dahua', 'video vigilancia', 'monitoreo'],
+  'tv': ['televisor', 'televisión', 'home theater', 'montaje', 'soporte', 'smart tv', 'samsung', 'lg', 'sony', 'instalación tv', 'pared'],
+  'consolas': ['playstation', 'xbox', 'nintendo', 'switch', 'videojuegos', 'ps4', 'ps5', 'reparación consola', 'joystick'],
+  'paneles solares': ['energía solar', 'fotovoltaica', 'renovable', 'inversor', 'solar', 'ahorro energía', 'batería', 'autoconsumo'],
+  'smart home': ['domótica', 'casa inteligente', 'alexa', 'google home', 'automatización', 'iot', 'control voz', 'luces inteligentes'],
+  'datos': ['recuperación', 'disco duro', 'backup', 'información perdida', 'recuperar archivos', 'ssd', 'usb', 'celular', 'formateo'],
+
+  // AUTOMOTRIZ - Sinónimos expandidos
+  'aceite': ['cambio aceite', 'filtro', 'lubricante', 'motor', 'aceite motor', 'sintético', 'mineral', 'mantenimiento carro'],
+  'polarizado': ['lámina', 'insulfilm', 'tintado', 'vidrios', 'polarizado auto', 'película', 'oscurecer vidrios', 'rayos uv'],
+  'mecánica domicilio': ['mecánico casa', 'reparación auto', 'carro', 'vehículo', 'diagnóstico', 'scanner', 'frenos', 'suspensión'],
+  'pintura automotriz': ['pintura carro', 'retoque', 'rayón', 'abolladura', 'latonería', 'pintura auto', 'cabina'],
+
+  // PROFESIONAL - Sinónimos expandidos
+  'asesoría contable': ['contador', 'contabilidad', 'declaración renta', 'impuestos', 'facturación', 'rut', 'dian', 'estados financieros', 'nómina'],
 }
 
 export function expandSearchTerms(searchTerm: string): string[] {
