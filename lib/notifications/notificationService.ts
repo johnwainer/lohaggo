@@ -14,7 +14,7 @@ const vapidValidation = validateVapidKeys(vapidKeys.publicKey, vapidKeys.private
 
 if (vapidValidation.valid) {
   webpush.setVapidDetails(
-    "mailto:admin@haggo.com",
+    "mailto:admin@lohaggo.com",
     vapidKeys.publicKey,
     vapidKeys.privateKey
   )

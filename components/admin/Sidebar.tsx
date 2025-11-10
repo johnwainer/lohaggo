@@ -57,7 +57,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
         isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       }`}>
         <div className="p-4 sm:p-6 border-b border-white/20">
-          <h1 className="text-xl sm:text-2xl font-black tracking-tight">Haggo Admin</h1>
+          <h1 className="text-xl sm:text-2xl font-black tracking-tight">LoHaggo Admin</h1>
           <p className="text-white/80 text-xs sm:text-sm mt-1 font-medium">Panel de Control</p>
         </div>
 

@@ -1,6 +1,6 @@
-# Haggo - Plataforma de Servicios
+# LoHaggo - Plataforma de Servicios
 
-Una plataforma moderna y segura para solicitar servicios (plomería, limpieza, electricidad, etc.) con paneles para clientes, socios y administradores.
+**Servicios a tu alcance** - Una plataforma moderna y segura para solicitar servicios (plomería, limpieza, electricidad, etc.) con paneles para clientes, socios y administradores.
 
 ## 🚀 Características Principales
 
@@ -101,7 +101,7 @@ Una plataforma moderna y segura para solicitar servicios (plomería, limpieza, e
 
 ```bash
 git clone <tu-repositorio>
-cd haggo
+cd lohaggo
 npm install
 ```
 
@@ -111,7 +111,7 @@ Crear un archivo `.env.local` en la raíz del proyecto:
 
 ```env
 # Base de datos
-DATABASE_URL="postgresql://usuario:contraseña@localhost:5432/haggo_db"
+DATABASE_URL="postgresql://usuario:contraseña@localhost:5432/lohaggo_db"
 
 # NextAuth
 NEXTAUTH_SECRET="tu-secreto-super-seguro-aqui"

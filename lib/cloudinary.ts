@@ -61,7 +61,7 @@ class CloudinaryService {
 
   public async upload(
     file: File,
-    folder: string = 'haggo',
+    folder: string = 'lohaggo',
     resourceType: 'image' | 'raw' = 'image'
   ): Promise<CloudinaryUploadResult> {
     if (!this.isEnabled() || !this.config) {

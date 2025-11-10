@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
         let url: string
 
         if (cloudinaryService.isEnabled()) {
-          const result = await cloudinaryService.upload(photo, 'haggo/service-requests')
+          const result = await cloudinaryService.upload(photo, 'lohaggo/service-requests')
           url = result.url
         } else {
           url = await uploadToLocal(photo)

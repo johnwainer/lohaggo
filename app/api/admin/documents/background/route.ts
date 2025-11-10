@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Socio no encontrado' }, { status: 404 })
     }
 
-    const { url, publicId } = await cloudinaryService.upload(file, 'haggo/documents/background')
+    const { url, publicId } = await cloudinaryService.upload(file, 'lohaggo/documents/background')
 
     const document = await prisma.verificationDocument.create({
       data: {
