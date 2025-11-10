@@ -22,7 +22,7 @@ export default function PartnerNotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'unread'>('all')
-  const { isSupported, isSubscribed, subscribeToPush } = usePushNotifications()
+  const { isSupported, isSubscribed, subscribeToPush, permission, isLoading: pushLoading, error: pushError } = usePushNotifications()
   const [bookingsCount, setBookingsCount] = useState(0)
   const [myRequestsCount, setMyRequestsCount] = useState(0)
 
@@ -104,12 +104,29 @@ export default function PartnerNotificationsPage() {
     }
   }
 
+  const handleNotificationClick = async (notification: Notification) => {
+    if (!notification.read) {
+      await markAsRead(notification.id)
+    }
+
+    let parsedData: any = {}
+    if (notification.data) {
+      try {
+        parsedData = JSON.parse(notification.data)
+      } catch (error) {
+        console.error('Error parsing notification data:', error)
+      }
+    }
+
+    if (parsedData.bookingId || parsedData.serviceRequestId || parsedData.proposalId) {
+      router.push('/partner')
+    }
+  }
+
   const handleEnablePushNotifications = async () => {
     const success = await subscribeToPush()
-    if (success) {
-      alert('¡Notificaciones push activadas!')
-    } else {
-      alert('No se pudieron activar las notificaciones push')
+    if (!success && pushError) {
+      console.error('Error enabling push notifications:', pushError)
     }
   }
 
@@ -196,17 +213,68 @@ export default function PartnerNotificationsPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-          {isSupported && !isSubscribed && (
-            <div className="p-6 bg-blue-50 border-b border-blue-200">
-              <p className="text-sm text-blue-800 mb-3">
-                Activa las notificaciones push para recibir alertas en tiempo real
-              </p>
-              <button
-                onClick={handleEnablePushNotifications}
-                className="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition font-medium"
-              >
-                Activar notificaciones push
-              </button>
+          {isSupported && !isSubscribed && permission !== 'denied' && (
+            <div className="p-4 sm:p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-200">
+              <div className="flex items-start gap-3">
+                <Bell className="text-blue-600 flex-shrink-0 mt-1" size={24} />
+                <div className="flex-1">
+                  <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-1">
+                    Activa las notificaciones push
+                  </h3>
+                  <p className="text-xs sm:text-sm text-gray-700 mb-3">
+                    Recibe alertas en tiempo real sobre nuevas solicitudes, propuestas aceptadas y cambios de estado
+                  </p>
+
+                  {pushError && (
+                    <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-800">
+                      {typeof pushError === 'string' ? pushError : 'Error al activar las notificaciones.'}
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={handleEnablePushNotifications}
+                      disabled={pushLoading}
+                      className="text-xs sm:text-sm bg-blue-600 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-blue-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {pushLoading ? 'Activando...' : 'Activar notificaciones push'}
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        // Offer a quick way to show more info or fallback
+                        alert('Las notificaciones push permiten recibir alertas aunque no estés en la pestaña. Si tienes dudas, revisa la configuración del navegador.');
+                      }}
+                      className="text-xs sm:text-sm bg-white border border-gray-200 text-gray-800 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-gray-50 transition font-medium"
+                    >
+                      Más info
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {permission === 'denied' && (
+            <div className="p-4 sm:p-6 bg-yellow-50 border-b border-yellow-200">
+              <div className="flex items-start gap-3">
+                <Bell className="text-yellow-600 flex-shrink-0 mt-1" size={24} />
+                <div className="flex-1">
+                  <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-1">
+                    Notificaciones bloqueadas
+                  </h3>
+                  <p className="text-xs sm:text-sm text-gray-700 mb-3">
+                    Has bloqueado las notificaciones. Para activarlas, ve a la configuración de tu navegador y permite las notificaciones para este sitio.
+                  </p>
+                  <div className="text-xs text-gray-600">
+                    <p className="mb-2">Si necesitas ayuda:</p>
+                    <ul className="list-disc ml-4">
+                      <li>Chrome: Configuración → Privacidad y seguridad → Configuración del sitio → Notificaciones</li>
+                      <li>Firefox: Preferencias → Privacidad y seguridad → Permisos → Notificaciones</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
@@ -252,7 +320,8 @@ export default function PartnerNotificationsPage() {
               notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`p-6 hover:bg-gray-50 transition ${
+                  onClick={() => handleNotificationClick(notification)}
+                  className={`p-6 hover:bg-gray-50 transition cursor-pointer ${
                     !notification.read ? 'bg-blue-50 border-l-4 border-primary-600' : ''
                   }`}
                 >
@@ -281,7 +350,10 @@ export default function PartnerNotificationsPage() {
 
                     {!notification.read && (
                       <button
-                        onClick={() => markAsRead(notification.id)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          markAsRead(notification.id)
+                        }}
                         className="flex items-center gap-2 px-3 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium"
                       >
                         <Check size={16} />
