@@ -22,7 +22,7 @@ export function Footer() {
                 <span className="text-2xl font-black text-white">
                   LoHaggo
                 </span>
-                <div className="text-xs text-gray-400 font-semibold -mt-1">Tu servicio, tu forma</div>
+                <div className="text-xs text-gray-400 font-semibold -mt-1">Servicios a tu alcance</div>
               </div>
             </Link>
             <p className="text-gray-400 leading-relaxed font-medium">

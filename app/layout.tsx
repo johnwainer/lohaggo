@@ -8,7 +8,7 @@ import { Footer } from '@/components/Footer'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'LoHaggo - Tu servicio, tu forma',
+  title: 'LoHaggo - Servicios a tu alcance',
   description: 'La plataforma más confiable para contratar servicios profesionales. Rápido, seguro y fácil de usar.',
   icons: {
     icon: [

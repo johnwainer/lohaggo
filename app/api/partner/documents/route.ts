@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Use centralized cloudinary service
-    const { url, publicId } = await cloudinaryService.upload(file, 'haggo/documents')
+    const { url, publicId } = await cloudinaryService.upload(file, 'lohaggo/documents')
 
     const document = await prisma.verificationDocument.create({
       data: {
