@@ -94,6 +94,27 @@ export default function NotificationsPage() {
     }
   }
 
+  const handleNotificationClick = async (notification: Notification) => {
+    if (!notification.read) {
+      await markAsRead(notification.id)
+    }
+
+    let parsedData: any = {}
+    if (notification.data) {
+      try {
+        parsedData = JSON.parse(notification.data)
+      } catch (error) {
+        console.error('Error parsing notification data:', error)
+      }
+    }
+
+    const isPartner = session?.user?.role === 'PARTNER'
+
+    if (parsedData.bookingId || parsedData.serviceRequestId || parsedData.proposalId) {
+      router.push(isPartner ? '/partner' : '/dashboard')
+    }
+  }
+
   const markAllAsRead = async () => {
     try {
       await fetch('/api/notifications', {
@@ -257,9 +278,10 @@ export default function NotificationsPage() {
               notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`p-4 sm:p-6 hover:bg-gray-50 transition ${
+                  className={`p-4 sm:p-6 hover:bg-gray-50 transition cursor-pointer ${
                     !notification.read ? 'bg-blue-50 border-l-4 border-primary-600' : ''
                   }`}
+                  onClick={() => handleNotificationClick(notification)}
                 >
                   <div className="flex items-start gap-3 sm:gap-4">
                     <div className="flex-1 min-w-0">
@@ -286,7 +308,10 @@ export default function NotificationsPage() {
 
                     {!notification.read && (
                       <button
-                        onClick={() => markAsRead(notification.id)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          markAsRead(notification.id)
+                        }}
                         className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium flex-shrink-0"
                       >
                         <Check size={14} className="sm:w-4 sm:h-4" />
