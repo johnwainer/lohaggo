@@ -58,12 +58,6 @@ export default function PartnerHeader({
       badgeColor: 'bg-orange-500',
       onClick: () => onTabChange?.('my-requests'),
     },
-    {
-      id: 'all-requests',
-      label: 'Todas',
-      icon: <Activity size={20} className="sm:w-[22px] sm:h-[22px]" />,
-      onClick: () => onTabChange?.('all-requests'),
-    },
   ]
 
   const handleNavClick = (item: NavItem) => {

@@ -101,7 +101,7 @@ function PartnerDashboardContent() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string>('')
   const [searchTerm, setSearchTerm] = useState('')
-  const [activeTab, setActiveTab] = useState<'overview' | 'bookings' | 'my-requests' | 'all-requests'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'bookings' | 'my-requests'>('overview')
   const [showProposalModal, setShowProposalModal] = useState(false)
   const [selectedRequest, setSelectedRequest] = useState<ServiceRequest | null>(null)
   const [proposalPrice, setProposalPrice] = useState('')
@@ -198,18 +198,6 @@ function PartnerDashboardContent() {
     }
   }
 
-  const fetchAllServiceRequests = async () => {
-    try {
-      const res = await fetch('/api/service-requests')
-      if (res.ok) {
-        const data = await res.json()
-        setAllServiceRequests(Array.isArray(data) ? data : [])
-      }
-    } catch (error) {
-      console.error('Error fetching all service requests:', error)
-    }
-  }
-
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/login')
@@ -219,17 +207,14 @@ function PartnerDashboardContent() {
       } else {
         fetchBookings()
         fetchServiceRequests()
-        if (activeTab === 'all-requests') {
-          fetchAllServiceRequests()
-        }
       }
     }
   }, [status, filter, session, activeTab])
 
   useEffect(() => {
     const tab = searchParams.get('tab')
-    if (tab && ['overview', 'bookings', 'my-requests', 'all-requests'].includes(tab)) {
-      setActiveTab(tab as 'overview' | 'bookings' | 'my-requests' | 'all-requests')
+    if (tab && ['overview', 'bookings', 'my-requests'].includes(tab)) {
+      setActiveTab(tab as 'overview' | 'bookings' | 'my-requests')
     }
   }, [searchParams])
 
@@ -446,11 +431,6 @@ function PartnerDashboardContent() {
     request.address.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  const filteredAllRequests = allServiceRequests.filter(request =>
-    request.service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    request.address.toLowerCase().includes(searchTerm.toLowerCase())
-  )
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <Modal
@@ -546,14 +526,12 @@ function PartnerDashboardContent() {
           title={
             activeTab === 'overview' ? 'Resumen General' :
             activeTab === 'bookings' ? 'Mis Reservas' :
-            activeTab === 'my-requests' ? 'Solicitudes para Mí' :
-            'Todas las Solicitudes'
+            'Solicitudes para Mí'
           }
           subtitle={
             activeTab === 'overview' ? 'Vista general de tu actividad' :
             activeTab === 'bookings' ? 'Gestiona tus reservas confirmadas' :
-            activeTab === 'my-requests' ? 'Solicitudes que coinciden con tus servicios' :
-            'Explora nuevas oportunidades'
+            'Solicitudes que coinciden con tus servicios'
           }
           activeTab={activeTab}
           bookingsCount={bookings.length}
@@ -1034,68 +1012,7 @@ function PartnerDashboardContent() {
             </div>
           )}
 
-          {/* All Requests Tab */}
-          {activeTab === 'all-requests' && (
-            <div className={DESIGN_SYSTEM.spacing.gap}>
-              <div className={`${DESIGN_SYSTEM.components.card.base} ${DESIGN_SYSTEM.spacing.card}`}>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                  <input
-                    type="text"
-                    placeholder="Buscar todas las solicitudes..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className={`${DESIGN_SYSTEM.components.input.base} pl-10`}
-                  />
-                </div>
-              </div>
 
-              {filteredAllRequests.length === 0 ? (
-                <EmptyState
-                  icon={AlertCircle}
-                  title="No hay solicitudes disponibles"
-                  description="Las solicitudes de servicio aparecerán aquí"
-                />
-              ) : (
-                <div className={`${DESIGN_SYSTEM.responsive.gridCols2} ${DESIGN_SYSTEM.spacing.gap}`}>
-                  {filteredAllRequests.map((request) => (
-                    <div key={request.id} className={`${DESIGN_SYSTEM.components.card.base} ${DESIGN_SYSTEM.components.card.hover} overflow-hidden`}>
-                      <div className={DESIGN_SYSTEM.spacing.card}>
-                        <div className="flex items-start gap-4 mb-4">
-                          <div className="text-4xl">{request.service.icon}</div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className={`${DESIGN_SYSTEM.typography.h3} mb-1 truncate`}>{request.service.name}</h3>
-                            <p className={DESIGN_SYSTEM.typography.bodySmall}>{request.service.category.name}</p>
-                          </div>
-                        </div>
-
-                        <div className={`${DESIGN_SYSTEM.spacing.gapSmall} mb-4`}>
-                          <div className="flex items-center gap-2">
-                            <MapPin size={16} className="text-primary-600 flex-shrink-0" />
-                            <span className={`${DESIGN_SYSTEM.typography.bodySmall} truncate`}>{request.city}</span>
-                          </div>
-                        </div>
-
-                        {request.notes && (
-                          <div className={`${DESIGN_SYSTEM.components.card.base} bg-gray-50 ${DESIGN_SYSTEM.spacing.cardSmall} mb-4`}>
-                            <p className={`${DESIGN_SYSTEM.typography.bodySmall} line-clamp-2`}>{request.notes}</p>
-                          </div>
-                        )}
-
-                        <button
-                          onClick={() => openProposalModal(request)}
-                          className={`${DESIGN_SYSTEM.components.button.primary} w-full flex items-center justify-center gap-2`}
-                        >
-                          <Eye size={18} />
-                          Ver Detalles
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
         </main>
       </div>
 
