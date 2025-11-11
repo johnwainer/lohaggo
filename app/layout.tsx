@@ -10,14 +10,14 @@ import PWAInstallPrompt from '@/components/PWAInstallPrompt'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Haggo - Servicios Profesionales a tu Alcance',
+  title: 'LoHaggo - Servicios Profesionales a tu Alcance',
   description: 'Plataforma integral de servicios profesionales. Encuentra y contrata expertos en tu área de manera rápida, segura y confiable.',
   manifest: '/manifest.json',
-  applicationName: 'Haggo',
-  keywords: ['servicios', 'profesionales', 'contratación', 'expertos', 'haggo', 'reservas'],
-  authors: [{ name: 'Haggo' }],
-  creator: 'Haggo',
-  publisher: 'Haggo',
+  applicationName: 'LoHaggo',
+  keywords: ['servicios', 'profesionales', 'contratación', 'expertos', 'lohaggo', 'reservas'],
+  authors: [{ name: 'LoHaggo' }],
+  creator: 'LoHaggo',
+  publisher: 'LoHaggo',
   icons: {
     icon: [
       { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Haggo',
+    title: 'LoHaggo',
     startupImage: [
       {
         url: '/apple-icon.png',
@@ -48,8 +48,8 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: 'website',
-    siteName: 'Haggo',
-    title: 'Haggo - Servicios Profesionales a tu Alcance',
+    siteName: 'LoHaggo',
+    title: 'LoHaggo - Servicios Profesionales a tu Alcance',
     description: 'Plataforma integral de servicios profesionales. Encuentra y contrata expertos en tu área.',
     locale: 'es_MX',
     images: [
@@ -57,13 +57,13 @@ export const metadata: Metadata = {
         url: '/icon-512.png',
         width: 512,
         height: 512,
-        alt: 'Haggo Logo',
+        alt: 'LoHaggo Logo',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Haggo - Servicios Profesionales',
+    title: 'LoHaggo - Servicios Profesionales',
     description: 'Plataforma integral de servicios profesionales',
     images: ['/icon-512.png'],
   },
@@ -109,8 +109,8 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="Haggo" />
-        <meta name="application-name" content="Haggo" />
+        <meta name="apple-mobile-web-app-title" content="LoHaggo" />
+        <meta name="application-name" content="LoHaggo" />
         <meta name="msapplication-TileColor" content="#FF6900" />
         <meta name="msapplication-config" content="/browserconfig.xml" />
         <meta name="format-detection" content="telephone=yes" />

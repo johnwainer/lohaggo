@@ -101,10 +101,10 @@ export default function PWAInstallPrompt() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center">
-                  <img src="/icon.svg" alt="Haggo" className="w-8 h-8" />
+                  <img src="/icon.svg" alt="LoHaggo" className="w-8 h-8" />
                 </div>
                 <div>
-                  <h3 className="text-white font-bold text-lg">Instalar Haggo</h3>
+                  <h3 className="text-white font-bold text-lg">Instalar LoHaggo</h3>
                   <p className="text-white/90 text-sm">Acceso rápido desde tu inicio</p>
                 </div>
               </div>
