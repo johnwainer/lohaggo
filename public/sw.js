@@ -1,6 +1,6 @@
-const CACHE_NAME = 'haggo-v1';
-const RUNTIME_CACHE = 'haggo-runtime-v1';
-const IMAGE_CACHE = 'haggo-images-v1';
+const CACHE_NAME = 'lohaggo-v1';
+const RUNTIME_CACHE = 'lohaggo-runtime-v1';
+const IMAGE_CACHE = 'lohaggo-images-v1';
 
 const PRECACHE_URLS = [
   '/',
@@ -128,7 +128,7 @@ self.addEventListener('message', (event) => {
 
 self.addEventListener('push', (event) => {
   let notificationData = {
-    title: 'Haggo',
+    title: 'LoHaggo',
     body: 'Nueva notificación',
     icon: '/icon-192.png',
     badge: '/icon-192.png',
@@ -139,7 +139,7 @@ self.addEventListener('push', (event) => {
     try {
       const payload = event.data.json();
       notificationData = {
-        title: payload.title || 'Haggo',
+        title: payload.title || 'LoHaggo',
         body: payload.body || 'Nueva notificación',
         icon: payload.icon || '/icon-192.png',
         badge: payload.badge || '/icon-192.png',
@@ -155,7 +155,7 @@ self.addEventListener('push', (event) => {
     icon: notificationData.icon,
     badge: notificationData.badge,
     vibrate: [200, 100, 200],
-    tag: notificationData.data.notificationId || 'haggo-notification',
+    tag: notificationData.data.notificationId || 'lohaggo-notification',
     requireInteraction: true,
     data: notificationData.data,
     actions: [

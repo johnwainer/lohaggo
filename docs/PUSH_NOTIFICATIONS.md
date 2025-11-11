@@ -28,13 +28,13 @@
 ### Para que las notificaciones lleguen como notificaciones nativas del celular:
 
 1. **Instalar la PWA**:
-   - Abrir la app en el navegador móvil (Chrome, Safari, Edge)
+   - Abrir LoHaggo en el navegador móvil (Chrome, Safari, Edge)
    - Tocar el menú del navegador
    - Seleccionar "Agregar a pantalla de inicio" o "Instalar app"
    - La app se instalará como una aplicación nativa
 
 2. **Activar Notificaciones**:
-   - Abrir la PWA instalada
+   - Abrir la PWA de LoHaggo instalada
    - Ir a la configuración de notificaciones en la app
    - Tocar "Activar notificaciones push"
    - Aceptar los permisos cuando el navegador lo solicite
