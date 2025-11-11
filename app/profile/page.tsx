@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { User, Mail, Camera, Save, AlertCircle, CheckCircle, Home, Package, MessageSquare, Activity, Star, MapPin, Shield, Briefcase, ChevronRight } from 'lucide-react'
+import { User, Mail, Camera, Save, AlertCircle, CheckCircle, Home, Package, MessageSquare, Activity, Star, MapPin, Shield, Briefcase, ChevronRight, CreditCard, GraduationCap } from 'lucide-react'
 
 export default function ProfilePage() {
   const { data: session, status, update } = useSession()
@@ -436,18 +436,113 @@ export default function ProfilePage() {
                   className="w-full bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 text-left group"
                 >
                   <div className="flex items-start justify-between mb-4">
-                    <div className={`p-3 rounded-xl ${partnerData?.verified ? 'bg-gradient-to-br from-green-500 to-green-600' : 'bg-gradient-to-br from-gray-400 to-gray-500'}`}>
+                    <div className={`p-3 rounded-xl ${
+                      partnerData?.documents?.some((d: any) =>
+                        ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP'].includes(d.type) &&
+                        d.status === 'APPROVED'
+                      ) &&
+                      partnerData?.documents?.some((d: any) =>
+                        ['DIPLOMA_BACHILLERATO', 'DIPLOMA_TECNICO', 'DIPLOMA_TECNOLOGO', 'DIPLOMA_PROFESIONAL', 'DIPLOMA_POSGRADO', 'CERTIFICADO_CURSO'].includes(d.type) &&
+                        d.status === 'APPROVED'
+                      ) &&
+                      partnerData?.documents?.some((d: any) => d.type === 'ANTECEDENTES' && d.status === 'APPROVED')
+                        ? 'bg-gradient-to-br from-green-500 to-green-600'
+                        : 'bg-gradient-to-br from-gray-400 to-gray-500'
+                    }`}>
                       <Shield className="text-white" size={24} />
                     </div>
                     <ChevronRight className="text-gray-400 group-hover:text-[#FF6900] transition-colors" size={20} />
                   </div>
-                  <h3 className="text-lg font-bold text-gray-900 mb-2">Verificación</h3>
-                  <p className={`text-2xl font-bold mb-2 ${partnerData?.verified ? 'text-green-600' : 'text-gray-600'}`}>
-                    {partnerData?.verified ? 'Verificado' : 'Pendiente'}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    {partnerData?.verified ? 'Perfil verificado' : 'Completa tu verificación'}
-                  </p>
+                  <h3 className="text-lg font-bold text-gray-900 mb-3">Estado de Verificación</h3>
+
+                  <div className="space-y-2 mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${
+                        partnerData?.documents?.some((d: any) =>
+                          ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP'].includes(d.type) &&
+                          d.status === 'APPROVED'
+                        ) ? 'bg-green-500' : 'bg-gray-300'
+                      }`} />
+                      <CreditCard size={16} className={
+                        partnerData?.documents?.some((d: any) =>
+                          ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP'].includes(d.type) &&
+                          d.status === 'APPROVED'
+                        ) ? 'text-green-600' : 'text-gray-400'
+                      } />
+                      <span className={`text-sm ${
+                        partnerData?.documents?.some((d: any) =>
+                          ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP'].includes(d.type) &&
+                          d.status === 'APPROVED'
+                        ) ? 'text-green-600 font-medium' : 'text-gray-500'
+                      }`}>
+                        Documento de Identidad
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${
+                        partnerData?.documents?.some((d: any) =>
+                          ['DIPLOMA_BACHILLERATO', 'DIPLOMA_TECNICO', 'DIPLOMA_TECNOLOGO', 'DIPLOMA_PROFESIONAL', 'DIPLOMA_POSGRADO', 'CERTIFICADO_CURSO'].includes(d.type) &&
+                          d.status === 'APPROVED'
+                        ) ? 'bg-purple-500' : 'bg-gray-300'
+                      }`} />
+                      <GraduationCap size={16} className={
+                        partnerData?.documents?.some((d: any) =>
+                          ['DIPLOMA_BACHILLERATO', 'DIPLOMA_TECNICO', 'DIPLOMA_TECNOLOGO', 'DIPLOMA_PROFESIONAL', 'DIPLOMA_POSGRADO', 'CERTIFICADO_CURSO'].includes(d.type) &&
+                          d.status === 'APPROVED'
+                        ) ? 'text-purple-600' : 'text-gray-400'
+                      } />
+                      <span className={`text-sm ${
+                        partnerData?.documents?.some((d: any) =>
+                          ['DIPLOMA_BACHILLERATO', 'DIPLOMA_TECNICO', 'DIPLOMA_TECNOLOGO', 'DIPLOMA_PROFESIONAL', 'DIPLOMA_POSGRADO', 'CERTIFICADO_CURSO'].includes(d.type) &&
+                          d.status === 'APPROVED'
+                        ) ? 'text-purple-600 font-medium' : 'text-gray-500'
+                      }`}>
+                        Estudios
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${
+                        partnerData?.documents?.some((d: any) => d.type === 'ANTECEDENTES' && d.status === 'APPROVED')
+                          ? 'bg-emerald-500' : 'bg-gray-300'
+                      }`} />
+                      <Shield size={16} className={
+                        partnerData?.documents?.some((d: any) => d.type === 'ANTECEDENTES' && d.status === 'APPROVED')
+                          ? 'text-emerald-600' : 'text-gray-400'
+                      } />
+                      <span className={`text-sm ${
+                        partnerData?.documents?.some((d: any) => d.type === 'ANTECEDENTES' && d.status === 'APPROVED')
+                          ? 'text-emerald-600 font-medium' : 'text-gray-500'
+                      }`}>
+                        Antecedentes
+                      </span>
+                    </div>
+                  </div>
+
+                  {partnerData?.documents?.some((d: any) =>
+                    ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP'].includes(d.type) &&
+                    d.status === 'APPROVED'
+                  ) &&
+                  partnerData?.documents?.some((d: any) =>
+                    ['DIPLOMA_BACHILLERATO', 'DIPLOMA_TECNICO', 'DIPLOMA_TECNOLOGO', 'DIPLOMA_PROFESIONAL', 'DIPLOMA_POSGRADO', 'CERTIFICADO_CURSO'].includes(d.type) &&
+                    d.status === 'APPROVED'
+                  ) &&
+                  partnerData?.documents?.some((d: any) => d.type === 'ANTECEDENTES' && d.status === 'APPROVED') ? (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                      <p className="text-sm font-semibold text-green-700 flex items-center gap-2">
+                        <CheckCircle size={16} />
+                        Full Verificado
+                      </p>
+                      <p className="text-xs text-green-600 mt-1">
+                        Te destacarás en las propuestas
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-600">
+                      Haz clic para completar tu verificación
+                    </p>
+                  )}
                 </button>
               </>
             ) : (
