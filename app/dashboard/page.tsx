@@ -1270,7 +1270,7 @@ export default function DashboardPage() {
                                         {isFullyVerified && (
                                           <span className="bg-green-100 text-green-700 text-xs font-semibold px-2.5 py-1 rounded-full border border-green-300 flex items-center gap-1">
                                             <ShieldCheck size={12} />
-                                            Full Verification
+                                            Verificación Completa
                                           </span>
                                         )}
                                         {proposal.status === 'ACCEPTED' && (
