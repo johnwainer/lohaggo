@@ -1,162 +1,188 @@
-const CACHE_NAME = 'lohaggo-v1'
-const urlsToCache = [
+const CACHE_NAME = 'haggo-v1';
+const RUNTIME_CACHE = 'haggo-runtime-v1';
+const IMAGE_CACHE = 'haggo-images-v1';
+
+const PRECACHE_URLS = [
   '/',
+  '/servicios',
   '/dashboard',
-  '/notifications',
-  '/partner',
-  '/partner/notifications'
-]
+  '/contacto',
+  '/manifest.json',
+  '/icon.svg',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/offline.html'
+];
+
+const CACHE_STRATEGIES = {
+  images: IMAGE_CACHE,
+  api: RUNTIME_CACHE,
+  static: CACHE_NAME
+};
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(urlsToCache))
+      .then((cache) => cache.addAll(PRECACHE_URLS))
       .then(() => self.skipWaiting())
-  )
-})
+  );
+});
 
 self.addEventListener('activate', (event) => {
+  const currentCaches = [CACHE_NAME, RUNTIME_CACHE, IMAGE_CACHE];
   event.waitUntil(
     caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            return caches.delete(cacheName)
-          }
-        })
-      )
+      return cacheNames.filter((cacheName) => !currentCaches.includes(cacheName));
+    }).then((cachesToDelete) => {
+      return Promise.all(cachesToDelete.map((cacheToDelete) => {
+        return caches.delete(cacheToDelete);
+      }));
     }).then(() => self.clients.claim())
-  )
-})
+  );
+});
 
 self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') return
+  const { request } = event;
+  const url = new URL(request.url);
 
-  event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        if (response && response.status === 200) {
-          const responseToCache = response.clone()
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache)
-          })
-        }
-        return response
-      })
-      .catch(() => {
-        return caches.match(event.request)
-      })
-  )
-})
+  if (request.method !== 'GET') {
+    return;
+  }
+
+  if (url.pathname.startsWith('/api/')) {
+    event.respondWith(networkFirst(request, RUNTIME_CACHE));
+    return;
+  }
+
+  if (request.destination === 'image') {
+    event.respondWith(cacheFirst(request, IMAGE_CACHE));
+    return;
+  }
+
+  if (url.origin === location.origin) {
+    event.respondWith(staleWhileRevalidate(request, CACHE_NAME));
+    return;
+  }
+
+  event.respondWith(fetch(request));
+});
+
+async function cacheFirst(request, cacheName) {
+  const cache = await caches.open(cacheName);
+  const cached = await cache.match(request);
+
+  if (cached) {
+    return cached;
+  }
+
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch (error) {
+    const offlinePage = await cache.match('/offline.html');
+    return offlinePage || new Response('Offline', { status: 503 });
+  }
+}
+
+async function networkFirst(request, cacheName) {
+  const cache = await caches.open(cacheName);
+
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch (error) {
+    const cached = await cache.match(request);
+    if (cached) {
+      return cached;
+    }
+    const offlinePage = await cache.match('/offline.html');
+    return offlinePage || new Response('Offline', { status: 503 });
+  }
+}
+
+async function staleWhileRevalidate(request, cacheName) {
+  const cache = await caches.open(cacheName);
+  const cached = await cache.match(request);
+
+  const fetchPromise = fetch(request).then((response) => {
+    if (response.ok) {
+      cache.put(request, response.clone());
+    }
+    return response;
+  });
+
+  return cached || fetchPromise;
+}
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
 
 self.addEventListener('push', (event) => {
-  if (!event.data) {
-    console.log('Push event but no data')
-    return
-  }
-
-  let data
-  try {
-    data = event.data.json()
-  } catch (error) {
-    console.error('Error parsing push data:', error)
-    data = {
-      title: 'Nueva notificación',
-      body: event.data.text()
-    }
-  }
-
-  const title = data.title || 'LoHaggo'
   const options = {
-    body: data.body || 'Tienes una nueva notificación',
+    body: event.data ? event.data.text() : 'Nueva notificación de Haggo',
     icon: '/icon-192.png',
     badge: '/icon-192.png',
     vibrate: [200, 100, 200],
-    tag: data.tag || 'notification',
+    tag: 'haggo-notification',
     requireInteraction: false,
     data: {
-      url: data.data?.url || '/notifications',
-      notificationId: data.data?.notificationId,
-      bookingId: data.data?.bookingId,
-      serviceRequestId: data.data?.serviceRequestId,
-      proposalId: data.data?.proposalId,
-      type: data.data?.type
+      dateOfArrival: Date.now(),
+      primaryKey: 1
     },
     actions: [
       {
-        action: 'open',
-        title: 'Ver',
+        action: 'explore',
+        title: 'Ver más',
         icon: '/icon-192.png'
       },
       {
         action: 'close',
-        title: 'Cerrar'
+        title: 'Cerrar',
+        icon: '/icon-192.png'
       }
     ]
-  }
+  };
 
   event.waitUntil(
-    self.registration.showNotification(title, options)
-  )
-})
+    self.registration.showNotification('Haggo', options)
+  );
+});
 
 self.addEventListener('notificationclick', (event) => {
-  event.notification.close()
+  event.notification.close();
 
-  if (event.action === 'close') {
-    return
-  }
-
-  const data = event.notification.data || {}
-  let targetUrl = '/notifications'
-
-  if (data.bookingId || data.serviceRequestId || data.proposalId) {
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true })
-      .then((clientList) => {
-        for (let client of clientList) {
-          if (client.url.includes('/dashboard') || client.url.includes('/partner')) {
-            return client.focus()
-          }
-        }
-        return self.clients.openWindow(data.url || targetUrl)
-      })
-  } else {
+  if (event.action === 'explore') {
     event.waitUntil(
-      self.clients.matchAll({ type: 'window', includeUncontrolled: true })
-        .then((clientList) => {
-          for (let client of clientList) {
-            if (client.url === self.registration.scope && 'focus' in client) {
-              return client.focus()
-            }
-          }
-          if (self.clients.openWindow) {
-            return self.clients.openWindow(data.url || targetUrl)
-          }
-        })
-    )
+      clients.openWindow('/')
+    );
   }
-})
+});
 
-self.addEventListener('pushsubscriptionchange', (event) => {
-  event.waitUntil(
-    self.registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: self.registration.pushManager.applicationServerKey
-    })
-    .then((subscription) => {
-      return fetch('/api/notifications/subscribe', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ subscription })
-      })
-    })
-  )
-})
-
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting()
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'sync-bookings') {
+    event.waitUntil(syncBookings());
   }
-})
+});
+
+async function syncBookings() {
+  try {
+    const response = await fetch('/api/bookings/sync', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.ok;
+  } catch (error) {
+    return false;
+  }
+}
