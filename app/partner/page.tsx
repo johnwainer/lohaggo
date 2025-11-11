@@ -827,14 +827,14 @@ function PartnerDashboardContent() {
                               <>
                                 <button
                                   onClick={() => updateBookingStatus(booking.id, 'CONFIRMED', booking.service.name)}
-                                  className="flex-1 bg-blue-600 text-white px-4 py-3 rounded-xl hover:bg-blue-700 transition font-medium flex items-center justify-center gap-2"
+                                  className="flex-1 bg-white text-blue-600 border-2 border-blue-600 px-4 py-3 rounded-xl hover:bg-blue-50 transition font-medium flex items-center justify-center gap-2"
                                 >
                                   <CheckCircle size={18} />
                                   Confirmar
                                 </button>
                                 <button
                                   onClick={() => updateBookingStatus(booking.id, 'CANCELLED', booking.service.name)}
-                                  className="flex-1 bg-red-600 text-white px-4 py-3 rounded-xl hover:bg-red-700 transition font-medium flex items-center justify-center gap-2"
+                                  className="flex-1 bg-white text-red-600 border-2 border-red-600 px-4 py-3 rounded-xl hover:bg-red-50 transition font-medium flex items-center justify-center gap-2"
                                 >
                                   <XCircle size={18} />
                                   Rechazar
@@ -844,7 +844,7 @@ function PartnerDashboardContent() {
                             {booking.status === 'CONFIRMED' && (
                               <button
                                 onClick={() => updateBookingStatus(booking.id, 'IN_PROGRESS', booking.service.name)}
-                                className="w-full bg-purple-600 text-white px-4 py-3 rounded-xl hover:bg-purple-700 transition font-medium"
+                                className="w-full bg-white text-purple-600 border-2 border-purple-600 px-4 py-3 rounded-xl hover:bg-purple-50 transition font-medium"
                               >
                                 Iniciar Servicio
                               </button>
@@ -852,7 +852,7 @@ function PartnerDashboardContent() {
                             {booking.status === 'IN_PROGRESS' && (
                               <button
                                 onClick={() => updateBookingStatus(booking.id, 'COMPLETED', booking.service.name)}
-                                className="w-full bg-green-600 text-white px-4 py-3 rounded-xl hover:bg-green-700 transition font-medium"
+                                className="w-full bg-white text-green-600 border-2 border-green-600 px-4 py-3 rounded-xl hover:bg-green-50 transition font-medium"
                               >
                                 Marcar Completado
                               </button>
