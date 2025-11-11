@@ -1028,7 +1028,7 @@ export default function DashboardPage() {
                               serviceName: booking.service.name,
                               partnerName: booking.partner?.user.name || 'el socio'
                             })}
-                            className="w-full bg-yellow-500 text-white px-4 py-3 rounded-xl hover:bg-yellow-600 transition font-medium flex items-center justify-center gap-2 mb-3"
+                            className="w-full bg-white text-yellow-500 border-2 border-yellow-500 px-4 py-3 rounded-xl hover:bg-yellow-50 transition font-medium flex items-center justify-center gap-2 mb-3"
                           >
                             <Star size={18} />
                             Calificar Servicio
@@ -1056,7 +1056,7 @@ export default function DashboardPage() {
                         {booking.status === 'COMPLETED' && !booking.payment && (
                           <button
                             onClick={() => openPaymentModal(booking.id, booking.service.name, booking.totalPrice)}
-                            className="w-full bg-green-600 text-white px-4 py-3 rounded-xl hover:bg-green-700 transition font-medium flex items-center justify-center gap-2 mb-3"
+                            className="w-full bg-white text-green-600 border-2 border-green-600 px-4 py-3 rounded-xl hover:bg-green-50 transition font-medium flex items-center justify-center gap-2 mb-3"
                           >
                             <DollarSign size={18} />
                             Pagar Servicio
@@ -1104,7 +1104,7 @@ export default function DashboardPage() {
                         {(booking.status === 'PENDING' || booking.status === 'CONFIRMED') && booking.payment?.status !== 'APPROVED' && (
                           <button
                             onClick={() => cancelBooking(booking.id, booking.service.name)}
-                            className="w-full bg-red-600 text-white px-4 py-3 rounded-xl hover:bg-red-700 transition font-medium flex items-center justify-center gap-2"
+                            className="w-full bg-white text-red-600 border-2 border-red-600 px-4 py-3 rounded-xl hover:bg-red-50 transition font-medium flex items-center justify-center gap-2"
                           >
                             <XCircle size={18} />
                             Cancelar Reserva
