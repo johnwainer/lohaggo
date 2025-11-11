@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sin conexión - Haggo</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #FF2D55 0%, #FF6900 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .container {
+      background: white;
+      border-radius: 24px;
+      padding: 48px 32px;
+      max-width: 480px;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+    
+    .icon {
+      width: 120px;
+      height: 120px;
+      margin: 0 auto 24px;
+      background: linear-gradient(135deg, #FF2D55 0%, #FF6900 100%);
+      border-radius: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    
+    .icon svg {
+      width: 64px;
+      height: 64px;
+      fill: white;
+    }
+    
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 12px;
+    }
+    
+    p {
+      font-size: 16px;
+      color: #666;
+      line-height: 1.6;
+      margin-bottom: 32px;
+    }
+    
+    .button {
+      display: inline-block;
+      background: linear-gradient(135deg, #FF2D55 0%, #FF6900 100%);
+      color: white;
+      padding: 16px 32px;
+      border-radius: 12px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 16px;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 12px rgba(255, 45, 85, 0.3);
+    }
+    
+    .button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(255, 45, 85, 0.4);
+    }
+    
+    .features {
+      margin-top: 32px;
+      padding-top: 32px;
+      border-top: 1px solid #eee;
+    }
+    
+    .feature {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      text-align: left;
+    }
+    
+    .feature-icon {
+      width: 8px;
+      height: 8px;
+      background: linear-gradient(135deg, #FF2D55 0%, #FF6900 100%);
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    
+    .feature-text {
+      font-size: 14px;
+      color: #666;
+    }
+    
+    @keyframes pulse {
+      0%, 100% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.05);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M1 1h15M1 7h15M1 13h15"></path>
+        <path d="M16 8l2-2 2 2"></path>
+        <path d="M18 6v8"></path>
+      </svg>
+    </div>
+    
+    <h1>Sin conexión a Internet</h1>
+    <p>Parece que no tienes conexión a internet en este momento. Algunas funciones pueden no estar disponibles.</p>
+    
+    <a href="/" class="button" onclick="window.location.reload(); return false;">
+      Reintentar
+    </a>
+    
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon"></div>
+        <div class="feature-text">Tus datos guardados están disponibles sin conexión</div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon"></div>
+        <div class="feature-text">La app se sincronizará cuando vuelvas a estar en línea</div>
+      </div>
+      <div class="feature">
+        <div class="feature-icon"></div>
+        <div class="feature-text">Puedes seguir navegando por el contenido cargado</div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    window.addEventListener('online', () => {
+      window.location.reload();
+    });
+    
+    if (navigator.onLine) {
+      window.location.reload();
+    }
+  </script>
+</body>
+</html>
