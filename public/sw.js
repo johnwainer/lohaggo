@@ -127,44 +127,93 @@ self.addEventListener('message', (event) => {
 });
 
 self.addEventListener('push', (event) => {
-  const options = {
-    body: event.data ? event.data.text() : 'Nueva notificación de Haggo',
+  let notificationData = {
+    title: 'Haggo',
+    body: 'Nueva notificación',
     icon: '/icon-192.png',
     badge: '/icon-192.png',
+    data: {}
+  };
+
+  if (event.data) {
+    try {
+      const payload = event.data.json();
+      notificationData = {
+        title: payload.title || 'Haggo',
+        body: payload.body || 'Nueva notificación',
+        icon: payload.icon || '/icon-192.png',
+        badge: payload.badge || '/icon-192.png',
+        data: payload.data || {}
+      };
+    } catch (e) {
+      notificationData.body = event.data.text();
+    }
+  }
+
+  const options = {
+    body: notificationData.body,
+    icon: notificationData.icon,
+    badge: notificationData.badge,
     vibrate: [200, 100, 200],
-    tag: 'haggo-notification',
-    requireInteraction: false,
-    data: {
-      dateOfArrival: Date.now(),
-      primaryKey: 1
-    },
+    tag: notificationData.data.notificationId || 'haggo-notification',
+    requireInteraction: true,
+    data: notificationData.data,
     actions: [
       {
-        action: 'explore',
-        title: 'Ver más',
+        action: 'open',
+        title: 'Abrir',
         icon: '/icon-192.png'
       },
       {
         action: 'close',
-        title: 'Cerrar',
-        icon: '/icon-192.png'
+        title: 'Cerrar'
       }
     ]
   };
 
   event.waitUntil(
-    self.registration.showNotification('Haggo', options)
+    self.registration.showNotification(notificationData.title, options)
   );
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
-  if (event.action === 'explore') {
-    event.waitUntil(
-      clients.openWindow('/')
-    );
+  const urlToOpen = new URL('/', self.location.origin).href;
+  const notificationData = event.notification.data;
+
+  let targetUrl = urlToOpen;
+
+  if (notificationData) {
+    if (notificationData.type === 'NEW_PROPOSAL' || notificationData.type === 'PROPOSAL_ACCEPTED') {
+      targetUrl = new URL('/dashboard', self.location.origin).href;
+    } else if (notificationData.type === 'NEW_SERVICE_REQUEST') {
+      targetUrl = new URL('/partner', self.location.origin).href;
+    } else if (notificationData.type === 'BOOKING_CONFIRMED' || notificationData.type === 'BOOKING_IN_PROGRESS' || notificationData.type === 'BOOKING_COMPLETED') {
+      targetUrl = new URL('/dashboard', self.location.origin).href;
+    } else if (notificationData.proposalId) {
+      targetUrl = new URL('/dashboard', self.location.origin).href;
+    }
   }
+
+  if (event.action === 'close') {
+    return;
+  }
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then((clientList) => {
+        for (let i = 0; i < clientList.length; i++) {
+          const client = clientList[i];
+          if (client.url === targetUrl && 'focus' in client) {
+            return client.focus();
+          }
+        }
+        if (clients.openWindow) {
+          return clients.openWindow(targetUrl);
+        }
+      })
+  );
 });
 
 self.addEventListener('sync', (event) => {
