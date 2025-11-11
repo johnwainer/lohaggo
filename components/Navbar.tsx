@@ -213,22 +213,26 @@ export function Navbar() {
                           {session.user.role}
                         </span>
                       </div>
-                      <Link
-                        href="/profile"
-                        className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold"
-                        onClick={() => setUserMenuOpen(false)}
-                      >
-                        <User size={16} />
-                        <span>Mi Perfil</span>
-                      </Link>
-                      <Link
-                        href="/my-ratings"
-                        className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold"
-                        onClick={() => setUserMenuOpen(false)}
-                      >
-                        <Star size={16} />
-                        <span>Mis Calificaciones</span>
-                      </Link>
+                      {session.user.role !== 'ADMIN' && (
+                        <>
+                          <Link
+                            href="/profile"
+                            className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold"
+                            onClick={() => setUserMenuOpen(false)}
+                          >
+                            <User size={16} />
+                            <span>Mi Perfil</span>
+                          </Link>
+                          <Link
+                            href="/my-ratings"
+                            className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold"
+                            onClick={() => setUserMenuOpen(false)}
+                          >
+                            <Star size={16} />
+                            <span>Mis Calificaciones</span>
+                          </Link>
+                        </>
+                      )}
                       {session.user.role === 'PARTNER' && (
                         <>
                           <Link
@@ -269,14 +273,16 @@ export function Navbar() {
                           </Link>
                         </>
                       )}
-                      <Link
-                        href={session.user.role === 'PARTNER' ? '/partner/notifications' : '/notifications'}
-                        className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold"
-                        onClick={() => setUserMenuOpen(false)}
-                      >
-                        <Bell size={16} />
-                        <span>Notificaciones</span>
-                      </Link>
+                      {session.user.role !== 'ADMIN' && (
+                        <Link
+                          href={session.user.role === 'PARTNER' ? '/partner/notifications' : '/notifications'}
+                          className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold"
+                          onClick={() => setUserMenuOpen(false)}
+                        >
+                          <Bell size={16} />
+                          <span>Notificaciones</span>
+                        </Link>
+                      )}
                       <button
                         onClick={() => signOut()}
                         className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors font-bold"
@@ -387,22 +393,26 @@ export function Navbar() {
                       </span>
                     </div>
                   </div>
-                  <Link
-                    href="/profile"
-                    className="flex items-center space-x-2 text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <User size={18} />
-                    <span>Mi Perfil</span>
-                  </Link>
-                  <Link
-                    href="/my-ratings"
-                    className="flex items-center space-x-2 text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <Star size={18} />
-                    <span>Mis Calificaciones</span>
-                  </Link>
+                  {session.user.role !== 'ADMIN' && (
+                    <>
+                      <Link
+                        href="/profile"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <User size={18} />
+                        <span>Mi Perfil</span>
+                      </Link>
+                      <Link
+                        href="/my-ratings"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <Star size={18} />
+                        <span>Mis Calificaciones</span>
+                      </Link>
+                    </>
+                  )}
                   {session.user.role === 'PARTNER' && (
                     <>
                       <Link
@@ -443,14 +453,16 @@ export function Navbar() {
                       </Link>
                     </>
                   )}
-                  <Link
-                    href={session.user.role === 'PARTNER' ? '/partner/notifications' : '/notifications'}
-                    className="flex items-center space-x-2 text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <Bell size={18} />
-                    <span>Notificaciones</span>
-                  </Link>
+                  {session.user.role !== 'ADMIN' && (
+                    <Link
+                      href={session.user.role === 'PARTNER' ? '/partner/notifications' : '/notifications'}
+                      className="flex items-center space-x-2 text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <Bell size={18} />
+                      <span>Notificaciones</span>
+                    </Link>
+                  )}
                   <button
                     onClick={() => signOut()}
                     className="w-full flex items-center space-x-2 text-red-600 hover:text-red-700 hover:bg-red-50 px-4 py-3 rounded-xl text-sm font-bold transition-all"
