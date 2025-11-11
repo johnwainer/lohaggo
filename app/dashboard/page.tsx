@@ -232,18 +232,19 @@ export default function DashboardPage() {
   }, [filter])
 
   useEffect(() => {
-    if (status === 'authenticated' && bookings.length > 0) {
+    if (status === 'authenticated' && (bookings.length > 0 || serviceRequests.length > 0)) {
       fetchUnreadCounts()
       const interval = setInterval(fetchUnreadCounts, 5000)
       return () => clearInterval(interval)
     }
-  }, [status, bookings])
+  }, [status, bookings, serviceRequests])
 
   const fetchUnreadCounts = async () => {
     try {
-      const bookingsWithProposals = bookings.filter(b => b.proposalId)
       const counts: Record<string, number> = {}
 
+      // Get unread counts for bookings
+      const bookingsWithProposals = bookings.filter(b => b.proposalId)
       await Promise.all(
         bookingsWithProposals.map(async (booking) => {
           try {
@@ -253,7 +254,23 @@ export default function DashboardPage() {
               counts[booking.proposalId!] = data.count || 0
             }
           } catch (error) {
-            console.error(`Error fetching unread count for ${booking.proposalId}:`, error)
+            console.error(`Error fetching unread count for booking ${booking.proposalId}:`, error)
+          }
+        })
+      )
+
+      // Get unread counts for proposals
+      const allProposals = serviceRequests.flatMap(request => request.proposals || [])
+      await Promise.all(
+        allProposals.map(async (proposal) => {
+          try {
+            const res = await fetch(`/api/chat/unread-count?proposalId=${proposal.id}`)
+            if (res.ok) {
+              const data = await res.json()
+              counts[proposal.id] = data.count || 0
+            }
+          } catch (error) {
+            console.error(`Error fetching unread count for proposal ${proposal.id}:`, error)
           }
         })
       )
