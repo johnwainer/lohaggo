@@ -1284,7 +1284,7 @@ export default function DashboardPage() {
                                         <div className="bg-white/80 border border-green-200 rounded-lg p-2.5 flex items-start gap-2">
                                           <ShieldCheck size={16} className="text-green-600 flex-shrink-0 mt-0.5" />
                                           <p className="text-xs text-gray-700">
-                                            <span className="font-semibold text-green-700">Fully verified partner:</span> Identity, education, and background verified by our team.
+                                            <span className="font-semibold text-green-700">Socio completamente verificado:</span> Identidad, educación y antecedentes verificados por nuestro equipo.
                                           </p>
                                         </div>
                                       )}
