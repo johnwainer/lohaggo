@@ -1228,89 +1228,126 @@ export default function DashboardPage() {
                               Propuestas Recibidas ({request.proposals.length})
                             </h4>
                             <div className="space-y-3">
-                              {request.proposals.map((proposal) => (
-                                <div key={proposal.id} className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-4">
-                                  <div className="flex flex-col gap-3">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <div className="flex items-center gap-2">
-                                        <User size={16} className="text-gray-600" />
-                                        <span className="font-semibold text-gray-900">{proposal.partner.user.name}</span>
-                                        {proposal.partner.verified && (
-                                          <div className="group relative">
-                                            <ShieldCheck size={16} className="text-green-600" />
-                                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                                              Socio verificado
-                                            </span>
-                                          </div>
+                              {request.proposals.map((proposal) => {
+                                const IDENTITY_TYPES = ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP']
+                                const EDUCATION_TYPES = ['DIPLOMA_BACHILLERATO', 'DIPLOMA_TECNICO', 'DIPLOMA_TECNOLOGO', 'DIPLOMA_PROFESIONAL', 'DIPLOMA_POSGRADO', 'CERTIFICADO_CURSO']
+
+                                const hasIdentity = proposal.partner.documents?.some((d: any) =>
+                                  IDENTITY_TYPES.includes(d.type) && d.status === 'APPROVED'
+                                )
+                                const hasEducation = proposal.partner.documents?.some((d: any) =>
+                                  EDUCATION_TYPES.includes(d.type) && d.status === 'APPROVED'
+                                )
+                                const hasBackground = proposal.partner.documents?.some((d: any) =>
+                                  d.type === 'ANTECEDENTES' && d.status === 'APPROVED'
+                                )
+                                const isFullyVerified = hasIdentity && hasEducation && hasBackground
+
+                                return (
+                                  <div
+                                    key={proposal.id}
+                                    className={`rounded-xl p-4 ${
+                                      isFullyVerified
+                                        ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200'
+                                        : 'bg-gradient-to-r from-gray-50 to-gray-100'
+                                    }`}
+                                  >
+                                    <div className="flex flex-col gap-3">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <div className="flex items-center gap-2">
+                                          <User size={16} className="text-gray-600" />
+                                          <span className="font-semibold text-gray-900">{proposal.partner.user.name}</span>
+                                          {proposal.partner.verified && (
+                                            <div className="group relative">
+                                              <ShieldCheck size={16} className="text-green-600" />
+                                              <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                                                Socio verificado
+                                              </span>
+                                            </div>
+                                          )}
+                                        </div>
+                                        {getVerificationBadges(proposal.partner.documents)}
+                                        {isFullyVerified && (
+                                          <span className="bg-green-100 text-green-700 text-xs font-semibold px-2.5 py-1 rounded-full border border-green-300 flex items-center gap-1">
+                                            <ShieldCheck size={12} />
+                                            Full Verification
+                                          </span>
+                                        )}
+                                        {proposal.status === 'ACCEPTED' && (
+                                          <span className="bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded-full border border-green-200">
+                                            ✓ Accepted
+                                          </span>
                                         )}
                                       </div>
-                                      {getVerificationBadges(proposal.partner.documents)}
-                                      {proposal.status === 'ACCEPTED' && (
-                                        <span className="bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded-full border border-green-200">
-                                          ✓ Aceptada
-                                        </span>
-                                      )}
-                                    </div>
 
-                                    <div className="bg-white rounded-lg p-3 border-2 border-primary-200">
-                                      <div className="space-y-2">
-                                        <div className="flex justify-between items-center text-sm">
-                                          <span className="text-gray-600">Precio del servicio:</span>
-                                          <span className="font-semibold text-gray-900">{formatCurrency(proposal.price)}</span>
+                                      {isFullyVerified && (
+                                        <div className="bg-white/80 border border-green-200 rounded-lg p-2.5 flex items-start gap-2">
+                                          <ShieldCheck size={16} className="text-green-600 flex-shrink-0 mt-0.5" />
+                                          <p className="text-xs text-gray-700">
+                                            <span className="font-semibold text-green-700">Fully verified partner:</span> Identity, education, and background verified by our team.
+                                          </p>
                                         </div>
-                                        <div className="flex justify-between items-center text-sm">
-                                          <span className="text-gray-600">Tarifa de servicio ({clientCommissionRate}%):</span>
-                                          <span className="font-semibold text-gray-900">{formatCurrency(proposal.price * (clientCommissionRate / 100))}</span>
-                                        </div>
-                                        <div className="border-t pt-2 flex justify-between items-center">
-                                          <span className="font-bold text-gray-900">Total a pagar:</span>
-                                          <span className="text-xl sm:text-2xl font-bold text-primary-600">{formatCurrency(proposal.price * (1 + clientCommissionRate / 100))}</span>
+                                      )}
+
+                                      <div className="bg-white rounded-lg p-3 border-2 border-primary-200">
+                                        <div className="space-y-2">
+                                          <div className="flex justify-between items-center text-sm">
+                                            <span className="text-gray-600">Precio del servicio:</span>
+                                            <span className="font-semibold text-gray-900">{formatCurrency(proposal.price)}</span>
+                                          </div>
+                                          <div className="flex justify-between items-center text-sm">
+                                            <span className="text-gray-600">Tarifa de servicio ({clientCommissionRate}%):</span>
+                                            <span className="font-semibold text-gray-900">{formatCurrency(proposal.price * (clientCommissionRate / 100))}</span>
+                                          </div>
+                                          <div className="border-t pt-2 flex justify-between items-center">
+                                            <span className="font-bold text-gray-900">Total a pagar:</span>
+                                            <span className="text-xl sm:text-2xl font-bold text-primary-600">{formatCurrency(proposal.price * (1 + clientCommissionRate / 100))}</span>
+                                          </div>
                                         </div>
                                       </div>
-                                    </div>
 
-                                    {proposal.notes && (
-                                      <p className="text-sm text-gray-600 bg-white rounded-lg p-3">{proposal.notes}</p>
-                                    )}
+                                      {proposal.notes && (
+                                        <p className="text-sm text-gray-600 bg-white rounded-lg p-3">{proposal.notes}</p>
+                                      )}
 
-                                    <div className="flex flex-col sm:flex-row gap-2">
-                                      {(proposal.status === 'ACCEPTED' || (request.status === 'ACTIVE' && proposal.status === 'PENDING')) && (
-                                        <button
-                                          onClick={() => setChatModal({
-                                            isOpen: true,
-                                            proposalId: proposal.id,
-                                            partnerName: proposal.partner.user.name,
-                                            serviceName: request.service.name
-                                          })}
-                                          className="w-full bg-white border-2 border-orange-500 text-orange-500 px-4 py-3 rounded-xl hover:bg-orange-50 transition font-medium flex items-center justify-center gap-2 relative"
-                                        >
-                                          <MessageCircle size={18} />
-                                          Chat con el Socio
-                                          {unreadCounts[proposal.id] > 0 && (
-                                            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center animate-pulse shadow-lg">
-                                              {unreadCounts[proposal.id]}
-                                            </span>
-                                          )}
-                                        </button>
-                                      )}
-                                      {request.status === 'ACTIVE' && proposal.status === 'PENDING' && (
-                                        <button
-                                          onClick={() => acceptProposal(proposal.id, proposal.partner.user.name, proposal.price)}
-                                          className="w-full bg-secondary-500 text-white px-4 py-3 rounded-xl hover:bg-secondary-600 transition font-medium flex items-center justify-center gap-2"
-                                        >
-                                          <CheckCircle size={18} />
-                                          Aceptar Propuesta
-                                        </button>
-                                      )}
+                                      <div className="flex flex-col sm:flex-row gap-2">
+                                        {(proposal.status === 'ACCEPTED' || (request.status === 'ACTIVE' && proposal.status === 'PENDING')) && (
+                                          <button
+                                            onClick={() => setChatModal({
+                                              isOpen: true,
+                                              proposalId: proposal.id,
+                                              partnerName: proposal.partner.user.name,
+                                              serviceName: request.service.name
+                                            })}
+                                            className="w-full bg-white border-2 border-orange-500 text-orange-500 px-4 py-3 rounded-xl hover:bg-orange-50 transition font-medium flex items-center justify-center gap-2 relative"
+                                          >
+                                            <MessageCircle size={18} />
+                                            Chat con el Socio
+                                            {unreadCounts[proposal.id] > 0 && (
+                                              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center animate-pulse shadow-lg">
+                                                {unreadCounts[proposal.id]}
+                                              </span>
+                                            )}
+                                          </button>
+                                        )}
+                                        {request.status === 'ACTIVE' && proposal.status === 'PENDING' && (
+                                          <button
+                                            onClick={() => acceptProposal(proposal.id, proposal.partner.user.name, proposal.price)}
+                                            className="w-full bg-secondary-500 text-white px-4 py-3 rounded-xl hover:bg-secondary-600 transition font-medium flex items-center justify-center gap-2"
+                                          >
+                                            <CheckCircle size={18} />
+                                            Aceptar Propuesta
+                                          </button>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
-                              ))}
+                                )
+                              })}
                             </div>
                           </div>
                         )}
-
-                        {request.proposals.length === 0 && request.status === 'ACTIVE' && (
+                        {!request.proposals.length && (
                           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
                             <Clock className="mx-auto text-blue-600 mb-2" size={32} />
                             <p className="text-sm text-blue-800 font-medium">Esperando propuestas de socios</p>
