@@ -1,7 +1,7 @@
 {
   "name": "LoHaggo",
   "short_name": "LoHaggo",
-  "description": "Plataforma integral de servicios profesionales - Encuentra y contrata expertos en tu área",
+  "description": "Lo necesitas, LoHaggo. La forma más simple de encontrar cualquier servicio.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#FF6900",

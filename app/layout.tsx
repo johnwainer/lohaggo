@@ -11,8 +11,8 @@ import PWARegister from '@/components/PWARegister'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'LoHaggo - Servicios Profesionales a tu Alcance',
-  description: 'Plataforma integral de servicios profesionales. Encuentra y contrata expertos en tu área de manera rápida, segura y confiable.',
+  title: 'LoHaggo - Lo necesitas',
+  description: 'La forma más simple de encontrar cualquier servicio. Conecta con expertos verificados en segundos.',
   manifest: '/manifest.json',
   applicationName: 'LoHaggo',
   keywords: ['servicios', 'profesionales', 'contratación', 'expertos', 'lohaggo', 'reservas'],
@@ -50,8 +50,8 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     siteName: 'LoHaggo',
-    title: 'LoHaggo - Servicios Profesionales a tu Alcance',
-    description: 'Plataforma integral de servicios profesionales. Encuentra y contrata expertos en tu área.',
+    title: 'LoHaggo - Lo necesitas',
+    description: 'La forma más simple de encontrar cualquier servicio. Conecta con expertos verificados en segundos.',
     locale: 'es_MX',
     images: [
       {
@@ -64,8 +64,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'LoHaggo - Servicios Profesionales',
-    description: 'Plataforma integral de servicios profesionales',
+    title: 'LoHaggo - Lo necesitas',
+    description: 'La forma más simple de encontrar cualquier servicio.',
     images: ['/icon-512.png'],
   },
   robots: {

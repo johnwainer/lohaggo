@@ -131,7 +131,7 @@ export function Navbar() {
                 <span className="text-2xl font-black bg-gradient-to-r from-[#FF2D55] to-[#FF6900] bg-clip-text text-transparent">
                   LoHaggo
                 </span>
-                <div className="text-xs text-gray-500 font-semibold -mt-1">Servicios a tu alcance</div>
+                <div className="text-xs text-gray-500 font-semibold -mt-1">Lo necesitas</div>
               </div>
             </Link>
 

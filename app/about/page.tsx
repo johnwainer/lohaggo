@@ -115,17 +115,16 @@ export default function AboutPage() {
           <div className="text-center">
             <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-5 py-2.5 rounded-full text-sm font-semibold mb-8 border border-white/30">
               <Sparkles className="w-4 h-4" />
-              <span>Conectando personas, creando oportunidades</span>
+              <span>Lo necesitas, LoHaggo.</span>
             </div>
-            
+
             <h1 className="text-5xl md:text-6xl lg:text-7xl font-black mb-6 leading-tight">
               Sobre
               <span className="block bg-gradient-to-r from-yellow-200 to-white bg-clip-text text-transparent">LoHaggo</span>
             </h1>
-            
+
             <p className="text-xl md:text-2xl mb-12 text-white/90 font-medium max-w-3xl mx-auto">
-              Somos la plataforma líder que conecta clientes con profesionales verificados, 
-              transformando la forma en que se contratan servicios
+              La forma más simple de encontrar cualquier servicio.
             </p>
           </div>
         </div>
