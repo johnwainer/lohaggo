@@ -1,6 +1,6 @@
 # LoHaggo - Plataforma de Servicios
 
-**Servicios a tu alcance** - Una plataforma moderna y segura para solicitar servicios (plomería, limpieza, electricidad, etc.) con paneles para clientes, socios y administradores.
+**Lo necesitas, LoHaggo.** - La forma más simple de encontrar cualquier servicio. Una plataforma moderna y segura para solicitar servicios con paneles para clientes, socios y administradores.
 
 ## 🚀 Características Principales
 
@@ -474,5 +474,5 @@ Si ves el error `Can't reach database server`:
 Este proyecto es privado y confidencial.
 
 ## 👨‍💻 Soporte
-
+sube los cambios, en ingles
 Para soporte técnico o consultas, contacta al equipo de desarrollo.

@@ -31,11 +31,11 @@ export function Footer() {
                 <span className="text-2xl font-black text-white">
                   LoHaggo
                 </span>
-                <div className="text-xs text-gray-400 font-semibold -mt-1">Servicios a tu alcance</div>
+                <div className="text-xs text-gray-400 font-semibold -mt-1">Lo necesitas</div>
               </div>
             </Link>
             <p className="text-gray-400 leading-relaxed font-medium">
-              La plataforma más confiable para conectar profesionales con clientes. Rápido, seguro y fácil de usar.
+              Lo necesitas, LoHaggo. La forma más simple de encontrar cualquier servicio.
             </p>
             <div className="flex space-x-4">
               <a href="#" className="w-10 h-10 bg-white/10 hover:bg-gradient-to-r hover:from-[#FF2D55] hover:to-[#FF6900] rounded-full flex items-center justify-center transition-all transform hover:scale-110">
