@@ -1,21 +1,62 @@
-#!/usr/bin/env node
+const sharp = require('sharp');
+const fs = require('fs');
+const path = require('path');
 
-console.log('Para generar los iconos PNG, necesitas instalar sharp:');
-console.log('npm install --save-dev sharp');
-console.log('');
-console.log('Luego ejecuta: npm run generate-icons');
-console.log('');
-console.log('Alternativamente, puedes usar herramientas online como:');
-console.log('- https://realfavicongenerator.net/');
-console.log('- https://www.pwabuilder.com/imageGenerator');
-console.log('');
-console.log('Sube el archivo public/icon.svg y descarga los iconos generados.');
-console.log('');
-console.log('Iconos necesarios:');
-console.log('- icon-192.png (192x192)');
-console.log('- icon-512.png (512x512)');
-console.log('- icon-192-maskable.png (192x192, sin bordes redondeados)');
-console.log('- icon-512-maskable.png (512x512, sin bordes redondeados)');
-console.log('- apple-icon.png (180x180)');
-console.log('- favicon-32x32.png (32x32)');
-console.log('- favicon-16x16.png (16x16)');
+const sizes = [
+  { size: 16, name: 'favicon-16x16.png' },
+  { size: 32, name: 'favicon-32x32.png' },
+  { size: 180, name: 'apple-icon.png' },
+  { size: 192, name: 'icon-192.png' },
+  { size: 192, name: 'icon-192-maskable.png', maskable: true },
+  { size: 512, name: 'icon-512.png' },
+  { size: 512, name: 'icon-512-maskable.png', maskable: true },
+];
+
+const svgPath = path.join(__dirname, '../public/icon.svg');
+const outputDir = path.join(__dirname, '../public');
+
+async function generateIcons() {
+  console.log('🎨 Generating PWA icons...\n');
+
+  for (const { size, name, maskable } of sizes) {
+    try {
+      const svgBuffer = fs.readFileSync(svgPath);
+      
+      let pipeline = sharp(svgBuffer)
+        .resize(size, size, {
+          fit: 'contain',
+          background: { r: 0, g: 0, b: 0, alpha: 0 }
+        });
+
+      // For maskable icons, add padding (safe zone)
+      if (maskable) {
+        const paddedSize = Math.round(size * 1.2);
+        pipeline = sharp(svgBuffer)
+          .resize(size, size, {
+            fit: 'contain',
+            background: { r: 255, g: 105, b: 0, alpha: 1 } // #FF6900
+          })
+          .extend({
+            top: Math.round((paddedSize - size) / 2),
+            bottom: Math.round((paddedSize - size) / 2),
+            left: Math.round((paddedSize - size) / 2),
+            right: Math.round((paddedSize - size) / 2),
+            background: { r: 255, g: 105, b: 0, alpha: 1 }
+          })
+          .resize(size, size);
+      }
+
+      await pipeline
+        .png()
+        .toFile(path.join(outputDir, name));
+
+      console.log(`✅ Generated ${name} (${size}x${size})`);
+    } catch (error) {
+      console.error(`❌ Error generating ${name}:`, error.message);
+    }
+  }
+
+  console.log('\n✨ All icons generated successfully!');
+}
+
+generateIcons().catch(console.error);

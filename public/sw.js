@@ -1,6 +1,6 @@
-const CACHE_NAME = 'lohaggo-v1';
-const RUNTIME_CACHE = 'lohaggo-runtime-v1';
-const IMAGE_CACHE = 'lohaggo-images-v1';
+const CACHE_NAME = 'lohaggo-v2';
+const RUNTIME_CACHE = 'lohaggo-runtime-v2';
+const IMAGE_CACHE = 'lohaggo-images-v2';
 
 const PRECACHE_URLS = [
   '/',
@@ -11,6 +11,9 @@ const PRECACHE_URLS = [
   '/icon.svg',
   '/icon-192.png',
   '/icon-512.png',
+  '/apple-icon.png',
+  '/favicon-16x16.png',
+  '/favicon-32x32.png',
   '/offline.html'
 ];
 
@@ -39,6 +42,13 @@ self.addEventListener('activate', (event) => {
       }));
     }).then(() => self.clients.claim())
   );
+});
+
+// Handle messages from clients
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('fetch', (event) => {
