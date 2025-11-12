@@ -1,4 +1,4 @@
-beimport crypto from 'crypto'
+import crypto from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 
 export function validateMercadoPagoWebhook(
@@ -121,15 +121,15 @@ export function isProduction(): boolean {
 export function getClientIp(request: NextRequest): string {
   const forwarded = request.headers.get('x-forwarded-for')
   const realIp = request.headers.get('x-real-ip')
-  
+
   if (forwarded) {
     return forwarded.split(',')[0].trim()
   }
-  
+
   if (realIp) {
     return realIp.trim()
   }
-  
+
   return request.ip || 'unknown'
 }
 
@@ -167,7 +167,7 @@ export function createErrorResponse(
     ...(details && !isProduction() ? { details } : {}),
   }
 
-  return NextResponse.json(response, { 
+  return NextResponse.json(response, {
     status,
     headers: createSecurityHeaders()
   })
