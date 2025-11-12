@@ -6,6 +6,7 @@ import { Navbar } from '@/components/Navbar'
 import { Footer } from '@/components/Footer'
 import NotificationPermissionPrompt from '@/components/NotificationPermissionPrompt'
 import PWAInstallPrompt from '@/components/PWAInstallPrompt'
+import PWARegister from '@/components/PWARegister'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -117,6 +118,7 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <Providers>
+          <PWARegister />
           <Navbar />
           <main className="min-h-screen">
             {children}
