@@ -29,7 +29,8 @@ function checkRateLimit(key: string, limit: number, windowMs: number): boolean {
 
 function cleanupRateLimitMap() {
   const now = Date.now()
-  for (const [key, record] of rateLimitMap.entries()) {
+  const entries = Array.from(rateLimitMap.entries())
+  for (const [key, record] of entries) {
     if (now > record.resetTime) {
       rateLimitMap.delete(key)
     }
@@ -44,7 +45,7 @@ export async function middleware(request: NextRequest) {
   if (pathname.startsWith('/api/auth')) {
     const key = getRateLimitKey(request)
     const allowed = checkRateLimit(key, 10, 15 * 60 * 1000)
-    
+
     if (!allowed) {
       return NextResponse.json(
         { error: 'Too many requests. Please try again later.' },
@@ -56,7 +57,7 @@ export async function middleware(request: NextRequest) {
   if (pathname.startsWith('/api/payments/webhook')) {
     const key = getRateLimitKey(request)
     const allowed = checkRateLimit(key, 100, 60 * 60 * 1000)
-    
+
     if (!allowed) {
       return NextResponse.json(
         { error: 'Rate limit exceeded' },
@@ -68,7 +69,7 @@ export async function middleware(request: NextRequest) {
   if (pathname.startsWith('/api/')) {
     const key = getRateLimitKey(request)
     const allowed = checkRateLimit(key, 100, 60 * 1000)
-    
+
     if (!allowed) {
       return NextResponse.json(
         { error: 'Too many requests' },
@@ -79,7 +80,7 @@ export async function middleware(request: NextRequest) {
 
   if (pathname.startsWith('/admin')) {
     const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
-    
+
     if (!token) {
       return NextResponse.redirect(new URL('/auth/signin', request.url))
     }
@@ -91,7 +92,7 @@ export async function middleware(request: NextRequest) {
 
   if (pathname.startsWith('/partner')) {
     const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
-    
+
     if (!token) {
       return NextResponse.redirect(new URL('/auth/signin', request.url))
     }
