@@ -284,7 +284,7 @@ export function Navbar() {
                         </Link>
                       )}
                       <button
-                        onClick={() => signOut()}
+                        onClick={() => signOut({ callbackUrl: '/login' })}
                         className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors font-bold"
                       >
                         <LogOut size={16} />
@@ -464,7 +464,7 @@ export function Navbar() {
                     </Link>
                   )}
                   <button
-                    onClick={() => signOut()}
+                    onClick={() => signOut({ callbackUrl: '/login' })}
                     className="w-full flex items-center space-x-2 text-red-600 hover:text-red-700 hover:bg-red-50 px-4 py-3 rounded-xl text-sm font-bold transition-all"
                   >
                     <LogOut size={18} />
