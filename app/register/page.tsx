@@ -5,13 +5,14 @@ import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Mail, Lock, User, Phone, MapPin, Check } from 'lucide-react'
-import { CITY_OPTIONS, CityId } from '@/lib/city-context'
+import { useCity, CityId } from '@/lib/city-context'
 import { formatCurrency } from '@/lib/utils'
 
 function RegisterForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const roleParam = searchParams.get('role')
+  const { cities } = useCity()
 
   const [formData, setFormData] = useState({
     name: '',
@@ -257,7 +258,7 @@ function RegisterForm() {
                       }
                       className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none appearance-none bg-white"
                     >
-                      {CITY_OPTIONS.map((city) => (
+                      {cities.map((city) => (
                         <option key={city.id} value={city.id} disabled={!city.active}>
                           {city.name} {!city.active ? '(próximamente)' : ''}
                         </option>
