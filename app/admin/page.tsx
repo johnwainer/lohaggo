@@ -79,7 +79,6 @@ export default function AdminDashboard() {
         return <DashboardSection />
     }
   }
-  }
 
   return (
     <div className="flex min-h-screen bg-gray-50">
