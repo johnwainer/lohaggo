@@ -5,14 +5,14 @@ import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Mail, Lock, User, Phone, MapPin, Check } from 'lucide-react'
-import { useCity, CityId } from '@/lib/city-context'
+import { useCity } from '@/lib/city-context'
 import { formatCurrency } from '@/lib/utils'
 
 function RegisterForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const roleParam = searchParams.get('role')
-  const { cities } = useCity()
+  const { cities, loading: citiesLoading } = useCity()
 
   const [formData, setFormData] = useState({
     name: '',
@@ -20,7 +20,7 @@ function RegisterForm() {
     password: '',
     phone: '',
     role: roleParam === 'partner' ? 'PARTNER' : 'CLIENT',
-    city: 'MEDELLIN' as CityId,
+    city: '',
     services: [] as string[],
   })
   const [error, setError] = useState('')
@@ -29,6 +29,14 @@ function RegisterForm() {
   const [servicesCatalog, setServicesCatalog] = useState<
     Array<{ id: string; name: string; slug: string; basePrice?: number }>
   >([])
+  >([])
+  useEffect(() => {
+    if (cities.length > 0 && !formData.city) {
+      const activeCity = cities.find((c) => c.status === 'ACTIVE')
+      const defaultCity = activeCity || cities[0]
+      setFormData((prev) => ({ ...prev, city: defaultCity.slug }))
+    }
+  }, [cities, formData.city])
 
   useEffect(() => {
     if (formData.role === 'PARTNER') {
@@ -253,7 +261,7 @@ function RegisterForm() {
                       onChange={(e) =>
                         setFormData((prev) => ({
                           ...prev,
-                          city: e.target.value as CityId,
+                          city: e.target.value,
                         }))
                       }
                       className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none appearance-none bg-white"
@@ -261,7 +269,7 @@ function RegisterForm() {
                       {cities.map((city) => (
                         <option
                           key={city.id}
-                          value={city.id}
+                          value={city.slug}
                           disabled={city.status !== 'ACTIVE'}
                         >
                           {city.name}{' '}
@@ -270,6 +278,9 @@ function RegisterForm() {
                             : city.status === 'INACTIVE'
                             ? '(no disponible)'
                             : ''}
+                        </option>
+                      ))}
+                    </select>
                         </option>
                       ))}
                     </select>
