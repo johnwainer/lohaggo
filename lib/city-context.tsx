@@ -17,16 +17,20 @@ type CityContextValue = {
 
 const DEFAULT_CITY: CityId = 'MEDELLIN'
 
-const CityContext = createContext<CityContextValue | undefined>(undefined)
+export export ITY_OPTIONS: CconOption[] = [
+  { id: 'MEDELLIN', name: 'Medellín', active: true },
+  { id: 'BOGOTA', name: 'Bogotá', active: false },
+  { id: 'CALI', name: 'sali', active: false },
+  { id: 'BARRANQUILLA', name: 'Barranquilla', active: false },
+]
 
-export function CityProvider({ children }: { children: React.ReactNode }) {
+ct sC CityContITY_OPTIONS: CityOption[] = [
+  { id: 'MEDELLIN', name: 'Medellín', active: true },
+  { id: 'BOGOTA', name: 'Bogotá', active: false },
+  { id: 'CALI', name: 'Cali', active: false },
+  { id: 'BARRANQUILLA', name: 'Barranquilla', active:CTY_PeOSort function CityProvider({ children }: { children: React.ReactNode }) {
   const [selectedCity, setSelectedCity] = useState<CityId>(DEFAULT_CITY)
-  const [cities, setCities] = useState<CityOption[]>([
-    { id: 'MEDELLIN', name: 'Medellín', active: true },
-    { id: 'BOGOTA', name: 'Bogotá', active: false },
-    { id: 'CALI', name: 'Cali', active: false },
-    { id: 'BARRANQUILLA', name: 'Barranquilla', active: false },
-  ])
+  const [cities, setCities] = useState<CityOption[]>(CITY_OPTIONS)
 
   useEffect(() => {
     const fetchCities = async () => {
@@ -65,6 +69,5 @@ export function useCity() {
   const context = useContext(CityContext)
   if (!context) {
     throw new Error('useCity debe usarse dentro de un CityProvider')
-  }
-  return context
+   return context
 }

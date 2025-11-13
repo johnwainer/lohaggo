@@ -7,7 +7,7 @@ import {
   MapPin, Plus, Edit2, Trash2, Home, Building, Star, ArrowLeft, Check,
   Package, Bell, MessageSquare
 } from 'lucide-react'
-import { CITY_OPTIONS, CityId } from '@/lib/city-context'
+import { useCity, CityId } from '@/lib/city-context'
 
 interface Address {
   id: string
@@ -29,12 +29,13 @@ const cityLabels: Record<CityId, string> = {
   MEDELLIN: 'Medellín',
   BOGOTA: 'Bogotá',
   CALI: 'Cali',
-  BARRANQUILLA: 'Barranquilla'
+  BARRANQUILLA: 'Barranquilla',
 }
 
 export default function AddressesPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const { cities } = useCity()
   const [addresses, setAddresses] = useState<Address[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -488,7 +489,7 @@ export default function AddressesPage() {
                     onChange={(e) => setFormData({ ...formData, city: e.target.value as CityId })}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent outline-none"
                   >
-                    {CITY_OPTIONS.map((city) => (
+                    {cities.map((city) => (
                       <option key={city.id} value={city.id}>
                         {city.name}
                       </option>
