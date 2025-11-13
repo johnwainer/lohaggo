@@ -2,72 +2,106 @@
 
 import { createContext, useContext, useMemo, useState, useEffect } from 'react'
 
+export type CityStatus = 'ACTIVE' | 'INACTIVE' | 'COMING_SOON'
 export type CityOption = {
   id: string
-  slugstr ng
-  slug: ssringng
+  slug: string
   name: string
   status: CityStatus
-  r:b
+  order: number
+}
 
 type CityContextValue = {
   selectedCity: string
-  setSelectedCits ringtySlug: string) => void
-  cities: CityOption[]Slugsring
+  setSelectedCity: (citySlug: string) => void
+  cities: CityOption[]
   loading: boolean
-  ladigboolean
-gc AioivetitieseC() => ontext<CityCxtValue | undefined>(undefined)
-gyBySlg f(llngacdtrnng)e=>,sSdysp<noe |t]ndind
+  getActiveCities: () => CityOption[]
+  getCityBySlug: (slug: string) => CityOption | undefined
+}
 
+const CityContext = createContext<CityContextValue | undefined>(undefined)
+
+export function CityProvider({ children }: { children: React.ReactNode }) {
+  const [selectedCity, setSelectedCityState] = useState<string>('')
+  const [cities, setCities] = useState<CityOption[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
     const controller = new AbortController()
 
     const fetchCities = async () => {
       try {
-        const res = afetch('/api/cities', { signal: contstrong.s''
-        if (!res.ok) {[])
-  const [loading, setLoading] = usetate(true
+        const res = await fetch('/api/cities', { signal: controller.signal })
+        if (!res.ok) {
           console.error('Failed to fetch cities')
           setLoading(false)
           return
-
         }
 
         const data = await res.json()
         if (!Array.isArray(data)) {
-         tconsola.grror('Ffiled socities')
-          setLodng(fae)
+          setLoading(false)
           return
         }
 
-
-        const mappedCities: CityOp{
-          setLoading(false)
-          tion[] = data
-        }          .map((city: any) => ({
-
+        const mappedCities: CityOption[] = data
+          .map((city: any) => ({
             id: city.id,
-            slug: city.slug,(
-            d:st,            order: city.order || 0
-        }):l,
-   setCitie(nimsmg,th > 0 && !selectedCity) {
-          co:rror('or fetching ci,      }
-    }odord||0
-}))
-    return.or(( b => ardr-b.reyr:tring) => {
+            slug: city.slug,
+            name: city.name,
+            status: city.status as CityStatus,
+            order: city.order || 0
+          }))
+          .sort((a, b) => a.order - b.order)
 
-    conscity = cities.find(c => c.slug === citySlug)
+        setCities(mappedCities)
 
-    if ((ySlug)lngth0&&!= 'undefined') {
-      localStorage.setItem('selectedCity', citySlug)su==='ATIVE'
-}con ful=yi||veCities = ()[0]
- uS r(dtfaulies.y.nlug lug === slug)
-  }}
+        if (mappedCities.length > 0 && !selectedCity) {
+          const activeCity = mappedCities.find((c) => c.status === 'ACTIVE')
+          const defaultCity = activeCity || mappedCities[0]
+          setSelectedCityState(defaultCity.slug)
+        }
 
-Loang(fls
-l lectedCity,
-      setSelectedCity,
-      ciading,
         setLoading(false)
+      } catch (error: any) {
+        if (error.name === 'AbortError') return
+        console.error('Error fetching cities:', error)
+        setLoading(false)
+      }
+    }
+
+    fetchCities()
+
+    return () => {
+      controller.abort()
+    }
+  }, [])
+
+  const setSelectedCity = (citySlug: string) => {
+    const city = cities.find(c => c.slug === citySlug)
+    if (city) {
+      setSelectedCityState(citySlug)
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('selectedCity', citySlug)
+      }
+    }
+  }
+
+  const getActiveCities = () => {
+    return cities.filter(c => c.status === 'ACTIVE')
+  }
+
+  const getCityBySlug = (slug: string) => {
+    return cities.find(c => c.slug === slug)
+  }
+
+  const value = useMemo(
+    () => ({
+      selectedCity,
+      setSelectedCity,
+      cities,
+      loading,
       getActiveCities,
       getCityBySlug,
     }),
@@ -76,24 +110,11 @@ l lectedCity,
 
   return <CityContext.Provider value={value}>{children}</CityContext.Provider>
 }
-},[])
 
-cstSe=(citSlug:stig)=> {
-    cst ity= cities.fid(c=> c.slg === ciySlug)
-expoif (cciy) {
-      ui SedCitySte(ctySlug)
-   n  ift(ty nofwwindEw !==r'undrfCnidy) {
-        locdlSborsee.retInem('ityProvidity', cer'Slug)
-      }
-    }
+export function useCity() {
+  const context = useContext(CityContext)
+  if (!context) {
+    throw new Error('useCity debe usarse dentro de un CityProvider')
   }
-)
-  }gAivies
-  rerururn nities.flrc => .staus === 'ACTIVE'
-}}
-
-cont gyBySlug (slug:sting
-   returnis.find(c =>slugslug,
-     etS,
-      ciis,
-      loadinggAiviesgetCyBySlug, loading
+  return context
+}

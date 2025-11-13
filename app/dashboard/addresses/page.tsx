@@ -48,7 +48,6 @@ export default function AddressesPage() {
   })
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     if (status === 'unauthenticated') {

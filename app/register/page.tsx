@@ -29,7 +29,7 @@ function RegisterForm() {
   const [servicesCatalog, setServicesCatalog] = useState<
     Array<{ id: string; name: string; slug: string; basePrice?: number }>
   >([])
-  >([])
+
   useEffect(() => {
     if (cities.length > 0 && !formData.city) {
       const activeCity = cities.find((c) => c.status === 'ACTIVE')
@@ -278,9 +278,6 @@ function RegisterForm() {
                             : city.status === 'INACTIVE'
                             ? '(no disponible)'
                             : ''}
-                        </option>
-                      ))}
-                    </select>
                         </option>
                       ))}
                     </select>

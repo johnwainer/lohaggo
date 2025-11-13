@@ -54,6 +54,7 @@ interface Address {
 export default function ServiceDetailPage({ params }: { params: { slug: string } }) {
   const { data: session } = useSession()
   const router = useRouter()
+  const { getCityBySlug } = useCity()
   const [service, setService] = useState<Service | null>(null)
   const [loading, setLoading] = useState(true)
   const [showRequestModal, setShowRequestModal] = useState(false)
