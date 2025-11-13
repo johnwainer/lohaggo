@@ -239,7 +239,7 @@ export default function FAQPage() {
               Enviar un correo
             </a>
             <a
-              href="/contacto"
+              href="/contact"
               className="inline-flex items-center gap-2 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white px-6 py-3 rounded-xl font-bold hover:shadow-lg transition-all"
             >
               Formulario de contacto

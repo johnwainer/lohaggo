@@ -16,6 +16,7 @@ import DocumentsSection from '@/components/admin/sections/DocumentsSection'
 import CommissionsSection from '@/components/admin/sections/CommissionsSection'
 import PayoutsSection from '@/components/admin/sections/PayoutsSection'
 import PaymentsSection from '@/components/admin/sections/PaymentsSection'
+import CitiesSection from '@/components/admin/sections/CitiesSection'
 
 export default function AdminDashboard() {
   const { data: session, status } = useSession()
@@ -60,6 +61,8 @@ export default function AdminDashboard() {
         return <DocumentsSection />
       case 'services':
         return <ServicesSection />
+      case 'cities':
+        return <CitiesSection />
       case 'payments':
         return <PaymentsSection />
       case 'analytics':
@@ -75,6 +78,7 @@ export default function AdminDashboard() {
       default:
         return <DashboardSection />
     }
+  }
   }
 
   return (

@@ -393,6 +393,16 @@ enum ProposalStatus {
   REJECTED
 }
 
+model CityConfig {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  active    Boolean  @default(true)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 enum City {
   MEDELLIN
   BOGOTA

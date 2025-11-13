@@ -105,7 +105,6 @@ const partnersData = [
 async function main() {
   console.log('🌱 Iniciando seed...')
 
-  // Limpiar base de datos
   await prisma.booking.deleteMany()
   await prisma.availability.deleteMany()
   await prisma.partnerService.deleteMany()
@@ -113,8 +112,23 @@ async function main() {
   await prisma.category.deleteMany()
   await prisma.partnerProfile.deleteMany()
   await prisma.user.deleteMany()
+  await prisma.cityConfig.deleteMany()
 
   console.log('✅ Base de datos limpiada')
+
+  const cities = [
+    { name: 'Medellín', slug: 'medellin', active: true, order: 1 },
+    { name: 'Bogotá', slug: 'bogota', active: true, order: 2 },
+    { name: 'Cali', slug: 'cali', active: true, order: 3 },
+    { name: 'Barranquilla', slug: 'barranquilla', active: true, order: 4 },
+  ]
+
+  for (const city of cities) {
+    await prisma.cityConfig.create({
+      data: city
+    })
+  }
+  console.log('✅ Ciudades creadas')
 
   // Crear categorías
   const categoryMap = {}
