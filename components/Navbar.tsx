@@ -90,22 +90,23 @@ export function Navbar() {
             <div className="space-y-1">
               {cities.map((city) => (
                 <button
-                  key={city.id}
+                  key={city.slug}
                   onClick={() => {
-                    if (city.active) {
-                      setSelectedCity(city.id)
+                    if (city.status === 'ACTIVE') {
+                      setSelectedCity(city.slug)
                       setOpen(false)
                     }
                   }}
                   className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium transition-all ${
-                    city.id === selectedCity
+                    city.slug === selectedCity
                       ? 'text-[#FF2D55] bg-[#FF2D55]/5 border-l-4 border-[#FF2D55]/60'
                       : 'text-gray-700 hover:bg-gray-100'
-                  } ${city.active ? '' : 'opacity-50 cursor-not-allowed'}`}
-                  disabled={!city.active}
+                  } ${city.status === 'ACTIVE' ? '' : 'opacity-50 cursor-not-allowed'}`}
+                  disabled={city.status !== 'ACTIVE'}
                 >
                   <span>{city.name}</span>
-                  {!city.active && <span className="text-xs text-gray-500">Pronto</span>}
+                  {city.status === 'COMING_SOON' && <span className="text-xs text-gray-500">Pronto</span>}
+                  {city.status === 'INACTIVE' && <span className="text-xs text-gray-500">No disponible</span>}
                 </button>
               ))}
             </div>
