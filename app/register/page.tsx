@@ -259,8 +259,17 @@ function RegisterForm() {
                       className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none appearance-none bg-white"
                     >
                       {cities.map((city) => (
-                        <option key={city.id} value={city.id} disabled={!city.active}>
-                          {city.name} {!city.active ? '(próximamente)' : ''}
+                        <option
+                          key={city.id}
+                          value={city.id}
+                          disabled={city.status !== 'ACTIVE'}
+                        >
+                          {city.name}{' '}
+                          {city.status === 'COMING_SOON'
+                            ? '(próximamente)'
+                            : city.status === 'INACTIVE'
+                            ? '(no disponible)'
+                            : ''}
                         </option>
                       ))}
                     </select>

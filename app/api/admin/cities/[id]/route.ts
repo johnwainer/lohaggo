@@ -15,14 +15,14 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { name, slug, active, order } = body
+    const { name, slug, status, order } = body
 
     const city = await prisma.cityConfig.update({
       where: { id: params.id },
       data: {
         ...(name && { name }),
         ...(slug && { slug }),
-        ...(active !== undefined && { active }),
+        ...(status && { status }),
         ...(order !== undefined && { order })
       }
     })

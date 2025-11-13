@@ -4,7 +4,6 @@ import { prisma } from '@/lib/prisma'
 export async function GET(request: NextRequest) {
   try {
     const cities = await prisma.cityConfig.findMany({
-      where: { active: true },
       orderBy: { order: 'asc' }
     })
 

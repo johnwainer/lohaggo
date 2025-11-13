@@ -117,10 +117,10 @@ async function main() {
   console.log('✅ Base de datos limpiada')
 
   const cities = [
-    { name: 'Medellín', slug: 'medellin', active: true, order: 1 },
-    { name: 'Bogotá', slug: 'bogota', active: true, order: 2 },
-    { name: 'Cali', slug: 'cali', active: true, order: 3 },
-    { name: 'Barranquilla', slug: 'barranquilla', active: true, order: 4 },
+    { name: 'Medellín', slug: 'medellin', status: 'ACTIVE', order: 1 },
+    { name: 'Bogotá', slug: 'bogota', status: 'COMING_SOON', order: 2 },
+    { name: 'Cali', slug: 'cali', status: 'COMING_SOON', order: 3 },
+    { name: 'Barranquilla', slug: 'barranquilla', status: 'COMING_SOON', order: 4 },
   ]
 
   for (const city of cities) {
