@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, slug, active, order } = body
+    const { name, slug, status, order } = body
 
     if (!name || !slug) {
       return NextResponse.json({ error: 'Name and slug are required' }, { status: 400 })
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       data: {
         name,
         slug,
-        active: active ?? true,
+        status: status ?? 'ACTIVE',
         order: order ?? 0
       }
     })

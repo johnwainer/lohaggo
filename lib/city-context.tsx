@@ -3,10 +3,13 @@
 import { createContext, useContext, useMemo, useState, useEffect } from 'react'
 
 export type CityId = 'MEDELLIN' | 'BOGOTA' | 'CALI' | 'BARRANQUILLA'
+export type CityStatus = 'ACTIVE' | 'INACTIVE' | 'COMING_SOON'
 export type CityOption = {
   id: CityId
   name: string
-  active: boolean
+  status: CityStatus
+  // Keep `active` for backward compatibility with existing consumers in the file
+  active?: boolean
 }
 
 type CityContextValue = {
@@ -18,10 +21,10 @@ type CityContextValue = {
 const DEFAULT_CITY: CityId = 'MEDELLIN'
 
 export const CITY_OPTIONS: CityOption[] = [
-  { id: 'MEDELLIN', name: 'Medellín', active: true },
-  { id: 'BOGOTA', name: 'Bogotá', active: false },
-  { id: 'CALI', name: 'Cali', active: false },
-  { id: 'BARRANQUILLA', name: 'Barranquilla', active: false },
+  { id: 'MEDELLIN', name: 'Medellín', status: 'ACTIVE', active: true },
+  { id: 'BOGOTA', name: 'Bogotá', status: 'COMING_SOON', active: false },
+  { id: 'CALI', name: 'Cali', status: 'COMING_SOON', active: false },
+  { id: 'BARRANQUILLA', name: 'Barranquilla', status: 'COMING_SOON', active: false },
 ]
 
 const VALID_CITY_IDS: CityId[] = ['MEDELLIN', 'BOGOTA', 'CALI', 'BARRANQUILLA']
@@ -48,10 +51,29 @@ export function CityProvider({ children }: { children: React.ReactNode }) {
           .map((city: any) => {
             const slug = typeof city?.slug === 'string' ? city.slug.toUpperCase() : ''
             if (!VALID_CITY_IDS.includes(slug as CityId)) return null
+
+            // Determine status: prefer explicit status string, fall back to boolean `active` if provided
+            let statusRaw =
+              typeof city?.status === 'string'
+                ? city.status.toUpperCase()
+                : typeof city?.active === 'boolean'
+                ? city.active
+                  ? 'ACTIVE'
+                  : 'INACTIVE'
+                : 'INACTIVE'
+
+            // Validate status value and coerce to CityStatus
+            const status = (['ACTIVE', 'INACTIVE', 'COMING_SOON'] as const).includes(
+              statusRaw as CityStatus
+            )
+              ? (statusRaw as CityStatus)
+              : 'INACTIVE'
+
             return {
               id: slug as CityId,
               name: typeof city.name === 'string' ? city.name : slug,
-              active: !!city.active,
+              status,
+              active: status === 'ACTIVE',
             } as CityOption
           })
           .filter(Boolean) as CityOption[]
@@ -64,7 +86,7 @@ export function CityProvider({ children }: { children: React.ReactNode }) {
             const activeCity = mappedCities.find((c) => c.active) ?? mappedCities[0]
             if (activeCity) {
               setSelectedCityState(activeCity.id)
-              // normalize active flags
+              // normalize active flags (kept for compatibility)
               setCities((prev) =>
                 mappedCities.map((c) => ({ ...c, active: c.id === activeCity.id }))
               )
