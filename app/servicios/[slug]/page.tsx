@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { DollarSign, Clock, Star, CheckCircle, MapPin, Plus, Calendar, X, ChevronRight, Camera, Upload, Trash2, Shield, CreditCard, GraduationCap, ShieldCheck } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { formatCurrency } from '@/lib/utils'
-import { CityId } from '@/lib/city-context'
+import { useCity } from '@/lib/city-context'
 import ConfirmModal from '@/components/ConfirmModal'
 
 interface Service {
@@ -45,17 +45,10 @@ interface Address {
   number: string
   complement?: string
   neighborhood: string
-  city: CityId
+  city: string
   postalCode?: string
   instructions?: string
   isPrimary: boolean
-}
-
-const cityLabels: Record<CityId, string> = {
-  MEDELLIN: 'Medellín',
-  BOGOTA: 'Bogotá',
-  CALI: 'Cali',
-  BARRANQUILLA: 'Barranquilla'
 }
 
 export default function ServiceDetailPage({ params }: { params: { slug: string } }) {
@@ -148,7 +141,8 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
   }
 
   const getAddressString = (address: Address) => {
-    return `${address.street} #${address.number}${address.complement ? ' - ' + address.complement : ''}, ${address.neighborhood}, ${cityLabels[address.city]}`
+    const cityName = getCityBySlug(address.city)?.name || address.city
+    return `${address.street} #${address.number}${address.complement ? ' - ' + address.complement : ''}, ${address.neighborhood}, ${cityName}`
   }
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -181,7 +175,7 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
     if (!service) return
 
     let finalAddress = requestData.address
-    let finalCity: CityId | string = 'MEDELLIN'
+    let finalCity = ''
 
     if (selectedAddressId) {
       const selectedAddress = addresses.find(addr => addr.id === selectedAddressId)

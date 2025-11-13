@@ -4,10 +4,10 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import {
-  MapPin, Plus, Edit2, Trash2, Home, Building, Star, ArrowLeft, Check,
-  Package, Bell, MessageSquare
+  MapPin, Plus, Edit2, Trash2, Home, Building, Star, ArrowLeft,
+  Package, MessageSquare
 } from 'lucide-react'
-import { useCity, CityId } from '@/lib/city-context'
+import { useCity } from '@/lib/city-context'
 
 interface Address {
   id: string
@@ -16,7 +16,7 @@ interface Address {
   number: string
   complement?: string
   neighborhood: string
-  city: CityId
+  city: string
   postalCode?: string
   instructions?: string
   isPrimary: boolean
@@ -25,17 +25,10 @@ interface Address {
   updatedAt: string
 }
 
-const cityLabels: Record<CityId, string> = {
-  MEDELLIN: 'Medellín',
-  BOGOTA: 'Bogotá',
-  CALI: 'Cali',
-  BARRANQUILLA: 'Barranquilla',
-}
-
 export default function AddressesPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const { cities } = useCity()
+  const { cities, getCityBySlug } = useCity()
   const [addresses, setAddresses] = useState<Address[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -48,12 +41,13 @@ export default function AddressesPage() {
     number: '',
     complement: '',
     neighborhood: '',
-    city: 'MEDELLIN' as CityId,
+    city: '',
     postalCode: '',
     instructions: '',
     isPrimary: false
   })
   const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
@@ -64,6 +58,14 @@ export default function AddressesPage() {
       fetchCounts()
     }
   }, [status, router])
+
+  useEffect(() => {
+    if (cities.length > 0 && !formData.city) {
+      const activeCity = cities.find(c => c.status === 'ACTIVE')
+      const defaultCity = activeCity || cities[0]
+      setFormData(prev => ({ ...prev, city: defaultCity.slug }))
+    }
+  }, [cities, formData.city])
 
   const fetchAddresses = async () => {
     try {
@@ -332,7 +334,9 @@ export default function AddressesPage() {
                           </span>
                         )}
                       </h3>
-                      <p className="text-sm text-gray-500">{cityLabels[address.city]}</p>
+                      <p className="text-sm text-gray-500">
+                        {getCityBySlug(address.city)?.name || address.city}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -486,12 +490,21 @@ export default function AddressesPage() {
                   <select
                     required
                     value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value as CityId })}
+                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent outline-none"
                   >
                     {cities.map((city) => (
-                      <option key={city.id} value={city.id}>
+                      <option
+                        key={city.id}
+                        value={city.slug}
+                        disabled={city.status !== 'ACTIVE'}
+                      >
                         {city.name}
+                        {city.status === 'COMING_SOON'
+                          ? ' (próximamente)'
+                          : city.status === 'INACTIVE'
+                          ? ' (no disponible)'
+                          : ''}
                       </option>
                     ))}
                   </select>
