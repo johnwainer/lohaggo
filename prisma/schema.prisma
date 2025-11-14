@@ -399,6 +399,8 @@ model CityConfig {
   slug      String     @unique
   status    CityStatus @default(ACTIVE)
   order     Int        @default(0)
+  latitude  Float?
+  longitude Float?
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 }

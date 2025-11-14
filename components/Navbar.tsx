@@ -7,6 +7,7 @@ import { Menu, X, LogOut, LayoutDashboard, Sparkles, ChevronDown, MapPin, Star, 
 import { useEffect, useRef, useState } from 'react'
 import { useCity } from '@/lib/city-context'
 import NotificationBell from './NotificationBell'
+import CityModal from './CityModal'
 
 export function Navbar() {
   const { data: session } = useSession()
@@ -44,9 +45,8 @@ export function Navbar() {
     }
   }, [userMenuOpen])
 
-  // CitySelector component defined inside the same file so it can use the shared city context/hooks.
   function CitySelector() {
-    const { selectedCity, setSelectedCity, cities } = useCity()
+    const { selectedCity, setSelectedCity, setShowCityModal, cities, isGeolocating } = useCity()
     const [open, setOpen] = useState(false)
     const dropdownRef = useRef<HTMLDivElement>(null)
 
@@ -64,51 +64,88 @@ export function Navbar() {
       }
     }, [open])
 
-    const activeCity = cities.find((city) => city.id === selectedCity)
+    const activeCity = cities.find((city) => city.slug === selectedCity)
+    const activeCities = cities.filter(c => c.status === 'ACTIVE')
+    const comingSoonCities = cities.filter(c => c.status === 'COMING_SOON')
 
     return (
       <div className="hidden md:block relative" ref={dropdownRef}>
         <button
           onClick={() => setOpen((prev) => !prev)}
-          className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 px-4 py-2 rounded-xl border-2 border-gray-200 hover:border-[#FF2D55]/30 transition-all"
+          disabled={isGeolocating}
+          className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 px-4 py-2 rounded-xl border-2 border-gray-200 hover:border-[#FF2D55]/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <MapPin size={16} className="text-[#FF2D55]" />
           <div className="flex flex-col text-left">
             <span className="text-[11px] uppercase tracking-wide text-gray-400 font-semibold">Ciudad</span>
             <span className="text-sm font-bold text-gray-800">
-              {activeCity?.name ?? 'Selecciona ciudad'}
+              {isGeolocating ? 'Detectando...' : activeCity?.name ?? 'Selecciona'}
             </span>
           </div>
           <ChevronDown size={16} className={`text-gray-500 transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
 
         {open && (
-          <div className="absolute left-0 mt-3 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 z-50">
-            <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-              Ciudades disponibles
-            </p>
-            <div className="space-y-1">
-              {cities.map((city) => (
-                <button
-                  key={city.slug}
-                  onClick={() => {
-                    if (city.status === 'ACTIVE') {
-                      setSelectedCity(city.slug)
-                      setOpen(false)
-                    }
-                  }}
-                  className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium transition-all ${
-                    city.slug === selectedCity
-                      ? 'text-[#FF2D55] bg-[#FF2D55]/5 border-l-4 border-[#FF2D55]/60'
-                      : 'text-gray-700 hover:bg-gray-100'
-                  } ${city.status === 'ACTIVE' ? '' : 'opacity-50 cursor-not-allowed'}`}
-                  disabled={city.status !== 'ACTIVE'}
-                >
-                  <span>{city.name}</span>
-                  {city.status === 'COMING_SOON' && <span className="text-xs text-gray-500">Pronto</span>}
-                  {city.status === 'INACTIVE' && <span className="text-xs text-gray-500">No disponible</span>}
-                </button>
-              ))}
+          <div className="absolute left-0 mt-3 w-64 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 z-50">
+            {activeCities.length > 0 && (
+              <>
+                <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                  Ciudades disponibles
+                </p>
+                <div className="space-y-1 px-2">
+                  {activeCities.map((city) => (
+                    <button
+                      key={city.slug}
+                      onClick={() => {
+                        setSelectedCity(city.slug)
+                        setOpen(false)
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-3 text-sm font-medium transition-all rounded-lg ${
+                        city.slug === selectedCity
+                          ? 'text-[#FF2D55] bg-[#FF2D55]/10 border-l-4 border-[#FF2D55]'
+                          : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <span>{city.name}</span>
+                      {city.slug === selectedCity && (
+                        <div className="w-2 h-2 rounded-full bg-[#FF2D55]" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {comingSoonCities.length > 0 && (
+              <>
+                <div className="border-t border-gray-100 my-2" />
+                <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                  Próximamente
+                </p>
+                <div className="space-y-1 px-2">
+                  {comingSoonCities.map((city) => (
+                    <div
+                      key={city.slug}
+                      className="w-full flex items-center justify-between px-3 py-3 text-sm font-medium text-gray-400 opacity-60 cursor-not-allowed rounded-lg"
+                    >
+                      <span>{city.name}</span>
+                      <span className="text-xs bg-gray-200 px-2 py-1 rounded-full">Pronto</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            <div className="border-t border-gray-100 mt-2 pt-2 px-2">
+              <button
+                onClick={() => {
+                  setShowCityModal(true)
+                  setOpen(false)
+                }}
+                className="w-full text-left px-3 py-2 text-sm font-semibold text-[#FF2D55] hover:bg-[#FF2D55]/5 rounded-lg transition-all"
+              >
+                Ver todas las opciones
+              </button>
             </div>
           </div>
         )}
@@ -117,10 +154,12 @@ export function Navbar() {
   }
 
   return (
-    <nav className="bg-white shadow-md sticky top-0 z-50 border-b border-gray-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-20">
-          <div className="flex items-center gap-6">
+    <>
+      <CityModal />
+      <nav className="bg-white shadow-md sticky top-0 z-50 border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-20">
+            <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center space-x-3 group">
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-2xl blur opacity-50 group-hover:opacity-75 transition"></div>
@@ -495,5 +534,6 @@ export function Navbar() {
         </div>
       )}
     </nav>
+    </>
   )
 }
