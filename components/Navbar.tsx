@@ -16,6 +16,9 @@ export function Navbar() {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
 
+  const { selectedCity, setSelectedCity, setShowCityModal, cities, isGeolocating, getActiveCities } = useCity()
+  const currentCity = cities.find((city) => city.slug === selectedCity)
+
   const getDashboardLink = () => {
     if (!session?.user) return null
 
@@ -46,7 +49,6 @@ export function Navbar() {
   }, [userMenuOpen])
 
   function CitySelector() {
-    const { selectedCity, setSelectedCity, setShowCityModal, cities, isGeolocating } = useCity()
     const [open, setOpen] = useState(false)
     const dropdownRef = useRef<HTMLDivElement>(null)
 
@@ -64,7 +66,6 @@ export function Navbar() {
       }
     }, [open])
 
-    const activeCity = cities.find((city) => city.slug === selectedCity)
     const activeCities = cities.filter(c => c.status === 'ACTIVE')
     const comingSoonCities = cities.filter(c => c.status === 'COMING_SOON')
 
@@ -79,7 +80,7 @@ export function Navbar() {
           <div className="flex flex-col text-left">
             <span className="text-[11px] uppercase tracking-wide text-gray-400 font-semibold">Ciudad</span>
             <span className="text-sm font-bold text-gray-800">
-              {isGeolocating ? 'Detectando...' : activeCity?.name ?? 'Selecciona'}
+              {isGeolocating ? 'Detectando...' : currentCity?.name ?? 'Selecciona'}
             </span>
           </div>
           <ChevronDown size={16} className={`text-gray-500 transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -401,6 +402,60 @@ export function Navbar() {
             >
               FAQ
             </Link>
+
+            {/* City Selector - Mobile */}
+            <div className="border-t border-gray-200 pt-2 mt-2">
+              <button
+                onClick={() => {
+                  setShowCityModal(true)
+                  setMobileMenuOpen(false)
+                }}
+                className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 transition-all"
+              >
+                <div className="flex items-center space-x-2">
+                  <MapPin size={18} />
+                  <span>
+                    {isGeolocating ? 'Detectando...' : currentCity ? currentCity.name : 'Seleccionar ciudad'}
+                  </span>
+                </div>
+                <ChevronDown size={16} />
+              </button>
+
+              {/* Quick city list for mobile */}
+              <div className="mt-1 space-y-1 pl-4">
+                {getActiveCities().map((city) => (
+                  <button
+                    key={city.slug}
+                    onClick={() => {
+                      setSelectedCity(city.slug)
+                      setMobileMenuOpen(false)
+                    }}
+                    className={`w-full text-left px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                      selectedCity === city.slug
+                        ? 'text-[#FF2D55] bg-[#FF2D55]/10'
+                        : 'text-gray-600 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5'
+                    }`}
+                  >
+                    {city.name}
+                  </button>
+                ))}
+                {cities.filter(c => c.status === 'COMING_SOON').length > 0 && (
+                  <>
+                    <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                      Próximamente
+                    </div>
+                    {cities.filter(c => c.status === 'COMING_SOON').map((city) => (
+                      <div
+                        key={city.slug}
+                        className="w-full text-left px-4 py-2 rounded-lg text-xs font-medium text-gray-400 cursor-not-allowed"
+                      >
+                        {city.name}
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+            </div>
 
             {session ? (
               <>
