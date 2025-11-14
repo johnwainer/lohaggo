@@ -13,6 +13,7 @@ export function Navbar() {
   const { data: session } = useSession()
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [mobileCityDropdownOpen, setMobileCityDropdownOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
 
@@ -406,55 +407,64 @@ export function Navbar() {
             {/* City Selector - Mobile */}
             <div className="border-t border-gray-200 pt-2 mt-2">
               <button
-                onClick={() => {
-                  setShowCityModal(true)
-                  setMobileMenuOpen(false)
-                }}
+                onClick={() => setMobileCityDropdownOpen(!mobileCityDropdownOpen)}
                 className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 transition-all"
               >
                 <div className="flex items-center space-x-2">
-                  <MapPin size={18} />
+                  <MapPin size={18} className="text-[#FF2D55]" />
                   <span>
                     {isGeolocating ? 'Detectando...' : currentCity ? currentCity.name : 'Seleccionar ciudad'}
                   </span>
                 </div>
-                <ChevronDown size={16} />
+                <ChevronDown size={16} className={`transition-transform ${mobileCityDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
 
-              {/* Quick city list for mobile */}
-              <div className="mt-1 space-y-1 pl-4">
-                {getActiveCities().map((city) => (
+              {/* Collapsible city list for mobile */}
+              {mobileCityDropdownOpen && (
+                <div className="mt-1 space-y-1 pl-4 animate-slide-down">
+                  {getActiveCities().map((city) => (
+                    <button
+                      key={city.slug}
+                      onClick={() => {
+                        setSelectedCity(city.slug)
+                        setMobileCityDropdownOpen(false)
+                      }}
+                      className={`w-full text-left px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                        selectedCity === city.slug
+                          ? 'text-[#FF2D55] bg-[#FF2D55]/10'
+                          : 'text-gray-600 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5'
+                      }`}
+                    >
+                      {city.name}
+                    </button>
+                  ))}
+                  {cities.filter(c => c.status === 'COMING_SOON').length > 0 && (
+                    <>
+                      <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                        Próximamente
+                      </div>
+                      {cities.filter(c => c.status === 'COMING_SOON').map((city) => (
+                        <div
+                          key={city.slug}
+                          className="w-full text-left px-4 py-2 rounded-lg text-xs font-medium text-gray-400 cursor-not-allowed"
+                        >
+                          {city.name}
+                        </div>
+                      ))}
+                    </>
+                  )}
                   <button
-                    key={city.slug}
                     onClick={() => {
-                      setSelectedCity(city.slug)
+                      setShowCityModal(true)
+                      setMobileCityDropdownOpen(false)
                       setMobileMenuOpen(false)
                     }}
-                    className={`w-full text-left px-4 py-2 rounded-lg text-xs font-medium transition-all ${
-                      selectedCity === city.slug
-                        ? 'text-[#FF2D55] bg-[#FF2D55]/10'
-                        : 'text-gray-600 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5'
-                    }`}
+                    className="w-full text-left px-4 py-2 text-xs font-semibold text-[#FF2D55] hover:bg-[#FF2D55]/5 rounded-lg transition-all"
                   >
-                    {city.name}
+                    Ver todas las opciones
                   </button>
-                ))}
-                {cities.filter(c => c.status === 'COMING_SOON').length > 0 && (
-                  <>
-                    <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                      Próximamente
-                    </div>
-                    {cities.filter(c => c.status === 'COMING_SOON').map((city) => (
-                      <div
-                        key={city.slug}
-                        className="w-full text-left px-4 py-2 rounded-lg text-xs font-medium text-gray-400 cursor-not-allowed"
-                      >
-                        {city.name}
-                      </div>
-                    ))}
-                  </>
-                )}
-              </div>
+                </div>
+              )}
             </div>
 
             {session ? (
