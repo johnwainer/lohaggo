@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { MapPin, Plus, Edit2, Trash2, Save, X } from 'lucide-react'
+import { MapPin, Plus, Edit2, Trash2, Save, X, Navigation } from 'lucide-react'
 
 type CityStatus = 'ACTIVE' | 'INACTIVE' | 'COMING_SOON'
 
@@ -11,6 +11,8 @@ interface City {
   slug: string
   status: CityStatus
   order: number
+  latitude: number | null
+  longitude: number | null
 }
 
 const statusLabels: Record<CityStatus, string> = {
@@ -34,7 +36,9 @@ export default function CitiesSection() {
     name: '',
     slug: '',
     status: 'ACTIVE' as CityStatus,
-    order: 0
+    order: 0,
+    latitude: null as number | null,
+    longitude: null as number | null
   })
 
   useEffect(() => {
@@ -66,7 +70,7 @@ export default function CitiesSection() {
       if (res.ok) {
         await fetchCities()
         setShowAddForm(false)
-        setFormData({ name: '', slug: '', status: 'ACTIVE', order: 0 })
+        setFormData({ name: '', slug: '', status: 'ACTIVE', order: 0, latitude: null, longitude: null })
       }
     } catch (error) {
       console.error('Error adding city:', error)
@@ -183,6 +187,38 @@ export default function CitiesSection() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="flex items-center gap-1">
+                  <Navigation size={14} />
+                  Latitud
+                </div>
+              </label>
+              <input
+                type="number"
+                step="0.0001"
+                value={formData.latitude ?? ''}
+                onChange={(e) => setFormData({ ...formData, latitude: e.target.value ? parseFloat(e.target.value) : null })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                placeholder="Ej: 6.2442"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="flex items-center gap-1">
+                  <Navigation size={14} />
+                  Longitud
+                </div>
+              </label>
+              <input
+                type="number"
+                step="0.0001"
+                value={formData.longitude ?? ''}
+                onChange={(e) => setFormData({ ...formData, longitude: e.target.value ? parseFloat(e.target.value) : null })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                placeholder="Ej: -75.5812"
+              />
+            </div>
           </div>
           <div className="flex gap-2 mt-4">
             <button
@@ -195,7 +231,7 @@ export default function CitiesSection() {
             <button
               onClick={() => {
                 setShowAddForm(false)
-                setFormData({ name: '', slug: '', status: 'ACTIVE', order: 0 })
+                setFormData({ name: '', slug: '', status: 'ACTIVE', order: 0, latitude: null, longitude: null })
               }}
               className="flex items-center gap-2 bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition"
             >
@@ -221,6 +257,9 @@ export default function CitiesSection() {
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Orden
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Coordenadas
               </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Acciones
@@ -266,6 +305,39 @@ export default function CitiesSection() {
                     />
                   ) : (
                     <span className="text-sm text-gray-600">{city.order}</span>
+                  )}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {editingId === city.id ? (
+                    <div className="flex flex-col gap-2">
+                      <input
+                        type="number"
+                        step="0.0001"
+                        value={city.latitude ?? ''}
+                        onChange={(e) => handleUpdate(city.id, { latitude: e.target.value ? parseFloat(e.target.value) : null })}
+                        className="w-32 px-2 py-1 border border-gray-300 rounded text-xs"
+                        placeholder="Latitud"
+                      />
+                      <input
+                        type="number"
+                        step="0.0001"
+                        value={city.longitude ?? ''}
+                        onChange={(e) => handleUpdate(city.id, { longitude: e.target.value ? parseFloat(e.target.value) : null })}
+                        className="w-32 px-2 py-1 border border-gray-300 rounded text-xs"
+                        placeholder="Longitud"
+                      />
+                    </div>
+                  ) : (
+                    <div className="text-xs text-gray-600">
+                      {city.latitude != null && city.longitude != null ? (
+                        <div className="flex items-center gap-1">
+                          <Navigation size={12} className="text-primary-600" />
+                          <span>{city.latitude.toFixed(4)}, {city.longitude.toFixed(4)}</span>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 italic">Sin coordenadas</span>
+                      )}
+                    </div>
                   )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
