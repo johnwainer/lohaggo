@@ -370,42 +370,8 @@ export function Navbar() {
       {mobileMenuOpen && (
         <div className="md:hidden bg-white border-t border-gray-200 animate-slide-down shadow-lg">
           <div className="px-4 pt-2 pb-4 space-y-2">
-            <Link
-              href="/"
-              className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
-                pathname === '/'
-                  ? 'text-[#FF2D55] bg-[#FF2D55]/5'
-                  : 'text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5'
-              }`}
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Inicio
-            </Link>
-            <Link
-              href="/servicios"
-              className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
-                pathname?.startsWith('/servicios')
-                  ? 'text-[#FF2D55] bg-[#FF2D55]/5'
-                  : 'text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5'
-              }`}
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Servicios
-            </Link>
-            <Link
-              href="/faq"
-              className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
-                pathname === '/faq'
-                  ? 'text-[#FF2D55] bg-[#FF2D55]/5'
-                  : 'text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5'
-              }`}
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              FAQ
-            </Link>
-
             {/* City Selector - Mobile */}
-            <div className="border-t border-gray-200 pt-2 mt-2">
+            <div className="mb-2">
               <button
                 onClick={() => setMobileCityDropdownOpen(!mobileCityDropdownOpen)}
                 className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 transition-all"
@@ -466,6 +432,42 @@ export function Navbar() {
                 </div>
               )}
             </div>
+
+            <div className="border-t border-gray-200 pt-2"></div>
+
+            <Link
+              href="/"
+              className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+                pathname === '/'
+                  ? 'text-[#FF2D55] bg-[#FF2D55]/5'
+                  : 'text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5'
+              }`}
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Inicio
+            </Link>
+            <Link
+              href="/servicios"
+              className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+                pathname?.startsWith('/servicios')
+                  ? 'text-[#FF2D55] bg-[#FF2D55]/5'
+                  : 'text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5'
+              }`}
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Servicios
+            </Link>
+            <Link
+              href="/faq"
+              className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+                pathname === '/faq'
+                  ? 'text-[#FF2D55] bg-[#FF2D55]/5'
+                  : 'text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5'
+              }`}
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              FAQ
+            </Link>
 
             {session ? (
               <>
