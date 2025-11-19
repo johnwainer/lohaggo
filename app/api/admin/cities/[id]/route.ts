@@ -15,7 +15,7 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { name, slug, status, order } = body
+    const { name, slug, status, order, latitude, longitude, lanzamiento, fechaLanzamiento } = body
 
     const city = await prisma.cityConfig.update({
       where: { id: params.id },
@@ -23,7 +23,11 @@ export async function PUT(
         ...(name && { name }),
         ...(slug && { slug }),
         ...(status && { status }),
-        ...(order !== undefined && { order })
+        ...(order !== undefined && { order }),
+        ...(latitude !== undefined && { latitude }),
+        ...(longitude !== undefined && { longitude }),
+        ...(lanzamiento !== undefined && { lanzamiento }),
+        ...(fechaLanzamiento !== undefined && { fechaLanzamiento: fechaLanzamiento ? new Date(fechaLanzamiento) : null })
       }
     })
 

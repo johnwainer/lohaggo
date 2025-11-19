@@ -13,6 +13,8 @@ interface City {
   order: number
   latitude: number | null
   longitude: number | null
+  lanzamiento: boolean
+  fechaLanzamiento: string | null
 }
 
 const statusLabels: Record<CityStatus, string> = {
@@ -38,7 +40,9 @@ export default function CitiesSection() {
     status: 'ACTIVE' as CityStatus,
     order: 0,
     latitude: null as number | null,
-    longitude: null as number | null
+    longitude: null as number | null,
+    lanzamiento: false,
+    fechaLanzamiento: null as string | null
   })
 
   useEffect(() => {
@@ -70,7 +74,7 @@ export default function CitiesSection() {
       if (res.ok) {
         await fetchCities()
         setShowAddForm(false)
-        setFormData({ name: '', slug: '', status: 'ACTIVE', order: 0, latitude: null, longitude: null })
+        setFormData({ name: '', slug: '', status: 'ACTIVE', order: 0, latitude: null, longitude: null, lanzamiento: false, fechaLanzamiento: null })
       }
     } catch (error) {
       console.error('Error adding city:', error)
@@ -119,6 +123,7 @@ export default function CitiesSection() {
   }
 
   return (
+
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -219,7 +224,32 @@ export default function CitiesSection() {
                 placeholder="Ej: -75.5812"
               />
             </div>
+            <div className="col-span-2">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={formData.lanzamiento}
+                  onChange={(e) => setFormData({ ...formData, lanzamiento: e.target.checked, fechaLanzamiento: e.target.checked ? formData.fechaLanzamiento : null })}
+                  className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                />
+                Lanzamiento programado
+              </label>
+            </div>
+            {formData.lanzamiento && (
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Fecha de lanzamiento
+                </label>
+                <input
+                  type="datetime-local"
+                  value={formData.fechaLanzamiento ?? ''}
+                  onChange={(e) => setFormData({ ...formData, fechaLanzamiento: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+              </div>
+            )}
           </div>
+
           <div className="flex gap-2 mt-4">
             <button
               onClick={handleAdd}
@@ -231,7 +261,7 @@ export default function CitiesSection() {
             <button
               onClick={() => {
                 setShowAddForm(false)
-                setFormData({ name: '', slug: '', status: 'ACTIVE', order: 0, latitude: null, longitude: null })
+                setFormData({ name: '', slug: '', status: 'ACTIVE' as CityStatus, order: 0, latitude: null, longitude: null, lanzamiento: false, fechaLanzamiento: null })
               }}
               className="flex items-center gap-2 bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition"
             >
@@ -240,7 +270,8 @@ export default function CitiesSection() {
             </button>
           </div>
         </div>
-      )}
+      )
+      }
 
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
@@ -260,6 +291,9 @@ export default function CitiesSection() {
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Coordenadas
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Lanzamiento
               </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Acciones
@@ -340,6 +374,52 @@ export default function CitiesSection() {
                     </div>
                   )}
                 </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {editingId === city.id ? (
+                    <div className="flex flex-col gap-2">
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={city.lanzamiento}
+                          onChange={(e) => handleUpdate(city.id, { lanzamiento: e.target.checked, fechaLanzamiento: e.target.checked ? city.fechaLanzamiento : null })}
+                          className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                        />
+                        Programado
+                      </label>
+                      {city.lanzamiento && (
+                        <input
+                          type="datetime-local"
+                          value={city.fechaLanzamiento ?? ''}
+                          onChange={(e) => handleUpdate(city.id, { fechaLanzamiento: e.target.value })}
+                          className="px-2 py-1 border border-gray-300 rounded text-xs"
+                        />
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-gray-600">
+                      {city.lanzamiento ? (
+                        <div className="flex flex-col gap-1">
+                          <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-semibold">
+                            Programado
+                          </span>
+                          {city.fechaLanzamiento && (
+                            <span className="text-gray-500">
+                              {new Date(city.fechaLanzamiento).toLocaleString('es-ES', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 italic">No programado</span>
+                      )}
+                    </div>
+                  )}
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <div className="flex items-center justify-end gap-2">
                     {editingId === city.id ? (
@@ -370,6 +450,6 @@ export default function CitiesSection() {
           </tbody>
         </table>
       </div>
-    </div>
+    </div >
   )
 }

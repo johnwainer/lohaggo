@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, slug, status, order } = body
+    const { name, slug, status, order, latitude, longitude, lanzamiento, fechaLanzamiento } = body
 
     if (!name || !slug) {
       return NextResponse.json({ error: 'Name and slug are required' }, { status: 400 })
@@ -42,7 +42,11 @@ export async function POST(request: NextRequest) {
         name,
         slug,
         status: status ?? 'ACTIVE',
-        order: order ?? 0
+        order: order ?? 0,
+        latitude: latitude ?? null,
+        longitude: longitude ?? null,
+        lanzamiento: lanzamiento ?? false,
+        fechaLanzamiento: fechaLanzamiento ? new Date(fechaLanzamiento) : null
       }
     })
 
