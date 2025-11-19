@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "prisma generate && next build --webpack",
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
@@ -25,13 +25,13 @@
     "express-rate-limit": "^8.2.1",
     "lucide-react": "^0.309.0",
     "mercadopago": "^2.9.0",
-    "next": "14.1.0",
+    "next": "^16.0.3",
     "next-auth": "^4.24.5",
     "pino": "^10.1.0",
     "pino-pretty": "^13.1.2",
-    "react": "^18.2.0",
+    "react": "^19.2.0",
     "react-chartjs-2": "^5.3.0",
-    "react-dom": "^18.2.0",
+    "react-dom": "^19.2.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {

@@ -7,10 +7,11 @@ import { createLogger } from '@/lib/logger'
 
 const logger = createLogger('payment-methods-id-set-default')
 
-export async function PATCH(
+export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const session = await getServerSession(authOptions)
 
@@ -23,7 +24,7 @@ export async function PATCH(
     }
 
     const paymentMethod = await prisma.paymentMethod.findUnique({
-      where: { id: params.id },
+      where: { id },
     })
 
     if (!paymentMethod) {
@@ -43,7 +44,7 @@ export async function PATCH(
         data: { isDefault: false },
       }),
       prisma.paymentMethod.update({
-        where: { id: params.id },
+        where: { id },
         data: { isDefault: true },
       }),
     ])

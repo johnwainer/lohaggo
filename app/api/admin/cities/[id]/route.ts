@@ -5,8 +5,9 @@ import { prisma } from '@/lib/prisma'
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const session = await getServerSession(authOptions)
 
@@ -18,7 +19,7 @@ export async function PUT(
     const { name, slug, status, order, latitude, longitude, lanzamiento, fechaLanzamiento } = body
 
     const city = await prisma.cityConfig.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         ...(name && { name }),
         ...(slug && { slug }),
@@ -39,9 +40,10 @@ export async function PUT(
 }
 
 export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const session = await getServerSession(authOptions)
 
@@ -50,7 +52,7 @@ export async function DELETE(
     }
 
     await prisma.cityConfig.delete({
-      where: { id: params.id }
+      where: { id },
     })
 
     return NextResponse.json({ message: 'City deleted successfully' })

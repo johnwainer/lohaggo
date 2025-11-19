@@ -11,8 +11,9 @@ const logger = createLogger('bookings-id')
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const user = await getCurrentUser()
 
@@ -27,7 +28,7 @@ export async function PATCH(
     const { status } = body
 
     const booking = await prisma.booking.findUnique({
-      where: { id: params.id }
+      where: { id }
     })
 
     if (!booking) {
@@ -44,8 +45,23 @@ export async function PATCH(
       )
     }
 
+    if (user.role === "PARTNER") {
+      if (!user.partnerProfile) {
+        return NextResponse.json(
+          { error: "Perfil de socio no encontrado" },
+          { status: 403 }
+        )
+      }
+      if (booking.partnerId !== user.partnerProfile.id) {
+        return NextResponse.json(
+          { error: "No autorizado" },
+          { status: 403 }
+        )
+      }
+    }
+
     const updatedBooking = await prisma.booking.update({
-      where: { id: params.id },
+      where: { id },
       data: { status },
       include: {
         service: true,
@@ -59,7 +75,7 @@ export async function PATCH(
       }
     })
 
-    await notifyBookingStatusChange(params.id, status)
+    await notifyBookingStatusChange(id, status)
 
     return NextResponse.json(updatedBooking)
   } catch (error) {
@@ -73,8 +89,9 @@ export async function PATCH(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const user = await getCurrentUser()
 
@@ -86,7 +103,7 @@ export async function DELETE(
     }
 
     const booking = await prisma.booking.findUnique({
-      where: { id: params.id }
+      where: { id }
     })
 
     if (!booking) {
@@ -104,11 +121,26 @@ export async function DELETE(
       )
     }
 
+    if (user.role === "PARTNER") {
+      if (!user.partnerProfile) {
+        return NextResponse.json(
+          { error: "Perfil de socio no encontrado" },
+          { status: 403 }
+        )
+      }
+      if (booking.partnerId !== user.partnerProfile.id) {
+        return NextResponse.json(
+          { error: "No autorizado" },
+          { status: 403 }
+        )
+      }
+    }
+
     // Notify partner/client about cancellation before deleting the booking
-    await notifyBookingStatusChange(params.id, 'CANCELLED')
+    await notifyBookingStatusChange(id, 'CANCELLED')
 
     await prisma.booking.delete({
-      where: { id: params.id }
+      where: { id }
     })
 
     return NextResponse.json({ message: "Reserva cancelada" })
