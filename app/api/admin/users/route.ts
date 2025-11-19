@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
+import { validateRequest } from '@/lib/validation'
+import { userUpdateSchema } from '@/lib/validation/user-schemas'
 
 export const dynamic = 'force-dynamic'
 
@@ -65,7 +67,13 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { userId, role } = body
+
+    const validation = await validateRequest(userUpdateSchema, body)
+    if (!validation.success) {
+      return validation.error
+    }
+
+    const { userId, role } = validation.data
 
     const user = await prisma.user.update({
       where: { id: userId },

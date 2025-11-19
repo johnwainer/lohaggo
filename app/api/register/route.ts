@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
 import { createLogger } from '@/lib/logger'
 import { registerRateLimiter } from '@/lib/rate-limit'
+import { validateRequest } from '@/lib/validation'
+import { registerSchema } from '@/lib/validation/auth-schemas'
 
 const logger = createLogger('register')
 
@@ -11,14 +13,13 @@ export const dynamic = 'force-dynamic'
 async function handlePOST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { email, password, name, phone, role, city, services } = body
 
-    if (!email || !password || !name) {
-      return NextResponse.json(
-        { error: "Faltan campos requeridos" },
-        { status: 400 }
-      )
+    const validation = await validateRequest(registerSchema, body)
+    if (!validation.success) {
+      return validation.error
     }
+
+    const { email, password, name, phone, role, city, services } = validation.data
 
     // Verificar si el usuario ya existe
     const existingUser = await prisma.user.findUnique({
