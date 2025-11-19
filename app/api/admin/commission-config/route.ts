@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { createLogger } from '@/lib/logger';
+import { commissionConfigSchema, validateRequest } from '@/lib/validation';
 
 const logger = createLogger('admin-commission-config');
 
@@ -47,31 +48,14 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
     }
 
-    const { clientCommissionRate, partnerCommissionRate } = await req.json();
+    const body = await req.json();
+    const validation = await validateRequest(commissionConfigSchema, body);
 
-    if (
-      typeof clientCommissionRate !== 'number' ||
-      typeof partnerCommissionRate !== 'number'
-    ) {
-      return NextResponse.json(
-        { error: 'Tasas de comisión inválidas' },
-        { status: 400 }
-      );
+    if (!validation.success) {
+      return validation.error;
     }
 
-    if (clientCommissionRate < 0 || clientCommissionRate > 50) {
-      return NextResponse.json(
-        { error: 'La comisión del cliente debe estar entre 0% y 50%' },
-        { status: 400 }
-      );
-    }
-
-    if (partnerCommissionRate < 0 || partnerCommissionRate > 50) {
-      return NextResponse.json(
-        { error: 'La comisión del socio debe estar entre 0% y 50%' },
-        { status: 400 }
-      );
-    }
+    const { clientCommissionRate, partnerCommissionRate } = validation.data;
 
     const existingConfig = await prisma.platformConfig.findFirst();
 

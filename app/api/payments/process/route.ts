@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
 import { paymentRateLimiter } from '@/lib/rate-limit'
+import { paymentProcessSchema, validateRequest } from '@/lib/validation'
 
 const logger = createLogger('payments-process')
 
@@ -15,11 +16,14 @@ async function handlePOST(req: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
-    const { bookingId, paymentMethodId } = await req.json()
+    const body = await req.json()
+    const validation = await validateRequest(paymentProcessSchema, body)
 
-    if (!bookingId) {
-      return NextResponse.json({ error: 'ID de reserva requerido' }, { status: 400 })
+    if (!validation.success) {
+      return validation.error
     }
+
+    const { bookingId, paymentMethodId } = validation.data
 
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
@@ -106,7 +110,7 @@ async function handlePOST(req: NextRequest) {
           serviceAmount,
           clientCommission,
           clientCommissionRate,
-          totalAmount,
+          totalAmount, // Redundant but kept for consistency with original code if needed, or just remove duplicate key in object literal if strict
           paidAt: new Date(),
           paymentMethodType: 'credit_card',
           paymentType: 'credit_card',
