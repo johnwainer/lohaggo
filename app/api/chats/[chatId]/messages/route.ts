@@ -8,7 +8,7 @@ import { chatMessageSchema, validateRequest } from '@/lib/validation'
 function detectContactInfo(message: string): { isValid: boolean; reason?: string } {
   const lowerMessage = message.toLowerCase()
   const normalizedMessage = message.replace(/\s+/g, '')
-  
+
   const phonePatterns = [
     /\b\d{10}\b/g,
     /\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b/g,
@@ -28,7 +28,7 @@ function detectContactInfo(message: string): { isValid: boolean; reason?: string
     /\bmóvil[:\s]*\d+/gi,
     /\bmovil[:\s]*\d+/gi,
   ]
-  
+
   for (const pattern of phonePatterns) {
     if (pattern.test(message) || pattern.test(normalizedMessage)) {
       return {
@@ -37,7 +37,7 @@ function detectContactInfo(message: string): { isValid: boolean; reason?: string
       }
     }
   }
-  
+
   const emailPatterns = [
     /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
     /\b[A-Za-z0-9._%+-]+\s*@\s*[A-Za-z0-9.-]+\s*\.\s*[A-Z|a-z]{2,}\b/g,
@@ -48,7 +48,7 @@ function detectContactInfo(message: string): { isValid: boolean; reason?: string
     /\bemail[:\s]*[A-Za-z0-9._%+-]+/gi,
     /\be-mail[:\s]*[A-Za-z0-9._%+-]+/gi,
   ]
-  
+
   for (const pattern of emailPatterns) {
     if (pattern.test(message)) {
       return {
@@ -57,7 +57,7 @@ function detectContactInfo(message: string): { isValid: boolean; reason?: string
       }
     }
   }
-  
+
   const socialMediaPatterns = [
     /\b(?:instagram|insta|ig)[:\s]*[@]?[A-Za-z0-9._]+/gi,
     /\b(?:facebook|fb)[:\s]*[A-Za-z0-9._]+/gi,
@@ -68,7 +68,7 @@ function detectContactInfo(message: string): { isValid: boolean; reason?: string
     /\b(?:snapchat|snap)[:\s]*[A-Za-z0-9._]+/gi,
     /\b@[A-Za-z0-9._]{3,}/g,
   ]
-  
+
   for (const pattern of socialMediaPatterns) {
     if (pattern.test(message)) {
       return {
@@ -77,7 +77,7 @@ function detectContactInfo(message: string): { isValid: boolean; reason?: string
       }
     }
   }
-  
+
   const contactKeywords = [
     'llámame', 'llamame', 'llama me', 'llamá', 'llama',
     'escríbeme', 'escribeme', 'escribe me', 'escribí',
@@ -94,7 +94,7 @@ function detectContactInfo(message: string): { isValid: boolean; reason?: string
     'fuera de la plataforma', 'fuera de aquí', 'fuera de aqui',
     'por fuera', 'afuera',
   ]
-  
+
   for (const keyword of contactKeywords) {
     if (lowerMessage.includes(keyword)) {
       return {
@@ -103,7 +103,7 @@ function detectContactInfo(message: string): { isValid: boolean; reason?: string
       }
     }
   }
-  
+
   const obfuscatedPatterns = [
     /\b\d+\s*\d+\s*\d+\s*\d+\s*\d+\s*\d+\s*\d+\s*\d+\s*\d+\s*\d+\b/g,
     /\b\d[\s.-]*\d[\s.-]*\d[\s.-]*\d[\s.-]*\d[\s.-]*\d[\s.-]*\d[\s.-]*\d[\s.-]*\d[\s.-]*\d\b/g,
@@ -111,7 +111,7 @@ function detectContactInfo(message: string): { isValid: boolean; reason?: string
     /\b[a-z0-9]+\s*\[at\]\s*[a-z0-9]+/gi,
     /\b[a-z0-9]+\s*\(at\)\s*[a-z0-9]+/gi,
   ]
-  
+
   for (const pattern of obfuscatedPatterns) {
     if (pattern.test(message) || pattern.test(normalizedMessage)) {
       return {
@@ -127,10 +127,30 @@ function detectContactInfo(message: string): { isValid: boolean; reason?: string
 
 const logger = createLogger('chats-chatId-messages')
 
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ chatId: string }> }
+) {
+  const { chatId } = await params
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    }
+    // Your GET logic here
+    // For example, fetching messages for the given chatId
+    return NextResponse.json({ message: `GET request for chat ${chatId}` })
+  } catch (error) {
+    logger.error('Error in GET request:', error || undefined)
+    return NextResponse.json({ error: 'Error processing GET request' }, { status: 500 })
+  }
+}
+
 export async function POST(
   request: Request,
-  { params }: { params: { chatId: string } }
+  { params }: { params: Promise<{ chatId: string }> }
 ) {
+  const { chatId } = await params
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user) {
@@ -140,7 +160,7 @@ export async function POST(
     const body = await request.json()
 
     const validation = await validateRequest(chatMessageSchema, {
-      chatId: params.chatId,
+      chatId: chatId,
       content: body.content
     })
 
@@ -153,7 +173,7 @@ export async function POST(
     const contactValidation = detectContactInfo(content)
     if (!contactValidation.isValid) {
       const chat = await prisma.chat.findUnique({
-        where: { id: params.chatId }
+        where: { id: chatId }
       })
 
       if (!chat) {
@@ -182,14 +202,14 @@ export async function POST(
 
       const systemMessage = await prisma.chatMessage.create({
         data: {
-          chatId: params.chatId,
+          chatId: chatId,
           senderId: 'SYSTEM',
           content: warningMessage
         }
       })
 
       await prisma.chat.update({
-        where: { id: params.chatId },
+        where: { id: chatId },
         data: { updatedAt: new Date() }
       })
 
@@ -212,7 +232,7 @@ export async function POST(
             type: 'NEW_MESSAGE',
             title: 'Alerta de seguridad',
             message: `Se bloqueó un intento de compartir información de contacto en el chat`,
-            data: JSON.stringify({ chatId: params.chatId })
+            data: JSON.stringify({ chatId: chatId })
           }
         })
       }
@@ -226,7 +246,7 @@ export async function POST(
     }
 
     const chat = await prisma.chat.findUnique({
-      where: { id: params.chatId }
+      where: { id: chatId }
     })
 
     if (!chat) {
@@ -253,19 +273,19 @@ export async function POST(
 
     const message = await prisma.chatMessage.create({
       data: {
-        chatId: params.chatId,
+        chatId: chatId,
         senderId: session.user.id,
         content: content.trim()
       }
     })
 
     await prisma.chat.update({
-      where: { id: params.chatId },
+      where: { id: chatId },
       data: { updatedAt: new Date() }
     })
 
     let recipientUserId: string | null = null
-    
+
     if (chat.clientId === session.user.id) {
       const partner = await prisma.partnerProfile.findUnique({
         where: { id: chat.partnerId },
@@ -283,7 +303,7 @@ export async function POST(
           type: 'NEW_MESSAGE',
           title: 'Nuevo mensaje',
           message: `${session.user.name} te ha enviado un mensaje`,
-          data: JSON.stringify({ chatId: params.chatId })
+          data: JSON.stringify({ chatId: chatId })
         }
       })
     }
@@ -297,8 +317,9 @@ export async function POST(
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { chatId: string } }
+  { params }: { params: Promise<{ chatId: string }> }
 ) {
+  const { chatId } = await params
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user) {
@@ -306,7 +327,7 @@ export async function PATCH(
     }
 
     const chat = await prisma.chat.findUnique({
-      where: { id: params.chatId }
+      where: { id: chatId }
     })
 
     if (!chat) {
@@ -332,7 +353,7 @@ export async function PATCH(
 
     await prisma.chatMessage.updateMany({
       where: {
-        chatId: params.chatId,
+        chatId: chatId,
         senderId: { not: session.user.id },
         read: false
       },

@@ -51,7 +51,8 @@ interface Address {
   isPrimary: boolean
 }
 
-export default function ServiceDetailPage({ params }: { params: { slug: string } }) {
+export default async function ServiceDetailPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params
   const { data: session } = useSession()
   const router = useRouter()
   const { getCityBySlug } = useCity()
@@ -83,11 +84,11 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
 
   useEffect(() => {
     fetchService()
-  }, [params.slug])
+  }, [slug])
 
   const fetchService = async () => {
     try {
-      const res = await fetch(`/api/services/${params.slug}`)
+      const res = await fetch(`/api/services/${slug}`)
       const data = await res.json()
       setService(data)
     } catch (error) {
@@ -99,7 +100,7 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
 
   const handleBooking = () => {
     if (!session) {
-      router.push('/login?redirect=/servicios/' + params.slug)
+      router.push('/login?redirect=/servicios/' + slug)
       return
     }
     fetchAddresses()
@@ -110,7 +111,7 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
   // New function name for handling requests (kept for clarity/compatibility)
   const handleRequest = () => {
     if (!session) {
-      router.push('/login?redirect=/servicios/' + params.slug)
+      router.push('/login?redirect=/servicios/' + slug)
       return
     }
     fetchAddresses()
@@ -450,9 +451,8 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
                 {[1, 2, 3, 4].map((step) => (
                   <div
                     key={step}
-                    className={`h-1.5 md:h-2 flex-1 rounded-full transition-all duration-300 ${
-                      step <= currentStep ? 'bg-white' : 'bg-white/30'
-                    }`}
+                    className={`h-1.5 md:h-2 flex-1 rounded-full transition-all duration-300 ${step <= currentStep ? 'bg-white' : 'bg-white/30'
+                      }`}
                   />
                 ))}
               </div>
@@ -476,11 +476,10 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
                         {addresses.map((addr) => (
                           <label
                             key={addr.id}
-                            className={`flex items-start gap-3 md:gap-4 p-3 md:p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                              selectedAddressId === addr.id
-                                ? 'border-[#FF6900] bg-orange-50'
-                                : 'border-gray-200 hover:border-orange-300 hover:bg-gray-50'
-                            }`}
+                            className={`flex items-start gap-3 md:gap-4 p-3 md:p-4 border-2 rounded-xl cursor-pointer transition-all ${selectedAddressId === addr.id
+                              ? 'border-[#FF6900] bg-orange-50'
+                              : 'border-gray-200 hover:border-orange-300 hover:bg-gray-50'
+                              }`}
                           >
                             <input
                               type="radio"
@@ -556,11 +555,10 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
                     <div className="space-y-4">
                       {/* Opción Urgente */}
                       <label
-                        className={`flex items-start gap-3 md:gap-4 p-4 md:p-5 border-2 rounded-xl cursor-pointer transition-all ${
-                          requestData.isUrgent
-                            ? 'border-red-500 bg-red-50'
-                            : 'border-gray-200 hover:border-red-300 hover:bg-gray-50'
-                        }`}
+                        className={`flex items-start gap-3 md:gap-4 p-4 md:p-5 border-2 rounded-xl cursor-pointer transition-all ${requestData.isUrgent
+                          ? 'border-red-500 bg-red-50'
+                          : 'border-gray-200 hover:border-red-300 hover:bg-gray-50'
+                          }`}
                       >
                         <input
                           type="radio"
@@ -580,11 +578,10 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
 
                       {/* Opción Programada */}
                       <label
-                        className={`flex items-start gap-3 md:gap-4 p-4 md:p-5 border-2 rounded-xl cursor-pointer transition-all ${
-                          !requestData.isUrgent
-                            ? 'border-[#FF6900] bg-orange-50'
-                            : 'border-gray-200 hover:border-orange-300 hover:bg-gray-50'
-                        }`}
+                        className={`flex items-start gap-3 md:gap-4 p-4 md:p-5 border-2 rounded-xl cursor-pointer transition-all ${!requestData.isUrgent
+                          ? 'border-[#FF6900] bg-orange-50'
+                          : 'border-gray-200 hover:border-orange-300 hover:bg-gray-50'
+                          }`}
                       >
                         <input
                           type="radio"
@@ -672,10 +669,10 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
                               ) : (
                                 requestData.preferredDate
                                   ? `${new Date(requestData.preferredDate).toLocaleDateString('es-ES', {
-                                      weekday: 'long',
-                                      day: 'numeric',
-                                      month: 'long'
-                                    })} a las ${requestData.preferredTime || '—'}`
+                                    weekday: 'long',
+                                    day: 'numeric',
+                                    month: 'long'
+                                  })} a las ${requestData.preferredTime || '—'}`
                                   : 'No especificada'
                               )}
                             </p>
@@ -722,11 +719,10 @@ export default function ServiceDetailPage({ params }: { params: { slug: string }
                           className="hidden"
                           disabled={photos.length >= 5}
                         />
-                        <div className={`border-2 border-dashed rounded-xl p-6 md:p-8 text-center cursor-pointer transition-all ${
-                          photos.length >= 5
-                            ? 'border-gray-300 bg-gray-100 cursor-not-allowed'
-                            : 'border-[#FF6900] bg-orange-50 hover:bg-orange-100'
-                        }`}>
+                        <div className={`border-2 border-dashed rounded-xl p-6 md:p-8 text-center cursor-pointer transition-all ${photos.length >= 5
+                          ? 'border-gray-300 bg-gray-100 cursor-not-allowed'
+                          : 'border-[#FF6900] bg-orange-50 hover:bg-orange-100'
+                          }`}>
                           <Upload className={`mx-auto mb-3 ${photos.length >= 5 ? 'text-gray-400' : 'text-[#FF6900]'}`} size={32} />
                           <p className={`font-semibold mb-1 ${photos.length >= 5 ? 'text-gray-500' : 'text-gray-900'}`}>
                             {photos.length >= 5 ? 'Máximo de fotos alcanzado' : 'Haz clic para subir fotos'}

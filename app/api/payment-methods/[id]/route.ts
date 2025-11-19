@@ -9,8 +9,9 @@ const logger = createLogger('payment-methods-id')
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const session = await getServerSession(authOptions)
 
@@ -23,7 +24,7 @@ export async function DELETE(
     }
 
     const paymentMethod = await prisma.paymentMethod.findUnique({
-      where: { id: params.id },
+      where: { id },
     })
 
     if (!paymentMethod) {
@@ -39,7 +40,7 @@ export async function DELETE(
         where: {
           userId: session.user.id,
           isActive: true,
-          id: { not: params.id },
+          id: { not: id },
         },
       })
 
@@ -52,7 +53,7 @@ export async function DELETE(
     }
 
     await prisma.paymentMethod.update({
-      where: { id: params.id },
+      where: { id },
       data: { isActive: false },
     })
 

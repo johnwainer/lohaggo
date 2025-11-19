@@ -11,20 +11,21 @@ export const dynamic = 'force-dynamic'
 const logger = createLogger('proposals-id-accept')
 
 export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
+    const { id } = await params
 
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
-    const proposalId = params.id
+    const proposalId = id
 
     const proposal = await prisma.proposal.findUnique({
-      where: { id: proposalId },
+      where: { id },
       include: {
         serviceRequest: {
           include: {
