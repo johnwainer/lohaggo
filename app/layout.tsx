@@ -7,6 +7,7 @@ import { Footer } from '@/components/Footer'
 import NotificationPermissionPrompt from '@/components/NotificationPermissionPrompt'
 import PWAInstallPrompt from '@/components/PWAInstallPrompt'
 import PWARegister from '@/components/PWARegister'
+import TermsBanner from '@/components/TermsBanner'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -126,6 +127,7 @@ export default function RootLayout({
           <Footer />
           <NotificationPermissionPrompt />
           <PWAInstallPrompt />
+          <TermsBanner />
         </Providers>
       </body>
     </html>
