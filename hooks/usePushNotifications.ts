@@ -1,4 +1,4 @@
-bimport { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 
 type PermissionState = 'default' | 'granted' | 'denied'
 
