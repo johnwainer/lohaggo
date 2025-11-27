@@ -1,4 +1,4 @@
-caimport { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import mercadopago from '@/lib/mercadopago';
 import { Payment } from 'mercadopago';
