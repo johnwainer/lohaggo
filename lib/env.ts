@@ -1,14 +1,16 @@
 import { z } from 'zod'
 
+const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build'
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 
-  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+  DATABASE_URL: isBuildTime ? z.string().optional() : z.string().min(1, 'DATABASE_URL is required'),
   POSTGRES_PRISMA_URL: z.string().optional(),
 
-  NEXTAUTH_SECRET: z.string().min(32, 'NEXTAUTH_SECRET must be at least 32 characters'),
+  NEXTAUTH_SECRET: isBuildTime ? z.string().optional() : z.string().min(32, 'NEXTAUTH_SECRET must be at least 32 characters'),
   NEXTAUTH_SECRET_CURRENT: z.string().optional(),
-  NEXTAUTH_URL: z.string().url('NEXTAUTH_URL must be a valid URL'),
+  NEXTAUTH_URL: isBuildTime ? z.string().optional() : z.string().url('NEXTAUTH_URL must be a valid URL'),
 
   SESSION_MAX_AGE: z.string().regex(/^\d+$/, 'SESSION_MAX_AGE must be a number').default('86400'),
   SESSION_UPDATE_AGE: z.string().regex(/^\d+$/, 'SESSION_UPDATE_AGE must be a number').default('3600'),
@@ -37,11 +39,15 @@ const envSchema = z.object({
 type Env = z.infer<typeof envSchema>
 
 function validateEnv(): Env {
+  if (isBuildTime) {
+    console.log('⏭️  Skipping environment validation during build phase')
+    return envSchema.parse(process.env)
+  }
+
   try {
     const parsed = envSchema.parse(process.env)
-    const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build'
 
-    if (parsed.NODE_ENV === 'production' && !isBuildTime) {
+    if (parsed.NODE_ENV === 'production') {
       if (!parsed.MERCADOPAGO_ACCESS_TOKEN) {
         throw new Error('MERCADOPAGO_ACCESS_TOKEN is required in production')
       }
@@ -56,6 +62,9 @@ function validateEnv(): Env {
       }
       if (!parsed.NEXT_PUBLIC_APP_URL.startsWith('https://')) {
         throw new Error('NEXT_PUBLIC_APP_URL must use HTTPS in production')
+      }
+      if (!parsed.NEXTAUTH_URL) {
+        throw new Error('NEXTAUTH_URL is required in production')
       }
       if (!parsed.NEXTAUTH_URL.startsWith('https://')) {
         throw new Error('NEXTAUTH_URL must use HTTPS in production')
@@ -74,7 +83,7 @@ function validateEnv(): Env {
       }
     }
 
-    if (parsed.NODE_ENV === 'development' || isBuildTime) {
+    if (parsed.NODE_ENV === 'development') {
       console.log('✅ Environment variables validated successfully')
     }
 
@@ -90,11 +99,7 @@ function validateEnv(): Env {
       console.error('\n❌ Unexpected error during environment validation:', error)
     }
 
-    if (process.env.NEXT_PHASE !== 'phase-production-build') {
-      process.exit(1)
-    }
-
-    return envSchema.parse({})
+    process.exit(1)
   }
 }
 
