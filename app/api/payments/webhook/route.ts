@@ -1,10 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
+caimport { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import mercadopago from '@/lib/mercadopago';
+import { Payment } from 'mercadopago';
 import { createLogger } from '@/lib/logger';
 import { webhookRateLimiter } from '@/lib/rate-limit';
 import crypto from 'crypto';
 import { handleApiError } from '@/lib/errors';
+import { env } from '@/lib/env';
 
 const logger = createLogger('payments-webhook');
 
@@ -17,7 +19,7 @@ function verifyMercadoPagoSignature(req: NextRequest, body: string): boolean {
     return false;
   }
 
-  const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET;
+  const secret = env.MERCADOPAGO_WEBHOOK_SECRET;
   if (!secret) {
     logger.error('MERCADOPAGO_WEBHOOK_SECRET not configured');
     return false;
@@ -102,7 +104,8 @@ async function handlePOST(req: NextRequest) {
         return NextResponse.json({ received: true });
       }
 
-      const mpResponse = await mercadopago.payment.get({ id: String(paymentId) });
+      const paymentClient = new Payment(mercadopago);
+      const mpResponse = await paymentClient.get({ id: String(paymentId) });
       const mpPayment = mpResponse;
 
       const mpStatusRaw = (mpPayment?.status ?? '').toString().toLowerCase();

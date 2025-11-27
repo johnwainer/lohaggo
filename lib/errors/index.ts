@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server'
+os, rimport { NextResponse } from 'next/server'
 import { createLogger } from '@/lib/logger'
+import { env } from '@/lib/env'
 
 const logger = createLogger('error-handler')
 
@@ -53,7 +54,7 @@ export class RateLimitError extends AppError {
 }
 
 export function handleApiError(error: any, context?: string): NextResponse {
-  const isProduction = process.env.NODE_ENV === 'production'
+  const isProduction = env.NODE_ENV === 'production'
 
   if (error instanceof AppError) {
     logger.error(`${context || 'API'} error`, error, {

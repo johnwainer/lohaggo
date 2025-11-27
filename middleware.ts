@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server'
+simport { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
+import { env } from './lib/env'
 
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
 
@@ -79,7 +80,7 @@ export async function middleware(request: NextRequest) {
   }
 
   if (pathname.startsWith('/admin')) {
-    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
+    const token = await getToken({ req: request, secret: env.NEXTAUTH_SECRET })
 
     if (!token) {
       return NextResponse.redirect(new URL('/auth/signin', request.url))
@@ -91,7 +92,7 @@ export async function middleware(request: NextRequest) {
   }
 
   if (pathname.startsWith('/partner')) {
-    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
+    const token = await getToken({ req: request, secret: env.NEXTAUTH_SECRET })
 
     if (!token) {
       return NextResponse.redirect(new URL('/auth/signin', request.url))
@@ -107,7 +108,7 @@ export async function middleware(request: NextRequest) {
   if (pathname.startsWith('/api/')) {
     const origin = request.headers.get('origin')
     const allowedOrigins = [
-      process.env.NEXT_PUBLIC_APP_URL,
+      env.NEXT_PUBLIC_APP_URL,
       'http://localhost:3000',
     ].filter(Boolean)
 

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+bimport { useEffect, useState, useCallback } from 'react'
 
 type PermissionState = 'default' | 'granted' | 'denied'
 
@@ -99,7 +99,6 @@ export function usePushNotifications() {
         await existingSub.unsubscribe()
       }
 
-      // Access VAPID public key - must be available at build time
       const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
 
       console.log('VAPID Key check:', {
