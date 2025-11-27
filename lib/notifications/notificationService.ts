@@ -2,12 +2,13 @@ import { prisma } from "@/lib/prisma"
 import webpush from "web-push"
 import { createLogger } from '@/lib/logger'
 import { validateVapidKeys, parsePushSubscription } from './pushValidation'
+import { env } from '@/lib/env'
 
 const logger = createLogger('notification-service')
 
 const vapidKeys = {
-  publicKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "",
-  privateKey: process.env.VAPID_PRIVATE_KEY || ""
+  publicKey: env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "",
+  privateKey: env.VAPID_PRIVATE_KEY || ""
 }
 
 const vapidValidation = validateVapidKeys(vapidKeys.publicKey, vapidKeys.privateKey)

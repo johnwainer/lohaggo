@@ -50,7 +50,7 @@ export default function PWARegister() {
       window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault()
         deferredPrompt = e
-        
+
         // Store the event for later use
         localStorage.setItem('pwa-prompt-available', 'true')
       })

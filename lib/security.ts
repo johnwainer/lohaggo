@@ -1,5 +1,6 @@
 import crypto from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
+import { env } from './env'
 
 export function validateMercadoPagoWebhook(
   request: NextRequest,
@@ -7,7 +8,7 @@ export function validateMercadoPagoWebhook(
 ): boolean {
   const xSignature = request.headers.get('x-signature')
   const xRequestId = request.headers.get('x-request-id')
-  const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET
+  const secret = env.MERCADOPAGO_WEBHOOK_SECRET
 
   if (!xSignature || !xRequestId || !secret) {
     return false
@@ -115,7 +116,7 @@ export function sanitizeInput(input: string): string {
 }
 
 export function isProduction(): boolean {
-  return process.env.NODE_ENV === 'production'
+  return env.NODE_ENV === 'production'
 }
 
 export function getClientIp(request: NextRequest): string {
@@ -146,7 +147,7 @@ export function createSecurityHeaders(): Record<string, string> {
 export function validateOrigin(request: NextRequest): boolean {
   const origin = request.headers.get('origin')
   const allowedOrigins = [
-    process.env.NEXT_PUBLIC_APP_URL,
+    env.NEXT_PUBLIC_APP_URL,
     'http://localhost:3000',
   ].filter(Boolean)
 

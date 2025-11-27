@@ -1,11 +1,13 @@
-import { NextResponse } from 'next/server'
+be import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import mercadopago from '@/lib/mercadopago'
+import { Customer, CardToken } from 'mercadopago'
 import { createLogger } from '@/lib/logger'
 import { z } from 'zod'
 import { validateRequest } from '@/lib/validation'
+import { env } from '@/lib/env'
 
 const logger = createLogger('payment-methods')
 
@@ -74,7 +76,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    if (!process.env.MERCADOPAGO_ACCESS_TOKEN) {
+    if (!env.MERCADOPAGO_ACCESS_TOKEN) {
       return NextResponse.json({ error: 'Mercado Pago no está configurado' }, { status: 500 })
     }
 
@@ -121,7 +123,8 @@ export async function POST(request: Request) {
     }
 
     if (!customerId) {
-      const search = await mercadopago.customer
+      const customerClient = new Customer(mercadopago)
+      const search = await customerClient
         .search({ options: { email: userEmail } })
         .catch(() => null)
 
@@ -139,7 +142,7 @@ export async function POST(request: Request) {
         const [firstName = userName, ...rest] = (userName || '').split(' ').filter(Boolean)
         const lastName = rest.join(' ') || undefined
 
-        const createdCustomer = await mercadopago.customer
+        const createdCustomer = await customerClient
           .create({
             body: {
               email: userEmail,
@@ -175,7 +178,8 @@ export async function POST(request: Request) {
 
     const shouldSetDefault = setDefault === true
 
-    const cardToken = await mercadopago.cardToken
+    const cardTokenClient = new CardToken(mercadopago)
+    const cardToken = await cardTokenClient
       .create({
         body: {
           card_number: sanitizedNumber,
@@ -193,7 +197,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No se pudo generar el token de la tarjeta' }, { status: 500 })
     }
 
-    const customerCard = await mercadopago.customer
+    const customerClient = new Customer(mercadopago)
+    const customerCard = await customerClient
       .createCard({
         customerId,
         body: {
@@ -235,7 +240,8 @@ export async function POST(request: Request) {
     })
 
     if (shouldSetDefault && customerCard.id) {
-      mercadopago.customer
+      const customerClient = new Customer(mercadopago)
+      customerClient
         .update({
           customerId,
           body: { default_card: customerCard.id },

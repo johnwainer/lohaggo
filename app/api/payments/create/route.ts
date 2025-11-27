@@ -1,10 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
+losimport { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import mercadopago from '@/lib/mercadopago';
+import { Preference } from 'mercadopago';
 import { createLogger } from '@/lib/logger';
 import { paymentRateLimiter } from '@/lib/rate-limit';
+import { env } from '@/lib/env';
 
 const logger = createLogger('payments-create');
 
@@ -95,7 +97,8 @@ async function handlePOST(req: NextRequest) {
       totalAmount,
     });
 
-    const preference = await mercadopago.preference.create({
+    const preferenceClient = new Preference(mercadopago);
+    const preference = await preferenceClient.create({
       body: {
         items: [
           {
@@ -112,12 +115,12 @@ async function handlePOST(req: NextRequest) {
           email: booking.user?.email || '',
         },
         back_urls: {
-          success: `${process.env.NEXT_PUBLIC_APP_URL}/bookings/${bookingId}?payment=success`,
-          failure: `${process.env.NEXT_PUBLIC_APP_URL}/bookings/${bookingId}?payment=failure`,
-          pending: `${process.env.NEXT_PUBLIC_APP_URL}/bookings/${bookingId}?payment=pending`,
+          success: `${env.NEXT_PUBLIC_APP_URL}/bookings/${bookingId}?payment=success`,
+          failure: `${env.NEXT_PUBLIC_APP_URL}/bookings/${bookingId}?payment=failure`,
+          pending: `${env.NEXT_PUBLIC_APP_URL}/bookings/${bookingId}?payment=pending`,
         },
         auto_return: 'approved',
-        notification_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/payments/webhook`,
+        notification_url: `${env.NEXT_PUBLIC_APP_URL}/api/payments/webhook`,
         external_reference: bookingId,
       },
     });
