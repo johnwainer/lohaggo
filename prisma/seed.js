@@ -117,10 +117,10 @@ async function main() {
   console.log('✅ Base de datos limpiada')
 
   const cities = [
-    { name: 'Medellín', slug: 'medellin', status: 'ACTIVE', order: 1 },
-    { name: 'Bogotá', slug: 'bogota', status: 'COMING_SOON', order: 2 },
-    { name: 'Cali', slug: 'cali', status: 'COMING_SOON', order: 3 },
-    { name: 'Barranquilla', slug: 'barranquilla', status: 'COMING_SOON', order: 4 },
+    { name: 'Medellín', slug: 'medellin', status: 'ACTIVE', order: 1, latitude: 6.2476, longitude: -75.5658 },
+    { name: 'Bogotá', slug: 'bogota', status: 'COMING_SOON', order: 2, latitude: 4.7110, longitude: -74.0721 },
+    { name: 'Cali', slug: 'cali', status: 'COMING_SOON', order: 3, latitude: 3.4516, longitude: -76.5320 },
+    { name: 'Barranquilla', slug: 'barranquilla', status: 'COMING_SOON', order: 4, latitude: 10.9685, longitude: -74.7813 },
   ]
 
   for (const city of cities) {
