@@ -42,9 +42,9 @@ const runtimeSchema = z.object({
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   POSTGRES_PRISMA_URL: z.string().optional(),
 
-  NEXTAUTH_SECRET: z.string().min(32, 'NEXTAUTH_SECRET must be at least 32 characters'),
+  NEXTAUTH_SECRET: z.string().min(1, 'NEXTAUTH_SECRET is required'),
   NEXTAUTH_SECRET_CURRENT: z.string().optional(),
-  NEXTAUTH_URL: z.string().url('NEXTAUTH_URL must be a valid URL'),
+  NEXTAUTH_URL: z.string().min(1, 'NEXTAUTH_URL is required'),
 
   SESSION_MAX_AGE: z.string().regex(/^\d+$/, 'SESSION_MAX_AGE must be a number').default('86400'),
   SESSION_UPDATE_AGE: z.string().regex(/^\d+$/, 'SESSION_UPDATE_AGE must be a number').default('3600'),
@@ -60,14 +60,14 @@ const runtimeSchema = z.object({
   NEXT_PUBLIC_VAPID_PUBLIC_KEY: z.string().optional(),
   VAPID_PRIVATE_KEY: z.string().optional(),
 
-  NEXT_PUBLIC_APP_URL: z.string().url('NEXT_PUBLIC_APP_URL must be a valid URL').optional(),
+  NEXT_PUBLIC_APP_URL: z.string().optional(),
 
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).optional(),
 
-  UPSTASH_REDIS_REST_URL: z.string().url().optional(),
+  UPSTASH_REDIS_REST_URL: z.string().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
 
-  NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
+  NEXT_PUBLIC_SENTRY_DSN: z.string().optional(),
 })
 
 type Env = z.infer<typeof runtimeSchema>
@@ -82,23 +82,31 @@ function validateEnv(): Env {
     const parsed = runtimeSchema.parse(process.env)
 
     if (parsed.NODE_ENV === 'production') {
+      if (parsed.NEXTAUTH_SECRET && parsed.NEXTAUTH_SECRET.length < 32) {
+        throw new Error('NEXTAUTH_SECRET must be at least 32 characters')
+      }
+
+      if (parsed.NEXTAUTH_URL && !parsed.NEXTAUTH_URL.match(/^https?:\/\/.+/)) {
+        throw new Error('NEXTAUTH_URL must be a valid URL')
+      }
+
       if (!parsed.MERCADOPAGO_ACCESS_TOKEN) {
-        throw new Error('MERCADOPAGO_ACCESS_TOKEN is required in production')
+        console.warn('⚠️  MERCADOPAGO_ACCESS_TOKEN is not set in production')
       }
       if (!parsed.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY) {
-        throw new Error('NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY is required in production')
+        console.warn('⚠️  NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY is not set in production')
       }
       if (!parsed.MERCADOPAGO_WEBHOOK_SECRET) {
-        throw new Error('MERCADOPAGO_WEBHOOK_SECRET is required in production')
+        console.warn('⚠️  MERCADOPAGO_WEBHOOK_SECRET is not set in production')
       }
       if (!parsed.NEXT_PUBLIC_APP_URL) {
-        throw new Error('NEXT_PUBLIC_APP_URL is required in production')
+        console.warn('⚠️  NEXT_PUBLIC_APP_URL is not set in production')
       }
-      if (!parsed.NEXT_PUBLIC_APP_URL.startsWith('https://')) {
-        throw new Error('NEXT_PUBLIC_APP_URL must use HTTPS in production')
+      if (parsed.NEXT_PUBLIC_APP_URL && !parsed.NEXT_PUBLIC_APP_URL.startsWith('https://')) {
+        console.warn('⚠️  NEXT_PUBLIC_APP_URL should use HTTPS in production')
       }
-      if (!parsed.NEXTAUTH_URL.startsWith('https://')) {
-        throw new Error('NEXTAUTH_URL must use HTTPS in production')
+      if (parsed.NEXTAUTH_URL && !parsed.NEXTAUTH_URL.startsWith('https://')) {
+        console.warn('⚠️  NEXTAUTH_URL should use HTTPS in production')
       }
     }
 
