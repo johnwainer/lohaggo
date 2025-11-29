@@ -2,6 +2,8 @@ import { z } from 'zod'
 
 const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build' || process.env.NODE_ENV === undefined
 
+const databaseUrl = process.env.DATABASE_URL || process.env.POSTGRES_PRISMA_URL || ''
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 
@@ -43,7 +45,7 @@ function validateEnv(): Env {
     console.log('⏭️  Skipping strict environment validation during build phase')
     return {
       NODE_ENV: (process.env.NODE_ENV as 'development' | 'production' | 'test') || 'development',
-      DATABASE_URL: process.env.DATABASE_URL || '',
+      DATABASE_URL: databaseUrl,
       POSTGRES_PRISMA_URL: process.env.POSTGRES_PRISMA_URL,
       NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || '',
       NEXTAUTH_SECRET_CURRENT: process.env.NEXTAUTH_SECRET_CURRENT,
@@ -51,14 +53,14 @@ function validateEnv(): Env {
       SESSION_MAX_AGE: process.env.SESSION_MAX_AGE || '86400',
       SESSION_UPDATE_AGE: process.env.SESSION_UPDATE_AGE || '3600',
       MERCADOPAGO_ACCESS_TOKEN: process.env.MERCADOPAGO_ACCESS_TOKEN,
-      NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY: process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY,
+      NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY: process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY || process.env.MERCADOPAGO_PUBLIC_KEY,
       MERCADOPAGO_WEBHOOK_SECRET: process.env.MERCADOPAGO_WEBHOOK_SECRET,
       NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
       CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,
       CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
       NEXT_PUBLIC_VAPID_PUBLIC_KEY: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
       VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY,
-      NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+      NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || process.env.VERCEL_URL,
       LOG_LEVEL: process.env.LOG_LEVEL as 'debug' | 'info' | 'warn' | 'error' | undefined,
       UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
       UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
@@ -67,7 +69,14 @@ function validateEnv(): Env {
   }
 
   try {
-    const parsed = envSchema.parse(process.env)
+    const envWithFallbacks = {
+      ...process.env,
+      DATABASE_URL: databaseUrl,
+      NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY: process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY || process.env.MERCADOPAGO_PUBLIC_KEY,
+      NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || process.env.VERCEL_URL,
+    }
+
+    const parsed = envSchema.parse(envWithFallbacks)
 
     if (parsed.NODE_ENV === 'production') {
       if (!parsed.MERCADOPAGO_ACCESS_TOKEN) {
