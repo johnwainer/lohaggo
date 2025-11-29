@@ -33,6 +33,17 @@ export async function POST(req: NextRequest) {
     const expiresAt = new Date()
     expiresAt.setHours(expiresAt.getHours() + 24)
 
+    let preferredDateTime: Date | null = null
+    if (validatedData.preferredDate) {
+      if (validatedData.preferredTime) {
+        const [hours, minutes] = validatedData.preferredTime.split(':').map(Number)
+        preferredDateTime = new Date(validatedData.preferredDate)
+        preferredDateTime.setHours(hours, minutes, 0, 0)
+      } else {
+        preferredDateTime = new Date(validatedData.preferredDate)
+      }
+    }
+
     const serviceRequest = await prisma.serviceRequest.create({
       data: {
         userId: session.user.id,
@@ -40,7 +51,7 @@ export async function POST(req: NextRequest) {
         address: validatedData.address,
         notes: validatedData.notes || null,
         city: (validatedData.city as City) || City.MEDELLIN,
-        preferredDate: validatedData.preferredDate ? new Date(validatedData.preferredDate) : null,
+        preferredDate: preferredDateTime,
         preferredTime: validatedData.preferredTime || null,
         isUrgent: validatedData.isUrgent || false,
         status: 'ACTIVE',
