@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build' || process.env.NODE_ENV === undefined
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 
@@ -37,11 +39,37 @@ const envSchema = z.object({
 type Env = z.infer<typeof envSchema>
 
 function validateEnv(): Env {
+  if (isBuildTime) {
+    console.log('⏭️  Skipping strict environment validation during build phase')
+    return {
+      NODE_ENV: (process.env.NODE_ENV as 'development' | 'production' | 'test') || 'development',
+      DATABASE_URL: process.env.DATABASE_URL || '',
+      POSTGRES_PRISMA_URL: process.env.POSTGRES_PRISMA_URL,
+      NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || '',
+      NEXTAUTH_SECRET_CURRENT: process.env.NEXTAUTH_SECRET_CURRENT,
+      NEXTAUTH_URL: process.env.NEXTAUTH_URL || '',
+      SESSION_MAX_AGE: process.env.SESSION_MAX_AGE || '86400',
+      SESSION_UPDATE_AGE: process.env.SESSION_UPDATE_AGE || '3600',
+      MERCADOPAGO_ACCESS_TOKEN: process.env.MERCADOPAGO_ACCESS_TOKEN,
+      NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY: process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY,
+      MERCADOPAGO_WEBHOOK_SECRET: process.env.MERCADOPAGO_WEBHOOK_SECRET,
+      NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+      CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,
+      CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
+      NEXT_PUBLIC_VAPID_PUBLIC_KEY: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+      VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY,
+      NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+      LOG_LEVEL: process.env.LOG_LEVEL as 'debug' | 'info' | 'warn' | 'error' | undefined,
+      UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
+      UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
+      NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
+    }
+  }
+
   try {
     const parsed = envSchema.parse(process.env)
-    const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build'
 
-    if (parsed.NODE_ENV === 'production' && !isBuildTime) {
+    if (parsed.NODE_ENV === 'production') {
       if (!parsed.MERCADOPAGO_ACCESS_TOKEN) {
         throw new Error('MERCADOPAGO_ACCESS_TOKEN is required in production')
       }
@@ -74,7 +102,7 @@ function validateEnv(): Env {
       }
     }
 
-    if (parsed.NODE_ENV === 'development' || isBuildTime) {
+    if (parsed.NODE_ENV === 'development') {
       console.log('✅ Environment variables validated successfully')
     }
 
@@ -90,11 +118,7 @@ function validateEnv(): Env {
       console.error('\n❌ Unexpected error during environment validation:', error)
     }
 
-    if (process.env.NEXT_PHASE !== 'phase-production-build') {
-      process.exit(1)
-    }
-
-    return envSchema.parse({})
+    process.exit(1)
   }
 }
 
