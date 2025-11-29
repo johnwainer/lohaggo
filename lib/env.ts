@@ -1,50 +1,14 @@
 import { z } from 'zod'
 
-const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build'
-
-const buildTimeSchema = z.object({
-  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-
-  DATABASE_URL: z.string().optional(),
-  POSTGRES_PRISMA_URL: z.string().optional(),
-
-  NEXTAUTH_SECRET: z.string().optional(),
-  NEXTAUTH_SECRET_CURRENT: z.string().optional(),
-  NEXTAUTH_URL: z.string().optional(),
-
-  SESSION_MAX_AGE: z.string().regex(/^\d+$/, 'SESSION_MAX_AGE must be a number').default('86400'),
-  SESSION_UPDATE_AGE: z.string().regex(/^\d+$/, 'SESSION_UPDATE_AGE must be a number').default('3600'),
-
-  MERCADOPAGO_ACCESS_TOKEN: z.string().optional(),
-  NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY: z.string().optional(),
-  MERCADOPAGO_WEBHOOK_SECRET: z.string().optional(),
-
-  NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: z.string().optional(),
-  CLOUDINARY_API_KEY: z.string().optional(),
-  CLOUDINARY_API_SECRET: z.string().optional(),
-
-  NEXT_PUBLIC_VAPID_PUBLIC_KEY: z.string().optional(),
-  VAPID_PRIVATE_KEY: z.string().optional(),
-
-  NEXT_PUBLIC_APP_URL: z.string().optional(),
-
-  LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).optional(),
-
-  UPSTASH_REDIS_REST_URL: z.string().optional(),
-  UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
-
-  NEXT_PUBLIC_SENTRY_DSN: z.string().optional(),
-})
-
-const runtimeSchema = z.object({
+const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   POSTGRES_PRISMA_URL: z.string().optional(),
 
-  NEXTAUTH_SECRET: z.string().min(1, 'NEXTAUTH_SECRET is required'),
+  NEXTAUTH_SECRET: z.string().min(32, 'NEXTAUTH_SECRET must be at least 32 characters'),
   NEXTAUTH_SECRET_CURRENT: z.string().optional(),
-  NEXTAUTH_URL: z.string().min(1, 'NEXTAUTH_URL is required'),
+  NEXTAUTH_URL: z.string().url('NEXTAUTH_URL must be a valid URL'),
 
   SESSION_MAX_AGE: z.string().regex(/^\d+$/, 'SESSION_MAX_AGE must be a number').default('86400'),
   SESSION_UPDATE_AGE: z.string().regex(/^\d+$/, 'SESSION_UPDATE_AGE must be a number').default('3600'),
@@ -60,53 +24,41 @@ const runtimeSchema = z.object({
   NEXT_PUBLIC_VAPID_PUBLIC_KEY: z.string().optional(),
   VAPID_PRIVATE_KEY: z.string().optional(),
 
-  NEXT_PUBLIC_APP_URL: z.string().optional(),
+  NEXT_PUBLIC_APP_URL: z.string().url('NEXT_PUBLIC_APP_URL must be a valid URL').optional(),
 
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).optional(),
 
-  UPSTASH_REDIS_REST_URL: z.string().optional(),
+  UPSTASH_REDIS_REST_URL: z.string().url().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
 
-  NEXT_PUBLIC_SENTRY_DSN: z.string().optional(),
+  NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
 })
 
-type Env = z.infer<typeof runtimeSchema>
+type Env = z.infer<typeof envSchema>
 
 function validateEnv(): Env {
-  if (isBuildTime) {
-    console.log('⏭️  Skipping environment validation during build phase')
-    return buildTimeSchema.parse(process.env) as Env
-  }
-
   try {
-    const parsed = runtimeSchema.parse(process.env)
+    const parsed = envSchema.parse(process.env)
+    const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build'
 
-    if (parsed.NODE_ENV === 'production') {
-      if (parsed.NEXTAUTH_SECRET && parsed.NEXTAUTH_SECRET.length < 32) {
-        throw new Error('NEXTAUTH_SECRET must be at least 32 characters')
-      }
-
-      if (parsed.NEXTAUTH_URL && !parsed.NEXTAUTH_URL.match(/^https?:\/\/.+/)) {
-        throw new Error('NEXTAUTH_URL must be a valid URL')
-      }
-
+    if (parsed.NODE_ENV === 'production' && !isBuildTime) {
       if (!parsed.MERCADOPAGO_ACCESS_TOKEN) {
-        console.warn('⚠️  MERCADOPAGO_ACCESS_TOKEN is not set in production')
+        throw new Error('MERCADOPAGO_ACCESS_TOKEN is required in production')
       }
       if (!parsed.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY) {
-        console.warn('⚠️  NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY is not set in production')
+        throw new Error('NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY is required in production')
       }
       if (!parsed.MERCADOPAGO_WEBHOOK_SECRET) {
-        console.warn('⚠️  MERCADOPAGO_WEBHOOK_SECRET is not set in production')
+        throw new Error('MERCADOPAGO_WEBHOOK_SECRET is required in production')
       }
       if (!parsed.NEXT_PUBLIC_APP_URL) {
-        console.warn('⚠️  NEXT_PUBLIC_APP_URL is not set in production')
+        throw new Error('NEXT_PUBLIC_APP_URL is required in production')
       }
-      if (parsed.NEXT_PUBLIC_APP_URL && !parsed.NEXT_PUBLIC_APP_URL.startsWith('https://')) {
-        console.warn('⚠️  NEXT_PUBLIC_APP_URL should use HTTPS in production')
+      if (!parsed.NEXT_PUBLIC_APP_URL.startsWith('https://')) {
+        throw new Error('NEXT_PUBLIC_APP_URL must use HTTPS in production')
       }
-      if (parsed.NEXTAUTH_URL && !parsed.NEXTAUTH_URL.startsWith('https://')) {
-        console.warn('⚠️  NEXTAUTH_URL should use HTTPS in production')
+      if (!parsed.NEXTAUTH_URL.startsWith('https://')) {
+        throw new Error('NEXTAUTH_URL must use HTTPS in production')
       }
     }
 
@@ -122,7 +74,7 @@ function validateEnv(): Env {
       }
     }
 
-    if (parsed.NODE_ENV === 'development') {
+    if (parsed.NODE_ENV === 'development' || isBuildTime) {
       console.log('✅ Environment variables validated successfully')
     }
 
@@ -138,7 +90,11 @@ function validateEnv(): Env {
       console.error('\n❌ Unexpected error during environment validation:', error)
     }
 
-    process.exit(1)
+    if (process.env.NEXT_PHASE !== 'phase-production-build') {
+      process.exit(1)
+    }
+
+    return envSchema.parse({})
   }
 }
 
