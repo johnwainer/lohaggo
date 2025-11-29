@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { use, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { DollarSign, Clock, Star, CheckCircle, MapPin, Plus, Calendar, X, ChevronRight, Camera, Upload, Trash2, Shield, CreditCard, GraduationCap, ShieldCheck } from 'lucide-react'
 import { useSession } from 'next-auth/react'
@@ -51,8 +51,8 @@ interface Address {
   isPrimary: boolean
 }
 
-export default function ServiceDetailPage({ params }: { params: { slug: string } }) {
-  const { slug } = params
+export default function ServiceDetailPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = use(params)
   const { data: session } = useSession()
   const router = useRouter()
   const { getCityBySlug } = useCity()
