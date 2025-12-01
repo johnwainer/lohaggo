@@ -3,16 +3,18 @@
 import { useCity } from '@/lib/city-context'
 import { MapPin, Navigation, X } from 'lucide-react'
 import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
 export default function CityModal() {
-  const { 
-    cities, 
-    selectedCity, 
-    setSelectedCity, 
-    showCityModal, 
+  const router = useRouter()
+  const {
+    cities,
+    selectedCity,
+    setSelectedCity,
+    showCityModal,
     setShowCityModal,
     isGeolocating,
-    geolocateCity 
+    geolocateCity
   } = useCity()
 
   useEffect(() => {
@@ -98,18 +100,22 @@ export default function CityModal() {
               </h3>
               <div className="space-y-2">
                 {comingSoonCities.map((city) => (
-                  <div
+                  <button
                     key={city.id}
-                    className="w-full flex items-center justify-between p-4 rounded-xl border-2 border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed"
+                    onClick={() => {
+                      setShowCityModal(false)
+                      router.push(`/ciudad/${city.slug}`)
+                    }}
+                    className="w-full flex items-center justify-between p-4 rounded-xl border-2 border-orange-200 bg-orange-50 hover:bg-orange-100 hover:border-orange-300 transition-all cursor-pointer"
                   >
                     <div className="flex items-center gap-3">
-                      <MapPin size={20} className="text-gray-400" />
-                      <span className="font-semibold text-gray-600">{city.name}</span>
+                      <MapPin size={20} className="text-orange-500" />
+                      <span className="font-semibold text-gray-700">{city.name}</span>
                     </div>
-                    <span className="text-xs font-semibold text-gray-500 bg-gray-200 px-3 py-1 rounded-full">
+                    <span className="text-xs font-semibold text-orange-600 bg-orange-200 px-3 py-1 rounded-full">
                       Pronto
                     </span>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
