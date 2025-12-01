@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from 'react'
 import { useCity } from '@/lib/city-context'
 import { useRouter } from 'next/navigation'
-import { MapPin, Sparkles, Clock, Shield, Star, CheckCircle, Zap, Users, Award, TrendingUp, ArrowRight, Bell, Heart, Rocket, Gift, Calendar, Phone, Mail,,MessageCircle  Heart, Rocket, Gift, Calendar, Phone, Mail, MessageCircle } from 'lucide-react'
+import { MapPin, Sparkles, Clock, Shield, Star, CheckCircle, Zap, Users, Award, TrendingUp, ArrowRight, Bell, Heart, Rocket, Gift, Calendar, Phone, Mail, MessageCircle } from 'lucide-react'
 import Link from 'next/link'
 
 export default function CityComingSoonPage({ params }: { params: Promise<{ slug: string }> }) {
