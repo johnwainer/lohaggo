@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useSession, signOut } from 'next-auth/react'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { Menu, X, LogOut, LayoutDashboard, Sparkles, ChevronDown, MapPin, Star, Settings, Shield, Bell, User, CreditCard } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useCity } from '@/lib/city-context'
@@ -10,6 +10,7 @@ import NotificationBell from './NotificationBell'
 import CityModal from './CityModal'
 
 export function Navbar() {
+  const router = useRouter()
   const { data: session } = useSession()
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -126,13 +127,17 @@ export function Navbar() {
                 </p>
                 <div className="space-y-1 px-2">
                   {comingSoonCities.map((city) => (
-                    <div
+                    <button
                       key={city.slug}
-                      className="w-full flex items-center justify-between px-3 py-3 text-sm font-medium text-gray-400 opacity-60 cursor-not-allowed rounded-lg"
+                      onClick={() => {
+                        setOpen(false)
+                        router.push(`/ciudad/${city.slug}`)
+                      }}
+                      className="w-full flex items-center justify-between px-3 py-3 text-sm font-medium text-orange-600 hover:bg-orange-50 rounded-lg transition-all cursor-pointer"
                     >
                       <span>{city.name}</span>
-                      <span className="text-xs bg-gray-200 px-2 py-1 rounded-full">Pronto</span>
-                    </div>
+                      <span className="text-xs bg-orange-200 px-2 py-1 rounded-full">Pronto</span>
+                    </button>
                   ))}
                 </div>
               </>
