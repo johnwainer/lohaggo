@@ -121,7 +121,6 @@ export async function POST(request: Request) {
     }
 
     if (!customerId) {
-      const mercadopago = getMercadoPagoClient()
       const customerClient = new Customer(mercadopago)
       const search = await customerClient
         .search({ options: { email: userEmail } })
@@ -177,7 +176,6 @@ export async function POST(request: Request) {
 
     const shouldSetDefault = setDefault === true
 
-    const mercadopago = getMercadoPagoClient()
     const cardTokenClient = new CardToken(mercadopago)
     const cardToken = await cardTokenClient
       .create({
@@ -240,7 +238,6 @@ export async function POST(request: Request) {
     })
 
     if (shouldSetDefault && customerCard.id) {
-      const mercadopago = getMercadoPagoClient()
       const customerClient = new Customer(mercadopago)
       customerClient
         .update({

@@ -1,5 +1,5 @@
 import { MercadoPagoConfig } from 'mercadopago'
-import prisma from './prisma'
+import { prisma } from './prisma'
 
 let cachedConfig: { client: MercadoPagoConfig; publicKey: string } | null = null
 let lastFetch = 0

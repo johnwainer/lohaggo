@@ -1,7 +1,6 @@
 'use client'
 
-import { LayoutDashboard, Calendar, Users, UserCheck, Package, FileText, BarChart3, Bell, Settings, LogOut, MessageSquare, Menu, X, Shield, DollarSign, Wallet, MapPin, CreditCard } from 'lucide-react'
-import { usePathname } from 'next/navigation'
+import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, LogOut, Menu, X, Shield, DollarSign, Wallet, MapPin, CreditCard } from 'lucide-react'
 import Link from 'next/link'
 import { signOut } from 'next-auth/react'
 import { useState } from 'react'
