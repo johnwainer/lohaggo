@@ -254,7 +254,7 @@ export default function DashboardPage() {
               counts[booking.proposalId!] = data.count || 0
             }
           } catch (error) {
-            console.error(`Error fetching unread count for booking ${booking.proposalId}:`, error)
+            // Handle error silently
           }
         })
       )
@@ -270,14 +270,14 @@ export default function DashboardPage() {
               counts[proposal.id] = data.count || 0
             }
           } catch (error) {
-            console.error(`Error fetching unread count for proposal ${proposal.id}:`, error)
+            // Handle error silently
           }
         })
       )
 
       setUnreadCounts(counts)
     } catch (error) {
-      console.error('Error fetching unread counts:', error)
+      // Handle error silently
     }
   }
 
@@ -291,7 +291,6 @@ export default function DashboardPage() {
       const data = await res.json()
       setBookings(Array.isArray(data) ? data : [])
     } catch (error) {
-      console.error('Error fetching bookings:', error)
       setBookings([])
     } finally {
       setLoading(false)
@@ -302,8 +301,6 @@ export default function DashboardPage() {
     try {
       const res = await fetch('/api/service-requests')
       const data = await res.json()
-
-      console.log('📊 Service Requests Response:', data)
 
       const rawRequests = Array.isArray(data)
         ? data
@@ -319,13 +316,9 @@ export default function DashboardPage() {
       setServiceRequests(normalizedRequests)
 
       if (data?.clientCommissionRate !== undefined) {
-        console.log('💰 Client Commission Rate from API:', data.clientCommissionRate)
         setClientCommissionRate(data.clientCommissionRate)
-      } else {
-        console.warn('⚠️ No clientCommissionRate in response, using default:', clientCommissionRate)
       }
     } catch (error) {
-      console.error('Error fetching service requests:', error)
       setServiceRequests([])
     }
   }
@@ -437,7 +430,7 @@ export default function DashboardPage() {
         }
       }
     } catch (error) {
-      console.error('Error loading payment methods:', error)
+      // Handle error silently
     }
 
     try {
@@ -454,7 +447,7 @@ export default function DashboardPage() {
         setPaymentBreakdown(data.breakdown)
       }
     } catch (error) {
-      console.error('Error loading payment breakdown:', error)
+      // Handle error silently
     } finally {
       setLoadingBreakdown(false)
     }
