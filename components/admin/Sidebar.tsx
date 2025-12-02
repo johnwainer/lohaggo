@@ -1,6 +1,6 @@
 'use client'
 
-import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, LogOut, Menu, X, Shield, DollarSign, Wallet, MapPin, CreditCard } from 'lucide-react'
+import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, LogOut, Menu, X, Shield, DollarSign, Wallet, MapPin, CreditCard, ChevronDown, ChevronRight } from 'lucide-react'
 import Link from 'next/link'
 import { signOut } from 'next-auth/react'
 import { useState } from 'react'
@@ -10,28 +10,76 @@ interface SidebarProps {
   onSectionChange: (section: string) => void
 }
 
+interface MenuGroup {
+  label: string
+  items: MenuItem[]
+}
+
+interface MenuItem {
+  id: string
+  label: string
+  icon: any
+  isLink?: boolean
+  href?: string
+}
+
 export default function Sidebar({ activeSection, onSectionChange }: SidebarProps) {
   const [isOpen, setIsOpen] = useState(false)
+  const [expandedGroups, setExpandedGroups] = useState<string[]>(['general', 'users', 'financial', 'config'])
 
-  const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'bookings', label: 'Reservas', icon: Calendar },
-    { id: 'users', label: 'Usuarios', icon: Users },
-    { id: 'partners', label: 'Socios', icon: UserCheck },
-    { id: 'documents', label: 'Verificación', icon: Shield },
-    { id: 'services', label: 'Servicios', icon: Package },
-    { id: 'cities', label: 'Ciudades', icon: MapPin },
-    { id: 'payments', label: 'Pagos', icon: DollarSign },
-    { id: 'commissions', label: 'Comisiones', icon: DollarSign },
-    { id: 'payouts', label: 'Pagos a Socios', icon: Wallet },
-    { id: 'analytics', label: 'Analíticas', icon: BarChart3 },
-    { id: 'notifications', label: 'Notificaciones', icon: Bell },
-    { id: 'settings', label: 'Configuración', icon: Settings },
+  const menuGroups: MenuGroup[] = [
+    {
+      label: 'General',
+      items: [
+        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+        { id: 'bookings', label: 'Reservas', icon: Calendar },
+        { id: 'analytics', label: 'Analíticas', icon: BarChart3 },
+      ]
+    },
+    {
+      label: 'Usuarios y Socios',
+      items: [
+        { id: 'users', label: 'Usuarios', icon: Users },
+        { id: 'partners', label: 'Socios', icon: UserCheck },
+        { id: 'documents', label: 'Verificación', icon: Shield },
+      ]
+    },
+    {
+      label: 'Servicios y Ubicaciones',
+      items: [
+        { id: 'services', label: 'Servicios', icon: Package },
+        { id: 'cities', label: 'Ciudades', icon: MapPin },
+      ]
+    },
+    {
+      label: 'Finanzas',
+      items: [
+        { id: 'payments', label: 'Pagos', icon: DollarSign },
+        { id: 'commissions', label: 'Comisiones', icon: DollarSign },
+        { id: 'payouts', label: 'Pagos a Socios', icon: Wallet },
+      ]
+    },
+    {
+      label: 'Configuración',
+      items: [
+        { id: 'payment-config', label: 'Config. Pagos', icon: CreditCard, isLink: true, href: '/admin/payment-config' },
+        { id: 'notifications', label: 'Notificaciones', icon: Bell },
+        { id: 'settings', label: 'Configuración', icon: Settings },
+      ]
+    }
   ]
 
   const handleSectionChange = (section: string) => {
     onSectionChange(section)
     setIsOpen(false)
+  }
+
+  const toggleGroup = (groupLabel: string) => {
+    setExpandedGroups(prev =>
+      prev.includes(groupLabel)
+        ? prev.filter(g => g !== groupLabel)
+        : [...prev, groupLabel]
+    )
   }
 
   return (
@@ -62,33 +110,60 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
         </div>
 
         <nav className="flex-1 overflow-y-auto py-4 sm:py-6 px-2 sm:px-3">
-          {menuItems.map((item) => {
-            const Icon = item.icon
-            const isActive = activeSection === item.id
+          {menuGroups.map((group) => {
+            const isExpanded = expandedGroups.includes(group.label.toLowerCase().replace(/\s+/g, '-'))
+            const groupKey = group.label.toLowerCase().replace(/\s+/g, '-')
+
             return (
-              <button
-                key={item.id}
-                onClick={() => handleSectionChange(item.id)}
-                className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 sm:py-3.5 rounded-lg sm:rounded-xl mb-1.5 sm:mb-2 transition-all font-semibold text-sm sm:text-base ${
-                  isActive
-                    ? 'bg-white text-[#FF2D55] shadow-lg scale-105'
-                    : 'text-white/90 hover:bg-white/10 hover:text-white'
-                }`}
-              >
-                <Icon size={18} className="sm:w-5 sm:h-5 flex-shrink-0" />
-                <span>{item.label}</span>
-              </button>
+              <div key={group.label} className="mb-4">
+                <button
+                  onClick={() => toggleGroup(groupKey)}
+                  className="w-full flex items-center justify-between px-3 sm:px-4 py-2 text-white/60 hover:text-white/90 transition-colors text-xs sm:text-sm font-bold uppercase tracking-wider"
+                >
+                  <span>{group.label}</span>
+                  {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                </button>
+
+                {isExpanded && (
+                  <div className="mt-1">
+                    {group.items.map((item) => {
+                      const Icon = item.icon
+                      const isActive = activeSection === item.id
+
+                      if (item.isLink && item.href) {
+                        return (
+                          <Link
+                            key={item.id}
+                            href={item.href}
+                            onClick={() => setIsOpen(false)}
+                            className="w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 sm:py-3.5 rounded-lg sm:rounded-xl mb-1.5 sm:mb-2 transition-all font-semibold text-sm sm:text-base text-white/90 hover:bg-white/10 hover:text-white"
+                          >
+                            <Icon size={18} className="sm:w-5 sm:h-5 flex-shrink-0" />
+                            <span>{item.label}</span>
+                          </Link>
+                        )
+                      }
+
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => handleSectionChange(item.id)}
+                          className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 sm:py-3.5 rounded-lg sm:rounded-xl mb-1.5 sm:mb-2 transition-all font-semibold text-sm sm:text-base ${
+                            isActive
+                              ? 'bg-white text-[#FF2D55] shadow-lg scale-105'
+                              : 'text-white/90 hover:bg-white/10 hover:text-white'
+                          }`}
+                        >
+                          <Icon size={18} className="sm:w-5 sm:h-5 flex-shrink-0" />
+                          <span>{item.label}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
             )
           })}
-
-          <Link
-            href="/admin/payment-config"
-            onClick={() => setIsOpen(false)}
-            className="w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 sm:py-3.5 rounded-lg sm:rounded-xl mb-1.5 sm:mb-2 transition-all font-semibold text-sm sm:text-base text-white/90 hover:bg-white/10 hover:text-white"
-          >
-            <CreditCard size={18} className="sm:w-5 sm:h-5 flex-shrink-0" />
-            <span>Config. Pagos</span>
-          </Link>
         </nav>
 
         <div className="p-3 sm:p-4 border-t border-white/20">
