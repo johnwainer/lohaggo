@@ -87,48 +87,40 @@ export default function ServicesManagementPage() {
         setRequestsCount(Array.isArray(requestsData) ? requestsData.length : 0)
       }
     } catch (error) {
-      console.error('Error fetching counts:', error)
+      // Error fetching counts
     }
   }
 
   const fetchServices = async () => {
     setLoading(true)
     try {
-      console.debug('fetchServices: iniciando petición de servicios')
       const servicesRes = await fetch('/api/partner/services')
 
       if (!servicesRes.ok) {
-        console.error('Error response from /api/partner/services:', servicesRes.status, servicesRes.statusText)
         let errorData = null
         try {
           errorData = await servicesRes.json()
         } catch (e) {
-          console.warn('No JSON body in error response for services', e)
+          // No JSON body in error response
         }
-        console.debug('Error data (services):', errorData)
         showMessage('error', `Error al cargar servicios: ${errorData?.error || 'Error desconocido'}`)
         return
       }
 
       const servicesData = await servicesRes.json()
-      console.debug('Services data received:', servicesData)
 
       if (servicesData && Array.isArray(servicesData.services)) {
         setAllServices(servicesData.services)
 
         const activeOnes = servicesData.services.filter((service: Service) => service.isActive)
         setActiveServices(activeOnes)
-        console.debug('Active services set:', activeOnes.length)
       } else {
-        console.error('Services data is not in expected format:', servicesData)
         showMessage('error', 'Formato de datos incorrecto')
       }
     } catch (error) {
-      console.error('Error fetching services:', error)
       showMessage('error', 'Error al cargar servicios')
     } finally {
       setLoading(false)
-      console.debug('fetchServices: finalizado, loading set to false')
     }
   }
 
@@ -224,14 +216,6 @@ export default function ServicesManagementPage() {
   const filteredServices = selectedCategory === 'all'
     ? allServices
     : allServices.filter(s => s.category.name === selectedCategory)
-
-  console.debug('ServicesManagementPage render:', {
-    allServicesCount: allServices.length,
-    activeServicesCount: activeServices.length,
-    filteredServicesCount: Array.isArray(filteredServices) ? filteredServices.length : 0,
-    selectedCategory,
-    loading
-  })
 
   if (loading) {
     return (

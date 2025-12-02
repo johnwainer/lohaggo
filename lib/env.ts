@@ -42,7 +42,6 @@ type Env = z.infer<typeof envSchema>
 
 function validateEnv(): Env {
   if (isBuildTime) {
-    console.log('⏭️  Skipping strict environment validation during build phase')
     return {
       NODE_ENV: (process.env.NODE_ENV as 'development' | 'production' | 'test') || 'development',
       DATABASE_URL: databaseUrl,
@@ -101,18 +100,12 @@ function validateEnv(): Env {
 
     if (parsed.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || parsed.CLOUDINARY_API_KEY || parsed.CLOUDINARY_API_SECRET) {
       if (!parsed.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || !parsed.CLOUDINARY_API_KEY || !parsed.CLOUDINARY_API_SECRET) {
-        console.warn('⚠️  Cloudinary is partially configured. All three variables are required: NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET')
       }
     }
 
     if (parsed.NEXT_PUBLIC_VAPID_PUBLIC_KEY || parsed.VAPID_PRIVATE_KEY) {
       if (!parsed.NEXT_PUBLIC_VAPID_PUBLIC_KEY || !parsed.VAPID_PRIVATE_KEY) {
-        console.warn('⚠️  VAPID keys are partially configured. Both NEXT_PUBLIC_VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY are required for push notifications')
       }
-    }
-
-    if (parsed.NODE_ENV === 'development') {
-      console.log('✅ Environment variables validated successfully')
     }
 
     return parsed
