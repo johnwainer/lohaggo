@@ -521,8 +521,12 @@ model PaymentConfig {
   environment               PaymentEnvironment  @default(TEST)
   testAccessToken           String?
   testPublicKey             String?
+  testClientId              String?
+  testClientSecret          String?
   productionAccessToken     String?
   productionPublicKey       String?
+  productionClientId        String?
+  productionClientSecret    String?
   createdAt                 DateTime            @default(now())
   updatedAt                 DateTime            @updatedAt
 }

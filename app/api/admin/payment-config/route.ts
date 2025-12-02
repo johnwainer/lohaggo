@@ -24,10 +24,12 @@ export async function GET() {
     return NextResponse.json({
       id: config.id,
       environment: config.environment,
-      hasTestCredentials: !!(config.testAccessToken && config.testPublicKey),
-      hasProductionCredentials: !!(config.productionAccessToken && config.productionPublicKey),
+      hasTestCredentials: !!(config.testAccessToken && config.testPublicKey && config.testClientId && config.testClientSecret),
+      hasProductionCredentials: !!(config.productionAccessToken && config.productionPublicKey && config.productionClientId && config.productionClientSecret),
       testPublicKey: config.testPublicKey,
-      productionPublicKey: config.productionPublicKey
+      testClientId: config.testClientId,
+      productionPublicKey: config.productionPublicKey,
+      productionClientId: config.productionClientId
     })
   } catch (error) {
     console.error('Error fetching payment config:', error)
@@ -44,7 +46,17 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { environment, testAccessToken, testPublicKey, productionAccessToken, productionPublicKey } = body
+    const {
+      environment,
+      testAccessToken,
+      testPublicKey,
+      testClientId,
+      testClientSecret,
+      productionAccessToken,
+      productionPublicKey,
+      productionClientId,
+      productionClientSecret
+    } = body
 
     let config = await prisma.paymentConfig.findFirst()
 
@@ -54,8 +66,12 @@ export async function PUT(request: NextRequest) {
           environment: environment || 'TEST',
           testAccessToken,
           testPublicKey,
+          testClientId,
+          testClientSecret,
           productionAccessToken,
-          productionPublicKey
+          productionPublicKey,
+          productionClientId,
+          productionClientSecret
         }
       })
     } else {
@@ -63,10 +79,14 @@ export async function PUT(request: NextRequest) {
         where: { id: config.id },
         data: {
           environment,
-          testAccessToken,
-          testPublicKey,
-          productionAccessToken,
-          productionPublicKey
+          ...(testAccessToken && { testAccessToken }),
+          ...(testPublicKey && { testPublicKey }),
+          ...(testClientId && { testClientId }),
+          ...(testClientSecret && { testClientSecret }),
+          ...(productionAccessToken && { productionAccessToken }),
+          ...(productionPublicKey && { productionPublicKey }),
+          ...(productionClientId && { productionClientId }),
+          ...(productionClientSecret && { productionClientSecret })
         }
       })
     }
@@ -74,8 +94,8 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({
       id: config.id,
       environment: config.environment,
-      hasTestCredentials: !!(config.testAccessToken && config.testPublicKey),
-      hasProductionCredentials: !!(config.productionAccessToken && config.productionPublicKey)
+      hasTestCredentials: !!(config.testAccessToken && config.testPublicKey && config.testClientId && config.testClientSecret),
+      hasProductionCredentials: !!(config.productionAccessToken && config.productionPublicKey && config.productionClientId && config.productionClientSecret)
     })
   } catch (error) {
     console.error('Error updating payment config:', error)
