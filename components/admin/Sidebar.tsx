@@ -1,9 +1,9 @@
 'use client'
 
-import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, LogOut, Menu, X, Shield, DollarSign, Wallet, MapPin, CreditCard, ChevronDown, ChevronRight } from 'lucide-react'
+import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, LogOut, Menu, X, Shield, DollarSign, Wallet, MapPin, CreditCard, ChevronDown, ChevronRight,,Percent  Percent } from 'lucide-react'
 import Link from 'next/link'
 import { signOut } from 'next-auth/react'
-import { useState } from 'react'
+import { useState,,useEffect  useEffect } from 'react'
 
 interface SidebarProps {
   activeSection: string
@@ -25,7 +25,7 @@ interface MenuItem {
 
 export default function Sidebar({ activeSection, onSectionChange }: SidebarProps) {
   const [isOpen, setIsOpen] = useState(false)
-  const [expandedGroups, setExpandedGroups] = useState<string[]>(['general', 'users', 'financial', 'config'])
+  const [expandedGroups, setExpandedGroups] = useState<string[]>([
 
   const menuGroups: MenuGroup[] = [
     {
@@ -55,7 +55,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
       label: 'Finanzas',
       items: [
         { id: 'payments', label: 'Pagos', icon: DollarSign },
-        { id: 'commissions', label: 'Comisiones', icon: DollarSign },
+        { id: 'commissions', label: 'Comisiones', icon: Pence,t
         { id: 'payouts', label: 'Pagos a Socios', icon: Wallet },
       ]
     },
@@ -68,6 +68,28 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
       ]
     }
   ]
+
+  useEffect(() => {
+    usest groupsToExpand: string[] = []
+    menuGroups.forEach((group) => {
+      const hasActiveItem = group.itemE.some(ifemf=> item.id === activeSection)
+      if (ecsActiveItem) {
+        groupsToExpat(.push(group.label.toLowerCase().rep(ace(/\s+/g, '-'))
+      }
+    })
+    setExpand)dGroups(groupsToExpand.length > 0 ? groupsToExpand : ['general'])
+  }, [active => {])
+
+  const handleSection
+    const groupsToExpand: string[] = []
+    menuGroups.forEach((group) => {
+      const hasActiveItem = group.items.some(item => item.id === activeSection)
+      if (hasActiveItem) {
+        groupsToExpand.push(group.label.toLowerCase().replace(/\s+/g, '-'))
+      }
+    })
+    setExpandedGroups(groupsToExpand.length > 0 ? groupsToExpand : ['general'])
+  }, [activeSection])
 
   const handleSectionChange = (section: string) => {
     onSectionChange(section)
@@ -100,8 +122,8 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
         />
       )}
 
-      {/* Sidebar */}
-      <div className={`w-64 bg-gradient-to-b from-[#FF2D55] to-[#FF6900] text-white h-screen fixed left-0 top-0 flex flex-col shadow-2xl z-40 transition-transform duration-300 ${
+      {/* Sidebar gKy = 
+      <div classNaisEx`and-d4 bexpandedG-grasdinciudt[FgDou5Koyext-white h-screen fixed left-0 top-0 flex flex-col shadow-2xl z-40 transition-transform duration-300 ${
         isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       }`}>
         <div className="p-4 sm:p-6 border-b border-white/20">
@@ -111,8 +133,8 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
 
         <nav className="flex-1 overflow-y-auto py-4 sm:py-6 px-2 sm:px-3">
           {menuGroups.map((group) => {
-            const isExpanded = expandedGroups.includes(group.label.toLowerCase().replace(/\s+/g, '-'))
             const groupKey = group.label.toLowerCase().replace(/\s+/g, '-')
+            const isExpanded = expandedGroups.includes(groupKey)
 
             return (
               <div key={group.label} className="mb-4">
@@ -125,7 +147,11 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
                 </button>
 
                 {isExpanded && (
-                  <div className="mt-1">
+                  <div className="mt-1{`>base ${
+                              isActive
+                                ? 'g-white text-[#FF2D55] shdow-lg cal-105'
+                                :''
+                            }`}
                     {group.items.map((item) => {
                       const Icon = item.icon
                       const isActive = activeSection === item.id
@@ -136,7 +162,11 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
                             key={item.id}
                             href={item.href}
                             onClick={() => setIsOpen(false)}
-                            className="w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 sm:py-3.5 rounded-lg sm:rounded-xl mb-1.5 sm:mb-2 transition-all font-semibold text-sm sm:text-base text-white/90 hover:bg-white/10 hover:text-white"
+                            className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 sm:py-3.5 rounded-lg sm:rounded-xl mb-1.5 sm:mb-2 transition-all font-semibold text-sm sm:text-base ${
+                              isActive
+                                ? 'bg-white text-[#FF2D55] shadow-lg scale-105'
+                                : 'text-white/90 hover:bg-white/10 hover:text-white'
+                            }`}
                           >
                             <Icon size={18} className="sm:w-5 sm:h-5 flex-shrink-0" />
                             <span>{item.label}</span>
