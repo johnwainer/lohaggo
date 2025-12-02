@@ -8,19 +8,202 @@ datasource db {
   directUrl = env("POSTGRES_URL_NON_POOLING")
 }
 
-model Achievement {
-  id                 String               @id
-  type               AchievementType      @unique
-  name               String
-  description        String
-  icon               String
-  level              Int                  @default(1)
-  createdAt          DateTime             @default(now())
-  PartnerAchievement PartnerAchievement[]
+model User {
+  id                    String           @id @default(cuid())
+  email                 String           @unique
+  name                  String
+  password              String
+  phone                 String?
+  image                 String?
+  role                  UserRole         @default(CLIENT)
+  pushSubscription      String?
+  clientRating          Float            @default(0)
+  clientTotalReviews    Int              @default(0)
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+  mercadopagoCustomerId String?          @unique
+  addresses             Address[]
+  bookings              Booking[]
+  notifications         Notification[]
+  partnerProfile        PartnerProfile?
+  payments              Payment[]
+  paymentMethods        PaymentMethod[]
+  serviceRequests       ServiceRequest[]
+  clientChats           Chat[]           @relation("ClientChats")
+}
+
+model PartnerProfile {
+  id           String                 @id @default(cuid())
+  userId       String                 @unique
+  bio          String?
+  rating       Float                  @default(0)
+  totalReviews Int                    @default(0)
+  verified     Boolean                @default(false)
+  city         City                   @default(MEDELLIN)
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+  availability Availability[]
+  bookings     Booking[]
+  achievements PartnerAchievement[]
+  user         User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  services     PartnerService[]
+  payouts      Payout[]
+  proposals    Proposal[]
+  documents    VerificationDocument[]
+  partnerChats Chat[]                 @relation("PartnerChats")
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  icon        String
+  description String?
+  order       Int       @default(0)
+  services    Service[]
+}
+
+model Service {
+  id              String           @id @default(cuid())
+  name            String
+  slug            String           @unique
+  description     String
+  icon            String
+  categoryId      String
+  basePrice       Float
+  duration        Int
+  popular         Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  bookings        Booking[]
+  partners        PartnerService[]
+  category        Category         @relation(fields: [categoryId], references: [id])
+  serviceRequests ServiceRequest[]
+}
+
+model PartnerService {
+  id           String         @id @default(cuid())
+  partnerId    String
+  serviceId    String
+  price        Float
+  city         City           @default(MEDELLIN)
+  active       Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  availability Availability[]
+  partner      PartnerProfile @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  service      Service        @relation(fields: [serviceId], references: [id])
+
+  @@unique([partnerId, serviceId])
+}
+
+model Availability {
+  id               String          @id @default(cuid())
+  partnerId        String
+  partnerServiceId String?
+  dayOfWeek        Int
+  startTime        String
+  endTime          String
+  active           Boolean         @default(true)
+  partner          PartnerProfile  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  partnerService   PartnerService? @relation(fields: [partnerServiceId], references: [id], onDelete: Cascade)
+}
+
+model Booking {
+  id                    String          @id @default(cuid())
+  userId                String
+  serviceId             String
+  partnerId             String?
+  proposalId            String?
+  scheduledDate         DateTime
+  scheduledTime         String
+  address               String
+  notes                 String?
+  city                  City            @default(MEDELLIN)
+  status                BookingStatus   @default(PENDING)
+  totalPrice            Float
+  clientCommissionRate  Float?
+  partnerCommissionRate Float?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  partner               PartnerProfile? @relation(fields: [partnerId], references: [id])
+  proposal              Proposal?       @relation(fields: [proposalId], references: [id])
+  service               Service         @relation(fields: [serviceId], references: [id])
+  user                  User            @relation(fields: [userId], references: [id])
+  payment               Payment?
+  review                Review?
+}
+
+model Review {
+  id                     String    @id @default(cuid())
+  bookingId              String    @unique
+  clientToPartnerRating  Int?
+  clientToPartnerComment String?
+  clientReviewedAt       DateTime?
+  partnerToClientRating  Int?
+  partnerToClientComment String?
+  partnerReviewedAt      DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  booking                Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+}
+
+model ServiceRequest {
+  id            String               @id @default(cuid())
+  userId        String
+  serviceId     String
+  address       String
+  notes         String?
+  city          City                 @default(MEDELLIN)
+  preferredDate DateTime?
+  preferredTime String?
+  isUrgent      Boolean              @default(false)
+  status        ServiceRequestStatus @default(ACTIVE)
+  expiresAt     DateTime
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  proposals     Proposal[]
+  photos        RequestPhoto[]
+  service       Service              @relation(fields: [serviceId], references: [id])
+  user          User                 @relation(fields: [userId], references: [id])
+  chats         Chat[]
+}
+
+model Proposal {
+  id               String         @id @default(cuid())
+  serviceRequestId String
+  partnerId        String
+  price            Float
+  notes            String?
+  status           ProposalStatus @default(PENDING)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  bookings         Booking[]
+  partner          PartnerProfile @relation(fields: [partnerId], references: [id])
+  serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+  chat             Chat?
+
+  @@unique([serviceRequestId, partnerId])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  data      String?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@index([createdAt])
 }
 
 model Address {
-  id           String   @id
+  id           String   @id @default(cuid())
   userId       String
   label        String
   street       String
@@ -33,172 +216,89 @@ model Address {
   isPrimary    Boolean  @default(false)
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
-  updatedAt    DateTime
-  User         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, isActive])
   @@index([userId, isPrimary])
 }
 
-model Availability {
-  id               String          @id
-  partnerId        String
-  partnerServiceId String?
-  dayOfWeek        Int
-  startTime        String
-  endTime          String
-  active           Boolean         @default(true)
-  PartnerProfile   PartnerProfile  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
-  PartnerService   PartnerService? @relation(fields: [partnerServiceId], references: [id], onDelete: Cascade)
-}
-
-model Booking {
-  id                    String          @id
-  userId                String
-  serviceId             String
-  partnerId             String?
-  scheduledDate         DateTime
-  scheduledTime         String
-  address               String
-  notes                 String?
-  city                  City            @default(MEDELLIN)
-  status                BookingStatus   @default(PENDING)
-  totalPrice            Float
-  clientCommissionRate  Float?
-  partnerCommissionRate Float?
-  createdAt             DateTime        @default(now())
-  updatedAt             DateTime
-  proposalId            String?
-  PartnerProfile        PartnerProfile? @relation(fields: [partnerId], references: [id])
-  Proposal              Proposal?       @relation(fields: [proposalId], references: [id])
-  Service               Service         @relation(fields: [serviceId], references: [id])
-  User                  User            @relation(fields: [userId], references: [id])
-  Payment               Payment?
-  Review                Review?
-}
-
-model Category {
-  id          String    @id
-  name        String
-  slug        String    @unique
-  icon        String
-  description String?
-  order       Int       @default(0)
-  Service     Service[]
-}
-
-model Chat {
-  id               String         @id
+model RequestPhoto {
+  id               String         @id @default(cuid())
   serviceRequestId String
-  proposalId       String         @unique
-  clientId         String
-  partnerId        String
+  url              String
+  publicId         String?
+  order            Int            @default(0)
   createdAt        DateTime       @default(now())
-  updatedAt        DateTime
-  User             User           @relation(fields: [clientId], references: [id])
-  PartnerProfile   PartnerProfile @relation(fields: [partnerId], references: [id])
-  Proposal         Proposal       @relation(fields: [proposalId], references: [id])
-  ServiceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id])
-  ChatMessage      ChatMessage[]
+  serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
 
-  @@unique([serviceRequestId, clientId, partnerId])
-  @@index([clientId])
-  @@index([partnerId])
   @@index([serviceRequestId])
 }
 
-model ChatMessage {
-  id        String   @id
-  chatId    String
-  senderId  String
-  content   String
-  read      Boolean  @default(false)
-  createdAt DateTime @default(now())
-  Chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+model VerificationDocument {
+  id              String         @id @default(cuid())
+  partnerId       String
+  type            DocumentType
+  documentUrl     String
+  publicId        String?
+  status          DocumentStatus @default(PENDING)
+  rejectionReason String?
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  partner         PartnerProfile @relation(fields: [partnerId], references: [id], onDelete: Cascade)
 
-  @@index([chatId, createdAt])
-  @@index([senderId])
+  @@index([partnerId, status])
+  @@index([status])
 }
 
-model CityConfig {
-  id               String     @id
-  name             String     @unique
-  slug             String     @unique
-  order            Int        @default(0)
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime
-  fechaLanzamiento DateTime?
-  lanzamiento      Boolean    @default(false)
-  latitude         Float?
-  longitude        Float?
-  status           CityStatus @default(ACTIVE)
-}
-
-model Notification {
-  id        String           @id
-  userId    String
-  type      NotificationType
-  title     String
-  message   String
-  data      String?
-  read      Boolean          @default(false)
-  createdAt DateTime         @default(now())
-  User      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([createdAt])
-  @@index([userId, read])
+model Achievement {
+  id          String               @id @default(cuid())
+  type        AchievementType      @unique
+  name        String
+  description String
+  icon        String
+  level       Int                  @default(1)
+  createdAt   DateTime             @default(now())
+  partners    PartnerAchievement[]
 }
 
 model PartnerAchievement {
-  id             String         @id
-  partnerId      String
-  achievementId  String
-  unlockedAt     DateTime       @default(now())
-  Achievement    Achievement    @relation(fields: [achievementId], references: [id])
-  PartnerProfile PartnerProfile @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  id            String         @id @default(cuid())
+  partnerId     String
+  achievementId String
+  unlockedAt    DateTime       @default(now())
+  achievement   Achievement    @relation(fields: [achievementId], references: [id])
+  partner       PartnerProfile @relation(fields: [partnerId], references: [id], onDelete: Cascade)
 
   @@unique([partnerId, achievementId])
   @@index([partnerId])
 }
 
-model PartnerProfile {
-  id                   String                 @id
-  userId               String                 @unique
-  bio                  String?
-  rating               Float                  @default(0)
-  totalReviews         Int                    @default(0)
-  verified             Boolean                @default(false)
-  city                 City                   @default(MEDELLIN)
-  createdAt            DateTime               @default(now())
-  updatedAt            DateTime
-  Availability         Availability[]
-  Booking              Booking[]
-  Chat                 Chat[]
-  PartnerAchievement   PartnerAchievement[]
-  User                 User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  PartnerService       PartnerService[]
-  Payout               Payout[]
-  Proposal             Proposal[]
-  VerificationDocument VerificationDocument[]
-}
+model PaymentMethod {
+  id                String    @id @default(cuid())
+  userId            String
+  mercadopagoCardId String?   @unique
+  cardToken         String?
+  lastFourDigits    String
+  cardBrand         String
+  cardholderName    String
+  expirationMonth   Int
+  expirationYear    Int
+  isDefault         Boolean   @default(false)
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  payments          Payment[]
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-model PartnerService {
-  id             String         @id
-  partnerId      String
-  serviceId      String
-  price          Float
-  city           City           @default(MEDELLIN)
-  active         Boolean        @default(true)
-  createdAt      DateTime       @default(now())
-  Availability   Availability[]
-  PartnerProfile PartnerProfile @relation(fields: [partnerId], references: [id], onDelete: Cascade)
-  Service        Service        @relation(fields: [serviceId], references: [id])
-
-  @@unique([partnerId, serviceId])
+  @@index([userId])
+  @@index([mercadopagoCardId])
 }
 
 model Payment {
-  id                   String         @id
+  id                   String         @id @default(cuid())
   bookingId            String         @unique
   userId               String
   paymentMethodId      String?
@@ -218,56 +318,20 @@ model Payment {
   metadata             String?
   paidAt               DateTime?
   createdAt            DateTime       @default(now())
-  updatedAt            DateTime
-  Booking              Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  PaymentMethod        PaymentMethod? @relation(fields: [paymentMethodId], references: [id])
-  User                 User           @relation(fields: [userId], references: [id])
-  Payout               Payout?
+  updatedAt            DateTime       @updatedAt
+  booking              Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  paymentMethod        PaymentMethod? @relation(fields: [paymentMethodId], references: [id])
+  user                 User           @relation(fields: [userId], references: [id])
+  payout               Payout?
 
+  @@index([userId])
+  @@index([status])
   @@index([mercadopagoId])
   @@index([paymentMethodId])
-  @@index([status])
-  @@index([userId])
-}
-
-model PaymentConfig {
-  id                     String             @id
-  environment            PaymentEnvironment @default(TEST)
-  testAccessToken        String?
-  testPublicKey          String?
-  productionAccessToken  String?
-  productionPublicKey    String?
-  createdAt              DateTime           @default(now())
-  updatedAt              DateTime
-  productionClientId     String?
-  productionClientSecret String?
-  testClientId           String?
-  testClientSecret       String?
-}
-
-model PaymentMethod {
-  id                String    @id
-  userId            String
-  mercadopagoCardId String?   @unique
-  cardToken         String?
-  lastFourDigits    String
-  cardBrand         String
-  cardholderName    String
-  expirationMonth   Int
-  expirationYear    Int
-  isDefault         Boolean   @default(false)
-  isActive          Boolean   @default(true)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime
-  Payment           Payment[]
-  User              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([mercadopagoCardId])
-  @@index([userId])
 }
 
 model Payout {
-  id                    String         @id
+  id                    String         @id @default(cuid())
   paymentId             String         @unique
   partnerId             String
   amount                Float
@@ -279,17 +343,17 @@ model Payout {
   processedAt           DateTime?
   notes                 String?
   createdAt             DateTime       @default(now())
-  updatedAt             DateTime
-  PartnerProfile        PartnerProfile @relation(fields: [partnerId], references: [id])
-  Payment               Payment        @relation(fields: [paymentId], references: [id])
+  updatedAt             DateTime       @updatedAt
+  partner               PartnerProfile @relation(fields: [partnerId], references: [id])
+  payment               Payment        @relation(fields: [paymentId], references: [id])
 
   @@index([partnerId])
-  @@index([paymentId])
   @@index([status])
+  @@index([paymentId])
 }
 
 model PlatformConfig {
-  id                    String   @id
+  id                    String   @id @default(cuid())
   key                   String   @unique
   commissionRate        Float
   clientCommissionRate  Float    @default(5.0)
@@ -297,147 +361,15 @@ model PlatformConfig {
   minServicePrice       Float
   maxServicePrice       Float
   createdAt             DateTime @default(now())
-  updatedAt             DateTime
+  updatedAt             DateTime @updatedAt
 
   @@index([key])
 }
 
-model Proposal {
-  id               String         @id
-  serviceRequestId String
-  partnerId        String
-  price            Float
-  notes            String?
-  status           ProposalStatus @default(PENDING)
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime
-  Booking          Booking[]
-  Chat             Chat?
-  PartnerProfile   PartnerProfile @relation(fields: [partnerId], references: [id])
-  ServiceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
-
-  @@unique([serviceRequestId, partnerId])
-}
-
-model RequestPhoto {
-  id               String         @id
-  serviceRequestId String
-  url              String
-  publicId         String?
-  order            Int            @default(0)
-  createdAt        DateTime       @default(now())
-  ServiceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
-
-  @@index([serviceRequestId])
-}
-
-model Review {
-  id                     String    @id
-  bookingId              String    @unique
-  clientToPartnerRating  Int?
-  clientToPartnerComment String?
-  clientReviewedAt       DateTime?
-  partnerToClientRating  Int?
-  partnerToClientComment String?
-  partnerReviewedAt      DateTime?
-  createdAt              DateTime  @default(now())
-  updatedAt              DateTime
-  Booking                Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-
-  @@index([bookingId])
-}
-
-model Service {
-  id             String           @id
-  name           String
-  slug           String           @unique
-  description    String
-  icon           String
-  categoryId     String
-  basePrice      Float
-  duration       Int
-  popular        Boolean          @default(false)
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime
-  Booking        Booking[]
-  PartnerService PartnerService[]
-  Category       Category         @relation(fields: [categoryId], references: [id])
-  ServiceRequest ServiceRequest[]
-}
-
-model ServiceRequest {
-  id            String               @id
-  userId        String
-  serviceId     String
-  address       String
-  notes         String?
-  city          City                 @default(MEDELLIN)
-  preferredDate DateTime?
-  preferredTime String?
-  isUrgent      Boolean              @default(false)
-  status        ServiceRequestStatus @default(ACTIVE)
-  expiresAt     DateTime
-  createdAt     DateTime             @default(now())
-  updatedAt     DateTime
-  Chat          Chat[]
-  Proposal      Proposal[]
-  RequestPhoto  RequestPhoto[]
-  Service       Service              @relation(fields: [serviceId], references: [id])
-  User          User                 @relation(fields: [userId], references: [id])
-}
-
-model User {
-  id                    String           @id
-  email                 String           @unique
-  name                  String
-  password              String
-  phone                 String?
-  image                 String?
-  role                  UserRole         @default(CLIENT)
-  pushSubscription      String?
-  clientRating          Float            @default(0)
-  clientTotalReviews    Int              @default(0)
-  createdAt             DateTime         @default(now())
-  updatedAt             DateTime
-  mercadopagoCustomerId String?          @unique
-  Address               Address[]
-  Booking               Booking[]
-  Chat                  Chat[]
-  Notification          Notification[]
-  PartnerProfile        PartnerProfile?
-  Payment               Payment[]
-  PaymentMethod         PaymentMethod[]
-  ServiceRequest        ServiceRequest[]
-}
-
-model VerificationDocument {
-  id              String         @id
-  partnerId       String
-  type            DocumentType
-  documentUrl     String
-  publicId        String?
-  status          DocumentStatus @default(PENDING)
-  rejectionReason String?
-  reviewedBy      String?
-  reviewedAt      DateTime?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime
-  PartnerProfile  PartnerProfile @relation(fields: [partnerId], references: [id], onDelete: Cascade)
-
-  @@index([partnerId, status])
-  @@index([status])
-}
-
-enum AchievementType {
-  IDENTITY_VERIFIED
-  EDUCATION_VERIFIED
-  BACKGROUND_CHECK_VERIFIED
-  FIRST_SERVICE
-  TEN_SERVICES
-  FIFTY_SERVICES
-  HUNDRED_SERVICES
-  FIVE_STAR_RATING
-  VERIFIED_PARTNER
+enum UserRole {
+  CLIENT
+  PARTNER
+  ADMIN
 }
 
 enum BookingStatus {
@@ -448,11 +380,31 @@ enum BookingStatus {
   CANCELLED
 }
 
-enum City {
-  MEDELLIN
-  BOGOTA
-  CALI
-  BARRANQUILLA
+enum ServiceRequestStatus {
+  ACTIVE
+  ACCEPTED
+  EXPIRED
+  CANCELLED
+}
+
+enum ProposalStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+model CityConfig {
+  id               String     @id @default(cuid())
+  name             String     @unique
+  slug             String     @unique
+  status           CityStatus @default(ACTIVE)
+  order            Int        @default(0)
+  latitude         Float?
+  longitude        Float?
+  lanzamiento      Boolean    @default(false)
+  fechaLanzamiento DateTime?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
 }
 
 enum CityStatus {
@@ -461,24 +413,11 @@ enum CityStatus {
   COMING_SOON
 }
 
-enum DocumentStatus {
-  PENDING
-  APPROVED
-  REJECTED
-}
-
-enum DocumentType {
-  CEDULA_CIUDADANIA
-  CEDULA_EXTRANJERIA
-  PASAPORTE
-  PEP
-  DIPLOMA_BACHILLERATO
-  DIPLOMA_TECNICO
-  DIPLOMA_TECNOLOGO
-  DIPLOMA_PROFESIONAL
-  DIPLOMA_POSGRADO
-  CERTIFICADO_CURSO
-  ANTECEDENTES
+enum City {
+  MEDELLIN
+  BOGOTA
+  CALI
+  BARRANQUILLA
 }
 
 enum NotificationType {
@@ -496,9 +435,36 @@ enum NotificationType {
   NEW_MESSAGE
 }
 
-enum PaymentEnvironment {
-  TEST
-  PRODUCTION
+enum DocumentType {
+  CEDULA_CIUDADANIA
+  CEDULA_EXTRANJERIA
+  PASAPORTE
+  PEP
+  DIPLOMA_BACHILLERATO
+  DIPLOMA_TECNICO
+  DIPLOMA_TECNOLOGO
+  DIPLOMA_PROFESIONAL
+  DIPLOMA_POSGRADO
+  CERTIFICADO_CURSO
+  ANTECEDENTES
+}
+
+enum DocumentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AchievementType {
+  IDENTITY_VERIFIED
+  EDUCATION_VERIFIED
+  BACKGROUND_CHECK_VERIFIED
+  FIRST_SERVICE
+  TEN_SERVICES
+  FIFTY_SERVICES
+  HUNDRED_SERVICES
+  FIVE_STAR_RATING
+  VERIFIED_PARTNER
 }
 
 enum PaymentStatus {
@@ -517,21 +483,55 @@ enum PayoutStatus {
   CANCELLED
 }
 
-enum ProposalStatus {
-  PENDING
-  ACCEPTED
-  REJECTED
+model Chat {
+  id               String          @id @default(cuid())
+  serviceRequestId String
+  proposalId       String          @unique
+  clientId         String
+  partnerId        String
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  messages         ChatMessage[]
+  serviceRequest   ServiceRequest  @relation(fields: [serviceRequestId], references: [id])
+  proposal         Proposal        @relation(fields: [proposalId], references: [id])
+  client           User            @relation("ClientChats", fields: [clientId], references: [id])
+  partner          PartnerProfile  @relation("PartnerChats", fields: [partnerId], references: [id])
+
+  @@unique([serviceRequestId, clientId, partnerId])
+  @@index([clientId])
+  @@index([partnerId])
+  @@index([serviceRequestId])
 }
 
-enum ServiceRequestStatus {
-  ACTIVE
-  ACCEPTED
-  EXPIRED
-  CANCELLED
+model ChatMessage {
+  id        String   @id @default(cuid())
+  chatId    String
+  senderId  String
+  content   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@index([chatId, createdAt])
+  @@index([senderId])
 }
 
-enum UserRole {
-  CLIENT
-  PARTNER
-  ADMIN
+model PaymentConfig {
+  id                        String              @id @default(cuid())
+  environment               PaymentEnvironment  @default(TEST)
+  testAccessToken           String?
+  testPublicKey             String?
+  testClientId              String?
+  testClientSecret          String?
+  productionAccessToken     String?
+  productionPublicKey       String?
+  productionClientId        String?
+  productionClientSecret    String?
+  createdAt                 DateTime            @default(now())
+  updatedAt                 DateTime            @updatedAt
+}
+
+enum PaymentEnvironment {
+  TEST
+  PRODUCTION
 }
