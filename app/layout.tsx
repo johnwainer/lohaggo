@@ -8,6 +8,7 @@ import NotificationPermissionPrompt from '@/components/NotificationPermissionPro
 import PWAInstallPrompt from '@/components/PWAInstallPrompt'
 import PWARegister from '@/components/PWARegister'
 import TermsBanner from '@/components/TermsBanner'
+import TestModeBanner from '@/components/TestModeBanner'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -120,6 +121,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <Providers>
           <PWARegister />
+          <TestModeBanner />
           <Navbar />
           <main className="min-h-screen">
             {children}
