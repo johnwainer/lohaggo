@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import Sidebar from '@/components/admin/Sidebar'
 import { CreditCard, Key, AlertCircle, CheckCircle, Eye, EyeOff } from 'lucide-react'
 
 type PaymentEnvironment = 'TEST' | 'PRODUCTION'
@@ -100,8 +101,11 @@ export default function PaymentConfigPage() {
 
   if (status === 'loading' || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF2D55]"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-[#FF2D55] mx-auto mb-4"></div>
+          <p className="text-gray-600 font-medium">Cargando configuración...</p>
+        </div>
       </div>
     )
   }
@@ -111,8 +115,11 @@ export default function PaymentConfigPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="flex min-h-screen bg-gray-50">
+      <Sidebar activeSection="" onSectionChange={() => {}} />
+      <main className="flex-1 overflow-auto ml-0 lg:ml-64">
+        <div className="p-3 sm:p-6 lg:p-8">
+          <div className="max-w-4xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
             <CreditCard className="w-8 h-8 text-[#FF2D55]" />
@@ -298,11 +305,13 @@ export default function PaymentConfigPage() {
               onClick={() => router.push('/admin')}
               className="px-6 py-3 border border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
             >
-              Cancelar
+              Volver
             </button>
           </div>
         </form>
-      </div>
+          </div>
+        </div>
+      </main>
     </div>
   )
 }
