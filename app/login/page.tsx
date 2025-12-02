@@ -22,15 +22,17 @@ function LoginForm() {
 
   useEffect(() => {
     if (status === 'authenticated' && session?.user) {
+      const targetRedirect = searchParams.get('redirect')
+
       if (session.user.role === 'ADMIN') {
-        router.push('/admin')
+        router.push(targetRedirect || '/admin')
       } else if (session.user.role === 'PARTNER') {
-        router.push('/partner')
+        router.push(targetRedirect || '/partner')
       } else {
-        router.push('/dashboard')
+        router.push(targetRedirect || '/dashboard')
       }
     }
-  }, [status, session, router])
+  }, [status, session, router, searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
