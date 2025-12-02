@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import mercadopago from '@/lib/mercadopago';
+import { getMercadoPagoClient } from '@/lib/mercadopago';
 import { Payment } from 'mercadopago';
 import { createLogger } from '@/lib/logger';
 import { webhookRateLimiter } from '@/lib/rate-limit';
@@ -104,6 +104,7 @@ async function handlePOST(req: NextRequest) {
         return NextResponse.json({ received: true });
       }
 
+      const { client: mercadopago } = await getMercadoPagoClient();
       const paymentClient = new Payment(mercadopago);
       const mpResponse = await paymentClient.get({ id: String(paymentId) });
       const mpPayment = mpResponse;

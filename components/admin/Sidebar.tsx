@@ -1,6 +1,6 @@
 'use client'
 
-import { LayoutDashboard, Calendar, Users, UserCheck, Package, FileText, BarChart3, Bell, Settings, LogOut, MessageSquare, Menu, X, Shield, DollarSign, Wallet, MapPin } from 'lucide-react'
+import { LayoutDashboard, Calendar, Users, UserCheck, Package, FileText, BarChart3, Bell, Settings, LogOut, MessageSquare, Menu, X, Shield, DollarSign, Wallet, MapPin, CreditCard } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { signOut } from 'next-auth/react'
@@ -81,6 +81,15 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
               </button>
             )
           })}
+
+          <Link
+            href="/admin/payment-config"
+            onClick={() => setIsOpen(false)}
+            className="w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 sm:py-3.5 rounded-lg sm:rounded-xl mb-1.5 sm:mb-2 transition-all font-semibold text-sm sm:text-base text-white/90 hover:bg-white/10 hover:text-white"
+          >
+            <CreditCard size={18} className="sm:w-5 sm:h-5 flex-shrink-0" />
+            <span>Config. Pagos</span>
+          </Link>
         </nav>
 
         <div className="p-3 sm:p-4 border-t border-white/20">
