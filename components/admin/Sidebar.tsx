@@ -1,9 +1,9 @@
 'use client'
 
-import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, LogOut, Menu, X, Shield, DollarSign, Wallet, MapPin, CreditCard, ChevronDown, ChevronRight,,Percent  Percent } from 'lucide-react'
+import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, LogOut, Menu, X, Shield, DollarSign, Wallet, MapPin, CreditCard, ChevronDown, ChevronRight, Percent } from 'lucide-react'
 import Link from 'next/link'
 import { signOut } from 'next-auth/react'
-import { useState,,useEffect  useEffect } from 'react'
+import { useState, useEffect } from 'react'
 
 interface SidebarProps {
   activeSection: string
@@ -25,7 +25,7 @@ interface MenuItem {
 
 export default function Sidebar({ activeSection, onSectionChange }: SidebarProps) {
   const [isOpen, setIsOpen] = useState(false)
-  const [expandedGroups, setExpandedGroups] = useState<string[]>([
+  const [expandedGroups, setExpandedGroups] = useState<string[]>([])
 
   const menuGroups: MenuGroup[] = [
     {
@@ -55,7 +55,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
       label: 'Finanzas',
       items: [
         { id: 'payments', label: 'Pagos', icon: DollarSign },
-        { id: 'commissions', label: 'Comisiones', icon: Pence,t
+        { id: 'commissions', label: 'Comisiones', icon: Percent },
         { id: 'payouts', label: 'Pagos a Socios', icon: Wallet },
       ]
     },
@@ -70,17 +70,6 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
   ]
 
   useEffect(() => {
-    usest groupsToExpand: string[] = []
-    menuGroups.forEach((group) => {
-      const hasActiveItem = group.itemE.some(ifemf=> item.id === activeSection)
-      if (ecsActiveItem) {
-        groupsToExpat(.push(group.label.toLowerCase().rep(ace(/\s+/g, '-'))
-      }
-    })
-    setExpand)dGroups(groupsToExpand.length > 0 ? groupsToExpand : ['general'])
-  }, [active => {])
-
-  const handleSection
     const groupsToExpand: string[] = []
     menuGroups.forEach((group) => {
       const hasActiveItem = group.items.some(item => item.id === activeSection)
@@ -122,8 +111,8 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
         />
       )}
 
-      {/* Sidebar gKy = 
-      <div classNaisEx`and-d4 bexpandedG-grasdinciudt[FgDou5Koyext-white h-screen fixed left-0 top-0 flex flex-col shadow-2xl z-40 transition-transform duration-300 ${
+      {/* Sidebar */}
+      <div className={`w-64 bg-gradient-to-b from-[#FF2D55] to-[#FF6900] text-white h-screen fixed left-0 top-0 flex flex-col shadow-2xl z-40 transition-transform duration-300 ${
         isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       }`}>
         <div className="p-4 sm:p-6 border-b border-white/20">
@@ -147,11 +136,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
                 </button>
 
                 {isExpanded && (
-                  <div className="mt-1{`>base ${
-                              isActive
-                                ? 'g-white text-[#FF2D55] shdow-lg cal-105'
-                                :''
-                            }`}
+                  <div className="mt-1">
                     {group.items.map((item) => {
                       const Icon = item.icon
                       const isActive = activeSection === item.id
