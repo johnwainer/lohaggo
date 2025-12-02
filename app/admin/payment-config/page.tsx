@@ -14,7 +14,9 @@ interface PaymentConfig {
   hasTestCredentials: boolean
   hasProductionCredentials: boolean
   testPublicKey?: string
+  testClientId?: string
   productionPublicKey?: string
+  productionClientId?: string
 }
 
 export default function PaymentConfigPage() {
@@ -28,11 +30,17 @@ export default function PaymentConfigPage() {
   const [environment, setEnvironment] = useState<PaymentEnvironment>('TEST')
   const [testAccessToken, setTestAccessToken] = useState('')
   const [testPublicKey, setTestPublicKey] = useState('')
+  const [testClientId, setTestClientId] = useState('')
+  const [testClientSecret, setTestClientSecret] = useState('')
   const [productionAccessToken, setProductionAccessToken] = useState('')
   const [productionPublicKey, setProductionPublicKey] = useState('')
-  
+  const [productionClientId, setProductionClientId] = useState('')
+  const [productionClientSecret, setProductionClientSecret] = useState('')
+
   const [showTestAccessToken, setShowTestAccessToken] = useState(false)
+  const [showTestClientSecret, setShowTestClientSecret] = useState(false)
   const [showProductionAccessToken, setShowProductionAccessToken] = useState(false)
+  const [showProductionClientSecret, setShowProductionClientSecret] = useState(false)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -56,7 +64,9 @@ export default function PaymentConfigPage() {
         setConfig(data)
         setEnvironment(data.environment)
         setTestPublicKey(data.testPublicKey || '')
+        setTestClientId(data.testClientId || '')
         setProductionPublicKey(data.productionPublicKey || '')
+        setProductionClientId(data.productionClientId || '')
       }
     } catch (error) {
       console.error('Error fetching config:', error)
@@ -78,8 +88,12 @@ export default function PaymentConfigPage() {
           environment,
           testAccessToken: testAccessToken || undefined,
           testPublicKey: testPublicKey || undefined,
+          testClientId: testClientId || undefined,
+          testClientSecret: testClientSecret || undefined,
           productionAccessToken: productionAccessToken || undefined,
           productionPublicKey: productionPublicKey || undefined,
+          productionClientId: productionClientId || undefined,
+          productionClientSecret: productionClientSecret || undefined,
         }),
       })
 
@@ -88,7 +102,9 @@ export default function PaymentConfigPage() {
         setConfig(data)
         setMessage({ type: 'success', text: 'Configuración guardada exitosamente' })
         setTestAccessToken('')
+        setTestClientSecret('')
         setProductionAccessToken('')
+        setProductionClientSecret('')
       } else {
         setMessage({ type: 'error', text: 'Error al guardar la configuración' })
       }
@@ -227,6 +243,39 @@ export default function PaymentConfigPage() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Client ID de Prueba
+                </label>
+                <input
+                  type="text"
+                  value={testClientId}
+                  onChange={(e) => setTestClientId(e.target.value)}
+                  placeholder="Client ID..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Client Secret de Prueba
+                </label>
+                <div className="relative">
+                  <input
+                    type={showTestClientSecret ? 'text' : 'password'}
+                    value={testClientSecret}
+                    onChange={(e) => setTestClientSecret(e.target.value)}
+                    placeholder={config?.hasTestCredentials ? '••••••••••••••••' : 'Client Secret...'}
+                    className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowTestClientSecret(!showTestClientSecret)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showTestClientSecret ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -274,6 +323,39 @@ export default function PaymentConfigPage() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Client ID de Producción
+                </label>
+                <input
+                  type="text"
+                  value={productionClientId}
+                  onChange={(e) => setProductionClientId(e.target.value)}
+                  placeholder="Client ID..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Client Secret de Producción
+                </label>
+                <div className="relative">
+                  <input
+                    type={showProductionClientSecret ? 'text' : 'password'}
+                    value={productionClientSecret}
+                    onChange={(e) => setProductionClientSecret(e.target.value)}
+                    placeholder={config?.hasProductionCredentials ? '••••••••••••••••' : 'Client Secret...'}
+                    className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowProductionClientSecret(!showProductionClientSecret)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showProductionClientSecret ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -287,6 +369,8 @@ export default function PaymentConfigPage() {
                   <li>Solo ingresa nuevas credenciales si deseas actualizarlas</li>
                   <li>Asegúrate de usar el ambiente correcto antes de procesar pagos</li>
                   <li>Obtén tus credenciales desde el panel de Mercadopago</li>
+                  <li><strong>Access Token y Public Key</strong> se usan para pagos con Checkout Pro</li>
+                  <li><strong>Client ID y Client Secret</strong> se usan para OAuth y otras integraciones</li>
                 </ul>
               </div>
             </div>
