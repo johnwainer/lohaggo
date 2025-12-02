@@ -48,13 +48,14 @@ export default function PaymentConfigPage() {
     } else if (status === 'authenticated' && session?.user?.role !== 'ADMIN') {
       router.push('/')
     }
-  }, [status, session, router])
+  }, [status, session?.user?.role, router])
 
   useEffect(() => {
     if (status === 'authenticated' && session?.user?.role === 'ADMIN') {
       fetchConfig()
     }
-  }, [status, session])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, session?.user?.role])
 
   const fetchConfig = async () => {
     try {
@@ -132,7 +133,7 @@ export default function PaymentConfigPage() {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <Sidebar activeSection="" onSectionChange={() => {}} />
+      <Sidebar activeSection="payment-config" onSectionChange={() => router.push('/admin')} />
       <main className="flex-1 overflow-auto ml-0 lg:ml-64">
         <div className="p-3 sm:p-6 lg:p-8">
           <div className="max-w-4xl mx-auto">
