@@ -515,3 +515,19 @@ model ChatMessage {
   @@index([chatId, createdAt])
   @@index([senderId])
 }
+
+model PaymentConfig {
+  id                        String              @id @default(cuid())
+  environment               PaymentEnvironment  @default(TEST)
+  testAccessToken           String?
+  testPublicKey             String?
+  productionAccessToken     String?
+  productionPublicKey       String?
+  createdAt                 DateTime            @default(now())
+  updatedAt                 DateTime            @updatedAt
+}
+
+enum PaymentEnvironment {
+  TEST
+  PRODUCTION
+}

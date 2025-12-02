@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import mercadopago from '@/lib/mercadopago';
+import { getMercadoPagoClient } from '@/lib/mercadopago';
 import { Preference } from 'mercadopago';
 import { createLogger } from '@/lib/logger';
 import { paymentRateLimiter } from '@/lib/rate-limit';
@@ -97,6 +97,7 @@ async function handlePOST(req: NextRequest) {
       totalAmount,
     });
 
+    const { client: mercadopago } = await getMercadoPagoClient();
     const preferenceClient = new Preference(mercadopago);
     const preference = await preferenceClient.create({
       body: {

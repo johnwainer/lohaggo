@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import mercadopago from '@/lib/mercadopago'
+import { getMercadoPagoClient } from '@/lib/mercadopago'
 import { Customer, CardToken } from 'mercadopago'
 import { createLogger } from '@/lib/logger'
 import { z } from 'zod'
@@ -76,9 +76,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    if (!env.MERCADOPAGO_ACCESS_TOKEN) {
-      return NextResponse.json({ error: 'Mercado Pago no está configurado' }, { status: 500 })
-    }
+    const { client: mercadopago } = await getMercadoPagoClient()
 
     const session = await getServerSession(authOptions)
 
@@ -123,6 +121,7 @@ export async function POST(request: Request) {
     }
 
     if (!customerId) {
+      const mercadopago = getMercadoPagoClient()
       const customerClient = new Customer(mercadopago)
       const search = await customerClient
         .search({ options: { email: userEmail } })
@@ -178,6 +177,7 @@ export async function POST(request: Request) {
 
     const shouldSetDefault = setDefault === true
 
+    const mercadopago = getMercadoPagoClient()
     const cardTokenClient = new CardToken(mercadopago)
     const cardToken = await cardTokenClient
       .create({
@@ -240,6 +240,7 @@ export async function POST(request: Request) {
     })
 
     if (shouldSetDefault && customerCard.id) {
+      const mercadopago = getMercadoPagoClient()
       const customerClient = new Customer(mercadopago)
       customerClient
         .update({
