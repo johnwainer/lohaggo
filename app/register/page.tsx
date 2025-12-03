@@ -120,7 +120,12 @@ function RegisterForm() {
         setError('Registro exitoso pero error al iniciar sesión')
       } else {
         if (formData.role === 'PARTNER') {
-          router.push('/partner')
+          const selectedCity = cities.find(c => c.slug === formData.city)
+          if (selectedCity?.status === 'COMING_SOON') {
+            router.push(`/partner/welcome/${formData.city}`)
+          } else {
+            router.push('/partner')
+          }
         } else {
           router.push('/dashboard')
         }
@@ -270,7 +275,6 @@ function RegisterForm() {
                         <option
                           key={city.id}
                           value={city.slug}
-                          disabled={city.status !== 'ACTIVE'}
                         >
                           {city.name}{' '}
                           {city.status === 'COMING_SOON'
