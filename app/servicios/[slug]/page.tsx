@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { DollarSign, Clock, Star, CheckCircle, MapPin, Plus, Calendar, X, ChevronRight, Camera, Upload, Trash2, Shield, CreditCard, GraduationCap, ShieldCheck } from 'lucide-react'
+import { DollarSign, Clock, Star, CheckCircle, MapPin, Plus, Calendar, X, ChevronRight, Camera, Upload, Trash2, Shield, CreditCard, GraduationCap, ShieldCheck, UserPlus, Bell, Briefcase, TrendingUp, Users, Sparkles } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { formatCurrency } from '@/lib/utils'
 import { useCity } from '@/lib/city-context'
@@ -396,7 +396,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
         </div>
 
         {/* Available Professionals */}
-        {service.partners.length > 0 && (
+        {service.partners.length > 0 ? (
           <div className="bg-white rounded-xl shadow-md p-4 md:p-8">
             <h2 className="text-xl md:text-2xl font-bold mb-4 md:mb-6">Profesionales disponibles</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
@@ -461,6 +461,113 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                     </div>
                   )
                 })}
+            </div>
+          </div>
+        ) : (
+          <div className="bg-gradient-to-br from-orange-50 via-white to-pink-50 rounded-xl shadow-lg p-6 md:p-12 border-2 border-orange-200">
+            <div className="max-w-4xl mx-auto">
+              <div className="text-center mb-8">
+                <div className="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-orange-500 to-pink-500 rounded-full mb-4 shadow-lg">
+                  <Users size={32} className="text-white md:w-10 md:h-10" />
+                </div>
+                <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">
+                  ¡Aún no hay profesionales disponibles!
+                </h2>
+                <p className="text-gray-600 text-base md:text-lg max-w-2xl mx-auto">
+                  Sé el primero en ofrecer <span className="font-semibold text-orange-600">{service.name}</span> en tu ciudad o notifícanos que estás buscando este servicio.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-8">
+                <div className="bg-white rounded-xl p-6 shadow-md border-2 border-orange-100 hover:border-orange-300 transition-all hover:shadow-xl group">
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-orange-500 to-pink-500 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <Briefcase size={24} className="text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-lg text-gray-900 mb-2">Conviértete en Socio</h3>
+                      <p className="text-gray-600 text-sm mb-4">
+                        Ofrece tus servicios profesionales, gana dinero extra y construye tu reputación en la plataforma.
+                      </p>
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        <div className="flex items-center gap-1 text-xs text-green-700 bg-green-50 px-2 py-1 rounded-full">
+                          <TrendingUp size={12} />
+                          <span>Ingresos flexibles</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-xs text-blue-700 bg-blue-50 px-2 py-1 rounded-full">
+                          <Shield size={12} />
+                          <span>Verificación segura</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-xs text-purple-700 bg-purple-50 px-2 py-1 rounded-full">
+                          <Sparkles size={12} />
+                          <span>Sin costos iniciales</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => router.push('/partner/register')}
+                        className="w-full bg-gradient-to-r from-orange-500 to-pink-500 text-white font-semibold py-3 px-4 rounded-lg hover:from-orange-600 hover:to-pink-600 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 group"
+                      >
+                        <UserPlus size={18} />
+                        <span>Registrarme como Socio</span>
+                        <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl p-6 shadow-md border-2 border-blue-100 hover:border-blue-300 transition-all hover:shadow-xl group">
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <Bell size={24} className="text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-lg text-gray-900 mb-2">Notificar Interés</h3>
+                      <p className="text-gray-600 text-sm mb-4">
+                        Déjanos saber que necesitas este servicio. Te avisaremos cuando haya profesionales disponibles.
+                      </p>
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                        <p className="text-xs text-blue-800">
+                          <span className="font-semibold">💡 Beneficio:</span> Serás el primero en recibir ofertas especiales y descuentos de lanzamiento.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          const message = `Hola, estoy interesado en el servicio de ${service.name} en ${getCityBySlug(slug)?.name || 'mi ciudad'}. ¿Cuándo estará disponible?`
+                          window.open(`https://wa.me/573001234567?text=${encodeURIComponent(message)}`, '_blank')
+                        }}
+                        className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-semibold py-3 px-4 rounded-lg hover:from-blue-600 hover:to-indigo-600 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 group"
+                      >
+                        <Bell size={18} />
+                        <span>Notificar mi Interés</span>
+                        <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-r from-orange-100 to-pink-100 rounded-xl p-6 border border-orange-200">
+                <div className="flex flex-col md:flex-row items-center gap-4">
+                  <div className="flex-shrink-0">
+                    <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-md">
+                      <Sparkles size={24} className="text-orange-500" />
+                    </div>
+                  </div>
+                  <div className="flex-1 text-center md:text-left">
+                    <h4 className="font-bold text-gray-900 mb-1">¿Por qué unirte a LoHaggo?</h4>
+                    <p className="text-gray-700 text-sm">
+                      Más de <span className="font-semibold text-orange-600">10,000 clientes</span> confían en nosotros.
+                      Únete a nuestra comunidad de profesionales verificados y empieza a generar ingresos hoy mismo.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => router.push('/como-funciona')}
+                    className="flex-shrink-0 bg-white text-orange-600 font-semibold py-2 px-6 rounded-lg hover:bg-orange-50 transition-all shadow-md hover:shadow-lg border-2 border-orange-200 whitespace-nowrap"
+                  >
+                    Conocer más
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
