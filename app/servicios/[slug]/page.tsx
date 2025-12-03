@@ -283,6 +283,19 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     )
   }
 
+  const isFullyVerified = (documents?: Array<{ type: string; status: string }>) => {
+    if (!documents || documents.length === 0) return false
+
+    const IDENTITY_TYPES = ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP']
+    const EDUCATION_TYPES = ['DIPLOMA_BACHILLERATO', 'DIPLOMA_TECNICO', 'DIPLOMA_TECNOLOGO', 'DIPLOMA_PROFESIONAL', 'DIPLOMA_POSGRADO', 'CERTIFICADO_CURSO']
+
+    const hasIdentity = documents.some(d => IDENTITY_TYPES.includes(d.type) && d.status === 'APPROVED')
+    const hasEducation = documents.some(d => EDUCATION_TYPES.includes(d.type) && d.status === 'APPROVED')
+    const hasBackground = documents.some(d => d.type === 'ANTECEDENTES' && d.status === 'APPROVED')
+
+    return hasIdentity && hasEducation && hasBackground
+  }
+
   const getVerificationBadges = (documents?: Array<{ type: string; status: string }>) => {
     if (!documents || documents.length === 0) return null
 
@@ -387,42 +400,67 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
           <div className="bg-white rounded-xl shadow-md p-4 md:p-8">
             <h2 className="text-xl md:text-2xl font-bold mb-4 md:mb-6">Profesionales disponibles</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-              {service.partners.map((partnerService) => (
-                <div
-                  key={partnerService.id}
-                  className="border rounded-lg p-4 md:p-6 flex flex-col md:block"
-                >
-                  <div className="flex items-start justify-between mb-3 md:mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold text-base md:text-lg">{partnerService.partner.user.name}</h3>
-                        {partnerService.partner.verified && (
-                          <div className="group relative">
-                            <ShieldCheck size={16} className="text-green-600" />
-                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-lg z-10">
-                              Socio verificado
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      {getVerificationBadges(partnerService.partner.documents)}
-                    </div>
-                    <div className="text-right">
-                      <div className="flex items-center gap-1 text-yellow-500 justify-end">
-                        <Star size={14} fill="currentColor" className="md:w-4 md:h-4" />
-                        <span className="font-semibold text-sm md:text-base">{partnerService.partner.rating.toFixed(1)}</span>
-                      </div>
-                      <span className="text-gray-500 text-xs md:text-sm">
-                        ({partnerService.partner.totalReviews} reseñas)
-                      </span>
-                    </div>
-                  </div>
+              {service.partners
+                .sort((a, b) => {
+                  const aFullyVerified = isFullyVerified(a.partner.documents)
+                  const bFullyVerified = isFullyVerified(b.partner.documents)
 
-                  <div className="mt-2 md:mt-0 mb-3 md:mb-4">
-                    <p className="text-primary-600 font-bold text-lg md:text-xl">{formatCurrency(partnerService.price)}</p>
-                  </div>
-                </div>
-              ))}
+                  if (aFullyVerified && !bFullyVerified) return -1
+                  if (!aFullyVerified && bFullyVerified) return 1
+
+                  return b.partner.rating - a.partner.rating
+                })
+                .map((partnerService) => {
+                  const fullyVerified = isFullyVerified(partnerService.partner.documents)
+
+                  return (
+                    <div
+                      key={partnerService.id}
+                      className={`border-2 rounded-lg p-4 md:p-6 flex flex-col md:block transition-all ${
+                        fullyVerified
+                          ? 'border-emerald-500 bg-gradient-to-br from-emerald-50 to-green-50 shadow-lg shadow-emerald-100'
+                          : 'border-gray-200 bg-white'
+                      }`}
+                    >
+                      {fullyVerified && (
+                        <div className="flex items-center gap-2 mb-3 bg-emerald-600 text-white px-3 py-1.5 rounded-full text-xs font-semibold w-fit">
+                          <ShieldCheck size={14} />
+                          <span>SOCIO VERIFICADO PLUS</span>
+                        </div>
+                      )}
+
+                      <div className="flex items-start justify-between mb-3 md:mb-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-semibold text-base md:text-lg">{partnerService.partner.user.name}</h3>
+                            {partnerService.partner.verified && (
+                              <div className="group relative">
+                                <ShieldCheck size={16} className="text-green-600" />
+                                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-lg z-10">
+                                  Socio verificado
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          {getVerificationBadges(partnerService.partner.documents)}
+                        </div>
+                        <div className="text-right">
+                          <div className="flex items-center gap-1 text-yellow-500 justify-end">
+                            <Star size={14} fill="currentColor" className="md:w-4 md:h-4" />
+                            <span className="font-semibold text-sm md:text-base">{partnerService.partner.rating.toFixed(1)}</span>
+                          </div>
+                          <span className="text-gray-500 text-xs md:text-sm">
+                            ({partnerService.partner.totalReviews} reseñas)
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="mt-2 md:mt-0 mb-3 md:mb-4">
+                        <p className="text-primary-600 font-bold text-lg md:text-xl">{formatCurrency(partnerService.price)}</p>
+                      </div>
+                    </div>
+                  )
+                })}
             </div>
           </div>
         )}
