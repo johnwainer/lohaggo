@@ -39,3 +39,21 @@ next-env.d.ts
 
 # prisma
 prisma/migrations
+
+# logs
+*.log
+
+# backup files
+*.bak
+*.backup
+*.tmp
+*~
+
+# temporary files
+/tmp/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
