@@ -19,7 +19,7 @@ async function handlePOST(request: NextRequest) {
       return validation.error
     }
 
-    const { email, password, name, phone, role, city, services } = validation.data
+    const { email, password, name, phone, role, city: citySlug, services } = validation.data
 
     // Verificar si el usuario ya existe
     const existingUser = await prisma.user.findUnique({
@@ -31,6 +31,23 @@ async function handlePOST(request: NextRequest) {
         { error: "El email ya está registrado" },
         { status: 400 }
       )
+    }
+
+    // Si es socio y se proporcionó ciudad, validar y convertir slug a enum
+    let cityEnum = "MEDELLIN"
+    if (role === "PARTNER" && citySlug) {
+      const cityRecord = await prisma.cityData.findUnique({
+        where: { slug: citySlug }
+      })
+
+      if (!cityRecord) {
+        return NextResponse.json(
+          { error: "Ciudad no válida" },
+          { status: 400 }
+        )
+      }
+
+      cityEnum = cityRecord.name.toUpperCase().replace(/\s+/g, '_')
     }
 
     // Hashear contraseña
@@ -53,7 +70,7 @@ async function handlePOST(request: NextRequest) {
           rating: 0,
           totalReviews: 0,
           verified: false,
-          city: city || "MEDELLIN",
+          city: cityEnum,
         }
       }
     }
@@ -81,7 +98,7 @@ async function handlePOST(request: NextRequest) {
         partnerId: user.partnerProfile!.id,
         serviceId: service.id,
         price: service.basePrice,
-        city: city || "MEDELLIN",
+        city: cityEnum,
         active: true,
       }))
 

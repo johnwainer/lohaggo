@@ -6,7 +6,7 @@ export const registerSchema = z.object({
     name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
     phone: z.string().optional(),
     role: z.enum(["CLIENT", "PARTNER"]).optional().default("CLIENT"),
-    city: z.enum(["MEDELLIN", "BOGOTA", "CALI", "BARRANQUILLA"]).optional(),
+    city: z.string().optional(),
     services: z.array(z.string()).optional(),
 })
 
