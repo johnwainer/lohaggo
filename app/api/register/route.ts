@@ -58,6 +58,27 @@ async function handlePOST(request: NextRequest) {
       }
 
       const cityName = normalizeCityName(cityRecord.name)
+
+      logger.info('Normalizing city name', {
+        slug: citySlug,
+        originalName: cityRecord.name,
+        normalizedName: cityName,
+        availableEnumValues: Object.keys(City)
+      })
+
+      // Validar que el nombre normalizado existe en el enum City
+      if (!(cityName in City)) {
+        logger.error('City name not found in enum', {
+          originalName: cityRecord.name,
+          normalizedName: cityName,
+          availableValues: Object.keys(City)
+        })
+        return NextResponse.json(
+          { error: "Ciudad no soportada en el sistema" },
+          { status: 400 }
+        )
+      }
+
       cityEnum = cityName as City
     }
 
