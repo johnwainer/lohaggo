@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from "@/lib/prisma"
+import { City } from "@prisma/client"
 import bcrypt from "bcryptjs"
 import { createLogger } from '@/lib/logger'
 import { registerRateLimiter } from '@/lib/rate-limit'
@@ -34,7 +35,7 @@ async function handlePOST(request: NextRequest) {
     }
 
     // Si es socio y se proporcionó ciudad, validar y convertir slug a enum
-    let cityEnum = "MEDELLIN"
+    let cityEnum: City = City.MEDELLIN
     if (role === "PARTNER" && citySlug) {
       const cityRecord = await prisma.cityConfig.findUnique({
         where: { slug: citySlug }
@@ -47,7 +48,8 @@ async function handlePOST(request: NextRequest) {
         )
       }
 
-      cityEnum = cityRecord.name.toUpperCase().replace(/\s+/g, '_')
+      const cityName = cityRecord.name.toUpperCase().replace(/\s+/g, '_')
+      cityEnum = cityName as City
     }
 
     // Hashear contraseña
