@@ -11,6 +11,15 @@ const logger = createLogger('register')
 
 export const dynamic = 'force-dynamic'
 
+// Helper function to normalize city name to enum format
+function normalizeCityName(name: string): string {
+  return name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+    .toUpperCase()
+    .replace(/\s+/g, '_')
+}
+
 async function handlePOST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -48,7 +57,7 @@ async function handlePOST(request: NextRequest) {
         )
       }
 
-      const cityName = cityRecord.name.toUpperCase().replace(/\s+/g, '_')
+      const cityName = normalizeCityName(cityRecord.name)
       cityEnum = cityName as City
     }
 
