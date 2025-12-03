@@ -379,21 +379,23 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
           </div>
         </div>
 
-        {/* Booking Button */}
-        <div className="bg-white rounded-xl shadow-md p-4 md:p-6 mb-6 md:mb-8">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-lg md:text-xl font-bold mb-1 md:mb-2">¿Listo para solicitar?</h2>
-              <p className="text-sm md:text-base text-gray-600">Envía tu solicitud a múltiples profesionales</p>
+        {/* Booking Button - Only show if partners available */}
+        {service.partners.length > 0 && (
+          <div className="bg-white rounded-xl shadow-md p-4 md:p-6 mb-6 md:mb-8">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg md:text-xl font-bold mb-1 md:mb-2">¿Listo para solicitar?</h2>
+                <p className="text-sm md:text-base text-gray-600">Envía tu solicitud a múltiples profesionales</p>
+              </div>
+              <button
+                onClick={handleRequest}
+                className="w-full sm:w-auto bg-secondary-500 text-white px-6 md:px-8 py-3 rounded-lg hover:bg-secondary-600 transition font-medium text-sm md:text-base"
+              >
+                Solicitar servicio
+              </button>
             </div>
-            <button
-              onClick={handleRequest}
-              className="w-full sm:w-auto bg-secondary-500 text-white px-6 md:px-8 py-3 rounded-lg hover:bg-secondary-600 transition font-medium text-sm md:text-base"
-            >
-              Solicitar servicio
-            </button>
           </div>
-        </div>
+        )}
 
         {/* Available Professionals */}
         {service.partners.length > 0 ? (
@@ -561,7 +563,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                     </p>
                   </div>
                   <button
-                    onClick={() => router.push('/como-funciona')}
+                    onClick={() => router.push('/how-it-works')}
                     className="flex-shrink-0 bg-white text-orange-600 font-semibold py-2 px-6 rounded-lg hover:bg-orange-50 transition-all shadow-md hover:shadow-lg border-2 border-orange-200 whitespace-nowrap"
                   >
                     Conocer más
