@@ -36,7 +36,7 @@ async function handlePOST(request: NextRequest) {
     // Si es socio y se proporcionó ciudad, validar y convertir slug a enum
     let cityEnum = "MEDELLIN"
     if (role === "PARTNER" && citySlug) {
-      const cityRecord = await prisma.cityData.findUnique({
+      const cityRecord = await prisma.cityConfig.findUnique({
         where: { slug: citySlug }
       })
 
