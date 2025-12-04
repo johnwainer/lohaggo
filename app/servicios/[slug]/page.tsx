@@ -88,7 +88,8 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
 
   const fetchService = async () => {
     try {
-      const res = await fetch(`/api/services/${slug}`)
+      const citySlug = localStorage.getItem('selectedCity') || 'medellin'
+      const res = await fetch(`/api/services/${slug}?city=${citySlug}`)
       const data = await res.json()
       setService(data)
     } catch (error) {
