@@ -459,49 +459,6 @@ function PartnerDashboardContent() {
         />
       )}
 
-      <Modal
-        isOpen={modal.isOpen}
-        onClose={() => setModal({ ...modal, isOpen: false })}
-        title={modal.title}
-        message={modal.message}
-        type={modal.type}
-      />
-
-      <ConfirmModal
-        isOpen={confirmModal.isOpen}
-        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
-        onConfirm={confirmModal.onConfirm}
-        title={confirmModal.title}
-        message={confirmModal.message}
-        type={confirmModal.type}
-      />
-
-      <RatingModal
-        isOpen={ratingModal.isOpen}
-        onClose={() => setRatingModal({ isOpen: false, bookingId: '', serviceName: '', clientName: '' })}
-        bookingId={ratingModal.bookingId}
-        serviceName={ratingModal.serviceName}
-        reviewType="partner"
-        targetName={ratingModal.clientName}
-        onSuccess={() => {
-          setModal({
-            isOpen: true,
-            title: 'Calificación Enviada',
-            message: 'Tu calificación ha sido enviada exitosamente.',
-            type: 'success'
-          })
-          fetchBookings()
-        }}
-      />
-
-      {imageGallery.isOpen && (
-        <ImageGalleryModal
-          photos={imageGallery.photos}
-          initialIndex={imageGallery.initialIndex}
-          onClose={() => setImageGallery({ isOpen: false, photos: [], initialIndex: 0 })}
-        />
-      )}
-
       <RatingModal
         isOpen={ratingModal.isOpen}
         onClose={() => setRatingModal({ isOpen: false, bookingId: '', serviceName: '', clientName: '' })}
@@ -949,14 +906,17 @@ function PartnerDashboardContent() {
                             <h4 className={`${DESIGN_SYSTEM.typography.label} mb-3`}>Fotos adjuntas:</h4>
                             <div className={`${DESIGN_SYSTEM.responsive.gridCols4} ${DESIGN_SYSTEM.spacing.gapSmall}`}>
                               {request.photos.sort((a, b) => a.order - b.order).map((photo, index) => (
-                                <div key={photo.id} className="relative group">
+                                <div
+                                  key={photo.id}
+                                  className="relative group cursor-pointer"
+                                  onClick={() => setImageGallery({ isOpen: true, photos: request.photos || [], initialIndex: index })}
+                                >
                                   <img
                                     src={photo.url}
                                     alt="Foto de la solicitud"
-                                    className={`${DESIGN_SYSTEM.components.card.base} ${DESIGN_SYSTEM.components.card.hover} w-full h-32 object-cover cursor-pointer border-2`}
-                                    onClick={() => setImageGallery({ isOpen: true, photos: request.photos || [], initialIndex: index })}
+                                    className={`${DESIGN_SYSTEM.components.card.base} ${DESIGN_SYSTEM.components.card.hover} w-full h-32 object-cover border-2 pointer-events-none`}
                                   />
-                                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition rounded-lg flex items-center justify-center">
+                                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition rounded-lg flex items-center justify-center pointer-events-none">
                                     <span className={`${DESIGN_SYSTEM.typography.bodySmall} text-white opacity-0 group-hover:opacity-100 transition font-medium`}>
                                       Ver imagen
                                     </span>
@@ -1053,15 +1013,18 @@ function PartnerDashboardContent() {
                     <p className={`${DESIGN_SYSTEM.typography.label} mb-2`}>Fotos adjuntas:</p>
                     <div className={`${DESIGN_SYSTEM.responsive.gridCols3} ${DESIGN_SYSTEM.spacing.gapSmall}`}>
                       {selectedRequest.photos.sort((a, b) => a.order - b.order).map((photo, index) => (
-                        <div key={photo.id} className="relative group">
+                        <div
+                          key={photo.id}
+                          className="relative group cursor-pointer"
+                          onClick={() => setImageGallery({ isOpen: true, photos: selectedRequest.photos || [], initialIndex: index })}
+                        >
                           <img
                             src={photo.url}
                             alt="Foto de la solicitud"
-                            className={`${DESIGN_SYSTEM.components.card.base} ${DESIGN_SYSTEM.components.card.hover} w-full h-24 object-cover cursor-pointer border-2`}
-                            onClick={() => setImageGallery({ isOpen: true, photos: selectedRequest.photos || [], initialIndex: index })}
+                            className={`${DESIGN_SYSTEM.components.card.base} ${DESIGN_SYSTEM.components.card.hover} w-full h-24 object-cover border-2 pointer-events-none`}
                           />
-                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition rounded-lg flex items-center justify-center">
-                            <span className={`${DESIGN_SYSTEM.typography.bodySmall} text-white opacity-0 group-hover:opacity-100 transition font-medium`}>
+                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition rounded-lg flex items-center justify-center pointer-events-none">
+                            <span className={`${DESIGN_SYSTEM.typography.bodySmall} text-white opacity-0 group-hover:opacity-100 transition font-medium pointer-events-none`}>
                               Ver
                             </span>
                           </div>
