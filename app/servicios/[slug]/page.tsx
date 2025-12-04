@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { DollarSign, Clock, Star, CheckCircle, MapPin, Plus, Calendar, X, ChevronRight, Camera, Upload, Trash2, Shield, CreditCard, GraduationCap, ShieldCheck, UserPlus, Bell, Briefcase, TrendingUp, Users, Sparkles } from 'lucide-react'
+import { DollarSign, Clock, Star, CheckCircle, MapPin, Plus, Calendar, X, ChevronRight, Camera, Upload, Trash2, Shield, CreditCard, GraduationCap, ShieldCheck, UserPlus, Bell, Briefcase, TrendingUp, Users, Sparkles, Heart } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { formatCurrency } from '@/lib/utils'
 import { useCity } from '@/lib/city-context'
@@ -82,10 +82,15 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     message: '',
     type: 'success' as 'success' | 'error'
   })
+  const [favoritePartners, setFavoritePartners] = useState<Set<string>>(new Set())
+  const [loadingFavorite, setLoadingFavorite] = useState<string | null>(null)
 
   useEffect(() => {
     fetchService()
-  }, [slug])
+    if (session?.user) {
+      fetchFavorites()
+    }
+  }, [slug, session])
 
   const fetchService = async () => {
     try {
@@ -97,6 +102,59 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
       console.error('Error fetching service:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchFavorites = async () => {
+    try {
+      const res = await fetch('/api/favorites')
+      if (res.ok) {
+        const data = await res.json()
+        const favoriteIds = new Set(data.map((fav: any) => fav.partnerId))
+        setFavoritePartners(favoriteIds)
+      }
+    } catch (error) {
+      console.error('Error fetching favorites:', error)
+    }
+  }
+
+  const toggleFavorite = async (partnerId: string) => {
+    if (!session) {
+      router.push('/login?redirect=/servicios/' + slug)
+      return
+    }
+
+    setLoadingFavorite(partnerId)
+    try {
+      const isFavorite = favoritePartners.has(partnerId)
+
+      if (isFavorite) {
+        const res = await fetch(`/api/favorites?partnerId=${partnerId}`, {
+          method: 'DELETE'
+        })
+
+        if (res.ok) {
+          setFavoritePartners(prev => {
+            const newSet = new Set(prev)
+            newSet.delete(partnerId)
+            return newSet
+          })
+        }
+      } else {
+        const res = await fetch('/api/favorites', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ partnerId })
+        })
+
+        if (res.ok) {
+          setFavoritePartners(prev => new Set(prev).add(partnerId))
+        }
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error)
+    } finally {
+      setLoadingFavorite(null)
     }
   }
 
@@ -526,14 +584,31 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                           </div>
                           {getVerificationBadges(partnerService.partner.documents)}
                         </div>
-                        <div className="text-right">
-                          <div className="flex items-center gap-1 text-yellow-500 justify-end">
-                            <Star size={14} fill="currentColor" className="md:w-4 md:h-4" />
-                            <span className="font-semibold text-sm md:text-base">{partnerService.partner.rating.toFixed(1)}</span>
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => toggleFavorite(partnerService.partner.id)}
+                            disabled={loadingFavorite === partnerService.partner.id}
+                            className={`p-2 rounded-full transition-all ${
+                              favoritePartners.has(partnerService.partner.id)
+                                ? 'bg-red-100 text-red-600 hover:bg-red-200'
+                                : 'bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-red-500'
+                            } ${loadingFavorite === partnerService.partner.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          >
+                            <Heart
+                              size={20}
+                              fill={favoritePartners.has(partnerService.partner.id) ? 'currentColor' : 'none'}
+                              className="transition-all"
+                            />
+                          </button>
+                          <div className="text-right">
+                            <div className="flex items-center gap-1 text-yellow-500 justify-end">
+                              <Star size={14} fill="currentColor" className="md:w-4 md:h-4" />
+                              <span className="font-semibold text-sm md:text-base">{partnerService.partner.rating.toFixed(1)}</span>
+                            </div>
+                            <span className="text-gray-500 text-xs md:text-sm">
+                              ({partnerService.partner.totalReviews} reseñas)
+                            </span>
                           </div>
-                          <span className="text-gray-500 text-xs md:text-sm">
-                            ({partnerService.partner.totalReviews} reseñas)
-                          </span>
                         </div>
                       </div>
 
