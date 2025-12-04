@@ -556,12 +556,28 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                   return (
                     <div
                       key={partnerService.id}
-                      className={`border-2 rounded-lg p-4 md:p-6 flex flex-col md:block transition-all ${
+                      className={`border-2 rounded-lg p-4 md:p-6 flex flex-col md:block transition-all relative ${
                         fullyVerified
                           ? 'border-emerald-500 bg-gradient-to-br from-emerald-50 to-green-50 shadow-lg shadow-emerald-100'
                           : 'border-gray-200 bg-white'
                       }`}
                     >
+                      <button
+                        onClick={() => toggleFavorite(partnerService.partner.id)}
+                        disabled={loadingFavorite === partnerService.partner.id}
+                        className={`absolute top-3 right-3 p-2 rounded-full transition-all z-10 ${
+                          favoritePartners.has(partnerService.partner.id)
+                            ? 'bg-red-100 text-red-600 hover:bg-red-200'
+                            : 'bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-red-500'
+                        } ${loadingFavorite === partnerService.partner.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        <Heart
+                          size={20}
+                          fill={favoritePartners.has(partnerService.partner.id) ? 'currentColor' : 'none'}
+                          className="transition-all"
+                        />
+                      </button>
+
                       {fullyVerified && (
                         <div className="flex items-center gap-2 mb-3 bg-emerald-600 text-white px-3 py-1.5 rounded-full text-xs font-semibold w-fit">
                           <ShieldCheck size={14} />
@@ -569,7 +585,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                         </div>
                       )}
 
-                      <div className="flex items-start justify-between mb-3 md:mb-4">
+                      <div className="flex items-start justify-between mb-3 md:mb-4 pr-10">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
                             <h3 className="font-semibold text-base md:text-lg">{partnerService.partner.user.name}</h3>
@@ -584,31 +600,14 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                           </div>
                           {getVerificationBadges(partnerService.partner.documents)}
                         </div>
-                        <div className="flex items-center gap-3">
-                          <button
-                            onClick={() => toggleFavorite(partnerService.partner.id)}
-                            disabled={loadingFavorite === partnerService.partner.id}
-                            className={`p-2 rounded-full transition-all ${
-                              favoritePartners.has(partnerService.partner.id)
-                                ? 'bg-red-100 text-red-600 hover:bg-red-200'
-                                : 'bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-red-500'
-                            } ${loadingFavorite === partnerService.partner.id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          >
-                            <Heart
-                              size={20}
-                              fill={favoritePartners.has(partnerService.partner.id) ? 'currentColor' : 'none'}
-                              className="transition-all"
-                            />
-                          </button>
-                          <div className="text-right">
-                            <div className="flex items-center gap-1 text-yellow-500 justify-end">
-                              <Star size={14} fill="currentColor" className="md:w-4 md:h-4" />
-                              <span className="font-semibold text-sm md:text-base">{partnerService.partner.rating.toFixed(1)}</span>
-                            </div>
-                            <span className="text-gray-500 text-xs md:text-sm">
-                              ({partnerService.partner.totalReviews} reseñas)
-                            </span>
+                        <div className="text-right">
+                          <div className="flex items-center gap-1 text-yellow-500 justify-end">
+                            <Star size={14} fill="currentColor" className="md:w-4 md:h-4" />
+                            <span className="font-semibold text-sm md:text-base">{partnerService.partner.rating.toFixed(1)}</span>
                           </div>
+                          <span className="text-gray-500 text-xs md:text-sm">
+                            ({partnerService.partner.totalReviews} reseñas)
+                          </span>
                         </div>
                       </div>
 

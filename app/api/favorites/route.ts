@@ -112,10 +112,15 @@ export async function POST(req: NextRequest) {
     })
 
     return NextResponse.json(favorite, { status: 201 })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error adding favorite:', error)
+    console.error('Error details:', {
+      message: error?.message,
+      code: error?.code,
+      meta: error?.meta
+    })
     return NextResponse.json(
-      { error: 'Error adding favorite' },
+      { error: 'Error adding favorite', details: error?.message },
       { status: 500 }
     )
   }
