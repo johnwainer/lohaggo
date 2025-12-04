@@ -1,6 +1,6 @@
 'use client'
 
-import { X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
 interface Photo {
@@ -17,6 +17,12 @@ interface ImageGalleryModalProps {
 
 export default function ImageGalleryModal({ photos, initialIndex, onClose }: ImageGalleryModalProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex)
+  const [zoom, setZoom] = useState(1)
+
+  useEffect(() => {
+    // Reset zoom when changing images
+    setZoom(1)
+  }, [currentIndex])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -25,8 +31,14 @@ export default function ImageGalleryModal({ photos, initialIndex, onClose }: Ima
       if (e.key === 'ArrowRight') goToNext()
     }
 
+    // Prevent body scroll when modal is open
+    document.body.style.overflow = 'hidden'
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.body.style.overflow = 'unset'
+      window.removeEventListener('keydown', handleKeyDown)
+    }
   }, [currentIndex])
 
   const goToNext = () => {
@@ -37,44 +49,104 @@ export default function ImageGalleryModal({ photos, initialIndex, onClose }: Ima
     setCurrentIndex((prev) => (prev - 1 + photos.length) % photos.length)
   }
 
+  const handleZoomIn = () => {
+    setZoom((prev) => Math.min(prev + 0.25, 3))
+  }
+
+  const handleZoomOut = () => {
+    setZoom((prev) => Math.max(prev - 0.25, 0.5))
+  }
+
   const sortedPhotos = [...photos].sort((a, b) => a.order - b.order)
 
+  if (!sortedPhotos || sortedPhotos.length === 0) {
+    return null
+  }
+
   return (
-    <div 
-      className="fixed inset-0 bg-black bg-opacity-95 z-50 flex items-center justify-center p-4"
+    <div
+      className="fixed inset-0 bg-black bg-opacity-95 z-[9999] flex items-center justify-center p-4"
       onClick={onClose}
     >
+      {/* Close button */}
       <button
         onClick={onClose}
-        className="absolute top-4 right-4 text-white hover:text-gray-300 transition z-10"
+        className="absolute top-4 right-4 text-white hover:text-gray-300 transition z-10 bg-black bg-opacity-50 rounded-full p-2 hover:bg-opacity-70"
+        aria-label="Cerrar"
       >
         <X size={32} />
       </button>
 
-      <div className="relative w-full h-full flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+      {/* Zoom controls */}
+      <div className="absolute top-4 left-4 flex gap-2 z-10">
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            handleZoomOut()
+          }}
+          className="text-white hover:text-gray-300 transition bg-black bg-opacity-50 rounded-full p-2 hover:bg-opacity-70"
+          aria-label="Alejar"
+        >
+          <ZoomOut size={24} />
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            handleZoomIn()
+          }}
+          className="text-white hover:text-gray-300 transition bg-black bg-opacity-50 rounded-full p-2 hover:bg-opacity-70"
+          aria-label="Acercar"
+        >
+          <ZoomIn size={24} />
+        </button>
+        <span className="text-white bg-black bg-opacity-50 rounded-full px-3 py-2 text-sm">
+          {Math.round(zoom * 100)}%
+        </span>
+      </div>
+
+      {/* Image container */}
+      <div
+        className="relative w-full h-full flex items-center justify-center overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         <img
-          src={sortedPhotos[currentIndex].url}
+          src={sortedPhotos[currentIndex]?.url}
           alt={`Foto ${currentIndex + 1}`}
-          className="max-w-full max-h-full object-contain"
+          className="max-w-full max-h-full object-contain transition-transform duration-200"
+          style={{ transform: `scale(${zoom})` }}
+          onError={(e) => {
+            console.error('Error loading image:', sortedPhotos[currentIndex]?.url)
+            e.currentTarget.src = '/placeholder-image.png'
+          }}
         />
 
+        {/* Navigation buttons */}
         {photos.length > 1 && (
           <>
             <button
-              onClick={goToPrevious}
-              className="absolute left-4 top-1/2 -translate-y-1/2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white p-3 rounded-full transition"
+              onClick={(e) => {
+                e.stopPropagation()
+                goToPrevious()
+              }}
+              className="absolute left-4 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white p-3 rounded-full transition"
+              aria-label="Imagen anterior"
             >
               <ChevronLeft size={32} />
             </button>
 
             <button
-              onClick={goToNext}
-              className="absolute right-4 top-1/2 -translate-y-1/2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white p-3 rounded-full transition"
+              onClick={(e) => {
+                e.stopPropagation()
+                goToNext()
+              }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white p-3 rounded-full transition"
+              aria-label="Imagen siguiente"
             >
               <ChevronRight size={32} />
             </button>
 
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black bg-opacity-50 text-white px-4 py-2 rounded-full text-sm">
+            {/* Image counter */}
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black bg-opacity-70 text-white px-4 py-2 rounded-full text-sm font-medium">
               {currentIndex + 1} / {photos.length}
             </div>
           </>
