@@ -607,8 +607,6 @@ export default function DashboardPage() {
         confirmText={confirmModal.type === 'danger' ? 'Sí, cancelar' : 'Sí, aceptar'}
       />
 
-      {imageGallery.isOpen && <ImageGalleryModal photos={imageGallery.photos} initialIndex={imageGallery.initialIndex} onClose={() => setImageGallery({ isOpen: false, photos: [], initialIndex: 0 })} />}
-
       {paymentModal.isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
