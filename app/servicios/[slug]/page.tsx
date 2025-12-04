@@ -471,7 +471,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                 onClick={handleRequest}
                 className="w-full sm:w-auto bg-secondary-500 text-white px-6 md:px-8 py-3 rounded-lg hover:bg-secondary-600 transition font-medium text-sm md:text-base"
               >
-                Solicitar servicio
+                Solicitar servicio a todos los socios disponibles
               </button>
             </div>
           </div>
