@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
       data: {
         userId: session.user.id,
         serviceId: validatedData.serviceId,
+        partnerId: validatedData.partnerId || null,
         address: validatedData.address,
         notes: validatedData.notes || null,
         city: (validatedData.city as City) || City.MEDELLIN,

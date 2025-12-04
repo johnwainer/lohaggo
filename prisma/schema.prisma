@@ -51,6 +51,7 @@ model PartnerProfile {
   proposals    Proposal[]
   documents    VerificationDocument[]
   partnerChats Chat[]                 @relation("PartnerChats")
+  directRequests ServiceRequest[]     @relation("DirectRequests")
 }
 
 model Category {
@@ -153,6 +154,7 @@ model ServiceRequest {
   id            String               @id @default(cuid())
   userId        String
   serviceId     String
+  partnerId     String?
   address       String
   notes         String?
   city          City                 @default(MEDELLIN)
@@ -167,6 +169,7 @@ model ServiceRequest {
   photos        RequestPhoto[]
   service       Service              @relation(fields: [serviceId], references: [id])
   user          User                 @relation(fields: [userId], references: [id])
+  partner       PartnerProfile?      @relation("DirectRequests", fields: [partnerId], references: [id])
   chats         Chat[]
 }
 

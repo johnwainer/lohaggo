@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Calendar, Clock, MapPin, DollarSign, Package, User, CheckCircle, XCircle,
   Send, AlertCircle, TrendingUp, Activity, Filter, Search, Menu, X,
-  Home, Briefcase, Bell, Settings, LogOut, ChevronRight, Eye, MessageSquare, Shield, Star, MessageCircle
+  Home, Briefcase, Bell, Settings, LogOut, ChevronRight, Eye, MessageSquare, Shield, Star, MessageCircle, UserPlus
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { DESIGN_SYSTEM, getStatusClasses, getStatusLabel } from '@/lib/design-system'
@@ -62,6 +62,7 @@ interface ServiceRequest {
   isUrgent?: boolean
   preferredDate?: string
   preferredTime?: string
+  partnerId?: string | null
   service: {
     name: string
     icon: string
@@ -857,11 +858,19 @@ function PartnerDashboardContent() {
                             <div className="flex items-start justify-between gap-3 mb-2">
                               <div className="flex-1 min-w-0">
                                 <h3 className={`${DESIGN_SYSTEM.typography.h3} truncate`}>{request.service.name}</h3>
-                                {request.isUrgent && (
-                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-secondary-100 text-secondary-800 border border-secondary-200 font-bold self-start">
-                                    URGENTE
-                                  </span>
-                                )}
+                                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                  {request.isUrgent && (
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-secondary-100 text-secondary-800 border border-secondary-200 font-bold">
+                                      URGENTE
+                                    </span>
+                                  )}
+                                  {request.partnerId && (
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800 border border-purple-200 font-bold">
+                                      <UserPlus size={14} />
+                                      SOLICITUD DIRECTA
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                               <p className={DESIGN_SYSTEM.typography.bodySmall}>{request.service.category.name}</p>
                             </div>
