@@ -7,7 +7,7 @@ import {
   MessageSquare, Calendar, Clock, MapPin, Package, CheckCircle, DollarSign,
   TrendingUp, Activity, Search, Menu, X, Home, Bell,
   Settings, LogOut, ChevronRight, Plus, AlertCircle, User, XCircle, Star,
-  Shield, CreditCard, GraduationCap, ShieldCheck, MessageCircle
+  Shield, CreditCard, GraduationCap, ShieldCheck, MessageCircle, Heart
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import Modal from '@/components/Modal'
@@ -126,11 +126,12 @@ export default function DashboardPage() {
   const router = useRouter()
   const [bookings, setBookings] = useState<Booking[]>([])
   const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([])
+  const [favoritePartners, setFavoritePartners] = useState<any[]>([])
   const [clientCommissionRate, setClientCommissionRate] = useState<number>(5.0)
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string>('')
   const [searchTerm, setSearchTerm] = useState('')
-  const [activeTab, setActiveTab] = useState<'overview' | 'bookings' | 'requests'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'bookings' | 'requests' | 'favorites'>('overview')
   const [imageGallery, setImageGallery] = useState<{ isOpen: boolean; photos: Array<{ id: string; url: string; order: number }>; initialIndex: number }>({ isOpen: false, photos: [], initialIndex: 0 })
 
 
@@ -224,6 +225,7 @@ export default function DashboardPage() {
     if (status === 'authenticated') {
       fetchBookings()
       fetchServiceRequests()
+      fetchFavorites()
     }
   }, [status])
 
@@ -320,6 +322,33 @@ export default function DashboardPage() {
       }
     } catch (error) {
       setServiceRequests([])
+    }
+  }
+
+  const fetchFavorites = async () => {
+    try {
+      const res = await fetch('/api/favorites')
+      if (res.ok) {
+        const data = await res.json()
+        setFavoritePartners(data)
+      }
+    } catch (error) {
+      console.error('Error fetching favorites:', error)
+      setFavoritePartners([])
+    }
+  }
+
+  const removeFavorite = async (partnerId: string) => {
+    try {
+      const res = await fetch(`/api/favorites?partnerId=${partnerId}`, {
+        method: 'DELETE'
+      })
+
+      if (res.ok) {
+        setFavoritePartners(prev => prev.filter(fav => fav.partnerId !== partnerId))
+      }
+    } catch (error) {
+      console.error('Error removing favorite:', error)
     }
   }
 
@@ -710,11 +739,13 @@ export default function DashboardPage() {
                     {activeTab === 'overview' && 'Resumen General'}
                     {activeTab === 'bookings' && 'Mis Reservas'}
                     {activeTab === 'requests' && 'Mis Solicitudes'}
+                    {activeTab === 'favorites' && 'Mis Favoritos'}
                   </h1>
                   <p className="text-xs sm:text-sm text-gray-600 truncate hidden sm:block">
                     {activeTab === 'overview' && 'Vista general de tu actividad'}
                     {activeTab === 'bookings' && 'Gestiona tus reservas de servicios'}
                     {activeTab === 'requests' && 'Solicitudes y propuestas recibidas'}
+                    {activeTab === 'favorites' && 'Tus profesionales favoritos'}
                   </p>
                 </div>
               </div>
@@ -766,6 +797,23 @@ export default function DashboardPage() {
                   {serviceRequests.length > 0 && (
                     <span className="bg-orange-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
                       {serviceRequests.length}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('favorites')}
+                  className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition whitespace-nowrap ${
+                    activeTab === 'favorites'
+                      ? 'border-primary-600 text-primary-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  }`}
+                >
+                  <Heart size={20} className="sm:w-[22px] sm:h-[22px]" />
+                  <span className="hidden sm:inline">Favoritos</span>
+                  {favoritePartners.length > 0 && (
+                    <span className="bg-red-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
+                      {favoritePartners.length}
                     </span>
                   )}
                 </button>
@@ -1104,6 +1152,132 @@ export default function DashboardPage() {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'favorites' && (
+            <div className="space-y-6">
+              {favoritePartners.length === 0 ? (
+                <div className="bg-white rounded-2xl shadow-lg p-12 text-center">
+                  <Heart size={64} className="mx-auto text-gray-300 mb-4" />
+                  <p className="text-gray-600 text-lg font-medium">No tienes favoritos aún</p>
+                  <p className="text-gray-500 text-sm mt-2">Marca como favoritos a los profesionales que más te gusten</p>
+                  <button
+                    onClick={() => router.push('/servicios')}
+                    className="mt-6 bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition font-medium"
+                  >
+                    Explorar Servicios
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {favoritePartners.map((favorite) => {
+                    const partner = favorite.partner
+                    const IDENTITY_TYPES = ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP']
+                    const EDUCATION_TYPES = ['DIPLOMA_BACHILLERATO', 'DIPLOMA_TECNICO', 'DIPLOMA_TECNOLOGO', 'DIPLOMA_PROFESIONAL', 'DIPLOMA_POSGRADO', 'CERTIFICADO_CURSO']
+
+                    const hasIdentity = partner.documents?.some((d: any) => IDENTITY_TYPES.includes(d.type) && d.status === 'APPROVED')
+                    const hasEducation = partner.documents?.some((d: any) => EDUCATION_TYPES.includes(d.type) && d.status === 'APPROVED')
+                    const hasBackground = partner.documents?.some((d: any) => d.type === 'ANTECEDENTES' && d.status === 'APPROVED')
+                    const fullyVerified = hasIdentity && hasEducation && hasBackground
+
+                    return (
+                      <div
+                        key={favorite.id}
+                        className={`bg-white rounded-xl shadow-lg p-6 border-2 transition-all ${
+                          fullyVerified
+                            ? 'border-emerald-500 bg-gradient-to-br from-emerald-50 to-green-50'
+                            : 'border-gray-200'
+                        }`}
+                      >
+                        {fullyVerified && (
+                          <div className="flex items-center gap-2 mb-3 bg-emerald-600 text-white px-3 py-1.5 rounded-full text-xs font-semibold w-fit">
+                            <ShieldCheck size={14} />
+                            <span>SOCIO VERIFICADO PLUS</span>
+                          </div>
+                        )}
+
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-semibold text-lg">{partner.user.name}</h3>
+                              {partner.verified && (
+                                <ShieldCheck size={16} className="text-green-600" />
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 mt-2">
+                              {hasIdentity && (
+                                <div className="flex items-center gap-1 bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full text-xs font-medium border border-blue-200">
+                                  <CreditCard size={14} />
+                                  <span>ID</span>
+                                </div>
+                              )}
+                              {hasEducation && (
+                                <div className="flex items-center gap-1 bg-purple-50 text-purple-700 px-2.5 py-1 rounded-full text-xs font-medium border border-purple-200">
+                                  <GraduationCap size={14} />
+                                  <span>EDU</span>
+                                </div>
+                              )}
+                              {hasBackground && (
+                                <div className="flex items-center gap-1 bg-green-50 text-green-700 px-2.5 py-1 rounded-full text-xs font-medium border border-green-200">
+                                  <Shield size={14} />
+                                  <span>ANT</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <div className="flex items-center gap-1 text-yellow-500">
+                                <Star size={16} fill="currentColor" />
+                                <span className="font-semibold">{partner.rating.toFixed(1)}</span>
+                              </div>
+                              <span className="text-gray-500 text-xs">
+                                ({partner.totalReviews} reseñas)
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => removeFavorite(partner.id)}
+                              className="p-2 rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition"
+                            >
+                              <Heart size={20} fill="currentColor" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="mb-4">
+                          <p className="text-sm text-gray-600 font-medium mb-2">Servicios que ofrece:</p>
+                          <div className="flex flex-wrap gap-2">
+                            {partner.services.map((ps: any) => (
+                              <span
+                                key={ps.service.id}
+                                className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs"
+                              >
+                                <span>{ps.service.icon}</span>
+                                <span>{ps.service.name}</span>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-2">
+                          {partner.services.map((ps: any) => (
+                            <button
+                              key={ps.service.id}
+                              onClick={() => router.push(`/servicios/${ps.service.slug}`)}
+                              className="w-full bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white font-semibold py-3 px-4 rounded-lg hover:from-[#E02850] hover:to-[#E65F00] transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                            >
+                              <span>{ps.service.icon}</span>
+                              <span>Solicitar {ps.service.name}</span>
+                              <ChevronRight size={18} />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>

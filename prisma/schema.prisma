@@ -30,6 +30,7 @@ model User {
   paymentMethods        PaymentMethod[]
   serviceRequests       ServiceRequest[]
   clientChats           Chat[]           @relation("ClientChats")
+  favoritePartners      FavoritePartner[]
 }
 
 model PartnerProfile {
@@ -52,6 +53,7 @@ model PartnerProfile {
   documents    VerificationDocument[]
   partnerChats Chat[]                 @relation("PartnerChats")
   directRequests ServiceRequest[]     @relation("DirectRequests")
+  favoritedBy  FavoritePartner[]
 }
 
 model Category {
@@ -532,6 +534,19 @@ model PaymentConfig {
   productionClientSecret    String?
   createdAt                 DateTime            @default(now())
   updatedAt                 DateTime            @updatedAt
+}
+
+model FavoritePartner {
+  id        String         @id @default(cuid())
+  userId    String
+  partnerId String
+  createdAt DateTime       @default(now())
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  partner   PartnerProfile @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, partnerId])
+  @@index([userId])
+  @@index([partnerId])
 }
 
 enum PaymentEnvironment {
