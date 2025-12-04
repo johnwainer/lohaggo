@@ -519,17 +519,35 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
 
         {/* Booking Button - Only show if partners available */}
         {service.partners.length > 0 && (
-          <div className="bg-white rounded-xl shadow-md p-4 md:p-6 mb-6 md:mb-8">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div>
-                <h2 className="text-lg md:text-xl font-bold mb-1 md:mb-2">¿Listo para solicitar?</h2>
-                <p className="text-sm md:text-base text-gray-600">Envía tu solicitud a múltiples profesionales</p>
+          <div className="relative overflow-hidden bg-gradient-to-br from-orange-50 via-pink-50 to-purple-50 rounded-2xl shadow-lg border-2 border-orange-200 p-6 md:p-8 mb-6 md:mb-8 group hover:shadow-xl transition-all duration-300">
+            <div className="absolute inset-0 bg-gradient-to-r from-orange-400/10 to-pink-400/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+
+            <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-pink-500 rounded-full flex items-center justify-center shadow-lg">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                  </div>
+                  <h2 className="text-xl md:text-2xl font-bold text-gray-900">¿Listo para solicitar?</h2>
+                </div>
+                <p className="text-base md:text-lg text-gray-700 font-medium">
+                  Envía tu solicitud a <span className="text-orange-600 font-bold">{service.partners.length} {service.partners.length === 1 ? 'profesional' : 'profesionales'}</span> y recibe múltiples propuestas
+                </p>
               </div>
+
               <button
                 onClick={handleRequest}
-                className="w-full sm:w-auto bg-secondary-500 text-white px-6 md:px-8 py-3 rounded-lg hover:bg-secondary-600 transition font-medium text-sm md:text-base"
+                className="w-full sm:w-auto bg-gradient-to-r from-orange-500 via-pink-500 to-purple-500 text-white px-8 md:px-10 py-4 rounded-xl hover:from-orange-600 hover:via-pink-600 hover:to-purple-600 transition-all duration-300 font-bold text-base md:text-lg shadow-lg hover:shadow-2xl hover:scale-105 flex items-center justify-center gap-3 group/btn"
               >
-                Solicitar servicio a todos los socios disponibles
+                <svg className="w-5 h-5 group-hover/btn:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+                <span>Solicitar a todos los socios</span>
+                <svg className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
               </button>
             </div>
           </div>
