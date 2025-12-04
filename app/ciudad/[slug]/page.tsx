@@ -249,7 +249,7 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
                   : 'bg-white text-gray-600 hover:bg-gray-50'
               }`}
             >
-              ¿Por qué Lohaggo?
+              ¿Por qué LoHaggo?
             </button>
             <button
               onClick={() => setActiveTab('services')}
