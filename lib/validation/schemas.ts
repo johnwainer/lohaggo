@@ -9,7 +9,8 @@ export const serviceRequestSchema = z.object({
   preferredDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida (formato: YYYY-MM-DD)').nullable().optional(),
   preferredTime: z.string().max(50).nullable().optional(),
   isUrgent: z.boolean().optional(),
-  photoUrls: z.array(z.string().url('URL de foto inválida')).max(10, 'Máximo 10 fotos').optional()
+  photoUrls: z.array(z.string().url('URL de foto inválida')).max(10, 'Máximo 10 fotos').optional(),
+  partnerId: z.string().nullable().optional()
 }).refine(
   (data) => data.isUrgent || (data.preferredDate !== null && data.preferredDate !== undefined),
   { message: 'Debes indicar si necesitas el servicio urgente o seleccionar una fecha' }

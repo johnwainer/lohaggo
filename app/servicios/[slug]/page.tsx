@@ -62,6 +62,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
   const [currentStep, setCurrentStep] = useState(1)
   const [addresses, setAddresses] = useState<Address[]>([])
   const [selectedAddressId, setSelectedAddressId] = useState<string>('')
+  const [selectedPartnerId, setSelectedPartnerId] = useState<string>('')
   const [photos, setPhotos] = useState<File[]>([])
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
   const [requestData, setRequestData] = useState({
@@ -117,6 +118,18 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     }
     fetchAddresses()
     setCurrentStep(1)
+    setSelectedPartnerId('')
+    setShowRequestModal(true)
+  }
+
+  const handleRequestToPartner = (partnerId: string) => {
+    if (!session) {
+      router.push('/login?redirect=/servicios/' + slug)
+      return
+    }
+    fetchAddresses()
+    setCurrentStep(1)
+    setSelectedPartnerId(partnerId)
     setShowRequestModal(true)
   }
 
@@ -289,14 +302,21 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
           preferredTime: requestData.preferredTime || null,
           isUrgent: requestData.isUrgent,
           city: finalCity,
-          photoUrls
+          photoUrls,
+          partnerId: selectedPartnerId || null
         })
       })
 
       if (res.ok) {
+        const partnerName = selectedPartnerId
+          ? service.partners.find(p => p.partner.id === selectedPartnerId)?.partner.user.name
+          : null
+
         setSuccessModal({
           isOpen: true,
-          message: '¡Solicitud creada exitosamente! Los profesionales disponibles recibirán tu solicitud.',
+          message: partnerName
+            ? `¡Solicitud enviada exitosamente a ${partnerName}!`
+            : '¡Solicitud creada exitosamente! Los profesionales disponibles recibirán tu solicitud.',
           type: 'success'
         })
       } else {
@@ -520,6 +540,15 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                       <div className="mt-2 md:mt-0 mb-3 md:mb-4">
                         <p className="text-primary-600 font-bold text-lg md:text-xl">{formatCurrency(partnerService.price)}</p>
                       </div>
+
+                      <button
+                        onClick={() => handleRequestToPartner(partnerService.partner.id)}
+                        className="w-full bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white font-semibold py-3 px-4 rounded-lg hover:from-[#E02850] hover:to-[#E65F00] transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 group"
+                      >
+                        <UserPlus size={18} />
+                        <span>Solicitar a este profesional</span>
+                        <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                      </button>
                     </div>
                   )
                 })}
@@ -643,6 +672,11 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
               <div className="flex items-center justify-between mb-3 md:mb-4">
                 <div>
                   <h2 className="text-xl md:text-2xl font-bold">Solicitar {service.name}</h2>
+                  {selectedPartnerId && (
+                    <p className="text-orange-100 text-xs md:text-sm mt-1">
+                      Para: {service.partners.find(p => p.partner.id === selectedPartnerId)?.partner.user.name}
+                    </p>
+                  )}
                   <p className="text-orange-100 text-xs md:text-sm mt-1">Paso {currentStep} de 4</p>
                 </div>
                 <button

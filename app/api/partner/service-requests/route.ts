@@ -43,13 +43,27 @@ export async function GET(req: NextRequest) {
     // Get active service requests for services this partner offers
     const serviceRequests = await prisma.serviceRequest.findMany({
       where: {
-        serviceId: {
-          in: partnerServiceIds
-        },
-        status: 'ACTIVE',
-        expiresAt: {
-          gte: new Date()
-        }
+        OR: [
+          {
+            // General requests for services this partner offers
+            serviceId: {
+              in: partnerServiceIds
+            },
+            partnerId: null,
+            status: 'ACTIVE',
+            expiresAt: {
+              gte: new Date()
+            }
+          },
+          {
+            // Direct requests to this partner
+            partnerId: partnerProfile.id,
+            status: 'ACTIVE',
+            expiresAt: {
+              gte: new Date()
+            }
+          }
+        ]
       },
       include: {
         service: {

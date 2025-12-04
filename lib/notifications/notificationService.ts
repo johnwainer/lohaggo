@@ -150,25 +150,48 @@ export async function notifyNewServiceRequest(serviceRequestId: string) {
             }
           }
         },
-        user: true
+        user: true,
+        partner: {
+          include: {
+            user: true
+          }
+        }
       }
     })
 
     if (!serviceRequest) return
 
-    const partners = serviceRequest.service.partners
-
-    for (const partnerService of partners) {
+    // If partnerId is specified, only notify that specific partner
+    if (serviceRequest.partnerId && serviceRequest.partner) {
       await createNotification({
-        userId: partnerService.partner.user.id,
+        userId: serviceRequest.partner.user.id,
         type: "NEW_SERVICE_REQUEST",
-        title: "Nueva solicitud de servicio",
-        message: `${serviceRequest.user.name} solicita ${serviceRequest.service.name}`,
+        title: "Nueva solicitud directa",
+        message: `${serviceRequest.user.name} te ha solicitado ${serviceRequest.service.name}`,
         data: {
           serviceRequestId: serviceRequest.id,
-          serviceId: serviceRequest.serviceId
+          serviceId: serviceRequest.serviceId,
+          isDirect: true
         }
       })
+    } else {
+      // Otherwise, notify all partners offering this service in the city
+      const partners = serviceRequest.service.partners.filter(
+        ps => ps.partner.city === serviceRequest.city
+      )
+
+      for (const partnerService of partners) {
+        await createNotification({
+          userId: partnerService.partner.user.id,
+          type: "NEW_SERVICE_REQUEST",
+          title: "Nueva solicitud de servicio",
+          message: `${serviceRequest.user.name} solicita ${serviceRequest.service.name}`,
+          data: {
+            serviceRequestId: serviceRequest.id,
+            serviceId: serviceRequest.serviceId
+          }
+        })
+      }
     }
   } catch (error) {
     console.error("Error notifying new service request:", error)
