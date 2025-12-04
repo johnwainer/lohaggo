@@ -6,6 +6,9 @@ import { createLogger } from '@/lib/logger'
 import { cloudinaryService } from '@/lib/cloudinary'
 import { handleApiError } from '@/lib/errors'
 
+export const runtime = 'nodejs'
+export const maxDuration = 60
+
 const logger = createLogger('upload-photos')
 
 async function uploadToLocal(file: File): Promise<string> {
