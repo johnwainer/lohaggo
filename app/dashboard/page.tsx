@@ -1194,15 +1194,18 @@ export default function DashboardPage() {
                             <h4 className="font-semibold mb-3 text-sm text-gray-700">Fotos adjuntas:</h4>
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                               {request.photos.sort((a, b) => a.order - b.order).map((photo, index) => (
-                                <div key={photo.id} className="relative group">
+                                <div
+                                  key={photo.id}
+                                  className="relative group cursor-pointer"
+                                  onClick={() => setImageGallery({ isOpen: true, photos: request.photos || [], initialIndex: index })}
+                                >
                                   <img
                                     src={photo.url}
                                     alt="Foto de la solicitud"
-                                    className="w-full h-32 object-cover rounded-lg border-2 border-gray-200 hover:border-primary-500 transition cursor-pointer"
-                                    onClick={() => setImageGallery({ isOpen: true, photos: request.photos || [], initialIndex: index })}
+                                    className="w-full h-32 object-cover rounded-lg border-2 border-gray-200 hover:border-primary-500 transition pointer-events-none"
                                   />
-                                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition rounded-lg flex items-center justify-center">
-                                    <span className="text-white opacity-0 group-hover:opacity-100 transition text-sm font-medium">
+                                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition rounded-lg flex items-center justify-center pointer-events-none">
+                                    <span className="text-white opacity-0 group-hover:opacity-100 transition text-sm font-medium pointer-events-none">
                                       Ver imagen
                                     </span>
                                   </div>
