@@ -1,211 +1,214 @@
-# LoHaggo - Plataforma de Servicios
+# LoHaggo - Service Marketplace Platform
 
-**Lo necesitas, LoHaggo.** - La forma más simple de encontrar cualquier servicio. Una plataforma moderna y segura para solicitar servicios con paneles para clientes, socios y administradores.
+**Lo necesitas, LoHaggo.** - The simplest way to find any service. A modern and secure platform for requesting services with dashboards for clients, partners, and administrators.
 
-## 🚀 Características Principales
+## 🚀 Key Features
 
-### Sistema de Servicios
-- **50+ Servicios** organizados en 10 categorías
-- **Sistema de Solicitudes**: Los clientes publican solicitudes y los socios envían propuestas
-- **Subida de Fotos**: Los clientes pueden adjuntar hasta 5 fotos a sus solicitudes
-- **Búsqueda y Filtros**: Búsqueda por nombre, categoría y ordenamiento por popularidad/precio
+### Service System
+- **50+ Services** organized in 10 categories
+- **Request System**: Clients post requests and partners send proposals
+- **Photo Upload**: Clients can attach up to 5 photos to their requests
+- **Search and Filters**: Search by name, category, and sort by popularity/price
+- **City-Based Services**: Services filtered by city with geolocation support
+- **Direct Partner Requests**: Request services directly from specific partners
+- **Favorite Partners**: Save favorite partners for quick access
 
-### Sistema de Usuarios
-- **3 Tipos de Usuarios**: Clientes, Socios (Proveedores) y Administradores
-- **Autenticación Segura** con NextAuth.js y bcrypt
-- **Perfiles Completos**: Información detallada de clientes y socios
-- **Gestión de Direcciones**: Los clientes pueden guardar múltiples direcciones
-- **Verificación de Socios**: Sistema de documentos con validación administrativa
+### User System
+- **3 User Types**: Clients, Partners (Providers), and Administrators
+- **Secure Authentication** with NextAuth.js and bcrypt
+- **Complete Profiles**: Detailed information for clients and partners
+- **Address Management**: Clients can save multiple addresses
+- **Partner Verification**: Document system with administrative validation
+- **Verification Badges**: ID, Education, and Background check badges
 
-### Sistema de Pagos
-- **Integración con Mercado Pago**: Procesamiento seguro de pagos
-- **Comisiones Congeladas**: Las tarifas se guardan al momento de aceptar el servicio
-- **Payouts Automáticos**: Distribución automática de pagos a socios
-- **Panel de Administración**: Control completo de comisiones, pagos y payouts
-- **Métodos de Pago**: Gestión de tarjetas guardadas con Mercado Pago
+### Payment System
+- **Mercado Pago Integration**: Secure payment processing
+- **Frozen Commissions**: Rates are saved when accepting the service
+- **Automatic Payouts**: Automatic payment distribution to partners
+- **Admin Panel**: Complete control of commissions, payments, and payouts
+- **Payment Methods**: Saved card management with Mercado Pago
+- **Secure Transactions**: PCI-compliant payment processing
 
-### Sistema de Comunicación
-- **Chat en Tiempo Real**: Comunicación directa entre clientes y socios
-- **Mensajería Modal**: Chat integrado en "Mis Solicitudes" y "Mis Reservas"
-- **Validación de Contenido**: Prevención de intercambio de información de contacto
-- **Polling Automático**: Actualización de mensajes cada 3 segundos
+### Communication System
+- **Real-Time Chat**: Direct communication between clients and partners
+- **Modal Messaging**: Integrated chat in "My Requests" and "My Bookings"
+- **Content Validation**: Prevention of contact information exchange
+- **Auto Polling**: Message updates every 3 seconds
+- **Unread Counters**: Visual indicators for unread messages
 
-### Sistema de Calificaciones
-- **Calificaciones Bidireccionales**: Clientes califican a socios y viceversa
-- **Sistema de Estrellas**: Calificación de 1 a 5 estrellas
-- **Comentarios Opcionales**: Feedback detallado sobre el servicio
-- **Historial de Calificaciones**: Visualización de todas las calificaciones recibidas
+### Rating System
+- **Bidirectional Ratings**: Clients rate partners and vice versa
+- **Star System**: 1 to 5 star ratings
+- **Optional Comments**: Detailed feedback about the service
+- **Rating History**: View all received ratings
+- **Average Display**: Rating average visible on profiles
 
-### Sistema de Notificaciones
-- **Notificaciones Push**: Alertas instantáneas con Web Push API
-- **Validación VAPID**: Claves validadas en startup con rotación programada
-- **Múltiples Tipos**: Nueva propuesta, propuesta aceptada, pago recibido, etc.
-- **Badge de No Leídas**: Contador visual de notificaciones pendientes
-- **Historial Completo**: Acceso a todas las notificaciones históricas
-- **Auto-limpieza**: Suscripciones expiradas se eliminan automáticamente
+### Notification System
+- **Push Notifications**: Instant alerts with Web Push API
+- **VAPID Validation**: Keys validated on startup with scheduled rotation
+- **Multiple Types**: New proposal, proposal accepted, payment received, etc.
+- **Unread Badge**: Visual counter for pending notifications
+- **Complete History**: Access to all historical notifications
+- **Auto-cleanup**: Expired subscriptions are automatically removed
 
-### Seguridad y Validación
-- **Manejo Centralizado de Errores**: Sistema robusto con clases de error personalizadas
-- **Validación con Zod**: Schemas de validación para todos los inputs críticos
-- **Logging Estructurado**: Sistema de logs con Pino para monitoreo y debugging
-- **Sanitización de Datos**: Limpieza automática de inputs peligrosos
-- **Protección de Credenciales**: Cloudinary y VAPID keys con gestión segura
-- **Rate Limiting**: Protección contra abuso de APIs
-- **CSRF Protection**: Tokens de seguridad en formularios críticos
+### Security and Validation
+- **Centralized Error Handling**: Robust system with custom error classes
+- **Zod Validation**: Validation schemas for all critical inputs
+- **Structured Logging**: Pino logging system for monitoring and debugging
+- **Data Sanitization**: Automatic cleaning of dangerous inputs
+- **Credential Protection**: Secure management of Cloudinary and VAPID keys
+- **Rate Limiting**: Protection against API abuse
+- **CSRF Protection**: Security tokens in critical forms
 
-### Diseño y UX
-- **Diseño Moderno** inspirado en Uber y Rappi
-- **Responsive**: Funciona perfectamente en móviles, tablets y desktop
-- **Interfaz Intuitiva**: Navegación clara y sencilla
-- **Feedback Visual**: Estados de carga, confirmaciones y errores claros
+### Design and UX
+- **Modern Design** inspired by Uber and Rappi
+- **Responsive**: Works perfectly on mobile, tablets, and desktop
+- **Intuitive Interface**: Clear and simple navigation
+- **Visual Feedback**: Loading states, confirmations, and clear errors
+- **PWA Ready**: Progressive Web App capabilities
 
-## 🛠️ Tecnologías
+## 🛠️ Technologies
 
 ### Core
 - **Next.js 14** (App Router)
 - **TypeScript**
 - **React 18**
 
-### Base de Datos
+### Database
 - **Prisma** (ORM)
-- **PostgreSQL** (Base de datos)
-- **Supabase** (Base de datos en producción)
+- **PostgreSQL** (Database)
+- **Supabase** (Production database)
 
-### Autenticación y Seguridad
-- **NextAuth.js** (Autenticación)
-- **bcrypt** (Hash de contraseñas)
-- **Zod** (Validación de schemas)
-- **Pino** (Logging estructurado)
+### Authentication and Security
+- **NextAuth.js** (Authentication)
+- **bcrypt** (Password hashing)
+- **Zod** (Schema validation)
+- **Pino** (Structured logging)
 
-### Pagos y Servicios Externos
-- **Mercado Pago** (Procesamiento de pagos)
-- **Cloudinary** (Almacenamiento de imágenes)
-- **Web Push API** (Notificaciones push)
+### Payments and External Services
+- **Mercado Pago** (Payment processing)
+- **Cloudinary** (Image storage)
+- **Web Push API** (Push notifications)
 
 ### UI/UX
-- **Tailwind CSS** (Estilos)
-- **Lucide React** (Iconos)
-- **Radix UI** (Componentes accesibles)
+- **Tailwind CSS** (Styling)
+- **Lucide React** (Icons)
+- **Radix UI** (Accessible components)
 
-## 📋 Requisitos Previos
+## 📋 Prerequisites
 
-- Node.js 18+ instalado
-- PostgreSQL instalado (para desarrollo local) o cuenta de Supabase
-- Cuenta de Cloudinary (para subida de fotos)
-- Cuenta de Mercado Pago (para procesamiento de pagos)
-- npm o yarn
+- Node.js 18+ installed
+- PostgreSQL installed (for local development) or Supabase account
+- Cloudinary account (for photo uploads)
+- Mercado Pago account (for payment processing)
+- npm or yarn
 
-## 🔧 Instalación Local
+## 🔧 Local Installation
 
-1. **Clonar el repositorio**
+1. **Clone the repository**
 
 ```bash
-git clone <tu-repositorio>
+git clone <your-repository>
 cd lohaggo
 npm install
 ```
 
-2. **Configurar variables de entorno**
+2. **Configure environment variables**
 
-Crear un archivo `.env.local` en la raíz del proyecto:
+Create a `.env.local` file in the project root:
 
 ```env
-# Base de datos
-DATABASE_URL="postgresql://usuario:contraseña@localhost:5432/lohaggo_db"
+# Database
+DATABASE_URL="postgresql://user:password@localhost:5432/lohaggo_db"
 
 # NextAuth
-NEXTAUTH_SECRET="tu-secreto-super-seguro-aqui"
+NEXTAUTH_SECRET="your-super-secure-secret-here"
 NEXTAUTH_URL="http://localhost:3000"
 
-# Cloudinary (para subida de fotos)
-# IMPORTANTE: Rotar credenciales cada 90 días
-NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME="tu-cloud-name"
-CLOUDINARY_API_KEY="tu-api-key"
-CLOUDINARY_API_SECRET="tu-api-secret"
-CLOUDINARY_LAST_ROTATION="2024-01-01"
+# Cloudinary (for photo uploads)
+NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME="your-cloud-name"
+CLOUDINARY_API_KEY="your-api-key"
+CLOUDINARY_API_SECRET="your-api-secret"
 
 # Mercado Pago
-MERCADOPAGO_ACCESS_TOKEN="tu-access-token"
-NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY="tu-public-key"
+MERCADOPAGO_ACCESS_TOKEN="your-access-token"
+NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY="your-public-key"
 
 # Push Notifications
-# Generar con: npx web-push generate-vapid-keys
-# IMPORTANTE: Rotar cada 90 días
-NEXT_PUBLIC_VAPID_PUBLIC_KEY="tu-vapid-public-key"
-VAPID_PRIVATE_KEY="tu-vapid-private-key"
+# Generate with: npx web-push generate-vapid-keys
+NEXT_PUBLIC_VAPID_PUBLIC_KEY="your-vapid-public-key"
+VAPID_PRIVATE_KEY="your-vapid-private-key"
 ```
 
-3. **Configurar la base de datos**
+3. **Configure the database**
 
 ```bash
-# Aplicar migraciones
+# Apply migrations
 npx prisma migrate deploy
 
-# Poblar con datos iniciales
+# Seed with initial data
 npx prisma db seed
 ```
 
-4. **Iniciar el servidor de desarrollo**
+4. **Start the development server**
 
 ```bash
 npm run dev
 ```
 
-La aplicación estará disponible en `http://localhost:3000`
+The application will be available at `http://localhost:3000`
 
-## 🚀 Deploy en Producción (Supabase + Vercel)
+## 🚀 Production Deploy (Supabase + Vercel)
 
-### 1. Configurar Base de Datos (Supabase)
+### 1. Configure Database (Supabase)
 
-1. Crea un proyecto en [Supabase](https://supabase.com)
-2. Ve a Settings → Database → Connection String
-3. Copia la **Connection String** (modo Transaction)
-4. Ejecuta las migraciones con Prisma
+1. Create a project on [Supabase](https://supabase.com)
+2. Go to Settings → Database → Connection String
+3. Copy the **Connection String** (Transaction mode)
+4. Run migrations with Prisma
 
-### 2. Configurar Cloudinary
+### 2. Configure Cloudinary
 
-1. Crea una cuenta en [Cloudinary](https://cloudinary.com)
-2. Ve a Dashboard y copia:
+1. Create an account on [Cloudinary](https://cloudinary.com)
+2. Go to Dashboard and copy:
    - Cloud Name
    - API Key
    - API Secret
-3. **IMPORTANTE**: Configura rotación de credenciales cada 90 días
 
-### 3. Configurar Mercado Pago
+### 3. Configure Mercado Pago
 
-1. Crea una cuenta en [Mercado Pago Developers](https://www.mercadopago.com.ar/developers)
-2. Ve a Tus integraciones → Crear aplicación
-3. Copia las credenciales de producción:
+1. Create an account on [Mercado Pago Developers](https://www.mercadopago.com.ar/developers)
+2. Go to Your integrations → Create application
+3. Copy production credentials:
    - Access Token
    - Public Key
 
-### 4. Generar VAPID Keys para Push Notifications
+### 4. Generate VAPID Keys for Push Notifications
 
 ```bash
 npx web-push generate-vapid-keys
 ```
 
-Guarda las claves generadas para configurarlas en Vercel.
+Save the generated keys to configure them in Vercel.
 
-### 5. Configurar Variables de Entorno en Vercel
+### 5. Configure Environment Variables in Vercel
 
-Ve a tu proyecto en Vercel → Settings → Environment Variables y agrega:
+Go to your project in Vercel → Settings → Environment Variables and add:
 
 ```
 DATABASE_URL=postgresql://[USER]:[PASSWORD]@[HOST]/[DATABASE]?sslmode=require
-NEXTAUTH_SECRET=tu-secreto-super-seguro-aqui
-NEXTAUTH_URL=https://tu-dominio.vercel.app
-NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=tu-cloud-name
-CLOUDINARY_API_KEY=tu-api-key
-CLOUDINARY_API_SECRET=tu-api-secret
-CLOUDINARY_LAST_ROTATION=2024-01-01
-MERCADOPAGO_ACCESS_TOKEN=tu-access-token
-NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY=tu-public-key
-NEXT_PUBLIC_VAPID_PUBLIC_KEY=tu-vapid-public-key
-VAPID_PRIVATE_KEY=tu-vapid-private-key
+NEXTAUTH_SECRET=your-super-secure-secret-here
+NEXTAUTH_URL=https://your-domain.vercel.app
+NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=your-cloud-name
+CLOUDINARY_API_KEY=your-api-key
+CLOUDINARY_API_SECRET=your-api-secret
+MERCADOPAGO_ACCESS_TOKEN=your-access-token
+NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY=your-public-key
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=your-vapid-public-key
+VAPID_PRIVATE_KEY=your-vapid-private-key
 ```
 
-**Importante**: Marca las 3 opciones (Production, Preview, Development) para cada variable.
+**Important**: Check all 3 options (Production, Preview, Development) for each variable.
 
 ### 6. Deploy
 
@@ -213,266 +216,136 @@ VAPID_PRIVATE_KEY=tu-vapid-private-key
 git push origin main
 ```
 
-Vercel hará el deploy automáticamente.
+Vercel will deploy automatically.
 
-## 👥 Usuarios de Prueba
+## 📱 Application Structure
 
-Después de ejecutar el seed, puedes usar estos usuarios:
+### Public Pages
+- `/` - Home page with categories and popular services
+- `/servicios` - Complete service catalog with search and filters
+- `/servicios/[slug]` - Service detail with request form and partner list
+- `/ciudad/[slug]` - City-specific services and information
+- `/login` - Login
+- `/register` - New user registration
 
-### Cliente
-- **Email**: cliente@test.com
-- **Contraseña**: password123
+### Private Dashboards
 
-### Socio/Proveedor
-- **Email**: partner@test.com
-- **Contraseña**: password123
+#### Client (`/dashboard`)
+- **My Requests**: View active requests and received proposals
+- **My Bookings**: Manage contracted services
+- **Favorites**: Quick access to favorite partners
+- **Chat**: Communication with partners (integrated modal)
+- **Ratings**: Rate completed services
+- **Addresses**: Manage saved addresses
+- **Payment Methods**: Manage saved cards
+- **Notifications**: View all notifications
 
-### Administrador
-- **Email**: admin@test.com
-- **Contraseña**: password123
+#### Partner (`/partner`)
+- **Available Requests**: View and respond to client requests
+- **My Proposals**: Track sent proposals
+- **My Bookings**: Manage contracted services
+- **Chat**: Communication with clients (integrated modal)
+- **Ratings**: Rate clients
+- **Verification**: Upload documents for verification
+- **Statistics**: Income, completed services, average rating
+- **Notifications**: View all notifications
 
-## 📱 Estructura de la Aplicación
+#### Administrator (`/admin`)
+- **Dashboard**: General platform statistics
+- **Commissions**: Configure client and partner rates
+- **Payments**: View all processed payments
+- **Payouts**: Manage payments to partners
+- **Users**: Manage clients and partners
+- **Services**: Manage service catalog
+- **Cities**: Manage available cities
+- **Verification**: Approve/reject partner documents
 
-### Páginas Públicas
-- `/` - Página principal con categorías y servicios populares
-- `/servicios` - Catálogo completo de servicios con búsqueda y filtros
-- `/servicios/[slug]` - Detalle de servicio con formulario de solicitud
-- `/login` - Inicio de sesión
-- `/register` - Registro de nuevos usuarios
+## 💰 Payment and Commission System
 
-### Paneles Privados
+### Payment Flow
 
-#### Cliente (`/dashboard`)
-- **Mis Solicitudes**: Ver solicitudes activas y propuestas recibidas
-- **Mis Reservas**: Gestionar servicios contratados
-- **Chat**: Comunicación con socios (modal integrado)
-- **Calificaciones**: Calificar servicios completados
-- **Direcciones**: Gestión de direcciones guardadas
-- **Métodos de Pago**: Gestión de tarjetas guardadas
-- **Notificaciones**: Ver todas las notificaciones
+1. **Client accepts proposal** → Booking is created with current frozen rates
+2. **Client makes payment** → Processed with Mercado Pago
+3. **Payment confirmed** → Payout is automatically created for partner
+4. **Partner receives payment** → Net amount (after commission) is transferred
 
-#### Socio (`/partner`)
-- **Solicitudes Disponibles**: Ver y responder a solicitudes de clientes
-- **Mis Propuestas**: Seguimiento de propuestas enviadas
-- **Mis Reservas**: Gestionar servicios contratados
-- **Chat**: Comunicación con clientes (modal integrado)
-- **Calificaciones**: Calificar clientes
-- **Verificación**: Subir documentos para verificación
-- **Estadísticas**: Ingresos, servicios completados, calificación promedio
-- **Notificaciones**: Ver todas las notificaciones
+### Frozen Commissions
 
-#### Administrador (`/admin`)
-- **Dashboard**: Estadísticas generales de la plataforma
-- **Comisiones**: Configurar tarifas de cliente y socio
-- **Pagos**: Ver todos los pagos procesados
-- **Payouts**: Gestionar pagos a socios
-- **Usuarios**: Administrar clientes y socios
-- **Servicios**: Gestionar catálogo de servicios
-- **Verificación**: Aprobar/rechazar documentos de socios
+Commission rates are saved when the proposal is accepted:
+- **Client**: 5% by default (configurable from `/admin`)
+- **Partner**: 20% by default (configurable from `/admin`)
 
-## 💰 Sistema de Pagos y Comisiones
+**Important**: Rate changes do NOT affect already contracted services.
 
-### Flujo de Pagos
+## 💬 Chat System
 
-1. **Cliente acepta propuesta** → Se crea un Booking con las tarifas actuales congeladas
-2. **Cliente realiza pago** → Se procesa con Mercado Pago
-3. **Pago confirmado** → Se crea automáticamente un Payout para el socio
-4. **Socio recibe pago** → El monto neto (después de comisión) se transfiere
+### Features
+- **Integrated Modal**: Chat without leaving current page
+- **Real-Time**: Polling every 3 seconds for new messages
+- **Validation**: Prevention of phone, email, WhatsApp exchange
+- **System Messages**: Automatic alerts about restrictions
+- **Auto Scroll**: Always shows the latest message
+- **Read Marking**: Messages are automatically marked as read
 
-### Comisiones Congeladas
+## ⭐ Rating System
 
-Las tarifas de comisión se guardan en el momento que se acepta la propuesta:
-- **Cliente**: 5% por defecto (configurable desde `/admin`)
-- **Socio**: 20% por defecto (configurable desde `/admin`)
+### Features
+- **Bidirectional**: Client rates partner and vice versa
+- **Stars**: 1 to 5 star system
+- **Comments**: Optional detailed feedback
+- **Once per service**: Can only rate after completing the service
+- **Visible Average**: Average rating visible on profiles
 
-**Importante**: Los cambios en las tarifas NO afectan servicios ya contratados.
+## 🔔 Notification System
 
-### Desglose de Costos
+### Notification Types
 
-Para un servicio de $10,000:
-- **Precio del servicio**: $10,000
-- **Comisión cliente (5%)**: $500
-- **Total a pagar**: $10,500
-- **Comisión socio (20%)**: $2,000
-- **Payout al socio**: $8,000
+#### For Clients
+- New proposal received
+- Proposal accepted
+- Payment processed successfully
+- Service completed
+- Partner rated you
 
-## 💬 Sistema de Chat
+#### For Partners
+- New request available
+- Proposal accepted by client
+- Payment received
+- New payout available
+- Client rated you
 
-### Características
-- **Modal Integrado**: Chat sin salir de la página actual
-- **Tiempo Real**: Polling cada 3 segundos para nuevos mensajes
-- **Validación**: Prevención de intercambio de teléfonos, emails, WhatsApp
-- **Mensajes del Sistema**: Alertas automáticas sobre restricciones
-- **Scroll Automático**: Siempre muestra el último mensaje
-- **Marcado de Leídos**: Los mensajes se marcan como leídos automáticamente
+## 🏙️ City System
 
-### Ubicación
-- **Mis Solicitudes**: Chat disponible cuando hay propuesta aceptada
-- **Mis Reservas**: Chat disponible en todas las reservas activas
+### Features
+- **Multi-City Support**: Services available in multiple cities
+- **Geolocation**: Automatic city detection based on user location
+- **City Pages**: Dedicated pages for each city with local services
+- **City Filtering**: Filter services and partners by city
+- **City Management**: Admin panel for managing available cities
 
-## ⭐ Sistema de Calificaciones
+## ⭐ Favorite Partners
 
-### Características
-- **Bidireccional**: Cliente califica a socio y viceversa
-- **Estrellas**: Sistema de 1 a 5 estrellas
-- **Comentarios**: Feedback opcional detallado
-- **Una vez por servicio**: Solo se puede calificar después de completar el servicio
-- **Promedio visible**: Calificación promedio visible en perfiles
+### Features
+- **Save Favorites**: Mark partners as favorites for quick access
+- **Favorites Dashboard**: Dedicated tab in client dashboard
+- **Quick Requests**: Request services directly from favorite partners
+- **Partner Details**: View partner services and verification status
+- **Easy Management**: Add/remove favorites with one click
 
-### Flujo
-1. Servicio se marca como **COMPLETED**
-2. Aparece botón "Calificar" en la reserva
-3. Usuario completa calificación (estrellas + comentario opcional)
-4. Calificación se guarda y promedio se actualiza
+## 🔒 Security Best Practices
 
-## 🔔 Sistema de Notificaciones
+- Never commit `.env` files
+- Rotate credentials regularly
+- Use strong passwords for production
+- Enable 2FA on all service accounts
+- Monitor logs for suspicious activity
+- Keep dependencies updated
+- Use HTTPS in production
 
-### Tipos de Notificaciones
+## 📝 License
 
-#### Para Clientes
-- Nueva propuesta recibida
-- Propuesta aceptada
-- Pago procesado exitosamente
-- Servicio completado
-- Socio te ha calificado
+This project is private and proprietary.
 
-#### Para Socios
-- Nueva solicitud disponible
-- Propuesta aceptada por cliente
-- Pago recibido
-- Nuevo payout disponible
-- Cliente te ha calificado
+## 🤝 Contributing
 
-### Características
-- **Push Notifications**: Notificaciones del navegador con Web Push API
-- **VAPID Keys**: Validación automática en startup
-- **Badge de contador**: Muestra cantidad de notificaciones no leídas
-- **Marca como leída**: Click en notificación la marca como leída
-- **Historial completo**: Acceso a todas las notificaciones
-- **Tiempo relativo**: "Hace 5 minutos", "Hace 2 horas", etc.
-- **Auto-limpieza**: Suscripciones expiradas (410/404) se eliminan automáticamente
-
-## 🔒 Seguridad
-
-### Manejo de Errores
-- **Clases de Error Personalizadas**: `AppError`, `ValidationError`, `AuthenticationError`, etc.
-- **Handler Centralizado**: `handleApiError` para respuestas consistentes
-- **Logging Estructurado**: Pino logger con niveles de severidad
-- **Ocultamiento de Stack Traces**: En producción no se exponen detalles internos
-
-### Validación de Datos
-- **Zod Schemas**: Validación de todos los inputs críticos
-- **Sanitización**: Limpieza automática de datos peligrosos
-- **Type Safety**: TypeScript en todo el proyecto
-- **Push Subscriptions**: Validación de formato y claves requeridas
-
-### Gestión de Credenciales
-- **Cloudinary Service**: Centralizado con recordatorios de rotación
-- **VAPID Keys**: Validación de formato (87 chars base64url)
-- **Rotación Programada**: Alertas cada 90 días
-- **Environment Variables**: Nunca expuestas al cliente (excepto públicas)
-
-### Protección de APIs
-- **Autenticación**: NextAuth.js con sesiones seguras
-- **Autorización**: Verificación de roles en cada endpoint
-- **Rate Limiting**: Protección contra abuso
-- **CSRF Tokens**: En formularios críticos
-
-## 🎨 Categorías de Servicios
-
-1. **Hogar** - Plomería, Electricidad, Carpintería, Pintura, Jardinería
-2. **Limpieza** - Limpieza de hogar, oficinas, alfombras, cristales, post-construcción
-3. **Reparaciones** - Electrodomésticos, cerrajería, aires acondicionados, techos
-4. **Belleza** - Peluquería, Manicure, Pedicure, Masajes, Maquillaje
-5. **Salud** - Enfermería, Fisioterapia, Nutrición, Cuidado de ancianos
-6. **Tecnología** - Reparación de computadoras, instalación de software, redes
-7. **Transporte** - Mudanzas, mensajería, transporte de mascotas, fletes
-8. **Educación** - Clases particulares, tutorías, idiomas, música
-9. **Eventos** - Fotografía, catering, decoración, animación, DJ
-10. **Mascotas** - Veterinaria, peluquería, paseos, adiestramiento, guardería
-
-## 🔧 Comandos Útiles
-
-```bash
-# Desarrollo
-npm run dev              # Iniciar servidor de desarrollo
-npm run build            # Construir para producción
-npm run start            # Iniciar servidor de producción
-
-# Base de datos
-npx prisma studio        # Abrir interfaz visual de la BD
-npx prisma migrate dev   # Crear nueva migración
-npx prisma migrate deploy # Aplicar migraciones
-npx prisma db seed       # Poblar con datos iniciales
-npx prisma generate      # Regenerar cliente de Prisma
-
-# Seguridad
-npx web-push generate-vapid-keys  # Generar claves VAPID para push notifications
-
-# Linting y formato
-npm run lint             # Ejecutar linter
-```
-
-## 🐛 Troubleshooting
-
-### Error de conexión a base de datos
-
-Si ves el error `Can't reach database server`:
-
-1. Verifica que tu base de datos esté activa
-2. Asegúrate de usar `?sslmode=require` al final de la URL (Supabase)
-3. Verifica que todas las variables de entorno estén configuradas
-4. Ejecuta las migraciones con Prisma
-
-### Fotos no se suben
-
-1. Verifica que las credenciales de Cloudinary estén correctas
-2. Asegúrate de que las variables de entorno estén configuradas
-3. Revisa los logs para más detalles
-4. Verifica que no hayan expirado las credenciales (rotar cada 90 días)
-
-### Push Notifications no funcionan
-
-1. Verifica que las VAPID keys estén configuradas correctamente
-2. Genera nuevas claves con `npx web-push generate-vapid-keys`
-3. Asegúrate de que el navegador soporte Web Push API
-4. Revisa los logs de startup para errores de validación VAPID
-
-### Errores de TypeScript
-
-1. Ejecuta `npx prisma generate` para regenerar el cliente
-2. Reinicia el servidor de desarrollo
-3. Verifica que todas las dependencias estén instaladas
-
-## 📝 Mantenimiento
-
-### Rotación de Credenciales
-
-**Cada 90 días debes rotar:**
-
-1. **Cloudinary Credentials**
-   - Genera nuevas API keys en Cloudinary Dashboard
-   - Actualiza variables de entorno
-   - Actualiza `CLOUDINARY_LAST_ROTATION`
-
-2. **VAPID Keys**
-   - Genera nuevas con `npx web-push generate-vapid-keys`
-   - Actualiza variables de entorno
-   - Los usuarios deberán re-suscribirse automáticamente
-
-### Monitoreo
-
-**Métricas clave a monitorear:**
-- Tasa de éxito de pagos
-- Tasa de éxito de push notifications
-- Errores en logs (nivel error/warn)
-- Suscripciones push expiradas
-- Tiempo de respuesta de APIs
-
-## 📄 Licencia
-
-Este proyecto es privado y confidencial.
-
-## 👨‍💻 Soporte
-sube los cambios, en ingles
-Para soporte técnico o consultas, contacta al equipo de desarrollo.
+This is a private project. Contact the repository owner for contribution guidelines.
