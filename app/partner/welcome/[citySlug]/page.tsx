@@ -3,18 +3,17 @@
 import { use, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { 
-  CheckCircle, 
-  Calendar, 
-  FileCheck, 
-  GraduationCap, 
-  Shield, 
-  TrendingUp, 
-  Users, 
+import {
+  CheckCircle,
+  Calendar,
+  FileCheck,
+  GraduationCap,
+  Shield,
+  TrendingUp,
+  Users,
   Sparkles,
   ArrowRight,
   Clock,
-  Award,
   Target
 } from 'lucide-react'
 
@@ -107,14 +106,6 @@ export default function PartnerWelcomePage({ params }: { params: Promise<{ cityS
       color: 'from-purple-500 to-indigo-500',
       bgColor: 'bg-purple-50',
       borderColor: 'border-purple-200'
-    },
-    {
-      icon: Award,
-      title: 'Antecedentes Judiciales',
-      description: 'Sube tu certificado de antecedentes para completar la verificación.',
-      color: 'from-orange-500 to-red-500',
-      bgColor: 'bg-orange-50',
-      borderColor: 'border-orange-200'
     }
   ]
 
