@@ -669,7 +669,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                         </div>
                       </div>
                       <button
-                        onClick={() => router.push('/register')}
+                        onClick={() => router.push('/register?role=partner')}
                         className="w-full bg-gradient-to-r from-orange-500 to-pink-500 text-white font-semibold py-3 px-4 rounded-lg hover:from-orange-600 hover:to-pink-600 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 group"
                       >
                         <UserPlus size={18} />
