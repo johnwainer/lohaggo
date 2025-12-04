@@ -556,72 +556,97 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                   return (
                     <div
                       key={partnerService.id}
-                      className={`border-2 rounded-lg p-4 md:p-6 flex flex-col md:block transition-all relative ${
+                      className={`group relative rounded-xl p-5 md:p-6 transition-all duration-300 hover:shadow-xl ${
                         fullyVerified
-                          ? 'border-emerald-500 bg-gradient-to-br from-emerald-50 to-green-50 shadow-lg shadow-emerald-100'
-                          : 'border-gray-200 bg-white'
+                          ? 'bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 border-2 border-emerald-400 shadow-lg shadow-emerald-100/50 hover:shadow-emerald-200/70 hover:border-emerald-500'
+                          : 'bg-white border-2 border-gray-200 hover:border-gray-300 shadow-md hover:shadow-lg'
                       }`}
                     >
                       <button
                         onClick={() => toggleFavorite(partnerService.partner.id)}
                         disabled={loadingFavorite === partnerService.partner.id}
-                        className={`absolute top-3 right-3 p-2 rounded-full transition-all z-10 ${
+                        className={`absolute top-4 right-4 p-2.5 rounded-full transition-all duration-200 z-10 shadow-sm hover:shadow-md ${
                           favoritePartners.has(partnerService.partner.id)
-                            ? 'bg-red-100 text-red-600 hover:bg-red-200'
-                            : 'bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-red-500'
+                            ? 'bg-red-500 text-white hover:bg-red-600 scale-110'
+                            : 'bg-white text-gray-400 hover:bg-red-50 hover:text-red-500 hover:scale-110'
                         } ${loadingFavorite === partnerService.partner.id ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
                         <Heart
-                          size={20}
+                          size={18}
                           fill={favoritePartners.has(partnerService.partner.id) ? 'currentColor' : 'none'}
                           className="transition-all"
                         />
                       </button>
 
                       {fullyVerified && (
-                        <div className="flex items-center gap-2 mb-3 bg-emerald-600 text-white px-3 py-1.5 rounded-full text-xs font-semibold w-fit">
-                          <ShieldCheck size={14} />
-                          <span>SOCIO VERIFICADO PLUS</span>
+                        <div className="flex items-center gap-2 mb-4 bg-gradient-to-r from-emerald-600 to-green-600 text-white px-4 py-2 rounded-full text-xs font-bold w-fit shadow-md">
+                          <ShieldCheck size={16} className="animate-pulse" />
+                          <span>VERIFICADO PLUS</span>
                         </div>
                       )}
 
-                      <div className="flex items-start justify-between mb-3 md:mb-4 pr-10">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="font-semibold text-base md:text-lg">{partnerService.partner.user.name}</h3>
+                      <div className="flex items-start gap-4 mb-4">
+                        <div className="flex-shrink-0">
+                          <div className={`w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center text-white font-bold text-xl md:text-2xl shadow-md ${
+                            fullyVerified
+                              ? 'bg-gradient-to-br from-emerald-500 to-green-600'
+                              : 'bg-gradient-to-br from-gray-400 to-gray-500'
+                          }`}>
+                            {partnerService.partner.user.name.charAt(0).toUpperCase()}
+                          </div>
+                        </div>
+
+                        <div className="flex-1 min-w-0 pr-8">
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <h3 className="font-bold text-lg md:text-xl text-gray-900 truncate">
+                              {partnerService.partner.user.name}
+                            </h3>
                             {partnerService.partner.verified && (
-                              <div className="group relative">
-                                <ShieldCheck size={16} className="text-green-600" />
-                                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-lg z-10">
+                              <div className="group/tooltip relative flex-shrink-0">
+                                <ShieldCheck size={18} className="text-blue-600" />
+                                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-lg z-20">
                                   Socio verificado
                                 </span>
                               </div>
                             )}
                           </div>
-                          {getVerificationBadges(partnerService.partner.documents)}
-                        </div>
-                        <div className="text-right">
-                          <div className="flex items-center gap-1 text-yellow-500 justify-end">
-                            <Star size={14} fill="currentColor" className="md:w-4 md:h-4" />
-                            <span className="font-semibold text-sm md:text-base">{partnerService.partner.rating.toFixed(1)}</span>
+
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="flex items-center gap-1.5 bg-gradient-to-r from-yellow-400 to-orange-400 text-white px-3 py-1 rounded-full shadow-sm">
+                              <Star size={14} fill="currentColor" />
+                              <span className="font-bold text-sm">{partnerService.partner.rating.toFixed(1)}</span>
+                            </div>
+                            <span className="text-gray-600 text-xs md:text-sm font-medium">
+                              ({partnerService.partner.totalReviews} {partnerService.partner.totalReviews === 1 ? 'reseña' : 'reseñas'})
+                            </span>
                           </div>
-                          <span className="text-gray-500 text-xs md:text-sm">
-                            ({partnerService.partner.totalReviews} reseñas)
-                          </span>
+
+                          {getVerificationBadges(partnerService.partner.documents)}
                         </div>
                       </div>
 
-                      <div className="mt-2 md:mt-0 mb-3 md:mb-4">
-                        <p className="text-primary-600 font-bold text-lg md:text-xl">{formatCurrency(partnerService.price)}</p>
+                      <div className="mb-4 pb-4 border-b border-gray-200">
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-gray-600 text-sm font-medium">Precio:</span>
+                          <p className={`font-bold text-2xl md:text-3xl ${
+                            fullyVerified ? 'text-emerald-600' : 'text-primary-600'
+                          }`}>
+                            {formatCurrency(partnerService.price)}
+                          </p>
+                        </div>
                       </div>
 
                       <button
                         onClick={() => handleRequestToPartner(partnerService.partner.id)}
-                        className="w-full bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white font-semibold py-3 px-4 rounded-lg hover:from-[#E02850] hover:to-[#E65F00] transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 group"
+                        className={`w-full font-bold py-3.5 px-4 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2 group/btn ${
+                          fullyVerified
+                            ? 'bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white'
+                            : 'bg-gradient-to-r from-[#FF2D55] to-[#FF6900] hover:from-[#E02850] hover:to-[#E65F00] text-white'
+                        }`}
                       >
                         <UserPlus size={18} />
-                        <span>Solicitar a este profesional</span>
-                        <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                        <span>Solicitar servicio</span>
+                        <ChevronRight size={18} className="group-hover/btn:translate-x-1 transition-transform" />
                       </button>
                     </div>
                   )
