@@ -110,7 +110,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
       const res = await fetch('/api/favorites')
       if (res.ok) {
         const data = await res.json()
-        const favoriteIds = new Set(data.map((fav: any) => fav.partnerId))
+        const favoriteIds = new Set<string>(data.map((fav: any) => fav.partnerId))
         setFavoritePartners(favoriteIds)
       }
     } catch (error) {
