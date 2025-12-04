@@ -53,6 +53,7 @@ export async function GET(
                   select: {
                     name: true,
                     phone: true,
+                    image: true,
                   }
                 },
                 documents: {

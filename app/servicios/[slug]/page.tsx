@@ -29,6 +29,7 @@ interface Service {
       user: {
         name: string
         phone: string
+        image: string | null
       }
       documents?: Array<{
         type: string
@@ -605,13 +606,25 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
 
                       <div className="flex items-start gap-4 mb-4">
                         <div className="flex-shrink-0">
-                          <div className={`w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center text-white font-bold text-xl md:text-2xl shadow-md ${
-                            fullyVerified
-                              ? 'bg-gradient-to-br from-emerald-500 to-green-600'
-                              : 'bg-gradient-to-br from-gray-400 to-gray-500'
-                          }`}>
-                            {partnerService.partner.user.name.charAt(0).toUpperCase()}
-                          </div>
+                          {partnerService.partner.user.image ? (
+                            <img
+                              src={partnerService.partner.user.image}
+                              alt={partnerService.partner.user.name}
+                              className={`w-14 h-14 md:w-16 md:h-16 rounded-full object-cover shadow-md ${
+                                fullyVerified
+                                  ? 'ring-2 ring-emerald-500'
+                                  : 'ring-2 ring-gray-300'
+                              }`}
+                            />
+                          ) : (
+                            <div className={`w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center text-white font-bold text-xl md:text-2xl shadow-md ${
+                              fullyVerified
+                                ? 'bg-gradient-to-br from-emerald-500 to-green-600'
+                                : 'bg-gradient-to-br from-gray-400 to-gray-500'
+                            }`}>
+                              {partnerService.partner.user.name.charAt(0).toUpperCase()}
+                            </div>
+                          )}
                         </div>
 
                         <div className="flex-1 min-w-0 pr-8">
