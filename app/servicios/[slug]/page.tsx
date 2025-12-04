@@ -148,7 +148,57 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     return `${address.street} #${address.number}${address.complement ? ' - ' + address.complement : ''}, ${address.neighborhood}, ${cityName}`
   }
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const compressImage = async (file: File): Promise<File> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const img = new Image()
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          let width = img.width
+          let height = img.height
+
+          // Redimensionar si es muy grande
+          const maxDimension = 1920
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = (height / width) * maxDimension
+              width = maxDimension
+            } else {
+              width = (width / height) * maxDimension
+              height = maxDimension
+            }
+          }
+
+          canvas.width = width
+          canvas.height = height
+
+          const ctx = canvas.getContext('2d')
+          ctx?.drawImage(img, 0, 0, width, height)
+
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const compressedFile = new File([blob], file.name, {
+                  type: 'image/jpeg',
+                  lastModified: Date.now()
+                })
+                resolve(compressedFile)
+              } else {
+                resolve(file)
+              }
+            },
+            'image/jpeg',
+            0.8 // Calidad 80%
+          )
+        }
+        img.src = e.target?.result as string
+      }
+      reader.readAsDataURL(file)
+    })
+  }
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     if (files.length + photos.length > 5) {
       setValidationModal({
@@ -158,9 +208,15 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
       return
     }
 
-    setPhotos([...photos, ...files])
+    const compressedFiles: File[] = []
+    for (const file of files) {
+      const compressed = await compressImage(file)
+      compressedFiles.push(compressed)
+    }
 
-    files.forEach(file => {
+    setPhotos([...photos, ...compressedFiles])
+
+    compressedFiles.forEach(file => {
       const reader = new FileReader()
       reader.onloadend = () => {
         setPhotoPreviews(prev => [...prev, reader.result as string])
@@ -202,9 +258,12 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
 
       if (photos.length > 0) {
         const formData = new FormData()
-        photos.forEach((photo) => {
-          formData.append('photos', photo)
-        })
+
+        // Comprimir cada foto antes de subirla
+        for (const photo of photos) {
+          const compressedPhoto = await compressImage(photo)
+          formData.append('photos', compressedPhoto)
+        }
 
         const uploadRes = await fetch('/api/upload-photos', {
           method: 'POST',
