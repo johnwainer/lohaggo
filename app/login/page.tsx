@@ -26,10 +26,13 @@ function LoginForm() {
 
       if (session.user.role === 'ADMIN') {
         router.push(targetRedirect || '/admin')
+        router.refresh()
       } else if (session.user.role === 'PARTNER') {
         router.push(targetRedirect || '/partner')
+        router.refresh()
       } else {
         router.push(targetRedirect || '/dashboard')
+        router.refresh()
       }
     }
   }, [status, session, router, searchParams])
@@ -54,22 +57,22 @@ function LoginForm() {
 
       if (result?.error) {
         setError('Email o contraseña incorrectos')
-      } else {
+        setLoading(false)
+      } else if (result?.ok) {
+        // Fetch the session to get user role
         const response = await fetch('/api/auth/session')
-        const session = await response.json()
+        const sessionData = await response.json()
 
-        if (session?.user?.role === 'ADMIN') {
-          router.push('/admin')
-        } else if (session?.user?.role === 'PARTNER') {
-          router.push('/partner')
+        if (sessionData?.user?.role === 'ADMIN') {
+          window.location.href = searchParams.get('redirect') || '/admin'
+        } else if (sessionData?.user?.role === 'PARTNER') {
+          window.location.href = searchParams.get('redirect') || '/partner'
         } else {
-          router.push(redirect)
+          window.location.href = searchParams.get('redirect') || '/dashboard'
         }
-        router.refresh()
       }
     } catch (error) {
       setError('Error al iniciar sesión')
-    } finally {
       setLoading(false)
     }
   }
