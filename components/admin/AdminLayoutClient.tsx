@@ -1,6 +1,6 @@
 'use client'
 
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import Sidebar from '@/components/admin/Sidebar'
 
 export default function AdminLayoutClient({
@@ -9,7 +9,6 @@ export default function AdminLayoutClient({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
-  const router = useRouter()
 
   const getActiveSectionFromPath = () => {
     if (pathname === '/admin') return 'dashboard'
@@ -23,13 +22,9 @@ export default function AdminLayoutClient({
 
   const activeSection = getActiveSectionFromPath()
 
-  const handleSectionChange = (section: string) => {
-    router.push(`/admin?section=${section}`)
-  }
-
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <Sidebar activeSection={activeSection} onSectionChange={handleSectionChange} />
+      <Sidebar activeSection={activeSection} onSectionChange={() => {}} />
       <main className="flex-1 overflow-auto ml-0 lg:ml-64">
         <div className="p-3 sm:p-6 lg:p-8">
           {children}
