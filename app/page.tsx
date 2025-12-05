@@ -91,7 +91,7 @@ export default async function Home() {
       {/* Ad Banner Section */}
       <section className="py-8 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <AdBanner placement="HOME" className="h-48 md:h-64 lg:h-80" />
+          <AdBanner placement="HOME" className="h-32 md:h-40 lg:h-48" />
         </div>
       </section>
 
