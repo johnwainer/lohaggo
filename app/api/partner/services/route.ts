@@ -220,8 +220,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
-    const { searchParams } = new URL(req.url)
-    const partnerServiceId = searchParams.get('id')
+    const { partnerServiceId } = await req.json()
 
     if (!partnerServiceId) {
       return NextResponse.json({ error: 'ID de servicio requerido' }, { status: 400 })
