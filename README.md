@@ -15,14 +15,16 @@
 
 ### Advertising System
 - **Dynamic Ad Management**: Create and manage advertisements through admin panel
+- **Standardized Dimensions**: All ads are 1200x200px (6:1 aspect ratio) for consistency
 - **Multiple Placements**: HOME (homepage) and SERVICE (service-specific pages)
 - **City Targeting**: Target ads to specific cities using CityConfig relation
 - **Service-Specific Ads**: Display ads on specific service pages
 - **Priority System**: Control ad display order with priority levels
 - **Performance Tracking**: Track impressions and clicks for each ad
-- **Image Editor**: Built-in image editor for creating ad banners
+- **Built-in Image Editor**: Crop, resize, adjust brightness/contrast, and rotate images
 - **Active/Inactive Control**: Enable or disable ads without deleting them
 - **Date Scheduling**: Set start and end dates for ad campaigns
+- **Strategic Placement**: HOME ads appear between "¿Por qué LoHaggo?" and "Servicios más populares"
 
 ### User System
 - **3 User Types**: Clients, Partners (Providers), and Administrators
@@ -348,49 +350,101 @@ Commission rates are saved when the proposal is accepted:
 
 ### Features
 - **Ad Management Panel**: Complete CRUD interface at `/admin/ads`
+- **Standardized Banner Dimensions**:
+  - All banners: **1200x200px (6:1 aspect ratio)** - MANDATORY
+  - Consistent sizing for HOME and SERVICE placements
+  - Optimized for responsive display across all devices
 - **Multiple Placements**:
-  - HOME: Display on homepage
-  - SERVICE: Display on specific service pages
+  - **HOME**: Display on homepage between "¿Por qué LoHaggo?" and "Servicios más populares"
+  - **SERVICE**: Display on specific service detail pages
 - **City Targeting**: Target ads to specific cities using dynamic CityConfig relation
 - **Service-Specific Ads**: Associate ads with specific services for targeted display
 - **Priority System**: Control display order with numeric priority (higher = shown first)
 - **Performance Tracking**:
   - Impressions: Track how many times ad is displayed
   - Clicks: Track user interactions with ads
-- **Image Editor**: Built-in editor for creating and editing ad banners
+- **Built-in Image Editor**:
+  - Crop and resize images to exact 1200x200px dimensions
+  - Adjust brightness (50-150%)
+  - Adjust contrast (50-150%)
+  - Rotate images in 90° increments
+  - Real-time preview with filters
+  - Direct upload to Cloudinary
 - **Campaign Scheduling**:
   - Set start dates for campaigns
   - Optional end dates for time-limited promotions
 - **Active/Inactive Toggle**: Enable or disable ads without deleting them
-- **Responsive Display**: Ads adapt to different screen sizes
+- **Responsive Display**:
+  - Mobile: 128px height (h-32)
+  - Tablet: 160px height (h-40)
+  - Desktop: 192px height (h-48)
+  - Maintains 6:1 aspect ratio across all breakpoints
 - **Dynamic Loading**: Ads are fetched based on current city and page context
+- **Session Persistence**: Closed ads remain hidden during the session
 
 ### Ad Display Logic
-- **Homepage**: Shows all active HOME placement ads for the selected city
-- **Service Pages**: Shows SERVICE placement ads associated with that specific service and city
+- **Homepage**:
+  - Shows all active HOME placement ads for the selected city
+  - Positioned between "¿Por qué LoHaggo?" features and "Servicios más populares"
+  - White background section for clean integration
+- **Service Pages**:
+  - Shows SERVICE placement ads associated with that specific service and city
+  - Displayed before the booking button section
 - **City Filtering**: Only displays ads targeted to the user's currently selected city
 - **Priority Sorting**: Ads are displayed in order of priority (descending) then by creation date
+- **Carousel**: Multiple ads rotate automatically with navigation controls
+- **Close Button**: Users can dismiss ads (hidden for the session)
+
+### Admin Panel Features
+- **Image Preview**:
+  - Form preview: 128px height with 6:1 ratio
+  - List preview: 320px width × 128px height
+  - Dimension info displayed: "1200x200px (Relación 6:1)"
+- **City Selector**: Dynamic dropdown with active cities only
+- **Service Selector**: Conditional display based on placement type
+- **Performance Metrics**: View impressions and clicks for each ad
+- **Quick Actions**: Toggle active/inactive, edit, delete
+- **Visual Status Indicators**: Color-coded badges for placement, city, service, and status
 
 ### Database Schema
 ```prisma
 model Advertisement {
   id          String      @id @default(cuid())
   title       String
-  imageUrl    String
+  imageUrl    String      // 1200x200px images stored in Cloudinary
   linkUrl     String?
   placement   AdPlacement // HOME or SERVICE
   serviceId   String?     // For SERVICE placement
-  cityId      String      // Relation to CityConfig
+  cityId      String      // Relation to CityConfig (required)
   active      Boolean
   startDate   DateTime
   endDate     DateTime?
   priority    Int
   impressions Int
   clicks      Int
-  service     Service?    @relation
-  city        CityConfig  @relation
+  service     Service?    @relation(fields: [serviceId], references: [id])
+  city        CityConfig  @relation(fields: [cityId], references: [id])
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+enum AdPlacement {
+  HOME
+  SERVICE
 }
 ```
+
+### Technical Implementation
+- **Component**: `components/ads/AdBanner.tsx`
+- **Image Editor**: `components/ads/ImageEditor.tsx` with react-image-crop
+- **API Routes**:
+  - `GET /api/ads` - Fetch ads by city and placement
+  - `POST /api/ads` - Create new ad
+  - `PATCH /api/ads/[id]` - Update ad
+  - `DELETE /api/ads/[id]` - Delete ad
+  - `POST /api/ads/track` - Track impressions and clicks
+- **Image Storage**: Cloudinary with automatic optimization
+- **Responsive Classes**: Tailwind CSS with h-full for proper scaling
 
 ## 🔒 Security Best Practices
 
