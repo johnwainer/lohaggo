@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
+import { useCity } from '@/lib/city-context'
 
 interface Advertisement {
   id: string
@@ -22,10 +23,11 @@ export default function AdBanner({ placement, serviceId, className = '' }: AdBan
   const [currentAdIndex, setCurrentAdIndex] = useState(0)
   const [isVisible, setIsVisible] = useState(true)
   const [hasTrackedImpression, setHasTrackedImpression] = useState(false)
+  const { selectedCity } = useCity()
 
   useEffect(() => {
     fetchAds()
-  }, [placement, serviceId])
+  }, [placement, serviceId, selectedCity])
 
   useEffect(() => {
     if (ads.length > 1) {
@@ -49,7 +51,7 @@ export default function AdBanner({ placement, serviceId, className = '' }: AdBan
 
   const fetchAds = async () => {
     try {
-      let url = `/api/ads?placement=${placement}`
+      let url = `/api/ads?placement=${placement}&city=${selectedCity.toUpperCase()}`
       if (serviceId) {
         url += `&serviceId=${serviceId}`
       }

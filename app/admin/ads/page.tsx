@@ -17,6 +17,7 @@ interface Advertisement {
   linkUrl: string | null
   placement: 'HOME' | 'SERVICE'
   serviceId: string | null
+  city: 'MEDELLIN' | 'BOGOTA' | 'CALI' | 'BARRANQUILLA'
   active: boolean
   startDate: string
   endDate: string | null
@@ -41,6 +42,7 @@ export default function AdsAdminPage() {
     linkUrl: '',
     placement: 'HOME' as 'HOME' | 'SERVICE',
     serviceId: '',
+    city: 'MEDELLIN' as 'MEDELLIN' | 'BOGOTA' | 'CALI' | 'BARRANQUILLA',
     active: true,
     startDate: new Date().toISOString().split('T')[0],
     endDate: '',
@@ -141,6 +143,7 @@ export default function AdsAdminPage() {
       linkUrl: ad.linkUrl || '',
       placement: ad.placement,
       serviceId: ad.serviceId || '',
+      city: ad.city,
       active: ad.active,
       startDate: ad.startDate.split('T')[0],
       endDate: ad.endDate ? ad.endDate.split('T')[0] : '',
@@ -158,6 +161,7 @@ export default function AdsAdminPage() {
       linkUrl: '',
       placement: 'HOME',
       serviceId: '',
+      city: 'MEDELLIN',
       active: true,
       startDate: new Date().toISOString().split('T')[0],
       endDate: '',
@@ -279,6 +283,23 @@ export default function AdsAdminPage() {
                 >
                   <option value="HOME">Home</option>
                   <option value="SERVICE">Servicio</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Ciudad
+                </label>
+                <select
+                  value={formData.city}
+                  onChange={(e) => setFormData({ ...formData, city: e.target.value as any })}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent"
+                  required
+                >
+                  <option value="MEDELLIN">Medellín</option>
+                  <option value="BOGOTA">Bogotá</option>
+                  <option value="CALI">Cali</option>
+                  <option value="BARRANQUILLA">Barranquilla</option>
                 </select>
               </div>
 
@@ -409,6 +430,9 @@ export default function AdsAdminPage() {
                       <div className="flex items-center gap-3 mt-2 flex-wrap">
                         <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">
                           {ad.placement}
+                        </span>
+                        <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-semibold">
+                          {ad.city === 'MEDELLIN' ? 'Medellín' : ad.city === 'BOGOTA' ? 'Bogotá' : ad.city === 'CALI' ? 'Cali' : 'Barranquilla'}
                         </span>
                         {ad.service && (
                           <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-semibold">
