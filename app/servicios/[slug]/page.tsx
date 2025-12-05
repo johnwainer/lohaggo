@@ -7,6 +7,7 @@ import { useSession } from 'next-auth/react'
 import { formatCurrency } from '@/lib/utils'
 import { useCity } from '@/lib/city-context'
 import ConfirmModal from '@/components/ConfirmModal'
+import AdBanner from '@/components/ads/AdBanner'
 
 interface Service {
   id: string
@@ -517,6 +518,9 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
             </div>
           </div>
         </div>
+
+        {/* Ad Banner for this specific service */}
+        <AdBanner placement="SERVICE" serviceId={service.id} className="mb-6 md:mb-8" />
 
         {/* Booking Button - Only show if partners available */}
         {service.partners.length > 0 && (

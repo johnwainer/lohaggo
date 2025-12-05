@@ -82,6 +82,7 @@ model Service {
   partners        PartnerService[]
   category        Category         @relation(fields: [categoryId], references: [id])
   serviceRequests ServiceRequest[]
+  advertisements  Advertisement[]
 }
 
 model PartnerService {
@@ -555,6 +556,7 @@ model Advertisement {
   imageUrl    String
   linkUrl     String?
   placement   AdPlacement
+  serviceId   String?
   active      Boolean           @default(true)
   startDate   DateTime          @default(now())
   endDate     DateTime?
@@ -563,13 +565,14 @@ model Advertisement {
   clicks      Int               @default(0)
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
+  service     Service?          @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
   @@index([placement, active, startDate, endDate])
+  @@index([serviceId])
 }
 
 enum AdPlacement {
   HOME
-  CATEGORY
   SERVICE
 }
 

@@ -45,13 +45,27 @@ export async function PATCH(
 
     const { id } = await context.params
     const body = await request.json()
-    const { title, imageUrl, linkUrl, placement, active, startDate, endDate, priority } = body
+    const { title, imageUrl, linkUrl, placement, serviceId, active, startDate, endDate, priority } = body
 
     const updateData: any = {}
     if (title !== undefined) updateData.title = title
     if (imageUrl !== undefined) updateData.imageUrl = imageUrl
     if (linkUrl !== undefined) updateData.linkUrl = linkUrl
-    if (placement !== undefined) updateData.placement = placement
+    if (placement !== undefined) {
+      updateData.placement = placement
+      // If changing to SERVICE, require serviceId
+      if (placement === 'SERVICE' && !serviceId) {
+        return NextResponse.json(
+          { error: 'serviceId is required when placement is SERVICE' },
+          { status: 400 }
+        )
+      }
+      // If changing from SERVICE to HOME, clear serviceId
+      if (placement === 'HOME') {
+        updateData.serviceId = null
+      }
+    }
+    if (serviceId !== undefined) updateData.serviceId = serviceId
     if (active !== undefined) updateData.active = active
     if (startDate !== undefined) updateData.startDate = new Date(startDate)
     if (endDate !== undefined) updateData.endDate = endDate ? new Date(endDate) : null
@@ -59,7 +73,10 @@ export async function PATCH(
 
     const ad = await prisma.advertisement.update({
       where: { id },
-      data: updateData
+      data: updateData,
+      include: {
+        service: true
+      }
     })
 
     return NextResponse.json(ad)

@@ -4,12 +4,19 @@ import { useState, useEffect } from 'react'
 import { Plus, Edit2, Trash2, Eye, EyeOff, ExternalLink, TrendingUp, Image as ImageIcon } from 'lucide-react'
 import ImageEditor from '@/components/ads/ImageEditor'
 
+interface Service {
+  id: string
+  name: string
+  slug: string
+}
+
 interface Advertisement {
   id: string
   title: string
   imageUrl: string
   linkUrl: string | null
-  placement: 'HOME' | 'CATEGORY' | 'SERVICE'
+  placement: 'HOME' | 'SERVICE'
+  serviceId: string | null
   active: boolean
   startDate: string
   endDate: string | null
@@ -18,10 +25,12 @@ interface Advertisement {
   clicks: number
   createdAt: string
   updatedAt: string
+  service?: Service
 }
 
 export default function AdsAdminPage() {
   const [ads, setAds] = useState<Advertisement[]>([])
+  const [services, setServices] = useState<Service[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [showImageEditor, setShowImageEditor] = useState(false)
@@ -30,7 +39,8 @@ export default function AdsAdminPage() {
     title: '',
     imageUrl: '',
     linkUrl: '',
-    placement: 'HOME' as 'HOME' | 'CATEGORY' | 'SERVICE',
+    placement: 'HOME' as 'HOME' | 'SERVICE',
+    serviceId: '',
     active: true,
     startDate: new Date().toISOString().split('T')[0],
     endDate: '',
@@ -39,7 +49,18 @@ export default function AdsAdminPage() {
 
   useEffect(() => {
     fetchAds()
+    fetchServices()
   }, [])
+
+  const fetchServices = async () => {
+    try {
+      const response = await fetch('/api/services')
+      const data = await response.json()
+      setServices(data)
+    } catch (error) {
+      console.error('Error fetching services:', error)
+    }
+  }
 
   const fetchAds = async () => {
     try {
@@ -55,15 +76,20 @@ export default function AdsAdminPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     try {
       const url = editingAd ? `/api/ads/${editingAd.id}` : '/api/ads'
       const method = editingAd ? 'PATCH' : 'POST'
-      
+
+      const payload = {
+        ...formData,
+        serviceId: formData.placement === 'SERVICE' && formData.serviceId ? formData.serviceId : null
+      }
+
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       })
 
       if (response.ok) {
@@ -114,6 +140,7 @@ export default function AdsAdminPage() {
       imageUrl: ad.imageUrl,
       linkUrl: ad.linkUrl || '',
       placement: ad.placement,
+      serviceId: ad.serviceId || '',
       active: ad.active,
       startDate: ad.startDate.split('T')[0],
       endDate: ad.endDate ? ad.endDate.split('T')[0] : '',
@@ -130,6 +157,7 @@ export default function AdsAdminPage() {
       imageUrl: '',
       linkUrl: '',
       placement: 'HOME',
+      serviceId: '',
       active: true,
       startDate: new Date().toISOString().split('T')[0],
       endDate: '',
@@ -250,10 +278,30 @@ export default function AdsAdminPage() {
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent"
                 >
                   <option value="HOME">Home</option>
-                  <option value="CATEGORY">Categoría</option>
                   <option value="SERVICE">Servicio</option>
                 </select>
               </div>
+
+              {formData.placement === 'SERVICE' && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Servicio
+                  </label>
+                  <select
+                    value={formData.serviceId}
+                    onChange={(e) => setFormData({ ...formData, serviceId: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent"
+                    required={formData.placement === 'SERVICE'}
+                  >
+                    <option value="">Selecciona un servicio</option>
+                    {services.map((service) => (
+                      <option key={service.id} value={service.id}>
+                        {service.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -358,10 +406,15 @@ export default function AdsAdminPage() {
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <h3 className="text-xl font-bold text-gray-900">{ad.title}</h3>
-                      <div className="flex items-center gap-3 mt-2">
+                      <div className="flex items-center gap-3 mt-2 flex-wrap">
                         <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">
                           {ad.placement}
                         </span>
+                        {ad.service && (
+                          <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-semibold">
+                            {ad.service.name}
+                          </span>
+                        )}
                         <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
                           ad.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
                         }`}>
