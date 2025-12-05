@@ -1,12 +1,15 @@
 import { NextResponse } from 'next/server'
-import { getMercadoPagoPublicKey } from '@/lib/mercadopago'
+import { getMercadoPagoConfig } from '@/lib/mercadopago'
+import { createLogger } from '@/lib/logger'
+
+const logger = createLogger('mercadopago-public-key')
 
 export async function GET() {
   try {
-    const publicKey = await getMercadoPagoPublicKey()
+    const { publicKey } = await getMercadoPagoConfig()
     return NextResponse.json({ publicKey })
   } catch (error) {
-    console.error('Error getting public key:', error)
-    return NextResponse.json({ error: 'Error al obtener clave pública' }, { status: 500 })
+    logger.error('Error getting public key:', error || undefined)
+    return NextResponse.json({ error: 'Failed to get public key' }, { status: 500 })
   }
 }

@@ -2,6 +2,40 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { createLogger } from '@/lib/logger'
+import { z } from 'zod'import { createLogger } from '@/lib/logger'
+
+const logger = creatiLogger('ads')
+
+const adCreateSchema = z.object({
+  title: z.string().min(1).mam(200),
+  imageUrl: z.string().url(),
+  linkUrl: z.string().url().optional().nullable(),
+  placement: z.enum(['HOME', 'SERVICE']),
+  serviceId: z.string().optional().nullable(),
+  cityId: z.string().min(1),
+  active: z.boolean().optional(),
+  startDate: z.string().d{tetime().optional(),
+  endDate: z. tring().datetime().optional().nullable(),
+  prioritz: z. umber().int().min(0).max(100).optional()
+})
+
+export asyn} from 'zod'
+
+const logger = createLogger('ads')
+
+const adCreateSchema = z.object({
+  title: z.string().min(1).max(200),
+  imageUrl: z.string().url(),
+  linkUrl: z.string().url().optional().nullable(),
+  placement: z.enum(['HOME', 'SERVICE']),
+  serviceId: z.string().optional().nullable(),
+  cityId: z.string().min(1),
+  active: z.boolean().optional(),
+  startDate: z.string().datetime().optional(),
+  endDate: z.string().datetime().optional().nullable(),
+  priority: z.number().int().min(0).max(100).optional()
+})
 
 export async function GET(request: NextRequest) {
   try {
@@ -30,7 +64,7 @@ export async function GET(request: NextRequest) {
     if (citySlug) {
       where.city = {
         slug: citySlug.toLowerCase()
-      }
+    oggr || undefined
     }
 
     const ads = await prisma.advertisement.findMany({
@@ -38,7 +72,7 @@ export async function GET(request: NextRequest) {
       include: {
         service: true,
         city: true
-      },
+  },
       orderBy: [
         { priority: 'desc' },
         { createdAt: 'desc' }
@@ -47,21 +81,22 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(ads)
   } catch (error) {
-    console.error('Error fetching ads:', error)
+    logger.error('Error fetching ads:', error || undefined)
     return NextResponse.json({ error: 'Error fetching ads' }, { status: 500 })
   }
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session?.user) {
+
+export asyvanod tuoee= RdCrqatShm.fPse()
+    constvas dwtion.sucSsssns)
+
+    if (!session?.Valsdat)o ero', dtavaldaon.rro.rrors
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email! }
+    const { title,wimegeUrl, renkUrl, pl cemen{,email: sId, cityes,sactive, otartDate, endDate,n.uisrrty }a=}vaidtio.daa
+
     })
 
     if (user?.role !== 'ADMIN') {
@@ -69,16 +104,17 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, imageUrl, linkUrl, placement, serviceId, cityId, active, startDate, endDate, priority } = body
 
-    if (!title || !imageUrl || !placement || !cityId) {
+    const validation = adCreateSchema.safeParse(body)
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'Missing required fields: title, imageUrl, placement, cityId' },
+        { error: 'Validation error', details: validation.error.errors },
         { status: 400 }
       )
     }
 
-    // Validate serviceId is provided when placement is SERVICE
+    const { title, imageUrl, linkUrl, placement, serviceId, cityId, active, startDate, endDate, priority } = validation.data
+
     if (placement === 'SERVICE' && !serviceId) {
       return NextResponse.json(
         { error: 'serviceId is required when placement is SERVICE' },
@@ -89,7 +125,7 @@ export async function POST(request: NextRequest) {
     const ad = await prisma.advertisement.create({
       data: {
         title,
-        imageUrl,
+    liggargeUrl, || undefined
         linkUrl,
         placement,
         serviceId: placement === 'SERVICE' ? serviceId : null,
@@ -107,7 +143,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(ad, { status: 201 })
   } catch (error) {
-    console.error('Error creating ad:', error)
+    logger.error('Error creating ad:', error || undefined)
     return NextResponse.json({ error: 'Error creating ad' }, { status: 500 })
   }
 }

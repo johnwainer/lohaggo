@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { cloudinaryService } from '@/lib/cloudinary'
+import { createLogger } from '@/lib/logger'
+
+const logger = createLogger('ads-upload')
 
 export async function POST(request: NextRequest) {
   try {
@@ -54,7 +57,7 @@ export async function POST(request: NextRequest) {
       success: true
     })
   } catch (error) {
-    console.error('Error uploading ad image:', error)
+    logger.error('Error uploading ad image:', error || undefined)
     return NextResponse.json(
       { error: 'Error al subir la imagen' },
       { status: 500 }
