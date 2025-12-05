@@ -3,17 +3,16 @@
 import { useState, useRef, useCallback } from 'react'
 import ReactCrop, { Crop, PixelCrop } from 'react-image-crop'
 import 'react-image-crop/dist/ReactCrop.css'
-import { Upload, Crop as CropIcon, RotateCw, ZoomIn, ZoomOut, Check, X, Loader2 } from 'lucide-react'
+import { Upload, RotateCw, Check, X, Loader2 } from 'lucide-react'
 
 interface ImageEditorProps {
   onImageUploaded: (url: string) => void
   onCancel: () => void
-  placement: 'HOME' | 'CATEGORY' | 'SERVICE'
+  placement: 'HOME' | 'SERVICE'
 }
 
 const BANNER_DIMENSIONS = {
   HOME: { width: 1200, height: 400, aspectRatio: 3 },
-  CATEGORY: { width: 800, height: 300, aspectRatio: 8 / 3 },
   SERVICE: { width: 600, height: 200, aspectRatio: 3 }
 }
 

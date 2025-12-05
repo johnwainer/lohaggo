@@ -7,6 +7,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const placement = searchParams.get('placement')
+    const serviceId = searchParams.get('serviceId')
 
     const where: any = {
       active: true,
@@ -21,8 +22,15 @@ export async function GET(request: NextRequest) {
       where.placement = placement
     }
 
+    if (serviceId) {
+      where.serviceId = serviceId
+    }
+
     const ads = await prisma.advertisement.findMany({
       where,
+      include: {
+        service: true
+      },
       orderBy: [
         { priority: 'desc' },
         { createdAt: 'desc' }
@@ -53,11 +61,19 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, imageUrl, linkUrl, placement, active, startDate, endDate, priority } = body
+    const { title, imageUrl, linkUrl, placement, serviceId, active, startDate, endDate, priority } = body
 
     if (!title || !imageUrl || !placement) {
       return NextResponse.json(
         { error: 'Missing required fields: title, imageUrl, placement' },
+        { status: 400 }
+      )
+    }
+
+    // Validate serviceId is provided when placement is SERVICE
+    if (placement === 'SERVICE' && !serviceId) {
+      return NextResponse.json(
+        { error: 'serviceId is required when placement is SERVICE' },
         { status: 400 }
       )
     }
@@ -68,10 +84,14 @@ export async function POST(request: NextRequest) {
         imageUrl,
         linkUrl,
         placement,
+        serviceId: placement === 'SERVICE' ? serviceId : null,
         active: active ?? true,
         startDate: startDate ? new Date(startDate) : new Date(),
         endDate: endDate ? new Date(endDate) : null,
         priority: priority ?? 0
+      },
+      include: {
+        service: true
       }
     })
 

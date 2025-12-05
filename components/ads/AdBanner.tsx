@@ -12,11 +12,12 @@ interface Advertisement {
 }
 
 interface AdBannerProps {
-  placement: 'HOME' | 'CATEGORY' | 'SERVICE'
+  placement: 'HOME' | 'SERVICE'
+  serviceId?: string
   className?: string
 }
 
-export default function AdBanner({ placement, className = '' }: AdBannerProps) {
+export default function AdBanner({ placement, serviceId, className = '' }: AdBannerProps) {
   const [ads, setAds] = useState<Advertisement[]>([])
   const [currentAdIndex, setCurrentAdIndex] = useState(0)
   const [isVisible, setIsVisible] = useState(true)
@@ -24,7 +25,7 @@ export default function AdBanner({ placement, className = '' }: AdBannerProps) {
 
   useEffect(() => {
     fetchAds()
-  }, [placement])
+  }, [placement, serviceId])
 
   useEffect(() => {
     if (ads.length > 1) {
@@ -48,7 +49,11 @@ export default function AdBanner({ placement, className = '' }: AdBannerProps) {
 
   const fetchAds = async () => {
     try {
-      const response = await fetch(`/api/ads?placement=${placement}`)
+      let url = `/api/ads?placement=${placement}`
+      if (serviceId) {
+        url += `&serviceId=${serviceId}`
+      }
+      const response = await fetch(url)
       const data = await response.json()
       setAds(data)
     } catch (error) {
