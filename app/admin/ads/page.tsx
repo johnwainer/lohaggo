@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Edit2, Trash2, Eye, EyeOff, ExternalLink, TrendingUp } from 'lucide-react'
+import { Plus, Edit2, Trash2, Eye, EyeOff, ExternalLink, TrendingUp, Image as ImageIcon } from 'lucide-react'
+import ImageEditor from '@/components/ads/ImageEditor'
 
 interface Advertisement {
   id: string
@@ -23,6 +24,7 @@ export default function AdsAdminPage() {
   const [ads, setAds] = useState<Advertisement[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [showImageEditor, setShowImageEditor] = useState(false)
   const [editingAd, setEditingAd] = useState<Advertisement | null>(null)
   const [formData, setFormData] = useState({
     title: '',
@@ -187,27 +189,41 @@ export default function AdsAdminPage() {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  URL de la imagen
+                  Imagen del Banner
                 </label>
-                <input
-                  type="url"
-                  value={formData.imageUrl}
-                  onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent"
-                  placeholder="https://ejemplo.com/imagen.jpg"
-                  required
-                />
-                {formData.imageUrl && (
-                  <div className="mt-3">
-                    <img 
-                      src={formData.imageUrl} 
-                      alt="Preview" 
-                      className="w-full h-32 object-cover rounded-lg"
-                      onError={(e) => {
-                        e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23ddd" width="100" height="100"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3EError%3C/text%3E%3C/svg%3E'
-                      }}
-                    />
+
+                {formData.imageUrl ? (
+                  <div className="space-y-3">
+                    <div className="relative">
+                      <img
+                        src={formData.imageUrl}
+                        alt="Preview"
+                        className="w-full h-48 object-cover rounded-xl"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowImageEditor(true)}
+                        className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-lg hover:bg-white transition-all flex items-center gap-2 font-semibold text-sm shadow-lg"
+                      >
+                        <ImageIcon className="w-4 h-4" />
+                        Cambiar Imagen
+                      </button>
+                    </div>
                   </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowImageEditor(true)}
+                    className="w-full border-2 border-dashed border-gray-300 rounded-xl p-8 hover:border-[#FF2D55] hover:bg-gray-50 transition-all"
+                  >
+                    <ImageIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                    <p className="text-gray-600 font-semibold">
+                      Click para subir y editar imagen
+                    </p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      JPG, PNG o WebP (máx. 5MB)
+                    </p>
+                  </button>
                 )}
               </div>
 
@@ -435,6 +451,17 @@ export default function AdsAdminPage() {
           ))
         )}
       </div>
+
+      {showImageEditor && (
+        <ImageEditor
+          placement={formData.placement}
+          onImageUploaded={(url) => {
+            setFormData({ ...formData, imageUrl: url })
+            setShowImageEditor(false)
+          }}
+          onCancel={() => setShowImageEditor(false)}
+        />
+      )}
     </div>
   )
 }
