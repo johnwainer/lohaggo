@@ -231,120 +231,120 @@ git push origin main
 
 Vercel desplegará automáticamente.
 
-## 📱 Application Structure
+## 📱 Estructura de la Aplicación
 
-### Public Pages
-- `/` - Home page with categories and popular services
-- `/servicios` - Complete service catalog with search and filters
-- `/servicios/[slug]` - Service detail with request form and partner list
-- `/ciudad/[slug]` - City-specific services and information
-- `/login` - Login
-- `/register` - New user registration
+### Páginas Públicas
+- `/` - Página principal con categorías y servicios populares
+- `/servicios` - Catálogo completo de servicios con búsqueda y filtros
+- `/servicios/[slug]` - Detalle de servicio con formulario de solicitud y lista de socios
+- `/ciudad/[slug]` - Servicios e información específica de la ciudad
+- `/login` - Inicio de sesión
+- `/register` - Registro de nuevos usuarios
 
-### Private Dashboards
+### Dashboards Privados
 
-#### Client (`/dashboard`)
-- **My Requests**: View active requests and received proposals
-- **My Bookings**: Manage contracted services
-- **Favorites**: Quick access to favorite partners
-- **Chat**: Communication with partners (integrated modal)
-- **Ratings**: Rate completed services
-- **Addresses**: Manage saved addresses
-- **Payment Methods**: Manage saved cards
-- **Notifications**: View all notifications
+#### Cliente (`/dashboard`)
+- **Mis Solicitudes**: Ver solicitudes activas y propuestas recibidas
+- **Mis Reservas**: Gestionar servicios contratados
+- **Favoritos**: Acceso rápido a socios favoritos
+- **Chat**: Comunicación con socios (modal integrado)
+- **Calificaciones**: Calificar servicios completados
+- **Direcciones**: Gestionar direcciones guardadas
+- **Métodos de Pago**: Gestionar tarjetas guardadas
+- **Notificaciones**: Ver todas las notificaciones
 
-#### Partner (`/partner`)
-- **Available Requests**: View and respond to client requests
-- **My Proposals**: Track sent proposals
-- **My Bookings**: Manage contracted services
-- **Chat**: Communication with clients (integrated modal)
-- **Ratings**: Rate clients
-- **Verification**: Upload documents for verification
-- **Statistics**: Income, completed services, average rating
-- **Notifications**: View all notifications
+#### Socio (`/partner`)
+- **Solicitudes Disponibles**: Ver y responder a solicitudes de clientes
+- **Mis Propuestas**: Seguimiento de propuestas enviadas
+- **Mis Reservas**: Gestionar servicios contratados
+- **Chat**: Comunicación con clientes (modal integrado)
+- **Calificaciones**: Calificar clientes
+- **Verificación**: Subir documentos para verificación
+- **Estadísticas**: Ingresos, servicios completados, calificación promedio
+- **Notificaciones**: Ver todas las notificaciones
 
-#### Administrator (`/admin`)
-- **Dashboard**: General platform statistics
-- **Commissions**: Configure client and partner rates
-- **Payments**: View all processed payments
-- **Payouts**: Manage payments to partners
-- **Users**: Manage clients and partners
-- **Services**: Manage service catalog
-- **Cities**: Manage available cities
-- **Advertisements**: Create and manage ad campaigns with city and service targeting
-- **Verification**: Approve/reject partner documents
+#### Administrador (`/admin`)
+- **Dashboard**: Estadísticas generales de la plataforma
+- **Comisiones**: Configurar tarifas de clientes y socios
+- **Pagos**: Ver todos los pagos procesados
+- **Desembolsos**: Gestionar pagos a socios
+- **Usuarios**: Gestionar clientes y socios
+- **Servicios**: Gestionar catálogo de servicios
+- **Ciudades**: Gestionar ciudades disponibles
+- **Publicidad**: Crear y gestionar campañas publicitarias con segmentación por ciudad y servicio
+- **Verificación**: Aprobar/rechazar documentos de socios
 
-## 💰 Payment and Commission System
+## 💰 Sistema de Pagos y Comisiones
 
-### Payment Flow
+### Flujo de Pago
 
-1. **Client accepts proposal** → Booking is created with current frozen rates
-2. **Client makes payment** → Processed with Mercado Pago
-3. **Payment confirmed** → Payout is automatically created for partner
-4. **Partner receives payment** → Net amount (after commission) is transferred
+1. **Cliente acepta propuesta** → Se crea Reserva con tarifas congeladas actuales
+2. **Cliente realiza pago** → Procesado con Mercado Pago
+3. **Pago confirmado** → Se crea automáticamente Payout para el socio
+4. **Socio recibe pago** → Monto neto (después de comisión) es transferido
 
-### Frozen Commissions
+### Comisiones Congeladas
 
-Commission rates are saved when the proposal is accepted:
-- **Client**: 5% by default (configurable from `/admin`)
-- **Partner**: 20% by default (configurable from `/admin`)
+Las tarifas de comisión se guardan cuando se acepta la propuesta:
+- **Cliente**: 5% por defecto (configurable desde `/admin`)
+- **Socio**: 20% por defecto (configurable desde `/admin`)
 
-**Important**: Rate changes do NOT affect already contracted services.
+**Importante**: Los cambios de tarifas NO afectan servicios ya contratados.
 
-## 💬 Chat System
+## 💬 Sistema de Chat
 
-### Features
-- **Integrated Modal**: Chat without leaving current page
-- **Real-Time**: Polling every 3 seconds for new messages
-- **Validation**: Prevention of phone, email, WhatsApp exchange
-- **System Messages**: Automatic alerts about restrictions
-- **Auto Scroll**: Always shows the latest message
-- **Read Marking**: Messages are automatically marked as read
+### Características
+- **Modal Integrado**: Chat sin salir de la página actual
+- **Tiempo Real**: Polling cada 3 segundos para nuevos mensajes
+- **Validación**: Prevención de intercambio de teléfono, email, WhatsApp
+- **Mensajes del Sistema**: Alertas automáticas sobre restricciones
+- **Auto Scroll**: Siempre muestra el último mensaje
+- **Marcado de Lectura**: Los mensajes se marcan automáticamente como leídos
 
-## ⭐ Rating System
+## ⭐ Sistema de Calificaciones
 
-### Features
-- **Bidirectional**: Client rates partner and vice versa
-- **Stars**: 1 to 5 star system
-- **Comments**: Optional detailed feedback
-- **Once per service**: Can only rate after completing the service
-- **Visible Average**: Average rating visible on profiles
+### Características
+- **Bidireccional**: Cliente califica al socio y viceversa
+- **Estrellas**: Sistema de 1 a 5 estrellas
+- **Comentarios**: Retroalimentación detallada opcional
+- **Una vez por servicio**: Solo se puede calificar después de completar el servicio
+- **Promedio Visible**: Calificación promedio visible en perfiles
 
-## 🔔 Notification System
+## 🔔 Sistema de Notificaciones
 
-### Notification Types
+### Tipos de Notificaciones
 
-#### For Clients
-- New proposal received
-- Proposal accepted
-- Payment processed successfully
-- Service completed
-- Partner rated you
+#### Para Clientes
+- Nueva propuesta recibida
+- Propuesta aceptada
+- Pago procesado exitosamente
+- Servicio completado
+- Socio te calificó
 
-#### For Partners
-- New request available
-- Proposal accepted by client
-- Payment received
-- New payout available
-- Client rated you
+#### Para Socios
+- Nueva solicitud disponible
+- Propuesta aceptada por cliente
+- Pago recibido
+- Nuevo desembolso disponible
+- Cliente te calificó
 
-## 🏙️ City System
+## 🏙️ Sistema de Ciudades
 
-### Features
-- **Multi-City Support**: Services available in multiple cities
-- **Geolocation**: Automatic city detection based on user location
-- **City Pages**: Dedicated pages for each city with local services
-- **City Filtering**: Filter services and partners by city
-- **City Management**: Admin panel for managing available cities
+### Características
+- **Soporte Multi-Ciudad**: Servicios disponibles en múltiples ciudades
+- **Geolocalización**: Detección automática de ciudad basada en ubicación del usuario
+- **Páginas de Ciudad**: Páginas dedicadas para cada ciudad con servicios locales
+- **Filtrado por Ciudad**: Filtrar servicios y socios por ciudad
+- **Gestión de Ciudades**: Panel de administración para gestionar ciudades disponibles
 
-## ⭐ Favorite Partners
+## ⭐ Socios Favoritos
 
-### Features
-- **Save Favorites**: Mark partners as favorites for quick access
-- **Favorites Dashboard**: Dedicated tab in client dashboard
-- **Quick Requests**: Request services directly from favorite partners
-- **Partner Details**: View partner services and verification status
-- **Easy Management**: Add/remove favorites with one click
+### Características
+- **Guardar Favoritos**: Marcar socios como favoritos para acceso rápido
+- **Dashboard de Favoritos**: Pestaña dedicada en dashboard de cliente
+- **Solicitudes Rápidas**: Solicitar servicios directamente desde socios favoritos
+- **Detalles del Socio**: Ver servicios del socio y estado de verificación
+- **Gestión Fácil**: Agregar/eliminar favoritos con un clic
 
 ## 📢 Sistema de Publicidad
 
