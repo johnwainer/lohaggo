@@ -400,17 +400,18 @@ enum ProposalStatus {
 }
 
 model CityConfig {
-  id               String     @id @default(cuid())
-  name             String     @unique
-  slug             String     @unique
-  status           CityStatus @default(ACTIVE)
-  order            Int        @default(0)
+  id               String          @id @default(cuid())
+  name             String          @unique
+  slug             String          @unique
+  status           CityStatus      @default(ACTIVE)
+  order            Int             @default(0)
   latitude         Float?
   longitude        Float?
-  lanzamiento      Boolean    @default(false)
+  lanzamiento      Boolean         @default(false)
   fechaLanzamiento DateTime?
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  advertisements   Advertisement[]
 }
 
 enum CityStatus {
@@ -557,7 +558,7 @@ model Advertisement {
   linkUrl     String?
   placement   AdPlacement
   serviceId   String?
-  city        City
+  cityId      String
   active      Boolean           @default(true)
   startDate   DateTime          @default(now())
   endDate     DateTime?
@@ -567,10 +568,11 @@ model Advertisement {
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
   service     Service?          @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  city        CityConfig        @relation(fields: [cityId], references: [id], onDelete: Cascade)
 
   @@index([placement, active, startDate, endDate])
   @@index([serviceId])
-  @@index([city])
+  @@index([cityId])
 }
 
 enum AdPlacement {
