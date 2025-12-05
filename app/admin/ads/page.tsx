@@ -250,7 +250,7 @@ export default function AdsAdminPage() {
                       <img
                         src={formData.imageUrl}
                         alt="Preview"
-                        className="w-full h-48 object-cover rounded-xl"
+                        className="w-full h-32 object-cover rounded-xl"
                       />
                       <button
                         type="button"
@@ -261,6 +261,9 @@ export default function AdsAdminPage() {
                         Cambiar Imagen
                       </button>
                     </div>
+                    <p className="text-xs text-gray-500">
+                      Dimensiones: 1200x200px (Relación 6:1)
+                    </p>
                   </div>
                 ) : (
                   <button
@@ -273,7 +276,7 @@ export default function AdsAdminPage() {
                       Click para subir y editar imagen
                     </p>
                     <p className="text-sm text-gray-500 mt-1">
-                      JPG, PNG o WebP (máx. 5MB)
+                      Dimensiones: 1200x200px - JPG, PNG o WebP (máx. 5MB)
                     </p>
                   </button>
                 )}
@@ -437,7 +440,7 @@ export default function AdsAdminPage() {
               className="bg-white rounded-2xl shadow-md p-6 hover:shadow-lg transition-shadow"
             >
               <div className="flex gap-6">
-                <div className="w-64 h-32 flex-shrink-0">
+                <div className="w-80 h-32 flex-shrink-0">
                   <img
                     src={ad.imageUrl}
                     alt={ad.title}

@@ -12,8 +12,8 @@ interface ImageEditorProps {
 }
 
 const BANNER_DIMENSIONS = {
-  HOME: { width: 1200, height: 400, aspectRatio: 3 },
-  SERVICE: { width: 600, height: 200, aspectRatio: 3 }
+  HOME: { width: 1200, height: 200, aspectRatio: 6 },
+  SERVICE: { width: 1200, height: 200, aspectRatio: 6 }
 }
 
 export default function ImageEditor({ onImageUploaded, onCancel, placement }: ImageEditorProps) {
