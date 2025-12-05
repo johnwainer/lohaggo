@@ -7,7 +7,11 @@ const logger = createLogger('cities')
 export async function GET(request: NextRequest) {
   try {
     const cities = await prisma.cityConfig.findMany({
-      where: { status: 'ACTIVE' },
+      where: {
+        status: {
+          in: ['ACTIVE', 'COMING_SOON']
+        }
+      },
       orderBy: { name: 'asc' }
     })
     return NextResponse.json(cities)
