@@ -102,8 +102,8 @@ function LoginForm() {
                 <span className="text-sm font-medium">Bienvenido de vuelta</span>
               </div>
               <h1 className="text-5xl font-bold leading-tight">
-                Lo necesitas,<br />
-                <span className="text-white/90">LoHaggo</span>
+                LoHaggo<br />
+                <span className="text-white/90">Lo necesitas</span>
               </h1>
               <p className="text-xl text-white/80">
                 Accede a tu cuenta y encuentra los mejores servicios en tu ciudad
