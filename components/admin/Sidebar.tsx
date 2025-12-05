@@ -1,6 +1,6 @@
 'use client'
 
-import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, LogOut, Menu, X, Shield, DollarSign, Wallet, MapPin, CreditCard, ChevronDown, ChevronRight, Percent } from 'lucide-react'
+import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, LogOut, Menu, X, Shield, DollarSign, Wallet, MapPin, CreditCard, ChevronDown, ChevronRight, Percent, Megaphone } from 'lucide-react'
 import Link from 'next/link'
 import { signOut } from 'next-auth/react'
 import { useState, useEffect } from 'react'
@@ -49,6 +49,12 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
       items: [
         { id: 'services', label: 'Servicios', icon: Package },
         { id: 'cities', label: 'Ciudades', icon: MapPin },
+      ]
+    },
+    {
+      label: 'Marketing',
+      items: [
+        { id: 'ads', label: 'Publicidad', icon: Megaphone, isLink: true, href: '/admin/ads' },
       ]
     },
     {

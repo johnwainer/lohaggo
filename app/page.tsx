@@ -3,6 +3,7 @@ import { Search, Star, Shield, Zap, Clock, Users, CheckCircle, ArrowRight, Spark
 import { prisma } from '@/lib/prisma'
 import { formatCurrency } from '@/lib/utils'
 import SearchBar from '@/components/SearchBar'
+import AdBanner from '@/components/ads/AdBanner'
 
 export const dynamic = 'force-dynamic'
 
@@ -84,6 +85,13 @@ export default async function Home() {
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Ad Banner Section */}
+      <section className="py-8 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <AdBanner placement="HOME" className="h-32 md:h-48" />
         </div>
       </section>
 
