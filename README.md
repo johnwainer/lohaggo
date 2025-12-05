@@ -1,227 +1,227 @@
-# LoHaggo - Service Marketplace Platform
+# LoHaggo - Plataforma de Marketplace de Servicios
 
-**Lo necesitas, LoHaggo.** - The simplest way to find any service. A modern and secure platform for requesting services with dashboards for clients, partners, and administrators.
+**Lo necesitas, LoHaggo.** - La forma más simple de encontrar cualquier servicio. Una plataforma moderna y segura para solicitar servicios con dashboards para clientes, socios y administradores.
 
-## 🚀 Key Features
+## 🚀 Características Principales
 
-### Service System
-- **50+ Services** organized in 10 categories
-- **Request System**: Clients post requests and partners send proposals
-- **Photo Upload**: Clients can attach up to 5 photos to their requests
-- **Search and Filters**: Search by name, category, and sort by popularity/price
-- **City-Based Services**: Services filtered by city with geolocation support
-- **Direct Partner Requests**: Request services directly from specific partners
-- **Favorite Partners**: Save favorite partners for quick access
+### Sistema de Servicios
+- **50+ Servicios** organizados en 10 categorías
+- **Sistema de Solicitudes**: Los clientes publican solicitudes y los socios envían propuestas
+- **Carga de Fotos**: Los clientes pueden adjuntar hasta 5 fotos a sus solicitudes
+- **Búsqueda y Filtros**: Buscar por nombre, categoría y ordenar por popularidad/precio
+- **Servicios por Ciudad**: Servicios filtrados por ciudad con soporte de geolocalización
+- **Solicitudes Directas a Socios**: Solicitar servicios directamente a socios específicos
+- **Socios Favoritos**: Guardar socios favoritos para acceso rápido
 
-### Advertising System
-- **Dynamic Ad Management**: Create and manage advertisements through admin panel
-- **Standardized Dimensions**: All ads are 1200x200px (6:1 aspect ratio) for consistency
-- **Multiple Placements**: HOME (homepage) and SERVICE (service-specific pages)
-- **City Targeting**: Target ads to specific cities using CityConfig relation
-- **Service-Specific Ads**: Display ads on specific service pages
-- **Priority System**: Control ad display order with priority levels
-- **Performance Tracking**: Track impressions and clicks for each ad
-- **Built-in Image Editor**: Crop, resize, adjust brightness/contrast, and rotate images
-- **Active/Inactive Control**: Enable or disable ads without deleting them
-- **Date Scheduling**: Set start and end dates for ad campaigns
-- **Strategic Placement**: HOME ads appear between "¿Por qué LoHaggo?" and "Servicios más populares"
+### Sistema de Publicidad
+- **Gestión Dinámica de Anuncios**: Crear y gestionar anuncios desde el panel de administración
+- **Dimensiones Estandarizadas**: Todos los anuncios son de 1200x200px (relación 6:1) para consistencia
+- **Múltiples Ubicaciones**: HOME (página principal) y SERVICE (páginas de servicios específicos)
+- **Segmentación por Ciudad**: Dirigir anuncios a ciudades específicas usando relación CityConfig
+- **Anuncios Específicos por Servicio**: Mostrar anuncios en páginas de servicios específicos
+- **Sistema de Prioridad**: Controlar el orden de visualización con niveles de prioridad
+- **Seguimiento de Rendimiento**: Rastrear impresiones y clics de cada anuncio
+- **Editor de Imágenes Integrado**: Recortar, redimensionar, ajustar brillo/contraste y rotar imágenes
+- **Control Activo/Inactivo**: Habilitar o deshabilitar anuncios sin eliminarlos
+- **Programación de Fechas**: Establecer fechas de inicio y fin para campañas publicitarias
+- **Ubicación Estratégica**: Los anuncios HOME aparecen entre "¿Por qué LoHaggo?" y "Servicios más populares"
 
-### User System
-- **3 User Types**: Clients, Partners (Providers), and Administrators
-- **Secure Authentication** with NextAuth.js and bcrypt
-- **Complete Profiles**: Detailed information for clients and partners
-- **Address Management**: Clients can save multiple addresses
-- **Partner Verification**: Document system with administrative validation
-- **Verification Badges**: ID, Education, and Background check badges
+### Sistema de Usuarios
+- **3 Tipos de Usuario**: Clientes, Socios (Proveedores) y Administradores
+- **Autenticación Segura** con NextAuth.js y bcrypt
+- **Perfiles Completos**: Información detallada para clientes y socios
+- **Gestión de Direcciones**: Los clientes pueden guardar múltiples direcciones
+- **Verificación de Socios**: Sistema de documentos con validación administrativa
+- **Insignias de Verificación**: Insignias de ID, Educación y Antecedentes
 
-### Payment System
-- **Mercado Pago Integration**: Secure payment processing
-- **Frozen Commissions**: Rates are saved when accepting the service
-- **Automatic Payouts**: Automatic payment distribution to partners
-- **Admin Panel**: Complete control of commissions, payments, and payouts
-- **Payment Methods**: Saved card management with Mercado Pago
-- **Secure Transactions**: PCI-compliant payment processing
+### Sistema de Pagos
+- **Integración con Mercado Pago**: Procesamiento seguro de pagos
+- **Comisiones Congeladas**: Las tarifas se guardan al aceptar el servicio
+- **Pagos Automáticos**: Distribución automática de pagos a socios
+- **Panel de Administración**: Control completo de comisiones, pagos y desembolsos
+- **Métodos de Pago**: Gestión de tarjetas guardadas con Mercado Pago
+- **Transacciones Seguras**: Procesamiento de pagos compatible con PCI
 
-### Communication System
-- **Real-Time Chat**: Direct communication between clients and partners
-- **Modal Messaging**: Integrated chat in "My Requests" and "My Bookings"
-- **Content Validation**: Prevention of contact information exchange
-- **Auto Polling**: Message updates every 3 seconds
-- **Unread Counters**: Visual indicators for unread messages
+### Sistema de Comunicación
+- **Chat en Tiempo Real**: Comunicación directa entre clientes y socios
+- **Mensajería Modal**: Chat integrado en "Mis Solicitudes" y "Mis Reservas"
+- **Validación de Contenido**: Prevención de intercambio de información de contacto
+- **Auto Polling**: Actualización de mensajes cada 3 segundos
+- **Contadores de No Leídos**: Indicadores visuales para mensajes no leídos
 
-### Rating System
-- **Bidirectional Ratings**: Clients rate partners and vice versa
-- **Star System**: 1 to 5 star ratings
-- **Optional Comments**: Detailed feedback about the service
-- **Rating History**: View all received ratings
-- **Average Display**: Rating average visible on profiles
+### Sistema de Calificaciones
+- **Calificaciones Bidireccionales**: Los clientes califican a los socios y viceversa
+- **Sistema de Estrellas**: Calificaciones de 1 a 5 estrellas
+- **Comentarios Opcionales**: Retroalimentación detallada sobre el servicio
+- **Historial de Calificaciones**: Ver todas las calificaciones recibidas
+- **Visualización de Promedio**: Promedio de calificación visible en perfiles
 
-### Notification System
-- **Push Notifications**: Instant alerts with Web Push API
-- **VAPID Validation**: Keys validated on startup with scheduled rotation
-- **Multiple Types**: New proposal, proposal accepted, payment received, etc.
-- **Unread Badge**: Visual counter for pending notifications
-- **Complete History**: Access to all historical notifications
-- **Auto-cleanup**: Expired subscriptions are automatically removed
+### Sistema de Notificaciones
+- **Notificaciones Push**: Alertas instantáneas con Web Push API
+- **Validación VAPID**: Claves validadas al inicio con rotación programada
+- **Múltiples Tipos**: Nueva propuesta, propuesta aceptada, pago recibido, etc.
+- **Insignia de No Leídos**: Contador visual para notificaciones pendientes
+- **Historial Completo**: Acceso a todas las notificaciones históricas
+- **Auto-limpieza**: Las suscripciones expiradas se eliminan automáticamente
 
-### Security and Validation
-- **Centralized Error Handling**: Robust system with custom error classes
-- **Zod Validation**: Validation schemas for all critical inputs
-- **Structured Logging**: Pino logging system for monitoring and debugging
-- **Data Sanitization**: Automatic cleaning of dangerous inputs
-- **Credential Protection**: Secure management of Cloudinary and VAPID keys
-- **Rate Limiting**: Protection against API abuse
-- **CSRF Protection**: Security tokens in critical forms
+### Seguridad y Validación
+- **Manejo Centralizado de Errores**: Sistema robusto con clases de error personalizadas
+- **Validación Zod**: Esquemas de validación para todas las entradas críticas
+- **Logging Estructurado**: Sistema de logging Pino para monitoreo y depuración
+- **Sanitización de Datos**: Limpieza automática de entradas peligrosas
+- **Protección de Credenciales**: Gestión segura de claves de Cloudinary y VAPID
+- **Rate Limiting**: Protección contra abuso de API
+- **Protección CSRF**: Tokens de seguridad en formularios críticos
 
-### Design and UX
-- **Modern Design** inspired by Uber and Rappi
-- **Responsive**: Works perfectly on mobile, tablets, and desktop
-- **Intuitive Interface**: Clear and simple navigation
-- **Visual Feedback**: Loading states, confirmations, and clear errors
-- **PWA Ready**: Progressive Web App capabilities
+### Diseño y UX
+- **Diseño Moderno** inspirado en Uber y Rappi
+- **Responsive**: Funciona perfectamente en móviles, tablets y escritorio
+- **Interfaz Intuitiva**: Navegación clara y simple
+- **Retroalimentación Visual**: Estados de carga, confirmaciones y errores claros
+- **PWA Ready**: Capacidades de Progressive Web App
 
-## 🛠️ Technologies
+## 🛠️ Tecnologías
 
 ### Core
 - **Next.js 14** (App Router)
 - **TypeScript**
 - **React 18**
 
-### Database
+### Base de Datos
 - **Prisma** (ORM)
-- **PostgreSQL** (Database)
-- **Supabase** (Production database)
+- **PostgreSQL** (Base de datos)
+- **Supabase** (Base de datos de producción)
 
-### Authentication and Security
-- **NextAuth.js** (Authentication)
-- **bcrypt** (Password hashing)
-- **Zod** (Schema validation)
-- **Pino** (Structured logging)
+### Autenticación y Seguridad
+- **NextAuth.js** (Autenticación)
+- **bcrypt** (Hashing de contraseñas)
+- **Zod** (Validación de esquemas)
+- **Pino** (Logging estructurado)
 
-### Payments and External Services
-- **Mercado Pago** (Payment processing)
-- **Cloudinary** (Image storage)
-- **Web Push API** (Push notifications)
+### Pagos y Servicios Externos
+- **Mercado Pago** (Procesamiento de pagos)
+- **Cloudinary** (Almacenamiento de imágenes)
+- **Web Push API** (Notificaciones push)
 
 ### UI/UX
-- **Tailwind CSS** (Styling)
-- **Lucide React** (Icons)
-- **Radix UI** (Accessible components)
+- **Tailwind CSS** (Estilos)
+- **Lucide React** (Iconos)
+- **Radix UI** (Componentes accesibles)
 
-## 📋 Prerequisites
+## 📋 Requisitos Previos
 
-- Node.js 18+ installed
-- PostgreSQL installed (for local development) or Supabase account
-- Cloudinary account (for photo uploads)
-- Mercado Pago account (for payment processing)
-- npm or yarn
+- Node.js 18+ instalado
+- PostgreSQL instalado (para desarrollo local) o cuenta de Supabase
+- Cuenta de Cloudinary (para carga de fotos)
+- Cuenta de Mercado Pago (para procesamiento de pagos)
+- npm o yarn
 
-## 🔧 Local Installation
+## 🔧 Instalación Local
 
-1. **Clone the repository**
+1. **Clonar el repositorio**
 
 ```bash
-git clone <your-repository>
+git clone <tu-repositorio>
 cd lohaggo
 npm install
 ```
 
-2. **Configure environment variables**
+2. **Configurar variables de entorno**
 
-Create a `.env.local` file in the project root:
+Crear un archivo `.env.local` en la raíz del proyecto:
 
 ```env
-# Database
+# Base de Datos
 DATABASE_URL="postgresql://user:password@localhost:5432/lohaggo_db"
 
 # NextAuth
-NEXTAUTH_SECRET="your-super-secure-secret-here"
+NEXTAUTH_SECRET="tu-secreto-super-seguro-aqui"
 NEXTAUTH_URL="http://localhost:3000"
 
-# Cloudinary (for photo uploads)
-NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME="your-cloud-name"
-CLOUDINARY_API_KEY="your-api-key"
-CLOUDINARY_API_SECRET="your-api-secret"
+# Cloudinary (para carga de fotos)
+NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME="tu-cloud-name"
+CLOUDINARY_API_KEY="tu-api-key"
+CLOUDINARY_API_SECRET="tu-api-secret"
 
 # Mercado Pago
-MERCADOPAGO_ACCESS_TOKEN="your-access-token"
-NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY="your-public-key"
+MERCADOPAGO_ACCESS_TOKEN="tu-access-token"
+NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY="tu-public-key"
 
-# Push Notifications
-# Generate with: npx web-push generate-vapid-keys
-NEXT_PUBLIC_VAPID_PUBLIC_KEY="your-vapid-public-key"
-VAPID_PRIVATE_KEY="your-vapid-private-key"
+# Notificaciones Push
+# Generar con: npx web-push generate-vapid-keys
+NEXT_PUBLIC_VAPID_PUBLIC_KEY="tu-vapid-public-key"
+VAPID_PRIVATE_KEY="tu-vapid-private-key"
 ```
 
-3. **Configure the database**
+3. **Configurar la base de datos**
 
 ```bash
-# Apply migrations
+# Aplicar migraciones
 npx prisma migrate deploy
 
-# Seed with initial data
+# Sembrar con datos iniciales
 npx prisma db seed
 ```
 
-4. **Start the development server**
+4. **Iniciar el servidor de desarrollo**
 
 ```bash
 npm run dev
 ```
 
-The application will be available at `http://localhost:3000`
+La aplicación estará disponible en `http://localhost:3000`
 
-## 🚀 Production Deploy (Supabase + Vercel)
+## 🚀 Deploy en Producción (Supabase + Vercel)
 
-### 1. Configure Database (Supabase)
+### 1. Configurar Base de Datos (Supabase)
 
-1. Create a project on [Supabase](https://supabase.com)
-2. Go to Settings → Database → Connection String
-3. Copy the **Connection String** (Transaction mode)
-4. Run migrations with Prisma
+1. Crear un proyecto en [Supabase](https://supabase.com)
+2. Ir a Settings → Database → Connection String
+3. Copiar el **Connection String** (modo Transaction)
+4. Ejecutar migraciones con Prisma
 
-### 2. Configure Cloudinary
+### 2. Configurar Cloudinary
 
-1. Create an account on [Cloudinary](https://cloudinary.com)
-2. Go to Dashboard and copy:
+1. Crear una cuenta en [Cloudinary](https://cloudinary.com)
+2. Ir al Dashboard y copiar:
    - Cloud Name
    - API Key
    - API Secret
 
-### 3. Configure Mercado Pago
+### 3. Configurar Mercado Pago
 
-1. Create an account on [Mercado Pago Developers](https://www.mercadopago.com.ar/developers)
-2. Go to Your integrations → Create application
-3. Copy production credentials:
+1. Crear una cuenta en [Mercado Pago Developers](https://www.mercadopago.com.ar/developers)
+2. Ir a Tus integraciones → Crear aplicación
+3. Copiar credenciales de producción:
    - Access Token
    - Public Key
 
-### 4. Generate VAPID Keys for Push Notifications
+### 4. Generar Claves VAPID para Notificaciones Push
 
 ```bash
 npx web-push generate-vapid-keys
 ```
 
-Save the generated keys to configure them in Vercel.
+Guardar las claves generadas para configurarlas en Vercel.
 
-### 5. Configure Environment Variables in Vercel
+### 5. Configurar Variables de Entorno en Vercel
 
-Go to your project in Vercel → Settings → Environment Variables and add:
+Ir a tu proyecto en Vercel → Settings → Environment Variables y agregar:
 
 ```
 DATABASE_URL=postgresql://[USER]:[PASSWORD]@[HOST]/[DATABASE]?sslmode=require
-NEXTAUTH_SECRET=your-super-secure-secret-here
-NEXTAUTH_URL=https://your-domain.vercel.app
-NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=your-cloud-name
-CLOUDINARY_API_KEY=your-api-key
-CLOUDINARY_API_SECRET=your-api-secret
-MERCADOPAGO_ACCESS_TOKEN=your-access-token
-NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY=your-public-key
-NEXT_PUBLIC_VAPID_PUBLIC_KEY=your-vapid-public-key
-VAPID_PRIVATE_KEY=your-vapid-private-key
+NEXTAUTH_SECRET=tu-secreto-super-seguro-aqui
+NEXTAUTH_URL=https://tu-dominio.vercel.app
+NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=tu-cloud-name
+CLOUDINARY_API_KEY=tu-api-key
+CLOUDINARY_API_SECRET=tu-api-secret
+MERCADOPAGO_ACCESS_TOKEN=tu-access-token
+NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY=tu-public-key
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=tu-vapid-public-key
+VAPID_PRIVATE_KEY=tu-vapid-private-key
 ```
 
-**Important**: Check all 3 options (Production, Preview, Development) for each variable.
+**Importante**: Marcar las 3 opciones (Production, Preview, Development) para cada variable.
 
 ### 6. Deploy
 
@@ -229,7 +229,7 @@ VAPID_PRIVATE_KEY=your-vapid-private-key
 git push origin main
 ```
 
-Vercel will deploy automatically.
+Vercel desplegará automáticamente.
 
 ## 📱 Application Structure
 
@@ -346,76 +346,76 @@ Commission rates are saved when the proposal is accepted:
 - **Partner Details**: View partner services and verification status
 - **Easy Management**: Add/remove favorites with one click
 
-## 📢 Advertising System
+## 📢 Sistema de Publicidad
 
-### Features
-- **Ad Management Panel**: Complete CRUD interface at `/admin/ads`
-- **Standardized Banner Dimensions**:
-  - All banners: **1200x200px (6:1 aspect ratio)** - MANDATORY
-  - Consistent sizing for HOME and SERVICE placements
-  - Optimized for responsive display across all devices
-- **Multiple Placements**:
-  - **HOME**: Display on homepage between "¿Por qué LoHaggo?" and "Servicios más populares"
-  - **SERVICE**: Display on specific service detail pages
-- **City Targeting**: Target ads to specific cities using dynamic CityConfig relation
-- **Service-Specific Ads**: Associate ads with specific services for targeted display
-- **Priority System**: Control display order with numeric priority (higher = shown first)
-- **Performance Tracking**:
-  - Impressions: Track how many times ad is displayed
-  - Clicks: Track user interactions with ads
-- **Built-in Image Editor**:
-  - Crop and resize images to exact 1200x200px dimensions
-  - Adjust brightness (50-150%)
-  - Adjust contrast (50-150%)
-  - Rotate images in 90° increments
-  - Real-time preview with filters
-  - Direct upload to Cloudinary
-- **Campaign Scheduling**:
-  - Set start dates for campaigns
-  - Optional end dates for time-limited promotions
-- **Active/Inactive Toggle**: Enable or disable ads without deleting them
-- **Responsive Display**:
-  - Mobile: 128px height (h-32)
-  - Tablet: 160px height (h-40)
-  - Desktop: 192px height (h-48)
-  - Maintains 6:1 aspect ratio across all breakpoints
-- **Dynamic Loading**: Ads are fetched based on current city and page context
-- **Session Persistence**: Closed ads remain hidden during the session
+### Características
+- **Panel de Gestión de Anuncios**: Interfaz CRUD completa en `/admin/ads`
+- **Dimensiones Estandarizadas de Banners**:
+  - Todos los banners: **1200x200px (relación 6:1)** - OBLIGATORIO
+  - Tamaño consistente para ubicaciones HOME y SERVICE
+  - Optimizado para visualización responsive en todos los dispositivos
+- **Múltiples Ubicaciones**:
+  - **HOME**: Mostrar en página principal entre "¿Por qué LoHaggo?" y "Servicios más populares"
+  - **SERVICE**: Mostrar en páginas de detalle de servicios específicos
+- **Segmentación por Ciudad**: Dirigir anuncios a ciudades específicas usando relación dinámica CityConfig
+- **Anuncios Específicos por Servicio**: Asociar anuncios con servicios específicos para visualización dirigida
+- **Sistema de Prioridad**: Controlar orden de visualización con prioridad numérica (mayor = se muestra primero)
+- **Seguimiento de Rendimiento**:
+  - Impresiones: Rastrear cuántas veces se muestra el anuncio
+  - Clics: Rastrear interacciones de usuarios con anuncios
+- **Editor de Imágenes Integrado**:
+  - Recortar y redimensionar imágenes a dimensiones exactas de 1200x200px
+  - Ajustar brillo (50-150%)
+  - Ajustar contraste (50-150%)
+  - Rotar imágenes en incrementos de 90°
+  - Vista previa en tiempo real con filtros
+  - Carga directa a Cloudinary
+- **Programación de Campañas**:
+  - Establecer fechas de inicio para campañas
+  - Fechas de fin opcionales para promociones por tiempo limitado
+- **Toggle Activo/Inactivo**: Habilitar o deshabilitar anuncios sin eliminarlos
+- **Visualización Responsive**:
+  - Móvil: 128px de altura (h-32)
+  - Tablet: 160px de altura (h-40)
+  - Escritorio: 192px de altura (h-48)
+  - Mantiene relación 6:1 en todos los breakpoints
+- **Carga Dinámica**: Los anuncios se obtienen según la ciudad actual y contexto de página
+- **Persistencia de Sesión**: Los anuncios cerrados permanecen ocultos durante la sesión
 
-### Ad Display Logic
-- **Homepage**:
-  - Shows all active HOME placement ads for the selected city
-  - Positioned between "¿Por qué LoHaggo?" features and "Servicios más populares"
-  - White background section for clean integration
-- **Service Pages**:
-  - Shows SERVICE placement ads associated with that specific service and city
-  - Displayed before the booking button section
-- **City Filtering**: Only displays ads targeted to the user's currently selected city
-- **Priority Sorting**: Ads are displayed in order of priority (descending) then by creation date
-- **Carousel**: Multiple ads rotate automatically with navigation controls
-- **Close Button**: Users can dismiss ads (hidden for the session)
+### Lógica de Visualización de Anuncios
+- **Página Principal**:
+  - Muestra todos los anuncios activos de ubicación HOME para la ciudad seleccionada
+  - Posicionado entre características de "¿Por qué LoHaggo?" y "Servicios más populares"
+  - Sección con fondo blanco para integración limpia
+- **Páginas de Servicios**:
+  - Muestra anuncios de ubicación SERVICE asociados con ese servicio específico y ciudad
+  - Mostrado antes de la sección del botón de reserva
+- **Filtrado por Ciudad**: Solo muestra anuncios dirigidos a la ciudad actualmente seleccionada del usuario
+- **Ordenamiento por Prioridad**: Los anuncios se muestran en orden de prioridad (descendente) luego por fecha de creación
+- **Carrusel**: Múltiples anuncios rotan automáticamente con controles de navegación
+- **Botón de Cerrar**: Los usuarios pueden descartar anuncios (ocultos durante la sesión)
 
-### Admin Panel Features
-- **Image Preview**:
-  - Form preview: 128px height with 6:1 ratio
-  - List preview: 320px width × 128px height
-  - Dimension info displayed: "1200x200px (Relación 6:1)"
-- **City Selector**: Dynamic dropdown with active cities only
-- **Service Selector**: Conditional display based on placement type
-- **Performance Metrics**: View impressions and clicks for each ad
-- **Quick Actions**: Toggle active/inactive, edit, delete
-- **Visual Status Indicators**: Color-coded badges for placement, city, service, and status
+### Características del Panel de Administración
+- **Vista Previa de Imagen**:
+  - Vista previa del formulario: 128px de altura con relación 6:1
+  - Vista previa de lista: 320px de ancho × 128px de altura
+  - Información de dimensiones mostrada: "1200x200px (Relación 6:1)"
+- **Selector de Ciudad**: Dropdown dinámico solo con ciudades activas
+- **Selector de Servicio**: Visualización condicional basada en tipo de ubicación
+- **Métricas de Rendimiento**: Ver impresiones y clics para cada anuncio
+- **Acciones Rápidas**: Toggle activo/inactivo, editar, eliminar
+- **Indicadores de Estado Visual**: Insignias codificadas por color para ubicación, ciudad, servicio y estado
 
-### Database Schema
+### Esquema de Base de Datos
 ```prisma
 model Advertisement {
   id          String      @id @default(cuid())
   title       String
-  imageUrl    String      // 1200x200px images stored in Cloudinary
+  imageUrl    String      // Imágenes de 1200x200px almacenadas en Cloudinary
   linkUrl     String?
-  placement   AdPlacement // HOME or SERVICE
-  serviceId   String?     // For SERVICE placement
-  cityId      String      // Relation to CityConfig (required)
+  placement   AdPlacement // HOME o SERVICE
+  serviceId   String?     // Para ubicación SERVICE
+  cityId      String      // Relación a CityConfig (requerido)
   active      Boolean
   startDate   DateTime
   endDate     DateTime?
@@ -434,32 +434,32 @@ enum AdPlacement {
 }
 ```
 
-### Technical Implementation
-- **Component**: `components/ads/AdBanner.tsx`
-- **Image Editor**: `components/ads/ImageEditor.tsx` with react-image-crop
-- **API Routes**:
-  - `GET /api/ads` - Fetch ads by city and placement
-  - `POST /api/ads` - Create new ad
-  - `PATCH /api/ads/[id]` - Update ad
-  - `DELETE /api/ads/[id]` - Delete ad
-  - `POST /api/ads/track` - Track impressions and clicks
-- **Image Storage**: Cloudinary with automatic optimization
-- **Responsive Classes**: Tailwind CSS with h-full for proper scaling
+### Implementación Técnica
+- **Componente**: `components/ads/AdBanner.tsx`
+- **Editor de Imágenes**: `components/ads/ImageEditor.tsx` con react-image-crop
+- **Rutas API**:
+  - `GET /api/ads` - Obtener anuncios por ciudad y ubicación
+  - `POST /api/ads` - Crear nuevo anuncio
+  - `PATCH /api/ads/[id]` - Actualizar anuncio
+  - `DELETE /api/ads/[id]` - Eliminar anuncio
+  - `POST /api/ads/track` - Rastrear impresiones y clics
+- **Almacenamiento de Imágenes**: Cloudinary con optimización automática
+- **Clases Responsive**: Tailwind CSS con h-full para escalado apropiado
 
-## 🔒 Security Best Practices
+## 🔒 Mejores Prácticas de Seguridad
 
-- Never commit `.env` files
-- Rotate credentials regularly
-- Use strong passwords for production
-- Enable 2FA on all service accounts
-- Monitor logs for suspicious activity
-- Keep dependencies updated
-- Use HTTPS in production
+- Nunca hacer commit de archivos `.env`
+- Rotar credenciales regularmente
+- Usar contraseñas fuertes para producción
+- Habilitar 2FA en todas las cuentas de servicio
+- Monitorear logs para actividad sospechosa
+- Mantener dependencias actualizadas
+- Usar HTTPS en producción
 
-## 📝 License
+## 📝 Licencia
 
-This project is private and proprietary.
+Este proyecto es privado y propietario.
 
-## 🤝 Contributing
+## 🤝 Contribuir
 
-This is a private project. Contact the repository owner for contribution guidelines.
+Este es un proyecto privado. Contactar al propietario del repositorio para pautas de contribución.
