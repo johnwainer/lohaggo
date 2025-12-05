@@ -88,13 +88,6 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Ad Banner Section */}
-      <section className="py-8 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <AdBanner placement="HOME" className="h-32 md:h-40 lg:h-48" />
-        </div>
-      </section>
-
       {/* Categories Section - Estilo Rappi con scroll horizontal */}
       <section className="py-12 bg-white -mt-20 relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -175,6 +168,13 @@ export default async function Home() {
               <p className="text-gray-600 font-medium">Compara y elige la mejor opción</p>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Ad Banner Section */}
+      <section className="py-8 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <AdBanner placement="HOME" className="h-32 md:h-40 lg:h-48" />
         </div>
       </section>
 
