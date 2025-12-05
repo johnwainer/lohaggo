@@ -45,7 +45,7 @@ export async function PATCH(
 
     const { id } = await context.params
     const body = await request.json()
-    const { title, imageUrl, linkUrl, placement, serviceId, active, startDate, endDate, priority } = body
+    const { title, imageUrl, linkUrl, placement, serviceId, city, active, startDate, endDate, priority } = body
 
     const updateData: any = {}
     if (title !== undefined) updateData.title = title
@@ -66,6 +66,7 @@ export async function PATCH(
       }
     }
     if (serviceId !== undefined) updateData.serviceId = serviceId
+    if (city !== undefined) updateData.city = city
     if (active !== undefined) updateData.active = active
     if (startDate !== undefined) updateData.startDate = new Date(startDate)
     if (endDate !== undefined) updateData.endDate = endDate ? new Date(endDate) : null

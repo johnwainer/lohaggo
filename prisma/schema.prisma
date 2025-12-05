@@ -557,6 +557,7 @@ model Advertisement {
   linkUrl     String?
   placement   AdPlacement
   serviceId   String?
+  city        City
   active      Boolean           @default(true)
   startDate   DateTime          @default(now())
   endDate     DateTime?
@@ -569,6 +570,7 @@ model Advertisement {
 
   @@index([placement, active, startDate, endDate])
   @@index([serviceId])
+  @@index([city])
 }
 
 enum AdPlacement {
