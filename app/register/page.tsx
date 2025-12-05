@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Mail, Lock, User, Phone, MapPin, Check, ArrowRight, Sparkles, Shield, Zap } from 'lucide-react'
+import { Mail, Lock, User, Phone, MapPin, Check, ArrowRight, Sparkles, Shield, Zap, DollarSign, Clock, Users, Star } from 'lucide-react'
 import { useCity } from '@/lib/city-context'
 import { formatCurrency } from '@/lib/utils'
 
@@ -156,45 +156,93 @@ function RegisterForm() {
             <div className="space-y-4">
               <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full">
                 <Sparkles className="w-5 h-5" />
-                <span className="text-sm font-medium">Únete a la comunidad</span>
+                <span className="text-sm font-medium">
+                  {formData.role === 'PARTNER' ? 'Únete como profesional' : 'Únete a la comunidad'}
+                </span>
               </div>
               <h1 className="text-5xl font-bold leading-tight">
-                Comienza tu<br />
-                <span className="text-white/90">experiencia</span>
+                {formData.role === 'PARTNER' ? (
+                  <>
+                    Gana dinero<br />
+                    <span className="text-white/90">con tu talento</span>
+                  </>
+                ) : (
+                  <>
+                    Encuentra el<br />
+                    <span className="text-white/90">servicio perfecto</span>
+                  </>
+                )}
               </h1>
               <p className="text-xl text-white/80">
-                Crea tu cuenta y accede a miles de servicios profesionales verificados
+                {formData.role === 'PARTNER'
+                  ? 'Crea tu perfil profesional y conecta con miles de clientes que necesitan tus servicios'
+                  : 'Crea tu cuenta y accede a miles de servicios profesionales verificados en tu ciudad'
+                }
               </p>
             </div>
 
             <div className="space-y-4">
-              <div className="flex items-start gap-4 bg-white/10 backdrop-blur-sm p-4 rounded-2xl">
-                <div className="bg-white/20 p-3 rounded-xl">
-                  <Shield className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="font-semibold mb-1">Verificación Completa</h3>
-                  <p className="text-sm text-white/70">Todos nuestros profesionales están verificados y certificados</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-4 bg-white/10 backdrop-blur-sm p-4 rounded-2xl">
-                <div className="bg-white/20 p-3 rounded-xl">
-                  <Zap className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="font-semibold mb-1">Respuesta Rápida</h3>
-                  <p className="text-sm text-white/70">Recibe propuestas en minutos y elige la mejor opción</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-4 bg-white/10 backdrop-blur-sm p-4 rounded-2xl">
-                <div className="bg-white/20 p-3 rounded-xl">
-                  <User className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="font-semibold mb-1">Perfil Personalizado</h3>
-                  <p className="text-sm text-white/70">Gestiona tus servicios y pagos desde un solo lugar</p>
-                </div>
-              </div>
+              {formData.role === 'PARTNER' ? (
+                <>
+                  <div className="flex items-start gap-4 bg-white/10 backdrop-blur-sm p-4 rounded-2xl">
+                    <div className="bg-white/20 p-3 rounded-xl">
+                      <DollarSign className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold mb-1">Gana dinero extra</h3>
+                      <p className="text-sm text-white/70">Define tus tarifas y recibe pagos seguros después de cada servicio</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4 bg-white/10 backdrop-blur-sm p-4 rounded-2xl">
+                    <div className="bg-white/20 p-3 rounded-xl">
+                      <Clock className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold mb-1">Horarios flexibles</h3>
+                      <p className="text-sm text-white/70">Tú decides cuándo trabajar y qué trabajos aceptar según tu disponibilidad</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4 bg-white/10 backdrop-blur-sm p-4 rounded-2xl">
+                    <div className="bg-white/20 p-3 rounded-xl">
+                      <Users className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold mb-1">Miles de clientes</h3>
+                      <p className="text-sm text-white/70">Accede a una red de clientes verificados que buscan tus servicios</p>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-start gap-4 bg-white/10 backdrop-blur-sm p-4 rounded-2xl">
+                    <div className="bg-white/20 p-3 rounded-xl">
+                      <Shield className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold mb-1">Profesionales verificados</h3>
+                      <p className="text-sm text-white/70">Todos nuestros profesionales están verificados y certificados</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4 bg-white/10 backdrop-blur-sm p-4 rounded-2xl">
+                    <div className="bg-white/20 p-3 rounded-xl">
+                      <Zap className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold mb-1">Respuesta rápida</h3>
+                      <p className="text-sm text-white/70">Recibe propuestas en minutos y elige la mejor opción para ti</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-4 bg-white/10 backdrop-blur-sm p-4 rounded-2xl">
+                    <div className="bg-white/20 p-3 rounded-xl">
+                      <Star className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold mb-1">Mejores precios</h3>
+                      <p className="text-sm text-white/70">Compara múltiples opciones y elige la que mejor se ajuste a tu presupuesto</p>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
