@@ -13,6 +13,17 @@
 - **Direct Partner Requests**: Request services directly from specific partners
 - **Favorite Partners**: Save favorite partners for quick access
 
+### Advertising System
+- **Dynamic Ad Management**: Create and manage advertisements through admin panel
+- **Multiple Placements**: HOME (homepage) and SERVICE (service-specific pages)
+- **City Targeting**: Target ads to specific cities using CityConfig relation
+- **Service-Specific Ads**: Display ads on specific service pages
+- **Priority System**: Control ad display order with priority levels
+- **Performance Tracking**: Track impressions and clicks for each ad
+- **Image Editor**: Built-in image editor for creating ad banners
+- **Active/Inactive Control**: Enable or disable ads without deleting them
+- **Date Scheduling**: Set start and end dates for ad campaigns
+
 ### User System
 - **3 User Types**: Clients, Partners (Providers), and Administrators
 - **Secure Authentication** with NextAuth.js and bcrypt
@@ -258,6 +269,7 @@ Vercel will deploy automatically.
 - **Users**: Manage clients and partners
 - **Services**: Manage service catalog
 - **Cities**: Manage available cities
+- **Advertisements**: Create and manage ad campaigns with city and service targeting
 - **Verification**: Approve/reject partner documents
 
 ## 💰 Payment and Commission System
@@ -331,6 +343,54 @@ Commission rates are saved when the proposal is accepted:
 - **Quick Requests**: Request services directly from favorite partners
 - **Partner Details**: View partner services and verification status
 - **Easy Management**: Add/remove favorites with one click
+
+## 📢 Advertising System
+
+### Features
+- **Ad Management Panel**: Complete CRUD interface at `/admin/ads`
+- **Multiple Placements**:
+  - HOME: Display on homepage
+  - SERVICE: Display on specific service pages
+- **City Targeting**: Target ads to specific cities using dynamic CityConfig relation
+- **Service-Specific Ads**: Associate ads with specific services for targeted display
+- **Priority System**: Control display order with numeric priority (higher = shown first)
+- **Performance Tracking**:
+  - Impressions: Track how many times ad is displayed
+  - Clicks: Track user interactions with ads
+- **Image Editor**: Built-in editor for creating and editing ad banners
+- **Campaign Scheduling**:
+  - Set start dates for campaigns
+  - Optional end dates for time-limited promotions
+- **Active/Inactive Toggle**: Enable or disable ads without deleting them
+- **Responsive Display**: Ads adapt to different screen sizes
+- **Dynamic Loading**: Ads are fetched based on current city and page context
+
+### Ad Display Logic
+- **Homepage**: Shows all active HOME placement ads for the selected city
+- **Service Pages**: Shows SERVICE placement ads associated with that specific service and city
+- **City Filtering**: Only displays ads targeted to the user's currently selected city
+- **Priority Sorting**: Ads are displayed in order of priority (descending) then by creation date
+
+### Database Schema
+```prisma
+model Advertisement {
+  id          String      @id @default(cuid())
+  title       String
+  imageUrl    String
+  linkUrl     String?
+  placement   AdPlacement // HOME or SERVICE
+  serviceId   String?     // For SERVICE placement
+  cityId      String      // Relation to CityConfig
+  active      Boolean
+  startDate   DateTime
+  endDate     DateTime?
+  priority    Int
+  impressions Int
+  clicks      Int
+  service     Service?    @relation
+  city        CityConfig  @relation
+}
+```
 
 ## 🔒 Security Best Practices
 
