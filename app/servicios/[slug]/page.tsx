@@ -520,7 +520,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
         </div>
 
         {/* Ad Banner for this specific service */}
-        <AdBanner placement="SERVICE" serviceId={service.id} className="mb-6 md:mb-8" />
+        <AdBanner placement="SERVICE" serviceId={service.id} className="mb-6 md:mb-8 h-48 md:h-64 lg:h-80" />
 
         {/* Booking Button - Only show if partners available */}
         {service.partners.length > 0 && (
