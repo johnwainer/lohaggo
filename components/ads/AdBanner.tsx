@@ -118,10 +118,10 @@ export default function AdBanner({ placement, serviceId, className = '' }: AdBan
 
   return (
     <div className={`relative animate-fade-in ${className}`}>
-      <div className="relative group">
+      <div className="relative group h-full">
         <div
           onClick={() => handleAdClick(currentAd)}
-          className={`relative overflow-hidden rounded-2xl shadow-lg ${
+          className={`relative overflow-hidden rounded-2xl shadow-lg h-full ${
             currentAd.linkUrl ? 'cursor-pointer' : ''
           } transition-transform hover:scale-[1.02]`}
         >
