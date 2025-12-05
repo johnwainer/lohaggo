@@ -2,6 +2,7 @@
 
 import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, LogOut, Menu, X, Shield, DollarSign, Wallet, MapPin, CreditCard, ChevronDown, ChevronRight, Percent, Megaphone } from 'lucide-react'
 import Link from 'next/link'
+import { useRouter, usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import { useState, useEffect } from 'react'
 
@@ -26,6 +27,8 @@ interface MenuItem {
 export default function Sidebar({ activeSection, onSectionChange }: SidebarProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [expandedGroups, setExpandedGroups] = useState<string[]>([])
+  const router = useRouter()
+  const pathname = usePathname()
 
   const menuGroups: MenuGroup[] = [
     {
@@ -87,7 +90,13 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
   }, [activeSection])
 
   const handleSectionChange = (section: string) => {
-    onSectionChange(section)
+    // If we're on the main admin page, use the callback
+    if (pathname === '/admin') {
+      onSectionChange(section)
+    } else {
+      // If we're on a subpage, navigate to /admin first
+      router.push('/admin')
+    }
     setIsOpen(false)
   }
 
