@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Mail, Lock, User, Phone, MapPin, Check, ArrowRight } from 'lucide-react'
+import { Mail, Lock, User, Phone, MapPin, Check, ArrowRight, Sparkles, Shield, Zap } from 'lucide-react'
 import { useCity } from '@/lib/city-context'
 import { formatCurrency } from '@/lib/utils'
 
@@ -145,21 +145,68 @@ function RegisterForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#FF2D55] via-[#FF6B8A] to-[#FFB4C6] relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-[#FF2D55] via-[#FF3D00] to-[#FF6900] relative overflow-hidden">
       <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10"></div>
       <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl translate-x-1/2 -translate-y-1/2 animate-pulse"></div>
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-x-1/2 translate-y-1/2 animate-pulse delay-1000"></div>
 
       <div className="relative min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-2xl w-full">
-          <div className="bg-white rounded-3xl shadow-2xl p-8 sm:p-10 backdrop-blur-sm animate-slide-up">
-            <div className="text-center mb-8">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-[#FF2D55] to-[#FF6B8A] rounded-2xl mb-4 shadow-lg">
-                <User className="w-8 h-8 text-white" />
+        <div className="max-w-6xl w-full grid lg:grid-cols-2 gap-8 items-center">
+          <div className="hidden lg:block text-white space-y-8 animate-fade-in">
+            <div className="space-y-4">
+              <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full">
+                <Sparkles className="w-5 h-5" />
+                <span className="text-sm font-medium">Únete a la comunidad</span>
               </div>
-              <h2 className="text-3xl font-bold text-gray-900">Crear cuenta</h2>
-              <p className="mt-2 text-gray-600">Únete a nuestra plataforma y comienza hoy</p>
+              <h1 className="text-5xl font-bold leading-tight">
+                Comienza tu<br />
+                <span className="text-white/90">experiencia</span>
+              </h1>
+              <p className="text-xl text-white/80">
+                Crea tu cuenta y accede a miles de servicios profesionales verificados
+              </p>
             </div>
+
+            <div className="space-y-4">
+              <div className="flex items-start gap-4 bg-white/10 backdrop-blur-sm p-4 rounded-2xl">
+                <div className="bg-white/20 p-3 rounded-xl">
+                  <Shield className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-semibold mb-1">Verificación Completa</h3>
+                  <p className="text-sm text-white/70">Todos nuestros profesionales están verificados y certificados</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-4 bg-white/10 backdrop-blur-sm p-4 rounded-2xl">
+                <div className="bg-white/20 p-3 rounded-xl">
+                  <Zap className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-semibold mb-1">Respuesta Rápida</h3>
+                  <p className="text-sm text-white/70">Recibe propuestas en minutos y elige la mejor opción</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-4 bg-white/10 backdrop-blur-sm p-4 rounded-2xl">
+                <div className="bg-white/20 p-3 rounded-xl">
+                  <User className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-semibold mb-1">Perfil Personalizado</h3>
+                  <p className="text-sm text-white/70">Gestiona tus servicios y pagos desde un solo lugar</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="w-full">
+            <div className="bg-white rounded-3xl shadow-2xl p-8 sm:p-10 backdrop-blur-sm animate-slide-up">
+              <div className="text-center mb-8">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-[#FF2D55] via-[#FF3D00] to-[#FF6900] rounded-2xl mb-4 shadow-lg">
+                  <User className="w-8 h-8 text-white" />
+                </div>
+                <h2 className="text-3xl font-bold text-gray-900">Crear cuenta</h2>
+                <p className="mt-2 text-gray-600">Únete a nuestra plataforma y comienza hoy</p>
+              </div>
 
             {error && (
               <div className="mb-6 bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded-lg">
@@ -424,7 +471,7 @@ function RegisterForm() {
             <button
               type="submit"
               disabled={loading || !acceptedTerms}
-              className="w-full bg-gradient-to-r from-[#FF2D55] to-[#FF6B8A] text-white py-4 rounded-xl hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 group"
+              className="w-full bg-gradient-to-r from-[#FF2D55] via-[#FF3D00] to-[#FF6900] text-white py-4 rounded-xl hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 group"
             >
               {loading ? (
                 <>
@@ -448,9 +495,10 @@ function RegisterForm() {
               </Link>
             </p>
           </div>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
     </div>
   )
 }
@@ -459,7 +507,7 @@ export default function RegisterPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-gradient-to-br from-[#FF2D55] via-[#FF6B8A] to-[#FFB4C6] flex items-center justify-center">
+        <div className="min-h-screen bg-gradient-to-br from-[#FF2D55] via-[#FF3D00] to-[#FF6900] flex items-center justify-center">
           <div className="relative">
             <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-white"></div>
             <div className="absolute inset-0 rounded-full h-16 w-16 border-t-4 border-white/30 animate-pulse"></div>
