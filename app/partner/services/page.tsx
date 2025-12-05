@@ -130,6 +130,11 @@ export default function ServicesManagementPage() {
   }
 
   const handleAddService = async (service: Service) => {
+    if (activeServices.length >= 5) {
+      showMessage('error', 'Solo puedes ofrecer un máximo de 5 servicios')
+      return
+    }
+
     try {
       const res = await fetch('/api/partner/services', {
         method: 'POST',
@@ -450,8 +455,19 @@ export default function ServicesManagementPage() {
               <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                 <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
                   <div className="p-6 border-b border-gray-200">
-                    <h2 className="text-2xl font-bold">Agregar Servicio</h2>
-                    <p className="text-gray-600 mt-1">Selecciona un servicio para agregar a tu perfil</p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h2 className="text-2xl font-bold">Agregar Servicio</h2>
+                        <p className="text-gray-600 mt-1">Selecciona un servicio para agregar a tu perfil (máximo 5)</p>
+                      </div>
+                      <span className={`text-sm font-medium px-3 py-1 rounded-full ${
+                        activeServices.length >= 5
+                          ? 'bg-red-100 text-red-700'
+                          : 'bg-blue-100 text-blue-700'
+                      }`}>
+                        {activeServices.length}/5 servicios
+                      </span>
+                    </div>
                   </div>
 
                   <div className="p-6 border-b border-gray-200">
@@ -497,42 +513,53 @@ export default function ServicesManagementPage() {
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {filteredServices.map((service) => (
-                          <div
-                            key={service.id}
-                            className={`border rounded-lg p-4 cursor-pointer transition ${
-                              service.isActive
-                                ? 'border-green-500 bg-green-50'
-                                : 'border-gray-200 hover:border-primary-500 hover:bg-primary-50'
-                            }`}
-                            onClick={() => !service.isActive && handleAddService(service)}
-                          >
-                            <div className="flex items-start gap-3">
-                              <div className="text-3xl emoji-icon">{service.icon}</div>
-                              <div className="flex-1">
-                                <h3 className="font-semibold text-gray-900">{service.name}</h3>
-                                <p className="text-sm text-gray-600 mt-1">{service.description}</p>
-                                <div className="flex items-center gap-3 mt-2">
-                                  <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
-                                    {service.category.name}
-                                  </span>
-                                  <span className="text-xs text-gray-500">
-                                    {service.duration} min
-                                  </span>
-                                  <span className="text-xs font-semibold text-primary-600">
-                                    {formatCurrency(service.basePrice)}
-                                  </span>
-                                </div>
-                                {service.isActive && (
-                                  <div className="mt-2 flex items-center gap-1 text-green-600 text-sm">
-                                    <CheckCircle size={16} />
-                                    <span>Ya agregado</span>
+                        {filteredServices.map((service) => {
+                          const isDisabled = !service.isActive && activeServices.length >= 5
+                          return (
+                            <div
+                              key={service.id}
+                              className={`border rounded-lg p-4 transition ${
+                                service.isActive
+                                  ? 'border-green-500 bg-green-50'
+                                  : isDisabled
+                                  ? 'border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed'
+                                  : 'border-gray-200 hover:border-primary-500 hover:bg-primary-50 cursor-pointer'
+                              }`}
+                              onClick={() => !service.isActive && !isDisabled && handleAddService(service)}
+                            >
+                              <div className="flex items-start gap-3">
+                                <div className="text-3xl emoji-icon">{service.icon}</div>
+                                <div className="flex-1">
+                                  <h3 className="font-semibold text-gray-900">{service.name}</h3>
+                                  <p className="text-sm text-gray-600 mt-1">{service.description}</p>
+                                  <div className="flex items-center gap-3 mt-2">
+                                    <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
+                                      {service.category.name}
+                                    </span>
+                                    <span className="text-xs text-gray-500">
+                                      {service.duration} min
+                                    </span>
+                                    <span className="text-xs font-semibold text-primary-600">
+                                      {formatCurrency(service.basePrice)}
+                                    </span>
                                   </div>
-                                )}
+                                  {service.isActive && (
+                                    <div className="mt-2 flex items-center gap-1 text-green-600 text-sm">
+                                      <CheckCircle size={16} />
+                                      <span>Ya agregado</span>
+                                    </div>
+                                  )}
+                                  {isDisabled && (
+                                    <div className="mt-2 flex items-center gap-1 text-gray-500 text-sm">
+                                      <AlertCircle size={16} />
+                                      <span>Límite de servicios alcanzado</span>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     )}
                   </div>

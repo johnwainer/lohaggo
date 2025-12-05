@@ -136,25 +136,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Perfil de partner no encontrado' }, { status: 404 })
     }
 
-    // Usar valores por defecto si no se proporcionan
-    const defaultPrice = price !== undefined && price !== null ? parseFloat(price) : service.basePrice
-    const defaultCity = city && city.trim() !== '' ? city : 'MEDELLIN'
+    // Verificar que el partner no tenga más de 5 servicios activos
+    const activeServicesCount = await prisma.partnerService.count({
+      where: {
+        partnerId: partnerProfile.id,
+        active: true
+      }
+    })
 
-    // Verificar si ya existe
+    // Verificar si ya existe este servicio
     const existing = await prisma.partnerService.findUnique({
       where: {
         partnerId_serviceId: {
           partnerId: partnerProfile.id,
           serviceId: serviceId
         }
-        // Si existe, al actualizar usar los valores por defecto:
-        // data: {
-        //   price: defaultPrice,
-        //   city: defaultCity,
-        //   active: active !== undefined ? active : true
-        // },
       }
     })
+
+    // Si no existe y ya tiene 5 servicios activos, no permitir agregar más
+    if (!existing && activeServicesCount >= 5) {
+      return NextResponse.json({
+        error: 'No puedes ofrecer más de 5 servicios. Elimina uno para agregar otro.'
+      }, { status: 400 })
+    }
+
+    // Usar valores por defecto si no se proporcionan
+    const defaultPrice = price !== undefined && price !== null ? parseFloat(price) : service.basePrice
+    const defaultCity = city && city.trim() !== '' ? city : 'MEDELLIN'
 
     let partnerService
 
