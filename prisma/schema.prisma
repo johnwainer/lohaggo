@@ -9,19 +9,19 @@ datasource db {
 }
 
 model User {
-  id                    String            @id @default(cuid())
-  email                 String            @unique
+  id                    String           @id @default(cuid())
+  email                 String           @unique
   name                  String
   password              String
   phone                 String?
   image                 String?
-  role                  UserRole          @default(CLIENT)
+  role                  UserRole         @default(CLIENT)
   pushSubscription      String?
-  clientRating          Float             @default(0)
-  clientTotalReviews    Int               @default(0)
-  createdAt             DateTime          @default(now())
-  updatedAt             DateTime          @updatedAt
-  mercadopagoCustomerId String?           @unique
+  clientRating          Float            @default(0)
+  clientTotalReviews    Int              @default(0)
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+  mercadopagoCustomerId String?          @unique
   addresses             Address[]
   bookings              Booking[]
   notifications         Notification[]
@@ -29,31 +29,31 @@ model User {
   payments              Payment[]
   paymentMethods        PaymentMethod[]
   serviceRequests       ServiceRequest[]
-  clientChats           Chat[]            @relation("ClientChats")
+  clientChats           Chat[]           @relation("ClientChats")
   favoritePartners      FavoritePartner[]
 }
 
 model PartnerProfile {
-  id             String                 @id @default(cuid())
-  userId         String                 @unique
-  bio            String?
-  rating         Float                  @default(0)
-  totalReviews   Int                    @default(0)
-  verified       Boolean                @default(false)
-  city           City                   @default(MEDELLIN)
-  createdAt      DateTime               @default(now())
-  updatedAt      DateTime               @updatedAt
-  availability   Availability[]
-  bookings       Booking[]
-  achievements   PartnerAchievement[]
-  user           User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  services       PartnerService[]
-  payouts        Payout[]
-  proposals      Proposal[]
-  documents      VerificationDocument[]
-  partnerChats   Chat[]                 @relation("PartnerChats")
-  directRequests ServiceRequest[]       @relation("DirectRequests")
-  favoritedBy    FavoritePartner[]
+  id           String                 @id @default(cuid())
+  userId       String                 @unique
+  bio          String?
+  rating       Float                  @default(0)
+  totalReviews Int                    @default(0)
+  verified     Boolean                @default(false)
+  city         City                   @default(MEDELLIN)
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+  availability Availability[]
+  bookings     Booking[]
+  achievements PartnerAchievement[]
+  user         User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  services     PartnerService[]
+  payouts      Payout[]
+  proposals    Proposal[]
+  documents    VerificationDocument[]
+  partnerChats Chat[]                 @relation("PartnerChats")
+  directRequests ServiceRequest[]     @relation("DirectRequests")
+  favoritedBy  FavoritePartner[]
 }
 
 model Category {
@@ -489,18 +489,18 @@ enum PayoutStatus {
 }
 
 model Chat {
-  id               String         @id @default(cuid())
+  id               String          @id @default(cuid())
   serviceRequestId String
-  proposalId       String         @unique
+  proposalId       String          @unique
   clientId         String
   partnerId        String
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
   messages         ChatMessage[]
-  serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id])
-  proposal         Proposal       @relation(fields: [proposalId], references: [id])
-  client           User           @relation("ClientChats", fields: [clientId], references: [id])
-  partner          PartnerProfile @relation("PartnerChats", fields: [partnerId], references: [id])
+  serviceRequest   ServiceRequest  @relation(fields: [serviceRequestId], references: [id])
+  proposal         Proposal        @relation(fields: [proposalId], references: [id])
+  client           User            @relation("ClientChats", fields: [clientId], references: [id])
+  partner          PartnerProfile  @relation("PartnerChats", fields: [partnerId], references: [id])
 
   @@unique([serviceRequestId, clientId, partnerId])
   @@index([clientId])
@@ -522,18 +522,18 @@ model ChatMessage {
 }
 
 model PaymentConfig {
-  id                     String             @id @default(cuid())
-  environment            PaymentEnvironment @default(TEST)
-  testAccessToken        String?
-  testPublicKey          String?
-  testClientId           String?
-  testClientSecret       String?
-  productionAccessToken  String?
-  productionPublicKey    String?
-  productionClientId     String?
-  productionClientSecret String?
-  createdAt              DateTime           @default(now())
-  updatedAt              DateTime           @updatedAt
+  id                        String              @id @default(cuid())
+  environment               PaymentEnvironment  @default(TEST)
+  testAccessToken           String?
+  testPublicKey             String?
+  testClientId              String?
+  testClientSecret          String?
+  productionAccessToken     String?
+  productionPublicKey       String?
+  productionClientId        String?
+  productionClientSecret    String?
+  createdAt                 DateTime            @default(now())
+  updatedAt                 DateTime            @updatedAt
 }
 
 model FavoritePartner {
@@ -550,19 +550,19 @@ model FavoritePartner {
 }
 
 model Advertisement {
-  id          String      @id @default(cuid())
+  id          String            @id @default(cuid())
   title       String
   imageUrl    String
   linkUrl     String?
   placement   AdPlacement
-  active      Boolean     @default(true)
-  startDate   DateTime    @default(now())
+  active      Boolean           @default(true)
+  startDate   DateTime          @default(now())
   endDate     DateTime?
-  priority    Int         @default(0)
-  impressions Int         @default(0)
-  clicks      Int         @default(0)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  priority    Int               @default(0)
+  impressions Int               @default(0)
+  clicks      Int               @default(0)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
   @@index([placement, active, startDate, endDate])
 }
