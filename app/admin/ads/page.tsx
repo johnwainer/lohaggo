@@ -86,7 +86,7 @@ export default function AdsAdminPage() {
 
   const fetchAds = async () => {
     try {
-      const response = await fetch('/api/ads')
+      const response = await fetch('/api/ads?admin=true')
       const data = await response.json()
       setAds(data)
     } catch (error) {
@@ -440,21 +440,32 @@ export default function AdsAdminPage() {
           ads.map((ad) => (
             <div
               key={ad.id}
-              className="bg-white rounded-2xl shadow-md p-6 hover:shadow-lg transition-shadow"
+              className={`bg-white rounded-2xl shadow-md p-6 hover:shadow-lg transition-all ${
+                !ad.active ? 'opacity-60 border-2 border-gray-300' : ''
+              }`}
             >
               <div className="flex gap-6">
-                <div className="w-80 h-32 flex-shrink-0">
+                <div className="w-80 h-32 flex-shrink-0 relative">
                   <img
                     src={ad.imageUrl}
                     alt={ad.title}
-                    className="w-full h-full object-cover rounded-xl"
+                    className={`w-full h-full object-cover rounded-xl ${
+                      !ad.active ? 'grayscale' : ''
+                    }`}
                   />
+                  {!ad.active && (
+                    <div className="absolute inset-0 bg-black bg-opacity-40 rounded-xl flex items-center justify-center">
+                      <span className="text-white font-bold text-lg">INACTIVO</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex-1">
                   <div className="flex items-start justify-between mb-3">
                     <div>
-                      <h3 className="text-xl font-bold text-gray-900">{ad.title}</h3>
+                      <h3 className={`text-xl font-bold ${ad.active ? 'text-gray-900' : 'text-gray-500'}`}>
+                        {ad.title}
+                      </h3>
                       <div className="flex items-center gap-3 mt-2 flex-wrap">
                         <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">
                           {ad.placement}
