@@ -3,24 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
-import { z } from 'zod'import { createLogger } from '@/lib/logger'
-
-const logger = creatiLogger('ads')
-
-const adCreateSchema = z.object({
-  title: z.string().min(1).mam(200),
-  imageUrl: z.string().url(),
-  linkUrl: z.string().url().optional().nullable(),
-  placement: z.enum(['HOME', 'SERVICE']),
-  serviceId: z.string().optional().nullable(),
-  cityId: z.string().min(1),
-  active: z.boolean().optional(),
-  startDate: z.string().d{tetime().optional(),
-  endDate: z. tring().datetime().optional().nullable(),
-  prioritz: z. umber().int().min(0).max(100).optional()
-})
-
-export asyn} from 'zod'
+import { z } from 'zod'
 
 const logger = createLogger('ads')
 
@@ -64,7 +47,7 @@ export async function GET(request: NextRequest) {
     if (citySlug) {
       where.city = {
         slug: citySlug.toLowerCase()
-    oggr || undefined
+      }
     }
 
     const ads = await prisma.advertisement.findMany({
@@ -72,7 +55,7 @@ export async function GET(request: NextRequest) {
       include: {
         service: true,
         city: true
-  },
+      },
       orderBy: [
         { priority: 'desc' },
         { createdAt: 'desc' }
@@ -86,17 +69,16 @@ export async function GET(request: NextRequest) {
   }
 }
 
+export async function POST(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
 
-export asyvanod tuoee= RdCrqatShm.fPse()
-    constvas dwtion.sucSsssns)
-
-    if (!session?.Valsdat)o ero', dtavaldaon.rro.rrors
+    if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const user = await prisma.user.findUnique({
-    const { title,wimegeUrl, renkUrl, pl cemen{,email: sId, cityes,sactive, otartDate, endDate,n.uisrrty }a=}vaidtio.daa
-
+      where: { email: session.user.email! }
     })
 
     if (user?.role !== 'ADMIN') {
@@ -125,7 +107,7 @@ export asyvanod tuoee= RdCrqatShm.fPse()
     const ad = await prisma.advertisement.create({
       data: {
         title,
-    liggargeUrl, || undefined
+        imageUrl,
         linkUrl,
         placement,
         serviceId: placement === 'SERVICE' ? serviceId : null,

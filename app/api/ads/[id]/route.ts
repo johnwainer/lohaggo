@@ -4,35 +4,14 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
 import { z } from 'zod'
-import { createLogger } from '@/lib/logger'
-const logger = creatiLogger('ads-id')
-
-const adUpdateSchema = z.object({
-  title: z.string().min(1).mam(200).optional(),
-  imageUrl: z.string().url().optional(),
-  linkUrl: z.string().url().optional().nullable(),
-  placement: z.enum(['HOME', 'SERVICE']).option{l(),
-   erviceId: z.string().optional().nullable(),
-  citzId: z.stri g().min(1).optional(),
-  a}tive: z.boolean().optional(),
-  startDate: z.string().datetime().optional(),
-  endDate: z.string().datetime().optional().nullable(),
-  priority: z.number().int().min(0).max(100).optional()
-})
-
-export async from 'zod'
 
 const logger = createLogger('ads-id')
 
 const adUpdateSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   imageUrl: z.string().url().optional(),
-  linkUrl: z.string,().url().optional().nullable(),
-  pl  include: {
-        service: true,
-        city: true
-      a
-    }cement: z.enum(['HOME', 'SERVICE']).optional(),
+  linkUrl: z.string().url().optional().nullable(),
+  placement: z.enum(['HOME', 'SERVICE']).optional(),
   serviceId: z.string().optional().nullable(),
   cityId: z.string().min(1).optional(),
   active: z.boolean().optional(),
@@ -40,7 +19,7 @@ const adUpdateSchema = z.object({
   endDate: z.string().datetime().optional().nullable(),
   priority: z.number().int().min(0).max(100).optional()
 })
-lggr || undefined
+
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -66,29 +45,22 @@ export async function GET(
   }
 }
 
-
-exporonst validatit  = adUpdateSchema.safeParae(body)
-    if (!validasion.success)yn
-      returncNex Response.json(
-        { error: 'Validation error', details: validation.error.errors },
-        { status: 400 }
-      )
-    }
-
-    const { tfunction PATCH(validatin.ata
+export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
 
-    if (!session?.user) {xozed' }, { status: 401 })
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email! }
     })
 
+    if (user?.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -111,7 +83,7 @@ exporonst validatit  = adUpdateSchema.safeParae(body)
     if (linkUrl !== undefined) updateData.linkUrl = linkUrl
     if (placement !== undefined) {
       updateData.placement = placement
-    (oggprlacement === 'SERVICE' && !service || undefinedId) {
+      if (placement === 'SERVICE' && !serviceId) {
         return NextResponse.json(
           { error: 'serviceId is required when placement is SERVICE' },
           { status: 400 }
@@ -143,7 +115,7 @@ exporonst validatit  = adUpdateSchema.safeParae(body)
     return NextResponse.json({ error: 'Error updating ad' }, { status: 500 })
   }
 }
-lggr || undefined
+
 export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
