@@ -69,6 +69,12 @@ function RegisterForm() {
   const toggleService = (slug: string) => {
     setFormData((prev) => {
       const alreadySelected = prev.services.includes(slug)
+
+      if (!alreadySelected && prev.services.length >= 5) {
+        alert('Solo puedes seleccionar un máximo de 5 servicios')
+        return prev
+      }
+
       return {
         ...prev,
         services: alreadySelected
@@ -291,10 +297,10 @@ function RegisterForm() {
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <label className="block text-sm font-medium text-gray-700">
-                      Servicios que ofreces
+                      Servicios que ofreces (máximo 5)
                     </label>
-                    <span className="text-xs text-gray-500">
-                      {formData.services.length} seleccionados
+                    <span className={`text-xs font-medium ${formData.services.length >= 5 ? 'text-red-600' : 'text-gray-500'}`}>
+                      {formData.services.length}/5 seleccionados
                     </span>
                   </div>
                   <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-xl divide-y">
@@ -305,14 +311,18 @@ function RegisterForm() {
                     ) : (
                       servicesCatalog.map((service) => {
                         const selected = formData.services.includes(service.slug)
+                        const isDisabled = !selected && formData.services.length >= 5
                         return (
                           <button
                             key={service.id}
                             type="button"
                             onClick={() => toggleService(service.slug)}
+                            disabled={isDisabled}
                             className={`w-full flex items-center justify-between px-4 py-3 text-left transition ${
                               selected
                                 ? 'bg-[#FF2D55]/5 text-[#FF2D55] font-semibold'
+                                : isDisabled
+                                ? 'bg-gray-50 opacity-50 cursor-not-allowed'
                                 : 'hover:bg-gray-50'
                             }`}
                           >
