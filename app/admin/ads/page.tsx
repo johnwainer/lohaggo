@@ -10,6 +10,13 @@ interface Service {
   slug: string
 }
 
+interface City {
+  id: string
+  name: string
+  slug: string
+  status: string
+}
+
 interface Advertisement {
   id: string
   title: string
@@ -17,7 +24,7 @@ interface Advertisement {
   linkUrl: string | null
   placement: 'HOME' | 'SERVICE'
   serviceId: string | null
-  city: 'MEDELLIN' | 'BOGOTA' | 'CALI' | 'BARRANQUILLA'
+  cityId: string
   active: boolean
   startDate: string
   endDate: string | null
@@ -27,11 +34,13 @@ interface Advertisement {
   createdAt: string
   updatedAt: string
   service?: Service
+  city?: City
 }
 
 export default function AdsAdminPage() {
   const [ads, setAds] = useState<Advertisement[]>([])
   const [services, setServices] = useState<Service[]>([])
+  const [cities, setCities] = useState<City[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [showImageEditor, setShowImageEditor] = useState(false)
@@ -42,7 +51,7 @@ export default function AdsAdminPage() {
     linkUrl: '',
     placement: 'HOME' as 'HOME' | 'SERVICE',
     serviceId: '',
-    city: 'MEDELLIN' as 'MEDELLIN' | 'BOGOTA' | 'CALI' | 'BARRANQUILLA',
+    cityId: '',
     active: true,
     startDate: new Date().toISOString().split('T')[0],
     endDate: '',
@@ -52,7 +61,18 @@ export default function AdsAdminPage() {
   useEffect(() => {
     fetchAds()
     fetchServices()
+    fetchCities()
   }, [])
+
+  const fetchCities = async () => {
+    try {
+      const response = await fetch('/api/cities')
+      const data = await response.json()
+      setCities(data.filter((city: City) => city.status === 'ACTIVE'))
+    } catch (error) {
+      console.error('Error fetching cities:', error)
+    }
+  }
 
   const fetchServices = async () => {
     try {
@@ -143,7 +163,7 @@ export default function AdsAdminPage() {
       linkUrl: ad.linkUrl || '',
       placement: ad.placement,
       serviceId: ad.serviceId || '',
-      city: ad.city,
+      cityId: ad.cityId,
       active: ad.active,
       startDate: ad.startDate.split('T')[0],
       endDate: ad.endDate ? ad.endDate.split('T')[0] : '',
@@ -161,7 +181,7 @@ export default function AdsAdminPage() {
       linkUrl: '',
       placement: 'HOME',
       serviceId: '',
-      city: 'MEDELLIN',
+      cityId: '',
       active: true,
       startDate: new Date().toISOString().split('T')[0],
       endDate: '',
@@ -291,15 +311,17 @@ export default function AdsAdminPage() {
                   Ciudad
                 </label>
                 <select
-                  value={formData.city}
-                  onChange={(e) => setFormData({ ...formData, city: e.target.value as any })}
+                  value={formData.cityId}
+                  onChange={(e) => setFormData({ ...formData, cityId: e.target.value })}
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent"
                   required
                 >
-                  <option value="MEDELLIN">Medellín</option>
-                  <option value="BOGOTA">Bogotá</option>
-                  <option value="CALI">Cali</option>
-                  <option value="BARRANQUILLA">Barranquilla</option>
+                  <option value="">Selecciona una ciudad</option>
+                  {cities.map((city) => (
+                    <option key={city.id} value={city.id}>
+                      {city.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -432,7 +454,7 @@ export default function AdsAdminPage() {
                           {ad.placement}
                         </span>
                         <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-semibold">
-                          {ad.city === 'MEDELLIN' ? 'Medellín' : ad.city === 'BOGOTA' ? 'Bogotá' : ad.city === 'CALI' ? 'Cali' : 'Barranquilla'}
+                          {ad.city?.name || 'Sin ciudad'}
                         </span>
                         {ad.service && (
                           <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-semibold">

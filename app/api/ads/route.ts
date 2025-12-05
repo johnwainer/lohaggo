@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const placement = searchParams.get('placement')
     const serviceId = searchParams.get('serviceId')
-    const city = searchParams.get('city')
+    const citySlug = searchParams.get('city')
 
     const where: any = {
       active: true,
@@ -27,14 +27,17 @@ export async function GET(request: NextRequest) {
       where.serviceId = serviceId
     }
 
-    if (city) {
-      where.city = city
+    if (citySlug) {
+      where.city = {
+        slug: citySlug.toLowerCase()
+      }
     }
 
     const ads = await prisma.advertisement.findMany({
       where,
       include: {
-        service: true
+        service: true,
+        city: true
       },
       orderBy: [
         { priority: 'desc' },
@@ -66,11 +69,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, imageUrl, linkUrl, placement, serviceId, city, active, startDate, endDate, priority } = body
+    const { title, imageUrl, linkUrl, placement, serviceId, cityId, active, startDate, endDate, priority } = body
 
-    if (!title || !imageUrl || !placement || !city) {
+    if (!title || !imageUrl || !placement || !cityId) {
       return NextResponse.json(
-        { error: 'Missing required fields: title, imageUrl, placement, city' },
+        { error: 'Missing required fields: title, imageUrl, placement, cityId' },
         { status: 400 }
       )
     }
@@ -90,14 +93,15 @@ export async function POST(request: NextRequest) {
         linkUrl,
         placement,
         serviceId: placement === 'SERVICE' ? serviceId : null,
-        city,
+        cityId,
         active: active ?? true,
         startDate: startDate ? new Date(startDate) : new Date(),
         endDate: endDate ? new Date(endDate) : null,
         priority: priority ?? 0
       },
       include: {
-        service: true
+        service: true,
+        city: true
       }
     })
 
