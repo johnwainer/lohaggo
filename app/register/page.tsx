@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Mail, Lock, User, Phone, MapPin, Check } from 'lucide-react'
+import { Mail, Lock, User, Phone, MapPin, Check, ArrowRight } from 'lucide-react'
 import { useCity } from '@/lib/city-context'
 import { formatCurrency } from '@/lib/utils'
 
@@ -145,154 +145,178 @@ function RegisterForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full">
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-gray-900">Crear cuenta</h2>
-            <p className="mt-2 text-gray-600">Únete a nuestra plataforma</p>
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-[#FF2D55] via-[#FF6B8A] to-[#FFB4C6] relative overflow-hidden">
+      <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10"></div>
+      <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl translate-x-1/2 -translate-y-1/2 animate-pulse"></div>
+      <div className="absolute bottom-0 left-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-x-1/2 translate-y-1/2 animate-pulse delay-1000"></div>
 
-          {error && (
-            <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Tipo de cuenta
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, role: 'CLIENT' })}
-                  className={`py-3 px-4 rounded-lg border-2 transition ${
-                    formData.role === 'CLIENT'
-                      ? 'border-primary-600 bg-primary-50 text-primary-700'
-                      : 'border-gray-300 hover:border-gray-400'
-                  }`}
-                >
-                  Cliente
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, role: 'PARTNER' })}
-                  className={`py-3 px-4 rounded-lg border-2 transition ${
-                    formData.role === 'PARTNER'
-                      ? 'border-primary-600 bg-primary-50 text-primary-700'
-                      : 'border-gray-300 hover:border-gray-400'
-                  }`}
-                >
-                  Socio
-                </button>
+      <div className="relative min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-2xl w-full">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 sm:p-10 backdrop-blur-sm animate-slide-up">
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-[#FF2D55] to-[#FF6B8A] rounded-2xl mb-4 shadow-lg">
+                <User className="w-8 h-8 text-white" />
               </div>
+              <h2 className="text-3xl font-bold text-gray-900">Crear cuenta</h2>
+              <p className="mt-2 text-gray-600">Únete a nuestra plataforma y comienza hoy</p>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nombre completo
-              </label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                  placeholder="Juan Pérez"
-                />
+            {error && (
+              <div className="mb-6 bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded-lg">
+                <p className="text-sm font-medium">{error}</p>
               </div>
-            </div>
+            )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                <input
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                  placeholder="tu@email.com"
-                />
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  Tipo de cuenta
+                </label>
+                <div className="grid grid-cols-2 gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, role: 'CLIENT' })}
+                    className={`relative py-4 px-4 rounded-xl border-2 transition-all ${
+                      formData.role === 'CLIENT'
+                        ? 'border-[#FF2D55] bg-[#FF2D55]/5 shadow-lg scale-105'
+                        : 'border-gray-200 hover:border-gray-300 hover:shadow-md'
+                    }`}
+                  >
+                    <div className="flex flex-col items-center gap-2">
+                      <User className={`w-6 h-6 ${formData.role === 'CLIENT' ? 'text-[#FF2D55]' : 'text-gray-400'}`} />
+                      <span className={`font-semibold ${formData.role === 'CLIENT' ? 'text-[#FF2D55]' : 'text-gray-700'}`}>
+                        Cliente
+                      </span>
+                    </div>
+                    {formData.role === 'CLIENT' && (
+                      <div className="absolute -top-2 -right-2 w-6 h-6 bg-[#FF2D55] rounded-full flex items-center justify-center">
+                        <Check className="w-4 h-4 text-white" />
+                      </div>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, role: 'PARTNER' })}
+                    className={`relative py-4 px-4 rounded-xl border-2 transition-all ${
+                      formData.role === 'PARTNER'
+                        ? 'border-[#FF2D55] bg-[#FF2D55]/5 shadow-lg scale-105'
+                        : 'border-gray-200 hover:border-gray-300 hover:shadow-md'
+                    }`}
+                  >
+                    <div className="flex flex-col items-center gap-2">
+                      <User className={`w-6 h-6 ${formData.role === 'PARTNER' ? 'text-[#FF2D55]' : 'text-gray-400'}`} />
+                      <span className={`font-semibold ${formData.role === 'PARTNER' ? 'text-[#FF2D55]' : 'text-gray-700'}`}>
+                        Socio
+                      </span>
+                    </div>
+                    {formData.role === 'PARTNER' && (
+                      <div className="absolute -top-2 -right-2 w-6 h-6 bg-[#FF2D55] rounded-full flex items-center justify-center">
+                        <Check className="w-4 h-4 text-white" />
+                      </div>
+                    )}
+                  </button>
+                </div>
               </div>
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Teléfono
-              </label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                <input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                  placeholder="+1234567890"
-                />
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">
+                  Nombre completo
+                </label>
+                <div className="relative group">
+                  <User className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-[#FF2D55] transition-colors" size={20} />
+                  <input
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent outline-none transition-all hover:border-gray-300"
+                    placeholder="Juan Pérez"
+                  />
+                </div>
               </div>
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Contraseña
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                <input
-                  type="password"
-                  required
-                  minLength={6}
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                  placeholder="••••••••"
-                />
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">
+                  Email
+                </label>
+                <div className="relative group">
+                  <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-[#FF2D55] transition-colors" size={20} />
+                  <input
+                    type="email"
+                    required
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent outline-none transition-all hover:border-gray-300"
+                    placeholder="tu@email.com"
+                  />
+                </div>
               </div>
-              <p className="mt-1 text-xs text-gray-500">Mínimo 6 caracteres</p>
-            </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">
+                  Teléfono
+                </label>
+                <div className="relative group">
+                  <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-[#FF2D55] transition-colors" size={20} />
+                  <input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent outline-none transition-all hover:border-gray-300"
+                    placeholder="+1234567890"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">
+                  Contraseña
+                </label>
+                <div className="relative group">
+                  <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-[#FF2D55] transition-colors" size={20} />
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#FF2D55]/20 focus:border-[#FF2D55] outline-none transition-all"
+                    placeholder="Mínimo 6 caracteres"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">
+                  Ciudad
+                </label>
+                <div className="relative group">
+                  <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-[#FF2D55] transition-colors" size={20} />
+                  <select
+                    value={formData.city}
+                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                    className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#FF2D55]/20 focus:border-[#FF2D55] outline-none transition-all appearance-none bg-white"
+                    required
+                  >
+                    {cities.map((city) => (
+                      <option
+                        key={city.id}
+                        value={city.slug}
+                      >
+                        {city.name}{' '}
+                        {city.status === 'COMING_SOON'
+                          ? '(próximamente)'
+                          : city.status === 'INACTIVE'
+                          ? '(no disponible)'
+                          : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
             {formData.role === 'PARTNER' && (
               <div className="space-y-4 pt-2 border-t border-gray-200">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Ciudad principal de operación
-                  </label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-[#FF2D55]" size={18} />
-                    <select
-                      value={formData.city}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          city: e.target.value,
-                        }))
-                      }
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none appearance-none bg-white"
-                    >
-                      {cities.map((city) => (
-                        <option
-                          key={city.id}
-                          value={city.slug}
-                        >
-                          {city.name}{' '}
-                          {city.status === 'COMING_SOON'
-                            ? '(próximamente)'
-                            : city.status === 'INACTIVE'
-                            ? '(no disponible)'
-                            : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
 
                 <div>
                   <div className="flex items-center justify-between mb-3">
@@ -363,7 +387,7 @@ function RegisterForm() {
                     type="checkbox"
                     checked={acceptedTerms}
                     onChange={(e) => setAcceptedTerms(e.target.checked)}
-                    className="w-5 h-5 border-2 border-gray-300 rounded cursor-pointer checked:bg-[#FF2D55] checked:border-[#FF2D55] focus:ring-2 focus:ring-[#FF2D55] focus:ring-offset-2 transition-all"
+                    className="w-5 h-5 border-2 border-gray-300 rounded-lg cursor-pointer checked:bg-[#FF2D55] checked:border-[#FF2D55] focus:ring-2 focus:ring-[#FF2D55]/20 focus:ring-offset-2 transition-all"
                     required
                   />
                 </div>
@@ -392,27 +416,34 @@ function RegisterForm() {
                   >
                     Política de Cookies
                   </Link>
-                  {' '}de LoHaggo.
+                  .
                 </span>
               </label>
-              <p className="mt-2 text-xs text-gray-500 ml-8">
-                Al registrarte, confirmas que has leído, entendido y aceptado nuestras políticas.
-              </p>
             </div>
 
             <button
               type="submit"
               disabled={loading || !acceptedTerms}
-              className="w-full bg-primary-600 text-white py-3 rounded-lg hover:bg-primary-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-gradient-to-r from-[#FF2D55] to-[#FF6B8A] text-white py-4 rounded-xl hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 group"
             >
-              {loading ? 'Registrando...' : 'Crear cuenta'}
+              {loading ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  <span>Creando cuenta...</span>
+                </>
+              ) : (
+                <>
+                  <span>Crear cuenta</span>
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </>
+              )}
             </button>
           </form>
 
-          <div className="mt-6 text-center">
+          <div className="mt-8 text-center">
             <p className="text-gray-600">
               ¿Ya tienes cuenta?{' '}
-              <Link href="/login" className="text-primary-600 hover:text-primary-700 font-medium">
+              <Link href="/login" className="text-[#FF2D55] hover:text-[#FF6B8A] font-semibold hover:underline transition-colors">
                 Inicia sesión aquí
               </Link>
             </p>
@@ -420,12 +451,22 @@ function RegisterForm() {
         </div>
       </div>
     </div>
+    </div>
   )
 }
 
 export default function RegisterPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Cargando...</div>}>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-br from-[#FF2D55] via-[#FF6B8A] to-[#FFB4C6] flex items-center justify-center">
+          <div className="relative">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-white"></div>
+            <div className="absolute inset-0 rounded-full h-16 w-16 border-t-4 border-white/30 animate-pulse"></div>
+          </div>
+        </div>
+      }
+    >
       <RegisterForm />
     </Suspense>
   )
