@@ -127,20 +127,8 @@ export default function AdsAdminPage() {
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('¿Estás seguro de eliminar este anuncio?')) return
-
-    try {
-      const response = await fetch(`/api/ads/${id}`, { method: 'DELETE' })
-      if (response.ok) {
-        await fetchAds()
-      }
-    } catch (error) {
-      console.error('Error deleting ad:', error)
-    }
-  }
-
-  const handleToggleActive = async (ad: Advertisement) => {
+  const handleToggleActive = async (ad: Advertisement, e?: React.MouseEvent) => {
+    e?.stopPropagation()
     try {
       const response = await fetch(`/api/ads/${ad.id}`, {
         method: 'PATCH',
@@ -155,7 +143,8 @@ export default function AdsAdminPage() {
     }
   }
 
-  const handleEdit = (ad: Advertisement) => {
+  const handleEdit = (ad: Advertisement, e?: React.MouseEvent) => {
+    e?.stopPropagation()
     setEditingAd(ad)
     setFormData({
       title: ad.title,
@@ -170,6 +159,20 @@ export default function AdsAdminPage() {
       priority: ad.priority
     })
     setShowForm(true)
+  }
+
+  const handleDelete = async (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    if (!confirm('¿Estás seguro de eliminar este anuncio?')) return
+
+    try {
+      const response = await fetch(`/api/ads/${id}`, { method: 'DELETE' })
+      if (response.ok) {
+        await fetchAds()
+      }
+    } catch (error) {
+      console.error('Error deleting ad:', error)
+    }
   }
 
   const resetForm = () => {
@@ -477,7 +480,10 @@ export default function AdsAdminPage() {
 
                     <div className="flex gap-2">
                       <button
-                        onClick={() => handleToggleActive(ad)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleToggleActive(ad, e)
+                        }}
                         className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                         title={ad.active ? 'Desactivar' : 'Activar'}
                       >
@@ -488,14 +494,20 @@ export default function AdsAdminPage() {
                         )}
                       </button>
                       <button
-                        onClick={() => handleEdit(ad)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleEdit(ad, e)
+                        }}
                         className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                         title="Editar"
                       >
                         <Edit2 className="w-5 h-5 text-blue-600" />
                       </button>
                       <button
-                        onClick={() => handleDelete(ad.id)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDelete(ad.id, e)
+                        }}
                         className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                         title="Eliminar"
                       >
@@ -506,6 +518,7 @@ export default function AdsAdminPage() {
                           href={ad.linkUrl}
                           target="_blank"
                           rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
                           className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                           title="Ver destino"
                         >
