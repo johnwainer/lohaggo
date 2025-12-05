@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { createLogger } from '@/lib/logger'
+
+const logger = createLogger('admin-payment-config')
 
 export async function GET() {
   try {
@@ -32,7 +35,7 @@ export async function GET() {
       productionClientId: config.productionClientId
     })
   } catch (error) {
-    console.error('Error fetching payment config:', error)
+    logger.error('Error fetching payment config:', error || undefined)
     return NextResponse.json({ error: 'Error al obtener configuración' }, { status: 500 })
   }
 }
@@ -98,7 +101,7 @@ export async function PUT(request: NextRequest) {
       hasProductionCredentials: !!(config.productionAccessToken && config.productionPublicKey && config.productionClientId && config.productionClientSecret)
     })
   } catch (error) {
-    console.error('Error updating payment config:', error)
+    logger.error('Error updating payment config:', error || undefined)
     return NextResponse.json({ error: 'Error al actualizar configuración' }, { status: 500 })
   }
 }

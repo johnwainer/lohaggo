@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { createLogger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
+
+const logger = createLogger('favorites')
 
 export async function GET(req: NextRequest) {
   try {
@@ -58,7 +61,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(favorites)
   } catch (error) {
-    console.error('Error fetching favorites:', error)
+    logger.error('Error fetching favorites:', error || undefined)
     return NextResponse.json(
       { error: 'Error fetching favorites' },
       { status: 500 }
@@ -74,10 +77,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { partnerId } = await req.json()
+    const body = await req.json()
+    const { partnerId } = body
 
     if (!partnerId) {
-      return NextResponse.json({ error: 'Partner ID is required' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'Partner ID is required' },
+        { status: 400 }
+      )
+    }
+
+    const partner = await prisma.partnerProfile.findUnique({
+      where: { id: partnerId }
+    })
+
+    if (!partner) {
+      return NextResponse.json(
+        { error: 'Partner not found' },
+        { status: 404 }
+      )
     }
 
     const existingFavorite = await prisma.favoritePartner.findUnique({
@@ -90,7 +108,10 @@ export async function POST(req: NextRequest) {
     })
 
     if (existingFavorite) {
-      return NextResponse.json({ error: 'Partner already in favorites' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'Partner already in favorites' },
+        { status: 400 }
+      )
     }
 
     const favorite = await prisma.favoritePartner.create({
@@ -103,7 +124,9 @@ export async function POST(req: NextRequest) {
           include: {
             user: {
               select: {
-                name: true
+                name: true,
+                phone: true,
+                email: true
               }
             }
           }
@@ -112,15 +135,10 @@ export async function POST(req: NextRequest) {
     })
 
     return NextResponse.json(favorite, { status: 201 })
-  } catch (error: any) {
-    console.error('Error adding favorite:', error)
-    console.error('Error details:', {
-      message: error?.message,
-      code: error?.code,
-      meta: error?.meta
-    })
+  } catch (error) {
+    logger.error('Error adding favorite:', error || undefined)
     return NextResponse.json(
-      { error: 'Error adding favorite', details: error?.message },
+      { error: 'Error adding favorite' },
       { status: 500 }
     )
   }
@@ -150,9 +168,9 @@ export async function DELETE(req: NextRequest) {
       }
     })
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ message: 'Favorite removed successfully' })
   } catch (error) {
-    console.error('Error removing favorite:', error)
+    logger.error('Error removing favorite:', error || undefined)
     return NextResponse.json(
       { error: 'Error removing favorite' },
       { status: 500 }

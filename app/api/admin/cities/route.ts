@@ -2,6 +2,21 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { createLogger } from '@/lib/logger'
+import { z } from 'zod'
+
+const logger = createLogger('admin-cities')
+
+const cityCreateSchema = z.object({
+  name: z.string().min(1).max(100),
+  slug: z.string().min(1).max(100),
+  status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
+  order: z.number().int().min(0).optional(),
+  latitude: z.number().optional().nullable(),
+  longitude: z.number().optional().nullable(),
+  lanzamiento: z.boolean().optional(),
+  fechaLanzamiento: z.string().datetime().optional().nullable()
+})
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,7 +32,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(cities)
   } catch (error) {
-    console.error('Error fetching cities:', error)
+    logger.error('Error fetching cities:', error || undefined)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -31,11 +46,16 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, slug, status, order, latitude, longitude, lanzamiento, fechaLanzamiento } = body
 
-    if (!name || !slug) {
-      return NextResponse.json({ error: 'Name and slug are required' }, { status: 400 })
+    const validation = cityCreateSchema.safeParse(body)
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: 'Validation error', details: validation.error.errors },
+        { status: 400 }
+      )
     }
+
+    const { name, slug, status, order, latitude, longitude, lanzamiento, fechaLanzamiento } = validation.data
 
     const city = await prisma.cityConfig.create({
       data: {
@@ -52,7 +72,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(city, { status: 201 })
   } catch (error) {
-    console.error('Error creating city:', error)
+    logger.error('Error creating city:', error || undefined)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
