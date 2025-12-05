@@ -26,11 +26,14 @@ export async function GET(request: NextRequest) {
     const placement = searchParams.get('placement')
     const serviceId = searchParams.get('serviceId')
     const citySlug = searchParams.get('city')
+    const isAdmin = searchParams.get('admin') === 'true'
 
-    const where: any = {
-      active: true,
-      startDate: { lte: new Date() },
-      OR: [
+    const where: any = {}
+
+    if (!isAdmin) {
+      where.active = true
+      where.startDate = { lte: new Date() }
+      where.OR = [
         { endDate: null },
         { endDate: { gte: new Date() } }
       ]
