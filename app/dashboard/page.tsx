@@ -812,7 +812,7 @@ export default function DashboardPage() {
                   <Heart size={20} className="sm:w-[22px] sm:h-[22px]" />
                   <span className="hidden sm:inline">Favoritos</span>
                   {favoritePartners.length > 0 && (
-                    <span className="bg-red-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
+                    <span className="bg-orange-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
                       {favoritePartners.length}
                     </span>
                   )}
@@ -1031,38 +1031,26 @@ export default function DashboardPage() {
                   <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
                     <div className="bg-gradient-to-r from-gray-50 to-white p-4 sm:p-5 border-b border-gray-100">
                       <h3 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
-                        <Heart className="text-red-500 w-5 h-5" />
-                        Favoritos
-                      </h3>
-                    </div>
-                    <div className="p-4 sm:p-5">
-                      {favoritePartners.length === 0 ? (
-                        <div className="text-center py-8">
-                          <div className="bg-gray-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-3">
-                            <Heart className="text-gray-400 w-8 h-8" />
-                          </div>
-                          <p className="text-sm text-gray-500 mb-3">No tienes favoritos</p>
-                          <button
-                            onClick={() => router.push('/servicios')}
-                            className="text-primary-600 hover:text-primary-700 text-sm font-semibold"
-                          >
-                            Explorar servicios
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          {favoritePartners.slice(0, 3).map((fav) => (
-                            <div key={fav.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 hover:bg-red-50 border border-gray-100 hover:border-red-200 transition-all cursor-pointer group">
-                              <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                                {fav.partner?.user?.name?.charAt(0) || 'P'}
-                              </div>
+                        <Heart className="text-orange-500 w-5 h-5" />
+                        <span className="font-semibold text-sm text-gray-700">Favoritos ({favoritePartners.length})</span>
+                      </div>
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {favoritePartners.length === 0 ? (
+                          <p className="text-sm text-gray-500 text-center py-4">No tienes favoritos aún</p>
+                        ) : (
+                          favoritePartners.slice(0, 5).map((fav) => (
+                            <div key={fav.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 hover:bg-orange-50 border border-gray-100 hover:border-orange-200 transition-all cursor-pointer group">
+                              <img
+                                src={fav.partner?.user?.profilePicture || '/default-avatar.png'}
+                                alt={fav.partner?.user?.name}
+                                className="w-10 h-10 rounded-full object-cover border-2 border-gray-200 group-hover:border-orange-300 transition-colors"
+                              />
                               <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-sm text-gray-900 truncate group-hover:text-red-600 transition-colors">{fav.partner?.user?.name}</p>
-                                <p className="text-xs text-gray-600 truncate">{fav.service?.name}</p>
+                                <p className="font-semibold text-sm text-gray-900 truncate group-hover:text-orange-600 transition-colors">{fav.partner?.user?.name}</p>
+                                <p className="text-xs text-gray-500 truncate">{fav.partner?.services?.[0]?.service?.name}</p>
                               </div>
-                              <Heart className="w-4 h-4 text-red-500 fill-red-500 flex-shrink-0" />
+                              <Heart className="w-4 h-4 text-orange-500 fill-orange-500 flex-shrink-0" />
                             </div>
-                          ))}
                           {favoritePartners.length > 3 && (
                             <button
                               onClick={() => setActiveTab('favorites')}
@@ -1312,7 +1300,7 @@ export default function DashboardPage() {
                               <MessageCircle size={20} />
                               Chat con el Socio
                               {unreadCounts[booking.proposalId] > 0 && (
-                                <span className="absolute -top-2 -right-2 bg-gradient-to-r from-red-500 to-red-600 text-white text-xs font-bold rounded-full h-7 w-7 flex items-center justify-center animate-pulse shadow-lg">
+                                <span className="absolute -top-2 -right-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xs font-bold rounded-full h-7 w-7 flex items-center justify-center animate-pulse shadow-lg">
                                   {unreadCounts[booking.proposalId]}
                                 </span>
                               )}
@@ -1322,7 +1310,7 @@ export default function DashboardPage() {
                           {(booking.status === 'PENDING' || booking.status === 'CONFIRMED') && booking.payment?.status !== 'APPROVED' && (
                             <button
                               onClick={() => cancelBooking(booking.id, booking.service.name)}
-                              className="w-full bg-white text-red-600 border-2 border-red-500 px-4 py-3.5 rounded-xl hover:bg-red-50 transition-all font-semibold flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+                              className="w-full bg-white text-gray-700 border-2 border-gray-400 px-4 py-3.5 rounded-xl hover:bg-gray-50 transition-all font-semibold flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
                             >
                               <XCircle size={20} />
                               Cancelar Reserva
@@ -1516,7 +1504,7 @@ export default function DashboardPage() {
                                 {requestStatusLabels[request.status]}
                               </span>
                               {request.isUrgent && (
-                                <span className="bg-gradient-to-r from-red-500 to-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg animate-pulse">
+                                <span className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg animate-pulse">
                                   ⚡ URGENTE
                                 </span>
                               )}
@@ -1564,13 +1552,13 @@ export default function DashboardPage() {
                             </div>
                           )}
                           {request.isUrgent && (
-                            <div className="flex items-start gap-3 p-3 bg-gradient-to-r from-red-50 to-orange-50 rounded-xl border-2 border-red-200">
-                              <div className="bg-red-100 rounded-lg p-2 flex-shrink-0">
-                                <AlertCircle size={18} className="text-red-600" />
+                            <div className="flex items-start gap-3 p-3 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border-2 border-amber-200">
+                              <div className="bg-amber-100 rounded-lg p-2 flex-shrink-0">
+                                <AlertCircle size={18} className="text-amber-600" />
                               </div>
                               <div>
-                                <p className="text-xs text-red-600 font-semibold mb-1">Urgente</p>
-                                <span className="text-sm font-medium text-red-700">⚡ Lo más pronto posible</span>
+                                <p className="text-xs text-amber-600 font-semibold mb-1">Urgente</p>
+                                <span className="text-sm font-medium text-amber-700">⚡ Lo más pronto posible</span>
                               </div>
                             </div>
                           )}
@@ -1765,7 +1753,7 @@ export default function DashboardPage() {
                                               <MessageCircle size={20} />
                                               Chat con el Socio
                                               {unreadCounts[proposal.id] > 0 && (
-                                                <span className="absolute -top-2 -right-2 bg-gradient-to-r from-red-500 to-red-600 text-white text-xs font-bold rounded-full h-7 w-7 flex items-center justify-center animate-pulse shadow-lg">
+                                                <span className="absolute -top-2 -right-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xs font-bold rounded-full h-7 w-7 flex items-center justify-center animate-pulse shadow-lg">
                                                   {unreadCounts[proposal.id]}
                                                 </span>
                                               )}
