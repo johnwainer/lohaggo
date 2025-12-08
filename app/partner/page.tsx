@@ -1024,12 +1024,6 @@ function PartnerDashboardContent() {
                             <Send size={20} />
                             Enviar Propuesta
                           </button>
-                            onClick={() => openProposalModal(request)}
-                            className="bg-gradient-to-r from-primary-600 to-primary-700 text-white px-4 py-3.5 rounded-xl font-semibold hover:from-primary-700 hover:to-primary-800 transition-all w-full flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
-                          >
-                            <Send size={20} />
-                            Enviar Propuesta
-                          </button>
                         )}
                       </div>
                     </div>
