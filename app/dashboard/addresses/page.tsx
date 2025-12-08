@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import {
   MapPin, Plus, Edit2, Trash2, Home, Building, Star, ArrowLeft,
-  Package, MessageSquare
+  Package, MessageSquare, Heart
 } from 'lucide-react'
 import { useCity } from '@/lib/city-context'
 
@@ -35,6 +35,7 @@ export default function AddressesPage() {
   const [editingAddress, setEditingAddress] = useState<Address | null>(null)
   const [bookingsCount, setBookingsCount] = useState(0)
   const [requestsCount, setRequestsCount] = useState(0)
+  const [favoritesCount, setFavoritesCount] = useState(0)
   const [formData, setFormData] = useState({
     label: '',
     street: '',
@@ -82,9 +83,10 @@ export default function AddressesPage() {
 
   const fetchCounts = async () => {
     try {
-      const [bookingsRes, requestsRes] = await Promise.all([
+      const [bookingsRes, requestsRes, favoritesRes] = await Promise.all([
         fetch('/api/bookings'),
-        fetch('/api/service-requests')
+        fetch('/api/service-requests'),
+        fetch('/api/favorites')
       ])
 
       if (bookingsRes.ok) {
@@ -96,6 +98,11 @@ export default function AddressesPage() {
         const requestsData = await requestsRes.json()
         const requests = Array.isArray(requestsData) ? requestsData : Array.isArray(requestsData?.serviceRequests) ? requestsData.serviceRequests : []
         setRequestsCount(requests.length)
+      }
+
+      if (favoritesRes.ok) {
+        const favoritesData = await favoritesRes.json()
+        setFavoritesCount(Array.isArray(favoritesData) ? favoritesData.length : 0)
       }
     } catch (error) {
       console.error('Error fetching counts:', error)
@@ -260,6 +267,19 @@ export default function AddressesPage() {
                 {requestsCount > 0 && (
                   <span className="bg-orange-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
                     {requestsCount}
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={() => router.push('/dashboard?tab=favorites')}
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
+              >
+                <Heart size={20} className="sm:w-[22px] sm:h-[22px]" />
+                <span className="hidden sm:inline">Favoritos</span>
+                {favoritesCount > 0 && (
+                  <span className="bg-red-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
+                    {favoritesCount}
                   </span>
                 )}
               </button>
