@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { CreditCard, Plus, Trash2, Check, AlertCircle, Home, Package, MessageSquare } from 'lucide-react'
+import { CreditCard, Plus, Trash2, Check, AlertCircle, Home, Package, MessageSquare, Heart } from 'lucide-react'
 import Link from 'next/link'
 interface PaymentMethod { id: string; lastFourDigits: string; cardBrand: string; cardholderName: string; expirationMonth: number; expirationYear: number; isDefault: boolean; isActive: boolean; createdAt: string }
 export default function PaymentMethodsPage() {
@@ -12,6 +12,7 @@ export default function PaymentMethodsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [favoritesCount, setFavoritesCount] = useState(0)
   const fetchMethods = async (options?: { preserveSuccess?: boolean }) => {
     const { preserveSuccess = false } = options ?? {}
     setLoading(true)
@@ -33,9 +34,23 @@ export default function PaymentMethodsPage() {
       setLoading(false)
     }
   }
+  const fetchFavorites = async () => {
+    try {
+      const res = await fetch('/api/favorites')
+      if (res.ok) {
+        const favorites = await res.json()
+        setFavoritesCount(Array.isArray(favorites) ? favorites.length : 0)
+      }
+    } catch (err: any) {
+      console.error('Error fetching favorites:', err)
+    }
+  }
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login')
-    if (status === 'authenticated') fetchMethods()
+    if (status === 'authenticated') {
+      fetchMethods()
+      fetchFavorites()
+    }
   }, [status, router])
   useEffect(() => {
     if (!success) return
@@ -69,7 +84,7 @@ export default function PaymentMethodsPage() {
     }
   }
   if (status === 'loading' || loading) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><div className="h-12 w-12 rounded-full border-4 border-[#FF2D55] border-t-transparent animate-spin" /></div>
-  const navItems = [{ icon: Home, label: 'Resumen', href: '/dashboard' }, { icon: Package, label: 'Mis Reservas', href: '/dashboard?tab=bookings' }, { icon: MessageSquare, label: 'Mis Solicitudes', href: '/dashboard?tab=requests' }]
+  const navItems = [{ icon: Home, label: 'Resumen', href: '/dashboard' }, { icon: Package, label: 'Mis Reservas', href: '/dashboard?tab=bookings' }, { icon: MessageSquare, label: 'Mis Solicitudes', href: '/dashboard?tab=requests' }, { icon: Heart, label: 'Favoritos', href: '/dashboard?tab=favorites', count: favoritesCount }]
   const formatExpiry = (month: number, year: number) => `${String(month).padStart(2, '0')}/${String(year).slice(-2)}`
   return (
     <div className="min-h-screen bg-gray-50">
@@ -78,7 +93,7 @@ export default function PaymentMethodsPage() {
           <div><h1 className="text-2xl font-bold text-gray-900">Métodos de Pago</h1><p className="text-sm text-gray-600">Administra tus tarjetas guardadas</p></div>
           <Link href="/dashboard/payment-methods/add" className="inline-flex items-center gap-2 rounded-lg bg-[#FF2D55] px-4 py-2 text-white font-semibold hover:bg-[#E6194B] transition-colors"><Plus className="w-4 h-4" />Agregar método</Link>
         </div>
-        <div className="border-t border-gray-200 bg-gray-50"><div className="max-w-5xl mx-auto flex gap-2 overflow-x-auto px-2 py-2">{navItems.map(item => (<button key={item.label} onClick={() => router.push(item.href)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-white transition-colors whitespace-nowrap"><item.icon className="w-5 h-5" />{item.label}</button>))}</div></div>
+        <div className="border-t border-gray-200 bg-gray-50"><div className="max-w-5xl mx-auto flex gap-2 overflow-x-auto px-2 py-2">{navItems.map(item => (<button key={item.label} onClick={() => router.push(item.href)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-white transition-colors whitespace-nowrap"><item.icon className="w-5 h-5" />{item.label}{'count' in item && item.count > 0 && <span className={`text-white text-xs px-2 py-0.5 rounded-full ${item.label === 'Favoritos' ? 'bg-red-500' : item.label === 'Mis Solicitudes' ? 'bg-orange-500' : 'bg-primary-600'}`}>{item.count}</span>}</button>))}</div></div>
       </header>
       <main className="max-w-5xl mx-auto px-4 py-8 space-y-5">
         {error && <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800"><AlertCircle className="w-5 h-5 mt-0.5" /><div><p className="font-semibold">Hubo un problema</p><p className="text-sm">{error}</p></div></div>}

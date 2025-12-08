@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { User, Mail, Camera, Save, AlertCircle, CheckCircle, Home, Package, MessageSquare, Activity, Star, MapPin, Shield, Briefcase, ChevronRight, CreditCard, GraduationCap } from 'lucide-react'
+import { User, Mail, Camera, Save, AlertCircle, CheckCircle, Home, Package, MessageSquare, Activity, Star, MapPin, Shield, Briefcase, ChevronRight, CreditCard, GraduationCap, Heart } from 'lucide-react'
 
 export default function ProfilePage() {
   const { data: session, status, update } = useSession()
@@ -20,6 +20,7 @@ export default function ProfilePage() {
   const [addressesCount, setAddressesCount] = useState(0)
   const [clientRating, setClientRating] = useState(0)
   const [clientReviews, setClientReviews] = useState(0)
+  const [favoritesCount, setFavoritesCount] = useState(0)
 
   const isPartner = session?.user?.role === 'PARTNER'
 
@@ -63,6 +64,12 @@ export default function ProfilePage() {
       if (addressesRes.ok) {
         const addresses = await addressesRes.json()
         setAddressesCount(Array.isArray(addresses) ? addresses.length : 0)
+      }
+
+      const favoritesRes = await fetch('/api/favorites')
+      if (favoritesRes.ok) {
+        const favorites = await favoritesRes.json()
+        setFavoritesCount(Array.isArray(favorites) ? favorites.length : 0)
       }
 
       if (session?.user) {
@@ -277,6 +284,19 @@ export default function ProfilePage() {
                     {requestsCount > 0 && (
                       <span className="bg-orange-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
                         {requestsCount}
+                      </span>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => router.push('/dashboard?tab=favorites')}
+                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
+                  >
+                    <Heart size={20} className="sm:w-[22px] sm:h-[22px]" />
+                    <span className="hidden sm:inline">Favoritos</span>
+                    {favoritesCount > 0 && (
+                      <span className="bg-red-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
+                        {favoritesCount}
                       </span>
                     )}
                   </button>
