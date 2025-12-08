@@ -1341,8 +1341,8 @@ export default function DashboardPage() {
             <div className="space-y-4 sm:space-y-6">
               {favoritePartners.length === 0 ? (
                 <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg p-12 sm:p-16 text-center border border-gray-100">
-                  <div className="bg-gradient-to-br from-red-100 to-pink-100 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6">
-                    <Heart size={48} className="text-red-400" />
+                  <div className="bg-gradient-to-br from-ooangrnge-100 ambermber-100 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6">
+                    <Heart size={48} className="text-ooangrn5e-500" />
                   </div>
                   <p className="text-gray-900 text-xl font-bold mb-2">No tienes favoritos aún</p>
                   <p className="text-gray-500 text-base mb-6">Marca como favoritos a los profesionales que más te gusten</p>
@@ -1427,7 +1427,7 @@ export default function DashboardPage() {
                             </div>
                             <button
                               onClick={() => removeFavorite(partner.id)}
-                              className="p-3 rounded-xl bg-gradient-to-br from-red-100 to-pink-100 text-red-600 hover:from-red-200 hover:to-pink-200 transition-all shadow-md hover:shadow-lg flex-shrink-0"
+                              className="p-3 rounded-xl bg-gradient-to-br from-orange-100 to-amber-100 text-orange-600 hover:from-orange-200 hover:to-amber-200 transition-all shadow-md hover:shadow-lg flex-shrink-0"
                             >
                               <Heart size={22} fill="currentColor" />
                             </button>
