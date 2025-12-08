@@ -589,25 +589,25 @@ export default function DashboardPage() {
     return (
       <div className="flex items-center gap-1.5 ml-2">
         {hasIdentity && (
-          <div className="group relative">
+          <div className="group relative inline-block">
             <CreditCard size={16} className="text-primary-600" />
-            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap pointer-events-none z-50">
               Identidad verificada
             </span>
           </div>
         )}
         {hasEducation && (
-          <div className="group relative">
+          <div className="group relative inline-block">
             <GraduationCap size={16} className="text-secondary-600" />
-            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap pointer-events-none z-50">
               Educación verificada
             </span>
           </div>
         )}
         {hasBackground && (
-          <div className="group relative">
+          <div className="group relative inline-block">
             <Shield size={16} className="text-emerald-600" />
-            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap pointer-events-none z-50">
               Antecedentes verificados
             </span>
           </div>
@@ -1676,11 +1676,11 @@ export default function DashboardPage() {
                                               <div className="flex items-center gap-2 mb-1">
                                                 <span className="font-bold text-base text-gray-900">{proposal.partner.user.name}</span>
                                                 {isFullyVerified && (
-                                                  <div className="group relative">
+                                                  <div className="group relative inline-block">
                                                     <div className="bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full p-1">
                                                       <Star size={14} className="text-white fill-white" />
                                                     </div>
-                                                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10 shadow-lg">
+                                                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap pointer-events-none z-50 shadow-lg">
                                                       Socio 100% Verificado
                                                     </span>
                                                   </div>
