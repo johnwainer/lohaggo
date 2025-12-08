@@ -1033,7 +1033,9 @@ export default function DashboardPage() {
                       <h3 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
                         <Heart className="text-orange-500 w-5 h-5" />
                         <span className="font-semibold text-sm text-gray-700">Favoritos ({favoritePartners.length})</span>
-                      </div>
+                      </h3>
+                    </div>
+                    <div className="p-4 sm:p-5">
                       <div className="space-y-2 max-h-48 overflow-y-auto">
                         {favoritePartners.length === 0 ? (
                           <p className="text-sm text-gray-500 text-center py-4">No tienes favoritos aún</p>
@@ -1051,15 +1053,16 @@ export default function DashboardPage() {
                               </div>
                               <Heart className="w-4 h-4 text-orange-500 fill-orange-500 flex-shrink-0" />
                             </div>
-                          {favoritePartners.length > 3 && (
-                            <button
-                              onClick={() => setActiveTab('favorites')}
-                              className="w-full text-center text-sm text-primary-600 hover:text-primary-700 font-semibold py-2"
-                            >
-                              Ver todos ({favoritePartners.length})
-                            </button>
-                          )}
-                        </div>
+                          ))
+                        )}
+                      </div>
+                      {favoritePartners.length > 3 && (
+                        <button
+                          onClick={() => setActiveTab('favorites')}
+                          className="w-full text-center text-sm text-primary-600 hover:text-primary-700 font-semibold py-2"
+                        >
+                          Ver todos ({favoritePartners.length})
+                        </button>
                       )}
                     </div>
                   </div>
