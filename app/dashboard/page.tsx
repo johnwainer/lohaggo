@@ -826,142 +826,299 @@ export default function DashboardPage() {
         <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
           {activeTab === 'overview' && (
             <div className="space-y-4 sm:space-y-6">
-              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
-                <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border-l-4 border-primary-500 hover:shadow-xl transition">
-                  <div className="flex items-center justify-between mb-3 sm:mb-4">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary-100 rounded-lg sm:rounded-xl flex items-center justify-center">
-                      <Package className="text-primary-600" size={20} />
+              <div className="bg-gradient-to-br from-primary-600 via-primary-700 to-primary-800 rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-8 text-white relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32"></div>
+                <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full -ml-24 -mb-24"></div>
+                <div className="relative z-10">
+                  <div className="flex items-start justify-between mb-6">
+                    <div>
+                      <p className="text-primary-100 text-sm sm:text-base mb-2">Bienvenido de nuevo</p>
+                      <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2">{session?.user?.name || 'Usuario'}</h2>
+                      <p className="text-primary-100 text-sm sm:text-base">Aquí está tu resumen de actividad</p>
                     </div>
-                    <TrendingUp className="text-green-500" size={18} />
-                  </div>
-                  <p className="text-gray-600 text-xs sm:text-sm font-medium mb-1">Total Reservas</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-gray-900">{bookings.length}</p>
-                </div>
-
-                <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border-l-4 border-secondary-500 hover:shadow-xl transition">
-                  <div className="flex items-center justify-between mb-3 sm:mb-4">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-secondary-100 rounded-lg sm:rounded-xl flex items-center justify-center">
-                      <Clock className="text-secondary-600" size={20} />
+                    <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-3 sm:p-4">
+                      <User className="w-8 h-8 sm:w-10 sm:h-10" />
                     </div>
                   </div>
-                  <p className="text-gray-600 text-xs sm:text-sm font-medium mb-1">Pendientes</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-gray-900">{pendingCount}</p>
-                </div>
-
-                <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border-l-4 border-primary-500 hover:shadow-xl transition">
-                  <div className="flex items-center justify-between mb-3 sm:mb-4">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary-100 rounded-lg sm:rounded-xl flex items-center justify-center">
-                      <CheckCircle className="text-primary-600" size={20} />
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mt-6">
+                    <div className="bg-white/10 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-white/20">
+                      <Package className="w-6 h-6 sm:w-8 sm:h-8 mb-2 opacity-90" />
+                      <p className="text-2xl sm:text-3xl font-bold mb-1">{bookings.length}</p>
+                      <p className="text-xs sm:text-sm text-primary-100">Reservas</p>
+                    </div>
+                    <div className="bg-white/10 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-white/20">
+                      <MessageSquare className="w-6 h-6 sm:w-8 sm:h-8 mb-2 opacity-90" />
+                      <p className="text-2xl sm:text-3xl font-bold mb-1">{serviceRequests.length}</p>
+                      <p className="text-xs sm:text-sm text-primary-100">Solicitudes</p>
+                    </div>
+                    <div className="bg-white/10 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-white/20">
+                      <Heart className="w-6 h-6 sm:w-8 sm:h-8 mb-2 opacity-90" />
+                      <p className="text-2xl sm:text-3xl font-bold mb-1">{favoritePartners.length}</p>
+                      <p className="text-xs sm:text-sm text-primary-100">Favoritos</p>
+                    </div>
+                    <div className="bg-white/10 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-white/20">
+                      <DollarSign className="w-6 h-6 sm:w-8 sm:h-8 mb-2 opacity-90" />
+                      <p className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1">{formatCurrency(totalSpent)}</p>
+                      <p className="text-xs sm:text-sm text-primary-100">Gastado</p>
                     </div>
                   </div>
-                  <p className="text-gray-600 text-xs sm:text-sm font-medium mb-1">Confirmadas</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-gray-900">{confirmedCount}</p>
-                </div>
-
-                <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border-l-4 border-emerald-500 hover:shadow-xl transition">
-                  <div className="flex items-center justify-between mb-3 sm:mb-4">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-100 rounded-lg sm:rounded-xl flex items-center justify-center">
-                      <DollarSign className="text-emerald-600" size={20} />
-                    </div>
-                  </div>
-                  <p className="text-gray-600 text-xs sm:text-sm font-medium mb-1">Total Gastado</p>
-                  <p className="text-xl sm:text-3xl font-bold text-gray-900">{formatCurrency(totalSpent)}</p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6">
-                <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border-l-4 border-emerald-500 hover:shadow-xl transition">
-                  <div className="flex items-center justify-between mb-3 sm:mb-4">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-100 rounded-lg sm:rounded-xl flex items-center justify-center">
-                      <Activity className="text-emerald-600" size={20} />
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+                <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+                  <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
+                    <div className="bg-gradient-to-r from-gray-50 to-white p-4 sm:p-6 border-b border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2">
+                            <Activity className="text-primary-600 w-5 h-5 sm:w-6 sm:h-6" />
+                            Estado de Reservas
+                          </h3>
+                          <p className="text-sm text-gray-600 mt-1">Resumen de tus servicios</p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <p className="text-gray-600 text-xs sm:text-sm font-medium mb-1">Solicitudes Activas</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-gray-900">{activeRequestsCount}</p>
-                </div>
-
-                <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border-l-4 border-primary-500 hover:shadow-xl transition">
-                  <div className="flex items-center justify-between mb-3 sm:mb-4">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary-100 rounded-lg sm:rounded-xl flex items-center justify-center">
-                      <MessageSquare className="text-primary-600" size={20} />
-                    </div>
-                  </div>
-                  <p className="text-gray-600 text-xs sm:text-sm font-medium mb-1">Propuestas Recibidas</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-gray-900">{totalProposals}</p>
-                </div>
-
-                <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border-l-4 border-secondary-500 hover:shadow-xl transition">
-                  <div className="flex items-center justify-between mb-3 sm:mb-4">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-secondary-100 rounded-lg sm:rounded-xl flex items-center justify-center">
-                      <TrendingUp className="text-secondary-600" size={20} />
-                    </div>
-                  </div>
-                  <p className="text-gray-600 text-xs sm:text-sm font-medium mb-1">Servicios Favoritos</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-gray-900">0</p>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6">
-                <h3 className="text-base sm:text-lg font-bold mb-3 sm:mb-4 flex items-center gap-2">
-                  <Activity className="text-primary-600" size={18} />
-                  Acciones Rápidas
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  <button
-                    onClick={() => setActiveTab('bookings')}
-                    className="flex items-center gap-3 p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 border-gray-200 hover:border-primary-500 hover:bg-primary-50 transition group"
-                  >
-                    <Package className="text-primary-600 group-hover:scale-110 transition flex-shrink-0" size={20} />
-                    <div className="text-left min-w-0 flex-1">
-                      <p className="font-semibold text-gray-900 text-sm sm:text-base">Ver Reservas</p>
-                      <p className="text-xs sm:text-sm text-gray-600">{bookings.length} activas</p>
-                    </div>
-                    <ChevronRight className="ml-auto text-gray-400 group-hover:text-primary-600 flex-shrink-0" size={18} />
-                  </button>
-
-                  <button
-                    onClick={() => setActiveTab('requests')}
-                    className="flex items-center gap-3 p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 border-gray-200 hover:border-secondary-500 hover:bg-secondary-50 transition group"
-                  >
-                    <Bell className="text-secondary-600 group-hover:scale-110 transition flex-shrink-0" size={20} />
-                    <div className="text-left min-w-0 flex-1">
-                      <p className="font-semibold text-gray-900 text-sm sm:text-base">Mis Solicitudes</p>
-                      <p className="text-xs sm:text-sm text-gray-600">{totalProposals} propuestas</p>
-                    </div>
-                    <ChevronRight className="ml-auto text-gray-400 group-hover:text-secondary-600 flex-shrink-0" size={18} />
-                  </button>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6">
-                <h3 className="text-base sm:text-lg font-bold mb-3 sm:mb-4 flex items-center gap-2">
-                  <Clock className="text-primary-600" size={18} />
-                  Actividad Reciente
-                </h3>
-                {bookings.slice(0, 5).length === 0 ? (
-                  <div className="text-center py-8 sm:py-12">
-                    <Package className="mx-auto text-gray-300 mb-3" size={40} />
-                    <p className="text-gray-500 text-sm sm:text-base">No hay actividad reciente</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2 sm:space-y-3">
-                    {bookings.slice(0, 5).map((booking) => (
-                      <div key={booking.id} className="flex items-start sm:items-center gap-2 sm:gap-4 p-3 sm:p-4 rounded-lg sm:rounded-xl bg-gray-50 hover:bg-gray-100 transition">
-                        <div className="text-2xl sm:text-3xl flex-shrink-0">{booking.service.icon}</div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-gray-900 text-sm sm:text-base truncate">{booking.service.name}</p>
-                          <div className="flex items-center gap-2 mt-1 flex-wrap">
-                            <p className="text-xs sm:text-sm text-gray-600">{new Date(booking.scheduledDate).toLocaleDateString('es-ES')}</p>
-                            <span className={`text-[10px] sm:text-xs font-medium px-2 sm:px-3 py-0.5 sm:py-1 rounded-full border whitespace-nowrap ${statusColors[booking.status]}`}>
-                              {statusLabels[booking.status]}
-                            </span>
+                    <div className="p-4 sm:p-6">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                        <div className="group hover:scale-105 transition-transform">
+                          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl sm:rounded-2xl p-4 sm:p-5 border-2 border-blue-200 hover:border-blue-400 transition-colors">
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="bg-blue-500 rounded-lg p-2">
+                                <Clock className="text-white w-4 h-4 sm:w-5 sm:h-5" />
+                              </div>
+                              <span className="text-xs font-semibold text-blue-600 bg-blue-200 px-2 py-1 rounded-full">Activas</span>
+                            </div>
+                            <p className="text-3xl sm:text-4xl font-bold text-blue-900 mb-1">{pendingCount}</p>
+                            <p className="text-xs sm:text-sm text-blue-700 font-medium">Pendientes</p>
                           </div>
                         </div>
-                        <p className="font-bold text-primary-600 text-xs sm:text-base whitespace-nowrap flex-shrink-0">{formatCurrency(booking.totalPrice)}</p>
+                        <div className="group hover:scale-105 transition-transform">
+                          <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl sm:rounded-2xl p-4 sm:p-5 border-2 border-green-200 hover:border-green-400 transition-colors">
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="bg-green-500 rounded-lg p-2">
+                                <CheckCircle className="text-white w-4 h-4 sm:w-5 sm:h-5" />
+                              </div>
+                              <span className="text-xs font-semibold text-green-600 bg-green-200 px-2 py-1 rounded-full">OK</span>
+                            </div>
+                            <p className="text-3xl sm:text-4xl font-bold text-green-900 mb-1">{confirmedCount}</p>
+                            <p className="text-xs sm:text-sm text-green-700 font-medium">Confirmadas</p>
+                          </div>
+                        </div>
+                        <div className="group hover:scale-105 transition-transform">
+                          <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl sm:rounded-2xl p-4 sm:p-5 border-2 border-purple-200 hover:border-purple-400 transition-colors">
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="bg-purple-500 rounded-lg p-2">
+                                <Activity className="text-white w-4 h-4 sm:w-5 sm:h-5" />
+                              </div>
+                              <span className="text-xs font-semibold text-purple-600 bg-purple-200 px-2 py-1 rounded-full">En curso</span>
+                            </div>
+                            <p className="text-3xl sm:text-4xl font-bold text-purple-900 mb-1">{bookings.filter(b => b.status === 'IN_PROGRESS').length}</p>
+                            <p className="text-xs sm:text-sm text-purple-700 font-medium">En Progreso</p>
+                          </div>
+                        </div>
+                        <div className="group hover:scale-105 transition-transform">
+                          <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl sm:rounded-2xl p-4 sm:p-5 border-2 border-emerald-200 hover:border-emerald-400 transition-colors">
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="bg-emerald-500 rounded-lg p-2">
+                                <Star className="text-white w-4 h-4 sm:w-5 sm:h-5" />
+                              </div>
+                              <span className="text-xs font-semibold text-emerald-600 bg-emerald-200 px-2 py-1 rounded-full">Listo</span>
+                            </div>
+                            <p className="text-3xl sm:text-4xl font-bold text-emerald-900 mb-1">{bookings.filter(b => b.status === 'COMPLETED').length}</p>
+                            <p className="text-xs sm:text-sm text-emerald-700 font-medium">Completadas</p>
+                          </div>
+                        </div>
                       </div>
-                    ))}
+                    </div>
                   </div>
-                )}
+
+                  <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
+                    <div className="bg-gradient-to-r from-gray-50 to-white p-4 sm:p-6 border-b border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2">
+                            <Clock className="text-primary-600 w-5 h-5 sm:w-6 sm:h-6" />
+                            Actividad Reciente
+                          </h3>
+                          <p className="text-sm text-gray-600 mt-1">Últimas reservas y solicitudes</p>
+                        </div>
+                        <button
+                          onClick={() => setActiveTab('bookings')}
+                          className="text-primary-600 hover:text-primary-700 text-sm font-semibold flex items-center gap-1 hover:gap-2 transition-all"
+                        >
+                          Ver todo
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="p-4 sm:p-6">
+                      {bookings.slice(0, 4).length === 0 ? (
+                        <div className="text-center py-12">
+                          <div className="bg-gray-100 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
+                            <Package className="text-gray-400 w-10 h-10" />
+                          </div>
+                          <p className="text-gray-500 font-medium mb-2">No hay actividad reciente</p>
+                          <p className="text-sm text-gray-400">Tus reservas aparecerán aquí</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {bookings.slice(0, 4).map((booking) => (
+                            <div key={booking.id} className="group flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl bg-gray-50 hover:bg-gradient-to-r hover:from-primary-50 hover:to-transparent border border-gray-100 hover:border-primary-200 transition-all cursor-pointer">
+                              <div className="text-3xl sm:text-4xl flex-shrink-0 group-hover:scale-110 transition-transform">{booking.service.icon}</div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-gray-900 text-sm sm:text-base truncate group-hover:text-primary-700 transition-colors">{booking.service.name}</p>
+                                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                  <span className="text-xs text-gray-600 flex items-center gap-1">
+                                    <Calendar className="w-3 h-3" />
+                                    {new Date(booking.scheduledDate).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}
+                                  </span>
+                                  <span className="text-xs text-gray-400">•</span>
+                                  <span className="text-xs text-gray-600 flex items-center gap-1">
+                                    <Clock className="w-3 h-3" />
+                                    {booking.scheduledTime}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex flex-col items-end gap-2">
+                                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${
+                                  booking.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' :
+                                  booking.status === 'CONFIRMED' ? 'bg-blue-100 text-blue-700' :
+                                  booking.status === 'IN_PROGRESS' ? 'bg-purple-100 text-purple-700' :
+                                  'bg-gray-100 text-gray-700'
+                                }`}>
+                                  {statusLabels[booking.status]}
+                                </span>
+                                <p className="text-sm font-bold text-gray-900">{formatCurrency(booking.totalPrice)}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4 sm:space-y-6">
+                  <div className="bg-gradient-to-br from-orange-500 via-orange-600 to-orange-700 rounded-2xl sm:rounded-3xl shadow-xl p-5 sm:p-6 text-white relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+                    <div className="relative z-10">
+                      <div className="bg-white/20 backdrop-blur-sm rounded-xl p-3 w-fit mb-4">
+                        <MessageSquare className="w-6 h-6" />
+                      </div>
+                      <h3 className="text-xl sm:text-2xl font-bold mb-2">Solicitudes</h3>
+                      <p className="text-orange-100 text-sm mb-4">Gestiona tus peticiones</p>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-orange-100">Activas</span>
+                          <span className="text-2xl font-bold">{activeRequestsCount}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-orange-100">Propuestas</span>
+                          <span className="text-2xl font-bold">{totalProposals}</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setActiveTab('requests')}
+                        className="mt-4 w-full bg-white text-orange-600 font-semibold py-3 rounded-xl hover:bg-orange-50 transition-colors flex items-center justify-center gap-2"
+                      >
+                        Ver Solicitudes
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
+                    <div className="bg-gradient-to-r from-gray-50 to-white p-4 sm:p-5 border-b border-gray-100">
+                      <h3 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
+                        <Heart className="text-red-500 w-5 h-5" />
+                        Favoritos
+                      </h3>
+                    </div>
+                    <div className="p-4 sm:p-5">
+                      {favoritePartners.length === 0 ? (
+                        <div className="text-center py-8">
+                          <div className="bg-gray-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-3">
+                            <Heart className="text-gray-400 w-8 h-8" />
+                          </div>
+                          <p className="text-sm text-gray-500 mb-3">No tienes favoritos</p>
+                          <button
+                            onClick={() => router.push('/servicios')}
+                            className="text-primary-600 hover:text-primary-700 text-sm font-semibold"
+                          >
+                            Explorar servicios
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {favoritePartners.slice(0, 3).map((fav) => (
+                            <div key={fav.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 hover:bg-red-50 border border-gray-100 hover:border-red-200 transition-all cursor-pointer group">
+                              <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                                {fav.partner?.user?.name?.charAt(0) || 'P'}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-sm text-gray-900 truncate group-hover:text-red-600 transition-colors">{fav.partner?.user?.name}</p>
+                                <p className="text-xs text-gray-600 truncate">{fav.service?.name}</p>
+                              </div>
+                              <Heart className="w-4 h-4 text-red-500 fill-red-500 flex-shrink-0" />
+                            </div>
+                          ))}
+                          {favoritePartners.length > 3 && (
+                            <button
+                              onClick={() => setActiveTab('favorites')}
+                              className="w-full text-center text-sm text-primary-600 hover:text-primary-700 font-semibold py-2"
+                            >
+                              Ver todos ({favoritePartners.length})
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-primary-500 via-primary-600 to-primary-700 rounded-2xl sm:rounded-3xl shadow-xl p-5 sm:p-6 text-white relative overflow-hidden">
+                    <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/10 rounded-full -ml-16 -mb-16"></div>
+                    <div className="relative z-10">
+                      <div className="bg-white/20 backdrop-blur-sm rounded-xl p-3 w-fit mb-4">
+                        <Plus className="w-6 h-6" />
+                      </div>
+                      <h3 className="text-xl sm:text-2xl font-bold mb-2">Acciones Rápidas</h3>
+                      <p className="text-primary-100 text-sm mb-4">Gestiona tu cuenta</p>
+                      <div className="space-y-2">
+                        <button
+                          onClick={() => router.push('/servicios')}
+                          className="w-full bg-white/20 backdrop-blur-sm hover:bg-white/30 border border-white/30 text-white font-medium py-3 rounded-xl transition-all flex items-center justify-between px-4"
+                        >
+                          <span className="flex items-center gap-2">
+                            <Search className="w-4 h-4" />
+                            Buscar Servicios
+                          </span>
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => router.push('/profile')}
+                          className="w-full bg-white/20 backdrop-blur-sm hover:bg-white/30 border border-white/30 text-white font-medium py-3 rounded-xl transition-all flex items-center justify-between px-4"
+                        >
+                          <span className="flex items-center gap-2">
+                            <User className="w-4 h-4" />
+                            Mi Perfil
+                          </span>
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => router.push('/dashboard/addresses')}
+                          className="w-full bg-white/20 backdrop-blur-sm hover:bg-white/30 border border-white/30 text-white font-medium py-3 rounded-xl transition-all flex items-center justify-between px-4"
+                        >
+                          <span className="flex items-center gap-2">
+                            <MapPin className="w-4 h-4" />
+                            Direcciones
+                          </span>
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}
