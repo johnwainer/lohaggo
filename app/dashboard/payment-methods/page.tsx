@@ -12,6 +12,8 @@ export default function PaymentMethodsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [bookingsCount, setBookingsCount] = useState(0)
+  const [requestsCount, setRequestsCount] = useState(0)
   const [favoritesCount, setFavoritesCount] = useState(0)
   const fetchMethods = async (options?: { preserveSuccess?: boolean }) => {
     const { preserveSuccess = false } = options ?? {}
@@ -34,22 +36,38 @@ export default function PaymentMethodsPage() {
       setLoading(false)
     }
   }
-  const fetchFavorites = async () => {
+  const fetchCounts = async () => {
     try {
-      const res = await fetch('/api/favorites')
-      if (res.ok) {
-        const favorites = await res.json()
+      const [bookingsRes, requestsRes, favoritesRes] = await Promise.all([
+        fetch('/api/bookings'),
+        fetch('/api/service-requests'),
+        fetch('/api/favorites')
+      ])
+
+      if (bookingsRes.ok) {
+        const bookingsData = await bookingsRes.json()
+        setBookingsCount(Array.isArray(bookingsData) ? bookingsData.length : 0)
+      }
+
+      if (requestsRes.ok) {
+        const requestsData = await requestsRes.json()
+        const requests = Array.isArray(requestsData) ? requestsData : Array.isArray(requestsData?.serviceRequests) ? requestsData.serviceRequests : []
+        setRequestsCount(requests.length)
+      }
+
+      if (favoritesRes.ok) {
+        const favorites = await favoritesRes.json()
         setFavoritesCount(Array.isArray(favorites) ? favorites.length : 0)
       }
     } catch (err: any) {
-      console.error('Error fetching favorites:', err)
+      console.error('Error fetching counts:', err)
     }
   }
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login')
     if (status === 'authenticated') {
       fetchMethods()
-      fetchFavorites()
+      fetchCounts()
     }
   }, [status, router])
   useEffect(() => {
@@ -84,7 +102,7 @@ export default function PaymentMethodsPage() {
     }
   }
   if (status === 'loading' || loading) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><div className="h-12 w-12 rounded-full border-4 border-[#FF2D55] border-t-transparent animate-spin" /></div>
-  const navItems = [{ icon: Home, label: 'Resumen', href: '/dashboard' }, { icon: Package, label: 'Mis Reservas', href: '/dashboard?tab=bookings' }, { icon: MessageSquare, label: 'Mis Solicitudes', href: '/dashboard?tab=requests' }, { icon: Heart, label: 'Favoritos', href: '/dashboard?tab=favorites', count: favoritesCount }]
+  const navItems = [{ icon: Home, label: 'Resumen', href: '/dashboard' }, { icon: Package, label: 'Mis Reservas', href: '/dashboard?tab=bookings', count: bookingsCount }, { icon: MessageSquare, label: 'Mis Solicitudes', href: '/dashboard?tab=requests', count: requestsCount }, { icon: Heart, label: 'Favoritos', href: '/dashboard?tab=favorites', count: favoritesCount }]
   const formatExpiry = (month: number, year: number) => `${String(month).padStart(2, '0')}/${String(year).slice(-2)}`
   return (
     <div className="min-h-screen bg-gray-50">
