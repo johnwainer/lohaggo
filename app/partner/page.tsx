@@ -499,9 +499,9 @@ function PartnerDashboardContent() {
             <div className="space-y-6 sm:space-y-8 mt-6">
               {/* Stats Grid */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                <div className="bg-gradient-to-br from-primary-50 via-white to-primary-50 rounded-2xl sm:rounded-3xl shadow-lg border-2 border-primary-200 p-4 sm:p-6 hover:shadow-xl transition-all">
+                <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg border border-gray-200 p-4 sm:p-6 hover:shadow-xl transition-all">
                   <div className="flex items-center justify-between mb-3">
-                    <div className="bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl p-3 shadow-md">
+                    <div className="bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl p-3 shadow-md">
                       <Package className="text-white" size={24} />
                     </div>
                     <TrendingUp className="text-emerald-500" size={20} />
@@ -510,9 +510,9 @@ function PartnerDashboardContent() {
                   <p className="text-sm text-gray-600 font-medium">Total Reservas</p>
                 </div>
 
-                <div className="bg-gradient-to-br from-secondary-50 via-white to-secondary-50 rounded-2xl sm:rounded-3xl shadow-lg border-2 border-secondary-200 p-4 sm:p-6 hover:shadow-xl transition-all">
+                <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg border border-gray-200 p-4 sm:p-6 hover:shadow-xl transition-all">
                   <div className="flex items-center justify-between mb-3">
-                    <div className="bg-gradient-to-br from-secondary-500 to-secondary-700 rounded-xl p-3 shadow-md">
+                    <div className="bg-gray-600 rounded-xl p-3 shadow-md">
                       <Clock className="text-white" size={24} />
                     </div>
                   </div>
@@ -520,9 +520,9 @@ function PartnerDashboardContent() {
                   <p className="text-sm text-gray-600 font-medium">Pendientes</p>
                 </div>
 
-                <div className="bg-gradient-to-br from-blue-50 via-white to-blue-50 rounded-2xl sm:rounded-3xl shadow-lg border-2 border-blue-200 p-4 sm:p-6 hover:shadow-xl transition-all">
+                <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg border border-gray-200 p-4 sm:p-6 hover:shadow-xl transition-all">
                   <div className="flex items-center justify-between mb-3">
-                    <div className="bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl p-3 shadow-md">
+                    <div className="bg-gray-600 rounded-xl p-3 shadow-md">
                       <Activity className="text-white" size={24} />
                     </div>
                   </div>
@@ -530,9 +530,9 @@ function PartnerDashboardContent() {
                   <p className="text-sm text-gray-600 font-medium">En Progreso</p>
                 </div>
 
-                <div className="bg-gradient-to-br from-emerald-50 via-white to-emerald-50 rounded-2xl sm:rounded-3xl shadow-lg border-2 border-emerald-200 p-4 sm:p-6 hover:shadow-xl transition-all">
+                <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg border border-gray-200 p-4 sm:p-6 hover:shadow-xl transition-all">
                   <div className="flex items-center justify-between mb-3">
-                    <div className="bg-gradient-to-br from-emerald-500 to-emerald-700 rounded-xl p-3 shadow-md">
+                    <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-3 shadow-md">
                       <DollarSign className="text-white" size={24} />
                     </div>
                   </div>
@@ -544,7 +544,7 @@ function PartnerDashboardContent() {
               {/* Quick Actions */}
               <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg border border-gray-100 p-6 sm:p-8">
                 <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-                  <div className="bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl p-2 shadow-md">
+                  <div className="bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl p-2 shadow-md">
                     <Activity className="text-white" size={24} />
                   </div>
                   Acciones Rápidas
@@ -552,10 +552,10 @@ function PartnerDashboardContent() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <button
                     onClick={() => setActiveTab('bookings')}
-                    className="bg-gradient-to-br from-gray-50 to-white rounded-2xl p-5 flex items-center gap-4 border-2 border-gray-200 hover:border-primary-500 hover:shadow-lg transition-all group"
+                    className="bg-white rounded-2xl p-5 flex items-center gap-4 border-2 border-gray-200 hover:border-primary-500 hover:shadow-lg transition-all group"
                   >
-                    <div className="bg-gradient-to-br from-primary-100 to-primary-200 rounded-xl p-3 group-hover:scale-110 transition-transform">
-                      <Package className="text-primary-600" size={24} />
+                    <div className="bg-gray-100 rounded-xl p-3 group-hover:bg-primary-100 transition-colors">
+                      <Package className="text-gray-600 group-hover:text-primary-600 transition-colors" size={24} />
                     </div>
                     <div className="text-left flex-1">
                       <p className="font-bold text-base text-gray-900 mb-1">Ver Reservas</p>
@@ -566,24 +566,24 @@ function PartnerDashboardContent() {
 
                   <button
                     onClick={() => setActiveTab('my-requests')}
-                    className="bg-gradient-to-br from-gray-50 to-white rounded-2xl p-5 flex items-center gap-4 border-2 border-gray-200 hover:border-secondary-500 hover:shadow-lg transition-all group"
+                    className="bg-white rounded-2xl p-5 flex items-center gap-4 border-2 border-gray-200 hover:border-primary-500 hover:shadow-lg transition-all group"
                   >
-                    <div className="bg-gradient-to-br from-secondary-100 to-secondary-200 rounded-xl p-3 group-hover:scale-110 transition-transform">
-                      <Bell className="text-secondary-600" size={24} />
+                    <div className="bg-gray-100 rounded-xl p-3 group-hover:bg-primary-100 transition-colors">
+                      <Bell className="text-gray-600 group-hover:text-primary-600 transition-colors" size={24} />
                     </div>
                     <div className="text-left flex-1">
                       <p className="font-bold text-base text-gray-900 mb-1">Solicitudes</p>
                       <p className="text-sm text-gray-600">{serviceRequests.length} nuevas</p>
                     </div>
-                    <ChevronRight className="text-gray-400 group-hover:text-secondary-600 transition-colors hidden sm:block" size={20} />
+                    <ChevronRight className="text-gray-400 group-hover:text-primary-600 transition-colors hidden sm:block" size={20} />
                   </button>
 
                   <button
                     onClick={() => router.push('/partner/services')}
-                    className="bg-gradient-to-br from-gray-50 to-white rounded-2xl p-5 flex items-center gap-4 border-2 border-gray-200 hover:border-primary-500 hover:shadow-lg transition-all group"
+                    className="bg-white rounded-2xl p-5 flex items-center gap-4 border-2 border-gray-200 hover:border-primary-500 hover:shadow-lg transition-all group"
                   >
-                    <div className="bg-gradient-to-br from-primary-100 to-primary-200 rounded-xl p-3 group-hover:scale-110 transition-transform">
-                      <Briefcase className="text-primary-600" size={24} />
+                    <div className="bg-gray-100 rounded-xl p-3 group-hover:bg-primary-100 transition-colors">
+                      <Briefcase className="text-gray-600 group-hover:text-primary-600 transition-colors" size={24} />
                     </div>
                     <div className="text-left flex-1">
                       <p className="font-bold text-base text-gray-900 mb-1">Mis Servicios</p>
@@ -604,7 +604,7 @@ function PartnerDashboardContent() {
                 </h3>
                 {bookings.slice(0, 5).length === 0 ? (
                   <div className="bg-gradient-to-br from-gray-50 to-white rounded-2xl p-12 text-center border-2 border-gray-200">
-                    <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
+                    <div className="bg-gray-200 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
                       <Package className="text-gray-400" size={40} />
                     </div>
                     <p className="text-gray-900 text-lg font-bold mb-2">No hay actividad reciente</p>
@@ -613,7 +613,7 @@ function PartnerDashboardContent() {
                 ) : (
                   <div className="space-y-3">
                     {bookings.slice(0, 5).map((booking) => (
-                      <div key={booking.id} className="bg-gradient-to-r from-gray-50 to-white rounded-xl p-4 flex items-center gap-4 border border-gray-200 hover:border-primary-300 hover:shadow-md transition-all">
+                      <div key={booking.id} className="bg-gray-50 rounded-xl p-4 flex items-center gap-4 border border-gray-200 hover:border-orange-400 hover:shadow-md transition-all">
                         <div className="text-4xl">{booking.service.icon}</div>
                         <div className="flex-1 min-w-0">
                           <p className="font-bold text-base text-gray-900 truncate">{booking.service.name}</p>
@@ -622,7 +622,7 @@ function PartnerDashboardContent() {
                         <span className={`${getStatusClasses(booking.status)} px-3 py-1.5 rounded-full text-xs font-semibold border-2 whitespace-nowrap`}>
                           {getStatusLabel(booking.status)}
                         </span>
-                        <p className="font-bold text-base text-primary-600 whitespace-nowrap hidden sm:block">{formatCurrency(booking.totalPrice)}</p>
+                        <p className="font-bold text-base text-orange-600 whitespace-nowrap hidden sm:block">{formatCurrency(booking.totalPrice)}</p>
                       </div>
                     ))}
                   </div>
@@ -677,8 +677,8 @@ function PartnerDashboardContent() {
 
               {/* Bookings Grid */}
               {filteredBookings.length === 0 ? (
-                <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg p-12 sm:p-16 text-center border border-gray-100">
-                  <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6">
+                <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg p-12 sm:p-16 text-center border border-gray-200">
+                  <div className="bg-gray-200 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6">
                     <Package className="text-gray-400" size={48} />
                   </div>
                   <p className="text-gray-900 text-xl font-bold mb-2">No hay reservas</p>
@@ -687,7 +687,7 @@ function PartnerDashboardContent() {
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                   {filteredBookings.map((booking) => (
-                    <div key={booking.id} className="bg-white rounded-2xl sm:rounded-3xl shadow-lg hover:shadow-xl transition-all overflow-hidden border border-gray-100">
+                    <div key={booking.id} className="bg-white rounded-2xl sm:rounded-3xl shadow-lg hover:shadow-xl transition-all overflow-hidden border border-gray-200">
                       <div className="p-5 sm:p-6">
                         <div className="flex items-start gap-4 mb-5">
                           <div className="text-4xl sm:text-5xl">{booking.service.icon}</div>
@@ -702,27 +702,27 @@ function PartnerDashboardContent() {
                           </div>
                         </div>
 
-                        <div className="bg-gradient-to-r from-blue-50 to-blue-100 border-2 border-blue-200 rounded-xl p-4 mb-4">
+                        <div className="bg-gray-50 border-2 border-gray-200 rounded-xl p-4 mb-4">
                           <div className="flex items-center gap-2 mb-2">
-                            <div className="bg-blue-100 rounded-lg p-1.5">
-                              <User size={16} className="text-blue-600" />
+                            <div className="bg-gray-200 rounded-lg p-1.5">
+                              <User size={16} className="text-gray-600" />
                             </div>
                             <span className="font-bold text-gray-900">{booking.user.name}</span>
                           </div>
-                          <p className="text-sm text-blue-700 flex items-center gap-2">📧 {booking.user.email}</p>
+                          <p className="text-sm text-gray-600 flex items-center gap-2">📧 {booking.user.email}</p>
                           {booking.user.phone && (
-                            <p className="text-sm text-blue-700 flex items-center gap-2 mt-1">📱 {booking.user.phone}</p>
+                            <p className="text-sm text-gray-600 flex items-center gap-2 mt-1">📱 {booking.user.phone}</p>
                           )}
                         </div>
 
                         <div className="space-y-3 mb-4">
-                          <div className="flex items-start gap-3 p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-200">
-                            <div className="bg-green-100 rounded-lg p-2 flex-shrink-0">
-                              <Calendar size={18} className="text-green-600" />
+                          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl border-2 border-gray-200">
+                            <div className="bg-gray-200 rounded-lg p-2 flex-shrink-0">
+                              <Calendar size={18} className="text-gray-600" />
                             </div>
                             <div>
-                              <p className="text-xs text-green-600 font-semibold mb-1">Fecha programada</p>
-                              <span className="text-sm font-medium text-green-700">
+                              <p className="text-xs text-gray-500 font-semibold mb-1">Fecha programada</p>
+                              <span className="text-sm font-medium text-gray-900">
                                 {new Date(booking.scheduledDate).toLocaleDateString('es-ES', {
                                   weekday: 'long',
                                   day: 'numeric',
@@ -731,28 +731,28 @@ function PartnerDashboardContent() {
                               </span>
                             </div>
                           </div>
-                          <div className="flex items-start gap-3 p-3 bg-gradient-to-r from-purple-50 to-purple-100 rounded-xl border-2 border-purple-200">
-                            <div className="bg-purple-100 rounded-lg p-2 flex-shrink-0">
-                              <Clock size={18} className="text-purple-600" />
+                          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl border-2 border-gray-200">
+                            <div className="bg-gray-200 rounded-lg p-2 flex-shrink-0">
+                              <Clock size={18} className="text-gray-600" />
                             </div>
                             <div>
-                              <p className="text-xs text-purple-600 font-semibold mb-1">Hora</p>
-                              <span className="text-sm font-medium text-purple-700">{booking.scheduledTime}</span>
+                              <p className="text-xs text-gray-500 font-semibold mb-1">Hora</p>
+                              <span className="text-sm font-medium text-gray-900">{booking.scheduledTime}</span>
                             </div>
                           </div>
-                          <div className="flex items-start gap-3 p-3 bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl border-2 border-orange-200">
-                            <div className="bg-orange-100 rounded-lg p-2 flex-shrink-0">
-                              <MapPin size={18} className="text-orange-600" />
+                          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl border-2 border-gray-200">
+                            <div className="bg-gray-200 rounded-lg p-2 flex-shrink-0">
+                              <MapPin size={18} className="text-gray-600" />
                             </div>
                             <div>
-                              <p className="text-xs text-orange-600 font-semibold mb-1">Dirección</p>
-                              <span className="text-sm font-medium text-orange-700">{booking.address}</span>
+                              <p className="text-xs text-gray-500 font-semibold mb-1">Dirección</p>
+                              <span className="text-sm font-medium text-gray-900">{booking.address}</span>
                             </div>
                           </div>
                         </div>
 
                         {booking.notes && (
-                          <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-2 border-gray-200 rounded-xl p-4 mb-4">
+                          <div className="bg-gray-50 border-2 border-gray-200 rounded-xl p-4 mb-4">
                             <p className="text-xs font-semibold text-gray-700 mb-2">Notas del cliente:</p>
                             <p className="text-sm text-gray-800">{booking.notes}</p>
                           </div>
@@ -766,7 +766,7 @@ function PartnerDashboardContent() {
                               serviceName: booking.service.name,
                               clientName: booking.user.name
                             })}
-                            className="w-full bg-gradient-to-r from-secondary-500 to-secondary-600 text-white px-4 py-3.5 rounded-xl hover:from-secondary-600 hover:to-secondary-700 transition-all font-semibold flex items-center justify-center gap-2 mb-3 shadow-lg hover:shadow-xl"
+                            className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-3.5 rounded-xl hover:from-orange-600 hover:to-orange-700 transition-all font-semibold flex items-center justify-center gap-2 mb-3 shadow-lg hover:shadow-xl"
                           >
                             <Star size={20} />
                             Calificar Cliente
@@ -774,7 +774,7 @@ function PartnerDashboardContent() {
                         )}
 
                         {booking.status === 'COMPLETED' && booking.review?.partnerToClientRating && (
-                          <div className="bg-gradient-to-r from-emerald-50 to-green-50 border-2 border-emerald-200 rounded-xl p-4 mb-3">
+                          <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl p-4 mb-3">
                             <div className="flex items-center gap-2 text-emerald-700">
                               <CheckCircle size={18} />
                               <span className="text-sm font-semibold">Cliente calificado</span>
@@ -783,7 +783,7 @@ function PartnerDashboardContent() {
                                   <Star
                                     key={i}
                                     size={16}
-                                    className={i < (booking.review?.partnerToClientRating || 0) ? 'fill-secondary-500 text-secondary-500' : 'text-gray-300'}
+                                    className={i < (booking.review?.partnerToClientRating || 0) ? 'fill-emerald-500 text-emerald-500' : 'text-gray-300'}
                                   />
                                 ))}
                               </div>
@@ -799,12 +799,12 @@ function PartnerDashboardContent() {
                               partnerName: booking.user.name,
                               serviceName: booking.service.name
                             })}
-                            className="w-full bg-white text-orange-600 border-2 border-orange-500 px-4 py-3.5 rounded-xl hover:bg-orange-50 transition-all font-semibold flex items-center justify-center gap-2 mb-3 relative shadow-md hover:shadow-lg"
+                            className="w-full bg-white text-gray-700 border-2 border-gray-300 px-4 py-3.5 rounded-xl hover:bg-gray-50 transition-all font-semibold flex items-center justify-center gap-2 mb-3 relative shadow-md hover:shadow-lg"
                           >
                             <MessageCircle size={20} />
                             Chat con el Cliente
                             {unreadCounts[booking.proposalId!] > 0 && (
-                              <span className="absolute -top-2 -right-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xs font-bold rounded-full h-7 w-7 flex items-center justify-center animate-pulse shadow-lg">
+                              <span className="absolute -top-2 -right-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white text-xs font-bold rounded-full h-7 w-7 flex items-center justify-center animate-pulse shadow-lg">
                                 {unreadCounts[booking.proposalId!]}
                               </span>
                             )}
@@ -817,7 +817,7 @@ function PartnerDashboardContent() {
                               <>
                                 <button
                                   onClick={() => updateBookingStatus(booking.id, 'CONFIRMED', booking.service.name)}
-                                  className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-3.5 rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all font-semibold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                                  className="flex-1 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-3.5 rounded-xl hover:from-orange-600 hover:to-orange-700 transition-all font-semibold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
                                 >
                                   <CheckCircle size={20} />
                                   Confirmar
@@ -907,37 +907,37 @@ function PartnerDashboardContent() {
                           </div>
                         </div>
 
-                        <div className="bg-gradient-to-r from-blue-50 to-blue-100 border-2 border-blue-200 rounded-xl p-4 mb-4">
+                        <div className="bg-gray-50 border-2 border-gray-200 rounded-xl p-4 mb-4">
                           <div className="flex items-center gap-2 mb-2">
-                            <div className="bg-blue-100 rounded-lg p-1.5">
-                              <User size={16} className="text-blue-600" />
+                            <div className="bg-gray-200 rounded-lg p-1.5">
+                              <User size={16} className="text-gray-600" />
                             </div>
                             <span className="font-bold text-gray-900 truncate">{request.user.name}</span>
                           </div>
-                          <p className="text-sm text-blue-700 truncate">📧 {request.user.email}</p>
+                          <p className="text-sm text-gray-600 truncate">📧 {request.user.email}</p>
                           {request.user.phone && (
-                            <p className="text-sm text-blue-700">📱 {request.user.phone}</p>
+                            <p className="text-sm text-gray-600">📱 {request.user.phone}</p>
                           )}
                         </div>
 
                         <div className="space-y-3 mb-4">
-                          <div className="flex items-start gap-3 p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-200">
-                            <div className="bg-green-100 rounded-lg p-2 flex-shrink-0">
-                              <MapPin size={18} className="text-green-600" />
+                          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl border-2 border-gray-200">
+                            <div className="bg-gray-200 rounded-lg p-2 flex-shrink-0">
+                              <MapPin size={18} className="text-gray-600" />
                             </div>
                             <div>
-                              <p className="text-xs text-green-600 font-semibold mb-1">Ubicación</p>
-                              <span className="text-sm font-medium text-green-700">{request.address}, {request.city}</span>
+                              <p className="text-xs text-gray-500 font-semibold mb-1">Ubicación</p>
+                              <span className="text-sm font-medium text-gray-900">{request.address}, {request.city}</span>
                             </div>
                           </div>
                           {request.preferredDate && (
-                            <div className="flex items-start gap-3 p-3 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl border-2 border-blue-200">
-                              <div className="bg-blue-100 rounded-lg p-2 flex-shrink-0">
-                                <Calendar size={18} className="text-blue-600" />
+                            <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl border-2 border-gray-200">
+                              <div className="bg-gray-200 rounded-lg p-2 flex-shrink-0">
+                                <Calendar size={18} className="text-gray-600" />
                               </div>
                               <div>
-                                <p className="text-xs text-blue-600 font-semibold mb-1">Fecha preferida</p>
-                                <span className="text-sm font-medium text-blue-700">
+                                <p className="text-xs text-gray-500 font-semibold mb-1">Fecha preferida</p>
+                                <span className="text-sm font-medium text-gray-900">
                                   {new Date(request.preferredDate).toLocaleDateString('es-ES', {
                                     weekday: 'long',
                                     day: 'numeric',
@@ -951,7 +951,7 @@ function PartnerDashboardContent() {
                         </div>
 
                         {request.notes && (
-                          <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-2 border-gray-200 rounded-xl p-4 mb-4">
+                          <div className="bg-gray-50 border-2 border-gray-200 rounded-xl p-4 mb-4">
                             <p className="text-xs font-semibold text-gray-700 mb-2">Detalles:</p>
                             <p className="text-sm text-gray-800">{request.notes}</p>
                           </div>
@@ -960,7 +960,7 @@ function PartnerDashboardContent() {
                         {request.photos && request.photos.length > 0 && (
                           <div className="mb-4">
                             <h4 className="font-semibold mb-3 text-sm text-gray-700 flex items-center gap-2">
-                              <span className="bg-primary-100 text-primary-700 px-2 py-1 rounded-lg text-xs">
+                              <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded-lg text-xs">
                                 {request.photos.length} fotos
                               </span>
                               Fotos adjuntas
@@ -990,7 +990,7 @@ function PartnerDashboardContent() {
 
                         {request.proposals.length > 0 ? (
                           <div className="space-y-3">
-                            <div className="bg-gradient-to-r from-emerald-50 to-green-50 border-2 border-emerald-200 rounded-xl p-4">
+                            <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl p-4">
                               <p className="text-sm font-bold text-emerald-700 flex items-center gap-2">
                                 <CheckCircle size={18} />
                                 Ya enviaste una propuesta
@@ -1004,12 +1004,12 @@ function PartnerDashboardContent() {
                                   partnerName: request.user.name,
                                   serviceName: request.service.name
                                 })}
-                                className="w-full bg-white border-2 border-orange-500 text-orange-600 px-4 py-3.5 rounded-xl hover:bg-orange-50 transition-all font-semibold flex items-center justify-center gap-2 relative shadow-md hover:shadow-lg"
+                                className="w-full bg-white border-2 border-gray-300 text-gray-700 px-4 py-3.5 rounded-xl hover:border-primary-500 hover:text-primary-600 transition-all font-semibold flex items-center justify-center gap-2 relative shadow-md hover:shadow-lg"
                               >
                                 <MessageCircle size={20} />
                                 Chat con Cliente
                                 {unreadCounts[request.proposals[0].id] > 0 && (
-                                  <span className="absolute -top-2 -right-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xs font-bold rounded-full h-7 w-7 flex items-center justify-center animate-pulse shadow-lg">
+                                  <span className="absolute -top-2 -right-2 bg-gradient-to-r from-primary-500 to-primary-600 text-white text-xs font-bold rounded-full h-7 w-7 flex items-center justify-center animate-pulse shadow-lg">
                                     {unreadCounts[request.proposals[0].id]}
                                   </span>
                                 )}
@@ -1018,6 +1018,12 @@ function PartnerDashboardContent() {
                           </div>
                         ) : (
                           <button
+                            onClick={() => openProposalModal(request)}
+                            className="bg-gradient-to-r from-primary-500 to-primary-600 text-white px-4 py-3.5 rounded-xl font-semibold hover:from-primary-600 hover:to-primary-700 transition-all w-full flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                          >
+                            <Send size={20} />
+                            Enviar Propuesta
+                          </button>
                             onClick={() => openProposalModal(request)}
                             className="bg-gradient-to-r from-primary-600 to-primary-700 text-white px-4 py-3.5 rounded-xl font-semibold hover:from-primary-700 hover:to-primary-800 transition-all w-full flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
                           >

@@ -882,51 +882,51 @@ export default function DashboardPage() {
                     <div className="p-4 sm:p-6">
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                         <div className="group hover:scale-105 transition-transform">
-                          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl sm:rounded-2xl p-4 sm:p-5 border-2 border-blue-200 hover:border-blue-400 transition-colors">
+                          <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-5 border-2 border-gray-200 hover:border-gray-300 transition-colors shadow-sm">
                             <div className="flex items-center justify-between mb-3">
-                              <div className="bg-blue-500 rounded-lg p-2">
+                              <div className="bg-gray-600 rounded-lg p-2">
                                 <Clock className="text-white w-4 h-4 sm:w-5 sm:h-5" />
                               </div>
-                              <span className="text-xs font-semibold text-blue-600 bg-blue-200 px-2 py-1 rounded-full">Activas</span>
+                              <span className="text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-1 rounded-full">Activas</span>
                             </div>
-                            <p className="text-3xl sm:text-4xl font-bold text-blue-900 mb-1">{pendingCount}</p>
-                            <p className="text-xs sm:text-sm text-blue-700 font-medium">Pendientes</p>
+                            <p className="text-3xl sm:text-4xl font-bold text-gray-900 mb-1">{pendingCount}</p>
+                            <p className="text-xs sm:text-sm text-gray-600 font-medium">Pendientes</p>
                           </div>
                         </div>
                         <div className="group hover:scale-105 transition-transform">
-                          <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl sm:rounded-2xl p-4 sm:p-5 border-2 border-green-200 hover:border-green-400 transition-colors">
+                          <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-5 border-2 border-gray-200 hover:border-gray-300 transition-colors shadow-sm">
                             <div className="flex items-center justify-between mb-3">
-                              <div className="bg-green-500 rounded-lg p-2">
+                              <div className="bg-gradient-to-br from-primary-500 to-primary-600 rounded-lg p-2">
                                 <CheckCircle className="text-white w-4 h-4 sm:w-5 sm:h-5" />
                               </div>
-                              <span className="text-xs font-semibold text-green-600 bg-green-200 px-2 py-1 rounded-full">OK</span>
+                              <span className="text-xs font-semibold text-primary-600 bg-primary-100 px-2 py-1 rounded-full">OK</span>
                             </div>
-                            <p className="text-3xl sm:text-4xl font-bold text-green-900 mb-1">{confirmedCount}</p>
-                            <p className="text-xs sm:text-sm text-green-700 font-medium">Confirmadas</p>
+                            <p className="text-3xl sm:text-4xl font-bold text-gray-900 mb-1">{confirmedCount}</p>
+                            <p className="text-xs sm:text-sm text-gray-600 font-medium">Confirmadas</p>
                           </div>
                         </div>
                         <div className="group hover:scale-105 transition-transform">
-                          <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl sm:rounded-2xl p-4 sm:p-5 border-2 border-purple-200 hover:border-purple-400 transition-colors">
+                          <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-5 border-2 border-gray-200 hover:border-gray-300 transition-colors shadow-sm">
                             <div className="flex items-center justify-between mb-3">
-                              <div className="bg-purple-500 rounded-lg p-2">
+                              <div className="bg-gray-600 rounded-lg p-2">
                                 <Activity className="text-white w-4 h-4 sm:w-5 sm:h-5" />
                               </div>
-                              <span className="text-xs font-semibold text-purple-600 bg-purple-200 px-2 py-1 rounded-full">En curso</span>
+                              <span className="text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-1 rounded-full">En curso</span>
                             </div>
-                            <p className="text-3xl sm:text-4xl font-bold text-purple-900 mb-1">{bookings.filter(b => b.status === 'IN_PROGRESS').length}</p>
-                            <p className="text-xs sm:text-sm text-purple-700 font-medium">En Progreso</p>
+                            <p className="text-3xl sm:text-4xl font-bold text-gray-900 mb-1">{bookings.filter(b => b.status === 'IN_PROGRESS').length}</p>
+                            <p className="text-xs sm:text-sm text-gray-600 font-medium">En Progreso</p>
                           </div>
                         </div>
                         <div className="group hover:scale-105 transition-transform">
-                          <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl sm:rounded-2xl p-4 sm:p-5 border-2 border-emerald-200 hover:border-emerald-400 transition-colors">
+                          <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-5 border-2 border-gray-200 hover:border-gray-300 transition-colors shadow-sm">
                             <div className="flex items-center justify-between mb-3">
-                              <div className="bg-emerald-500 rounded-lg p-2">
+                              <div className="bg-gradient-to-br from-primary-500 to-primary-600 rounded-lg p-2">
                                 <Star className="text-white w-4 h-4 sm:w-5 sm:h-5" />
                               </div>
-                              <span className="text-xs font-semibold text-emerald-600 bg-emerald-200 px-2 py-1 rounded-full">Listo</span>
+                              <span className="text-xs font-semibold text-primary-600 bg-primary-100 px-2 py-1 rounded-full">Listo</span>
                             </div>
-                            <p className="text-3xl sm:text-4xl font-bold text-emerald-900 mb-1">{bookings.filter(b => b.status === 'COMPLETED').length}</p>
-                            <p className="text-xs sm:text-sm text-emerald-700 font-medium">Completadas</p>
+                            <p className="text-3xl sm:text-4xl font-bold text-gray-900 mb-1">{bookings.filter(b => b.status === 'COMPLETED').length}</p>
+                            <p className="text-xs sm:text-sm text-gray-600 font-medium">Completadas</p>
                           </div>
                         </div>
                       </div>
