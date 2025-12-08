@@ -1125,25 +1125,25 @@ export default function DashboardPage() {
 
           {activeTab === 'bookings' && (
             <div className="space-y-4 sm:space-y-6">
-              <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-6">
+              <div className="bg-gradient-to-r from-primary-50 via-white to-primary-50 rounded-2xl sm:rounded-3xl shadow-lg border border-primary-100 p-4 sm:p-6">
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                   <div className="flex-1 relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                     <input
                       type="text"
                       placeholder="Buscar por servicio o dirección..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-3 py-3 sm:pr-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white"
                     />
                   </div>
                   <div className="flex gap-2 flex-wrap items-center">
                     <button
                       onClick={() => setFilter('')}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
+                      className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
                         filter === ''
-                          ? 'bg-primary-600 text-white shadow-lg'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          ? 'bg-gradient-to-r from-primary-600 to-primary-700 text-white shadow-lg shadow-primary-200'
+                          : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200'
                       }`}
                     >
                       Todas
@@ -1152,10 +1152,10 @@ export default function DashboardPage() {
                       <button
                         key={key}
                         onClick={() => setFilter(key)}
-                        className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
+                        className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
                           filter === key
-                            ? 'bg-primary-600 text-white shadow-lg'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            ? 'bg-gradient-to-r from-primary-600 to-primary-700 text-white shadow-lg shadow-primary-200'
+                            : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200'
                         }`}
                       >
                         {label}
@@ -1166,146 +1166,169 @@ export default function DashboardPage() {
               </div>
 
               {filteredBookings.length === 0 ? (
-                <div className="bg-white rounded-2xl shadow-lg p-12 text-center">
-                  <Package className="mx-auto text-gray-300 mb-4" size={64} />
-                  <p className="text-gray-600 text-lg font-medium">No hay reservas</p>
-                  <p className="text-gray-500 text-sm mt-2">Aquí aparecerán tus reservas cuando realices alguna</p>
+                <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg p-12 sm:p-16 text-center border border-gray-100">
+                  <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6">
+                    <Package className="text-gray-400 w-12 h-12" />
+                  </div>
+                  <p className="text-gray-900 text-xl font-bold mb-2">No hay reservas</p>
+                  <p className="text-gray-500 text-base">Aquí aparecerán tus reservas cuando realices alguna</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                   {filteredBookings.map((booking) => (
-                    <div key={booking.id} className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition overflow-hidden">
-                      <div className="p-6">
-                        <div className="flex items-start gap-4 mb-4">
-                          <div className="text-4xl">{booking.service.icon}</div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <h3 className="font-bold text-lg text-gray-900">{booking.service.name}</h3>
-                              <span className={`text-xs font-medium px-3 py-1 rounded-full border ${statusColors[booking.status]}`}>
+                    <div key={booking.id} className="group bg-white rounded-2xl sm:rounded-3xl shadow-lg hover:shadow-2xl transition-all overflow-hidden border border-gray-100 hover:border-primary-200">
+                      <div className={`h-2 ${
+                        booking.status === 'COMPLETED' ? 'bg-gradient-to-r from-emerald-500 to-emerald-600' :
+                        booking.status === 'CONFIRMED' ? 'bg-gradient-to-r from-blue-500 to-blue-600' :
+                        booking.status === 'IN_PROGRESS' ? 'bg-gradient-to-r from-purple-500 to-purple-600' :
+                        'bg-gradient-to-r from-gray-400 to-gray-500'
+                      }`}></div>
+                      <div className="p-5 sm:p-6">
+                        <div className="flex items-start gap-4 mb-5">
+                          <div className="text-4xl sm:text-5xl group-hover:scale-110 transition-transform">{booking.service.icon}</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <h3 className="font-bold text-lg sm:text-xl text-gray-900 group-hover:text-primary-600 transition-colors">{booking.service.name}</h3>
+                              <span className={`text-xs font-bold px-3 py-1.5 rounded-full whitespace-nowrap ${
+                                booking.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700 border-2 border-emerald-200' :
+                                booking.status === 'CONFIRMED' ? 'bg-blue-100 text-blue-700 border-2 border-blue-200' :
+                                booking.status === 'IN_PROGRESS' ? 'bg-purple-100 text-purple-700 border-2 border-purple-200' :
+                                'bg-gray-100 text-gray-700 border-2 border-gray-200'
+                              }`}>
                                 {statusLabels[booking.status]}
                               </span>
                             </div>
-                            <p className="text-sm text-gray-600">{booking.service.category.name}</p>
-                            <p className="text-2xl font-bold text-primary-600 mt-2">{formatCurrency(booking.totalPrice)}</p>
+                            <p className="text-sm text-gray-600 mb-3">{booking.service.category.name}</p>
+                            <div className="bg-gradient-to-r from-primary-50 to-primary-100 rounded-xl px-4 py-2 inline-block">
+                              <p className="text-2xl sm:text-3xl font-bold text-primary-700">{formatCurrency(booking.totalPrice)}</p>
+                            </div>
                           </div>
                         </div>
 
-                        <div className="space-y-2 text-sm text-gray-600 mb-4">
-                          <div className="flex items-center gap-2">
-                            <Calendar size={16} className="text-primary-600" />
-                            <span>{new Date(booking.scheduledDate).toLocaleDateString('es-ES', {
+                        <div className="space-y-3 mb-5">
+                          <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                            <div className="bg-primary-100 rounded-lg p-2">
+                              <Calendar size={18} className="text-primary-600" />
+                            </div>
+                            <span className="text-sm font-medium text-gray-900">{new Date(booking.scheduledDate).toLocaleDateString('es-ES', {
                               weekday: 'long',
                               year: 'numeric',
                               month: 'long',
                               day: 'numeric'
                             })}</span>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Clock size={16} className="text-primary-600" />
-                            <span>{booking.scheduledTime}</span>
+                          <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                            <div className="bg-blue-100 rounded-lg p-2">
+                              <Clock size={18} className="text-blue-600" />
+                            </div>
+                            <span className="text-sm font-medium text-gray-900">{booking.scheduledTime}</span>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <MapPin size={16} className="text-primary-600" />
-                            <span>{booking.address}</span>
+                          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
+                            <div className="bg-green-100 rounded-lg p-2 flex-shrink-0">
+                              <MapPin size={18} className="text-green-600" />
+                            </div>
+                            <span className="text-sm font-medium text-gray-900 break-words">{booking.address}</span>
                           </div>
                         </div>
 
                         {booking.notes && (
-                          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-4">
-                            <p className="text-sm text-gray-700"><strong>Notas:</strong> {booking.notes}</p>
+                          <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-200 rounded-xl p-4 mb-4">
+                            <p className="text-sm text-gray-800"><strong className="text-yellow-700">Notas:</strong> {booking.notes}</p>
                           </div>
                         )}
 
-                        {booking.status === 'COMPLETED' && !booking.review?.clientToPartnerRating && (
-                          <button
-                            onClick={() => setRatingModal({
-                              isOpen: true,
-                              bookingId: booking.id,
-                              serviceName: booking.service.name,
-                              partnerName: booking.partner?.user.name || 'el socio'
-                            })}
-                            className="w-full bg-white text-yellow-500 border-2 border-yellow-500 px-4 py-3 rounded-xl hover:bg-yellow-50 transition font-medium flex items-center justify-center gap-2 mb-3"
-                          >
-                            <Star size={18} />
-                            Calificar Servicio
-                          </button>
-                        )}
+                        <div className="space-y-2">
+                          {booking.status === 'COMPLETED' && !booking.review?.clientToPartnerRating && (
+                            <button
+                              onClick={() => setRatingModal({
+                                isOpen: true,
+                                bookingId: booking.id,
+                                serviceName: booking.service.name,
+                                partnerName: booking.partner?.user.name || 'el socio'
+                              })}
+                              className="w-full bg-gradient-to-r from-yellow-400 to-orange-400 text-white px-4 py-3.5 rounded-xl hover:from-yellow-500 hover:to-orange-500 transition-all font-semibold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                            >
+                              <Star size={20} />
+                              Calificar Servicio
+                            </button>
+                          )}
 
-                        {booking.status === 'COMPLETED' && booking.review?.clientToPartnerRating && (
-                          <div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-3">
-                            <div className="flex items-center gap-2 text-green-700">
-                              <CheckCircle size={16} />
-                              <span className="text-sm font-medium">Servicio calificado</span>
-                              <div className="flex ml-auto">
-                                {[...Array(5)].map((_, i) => (
-                                  <Star
-                                    key={i}
-                                    size={14}
-                                    className={i < (booking.review?.clientToPartnerRating || 0) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}
-                                  />
-                                ))}
+                          {booking.status === 'COMPLETED' && booking.review?.clientToPartnerRating && (
+                            <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-4">
+                              <div className="flex items-center gap-2 text-green-700">
+                                <CheckCircle size={18} />
+                                <span className="text-sm font-semibold">Servicio calificado</span>
+                                <div className="flex ml-auto">
+                                  {[...Array(5)].map((_, i) => (
+                                    <Star
+                                      key={i}
+                                      size={16}
+                                      className={i < (booking.review?.clientToPartnerRating || 0) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}
+                                    />
+                                  ))}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        )}
+                          )}
 
-                        {booking.status === 'COMPLETED' && !booking.payment && (
-                          <button
-                            onClick={() => openPaymentModal(booking.id, booking.service.name, booking.totalPrice)}
-                            className="w-full bg-white text-green-600 border-2 border-green-600 px-4 py-3 rounded-xl hover:bg-green-50 transition font-medium flex items-center justify-center gap-2 mb-3"
-                          >
-                            <DollarSign size={18} />
-                            Pagar Servicio
-                          </button>
-                        )}
+                          {booking.status === 'COMPLETED' && !booking.payment && (
+                            <button
+                              onClick={() => openPaymentModal(booking.id, booking.service.name, booking.totalPrice)}
+                              className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-3.5 rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all font-semibold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                            >
+                              <DollarSign size={20} />
+                              Pagar Servicio
+                            </button>
+                          )}
 
-                        {booking.status === 'COMPLETED' && booking.payment?.status === 'APPROVED' && (
-                          <div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-3">
-                            <div className="flex items-center gap-2 text-green-700">
-                              <CheckCircle size={16} />
-                              <span className="text-sm font-medium">Servicio pagado - {formatCurrency(booking.payment.totalAmount)}</span>
+                          {booking.status === 'COMPLETED' && booking.payment?.status === 'APPROVED' && (
+                            <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-4">
+                              <div className="flex items-center gap-2 text-green-700">
+                                <CheckCircle size={18} />
+                                <span className="text-sm font-semibold">Servicio pagado - {formatCurrency(booking.payment.totalAmount)}</span>
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          )}
 
-                        {booking.status === 'COMPLETED' && booking.payment?.status === 'PENDING' && (
-                          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-3">
-                            <div className="flex items-center gap-2 text-yellow-700">
-                              <Clock size={16} />
-                              <span className="text-sm font-medium">Pago pendiente</span>
+                          {booking.status === 'COMPLETED' && booking.payment?.status === 'PENDING' && (
+                            <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-200 rounded-xl p-4">
+                              <div className="flex items-center gap-2 text-yellow-700">
+                                <Clock size={18} />
+                                <span className="text-sm font-semibold">Pago pendiente</span>
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          )}
 
-                        {booking.proposalId && booking.payment?.status !== 'APPROVED' && (
-                          <button
-                            onClick={() => setChatModal({
-                              isOpen: true,
-                              proposalId: booking.proposalId!,
-                              partnerName: booking.partner?.user.name || 'Socio',
-                              serviceName: booking.service.name
-                            })}
-                            className="w-full bg-white text-secondary-500 border-2 border-secondary-500 px-4 py-3 rounded-xl hover:bg-secondary-50 transition font-medium flex items-center justify-center gap-2 mb-3 relative"
-                          >
-                            <MessageCircle size={18} />
-                            Chat con el Socio
-                            {unreadCounts[booking.proposalId] > 0 && (
-                              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center animate-pulse shadow-lg">
-                                {unreadCounts[booking.proposalId]}
-                              </span>
-                            )}
-                          </button>
-                        )}
+                          {booking.proposalId && booking.payment?.status !== 'APPROVED' && (
+                            <button
+                              onClick={() => setChatModal({
+                                isOpen: true,
+                                proposalId: booking.proposalId!,
+                                partnerName: booking.partner?.user.name || 'Socio',
+                                serviceName: booking.service.name
+                              })}
+                              className="w-full bg-white text-secondary-600 border-2 border-secondary-500 px-4 py-3.5 rounded-xl hover:bg-secondary-50 transition-all font-semibold flex items-center justify-center gap-2 relative shadow-md hover:shadow-lg"
+                            >
+                              <MessageCircle size={20} />
+                              Chat con el Socio
+                              {unreadCounts[booking.proposalId] > 0 && (
+                                <span className="absolute -top-2 -right-2 bg-gradient-to-r from-red-500 to-red-600 text-white text-xs font-bold rounded-full h-7 w-7 flex items-center justify-center animate-pulse shadow-lg">
+                                  {unreadCounts[booking.proposalId]}
+                                </span>
+                              )}
+                            </button>
+                          )}
 
-                        {(booking.status === 'PENDING' || booking.status === 'CONFIRMED') && booking.payment?.status !== 'APPROVED' && (
-                          <button
-                            onClick={() => cancelBooking(booking.id, booking.service.name)}
-                            className="w-full bg-white text-red-600 border-2 border-red-600 px-4 py-3 rounded-xl hover:bg-red-50 transition font-medium flex items-center justify-center gap-2"
-                          >
-                            <XCircle size={18} />
-                            Cancelar Reserva
-                          </button>
-                        )}
+                          {(booking.status === 'PENDING' || booking.status === 'CONFIRMED') && booking.payment?.status !== 'APPROVED' && (
+                            <button
+                              onClick={() => cancelBooking(booking.id, booking.service.name)}
+                              className="w-full bg-white text-red-600 border-2 border-red-500 px-4 py-3.5 rounded-xl hover:bg-red-50 transition-all font-semibold flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+                            >
+                              <XCircle size={20} />
+                              Cancelar Reserva
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -1315,21 +1338,23 @@ export default function DashboardPage() {
           )}
 
           {activeTab === 'favorites' && (
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               {favoritePartners.length === 0 ? (
-                <div className="bg-white rounded-2xl shadow-lg p-12 text-center">
-                  <Heart size={64} className="mx-auto text-gray-300 mb-4" />
-                  <p className="text-gray-600 text-lg font-medium">No tienes favoritos aún</p>
-                  <p className="text-gray-500 text-sm mt-2">Marca como favoritos a los profesionales que más te gusten</p>
+                <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg p-12 sm:p-16 text-center border border-gray-100">
+                  <div className="bg-gradient-to-br from-red-100 to-pink-100 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6">
+                    <Heart size={48} className="text-red-400" />
+                  </div>
+                  <p className="text-gray-900 text-xl font-bold mb-2">No tienes favoritos aún</p>
+                  <p className="text-gray-500 text-base mb-6">Marca como favoritos a los profesionales que más te gusten</p>
                   <button
                     onClick={() => router.push('/servicios')}
-                    className="mt-6 bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition font-medium"
+                    className="bg-gradient-to-r from-primary-600 to-primary-700 text-white px-8 py-3.5 rounded-xl hover:from-primary-700 hover:to-primary-800 transition-all font-semibold shadow-lg hover:shadow-xl"
                   >
                     Explorar Servicios
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                   {favoritePartners.map((favorite) => {
                     const partner = favorite.partner
                     const IDENTITY_TYPES = ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP']
@@ -1343,94 +1368,99 @@ export default function DashboardPage() {
                     return (
                       <div
                         key={favorite.id}
-                        className={`bg-white rounded-xl shadow-lg p-6 border-2 transition-all ${
+                        className={`group bg-white rounded-2xl sm:rounded-3xl shadow-lg hover:shadow-2xl transition-all overflow-hidden border-2 ${
                           fullyVerified
-                            ? 'border-emerald-500 bg-gradient-to-br from-emerald-50 to-green-50'
-                            : 'border-gray-200'
+                            ? 'border-emerald-400 bg-gradient-to-br from-emerald-50 via-white to-green-50'
+                            : 'border-gray-200 hover:border-primary-200'
                         }`}
                       >
                         {fullyVerified && (
-                          <div className="flex items-center gap-2 mb-3 bg-emerald-600 text-white px-3 py-1.5 rounded-full text-xs font-semibold w-fit">
-                            <ShieldCheck size={14} />
+                          <div className="bg-gradient-to-r from-emerald-500 to-green-600 text-white px-4 py-2.5 flex items-center justify-center gap-2 text-sm font-bold">
+                            <ShieldCheck size={18} />
                             <span>SOCIO VERIFICADO PLUS</span>
                           </div>
                         )}
 
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <h3 className="font-semibold text-lg">{partner.user.name}</h3>
-                              {partner.verified && (
-                                <ShieldCheck size={16} className="text-green-600" />
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 mt-2">
-                              {hasIdentity && (
-                                <div className="flex items-center gap-1 bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full text-xs font-medium border border-blue-200">
-                                  <CreditCard size={14} />
-                                  <span>ID</span>
-                                </div>
-                              )}
-                              {hasEducation && (
-                                <div className="flex items-center gap-1 bg-purple-50 text-purple-700 px-2.5 py-1 rounded-full text-xs font-medium border border-purple-200">
-                                  <GraduationCap size={14} />
-                                  <span>EDU</span>
-                                </div>
-                              )}
-                              {hasBackground && (
-                                <div className="flex items-center gap-1 bg-green-50 text-green-700 px-2.5 py-1 rounded-full text-xs font-medium border border-green-200">
-                                  <Shield size={14} />
-                                  <span>ANT</span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <div className="text-right">
-                              <div className="flex items-center gap-1 text-yellow-500">
-                                <Star size={16} fill="currentColor" />
-                                <span className="font-semibold">{partner.rating.toFixed(1)}</span>
+                        <div className="p-5 sm:p-6">
+                          <div className="flex items-start justify-between mb-5">
+                            <div className="flex items-start gap-4 flex-1">
+                              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-primary-500 to-primary-700 rounded-2xl flex items-center justify-center text-white font-bold text-2xl sm:text-3xl shadow-lg flex-shrink-0 group-hover:scale-110 transition-transform">
+                                {partner.user.name?.charAt(0) || 'P'}
                               </div>
-                              <span className="text-gray-500 text-xs">
-                                ({partner.totalReviews} reseñas)
-                              </span>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <h3 className="font-bold text-lg sm:text-xl text-gray-900 truncate group-hover:text-primary-600 transition-colors">{partner.user.name}</h3>
+                                  {partner.verified && (
+                                    <ShieldCheck size={20} className="text-green-600 flex-shrink-0" />
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 mb-3">
+                                  <div className="flex items-center gap-1 text-yellow-500">
+                                    <Star size={18} fill="currentColor" />
+                                    <span className="font-bold text-lg">{partner.rating.toFixed(1)}</span>
+                                  </div>
+                                  <span className="text-gray-500 text-sm">
+                                    ({partner.totalReviews} reseñas)
+                                  </span>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  {hasIdentity && (
+                                    <div className="flex items-center gap-1 bg-blue-100 text-blue-700 px-2.5 py-1 rounded-lg text-xs font-semibold border border-blue-200">
+                                      <CreditCard size={14} />
+                                      <span>Identidad</span>
+                                    </div>
+                                  )}
+                                  {hasEducation && (
+                                    <div className="flex items-center gap-1 bg-purple-100 text-purple-700 px-2.5 py-1 rounded-lg text-xs font-semibold border border-purple-200">
+                                      <GraduationCap size={14} />
+                                      <span>Educación</span>
+                                    </div>
+                                  )}
+                                  {hasBackground && (
+                                    <div className="flex items-center gap-1 bg-green-100 text-green-700 px-2.5 py-1 rounded-lg text-xs font-semibold border border-green-200">
+                                      <Shield size={14} />
+                                      <span>Antecedentes</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
                             </div>
                             <button
                               onClick={() => removeFavorite(partner.id)}
-                              className="p-2 rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition"
+                              className="p-3 rounded-xl bg-gradient-to-br from-red-100 to-pink-100 text-red-600 hover:from-red-200 hover:to-pink-200 transition-all shadow-md hover:shadow-lg flex-shrink-0"
                             >
-                              <Heart size={20} fill="currentColor" />
+                              <Heart size={22} fill="currentColor" />
                             </button>
                           </div>
-                        </div>
 
-                        <div className="mb-4">
-                          <p className="text-sm text-gray-600 font-medium mb-2">Servicios que ofrece:</p>
-                          <div className="flex flex-wrap gap-2">
+                          <div className="mb-5">
+                            <p className="text-sm font-semibold text-gray-700 mb-3">Servicios que ofrece:</p>
+                            <div className="flex flex-wrap gap-2">
+                              {partner.services.map((ps: any) => (
+                                <span
+                                  key={ps.service.id}
+                                  className="inline-flex items-center gap-2 bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 px-3 py-2 rounded-xl text-sm font-medium border border-gray-300 hover:from-primary-50 hover:to-primary-100 hover:border-primary-300 transition-all"
+                                >
+                                  <span className="text-lg">{ps.service.icon}</span>
+                                  <span>{ps.service.name}</span>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
                             {partner.services.map((ps: any) => (
-                              <span
+                              <button
                                 key={ps.service.id}
-                                className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs"
+                                onClick={() => router.push(`/servicios/${ps.service.slug}`)}
+                                className="w-full bg-gradient-to-r from-primary-600 to-primary-700 text-white font-semibold py-3.5 px-4 rounded-xl hover:from-primary-700 hover:to-primary-800 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
                               >
                                 <span>{ps.service.icon}</span>
-                                <span>{ps.service.name}</span>
-                              </span>
+                                <span>Solicitar {ps.service.name}</span>
+                                <ChevronRight size={18} />
+                              </button>
                             ))}
                           </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-2">
-                          {partner.services.map((ps: any) => (
-                            <button
-                              key={ps.service.id}
-                              onClick={() => router.push(`/servicios/${ps.service.slug}`)}
-                              className="w-full bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white font-semibold py-3 px-4 rounded-lg hover:from-[#E02850] hover:to-[#E65F00] transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
-                            >
-                              <span>{ps.service.icon}</span>
-                              <span>Solicitar {ps.service.name}</span>
-                              <ChevronRight size={18} />
-                            </button>
-                          ))}
                         </div>
                       </div>
                     )
@@ -1441,29 +1471,170 @@ export default function DashboardPage() {
           )}
 
           {activeTab === 'requests' && (
-            <div className="space-y-6">
-              <div className="bg-white rounded-2xl shadow-lg p-6">
+            <div className="space-y-4 sm:space-y-6">
+              <div className="bg-gradient-to-r from-orange-50 via-white to-orange-50 rounded-2xl sm:rounded-3xl shadow-lg border border-orange-100 p-4 sm:p-6">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                   <input
                     type="text"
                     placeholder="Buscar solicitudes..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all bg-white"
                   />
                 </div>
               </div>
 
               {filteredRequests.length === 0 ? (
-                <div className="bg-white rounded-2xl shadow-lg p-12 text-center">
-                  <AlertCircle className="mx-auto text-gray-300 mb-4" size={64} />
-                  <p className="text-gray-600 text-lg font-medium">No hay solicitudes</p>
-                  <p className="text-gray-500 text-sm mt-2">Crea una solicitud para recibir propuestas de socios</p>
+                <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg p-12 sm:p-16 text-center border border-gray-100">
+                  <div className="bg-gradient-to-br from-orange-100 to-orange-200 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6">
+                    <AlertCircle className="text-orange-500 w-12 h-12" />
+                  </div>
+                  <p className="text-gray-900 text-xl font-bold mb-2">No hay solicitudes</p>
+                  <p className="text-gray-500 text-base">Crea una solicitud para recibir propuestas de socios</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-6">
+                <div className="grid grid-cols-1 gap-4 sm:gap-6">
                   {filteredRequests.map((request) => (
+                    <div key={request.id} className="group bg-white rounded-2xl sm:rounded-3xl shadow-lg hover:shadow-2xl transition-all overflow-hidden border border-gray-100 hover:border-orange-200">
+                      <div className={`h-2 ${
+                        request.status === 'ACTIVE' ? 'bg-gradient-to-r from-emerald-500 to-green-600' :
+                        request.status === 'ACCEPTED' ? 'bg-gradient-to-r from-blue-500 to-blue-600' :
+                        'bg-gradient-to-r from-gray-400 to-gray-500'
+                      }`}></div>
+                      <div className="p-5 sm:p-6">
+                        <div className="flex flex-col sm:flex-row items-start gap-4 mb-5">
+                          <div className="text-4xl sm:text-5xl group-hover:scale-110 transition-transform">{request.service.icon}</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2 mb-2">
+                              <h3 className="font-bold text-lg sm:text-xl text-gray-900 group-hover:text-orange-600 transition-colors">{request.service.name}</h3>
+                              <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${
+                                request.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700 border-2 border-emerald-200' :
+                                request.status === 'ACCEPTED' ? 'bg-blue-100 text-blue-700 border-2 border-blue-200' :
+                                'bg-gray-100 text-gray-700 border-2 border-gray-200'
+                              }`}>
+                                {requestStatusLabels[request.status]}
+                              </span>
+                              {request.isUrgent && (
+                                <span className="bg-gradient-to-r from-red-500 to-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg animate-pulse">
+                                  ⚡ URGENTE
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-600 mb-3">{request.service.category.name}</p>
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <div className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-xl px-4 py-2 border border-orange-200">
+                                <p className="text-sm text-gray-600">Propuestas recibidas</p>
+                                <p className="text-2xl font-bold text-orange-600">{request.proposals.length}</p>
+                              </div>
+                              <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl px-4 py-2 border border-gray-200">
+                                <p className="text-sm text-gray-600">Fecha de creación</p>
+                                <p className="text-sm font-semibold text-gray-900">{new Date(request.createdAt).toLocaleDateString('es-ES')}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3 mb-5">
+                          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
+                            <div className="bg-green-100 rounded-lg p-2 flex-shrink-0">
+                              <MapPin size={18} className="text-green-600" />
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-600 font-semibold mb-1">Ubicación</p>
+                              <span className="text-sm font-medium text-gray-900">{request.address}, {request.city}</span>
+                            </div>
+                          </div>
+                          {request.preferredDate && (
+                            <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-xl border border-blue-200">
+                              <div className="bg-blue-100 rounded-lg p-2 flex-shrink-0">
+                                <Calendar size={18} className="text-blue-600" />
+                              </div>
+                              <div>
+                                <p className="text-xs text-blue-600 font-semibold mb-1">Fecha preferida</p>
+                                <span className="text-sm font-medium text-blue-700">
+                                  {new Date(request.preferredDate).toLocaleDateString('es-ES', {
+                                    weekday: 'long',
+                                    day: 'numeric',
+                                    month: 'long'
+                                  })}
+                                  {request.preferredTime && ` a las ${request.preferredTime}`}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                          {request.isUrgent && (
+                            <div className="flex items-start gap-3 p-3 bg-gradient-to-r from-red-50 to-orange-50 rounded-xl border-2 border-red-200">
+                              <div className="bg-red-100 rounded-lg p-2 flex-shrink-0">
+                                <AlertCircle size={18} className="text-red-600" />
+                              </div>
+                              <div>
+                                <p className="text-xs text-red-600 font-semibold mb-1">Urgente</p>
+                                <span className="text-sm font-medium text-red-700">⚡ Lo más pronto posible</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {request.proposals.length > 0 && (
+                          <div className="border-t-2 border-gray-100 pt-5">
+                            <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-200 rounded-xl p-4 mb-5">
+                              <h4 className="font-bold text-lg flex items-center gap-3 text-gray-900 mb-2">
+                                <div className="bg-orange-100 rounded-lg p-2">
+                                  <MessageSquare className="text-orange-600 w-5 h-5" />
+                                </div>
+                                Propuestas Recibidas
+                                <span className="bg-orange-200 text-orange-800 text-sm font-semibold px-3 py-1 rounded-full">
+                                  {request.proposals.length}
+                                </span>
+                              </h4>
+                              <p className="text-sm text-orange-700 font-medium">
+                                ¡Genial! Has recibido {request.proposals.length} propuesta{request.proposals.length > 1 ? 's' : ''} para tu solicitud
+                              </p>
+                            </div>
+                            <div className="space-y-3">
+                              {/* Existing proposals content will go here */}
+                            </div>
+                          </div>
+                        )}
+
+                        {request.notes && (
+                          <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-2 border-gray-200 rounded-xl p-4 mb-5">
+                            <p className="text-xs font-semibold text-gray-700 mb-2">Detalles adicionales:</p>
+                            <p className="text-sm text-gray-800">{request.notes}</p>
+                          </div>
+                        )}
+
+                        {request.photos && request.photos.length > 0 && (
+                          <div className="mb-5">
+                            <h4 className="font-semibold mb-3 text-sm text-gray-700 flex items-center gap-2">
+                              <span className="bg-primary-100 text-primary-700 px-2 py-1 rounded-lg text-xs">
+                                {request.photos.length} fotos
+                              </span>
+                              Fotos adjuntas
+                            </h4>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                              {request.photos.sort((a, b) => a.order - b.order).map((photo, index) => (
+                                <div
+                                  key={photo.id}
+                                  className="relative group cursor-pointer"
+                                  onClick={() => setImageGallery({ isOpen: true, photos: request.photos || [], initialIndex: index })}
+                                >
+                                  <img
+                                    src={photo.url}
+                                    alt="Foto de la solicitud"
+                                    className="w-full h-32 object-cover rounded-xl border-2 border-gray-200 hover:border-primary-500 transition-all shadow-md hover:shadow-lg"
+                                  />
+                                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-all rounded-xl flex items-end justify-center pb-3">
+                                    <span className="text-white text-sm font-semibold">
+                                      Ver imagen
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                     <div key={request.id} className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition overflow-hidden">
                       <div className="p-6">
                         <div className="flex flex-col sm:flex-row items-start gap-4 mb-4">
@@ -1547,9 +1718,9 @@ export default function DashboardPage() {
                         )}
 
                         {request.proposals.length > 0 && (
-                          <div className="border-t pt-4">
-                            <h4 className="font-semibold mb-3 flex items-center gap-2">
-                              <MessageSquare size={18} className="text-primary-600" />
+                          <div className="border-t-2 border-gray-100 pt-5">
+                            <h4 className="font-bold text-base sm:text-lg mb-4 flex items-center gap-2 text-gray-900">
+                              <MessageSquare className="text-orange-600 w-5 h-5" />
                               Propuestas Recibidas ({request.proposals.length})
                             </h4>
                             <div className="space-y-3">
@@ -1602,79 +1773,89 @@ export default function DashboardPage() {
                                   return (
                                     <div
                                       key={proposal.id}
-                                      className={`rounded-xl p-4 ${
+                                      className={`rounded-xl sm:rounded-2xl p-4 sm:p-5 border-2 transition-all ${
                                         isFullyVerified
-                                          ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200'
-                                          : 'bg-gradient-to-r from-gray-50 to-gray-100'
+                                          ? 'bg-gradient-to-br from-emerald-50 via-green-50 to-emerald-50 border-emerald-300 shadow-md'
+                                          : 'bg-gradient-to-br from-gray-50 to-white border-gray-200 hover:border-gray-300'
                                       }`}
                                     >
-                                      <div className="flex flex-col gap-3">
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                          <div className="flex items-center gap-2">
-                                            <User size={16} className="text-gray-600" />
-                                            <span className="font-semibold text-gray-900">{proposal.partner.user.name}</span>
-                                            {isFullyVerified && (
-                                              <div className="group relative">
-                                                <Star size={18} className="text-yellow-500 fill-yellow-500" />
-                                                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
-                                                  Socio 100% Verificado
-                                                </span>
+                                      <div className="flex flex-col gap-4">
+                                        <div className="flex items-start justify-between gap-3">
+                                          <div className="flex items-center gap-3 flex-wrap flex-1">
+                                            <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-md">
+                                              {proposal.partner.user.name?.charAt(0) || 'P'}
+                                            </div>
+                                            <div>
+                                              <div className="flex items-center gap-2 mb-1">
+                                                <span className="font-bold text-base text-gray-900">{proposal.partner.user.name}</span>
+                                                {isFullyVerified && (
+                                                  <div className="group relative">
+                                                    <div className="bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full p-1">
+                                                      <Star size={14} className="text-white fill-white" />
+                                                    </div>
+                                                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10 shadow-lg">
+                                                      Socio 100% Verificado
+                                                    </span>
+                                                  </div>
+                                                )}
+                                                {proposal.partner.verified && (
+                                                  <ShieldCheck size={18} className="text-green-600" />
+                                                )}
                                               </div>
-                                            )}
-                                            {proposal.partner.verified && (
-                                              <div className="group relative">
-                                                <ShieldCheck size={16} className="text-green-600" />
-                                                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                                                  Socio verificado
-                                                </span>
+                                              <div className="flex items-center gap-2 flex-wrap">
+                                                {getVerificationBadges(proposal.partner.documents)}
+                                                {isFullyVerified && (
+                                                  <span className="bg-gradient-to-r from-emerald-500 to-green-600 text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow-md flex items-center gap-1">
+                                                    <ShieldCheck size={12} />
+                                                    Verificación Completa
+                                                  </span>
+                                                )}
+                                                {proposal.status === 'ACCEPTED' && (
+                                                  <span className="bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow-md">
+                                                    ✓ Aceptada
+                                                  </span>
+                                                )}
                                               </div>
-                                            )}
+                                            </div>
                                           </div>
-                                          {getVerificationBadges(proposal.partner.documents)}
-                                          {isFullyVerified && (
-                                            <span className="bg-green-100 text-green-700 text-xs font-semibold px-2.5 py-1 rounded-full border border-green-300 flex items-center gap-1">
-                                              <ShieldCheck size={12} />
-                                              Verificación Completa
-                                            </span>
-                                          )}
-                                          {proposal.status === 'ACCEPTED' && (
-                                            <span className="bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded-full border border-green-200">
-                                              ✓ Accepted
-                                            </span>
-                                          )}
                                         </div>
 
                                         {isFullyVerified && (
-                                          <div className="bg-white/80 border border-green-200 rounded-lg p-2.5 flex items-start gap-2">
-                                            <ShieldCheck size={16} className="text-green-600 flex-shrink-0 mt-0.5" />
-                                            <p className="text-xs text-gray-700">
-                                              <span className="font-semibold text-green-700">Socio completamente verificado:</span> Identidad, educación y antecedentes verificados por nuestro equipo.
+                                          <div className="bg-white border-2 border-emerald-200 rounded-xl p-3 flex items-start gap-3 shadow-sm">
+                                            <div className="bg-emerald-100 rounded-lg p-2 flex-shrink-0">
+                                              <ShieldCheck size={18} className="text-emerald-600" />
+                                            </div>
+                                            <p className="text-xs text-gray-700 leading-relaxed">
+                                              <span className="font-bold text-emerald-700">Socio completamente verificado:</span> Identidad, educación y antecedentes verificados por nuestro equipo.
                                             </p>
                                           </div>
                                         )}
 
-                                        <div className="bg-white rounded-lg p-3 border-2 border-primary-200">
-                                          <div className="space-y-2">
-                                            <div className="flex justify-between items-center text-sm">
-                                              <span className="text-gray-600">Precio del servicio:</span>
-                                              <span className="font-semibold text-gray-900">{formatCurrency(proposal.price)}</span>
+                                        <div className="bg-white rounded-xl p-4 border-2 border-primary-200 shadow-sm">
+                                          <div className="space-y-3">
+                                            <div className="flex justify-between items-center">
+                                              <span className="text-sm text-gray-600">Precio del servicio:</span>
+                                              <span className="font-bold text-gray-900">{formatCurrency(proposal.price)}</span>
                                             </div>
-                                            <div className="flex justify-between items-center text-sm">
-                                              <span className="text-gray-600">Tarifa de servicio ({clientCommissionRate}%):</span>
-                                              <span className="font-semibold text-gray-900">{formatCurrency(proposal.price * (clientCommissionRate / 100))}</span>
+                                            <div className="flex justify-between items-center">
+                                              <span className="text-sm text-gray-600">Tarifa de servicio ({clientCommissionRate}%):</span>
+                                              <span className="font-bold text-gray-900">{formatCurrency(proposal.price * (clientCommissionRate / 100))}</span>
                                             </div>
-                                            <div className="border-t pt-2 flex justify-between items-center">
+                                            <div className="border-t-2 border-gray-200 pt-3 flex justify-between items-center">
                                               <span className="font-bold text-gray-900">Total a pagar:</span>
-                                              <span className="text-xl sm:text-2xl font-bold text-primary-600">{formatCurrency(proposal.price * (1 + clientCommissionRate / 100))}</span>
+                                              <span className="text-2xl sm:text-3xl font-bold text-primary-600">{formatCurrency(proposal.price * (1 + clientCommissionRate / 100))}</span>
                                             </div>
                                           </div>
                                         </div>
 
                                         {proposal.notes && (
-                                          <p className="text-sm text-gray-600 bg-white rounded-lg p-3">{proposal.notes}</p>
+                                          <div className="bg-white rounded-xl p-4 border-2 border-gray-200 shadow-sm">
+                                            <p className="text-xs font-semibold text-gray-700 mb-2">Notas del socio:</p>
+                                            <p className="text-sm text-gray-800">{proposal.notes}</p>
+                                          </div>
                                         )}
 
-                                        <div className="flex flex-col sm:flex-row gap-2">
+                                        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                                           {(proposal.status === 'ACCEPTED' || (request.status === 'ACTIVE' && proposal.status === 'PENDING')) && (
                                             <button
                                               onClick={() => setChatModal({
@@ -1683,12 +1864,12 @@ export default function DashboardPage() {
                                                 partnerName: proposal.partner.user.name,
                                                 serviceName: request.service.name
                                               })}
-                                              className="w-full bg-white border-2 border-orange-500 text-orange-500 px-4 py-3 rounded-xl hover:bg-orange-50 transition font-medium flex items-center justify-center gap-2 relative"
+                                              className="w-full bg-white border-2 border-orange-500 text-orange-600 px-4 py-3.5 rounded-xl hover:bg-orange-50 transition-all font-semibold flex items-center justify-center gap-2 relative shadow-md hover:shadow-lg"
                                             >
-                                              <MessageCircle size={18} />
+                                              <MessageCircle size={20} />
                                               Chat con el Socio
                                               {unreadCounts[proposal.id] > 0 && (
-                                                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center animate-pulse shadow-lg">
+                                                <span className="absolute -top-2 -right-2 bg-gradient-to-r from-red-500 to-red-600 text-white text-xs font-bold rounded-full h-7 w-7 flex items-center justify-center animate-pulse shadow-lg">
                                                   {unreadCounts[proposal.id]}
                                                 </span>
                                               )}
@@ -1697,9 +1878,9 @@ export default function DashboardPage() {
                                           {request.status === 'ACTIVE' && proposal.status === 'PENDING' && (
                                             <button
                                               onClick={() => acceptProposal(proposal.id, proposal.partner.user.name, proposal.price)}
-                                              className="w-full bg-secondary-500 text-white px-4 py-3 rounded-xl hover:bg-secondary-600 transition font-medium flex items-center justify-center gap-2"
+                                              className="w-full bg-gradient-to-r from-secondary-500 to-secondary-600 text-white px-4 py-3.5 rounded-xl hover:from-secondary-600 hover:to-secondary-700 transition-all font-semibold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
                                             >
-                                              <CheckCircle size={18} />
+                                              <CheckCircle size={20} />
                                               Aceptar Propuesta
                                             </button>
                                           )}
@@ -1712,10 +1893,12 @@ export default function DashboardPage() {
                           </div>
                         )}
                         {!request.proposals.length && (
-                          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
-                            <Clock className="mx-auto text-blue-600 mb-2" size={32} />
-                            <p className="text-sm text-blue-800 font-medium">Esperando propuestas de socios</p>
-                            <p className="text-xs text-blue-600 mt-1">Expira: {new Date(request.expiresAt).toLocaleDateString('es-ES')}</p>
+                          <div className="bg-gradient-to-r from-blue-50 to-blue-100 border-2 border-blue-200 rounded-xl sm:rounded-2xl p-6 text-center">
+                            <div className="bg-blue-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-3">
+                              <Clock className="text-blue-600" size={32} />
+                            </div>
+                            <p className="text-base text-blue-900 font-bold mb-1">Esperando propuestas de socios</p>
+                            <p className="text-sm text-blue-700">Expira: {new Date(request.expiresAt).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
                           </div>
                         )}
                       </div>
