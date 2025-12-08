@@ -1576,28 +1576,6 @@ export default function DashboardPage() {
                           )}
                         </div>
 
-                        {request.proposals.length > 0 && (
-                          <div className="border-t-2 border-gray-100 pt-5">
-                            <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-200 rounded-xl p-4 mb-5">
-                              <h4 className="font-bold text-lg flex items-center gap-3 text-gray-900 mb-2">
-                                <div className="bg-orange-100 rounded-lg p-2">
-                                  <MessageSquare className="text-orange-600 w-5 h-5" />
-                                </div>
-                                Propuestas Recibidas
-                                <span className="bg-orange-200 text-orange-800 text-sm font-semibold px-3 py-1 rounded-full">
-                                  {request.proposals.length}
-                                </span>
-                              </h4>
-                              <p className="text-sm text-orange-700 font-medium">
-                                ¡Genial! Has recibido {request.proposals.length} propuesta{request.proposals.length > 1 ? 's' : ''} para tu solicitud
-                              </p>
-                            </div>
-                            <div className="space-y-3">
-                              {/* Existing proposals content will go here */}
-                            </div>
-                          </div>
-                        )}
-
                         {request.notes && (
                           <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-2 border-gray-200 rounded-xl p-4 mb-5">
                             <p className="text-xs font-semibold text-gray-700 mb-2">Detalles adicionales:</p>
@@ -1635,88 +1613,6 @@ export default function DashboardPage() {
                             </div>
                           </div>
                         )}
-                    <div key={request.id} className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition overflow-hidden">
-                      <div className="p-6">
-                        <div className="flex flex-col sm:flex-row items-start gap-4 mb-4">
-                          <div className="text-4xl">{request.service.icon}</div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex flex-wrap items-center gap-2 mb-2">
-                              <h3 className="font-bold text-lg text-gray-900">{request.service.name}</h3>
-                              <span className={`text-xs font-medium px-3 py-1 rounded-full border ${requestStatusColors[request.status]}`}>
-                                {requestStatusLabels[request.status]}
-                              </span>
-                              {request.isUrgent && (
-                                <span className="bg-red-100 text-red-800 text-xs font-bold px-3 py-1 rounded-full border border-red-200">
-                                  URGENTE
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-sm text-gray-600 truncate">{request.service.category.name}</p>
-                          </div>
-                          <div className="text-left sm:text-right flex-shrink-0 w-full sm:w-auto mt-2 sm:mt-0">
-                            <p className="text-sm text-gray-500 truncate">{new Date(request.createdAt).toLocaleDateString('es-ES')}</p>
-                            <p className="text-xs text-gray-400 mt-1">{request.proposals.length} propuestas</p>
-                          </div>
-                        </div>
-
-                        <div className="space-y-2 text-sm text-gray-600 mb-4">
-                          <div className="flex items-center gap-2">
-                            <MapPin size={16} className="text-primary-600" />
-                            <span>{request.address}, {request.city}</span>
-                          </div>
-                          {request.preferredDate && (
-                            <div className="flex items-center gap-2">
-                              <Calendar size={16} className="text-blue-600" />
-                              <span className="text-blue-600 font-medium">
-                                Fecha preferida: {new Date(request.preferredDate).toLocaleDateString('es-ES', {
-                                  weekday: 'long',
-                                  day: 'numeric',
-                                  month: 'long'
-                                })}
-                                {request.preferredTime && ` a las ${request.preferredTime}`}
-                              </span>
-                            </div>
-                          )}
-                          {request.isUrgent && (
-                            <div className="flex items-center gap-2">
-                              <AlertCircle size={16} className="text-red-600" />
-                              <span className="text-red-600 font-medium">⚡ Urgente - Lo más pronto posible</span>
-                            </div>
-                          )}
-                        </div>
-
-                        {request.notes && (
-                          <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 mb-4">
-                            <p className="text-sm text-gray-700"><strong>Detalles:</strong> {request.notes}</p>
-                          </div>
-                        )}
-
-                        {request.photos && request.photos.length > 0 && (
-                          <div className="mb-4">
-                            <h4 className="font-semibold mb-3 text-sm text-gray-700">Fotos adjuntas:</h4>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                              {request.photos.sort((a, b) => a.order - b.order).map((photo, index) => (
-                                <div
-                                  key={photo.id}
-                                  className="relative group cursor-pointer"
-                                  onClick={() => setImageGallery({ isOpen: true, photos: request.photos || [], initialIndex: index })}
-                                >
-                                  <img
-                                    src={photo.url}
-                                    alt="Foto de la solicitud"
-                                    className="w-full h-32 object-cover rounded-lg border-2 border-gray-200 hover:border-primary-500 transition pointer-events-none"
-                                  />
-                                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition rounded-lg flex items-center justify-center pointer-events-none">
-                                    <span className="text-white opacity-0 group-hover:opacity-100 transition text-sm font-medium pointer-events-none">
-                                      Ver imagen
-                                    </span>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
                         {request.proposals.length > 0 && (
                           <div className="border-t-2 border-gray-100 pt-5">
                             <h4 className="font-bold text-base sm:text-lg mb-4 flex items-center gap-2 text-gray-900">
