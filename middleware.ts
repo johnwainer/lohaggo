@@ -109,7 +109,7 @@ export async function middleware(request: NextRequest) {
     const origin = request.headers.get('origin')
     const allowedOrigins = [
       env.NEXT_PUBLIC_APP_URL,
-      'http://localhost:3000',
+      ...(env.ALLOWED_ORIGIN?.split(',') || []),
     ].filter(Boolean)
 
     if (origin && allowedOrigins.includes(origin)) {
