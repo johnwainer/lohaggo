@@ -36,6 +36,7 @@ const envSchema = z.object({
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
 
   NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
+  ALLOWED_ORIGIN: z.string().optional(),
 })
 
 type Env = z.infer<typeof envSchema>
@@ -64,6 +65,7 @@ function validateEnv(): Env {
       UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
       UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
       NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
+      ALLOWED_ORIGIN: process.env.ALLOWED_ORIGIN,
     }
   }
 
