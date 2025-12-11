@@ -134,7 +134,7 @@ export default function PaymentConfigPage() {
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar activeSection="payment-config" onSectionChange={() => router.push('/admin')} />
-      <main className="flex-1 overflow-auto ml-0 lg:ml-64">
+      <main className="flex-1 overflow-auto ml-0 lg:ml-8">
         <div className="p-3 sm:p-6 lg:p-8">
           <div className="max-w-4xl mx-auto">
         <div className="mb-8">
