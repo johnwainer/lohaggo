@@ -231,7 +231,7 @@ export default function AdminDocumentsPage() {
             router.push('/admin')
           }
         }} />
-        <main className="flex-1 overflow-auto ml-0 lg:ml-64">
+        <main className="flex-1 overflow-auto ml-0 lg:ml-8">
           <div className="p-3 sm:p-6 lg:p-8 flex items-center justify-center min-h-screen">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
           </div>
@@ -247,7 +247,7 @@ export default function AdminDocumentsPage() {
           router.push('/admin')
         }
       }} />
-      <main className="flex-1 overflow-auto ml-0 lg:ml-64">
+      <main className="flex-1 overflow-auto ml-0 lg:ml-8">
         <div className="p-3 sm:p-6 lg:p-8">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Gestión de Documentos</h1>
