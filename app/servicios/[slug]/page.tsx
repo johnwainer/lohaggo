@@ -524,13 +524,13 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
 
         {/* Booking Button - Only show if partners available */}
         {service.partners.length > 0 && (
-          <div className="relative overflow-hidden bg-gradient-to-br from-orange-50 via-pink-50 to-purple-50 rounded-2xl shadow-lg border-2 border-orange-200 p-6 md:p-8 mb-6 md:mb-8 group hover:shadow-xl transition-all duration-300">
-            <div className="absolute inset-0 bg-gradient-to-r from-orange-400/10 to-pink-400/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div className="relative overflow-hidden bg-gradient-to-br from-primary-50 via-secondary-50 to-accent-50 rounded-2xl shadow-lg border-2 border-primary-200 p-6 md:p-8 mb-6 md:mb-8 group hover:shadow-xl transition-all duration-300">
+            <div className="absolute inset-0 bg-gradient-to-r from-primary-400/10 to-secondary-400/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
 
             <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-pink-500 rounded-full flex items-center justify-center shadow-lg">
+                  <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center shadow-lg">
                     <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                     </svg>
@@ -538,13 +538,13 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                   <h2 className="text-xl md:text-2xl font-bold text-gray-900">¿Listo para solicitar?</h2>
                 </div>
                 <p className="text-base md:text-lg text-gray-700 font-medium">
-                  Envía tu solicitud a <span className="text-orange-600 font-bold">{service.partners.length} {service.partners.length === 1 ? 'profesional' : 'profesionales'}</span> y recibe múltiples propuestas
+                  Envía tu solicitud a <span className="text-primary-600 font-bold">{service.partners.length} {service.partners.length === 1 ? 'profesional' : 'profesionales'}</span> y recibe múltiples propuestas
                 </p>
               </div>
 
               <button
                 onClick={handleRequest}
-                className="w-full sm:w-auto bg-gradient-to-r from-orange-500 via-pink-500 to-purple-500 text-white px-8 md:px-10 py-4 rounded-xl hover:from-orange-600 hover:via-pink-600 hover:to-purple-600 transition-all duration-300 font-bold text-base md:text-lg shadow-lg hover:shadow-2xl hover:scale-105 flex items-center justify-center gap-3 group/btn"
+                className="w-full sm:w-auto bg-gradient-to-r from-primary-500 via-secondary-500 to-accent-500 text-white px-8 md:px-10 py-4 rounded-xl hover:from-primary-600 hover:via-secondary-600 hover:to-accent-600 transition-all duration-300 font-bold text-base md:text-lg shadow-lg hover:shadow-2xl hover:scale-105 flex items-center justify-center gap-3 group/btn"
               >
                 <svg className="w-5 h-5 group-hover/btn:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
@@ -689,24 +689,24 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
             </div>
           </div>
         ) : (
-          <div className="bg-gradient-to-br from-orange-50 via-white to-pink-50 rounded-xl shadow-lg p-6 md:p-12 border-2 border-orange-200">
+          <div className="bg-gradient-to-br from-primary-50 via-white to-secondary-50 rounded-xl shadow-lg p-6 md:p-12 border-2 border-primary-200">
             <div className="max-w-4xl mx-auto">
               <div className="text-center mb-8">
-                <div className="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-orange-500 to-pink-500 rounded-full mb-4 shadow-lg">
+                <div className="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full mb-4 shadow-lg">
                   <Users size={32} className="text-white md:w-10 md:h-10" />
                 </div>
                 <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">
                   ¡Aún no hay profesionales disponibles!
                 </h2>
                 <p className="text-gray-600 text-base md:text-lg max-w-2xl mx-auto">
-                  Sé el primero en ofrecer <span className="font-semibold text-orange-600">{service.name}</span> en tu ciudad o notifícanos que estás buscando este servicio.
+                  Sé el primero en ofrecer <span className="font-semibold text-primary-600">{service.name}</span> en tu ciudad o notifícanos que estás buscando este servicio.
                 </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-8">
-                <div className="bg-white rounded-xl p-6 shadow-md border-2 border-orange-100 hover:border-orange-300 transition-all hover:shadow-xl group">
+                <div className="bg-white rounded-xl p-6 shadow-md border-2 border-primary-100 hover:border-primary-300 transition-all hover:shadow-xl group">
                   <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-orange-500 to-pink-500 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
                       <Briefcase size={24} className="text-white" />
                     </div>
                     <div className="flex-1">
@@ -730,7 +730,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                       </div>
                       <button
                         onClick={() => router.push('/register?role=partner')}
-                        className="w-full bg-gradient-to-r from-orange-500 to-pink-500 text-white font-semibold py-3 px-4 rounded-lg hover:from-orange-600 hover:to-pink-600 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 group"
+                        className="w-full bg-gradient-to-r from-primary-500 to-secondary-500 text-white font-semibold py-3 px-4 rounded-lg hover:from-primary-600 hover:to-secondary-600 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 group"
                       >
                         <UserPlus size={18} />
                         <span>Registrarme como Socio</span>
@@ -771,23 +771,23 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                 </div>
               </div>
 
-              <div className="bg-gradient-to-r from-orange-100 to-pink-100 rounded-xl p-6 border border-orange-200">
+              <div className="bg-gradient-to-r from-primary-100 to-secondary-100 rounded-xl p-6 border border-primary-200">
                 <div className="flex flex-col md:flex-row items-center gap-4">
                   <div className="flex-shrink-0">
                     <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-md">
-                      <Sparkles size={24} className="text-orange-500" />
+                      <Sparkles size={24} className="text-primary-500" />
                     </div>
                   </div>
                   <div className="flex-1 text-center md:text-left">
                     <h4 className="font-bold text-gray-900 mb-1">¿Por qué unirte a LoHaggo?</h4>
                     <p className="text-gray-700 text-sm">
-                      Más de <span className="font-semibold text-orange-600">10,000 clientes</span> confían en nosotros.
+                      Más de <span className="font-semibold text-primary-600">10,000 clientes</span> confían en nosotros.
                       Únete a nuestra comunidad de profesionales verificados y empieza a generar ingresos hoy mismo.
                     </p>
                   </div>
                   <button
                     onClick={() => router.push('/how-it-works')}
-                    className="flex-shrink-0 bg-white text-orange-600 font-semibold py-2 px-6 rounded-lg hover:bg-orange-50 transition-all shadow-md hover:shadow-lg border-2 border-orange-200 whitespace-nowrap"
+                    className="flex-shrink-0 bg-white text-primary-600 font-semibold py-2 px-6 rounded-lg hover:bg-primary-50 transition-all shadow-md hover:shadow-lg border-2 border-primary-200 whitespace-nowrap"
                   >
                     Conocer más
                   </button>
@@ -839,7 +839,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                 {currentStep === 1 && (
                   <div className="space-y-4 md:space-y-6 animate-fadeIn">
                     <div className="text-center mb-4 md:mb-6">
-                      <div className="w-14 h-14 md:w-16 md:h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4">
+                      <div className="w-14 h-14 md:w-16 md:h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4">
                         <MapPin className="text-secondary-600" size={28} />
                       </div>
                       <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-2">¿Dónde necesitas el servicio?</h3>
@@ -852,8 +852,8 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                           <label
                             key={addr.id}
                             className={`flex items-start gap-3 md:gap-4 p-3 md:p-4 border-2 rounded-xl cursor-pointer transition-all ${selectedAddressId === addr.id
-                              ? 'border-secondary-500 bg-orange-50'
-                              : 'border-gray-200 hover:border-orange-300 hover:bg-gray-50'
+                              ? 'border-secondary-500 bg-primary-50'
+                              : 'border-gray-200 hover:border-primary-300 hover:bg-gray-50'
                               }`}
                           >
                             <input
@@ -873,7 +873,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                         <button
                           type="button"
                           onClick={() => router.push('/dashboard/addresses')}
-                          className="w-full py-2.5 md:py-3 border-2 border-dashed border-gray-300 rounded-xl text-secondary-600 hover:border-secondary-500 hover:bg-orange-50 transition font-medium flex items-center justify-center gap-2 text-sm md:text-base"
+                          className="w-full py-2.5 md:py-3 border-2 border-dashed border-gray-300 rounded-xl text-secondary-600 hover:border-secondary-500 hover:bg-primary-50 transition font-medium flex items-center justify-center gap-2 text-sm md:text-base"
                         >
                           <Plus size={18} />
                           Agregar nueva dirección
@@ -920,7 +920,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                 {currentStep === 2 && (
                   <div className="space-y-4 md:space-y-6 animate-fadeIn">
                     <div className="text-center mb-4 md:mb-6">
-                      <div className="w-14 h-14 md:w-16 md:h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4">
+                      <div className="w-14 h-14 md:w-16 md:h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4">
                         <Calendar className="text-secondary-600" size={28} />
                       </div>
                       <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-2">¿Cuándo necesitas el servicio?</h3>
@@ -954,8 +954,8 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                       {/* Opción Programada */}
                       <label
                         className={`flex items-start gap-3 md:gap-4 p-4 md:p-5 border-2 rounded-xl cursor-pointer transition-all ${!requestData.isUrgent
-                          ? 'border-secondary-500 bg-orange-50'
-                          : 'border-gray-200 hover:border-orange-300 hover:bg-gray-50'
+                          ? 'border-secondary-500 bg-primary-50'
+                          : 'border-gray-200 hover:border-primary-300 hover:bg-gray-50'
                           }`}
                       >
                         <input
@@ -1010,7 +1010,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                 {currentStep === 3 && (
                   <div className="space-y-3 md:space-y-6 animate-fadeIn">
                     <div className="text-center mb-3 md:mb-6">
-                      <div className="w-12 h-12 md:w-16 md:h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-2 md:mb-4">
+                      <div className="w-12 h-12 md:w-16 md:h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-2 md:mb-4">
                         <CheckCircle className="text-secondary-600" size={24} />
                       </div>
                       <h3 className="text-base md:text-xl font-bold text-gray-900 mb-1 md:mb-2">Detalles adicionales</h3>
@@ -1066,7 +1066,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                         placeholder="Describe los detalles específicos: medidas, materiales, problemas específicos, etc."
                         value={requestData.notes}
                         onChange={(e) => setRequestData({ ...requestData, notes: e.target.value })}
-                        className="w-full px-3 md:px-4 py-2 md:py-3 border-2 border-orange-200 bg-orange-50 text-orange-900 rounded-xl focus:ring-2 focus:ring-secondary-500 focus:border-secondary-500 outline-none resize-none text-xs md:text-base"
+                        className="w-full px-3 md:px-4 py-2 md:py-3 border-2 border-primary-200 bg-primary-50 text-primary-900 rounded-xl focus:ring-2 focus:ring-secondary-500 focus:border-secondary-500 outline-none resize-none text-xs md:text-base"
                       />
                     </div>
                   </div>
@@ -1076,7 +1076,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                 {currentStep === 4 && (
                   <div className="space-y-4 md:space-y-6 animate-fadeIn">
                     <div className="text-center mb-4 md:mb-6">
-                      <div className="w-14 h-14 md:w-16 md:h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4">
+                      <div className="w-14 h-14 md:w-16 md:h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4">
                         <Camera className="text-secondary-600" size={28} />
                       </div>
                       <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-2">Agrega fotos (opcional)</h3>
@@ -1096,7 +1096,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                         />
                         <div className={`border-2 border-dashed rounded-xl p-6 md:p-8 text-center cursor-pointer transition-all ${photos.length >= 5
                           ? 'border-gray-300 bg-gray-100 cursor-not-allowed'
-                          : 'border-secondary-500 bg-orange-50 hover:bg-orange-100'
+                          : 'border-secondary-500 bg-primary-50 hover:bg-primary-100'
                           }`}>
                           <Upload className={`mx-auto mb-3 ${photos.length >= 5 ? 'text-gray-400' : 'text-secondary-600'}`} size={32} />
                           <p className={`font-semibold mb-1 ${photos.length >= 5 ? 'text-gray-500' : 'text-gray-900'}`}>

@@ -49,7 +49,7 @@ export default function HowItWorksPage() {
       title: '4. Agenda y confirma',
       description: 'Selecciona fecha y hora que te convengan y confirma la reserva.',
       details: 'Recibe confirmación instantánea y recordatorios automáticos antes del servicio.',
-      color: 'from-orange-500 to-orange-600'
+      color: 'from-primary-500 to-orange-600'
     },
     {
       icon: CheckCircle,
@@ -94,7 +94,7 @@ export default function HowItWorksPage() {
       title: '4. Acepta trabajos',
       description: 'Revisa detalles, negocia términos y confirma los servicios que te convengan.',
       details: 'Tú decides qué trabajos aceptar, cuándo trabajar y cómo organizar tu agenda.',
-      color: 'from-orange-500 to-orange-600'
+      color: 'from-primary-500 to-orange-600'
     },
     {
       icon: Zap,

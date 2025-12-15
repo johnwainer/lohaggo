@@ -265,7 +265,7 @@ export default function AddressesPage() {
                 <MessageSquare size={20} className="sm:w-[22px] sm:h-[22px]" />
                 <span className="hidden sm:inline">Mis Solicitudes</span>
                 {requestsCount > 0 && (
-                  <span className="bg-orange-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
+                  <span className="bg-primary-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
                     {requestsCount}
                   </span>
                 )}

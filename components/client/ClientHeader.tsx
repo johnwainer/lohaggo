@@ -55,7 +55,7 @@ export default function ClientHeader({
       label: 'Mis Solicitudes',
       icon: <MessageSquare size={20} className="sm:w-[22px] sm:h-[22px]" />,
       badge: requestsCount,
-      badgeColor: 'bg-orange-500',
+      badgeColor: 'bg-primary-500',
       onClick: () => onTabChange?.('requests'),
     },
     {

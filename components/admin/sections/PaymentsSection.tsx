@@ -203,10 +203,10 @@ export default function PaymentsSection() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Comisión por Socios</p>
-              <p className="text-2xl font-bold text-orange-600 mt-2">{formatCurrency(stats.totalPartnerCommission)}</p>
+              <p className="text-2xl font-bold text-primary-600 mt-2">{formatCurrency(stats.totalPartnerCommission)}</p>
             </div>
-            <div className="bg-orange-100 p-3 rounded-lg">
-              <TrendingUp className="w-6 h-6 text-orange-600" />
+            <div className="bg-primary-100 p-3 rounded-lg">
+              <TrendingUp className="w-6 h-6 text-primary-600" />
             </div>
           </div>
         </div>
@@ -370,7 +370,7 @@ export default function PaymentsSection() {
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         {payment.payout ? (
                           <>
-                            <div className="text-sm text-orange-600 font-medium">
+                            <div className="text-sm text-primary-600 font-medium">
                               {formatCurrency(payment.payout.partnerCommission)}
                             </div>
                             <div className="text-xs text-gray-500">

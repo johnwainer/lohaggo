@@ -229,7 +229,7 @@ export default function MyRatingsPage() {
                     <span className="hidden sm:inline">Para Mí</span>
                     <span className={`text-[10px] sm:text-xs px-2 py-0.5 rounded-full ml-2 ${
                       requestsCount > 0
-                        ? 'bg-orange-500 text-white'
+                        ? 'bg-primary-500 text-white'
                         : 'text-gray-400'
                     }`}>
                       {requestsCount}
@@ -289,7 +289,7 @@ export default function MyRatingsPage() {
                   <MessageSquare size={20} className="sm:w-[22px] sm:h-[22px]" />
                   <span className="hidden sm:inline">Mis Solicitudes</span>
                   {clientServiceRequests.length > 0 && (
-                    <span className="bg-orange-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
+                    <span className="bg-primary-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
                       {clientServiceRequests.length}
                     </span>
                   )}

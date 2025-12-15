@@ -129,8 +129,8 @@ export default function AddPaymentMethodPage() {
           </div>
 
           {error && (
-            <div className="bg-orange-50 border-2 border-orange-200 rounded-xl p-4 mb-6 flex items-start gap-3">
-              <AlertCircle className="text-orange-500 flex-shrink-0 mt-0.5" size={20} />
+            <div className="bg-primary-50 border-2 border-primary-200 rounded-xl p-4 mb-6 flex items-start gap-3">
+              <AlertCircle className="text-primary-500 flex-shrink-0 mt-0.5" size={20} />
               <div>
                 <h3 className="font-bold text-orange-900">Información</h3>
                 <p className="text-orange-700 text-sm">{error}</p>
