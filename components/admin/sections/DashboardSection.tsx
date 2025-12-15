@@ -250,7 +250,7 @@ export default function DashboardSection() {
                   <span className="text-2xl">{service.service.icon}</span>
                   <span className="font-medium text-gray-700">{service.service.name}</span>
                 </div>
-                <span className="bg-primary-100 text-orange-800 px-3 py-1 rounded-full text-sm font-semibold">
+                <span className="bg-primary-100 text-primary-800 px-3 py-1 rounded-full text-sm font-semibold">
                   {service._count} reservas
                 </span>
               </div>

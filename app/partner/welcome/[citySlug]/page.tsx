@@ -170,7 +170,7 @@ export default function PartnerWelcomePage({ params }: { params: Promise<{ cityS
               <p className="text-gray-700 leading-relaxed">
                 Aunque {city.name} aún no está activa, puedes empezar a prepararte desde ahora. 
                 Completa tu perfil y verifica tus documentos para estar listo cuando lancemos. 
-                <span className="font-semibold text-orange-700"> ¡Los socios verificados tendrán prioridad en las primeras solicitudes!</span>
+                <span className="font-semibold text-primary-700"> ¡Los socios verificados tendrán prioridad en las primeras solicitudes!</span>
               </p>
             </div>
           </div>
@@ -251,7 +251,7 @@ export default function PartnerWelcomePage({ params }: { params: Promise<{ cityS
 
         <div className="mt-8 text-center">
           <p className="text-gray-600 text-sm">
-            ¿Tienes preguntas? <a href="/contact" className="text-primary-600 hover:text-orange-700 font-semibold underline">Contáctanos</a>
+            ¿Tienes preguntas? <a href="/contact" className="text-primary-600 hover:text-primary-700 font-semibold underline">Contáctanos</a>
           </p>
         </div>
       </div>

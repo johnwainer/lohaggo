@@ -30,7 +30,7 @@ interface ServiceRequest {
 
 const statusColors: Record<string, string> = {
   ACTIVE: 'bg-green-100 text-green-800',
-  ACCEPTED: 'bg-primary-100 text-orange-800',
+  ACCEPTED: 'bg-primary-100 text-primary-800',
   EXPIRED: 'bg-gray-100 text-gray-800',
   CANCELLED: 'bg-red-100 text-red-800',
 }
@@ -211,8 +211,8 @@ export default function RequestsSection() {
           <p className="text-2xl font-bold text-green-800">{stats.active}</p>
         </div>
         <div className="bg-primary-50 rounded-xl shadow-md p-4">
-          <p className="text-orange-700 text-xs mb-1">Aceptadas</p>
-          <p className="text-2xl font-bold text-orange-800">{stats.accepted}</p>
+          <p className="text-primary-700 text-xs mb-1">Aceptadas</p>
+          <p className="text-2xl font-bold text-primary-800">{stats.accepted}</p>
         </div>
         <div className="bg-gray-50 rounded-xl shadow-md p-4">
           <p className="text-gray-700 text-xs mb-1">Expiradas</p>
@@ -223,8 +223,8 @@ export default function RequestsSection() {
           <p className="text-2xl font-bold text-red-800">{stats.cancelled}</p>
         </div>
         <div className="bg-primary-50 rounded-xl shadow-md p-4">
-          <p className="text-orange-700 text-xs mb-1">Urgentes</p>
-          <p className="text-2xl font-bold text-orange-800">{stats.urgent}</p>
+          <p className="text-primary-700 text-xs mb-1">Urgentes</p>
+          <p className="text-2xl font-bold text-primary-800">{stats.urgent}</p>
         </div>
         <div className="bg-purple-50 rounded-xl shadow-md p-4">
           <p className="text-purple-700 text-xs mb-1">Propuestas</p>

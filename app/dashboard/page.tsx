@@ -1000,21 +1000,21 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="space-y-4 sm:space-y-6">
-                  <div className="bg-gradient-to-br from-primary-500 via-orange-600 to-orange-700 rounded-2xl sm:rounded-3xl shadow-xl p-5 sm:p-6 text-white relative overflow-hidden">
+                  <div className="bg-gradient-to-br from-primary-500 via-primary-600 to-primary-700 rounded-2xl sm:rounded-3xl shadow-xl p-5 sm:p-6 text-white relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
                     <div className="relative z-10">
                       <div className="bg-white/20 backdrop-blur-sm rounded-xl p-3 w-fit mb-4">
                         <MessageSquare className="w-6 h-6" />
                       </div>
                       <h3 className="text-xl sm:text-2xl font-bold mb-2">Solicitudes</h3>
-                      <p className="text-orange-100 text-sm mb-4">Gestiona tus peticiones</p>
+                      <p className="text-primary-100 text-sm mb-4">Gestiona tus peticiones</p>
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm text-orange-100">Activas</span>
+                          <span className="text-sm text-primary-100">Activas</span>
                           <span className="text-2xl font-bold">{activeRequestsCount}</span>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-sm text-orange-100">Propuestas</span>
+                          <span className="text-sm text-primary-100">Propuestas</span>
                           <span className="text-2xl font-bold">{totalProposals}</span>
                         </div>
                       </div>
@@ -1471,7 +1471,7 @@ export default function DashboardPage() {
                     placeholder="Buscar solicitudes..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all bg-white"
+                    className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white"
                   />
                 </div>
               </div>

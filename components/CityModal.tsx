@@ -112,7 +112,7 @@ export default function CityModal() {
                       <MapPin size={20} className="text-primary-500" />
                       <span className="font-semibold text-gray-700">{city.name}</span>
                     </div>
-                    <span className="text-xs font-semibold text-primary-600 bg-orange-200 px-3 py-1 rounded-full">
+                    <span className="text-xs font-semibold text-primary-600 bg-primary-200 px-3 py-1 rounded-full">
                       Pronto
                     </span>
                   </button>
