@@ -32,7 +32,7 @@ interface Booking {
 
 const statusColors: Record<string, string> = {
   PENDING: 'bg-yellow-100 text-yellow-800',
-  CONFIRMED: 'bg-primary-100 text-orange-800',
+  CONFIRMED: 'bg-primary-100 text-primary-800',
   IN_PROGRESS: 'bg-purple-100 text-purple-800',
   COMPLETED: 'bg-green-100 text-green-800',
   CANCELLED: 'bg-red-100 text-red-800',
@@ -229,8 +229,8 @@ export default function BookingsSection() {
           <p className="text-2xl font-bold text-yellow-800">{stats.pending}</p>
         </div>
         <div className="bg-primary-50 rounded-xl shadow-md p-4">
-          <p className="text-orange-700 text-xs mb-1">Confirmadas</p>
-          <p className="text-2xl font-bold text-orange-800">{stats.confirmed}</p>
+          <p className="text-primary-700 text-xs mb-1">Confirmadas</p>
+          <p className="text-2xl font-bold text-primary-800">{stats.confirmed}</p>
         </div>
         <div className="bg-purple-50 rounded-xl shadow-md p-4">
           <p className="text-purple-700 text-xs mb-1">En Progreso</p>

@@ -136,7 +136,7 @@ export function Navbar() {
                       className="w-full flex items-center justify-between px-3 py-3 text-sm font-medium text-primary-600 hover:bg-primary-50 rounded-lg transition-all cursor-pointer"
                     >
                       <span>{city.name}</span>
-                      <span className="text-xs bg-orange-200 px-2 py-1 rounded-full">Pronto</span>
+                      <span className="text-xs bg-primary-200 px-2 py-1 rounded-full">Pronto</span>
                     </button>
                   ))}
                 </div>

@@ -137,7 +137,7 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-orange-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
+        <div className="absolute top-20 left-10 w-72 h-72 bg-primary-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
         <div className="absolute top-40 right-10 w-72 h-72 bg-pink-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
         <div className="absolute bottom-20 left-1/2 w-72 h-72 bg-yellow-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
       </div>
@@ -200,7 +200,7 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="tu@email.com"
                   required
-                  className="flex-1 px-6 py-4 rounded-xl border-2 border-primary-200 focus:border-orange-500 focus:outline-none text-lg shadow-sm"
+                  className="flex-1 px-6 py-4 rounded-xl border-2 border-primary-200 focus:border-primary-500 focus:outline-none text-lg shadow-sm"
                 />
                 <button
                   type="submit"
@@ -214,8 +214,8 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
                 <div className="flex items-start gap-3">
                   <Gift className="w-6 h-6 text-primary-600 flex-shrink-0 mt-1" />
                   <div>
-                    <p className="font-bold text-orange-900 mb-1">🎁 Beneficios de Pre-Lanzamiento:</p>
-                    <ul className="text-sm text-orange-800 space-y-1">
+                    <p className="font-bold text-primary-900 mb-1">🎁 Beneficios de Pre-Lanzamiento:</p>
+                    <ul className="text-sm text-primary-800 space-y-1">
                       <li>✨ 50% de descuento en tu primer servicio</li>
                       <li>🎯 Acceso prioritario a profesionales premium</li>
                       <li>💎 Membresía VIP gratis por 3 meses</li>
@@ -374,7 +374,7 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
           </div>
           <Link
             href="/"
-            className="inline-block text-primary-600 hover:text-orange-700 font-bold text-lg hover:underline"
+            className="inline-block text-primary-600 hover:text-primary-700 font-bold text-lg hover:underline"
           >
             ← Volver al inicio
           </Link>

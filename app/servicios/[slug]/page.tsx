@@ -807,11 +807,11 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                 <div>
                   <h2 className="text-xl md:text-2xl font-bold">Solicitar {service.name}</h2>
                   {selectedPartnerId && (
-                    <p className="text-orange-100 text-xs md:text-sm mt-1">
+                    <p className="text-primary-100 text-xs md:text-sm mt-1">
                       Para: {service.partners.find(p => p.partner.id === selectedPartnerId)?.partner.user.name}
                     </p>
                   )}
-                  <p className="text-orange-100 text-xs md:text-sm mt-1">Paso {currentStep} de 4</p>
+                  <p className="text-primary-100 text-xs md:text-sm mt-1">Paso {currentStep} de 4</p>
                 </div>
                 <button
                   onClick={() => setShowRequestModal(false)}
@@ -1206,7 +1206,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                         }
                         setCurrentStep(currentStep + 1)
                       }}
-                      className="flex-1 bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-4 md:px-6 py-2.5 md:py-3 rounded-xl hover:from-primary-600 hover:to-secondary-600 transition font-semibold flex items-center justify-center gap-2 shadow-lg shadow-orange-600/30 text-sm md:text-base"
+                      className="flex-1 bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-4 md:px-6 py-2.5 md:py-3 rounded-xl hover:from-primary-600 hover:to-secondary-600 transition font-semibold flex items-center justify-center gap-2 shadow-lg shadow-primary-600/30 text-sm md:text-base"
                     >
                       Continuar
                       <ChevronRight size={18} />
@@ -1216,7 +1216,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                       type="button"
                       onClick={submitRequest}
                       disabled={submitting}
-                      className="flex-1 bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-4 md:px-6 py-2.5 md:py-3 rounded-xl hover:from-primary-600 hover:to-secondary-600 transition font-semibold flex items-center justify-center gap-2 shadow-lg shadow-orange-600/30 disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
+                      className="flex-1 bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-4 md:px-6 py-2.5 md:py-3 rounded-xl hover:from-primary-600 hover:to-secondary-600 transition font-semibold flex items-center justify-center gap-2 shadow-lg shadow-primary-600/30 disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
                     >
                       {submitting ? (
                         <>

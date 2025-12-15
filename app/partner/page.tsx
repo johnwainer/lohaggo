@@ -766,7 +766,7 @@ function PartnerDashboardContent() {
                               serviceName: booking.service.name,
                               clientName: booking.user.name
                             })}
-                            className="w-full bg-gradient-to-r from-primary-500 to-orange-600 text-white px-4 py-3.5 rounded-xl hover:from-primary-600 hover:to-orange-700 transition-all font-semibold flex items-center justify-center gap-2 mb-3 shadow-lg hover:shadow-xl"
+                            className="w-full bg-gradient-to-r from-primary-500 to-primary-600 text-white px-4 py-3.5 rounded-xl hover:from-primary-600 hover:to-primary-700 transition-all font-semibold flex items-center justify-center gap-2 mb-3 shadow-lg hover:shadow-xl"
                           >
                             <Star size={20} />
                             Calificar Cliente
@@ -804,7 +804,7 @@ function PartnerDashboardContent() {
                             <MessageCircle size={20} />
                             Chat con el Cliente
                             {unreadCounts[booking.proposalId!] > 0 && (
-                              <span className="absolute -top-2 -right-2 bg-gradient-to-r from-primary-500 to-orange-600 text-white text-xs font-bold rounded-full h-7 w-7 flex items-center justify-center animate-pulse shadow-lg">
+                              <span className="absolute -top-2 -right-2 bg-gradient-to-r from-primary-500 to-primary-600 text-white text-xs font-bold rounded-full h-7 w-7 flex items-center justify-center animate-pulse shadow-lg">
                                 {unreadCounts[booking.proposalId!]}
                               </span>
                             )}
@@ -817,7 +817,7 @@ function PartnerDashboardContent() {
                               <>
                                 <button
                                   onClick={() => updateBookingStatus(booking.id, 'CONFIRMED', booking.service.name)}
-                                  className="flex-1 bg-gradient-to-r from-primary-500 to-orange-600 text-white px-4 py-3.5 rounded-xl hover:from-primary-600 hover:to-orange-700 transition-all font-semibold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                                  className="flex-1 bg-gradient-to-r from-primary-500 to-primary-600 text-white px-4 py-3.5 rounded-xl hover:from-primary-600 hover:to-primary-700 transition-all font-semibold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
                                 >
                                   <CheckCircle size={20} />
                                   Confirmar
