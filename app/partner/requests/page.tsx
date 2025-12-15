@@ -291,7 +291,7 @@ export default function PartnerRequestsPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex-1 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white px-4 py-2 rounded-lg hover:from-[#FF1D45] hover:to-[#FF5900] transition disabled:opacity-50"
+                  className="flex-1 bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-4 py-2 rounded-lg hover:from-primary-600 hover:to-secondary-600 transition disabled:opacity-50"
                 >
                   {submitting ? 'Enviando...' : 'Enviar propuesta'}
                 </button>

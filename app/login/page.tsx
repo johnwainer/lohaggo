@@ -78,7 +78,7 @@ function LoginForm() {
 
   if (status === 'loading') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#FF2D55] via-[#FF3D00] to-[#FF6900] flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-primary-500 via-secondary-500 to-secondary-500 flex items-center justify-center">
         <div className="relative">
           <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-white"></div>
           <div className="absolute inset-0 rounded-full h-16 w-16 border-t-4 border-white/30 animate-pulse"></div>
@@ -88,7 +88,7 @@ function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#FF2D55] via-[#FF3D00] to-[#FF6900] relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-primary-500 via-secondary-500 to-secondary-500 relative overflow-hidden">
       <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10"></div>
       <div className="absolute top-0 left-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 animate-pulse"></div>
       <div className="absolute bottom-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl translate-x-1/2 translate-y-1/2 animate-pulse delay-1000"></div>
@@ -135,7 +135,7 @@ function LoginForm() {
           <div className="w-full">
             <div className="bg-white rounded-3xl shadow-2xl p-8 sm:p-10 backdrop-blur-sm animate-slide-up">
               <div className="text-center mb-8">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-[#FF2D55] via-[#FF3D00] to-[#FF6900] rounded-2xl mb-4 shadow-lg">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-primary-500 via-secondary-500 to-secondary-500 rounded-2xl mb-4 shadow-lg">
                   <Lock className="w-8 h-8 text-white" />
                 </div>
                 <h2 className="text-3xl font-bold text-gray-900">Iniciar sesión</h2>
@@ -154,13 +154,13 @@ function LoginForm() {
                     Email
                   </label>
                   <div className="relative group">
-                    <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-[#FF2D55] transition-colors" size={20} />
+                    <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-primary-600 transition-colors" size={20} />
                     <input
                       type="email"
                       required
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#FF2D55]/20 focus:border-[#FF2D55] outline-none transition-all"
+                      className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all"
                       placeholder="tu@email.com"
                     />
                   </div>
@@ -171,13 +171,13 @@ function LoginForm() {
                     Contraseña
                   </label>
                   <div className="relative group">
-                    <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-[#FF2D55] transition-colors" size={20} />
+                    <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-primary-600 transition-colors" size={20} />
                     <input
                       type="password"
                       required
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#FF2D55]/20 focus:border-[#FF2D55] outline-none transition-all"
+                      className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all"
                       placeholder="••••••••"
                     />
                   </div>
@@ -190,7 +190,7 @@ function LoginForm() {
                         type="checkbox"
                         checked={acceptedTerms}
                         onChange={(e) => setAcceptedTerms(e.target.checked)}
-                        className="w-5 h-5 border-2 border-gray-300 rounded-lg cursor-pointer checked:bg-[#FF2D55] checked:border-[#FF2D55] focus:ring-2 focus:ring-[#FF2D55]/20 focus:ring-offset-2 transition-all"
+                        className="w-5 h-5 border-2 border-gray-300 rounded-lg cursor-pointer checked:bg-primary-500 checked:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:ring-offset-2 transition-all"
                         required
                       />
                     </div>
@@ -199,7 +199,7 @@ function LoginForm() {
                       <Link
                         href="/terms"
                         target="_blank"
-                        className="text-[#FF2D55] font-semibold hover:underline"
+                        className="text-primary-600 font-semibold hover:underline"
                       >
                         Términos y Condiciones
                       </Link>
@@ -207,7 +207,7 @@ function LoginForm() {
                       <Link
                         href="/privacy"
                         target="_blank"
-                        className="text-[#FF2D55] font-semibold hover:underline"
+                        className="text-primary-600 font-semibold hover:underline"
                       >
                         Política de Privacidad
                       </Link>
@@ -215,7 +215,7 @@ function LoginForm() {
                       <Link
                         href="/cookies"
                         target="_blank"
-                        className="text-[#FF2D55] font-semibold hover:underline"
+                        className="text-primary-600 font-semibold hover:underline"
                       >
                         Política de Cookies
                       </Link>
@@ -227,7 +227,7 @@ function LoginForm() {
                 <button
                   type="submit"
                   disabled={loading || !acceptedTerms}
-                  className="w-full bg-gradient-to-r from-[#FF2D55] via-[#FF3D00] to-[#FF6900] text-white py-4 rounded-xl hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 group"
+                  className="w-full bg-gradient-to-r from-primary-500 via-secondary-500 to-secondary-500 text-white py-4 rounded-xl hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 group"
                 >
                   {loading ? (
                     <>
@@ -246,7 +246,7 @@ function LoginForm() {
               <div className="mt-8 text-center">
                 <p className="text-gray-600">
                   ¿No tienes cuenta?{' '}
-                  <Link href="/register" className="text-[#FF2D55] hover:text-[#FF6B8A] font-semibold hover:underline transition-colors">
+                  <Link href="/register" className="text-primary-600 hover:text-primary-400 font-semibold hover:underline transition-colors">
                     Regístrate aquí
                   </Link>
                 </p>
@@ -283,7 +283,7 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-gradient-to-br from-[#FF2D55] via-[#FF3D00] to-[#FF6900] flex items-center justify-center">
+        <div className="min-h-screen bg-gradient-to-br from-primary-500 via-secondary-500 to-secondary-500 flex items-center justify-center">
           <div className="relative">
             <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-white"></div>
             <div className="absolute inset-0 rounded-full h-16 w-16 border-t-4 border-white/30 animate-pulse"></div>

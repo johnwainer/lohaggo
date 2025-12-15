@@ -86,8 +86,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#FF6900' },
-    { media: '(prefers-color-scheme: dark)', color: '#FF2D55' },
+    { media: '(prefers-color-scheme: light)', color: '#00B894' },
+    { media: '(prefers-color-scheme: dark)', color: '#0066CC' },
   ],
   width: 'device-width',
   initialScale: 1,
@@ -114,7 +114,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="LoHaggo" />
         <meta name="application-name" content="LoHaggo" />
-        <meta name="msapplication-TileColor" content="#FF6900" />
+        <meta name="msapplication-TileColor" content="#00B894" />
         <meta name="msapplication-config" content="/browserconfig.xml" />
         <meta name="format-detection" content="telephone=yes" />
       </head>

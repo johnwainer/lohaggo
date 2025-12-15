@@ -171,7 +171,7 @@ export default function PartnersSection() {
           ) : (
             <button
               onClick={() => handleVerifyPartner(row.id, true)}
-              className="px-3 py-1 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white rounded-lg hover:from-[#FF1D45] hover:to-[#FF5900] transition-colors text-sm"
+              className="px-3 py-1 bg-gradient-to-r from-primary-500 to-secondary-500 text-white rounded-lg hover:from-primary-600 hover:to-secondary-600 transition-colors text-sm"
             >
               Verificar
             </button>
@@ -200,7 +200,7 @@ export default function PartnersSection() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF2D55]"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
       </div>
     )
   }

@@ -45,8 +45,8 @@ export default function Modal({
     success: {
       bg: 'bg-orange-50',
       border: 'border-orange-200',
-      icon: 'text-[#FF6900]',
-      button: 'bg-gradient-to-r from-[#FF2D55] to-[#FF6900] hover:from-[#FF1D45] hover:to-[#FF5900]'
+      icon: 'text-secondary-600',
+      button: 'bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600'
     },
     error: {
       bg: 'bg-red-50',

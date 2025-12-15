@@ -140,7 +140,7 @@ export default function HowItWorksPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-[#FF2D55] via-[#FF3D00] to-[#FF6900] text-white pt-24 pb-20">
+      <section className="relative overflow-hidden bg-gradient-to-br from-primary-500 via-secondary-500 to-secondary-500 text-white pt-24 pb-20">
         <div className="absolute inset-0 overflow-hidden opacity-20">
           <div className="absolute -top-40 -right-40 w-96 h-96 bg-yellow-400 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slow"></div>
           <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-pink-400 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slow"></div>
@@ -173,7 +173,7 @@ export default function HowItWorksPage() {
               onClick={() => setActiveTab('client')}
               className={`px-8 py-4 rounded-xl font-bold text-lg transition-all transform ${
                 activeTab === 'client'
-                  ? 'bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white shadow-lg scale-105'
+                  ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white shadow-lg scale-105'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
@@ -183,7 +183,7 @@ export default function HowItWorksPage() {
               onClick={() => setActiveTab('partner')}
               className={`px-8 py-4 rounded-xl font-bold text-lg transition-all transform ${
                 activeTab === 'partner'
-                  ? 'bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white shadow-lg scale-105'
+                  ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white shadow-lg scale-105'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
@@ -246,7 +246,7 @@ export default function HowItWorksPage() {
                   key={index}
                   className="text-center p-8 rounded-2xl bg-gradient-to-br from-gray-50 to-white border border-gray-100 hover:shadow-xl transition-all"
                 >
-                  <div className="w-16 h-16 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                  <div className="w-16 h-16 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
                     <Icon className="w-8 h-8 text-white" />
                   </div>
                   <h3 className="text-xl font-black text-gray-900 mb-3">
@@ -263,7 +263,7 @@ export default function HowItWorksPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-br from-[#FF2D55] via-[#FF3D00] to-[#FF6900] text-white">
+      <section className="py-20 bg-gradient-to-br from-primary-500 via-secondary-500 to-secondary-500 text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl md:text-5xl font-black mb-6">
             ¿Listo para comenzar?
@@ -274,7 +274,7 @@ export default function HowItWorksPage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/register"
-              className="inline-flex items-center justify-center gap-2 bg-white text-[#FF2D55] px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-100 transition-all transform hover:scale-105 shadow-xl"
+              className="inline-flex items-center justify-center gap-2 bg-white text-primary-600 px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-100 transition-all transform hover:scale-105 shadow-xl"
             >
               Registrarme como cliente
               <ArrowRight className="w-5 h-5" />

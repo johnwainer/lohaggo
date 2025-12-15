@@ -119,7 +119,7 @@ export default function ServicesSection() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF2D55]"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
       </div>
     )
   }
@@ -143,7 +143,7 @@ export default function ServicesSection() {
               <p className="text-gray-600 text-sm mb-1">Total Servicios</p>
               <p className="text-3xl font-bold text-gray-900">{services.length}</p>
             </div>
-            <Package className="text-[#FF2D55]" size={32} />
+            <Package className="text-primary-600" size={32} />
           </div>
         </div>
 

@@ -23,7 +23,7 @@ export default function FAQPage() {
     clients: {
       title: 'Preguntas Frecuentes para Clientes',
       icon: Users,
-      color: 'from-[#FF2D55] to-[#FF6900]',
+      color: 'from-primary-500 to-secondary-500',
       faqs: [
         {
           question: '¿Cómo puedo reservar un servicio?',
@@ -70,7 +70,7 @@ export default function FAQPage() {
     partners: {
       title: 'Preguntas Frecuentes para Socios',
       icon: Briefcase,
-      color: 'from-[#FF6900] to-[#FF2D55]',
+      color: 'from-secondary-500 to-primary-500',
       faqs: [
         {
           question: '¿Cómo puedo registrarme como socio?',
@@ -136,7 +136,7 @@ export default function FAQPage() {
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-2xl mb-4">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-2xl mb-4">
               <HelpCircle className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-4xl font-black text-gray-900 mb-4">
@@ -158,7 +158,7 @@ export default function FAQPage() {
             }}
             className={`flex items-center gap-3 px-6 py-4 rounded-2xl font-bold text-lg transition-all ${
               activeTab === 'clients'
-                ? 'bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white shadow-lg scale-105'
+                ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white shadow-lg scale-105'
                 : 'bg-white text-gray-700 hover:bg-gray-50 shadow'
             }`}
           >
@@ -173,7 +173,7 @@ export default function FAQPage() {
             }}
             className={`flex items-center gap-3 px-6 py-4 rounded-2xl font-bold text-lg transition-all ${
               activeTab === 'partners'
-                ? 'bg-gradient-to-r from-[#FF6900] to-[#FF2D55] text-white shadow-lg scale-105'
+                ? 'bg-gradient-to-r from-secondary-500 to-primary-500 text-white shadow-lg scale-105'
                 : 'bg-white text-gray-700 hover:bg-gray-50 shadow'
             }`}
           >
@@ -202,7 +202,7 @@ export default function FAQPage() {
                   </span>
                   <ChevronDown
                     size={24}
-                    className={`text-[#FF2D55] flex-shrink-0 transition-transform ${
+                    className={`text-primary-600 flex-shrink-0 transition-transform ${
                       openIndex === index ? 'rotate-180' : ''
                     }`}
                   />
@@ -224,7 +224,7 @@ export default function FAQPage() {
           </div>
         </div>
 
-        <div className="mt-12 bg-gradient-to-r from-[#FF2D55]/10 to-[#FF6900]/10 rounded-3xl p-8 text-center border border-[#FF2D55]/20">
+        <div className="mt-12 bg-gradient-to-r from-primary-500/10 to-secondary-500/10 rounded-3xl p-8 text-center border border-primary-500/20">
           <h3 className="text-2xl font-bold text-gray-900 mb-3">
             ¿No encontraste lo que buscabas?
           </h3>
@@ -240,7 +240,7 @@ export default function FAQPage() {
             </a>
             <a
               href="/contact"
-              className="inline-flex items-center gap-2 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white px-6 py-3 rounded-xl font-bold hover:shadow-lg transition-all"
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-6 py-3 rounded-xl font-bold hover:shadow-lg transition-all"
             >
               Formulario de contacto
             </a>

@@ -36,7 +36,7 @@ export default function CityModal() {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 max-h-[90vh] overflow-hidden">
-        <div className="bg-gradient-to-r from-[#FF2D55] to-[#FF6900] p-6 relative">
+        <div className="bg-gradient-to-r from-primary-500 to-secondary-500 p-6 relative">
           <button
             onClick={() => setShowCityModal(false)}
             className="absolute top-4 right-4 text-white/80 hover:text-white transition"
@@ -58,7 +58,7 @@ export default function CityModal() {
           <button
             onClick={geolocateCity}
             disabled={isGeolocating}
-            className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white py-3 px-4 rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed mb-6"
+            className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-primary-500 to-secondary-500 text-white py-3 px-4 rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed mb-6"
           >
             <Navigation size={20} className={isGeolocating ? 'animate-spin' : ''} />
             {isGeolocating ? 'Detectando ubicación...' : 'Detectar mi ubicación'}
@@ -76,16 +76,16 @@ export default function CityModal() {
                     onClick={() => setSelectedCity(city.slug)}
                     className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
                       city.slug === selectedCity
-                        ? 'border-[#FF2D55] bg-[#FF2D55]/5 text-[#FF2D55]'
-                        : 'border-gray-200 hover:border-[#FF2D55]/30 hover:bg-gray-50'
+                        ? 'border-primary-500 bg-primary-500/5 text-primary-600'
+                        : 'border-gray-200 hover:border-primary-500/30 hover:bg-gray-50'
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <MapPin size={20} className={city.slug === selectedCity ? 'text-[#FF2D55]' : 'text-gray-400'} />
+                      <MapPin size={20} className={city.slug === selectedCity ? 'text-primary-600' : 'text-gray-400'} />
                       <span className="font-semibold">{city.name}</span>
                     </div>
                     {city.slug === selectedCity && (
-                      <div className="w-2 h-2 rounded-full bg-[#FF2D55]" />
+                      <div className="w-2 h-2 rounded-full bg-primary-500" />
                     )}
                   </button>
                 ))}

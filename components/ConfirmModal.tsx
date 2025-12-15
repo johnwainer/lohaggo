@@ -59,8 +59,8 @@ export default function ConfirmModal({
     success: {
       bg: 'bg-pink-50',
       border: 'border-pink-200',
-      icon: 'text-[#FF2D55]',
-      button: 'bg-[#FF2D55] hover:bg-[#FF1D45]'
+      icon: 'text-primary-600',
+      button: 'bg-primary-500 hover:bg-primary-600'
     },
     error: {
       bg: 'bg-red-50',

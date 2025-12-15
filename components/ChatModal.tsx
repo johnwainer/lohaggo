@@ -170,7 +170,7 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl w-full max-w-2xl h-[600px] md:h-[700px] flex flex-col shadow-2xl">
-        <div className="bg-gradient-to-r from-[#FF2D55] to-[#FF6900] p-4 md:p-6 text-white rounded-t-2xl flex items-center justify-between">
+        <div className="bg-gradient-to-r from-primary-500 to-secondary-500 p-4 md:p-6 text-white rounded-t-2xl flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 md:w-12 md:h-12 bg-white/20 rounded-full flex items-center justify-center">
               <MessageCircle size={20} className="md:w-6 md:h-6" />
@@ -191,7 +191,7 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
         <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 bg-gray-50">
           {loading ? (
             <div className="flex items-center justify-center h-full">
-              <Loader2 className="w-8 h-8 animate-spin text-[#FF2D55]" />
+              <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
             </div>
           ) : messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center">
@@ -236,7 +236,7 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
                   <div
                     className={`max-w-[75%] md:max-w-[70%] rounded-2xl px-4 py-3 ${
                       isOwnMessage(message.senderId)
-                        ? 'bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white'
+                        ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white'
                         : 'bg-white text-gray-800 border border-gray-200'
                     }`}
                   >
@@ -269,12 +269,12 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
               placeholder="Escribe un mensaje..."
               disabled={loading || sending}
               autoFocus
-              className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-[#FF2D55] focus:border-[#FF2D55] outline-none text-sm md:text-base disabled:bg-gray-100 disabled:cursor-not-allowed"
+              className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none text-sm md:text-base disabled:bg-gray-100 disabled:cursor-not-allowed"
             />
             <button
               type="submit"
               disabled={!newMessage.trim() || loading || sending}
-              className="bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white px-4 md:px-6 py-3 rounded-xl hover:from-[#FF1D45] hover:to-[#FF5900] transition-all font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-4 md:px-6 py-3 rounded-xl hover:from-primary-600 hover:to-secondary-600 transition-all font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {sending ? (
                 <Loader2 className="w-5 h-5 animate-spin" />

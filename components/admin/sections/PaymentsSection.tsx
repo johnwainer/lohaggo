@@ -134,7 +134,7 @@ export default function PaymentsSection() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF2D55]"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
       </div>
     )
   }
@@ -215,11 +215,11 @@ export default function PaymentsSection() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Ganancia Total</p>
-              <p className="text-2xl font-bold text-[#FF2D55] mt-2">{formatCurrency(stats.totalAppRevenue)}</p>
+              <p className="text-2xl font-bold text-primary-600 mt-2">{formatCurrency(stats.totalAppRevenue)}</p>
               <p className="text-xs text-gray-500 mt-1">Clientes + Socios</p>
             </div>
             <div className="bg-red-100 p-3 rounded-lg">
-              <DollarSign className="w-6 h-6 text-[#FF2D55]" />
+              <DollarSign className="w-6 h-6 text-primary-600" />
             </div>
           </div>
         </div>
@@ -236,7 +236,7 @@ export default function PaymentsSection() {
                   placeholder="Buscar por cliente, email o servicio..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
               </div>
             </div>
@@ -245,7 +245,7 @@ export default function PaymentsSection() {
                 onClick={() => setFilter('ALL')}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                   filter === 'ALL'
-                    ? 'bg-[#FF2D55] text-white'
+                    ? 'bg-primary-500 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
@@ -255,7 +255,7 @@ export default function PaymentsSection() {
                 onClick={() => setFilter('PENDING')}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                   filter === 'PENDING'
-                    ? 'bg-[#FF2D55] text-white'
+                    ? 'bg-primary-500 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
@@ -265,7 +265,7 @@ export default function PaymentsSection() {
                 onClick={() => setFilter('APPROVED')}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                   filter === 'APPROVED'
-                    ? 'bg-[#FF2D55] text-white'
+                    ? 'bg-primary-500 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
@@ -391,7 +391,7 @@ export default function PaymentsSection() {
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <div className="text-sm font-bold text-[#FF2D55]">
+                        <div className="text-sm font-bold text-primary-600">
                           {formatCurrency(appRevenue)}
                         </div>
                       </td>

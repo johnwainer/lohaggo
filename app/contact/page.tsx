@@ -115,7 +115,7 @@ export default function ContactPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-[#FF2D55] via-[#FF3D00] to-[#FF6900] text-white pt-24 pb-20">
+      <section className="relative overflow-hidden bg-gradient-to-br from-primary-500 via-secondary-500 to-secondary-500 text-white pt-24 pb-20">
         <div className="absolute inset-0 overflow-hidden opacity-20">
           <div className="absolute -top-40 -right-40 w-96 h-96 bg-yellow-400 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slow"></div>
           <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-pink-400 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slow"></div>
@@ -179,7 +179,7 @@ export default function ContactPage() {
                           onClick={() => setFormData({ ...formData, userType: 'client' })}
                           className={`flex items-center justify-center gap-3 p-4 rounded-xl border-2 transition-all font-bold cursor-pointer ${
                             formData.userType === 'client'
-                              ? 'border-[#FF2D55] bg-gradient-to-r from-[#FF2D55]/10 to-[#FF6900]/10 text-[#FF2D55]'
+                              ? 'border-primary-500 bg-gradient-to-r from-primary-500/10 to-secondary-500/10 text-primary-600'
                               : 'border-gray-200 hover:border-gray-300 text-gray-600'
                           }`}
                         >
@@ -190,7 +190,7 @@ export default function ContactPage() {
                           onClick={() => setFormData({ ...formData, userType: 'partner' })}
                           className={`flex items-center justify-center gap-3 p-4 rounded-xl border-2 transition-all font-bold cursor-pointer ${
                             formData.userType === 'partner'
-                              ? 'border-[#FF2D55] bg-gradient-to-r from-[#FF2D55]/10 to-[#FF6900]/10 text-[#FF2D55]'
+                              ? 'border-primary-500 bg-gradient-to-r from-primary-500/10 to-secondary-500/10 text-primary-600'
                               : 'border-gray-200 hover:border-gray-300 text-gray-600'
                           }`}
                         >
@@ -212,7 +212,7 @@ export default function ContactPage() {
                         value={formData.name}
                         onChange={handleChange}
                         required
-                        className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-[#FF2D55] focus:ring-4 focus:ring-[#FF2D55]/10 outline-none transition-all font-medium"
+                        className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all font-medium"
                         placeholder="Tu nombre"
                       />
                     </div>
@@ -230,7 +230,7 @@ export default function ContactPage() {
                           value={formData.email}
                           onChange={handleChange}
                           required
-                          className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-[#FF2D55] focus:ring-4 focus:ring-[#FF2D55]/10 outline-none transition-all font-medium"
+                          className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all font-medium"
                           placeholder="tu@email.com"
                         />
                       </div>
@@ -244,7 +244,7 @@ export default function ContactPage() {
                           name="phone"
                           value={formData.phone}
                           onChange={handleChange}
-                          className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-[#FF2D55] focus:ring-4 focus:ring-[#FF2D55]/10 outline-none transition-all font-medium"
+                          className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all font-medium"
                           placeholder="+52 55 1234 5678"
                         />
                       </div>
@@ -261,7 +261,7 @@ export default function ContactPage() {
                         value={formData.subject}
                         onChange={handleChange}
                         required
-                        className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-[#FF2D55] focus:ring-4 focus:ring-[#FF2D55]/10 outline-none transition-all font-medium"
+                        className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all font-medium"
                       >
                         <option value="">Selecciona un asunto</option>
                         <option value="general">Consulta general</option>
@@ -285,7 +285,7 @@ export default function ContactPage() {
                         onChange={handleChange}
                         required
                         rows={6}
-                        className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-[#FF2D55] focus:ring-4 focus:ring-[#FF2D55]/10 outline-none transition-all resize-none font-medium"
+                        className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all resize-none font-medium"
                         placeholder="Cuéntanos cómo podemos ayudarte..."
                       />
                     </div>
@@ -294,7 +294,7 @@ export default function ContactPage() {
                     <button
                       type="submit"
                       disabled={isSubmitting}
-                      className="w-full bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white px-8 py-4 rounded-xl font-bold text-lg hover:shadow-xl transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      className="w-full bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-8 py-4 rounded-xl font-bold text-lg hover:shadow-xl transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                       {isSubmitting ? (
                         <>
@@ -329,14 +329,14 @@ export default function ContactPage() {
                         href={info.link}
                         className="flex items-start gap-4 group"
                       >
-                        <div className="w-12 h-12 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                        <div className="w-12 h-12 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
                           <Icon className="w-6 h-6 text-white" />
                         </div>
                         <div>
                           <div className="text-sm font-bold text-gray-500 mb-1">
                             {info.title}
                           </div>
-                          <div className="text-gray-900 font-bold group-hover:text-[#FF2D55] transition-colors">
+                          <div className="text-gray-900 font-bold group-hover:text-primary-600 transition-colors">
                             {info.value}
                           </div>
                         </div>
@@ -347,7 +347,7 @@ export default function ContactPage() {
               </div>
 
               {/* Social Links */}
-              <div className="bg-gradient-to-br from-[#FF2D55] to-[#FF6900] rounded-3xl shadow-xl p-8 text-white">
+              <div className="bg-gradient-to-br from-primary-500 to-secondary-500 rounded-3xl shadow-xl p-8 text-white">
                 <h3 className="text-2xl font-black mb-4">
                   Síguenos
                 </h3>
@@ -390,7 +390,7 @@ export default function ContactPage() {
                 </div>
                 <Link
                   href="/faq"
-                  className="inline-flex items-center gap-2 text-[#FF2D55] font-bold mt-6 hover:gap-3 transition-all"
+                  className="inline-flex items-center gap-2 text-primary-600 font-bold mt-6 hover:gap-3 transition-all"
                 >
                   Ver todas las preguntas
                   <ArrowRight className="w-4 h-4" />
@@ -405,7 +405,7 @@ export default function ContactPage() {
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="bg-gradient-to-br from-gray-100 to-gray-50 rounded-3xl p-12 text-center border border-gray-200">
-            <Sparkles className="w-12 h-12 text-[#FF2D55] mx-auto mb-6" />
+            <Sparkles className="w-12 h-12 text-primary-600 mx-auto mb-6" />
             <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-4">
               ¿Prefieres hablar directamente?
             </h2>
@@ -414,7 +414,7 @@ export default function ContactPage() {
             </p>
             <a
               href="tel:+525512345678"
-              className="inline-flex items-center gap-2 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white px-8 py-4 rounded-xl font-bold text-lg hover:shadow-xl transition-all transform hover:scale-105"
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-8 py-4 rounded-xl font-bold text-lg hover:shadow-xl transition-all transform hover:scale-105"
             >
               <Phone className="w-5 h-5" />
               Llamar ahora

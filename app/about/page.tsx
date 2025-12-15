@@ -105,7 +105,7 @@ export default function AboutPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-[#FF2D55] via-[#FF3D00] to-[#FF6900] text-white pt-24 pb-20">
+      <section className="relative overflow-hidden bg-gradient-to-br from-primary-500 via-secondary-500 to-secondary-500 text-white pt-24 pb-20">
         <div className="absolute inset-0 overflow-hidden opacity-20">
           <div className="absolute -top-40 -right-40 w-96 h-96 bg-yellow-400 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slow"></div>
           <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-pink-400 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slow"></div>
@@ -138,7 +138,7 @@ export default function AboutPage() {
               const Icon = stat.icon
               return (
                 <div key={index} className="text-center">
-                  <div className="w-16 h-16 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                  <div className="w-16 h-16 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
                     <Icon className="w-8 h-8 text-white" />
                   </div>
                   <div className="text-4xl font-black text-gray-900 mb-2">
@@ -159,7 +159,7 @@ export default function AboutPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div>
-              <div className="inline-flex items-center gap-2 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white px-4 py-2 rounded-full text-sm font-bold mb-6">
+              <div className="inline-flex items-center gap-2 bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-4 py-2 rounded-full text-sm font-bold mb-6">
                 <Target className="w-4 h-4" />
                 Nuestra Misión
               </div>
@@ -178,7 +178,7 @@ export default function AboutPage() {
               </p>
             </div>
             <div className="relative">
-              <div className="bg-gradient-to-br from-[#FF2D55] to-[#FF6900] rounded-3xl p-12 shadow-2xl">
+              <div className="bg-gradient-to-br from-primary-500 to-secondary-500 rounded-3xl p-12 shadow-2xl">
                 <div className="grid grid-cols-2 gap-6">
                   <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
                     <Clock className="w-10 h-10 text-white mb-4" />
@@ -227,7 +227,7 @@ export default function AboutPage() {
                   key={index}
                   className="bg-gradient-to-br from-gray-50 to-white rounded-2xl p-8 border border-gray-100 hover:shadow-xl transition-all transform hover:-translate-y-2"
                 >
-                  <div className="w-16 h-16 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-2xl flex items-center justify-center mb-6 shadow-lg">
+                  <div className="w-16 h-16 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg">
                     <Icon className="w-8 h-8 text-white" />
                   </div>
                   <h3 className="text-2xl font-black text-gray-900 mb-3">
@@ -256,7 +256,7 @@ export default function AboutPage() {
           </div>
 
           <div className="relative">
-            <div className="absolute left-1/2 transform -translate-x-1/2 h-full w-1 bg-gradient-to-b from-[#FF2D55] to-[#FF6900] hidden lg:block"></div>
+            <div className="absolute left-1/2 transform -translate-x-1/2 h-full w-1 bg-gradient-to-b from-primary-500 to-secondary-500 hidden lg:block"></div>
 
             <div className="space-y-12">
               {milestones.map((milestone, index) => (
@@ -268,7 +268,7 @@ export default function AboutPage() {
                   <div className="flex-1 lg:text-right">
                     {index % 2 === 0 ? (
                       <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100 hover:shadow-2xl transition-all">
-                        <div className="text-5xl font-black bg-gradient-to-r from-[#FF2D55] to-[#FF6900] bg-clip-text text-transparent mb-3">
+                        <div className="text-5xl font-black bg-gradient-to-r from-primary-500 to-secondary-500 bg-clip-text text-transparent mb-3">
                           {milestone.year}
                         </div>
                         <h3 className="text-2xl font-black text-gray-900 mb-3">
@@ -285,7 +285,7 @@ export default function AboutPage() {
 
                   {/* Center Circle */}
                   <div className="relative z-10 flex-shrink-0">
-                    <div className="w-16 h-16 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-full flex items-center justify-center shadow-xl border-4 border-white">
+                    <div className="w-16 h-16 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-full flex items-center justify-center shadow-xl border-4 border-white">
                       <div className="w-6 h-6 bg-white rounded-full"></div>
                     </div>
                   </div>
@@ -294,7 +294,7 @@ export default function AboutPage() {
                   <div className="flex-1 lg:text-left">
                     {index % 2 !== 0 ? (
                       <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100 hover:shadow-2xl transition-all">
-                        <div className="text-5xl font-black bg-gradient-to-r from-[#FF2D55] to-[#FF6900] bg-clip-text text-transparent mb-3">
+                        <div className="text-5xl font-black bg-gradient-to-r from-primary-500 to-secondary-500 bg-clip-text text-transparent mb-3">
                           {milestone.year}
                         </div>
                         <h3 className="text-2xl font-black text-gray-900 mb-3">
@@ -337,7 +337,7 @@ export default function AboutPage() {
                 <h3 className="text-xl font-black text-gray-900 mb-2">
                   {member.name}
                 </h3>
-                <div className="text-[#FF2D55] font-bold mb-3">
+                <div className="text-primary-600 font-bold mb-3">
                   {member.role}
                 </div>
                 <p className="text-gray-600 text-sm font-medium">
@@ -350,7 +350,7 @@ export default function AboutPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-br from-[#FF2D55] via-[#FF3D00] to-[#FF6900] text-white">
+      <section className="py-20 bg-gradient-to-br from-primary-500 via-secondary-500 to-secondary-500 text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl md:text-5xl font-black mb-6">
             Únete a nuestra comunidad
@@ -361,7 +361,7 @@ export default function AboutPage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/register"
-              className="inline-flex items-center justify-center gap-2 bg-white text-[#FF2D55] px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-100 transition-all transform hover:scale-105 shadow-xl"
+              className="inline-flex items-center justify-center gap-2 bg-white text-primary-600 px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-100 transition-all transform hover:scale-105 shadow-xl"
             >
               Comenzar ahora
               <ArrowRight className="w-5 h-5" />

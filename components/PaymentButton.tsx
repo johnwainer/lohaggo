@@ -94,7 +94,7 @@ export default function PaymentButton({
           <button
             onClick={handlePayment}
             disabled={loading}
-            className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-[#FF2D55] text-white rounded-lg hover:bg-[#E6194B] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <CreditCard className="w-5 h-5" />
             {loading ? 'Procesando...' : 'Pagar Ahora'}
@@ -104,7 +104,7 @@ export default function PaymentButton({
         <div className="space-y-4">
           <div className="bg-white border border-gray-200 rounded-lg p-6">
             <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-[#FF2D55]" />
+              <DollarSign className="w-5 h-5 text-primary-600" />
               Desglose del Pago
             </h3>
 
@@ -127,7 +127,7 @@ export default function PaymentButton({
 
               <div className="flex justify-between items-center pt-2">
                 <span className="text-lg font-bold text-gray-900">Total a Pagar</span>
-                <span className="text-2xl font-bold text-[#FF2D55]">
+                <span className="text-2xl font-bold text-primary-600">
                   ${breakdown?.totalAmount?.toLocaleString('es-CO')} COP
                 </span>
               </div>
@@ -146,7 +146,7 @@ export default function PaymentButton({
           <button
             onClick={handlePayment}
             disabled={loading}
-            className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-[#FF2D55] text-white rounded-lg hover:bg-[#E6194B] disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-lg font-semibold"
+            className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-lg font-semibold"
           >
             <CreditCard className="w-6 h-6" />
             {loading ? 'Redirigiendo a MercadoPago...' : 'Continuar al Pago'}

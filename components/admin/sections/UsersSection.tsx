@@ -206,7 +206,7 @@ export default function UsersSection() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF2D55]"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
       </div>
     )
   }
@@ -223,7 +223,7 @@ export default function UsersSection() {
           onClick={() => setFilter('all')}
           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
             filter === 'all'
-              ? 'bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white'
+              ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white'
               : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
           }`}
         >
@@ -233,7 +233,7 @@ export default function UsersSection() {
           onClick={() => setFilter('CLIENT')}
           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
             filter === 'CLIENT'
-              ? 'bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white'
+              ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white'
               : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
           }`}
         >
@@ -243,7 +243,7 @@ export default function UsersSection() {
           onClick={() => setFilter('PARTNER')}
           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
             filter === 'PARTNER'
-              ? 'bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white'
+              ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white'
               : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
           }`}
         >
@@ -253,7 +253,7 @@ export default function UsersSection() {
           onClick={() => setFilter('ADMIN')}
           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
             filter === 'ADMIN'
-              ? 'bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white'
+              ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white'
               : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
           }`}
         >

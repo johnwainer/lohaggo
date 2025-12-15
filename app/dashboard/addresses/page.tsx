@@ -298,7 +298,7 @@ export default function AddressesPage() {
             </div>
             <button
               onClick={() => handleOpenModal()}
-              className="flex items-center gap-1.5 sm:gap-2 bg-[#FF2D55] text-white px-3 sm:px-6 py-2 sm:py-3 rounded-lg hover:bg-[#E02849] transition font-medium text-xs sm:text-base flex-shrink-0"
+              className="flex items-center gap-1.5 sm:gap-2 bg-primary-500 text-white px-3 sm:px-6 py-2 sm:py-3 rounded-lg hover:bg-[#E02849] transition font-medium text-xs sm:text-base flex-shrink-0"
             >
               <Plus size={16} className="sm:w-[18px] sm:h-[18px]" />
               <span className="hidden xs:inline">Agregar Dirección</span>
@@ -318,7 +318,7 @@ export default function AddressesPage() {
             </p>
             <button
               onClick={() => handleOpenModal()}
-              className="inline-flex items-center gap-2 bg-[#FF2D55] text-white px-5 py-2.5 sm:px-6 sm:py-3 rounded-lg hover:bg-[#E02849] transition font-medium"
+              className="inline-flex items-center gap-2 bg-primary-500 text-white px-5 py-2.5 sm:px-6 sm:py-3 rounded-lg hover:bg-[#E02849] transition font-medium"
             >
               <Plus size={18} />
               <span className="hidden xs:inline">Agregar Primera Dirección</span>
@@ -331,23 +331,23 @@ export default function AddressesPage() {
               <div
                 key={address.id}
                 className={`bg-white rounded-xl shadow-sm p-6 border-2 transition ${
-                  address.isPrimary ? 'border-[#FF2D55]' : 'border-transparent'
+                  address.isPrimary ? 'border-primary-500' : 'border-transparent'
                 }`}
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="bg-[#FF2D55]/10 p-3 rounded-lg">
+                    <div className="bg-primary-500/10 p-3 rounded-lg">
                       {address.label.toLowerCase().includes('casa') ? (
-                        <Home className="text-[#FF2D55]" size={24} />
+                        <Home className="text-primary-600" size={24} />
                       ) : (
-                        <Building className="text-[#FF2D55]" size={24} />
+                        <Building className="text-primary-600" size={24} />
                       )}
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-900 flex items-center gap-2">
                         {address.label}
                         {address.isPrimary && (
-                          <span className="inline-flex items-center gap-1 bg-[#FF2D55] text-white text-xs px-2 py-1 rounded-full">
+                          <span className="inline-flex items-center gap-1 bg-primary-500 text-white text-xs px-2 py-1 rounded-full">
                             <Star size={12} fill="white" />
                             Principal
                           </span>
@@ -397,7 +397,7 @@ export default function AddressesPage() {
                 {!address.isPrimary && (
                   <button
                     onClick={() => handleSetPrimary(address)}
-                    className="mt-4 w-full text-sm text-[#FF2D55] hover:bg-[#FF2D55]/5 py-2 rounded-lg transition font-medium"
+                    className="mt-4 w-full text-sm text-primary-600 hover:bg-primary-500/5 py-2 rounded-lg transition font-medium"
                   >
                     Establecer como principal
                   </button>
@@ -439,7 +439,7 @@ export default function AddressesPage() {
                   required
                   value={formData.label}
                   onChange={(e) => setFormData({ ...formData, label: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent outline-none"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                   placeholder="Ej: Casa, Oficina, Casa de mamá"
                 />
               </div>
@@ -454,7 +454,7 @@ export default function AddressesPage() {
                     required
                     value={formData.street}
                     onChange={(e) => setFormData({ ...formData, street: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent outline-none"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                     placeholder="Ej: Calle 10, Carrera 43A"
                   />
                 </div>
@@ -468,7 +468,7 @@ export default function AddressesPage() {
                     required
                     value={formData.number}
                     onChange={(e) => setFormData({ ...formData, number: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent outline-none"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                     placeholder="Ej: 25-30, 15-20"
                   />
                 </div>
@@ -482,7 +482,7 @@ export default function AddressesPage() {
                   type="text"
                   value={formData.complement}
                   onChange={(e) => setFormData({ ...formData, complement: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent outline-none"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                   placeholder="Ej: Apto 301, Interior 5, Torre B"
                 />
               </div>
@@ -497,7 +497,7 @@ export default function AddressesPage() {
                     required
                     value={formData.neighborhood}
                     onChange={(e) => setFormData({ ...formData, neighborhood: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent outline-none"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                     placeholder="Ej: El Poblado, Chapinero"
                   />
                 </div>
@@ -510,7 +510,7 @@ export default function AddressesPage() {
                     required
                     value={formData.city}
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent outline-none"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                   >
                     {cities.map((city) => (
                       <option
@@ -538,7 +538,7 @@ export default function AddressesPage() {
                   type="text"
                   value={formData.postalCode}
                   onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent outline-none"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                   placeholder="Ej: 050021"
                 />
               </div>
@@ -550,7 +550,7 @@ export default function AddressesPage() {
                 <textarea
                   value={formData.instructions}
                   onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent outline-none"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                   rows={3}
                   placeholder="Ej: Portón verde, timbre 301, al lado del supermercado"
                 />
@@ -562,7 +562,7 @@ export default function AddressesPage() {
                   id="isPrimary"
                   checked={formData.isPrimary}
                   onChange={(e) => setFormData({ ...formData, isPrimary: e.target.checked })}
-                  className="w-5 h-5 border-2 border-gray-300 rounded cursor-pointer checked:bg-[#FF2D55] checked:border-[#FF2D55]"
+                  className="w-5 h-5 border-2 border-gray-300 rounded cursor-pointer checked:bg-primary-500 checked:border-primary-500"
                 />
                 <label htmlFor="isPrimary" className="text-sm text-gray-700 cursor-pointer">
                   Establecer como dirección principal
@@ -580,7 +580,7 @@ export default function AddressesPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex-1 px-6 py-3 bg-[#FF2D55] text-white rounded-lg hover:bg-[#E02849] transition font-medium disabled:opacity-50"
+                  className="flex-1 px-6 py-3 bg-primary-500 text-white rounded-lg hover:bg-[#E02849] transition font-medium disabled:opacity-50"
                 >
                   {submitting ? 'Guardando...' : editingAddress ? 'Actualizar' : 'Guardar'}
                 </button>

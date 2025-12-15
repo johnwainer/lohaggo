@@ -134,11 +134,11 @@ export default function PayoutsSection() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Total Pendiente</p>
-              <p className="text-2xl font-bold text-[#FF2D55] mt-1">
+              <p className="text-2xl font-bold text-primary-600 mt-1">
                 ${totalPending.toLocaleString('es-CO')}
               </p>
             </div>
-            <DollarSign className="w-8 h-8 text-[#FF2D55]" />
+            <DollarSign className="w-8 h-8 text-primary-600" />
           </div>
         </div>
 
@@ -161,7 +161,7 @@ export default function PayoutsSection() {
           <select
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent"
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
           >
             <option value="">Todos</option>
             <option value="PENDING">Pendientes</option>
@@ -173,7 +173,7 @@ export default function PayoutsSection() {
 
         {loading ? (
           <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF2D55]"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
           </div>
         ) : payouts.length === 0 ? (
           <div className="text-center py-12">
@@ -256,7 +256,7 @@ export default function PayoutsSection() {
                           <button
                             onClick={() => handleProcessPayout(payout.id)}
                             disabled={processing === payout.id}
-                            className="px-4 py-2 bg-[#FF2D55] text-white rounded-lg hover:bg-[#E6194B] disabled:opacity-50 disabled:cursor-not-allowed text-sm transition-colors"
+                            className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm transition-colors"
                           >
                             {processing === payout.id ? 'Procesando...' : 'Procesar Pago'}
                           </button>
