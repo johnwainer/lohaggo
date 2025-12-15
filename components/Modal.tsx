@@ -43,8 +43,8 @@ export default function Modal({
 
   const typeStyles = {
     success: {
-      bg: 'bg-orange-50',
-      border: 'border-orange-200',
+      bg: 'bg-primary-50',
+      border: 'border-primary-200',
       icon: 'text-secondary-600',
       button: 'bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600'
     },

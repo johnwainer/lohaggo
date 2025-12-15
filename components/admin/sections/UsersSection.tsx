@@ -120,7 +120,7 @@ export default function UsersSection() {
         const roleColors: Record<string, string> = {
           ADMIN: 'bg-red-100 text-red-800',
           PARTNER: 'bg-purple-100 text-purple-800',
-          CLIENT: 'bg-orange-100 text-orange-800'
+          CLIENT: 'bg-primary-100 text-orange-800'
         }
         const roleLabels: Record<string, string> = {
           CLIENT: 'Cliente',

@@ -106,13 +106,13 @@ export default function CityModal() {
                       setShowCityModal(false)
                       router.push(`/ciudad/${city.slug}`)
                     }}
-                    className="w-full flex items-center justify-between p-4 rounded-xl border-2 border-orange-200 bg-orange-50 hover:bg-orange-100 hover:border-orange-300 transition-all cursor-pointer"
+                    className="w-full flex items-center justify-between p-4 rounded-xl border-2 border-primary-200 bg-primary-50 hover:bg-primary-100 hover:border-primary-300 transition-all cursor-pointer"
                   >
                     <div className="flex items-center gap-3">
-                      <MapPin size={20} className="text-orange-500" />
+                      <MapPin size={20} className="text-primary-500" />
                       <span className="font-semibold text-gray-700">{city.name}</span>
                     </div>
-                    <span className="text-xs font-semibold text-orange-600 bg-orange-200 px-3 py-1 rounded-full">
+                    <span className="text-xs font-semibold text-primary-600 bg-orange-200 px-3 py-1 rounded-full">
                       Pronto
                     </span>
                   </button>

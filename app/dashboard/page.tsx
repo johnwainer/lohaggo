@@ -795,7 +795,7 @@ export default function DashboardPage() {
                   <MessageSquare size={20} className="sm:w-[22px] sm:h-[22px]" />
                   <span className="hidden sm:inline">Mis Solicitudes</span>
                   {serviceRequests.length > 0 && (
-                    <span className="bg-orange-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
+                    <span className="bg-primary-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
                       {serviceRequests.length}
                     </span>
                   )}
@@ -812,7 +812,7 @@ export default function DashboardPage() {
                   <Heart size={20} className="sm:w-[22px] sm:h-[22px]" />
                   <span className="hidden sm:inline">Favoritos</span>
                   {favoritePartners.length > 0 && (
-                    <span className="bg-orange-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
+                    <span className="bg-primary-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
                       {favoritePartners.length}
                     </span>
                   )}
@@ -1000,7 +1000,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="space-y-4 sm:space-y-6">
-                  <div className="bg-gradient-to-br from-orange-500 via-orange-600 to-orange-700 rounded-2xl sm:rounded-3xl shadow-xl p-5 sm:p-6 text-white relative overflow-hidden">
+                  <div className="bg-gradient-to-br from-primary-500 via-orange-600 to-orange-700 rounded-2xl sm:rounded-3xl shadow-xl p-5 sm:p-6 text-white relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
                     <div className="relative z-10">
                       <div className="bg-white/20 backdrop-blur-sm rounded-xl p-3 w-fit mb-4">
@@ -1020,7 +1020,7 @@ export default function DashboardPage() {
                       </div>
                       <button
                         onClick={() => setActiveTab('requests')}
-                        className="mt-4 w-full bg-white text-orange-600 font-semibold py-3 rounded-xl hover:bg-orange-50 transition-colors flex items-center justify-center gap-2"
+                        className="mt-4 w-full bg-white text-primary-600 font-semibold py-3 rounded-xl hover:bg-primary-50 transition-colors flex items-center justify-center gap-2"
                       >
                         Ver Solicitudes
                         <ChevronRight className="w-4 h-4" />
@@ -1031,7 +1031,7 @@ export default function DashboardPage() {
                   <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
                     <div className="bg-gradient-to-r from-gray-50 to-white p-4 sm:p-5 border-b border-gray-100">
                       <h3 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
-                        <Heart className="text-orange-500 w-5 h-5" />
+                        <Heart className="text-primary-500 w-5 h-5" />
                         <span className="font-semibold text-sm text-gray-700">Favoritos ({favoritePartners.length})</span>
                       </h3>
                     </div>
@@ -1041,17 +1041,17 @@ export default function DashboardPage() {
                           <p className="text-sm text-gray-500 text-center py-4">No tienes favoritos aún</p>
                         ) : (
                           favoritePartners.slice(0, 5).map((fav) => (
-                            <div key={fav.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 hover:bg-orange-50 border border-gray-100 hover:border-orange-200 transition-all cursor-pointer group">
+                            <div key={fav.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 hover:bg-primary-50 border border-gray-100 hover:border-primary-200 transition-all cursor-pointer group">
                               <img
                                 src={fav.partner?.user?.profilePicture || '/default-avatar.png'}
                                 alt={fav.partner?.user?.name}
-                                className="w-10 h-10 rounded-full object-cover border-2 border-gray-200 group-hover:border-orange-300 transition-colors"
+                                className="w-10 h-10 rounded-full object-cover border-2 border-gray-200 group-hover:border-primary-300 transition-colors"
                               />
                               <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-sm text-gray-900 truncate group-hover:text-orange-600 transition-colors">{fav.partner?.user?.name}</p>
+                                <p className="font-semibold text-sm text-gray-900 truncate group-hover:text-primary-600 transition-colors">{fav.partner?.user?.name}</p>
                                 <p className="text-xs text-gray-500 truncate">{fav.partner?.services?.[0]?.service?.name}</p>
                               </div>
-                              <Heart className="w-4 h-4 text-orange-500 fill-orange-500 flex-shrink-0" />
+                              <Heart className="w-4 h-4 text-primary-500 fill-orange-500 flex-shrink-0" />
                             </div>
                           ))
                         )}
@@ -1418,7 +1418,7 @@ export default function DashboardPage() {
                             </div>
                             <button
                               onClick={() => removeFavorite(partner.id)}
-                              className="p-3 rounded-xl bg-gradient-to-br from-orange-100 to-amber-100 text-orange-600 hover:from-orange-200 hover:to-amber-200 transition-all shadow-md hover:shadow-lg flex-shrink-0"
+                              className="p-3 rounded-xl bg-gradient-to-br from-primary-100 to-amber-100 text-primary-600 hover:from-orange-200 hover:to-amber-200 transition-all shadow-md hover:shadow-lg flex-shrink-0"
                             >
                               <Heart size={22} fill="currentColor" />
                             </button>
@@ -1463,7 +1463,7 @@ export default function DashboardPage() {
 
           {activeTab === 'requests' && (
             <div className="space-y-4 sm:space-y-6">
-              <div className="bg-gradient-to-r from-orange-50 via-white to-orange-50 rounded-2xl sm:rounded-3xl shadow-lg border border-orange-100 p-4 sm:p-6">
+              <div className="bg-gradient-to-r from-primary-50 via-white to-orange-50 rounded-2xl sm:rounded-3xl shadow-lg border border-primary-100 p-4 sm:p-6">
                 <div className="relative">
                   <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                   <input
@@ -1478,8 +1478,8 @@ export default function DashboardPage() {
 
               {filteredRequests.length === 0 ? (
                 <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg p-12 sm:p-16 text-center border border-gray-100">
-                  <div className="bg-gradient-to-br from-orange-100 to-orange-200 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6">
-                    <AlertCircle className="text-orange-500 w-12 h-12" />
+                  <div className="bg-gradient-to-br from-primary-100 to-orange-200 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6">
+                    <AlertCircle className="text-primary-500 w-12 h-12" />
                   </div>
                   <p className="text-gray-900 text-xl font-bold mb-2">No hay solicitudes</p>
                   <p className="text-gray-500 text-base">Crea una solicitud para recibir propuestas de socios</p>
@@ -1487,7 +1487,7 @@ export default function DashboardPage() {
               ) : (
                 <div className="grid grid-cols-1 gap-4 sm:gap-6">
                   {filteredRequests.map((request) => (
-                    <div key={request.id} className="group bg-white rounded-2xl sm:rounded-3xl shadow-lg hover:shadow-2xl transition-all overflow-hidden border border-gray-100 hover:border-orange-200">
+                    <div key={request.id} className="group bg-white rounded-2xl sm:rounded-3xl shadow-lg hover:shadow-2xl transition-all overflow-hidden border border-gray-100 hover:border-primary-200">
                       <div className={`h-2 ${
                         request.status === 'ACTIVE' ? 'bg-gradient-to-r from-emerald-500 to-green-600' :
                         request.status === 'ACCEPTED' ? 'bg-gradient-to-r from-blue-500 to-blue-600' :
@@ -1498,7 +1498,7 @@ export default function DashboardPage() {
                           <div className="text-4xl sm:text-5xl group-hover:scale-110 transition-transform">{request.service.icon}</div>
                           <div className="flex-1 min-w-0">
                             <div className="flex flex-wrap items-center gap-2 mb-2">
-                              <h3 className="font-bold text-lg sm:text-xl text-gray-900 group-hover:text-orange-600 transition-colors">{request.service.name}</h3>
+                              <h3 className="font-bold text-lg sm:text-xl text-gray-900 group-hover:text-primary-600 transition-colors">{request.service.name}</h3>
                               <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${
                                 request.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700 border-2 border-emerald-200' :
                                 request.status === 'ACCEPTED' ? 'bg-blue-100 text-blue-700 border-2 border-blue-200' :
@@ -1514,9 +1514,9 @@ export default function DashboardPage() {
                             </div>
                             <p className="text-sm text-gray-600 mb-3">{request.service.category.name}</p>
                             <div className="flex items-center gap-3 flex-wrap">
-                              <div className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-xl px-4 py-2 border border-orange-200">
+                              <div className="bg-gradient-to-r from-primary-50 to-orange-100 rounded-xl px-4 py-2 border border-primary-200">
                                 <p className="text-sm text-gray-600">Propuestas recibidas</p>
-                                <p className="text-2xl font-bold text-orange-600">{request.proposals.length}</p>
+                                <p className="text-2xl font-bold text-primary-600">{request.proposals.length}</p>
                               </div>
                               <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl px-4 py-2 border border-gray-200">
                                 <p className="text-sm text-gray-600">Fecha de creación</p>
@@ -1607,7 +1607,7 @@ export default function DashboardPage() {
                         {request.proposals.length > 0 && (
                           <div className="border-t-2 border-gray-100 pt-5">
                             <h4 className="font-bold text-base sm:text-lg mb-4 flex items-center gap-2 text-gray-900">
-                              <MessageSquare className="text-orange-600 w-5 h-5" />
+                              <MessageSquare className="text-primary-600 w-5 h-5" />
                               Propuestas Recibidas ({request.proposals.length})
                             </h4>
                             <div className="space-y-3">
@@ -1751,7 +1751,7 @@ export default function DashboardPage() {
                                                 partnerName: proposal.partner.user.name,
                                                 serviceName: request.service.name
                                               })}
-                                              className="w-full bg-white border-2 border-orange-500 text-orange-600 px-4 py-3.5 rounded-xl hover:bg-orange-50 transition-all font-semibold flex items-center justify-center gap-2 relative shadow-md hover:shadow-lg"
+                                              className="w-full bg-white border-2 border-orange-500 text-primary-600 px-4 py-3.5 rounded-xl hover:bg-primary-50 transition-all font-semibold flex items-center justify-center gap-2 relative shadow-md hover:shadow-lg"
                                             >
                                               <MessageCircle size={20} />
                                               Chat con el Socio

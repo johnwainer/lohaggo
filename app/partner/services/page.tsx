@@ -279,7 +279,7 @@ export default function ServicesManagementPage() {
                   <MessageSquare size={20} className="sm:w-[22px] sm:h-[22px]" />
                   <span className="hidden sm:inline">Para Mí</span>
                   {requestsCount > 0 && (
-                    <span className="bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded-full ml-2">
+                    <span className="bg-primary-500 text-white text-[10px] px-2 py-0.5 rounded-full ml-2">
                       {requestsCount}
                     </span>
                   )}

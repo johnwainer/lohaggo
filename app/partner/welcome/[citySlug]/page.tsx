@@ -64,7 +64,7 @@ export default function PartnerWelcomePage({ params }: { params: Promise<{ cityS
 
   if (loading || status === 'loading') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-pink-50 to-purple-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-primary-50 via-secondary-50 to-accent-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
       </div>
     )
@@ -133,10 +133,10 @@ export default function PartnerWelcomePage({ params }: { params: Promise<{ cityS
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-pink-50 to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-secondary-50 to-accent-50">
       <div className="max-w-4xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
         <div className="text-center mb-12 animate-fade-in">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-orange-500 to-pink-500 rounded-full mb-6 shadow-lg">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full mb-6 shadow-lg">
             <CheckCircle size={40} className="text-white" />
           </div>
           
@@ -145,21 +145,21 @@ export default function PartnerWelcomePage({ params }: { params: Promise<{ cityS
           </h1>
           
           <p className="text-xl text-gray-700 mb-2">
-            Gracias por registrarte como Socio en <span className="font-bold text-orange-600">{city.name}</span>
+            Gracias por registrarte como Socio en <span className="font-bold text-primary-600">{city.name}</span>
           </p>
           
-          <div className="inline-flex items-center gap-2 bg-white px-6 py-3 rounded-full shadow-md border-2 border-orange-200 mt-4">
-            <Calendar className="text-orange-600" size={20} />
+          <div className="inline-flex items-center gap-2 bg-white px-6 py-3 rounded-full shadow-md border-2 border-primary-200 mt-4">
+            <Calendar className="text-primary-600" size={20} />
             <span className="text-gray-700">
-              Fecha de lanzamiento: <span className="font-bold text-orange-600">{launchDate}</span>
+              Fecha de lanzamiento: <span className="font-bold text-primary-600">{launchDate}</span>
             </span>
           </div>
         </div>
 
-        <div className="bg-gradient-to-r from-orange-100 to-pink-100 rounded-2xl p-6 md:p-8 mb-8 border-2 border-orange-200 shadow-lg">
+        <div className="bg-gradient-to-r from-primary-100 to-secondary-100 rounded-2xl p-6 md:p-8 mb-8 border-2 border-primary-200 shadow-lg">
           <div className="flex items-start gap-4">
             <div className="flex-shrink-0">
-              <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-pink-500 rounded-lg flex items-center justify-center">
+              <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center">
                 <Clock size={24} className="text-white" />
               </div>
             </div>
@@ -217,10 +217,10 @@ export default function PartnerWelcomePage({ params }: { params: Promise<{ cityS
             {benefits.map((benefit, index) => (
               <div
                 key={index}
-                className="flex items-start gap-3 p-4 bg-gradient-to-br from-gray-50 to-white rounded-lg border border-gray-200 hover:border-orange-300 transition-all"
+                className="flex items-start gap-3 p-4 bg-gradient-to-br from-gray-50 to-white rounded-lg border border-gray-200 hover:border-primary-300 transition-all"
               >
                 <div className="flex-shrink-0">
-                  <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-pink-500 rounded-lg flex items-center justify-center">
+                  <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center">
                     <benefit.icon size={20} className="text-white" />
                   </div>
                 </div>
@@ -233,7 +233,7 @@ export default function PartnerWelcomePage({ params }: { params: Promise<{ cityS
           </div>
         </div>
 
-        <div className="bg-gradient-to-r from-orange-500 to-pink-500 rounded-2xl p-8 text-center shadow-xl">
+        <div className="bg-gradient-to-r from-primary-500 to-secondary-500 rounded-2xl p-8 text-center shadow-xl">
           <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
             ¡Empieza Ahora!
           </h2>
@@ -242,7 +242,7 @@ export default function PartnerWelcomePage({ params }: { params: Promise<{ cityS
           </p>
           <button
             onClick={() => router.push('/partner')}
-            className="inline-flex items-center gap-2 bg-white text-orange-600 font-bold px-8 py-4 rounded-xl hover:bg-gray-50 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+            className="inline-flex items-center gap-2 bg-white text-primary-600 font-bold px-8 py-4 rounded-xl hover:bg-gray-50 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
           >
             <span>Ir a mi Panel de Socio</span>
             <ArrowRight size={20} />
@@ -251,7 +251,7 @@ export default function PartnerWelcomePage({ params }: { params: Promise<{ cityS
 
         <div className="mt-8 text-center">
           <p className="text-gray-600 text-sm">
-            ¿Tienes preguntas? <a href="/contact" className="text-orange-600 hover:text-orange-700 font-semibold underline">Contáctanos</a>
+            ¿Tienes preguntas? <a href="/contact" className="text-primary-600 hover:text-orange-700 font-semibold underline">Contáctanos</a>
           </p>
         </div>
       </div>

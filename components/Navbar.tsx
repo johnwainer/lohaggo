@@ -133,7 +133,7 @@ export function Navbar() {
                         setOpen(false)
                         router.push(`/ciudad/${city.slug}`)
                       }}
-                      className="w-full flex items-center justify-between px-3 py-3 text-sm font-medium text-orange-600 hover:bg-orange-50 rounded-lg transition-all cursor-pointer"
+                      className="w-full flex items-center justify-between px-3 py-3 text-sm font-medium text-primary-600 hover:bg-primary-50 rounded-lg transition-all cursor-pointer"
                     >
                       <span>{city.name}</span>
                       <span className="text-xs bg-orange-200 px-2 py-1 rounded-full">Pronto</span>

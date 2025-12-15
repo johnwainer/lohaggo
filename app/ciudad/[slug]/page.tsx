@@ -51,7 +51,7 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
       icon: <Zap className="w-6 h-6" />,
       title: "Servicio Rápido",
       description: "Conectamos con profesionales en minutos, no en días",
-      color: "from-orange-500 to-red-500"
+      color: "from-primary-500 to-red-500"
     },
     {
       icon: <Shield className="w-6 h-6" />,
@@ -69,7 +69,7 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
       icon: <Users className="w-6 h-6" />,
       title: "Red de Expertos",
       description: "Miles de profesionales listos para ayudarte",
-      color: "from-purple-500 to-pink-500"
+      color: "from-purple-500 to-secondary-500"
     },
     {
       icon: <Award className="w-6 h-6" />,
@@ -81,7 +81,7 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
       icon: <TrendingUp className="w-6 h-6" />,
       title: "Siempre Mejorando",
       description: "Innovamos constantemente para ofrecerte lo mejor",
-      color: "from-indigo-500 to-purple-500"
+      color: "from-indigo-500 to-accent-500"
     }
   ]
 
@@ -135,7 +135,7 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-pink-50">
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-10 w-72 h-72 bg-orange-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
         <div className="absolute top-40 right-10 w-72 h-72 bg-pink-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
@@ -144,7 +144,7 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
 
       <div className="relative max-w-7xl mx-auto px-4 py-16 sm:px-6 lg:px-8">
         <div className={`text-center mb-16 transition-all duration-1000 ${isAnimating ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-10'}`}>
-          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-orange-500 to-pink-500 text-white px-6 py-3 rounded-full mb-6 shadow-lg animate-bounce">
+          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-6 py-3 rounded-full mb-6 shadow-lg animate-bounce">
             <Sparkles className="w-5 h-5" />
             <span className="text-sm font-bold">¡Próximamente en tu ciudad!</span>
           </div>
@@ -167,10 +167,10 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
           {stats.map((stat, index) => (
             <div
               key={index}
-              className={`bg-white rounded-2xl p-6 text-center shadow-xl border-2 border-orange-100 hover:border-orange-300 transition-all duration-500 transform hover:scale-105 ${isAnimating ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
+              className={`bg-white rounded-2xl p-6 text-center shadow-xl border-2 border-primary-100 hover:border-primary-300 transition-all duration-500 transform hover:scale-105 ${isAnimating ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
               style={{ transitionDelay: `${index * 100}ms` }}
             >
-              <div className="text-4xl font-black bg-gradient-to-r from-orange-500 to-pink-500 bg-clip-text text-transparent mb-2">
+              <div className="text-4xl font-black bg-gradient-to-r from-primary-500 to-secondary-500 bg-clip-text text-transparent mb-2">
                 {stat.value}
               </div>
               <div className="text-sm text-gray-600 font-semibold">{stat.label}</div>
@@ -178,16 +178,16 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
           ))}
         </div>
 
-        <div className={`bg-gradient-to-br from-white to-orange-50 rounded-3xl shadow-2xl p-8 sm:p-12 mb-16 border-2 border-orange-200 transition-all duration-1000 delay-300 ${isAnimating ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+        <div className={`bg-gradient-to-br from-white to-orange-50 rounded-3xl shadow-2xl p-8 sm:p-12 mb-16 border-2 border-primary-200 transition-all duration-1000 delay-300 ${isAnimating ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-orange-500 to-pink-500 rounded-full mb-4 animate-pulse">
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full mb-4 animate-pulse">
               <Bell className="w-10 h-10 text-white" />
             </div>
             <h2 className="text-4xl font-black text-gray-900 mb-3">
               ¡Sé el primero en saberlo! 🎉
             </h2>
             <p className="text-lg text-gray-600">
-              Regístrate ahora y obtén <span className="text-orange-600 font-bold">beneficios exclusivos</span> de lanzamiento
+              Regístrate ahora y obtén <span className="text-primary-600 font-bold">beneficios exclusivos</span> de lanzamiento
             </p>
           </div>
 
@@ -200,19 +200,19 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="tu@email.com"
                   required
-                  className="flex-1 px-6 py-4 rounded-xl border-2 border-orange-200 focus:border-orange-500 focus:outline-none text-lg shadow-sm"
+                  className="flex-1 px-6 py-4 rounded-xl border-2 border-primary-200 focus:border-orange-500 focus:outline-none text-lg shadow-sm"
                 />
                 <button
                   type="submit"
-                  className="bg-gradient-to-r from-orange-500 to-pink-500 text-white px-8 py-4 rounded-xl font-bold hover:shadow-2xl transform hover:scale-105 transition-all flex items-center justify-center gap-2 whitespace-nowrap"
+                  className="bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-8 py-4 rounded-xl font-bold hover:shadow-2xl transform hover:scale-105 transition-all flex items-center justify-center gap-2 whitespace-nowrap"
                 >
                   Notificarme
                   <Rocket className="w-5 h-5" />
                 </button>
               </div>
-              <div className="mt-6 bg-gradient-to-r from-orange-100 to-pink-100 rounded-xl p-4 border-2 border-orange-200">
+              <div className="mt-6 bg-gradient-to-r from-primary-100 to-secondary-100 rounded-xl p-4 border-2 border-primary-200">
                 <div className="flex items-start gap-3">
-                  <Gift className="w-6 h-6 text-orange-600 flex-shrink-0 mt-1" />
+                  <Gift className="w-6 h-6 text-primary-600 flex-shrink-0 mt-1" />
                   <div>
                     <p className="font-bold text-orange-900 mb-1">🎁 Beneficios de Pre-Lanzamiento:</p>
                     <ul className="text-sm text-orange-800 space-y-1">
@@ -245,7 +245,7 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
               onClick={() => setActiveTab('benefits')}
               className={`px-6 py-3 rounded-xl font-bold transition-all ${
                 activeTab === 'benefits'
-                  ? 'bg-gradient-to-r from-orange-500 to-pink-500 text-white shadow-lg scale-105'
+                  ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white shadow-lg scale-105'
                   : 'bg-white text-gray-600 hover:bg-gray-50'
               }`}
             >
@@ -255,7 +255,7 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
               onClick={() => setActiveTab('services')}
               className={`px-6 py-3 rounded-xl font-bold transition-all ${
                 activeTab === 'services'
-                  ? 'bg-gradient-to-r from-orange-500 to-pink-500 text-white shadow-lg scale-105'
+                  ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white shadow-lg scale-105'
                   : 'bg-white text-gray-600 hover:bg-gray-50'
               }`}
             >
@@ -265,7 +265,7 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
               onClick={() => setActiveTab('how')}
               className={`px-6 py-3 rounded-xl font-bold transition-all ${
                 activeTab === 'how'
-                  ? 'bg-gradient-to-r from-orange-500 to-pink-500 text-white shadow-lg scale-105'
+                  ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white shadow-lg scale-105'
                   : 'bg-white text-gray-600 hover:bg-gray-50'
               }`}
             >
@@ -278,7 +278,7 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
               {benefits.map((benefit, index) => (
                 <div
                   key={index}
-                  className="bg-white rounded-2xl p-8 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 border-2 border-gray-100 hover:border-orange-300 group"
+                  className="bg-white rounded-2xl p-8 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 border-2 border-gray-100 hover:border-primary-300 group"
                 >
                   <div className={`bg-gradient-to-br ${benefit.color} w-16 h-16 rounded-2xl flex items-center justify-center mb-4 text-white transform group-hover:scale-110 group-hover:rotate-6 transition-all`}>
                     {benefit.icon}
@@ -295,15 +295,15 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
           )}
 
           {activeTab === 'services' && (
-            <div className="bg-white rounded-3xl p-8 shadow-xl border-2 border-orange-100">
-              <h3 className="text-3xl font-black text-center mb-8 bg-gradient-to-r from-orange-500 to-pink-500 bg-clip-text text-transparent">
+            <div className="bg-white rounded-3xl p-8 shadow-xl border-2 border-primary-100">
+              <h3 className="text-3xl font-black text-center mb-8 bg-gradient-to-r from-primary-500 to-secondary-500 bg-clip-text text-transparent">
                 Más de 100 servicios disponibles
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                 {services.map((service, index) => (
                   <div
                     key={index}
-                    className="bg-gradient-to-br from-orange-50 to-pink-50 rounded-xl p-4 text-center hover:shadow-lg transition-all transform hover:scale-105 border-2 border-orange-100 hover:border-orange-300"
+                    className="bg-gradient-to-br from-primary-50 to-secondary-50 rounded-xl p-4 text-center hover:shadow-lg transition-all transform hover:scale-105 border-2 border-primary-100 hover:border-primary-300"
                   >
                     <div className="text-4xl mb-2">{service.icon}</div>
                     <div className="text-sm font-bold text-gray-700">{service.name}</div>
@@ -321,12 +321,12 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
               {steps.map((step, index) => (
                 <div
                   key={index}
-                  className="bg-white rounded-2xl p-8 shadow-xl border-2 border-orange-100 hover:border-orange-300 transition-all relative"
+                  className="bg-white rounded-2xl p-8 shadow-xl border-2 border-primary-100 hover:border-primary-300 transition-all relative"
                 >
-                  <div className="absolute -top-4 -left-4 w-12 h-12 bg-gradient-to-br from-orange-500 to-pink-500 rounded-full flex items-center justify-center text-white font-black text-xl shadow-lg">
+                  <div className="absolute -top-4 -left-4 w-12 h-12 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center text-white font-black text-xl shadow-lg">
                     {step.number}
                   </div>
-                  <div className="text-orange-500 mb-4 mt-4">
+                  <div className="text-primary-500 mb-4 mt-4">
                     {step.icon}
                   </div>
                   <h3 className="text-xl font-black text-gray-900 mb-3">
@@ -341,7 +341,7 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
           )}
         </div>
 
-        <div className={`bg-gradient-to-r from-orange-500 via-pink-500 to-red-500 rounded-3xl p-12 text-center text-white shadow-2xl transition-all duration-1000 delay-700 relative overflow-hidden ${isAnimating ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+        <div className={`bg-gradient-to-r from-primary-500 via-secondary-500 to-red-500 rounded-3xl p-12 text-center text-white shadow-2xl transition-all duration-1000 delay-700 relative overflow-hidden ${isAnimating ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
           <div className="absolute inset-0 bg-black/10"></div>
           <div className="relative z-10">
             <Rocket className="w-20 h-20 mx-auto mb-6 animate-bounce" />
@@ -353,7 +353,7 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
             </p>
             <Link
               href="/"
-              className="inline-flex items-center gap-3 bg-white text-orange-600 px-10 py-5 rounded-2xl font-black text-xl hover:shadow-2xl transform hover:scale-105 transition-all"
+              className="inline-flex items-center gap-3 bg-white text-primary-600 px-10 py-5 rounded-2xl font-black text-xl hover:shadow-2xl transform hover:scale-105 transition-all"
             >
               Ver todos los servicios
               <ArrowRight className="w-6 h-6" />
@@ -363,18 +363,18 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
 
         <div className="mt-16 text-center space-y-6">
           <div className="flex justify-center gap-8 text-gray-600">
-            <a href="tel:+573001234567" className="flex items-center gap-2 hover:text-orange-500 transition-colors">
+            <a href="tel:+573001234567" className="flex items-center gap-2 hover:text-primary-500 transition-colors">
               <Phone className="w-5 h-5" />
               <span className="font-semibold">+57 300 123 4567</span>
             </a>
-            <a href="mailto:hola@lohaggo.com" className="flex items-center gap-2 hover:text-orange-500 transition-colors">
+            <a href="mailto:hola@lohaggo.com" className="flex items-center gap-2 hover:text-primary-500 transition-colors">
               <Mail className="w-5 h-5" />
               <span className="font-semibold">hola@lohaggo.com</span>
             </a>
           </div>
           <Link
             href="/"
-            className="inline-block text-orange-600 hover:text-orange-700 font-bold text-lg hover:underline"
+            className="inline-block text-primary-600 hover:text-orange-700 font-bold text-lg hover:underline"
           >
             ← Volver al inicio
           </Link>
