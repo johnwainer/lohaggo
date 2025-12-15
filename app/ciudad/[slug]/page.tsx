@@ -63,7 +63,7 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
       icon: <Star className="w-6 h-6" />,
       title: "Calidad Garantizada",
       description: "Satisfacción garantizada o te devolvemos tu dinero",
-      color: "from-yellow-500 to-orange-500"
+      color: "from-yellow-500 to-primary-400"
     },
     {
       icon: <Users className="w-6 h-6" />,
@@ -138,8 +138,8 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
     <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-10 w-72 h-72 bg-primary-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
-        <div className="absolute top-40 right-10 w-72 h-72 bg-pink-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
-        <div className="absolute bottom-20 left-1/2 w-72 h-72 bg-yellow-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
+        <div className="absolute top-40 right-10 w-72 h-72 bg-secondary-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
+        <div className="absolute bottom-20 left-1/2 w-72 h-72 bg-accent-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
       </div>
 
       <div className="relative max-w-7xl mx-auto px-4 py-16 sm:px-6 lg:px-8">
@@ -149,7 +149,7 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
             <span className="text-sm font-bold">¡Próximamente en tu ciudad!</span>
           </div>
           
-          <h1 className="text-6xl sm:text-7xl lg:text-8xl font-black mb-6 bg-gradient-to-r from-primary-500 via-orange-500 to-secondary-500 bg-clip-text text-transparent animate-gradient">
+          <h1 className="text-6xl sm:text-7xl lg:text-8xl font-black mb-6 bg-gradient-to-r from-primary-500 via-primary-600 to-secondary-500 bg-clip-text text-transparent animate-gradient">
             {city.name}
           </h1>
           
@@ -178,7 +178,7 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
           ))}
         </div>
 
-        <div className={`bg-gradient-to-br from-white to-orange-50 rounded-3xl shadow-2xl p-8 sm:p-12 mb-16 border-2 border-primary-200 transition-all duration-1000 delay-300 ${isAnimating ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+        <div className={`bg-gradient-to-br from-white to-primary-50 rounded-3xl shadow-2xl p-8 sm:p-12 mb-16 border-2 border-primary-200 transition-all duration-1000 delay-300 ${isAnimating ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full mb-4 animate-pulse">
               <Bell className="w-10 h-10 text-white" />

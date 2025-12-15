@@ -229,7 +229,7 @@ function ServiciosContent() {
                       </div>
                       <div className="text-right">
                         <div className="flex items-center gap-1 mb-1">
-                          <Star className="w-3.5 h-3.5 md:w-4 md:h-4 text-[#FFB800] fill-[#FFB800]" />
+                          <Star className="w-3.5 h-3.5 md:w-4 md:h-4 text-yellow-500 fill-yellow-500" />
                           <span className="text-xs md:text-sm font-bold text-gray-900">4.8</span>
                         </div>
                         <p className="text-gray-500 text-xs font-medium">
