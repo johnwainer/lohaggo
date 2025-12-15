@@ -32,7 +32,7 @@ export default function SearchBar() {
         </div>
         <button 
           type="submit"
-          className="bg-gradient-to-r from-[#FF2D55] to-[#FF6900] hover:from-[#FF1D45] hover:to-[#FF5900] text-white px-6 md:px-10 py-3 md:py-5 rounded-xl md:rounded-2xl font-bold transition-all transform hover:scale-105 flex items-center justify-center gap-2 shadow-lg flex-shrink-0"
+          className="bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600 text-white px-6 md:px-10 py-3 md:py-5 rounded-xl md:rounded-2xl font-bold transition-all transform hover:scale-105 flex items-center justify-center gap-2 shadow-lg flex-shrink-0"
         >
           <span>Buscar</span>
           <ArrowRight className="w-4 h-4 md:w-5 md:h-5" />

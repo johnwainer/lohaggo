@@ -5,7 +5,7 @@ export default function TermsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-[#FF2D55] via-[#FF3D00] to-[#FF6900] text-white pt-24 pb-16">
+      <section className="relative overflow-hidden bg-gradient-to-br from-primary-500 via-secondary-500 to-secondary-500 text-white pt-24 pb-16">
         <div className="absolute inset-0 overflow-hidden opacity-20">
           <div className="absolute -top-40 -right-40 w-96 h-96 bg-yellow-400 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slow"></div>
           <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-pink-400 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slow"></div>
@@ -66,7 +66,7 @@ export default function TermsPage() {
             {/* Section 1 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">1</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">1</span>
                 Definiciones
               </h2>
               <div className="pl-11 space-y-3 text-gray-700">
@@ -82,7 +82,7 @@ export default function TermsPage() {
             {/* Section 2 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">2</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">2</span>
                 Naturaleza de la Plataforma
               </h2>
               <div className="pl-11 space-y-3 text-gray-700">
@@ -105,7 +105,7 @@ export default function TermsPage() {
             {/* Section 3 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">3</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">3</span>
                 Registro y Cuenta de Usuario
               </h2>
               <div className="pl-11 space-y-4 text-gray-700">
@@ -141,7 +141,7 @@ export default function TermsPage() {
             {/* Section 4 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">4</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">4</span>
                 Uso de la Plataforma
               </h2>
               <div className="pl-11 space-y-4 text-gray-700">
@@ -176,7 +176,7 @@ export default function TermsPage() {
             {/* Section 5 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">5</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">5</span>
                 Servicios y Transacciones
               </h2>
               <div className="pl-11 space-y-4 text-gray-700">
@@ -218,7 +218,7 @@ export default function TermsPage() {
             {/* Section 6 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">6</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">6</span>
                 Comisiones y Tarifas
               </h2>
               <div className="pl-11 space-y-3 text-gray-700">
@@ -241,7 +241,7 @@ export default function TermsPage() {
             {/* Section 7 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">7</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">7</span>
                 Calificaciones y Reseñas
               </h2>
               <div className="pl-11 space-y-3 text-gray-700">
@@ -263,7 +263,7 @@ export default function TermsPage() {
             {/* Section 8 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">8</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">8</span>
                 Propiedad Intelectual
               </h2>
               <div className="pl-11 space-y-3 text-gray-700">
@@ -286,7 +286,7 @@ export default function TermsPage() {
             {/* Section 9 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">9</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">9</span>
                 Limitación de Responsabilidad
               </h2>
               <div className="pl-11 space-y-4 text-gray-700">
@@ -315,7 +315,7 @@ export default function TermsPage() {
             {/* Section 10 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">10</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">10</span>
                 Indemnización
               </h2>
               <div className="pl-11 space-y-3 text-gray-700">
@@ -336,7 +336,7 @@ export default function TermsPage() {
             {/* Section 11 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">11</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">11</span>
                 Suspensión y Terminación
               </h2>
               <div className="pl-11 space-y-4 text-gray-700">
@@ -372,7 +372,7 @@ export default function TermsPage() {
             {/* Section 12 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">12</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">12</span>
                 Resolución de Disputas
               </h2>
               <div className="pl-11 space-y-4 text-gray-700">
@@ -403,7 +403,7 @@ export default function TermsPage() {
             {/* Section 13 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">13</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">13</span>
                 Modificaciones
               </h2>
               <div className="pl-11 space-y-3 text-gray-700">
@@ -426,7 +426,7 @@ export default function TermsPage() {
             {/* Section 14 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">14</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">14</span>
                 Disposiciones Generales
               </h2>
               <div className="pl-11 space-y-3 text-gray-700">
@@ -454,7 +454,7 @@ export default function TermsPage() {
             {/* Section 15 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">15</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">15</span>
                 Contacto
               </h2>
               <div className="pl-11 space-y-3 text-gray-700">
@@ -463,7 +463,7 @@ export default function TermsPage() {
                   <p className="font-bold text-gray-900 mb-3">LoHaggo S.A.S.</p>
                   <div className="space-y-2">
                     <p className="flex items-center gap-2">
-                      <Mail className="w-4 h-4 text-[#FF2D55]" />
+                      <Mail className="w-4 h-4 text-primary-600" />
                       <strong>Email:</strong> legal@lohaggo.com
                     </p>
                     <p><strong>Soporte:</strong> soporte@lohaggo.com</p>
@@ -477,7 +477,7 @@ export default function TermsPage() {
             {/* Footer */}
             <div className="mt-12 pt-8 border-t border-gray-200">
               <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Calendar className="w-4 h-4 text-[#FF2D55]" />
+                <Calendar className="w-4 h-4 text-primary-600" />
                 <span>Última actualización: Diciembre 2024</span>
               </div>
               <p className="text-sm text-gray-600 mt-4">
@@ -493,14 +493,14 @@ export default function TermsPage() {
               href="/privacy"
               className="inline-flex items-center gap-2 bg-white px-6 py-3 rounded-xl font-bold text-gray-900 hover:shadow-lg transition-all border border-gray-200"
             >
-              <FileText className="w-4 h-4 text-[#FF2D55]" />
+              <FileText className="w-4 h-4 text-primary-600" />
               Política de Privacidad
             </Link>
             <Link
               href="/cookies"
               className="inline-flex items-center gap-2 bg-white px-6 py-3 rounded-xl font-bold text-gray-900 hover:shadow-lg transition-all border border-gray-200"
             >
-              <FileText className="w-4 h-4 text-[#FF2D55]" />
+              <FileText className="w-4 h-4 text-primary-600" />
               Política de Cookies
             </Link>
           </div>

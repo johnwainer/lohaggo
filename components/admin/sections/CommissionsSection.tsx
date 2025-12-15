@@ -62,7 +62,7 @@ export default function CommissionsSection() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF2D55]"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
       </div>
     )
   }
@@ -187,25 +187,25 @@ export default function CommissionsSection() {
         <h3 className="font-semibold text-gray-900 mb-4">Resumen del Flujo de Pagos</h3>
         <div className="space-y-3 text-sm text-gray-700">
           <div className="flex items-start gap-2">
-            <span className="font-bold text-[#FF2D55]">1.</span>
+            <span className="font-bold text-primary-600">1.</span>
             <p>
               El cliente paga el precio del servicio <strong>MÁS</strong> la comisión de cliente (
               {config.clientCommissionRate}%)
             </p>
           </div>
           <div className="flex items-start gap-2">
-            <span className="font-bold text-[#FF2D55]">2.</span>
+            <span className="font-bold text-primary-600">2.</span>
             <p>MercadoPago procesa el pago y notifica a la plataforma</p>
           </div>
           <div className="flex items-start gap-2">
-            <span className="font-bold text-[#FF2D55]">3.</span>
+            <span className="font-bold text-primary-600">3.</span>
             <p>
               Al pagar al socio, se le descuenta la comisión de socio ({config.partnerCommissionRate}
               %) del precio del servicio
             </p>
           </div>
           <div className="flex items-start gap-2">
-            <span className="font-bold text-[#FF2D55]">4.</span>
+            <span className="font-bold text-primary-600">4.</span>
             <p>
               La plataforma retiene: comisión de cliente + comisión de socio + tarifas de MercadoPago
             </p>
@@ -217,7 +217,7 @@ export default function CommissionsSection() {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="flex items-center gap-2 px-6 py-3 bg-[#FF2D55] text-white rounded-lg hover:bg-[#E6194B] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center gap-2 px-6 py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           <Save className="w-5 h-5" />
           {saving ? 'Guardando...' : 'Guardar Configuración'}

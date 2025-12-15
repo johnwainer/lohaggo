@@ -97,7 +97,7 @@ export default function PWAInstallPrompt() {
     <>
       {showInstallPrompt && (
         <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 bg-white rounded-2xl shadow-2xl border-2 border-gray-100 z-50 animate-slide-up">
-          <div className="bg-gradient-to-r from-[#FF2D55] to-[#FF6900] p-4 rounded-t-2xl">
+          <div className="bg-gradient-to-r from-primary-500 to-secondary-500 p-4 rounded-t-2xl">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center">
@@ -121,26 +121,26 @@ export default function PWAInstallPrompt() {
           <div className="p-4">
             <ul className="space-y-2 mb-4 text-sm text-gray-600">
               <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 bg-[#FF2D55] rounded-full"></span>
+                <span className="w-1.5 h-1.5 bg-primary-500 rounded-full"></span>
                 Acceso instantáneo sin abrir el navegador
               </li>
               <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 bg-[#FF2D55] rounded-full"></span>
+                <span className="w-1.5 h-1.5 bg-primary-500 rounded-full"></span>
                 Funciona sin conexión a internet
               </li>
               <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 bg-[#FF2D55] rounded-full"></span>
+                <span className="w-1.5 h-1.5 bg-primary-500 rounded-full"></span>
                 Notificaciones de tus reservas
               </li>
               <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 bg-[#FF2D55] rounded-full"></span>
+                <span className="w-1.5 h-1.5 bg-primary-500 rounded-full"></span>
                 Experiencia nativa como una app
               </li>
             </ul>
             
             <button
               onClick={handleInstallClick}
-              className="w-full bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white py-3 rounded-xl font-bold hover:from-[#FF1D45] hover:to-[#FF5900] transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105"
+              className="w-full bg-gradient-to-r from-primary-500 to-secondary-500 text-white py-3 rounded-xl font-bold hover:from-primary-600 hover:to-secondary-600 transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105"
             >
               <Download size={20} />
               Instalar Aplicación
@@ -160,7 +160,7 @@ export default function PWAInstallPrompt() {
         <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 bg-white rounded-2xl shadow-2xl border-2 border-gray-100 z-50 animate-slide-up">
           <div className="p-4">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-xl flex items-center justify-center">
+              <div className="w-10 h-10 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-xl flex items-center justify-center">
                 <RefreshCw size={20} className="text-white" />
               </div>
               <div>
@@ -171,7 +171,7 @@ export default function PWAInstallPrompt() {
             
             <button
               onClick={handleUpdateClick}
-              className="w-full bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white py-3 rounded-xl font-bold hover:from-[#FF1D45] hover:to-[#FF5900] transition-all flex items-center justify-center gap-2"
+              className="w-full bg-gradient-to-r from-primary-500 to-secondary-500 text-white py-3 rounded-xl font-bold hover:from-primary-600 hover:to-secondary-600 transition-all flex items-center justify-center gap-2"
             >
               <RefreshCw size={18} />
               Actualizar Ahora

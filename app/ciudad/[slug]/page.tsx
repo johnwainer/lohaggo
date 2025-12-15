@@ -32,7 +32,7 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Ciudad no encontrada</h1>
-          <Link href="/" className="text-[#FF2D55] hover:underline">
+          <Link href="/" className="text-primary-600 hover:underline">
             Volver al inicio
           </Link>
         </div>
@@ -149,7 +149,7 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
             <span className="text-sm font-bold">¡Próximamente en tu ciudad!</span>
           </div>
           
-          <h1 className="text-6xl sm:text-7xl lg:text-8xl font-black mb-6 bg-gradient-to-r from-[#FF2D55] via-orange-500 to-[#FF6900] bg-clip-text text-transparent animate-gradient">
+          <h1 className="text-6xl sm:text-7xl lg:text-8xl font-black mb-6 bg-gradient-to-r from-primary-500 via-orange-500 to-secondary-500 bg-clip-text text-transparent animate-gradient">
             {city.name}
           </h1>
           

@@ -121,7 +121,7 @@ export default function AddPaymentMethodPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-lg border-2 border-gray-100 p-8">
           <div className="mb-6 text-center space-y-2">
-            <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-[#FF2D55] to-[#FF6900] flex items-center justify-center">
+            <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-primary-500 to-secondary-500 flex items-center justify-center">
               <CreditCard size={32} className="text-white" />
             </div>
             <h2 className="text-xl font-bold text-gray-900">Integración con Mercado Pago</h2>
@@ -149,7 +149,7 @@ export default function AddPaymentMethodPage() {
                   const digits = event.target.value.replace(/[^0-9]/g, '').slice(0, 19)
                   setCardNumber(digits.replace(/(\d{4})(?=\d)/g, '$1 '))
                 }}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#FF2D55] focus:ring-2 focus:ring-[#FF2D55]/20 outline-none transition-all"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all"
                 inputMode="numeric"
                 autoComplete="cc-number"
               />
@@ -161,7 +161,7 @@ export default function AddPaymentMethodPage() {
                 placeholder="Como aparece en la tarjeta"
                 value={cardholderName}
                 onChange={event => setCardholderName(event.target.value)}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#FF2D55] focus:ring-2 focus:ring-[#FF2D55]/20 outline-none transition-all"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all"
                 autoComplete="cc-name"
               />
             </div>
@@ -176,7 +176,7 @@ export default function AddPaymentMethodPage() {
                     const value = event.target.value.replace(/[^0-9]/g, '').slice(0, 4)
                     setExpiration(value.length <= 2 ? value : `${value.slice(0, 2)}/${value.slice(2)}`)
                   }}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#FF2D55] focus:ring-2 focus:ring-[#FF2D55]/20 outline-none transition-all"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all"
                   inputMode="numeric"
                   autoComplete="cc-exp"
                 />
@@ -188,7 +188,7 @@ export default function AddPaymentMethodPage() {
                   placeholder="123"
                   value={cvv}
                   onChange={event => setCvv(event.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#FF2D55] focus:ring-2 focus:ring-[#FF2D55]/20 outline-none transition-all"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all"
                   inputMode="numeric"
                   autoComplete="cc-csc"
                 />
@@ -199,7 +199,7 @@ export default function AddPaymentMethodPage() {
                 type="checkbox"
                 checked={setDefault}
                 onChange={event => toggleDefault(event.target.checked)}
-                className="w-4 h-4 text-[#FF2D55] border-gray-300 rounded focus:ring-[#FF2D55]"
+                className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
               />
               Establecer como método de pago predeterminado
             </label>
@@ -221,7 +221,7 @@ export default function AddPaymentMethodPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white px-6 py-3 rounded-xl hover:from-[#FF1D45] hover:to-[#FF5900] transition-all font-bold shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-6 py-3 rounded-xl hover:from-primary-600 hover:to-secondary-600 transition-all font-bold shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? 'Guardando...' : 'Guardar Tarjeta'}
               </button>
@@ -230,7 +230,7 @@ export default function AddPaymentMethodPage() {
         </div>
         <div className="mt-6 text-center text-sm text-gray-500">
           ¿Necesitas ayuda?
-          <a href="/faq" className="ml-1 text-[#FF2D55] hover:underline font-bold">Visita nuestro FAQ</a>
+          <a href="/faq" className="ml-1 text-primary-600 hover:underline font-bold">Visita nuestro FAQ</a>
         </div>
       </main>
     </div>

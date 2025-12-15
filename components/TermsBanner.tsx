@@ -38,7 +38,7 @@ export default function TermsBanner() {
             <div className="fixed inset-0 bg-black/50 z-40" onClick={handleClose} />
 
             {/* Banner */}
-            <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t-2 border-[#FF2D55] shadow-2xl">
+            <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t-2 border-primary-500 shadow-2xl">
                 <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                         {/* Close button */}
@@ -60,7 +60,7 @@ export default function TermsBanner() {
                                 <Link
                                     href="/terms"
                                     target="_blank"
-                                    className="text-[#FF2D55] font-semibold hover:underline"
+                                    className="text-primary-600 font-semibold hover:underline"
                                 >
                                     Términos y Condiciones
                                 </Link>
@@ -68,7 +68,7 @@ export default function TermsBanner() {
                                 <Link
                                     href="/privacy"
                                     target="_blank"
-                                    className="text-[#FF2D55] font-semibold hover:underline"
+                                    className="text-primary-600 font-semibold hover:underline"
                                 >
                                     Política de Privacidad
                                 </Link>
@@ -76,7 +76,7 @@ export default function TermsBanner() {
                                 <Link
                                     href="/cookies"
                                     target="_blank"
-                                    className="text-[#FF2D55] font-semibold hover:underline"
+                                    className="text-primary-600 font-semibold hover:underline"
                                 >
                                     Política de Cookies
                                 </Link>
@@ -90,7 +90,7 @@ export default function TermsBanner() {
                                         type="checkbox"
                                         checked={isAccepted}
                                         onChange={(e) => setIsAccepted(e.target.checked)}
-                                        className="w-5 h-5 border-2 border-gray-300 rounded cursor-pointer checked:bg-[#FF2D55] checked:border-[#FF2D55] focus:ring-2 focus:ring-[#FF2D55] focus:ring-offset-2 transition-all"
+                                        className="w-5 h-5 border-2 border-gray-300 rounded cursor-pointer checked:bg-primary-500 checked:border-primary-500 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-all"
                                     />
                                 </div>
                                 <span className="text-sm text-gray-700">
@@ -104,7 +104,7 @@ export default function TermsBanner() {
                             <button
                                 onClick={handleAccept}
                                 disabled={!isAccepted}
-                                className="w-full sm:w-auto px-8 py-3 bg-[#FF2D55] text-white font-semibold rounded-lg hover:bg-[#E6194A] transition disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#FF2D55]"
+                                className="w-full sm:w-auto px-8 py-3 bg-primary-500 text-white font-semibold rounded-lg hover:bg-primary-600 transition disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary-500"
                             >
                                 Aceptar y continuar
                             </button>

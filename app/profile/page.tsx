@@ -192,7 +192,7 @@ export default function ProfilePage() {
   if (status === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF6900]"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-secondary-500"></div>
       </div>
     )
   }
@@ -311,7 +311,7 @@ export default function ProfilePage() {
         <div className="flex flex-col lg:flex-row gap-6">
           <div className="flex-1">
             <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-              <div className="bg-gradient-to-r from-[#FF2D55] to-[#FF6900] px-6 py-8">
+              <div className="bg-gradient-to-r from-primary-500 to-secondary-500 px-6 py-8">
                 <h2 className="text-2xl sm:text-3xl font-bold text-white">Información Personal</h2>
                 <p className="text-white/90 mt-2">Actualiza tus datos de perfil</p>
               </div>
@@ -339,7 +339,7 @@ export default function ProfilePage() {
                     </div>
                     <label
                       htmlFor="avatar-upload"
-                      className="absolute bottom-0 right-0 bg-[#FF6900] text-white p-3 rounded-full cursor-pointer hover:bg-[#FF2D55] transition-colors shadow-lg"
+                      className="absolute bottom-0 right-0 bg-secondary-500 text-white p-3 rounded-full cursor-pointer hover:bg-primary-500 transition-colors shadow-lg"
                     >
                       <Camera size={20} />
                       <input
@@ -371,7 +371,7 @@ export default function ProfilePage() {
                         id="name"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6900] focus:border-transparent"
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-secondary-500 focus:border-transparent"
                         required
                       />
                     </div>
@@ -398,7 +398,7 @@ export default function ProfilePage() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className={`flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white font-medium rounded-lg hover:shadow-lg transition-all ${
+                      className={`flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-500 to-secondary-500 text-white font-medium rounded-lg hover:shadow-lg transition-all ${
                         loading ? 'opacity-50 cursor-not-allowed' : ''
                       }`}
                     >
@@ -422,7 +422,7 @@ export default function ProfilePage() {
                     <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl">
                       <Briefcase className="text-white" size={24} />
                     </div>
-                    <ChevronRight className="text-gray-400 group-hover:text-[#FF6900] transition-colors" size={20} />
+                    <ChevronRight className="text-gray-400 group-hover:text-secondary-600 transition-colors" size={20} />
                   </div>
                   <h3 className="text-lg font-bold text-gray-900 mb-2">Mis Servicios</h3>
                   <p className="text-3xl font-bold text-blue-600 mb-2">
@@ -439,7 +439,7 @@ export default function ProfilePage() {
                     <div className="p-3 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-xl">
                       <Star className="text-white" size={24} />
                     </div>
-                    <ChevronRight className="text-gray-400 group-hover:text-[#FF6900] transition-colors" size={20} />
+                    <ChevronRight className="text-gray-400 group-hover:text-secondary-600 transition-colors" size={20} />
                   </div>
                   <h3 className="text-lg font-bold text-gray-900 mb-2">Calificación</h3>
                   <div className="flex items-center gap-2 mb-2">
@@ -471,7 +471,7 @@ export default function ProfilePage() {
                     }`}>
                       <Shield className="text-white" size={24} />
                     </div>
-                    <ChevronRight className="text-gray-400 group-hover:text-[#FF6900] transition-colors" size={20} />
+                    <ChevronRight className="text-gray-400 group-hover:text-secondary-600 transition-colors" size={20} />
                   </div>
                   <h3 className="text-lg font-bold text-gray-900 mb-3">Estado de Verificación</h3>
 
@@ -575,7 +575,7 @@ export default function ProfilePage() {
                     <div className="p-3 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-xl">
                       <Star className="text-white" size={24} />
                     </div>
-                    <ChevronRight className="text-gray-400 group-hover:text-[#FF6900] transition-colors" size={20} />
+                    <ChevronRight className="text-gray-400 group-hover:text-secondary-600 transition-colors" size={20} />
                   </div>
                   <h3 className="text-lg font-bold text-gray-900 mb-2">Mis Calificaciones</h3>
                   <div className="flex items-center gap-2 mb-2">
@@ -595,7 +595,7 @@ export default function ProfilePage() {
                     <div className="p-3 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl">
                       <MapPin className="text-white" size={24} />
                     </div>
-                    <ChevronRight className="text-gray-400 group-hover:text-[#FF6900] transition-colors" size={20} />
+                    <ChevronRight className="text-gray-400 group-hover:text-secondary-600 transition-colors" size={20} />
                   </div>
                   <h3 className="text-lg font-bold text-gray-900 mb-2">Mis Direcciones</h3>
                   <p className="text-3xl font-bold text-purple-600 mb-2">

@@ -15,7 +15,7 @@ export default function TermsCheckbox({ checked, onChange, required = true }: Te
                         type="checkbox"
                         checked={checked}
                         onChange={(e) => onChange(e.target.checked)}
-                        className="w-5 h-5 border-2 border-gray-300 rounded cursor-pointer checked:bg-[#FF2D55] checked:border-[#FF2D55] focus:ring-2 focus:ring-[#FF2D55] focus:ring-offset-2 transition-all"
+                        className="w-5 h-5 border-2 border-gray-300 rounded cursor-pointer checked:bg-primary-500 checked:border-primary-500 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-all"
                         required={required}
                     />
                 </div>
@@ -24,7 +24,7 @@ export default function TermsCheckbox({ checked, onChange, required = true }: Te
                     <Link
                         href="/terms"
                         target="_blank"
-                        className="text-[#FF2D55] font-semibold hover:underline"
+                        className="text-primary-600 font-semibold hover:underline"
                     >
                         Términos y Condiciones
                     </Link>
@@ -32,7 +32,7 @@ export default function TermsCheckbox({ checked, onChange, required = true }: Te
                     <Link
                         href="/privacy"
                         target="_blank"
-                        className="text-[#FF2D55] font-semibold hover:underline"
+                        className="text-primary-600 font-semibold hover:underline"
                     >
                         Política de Privacidad
                     </Link>
@@ -40,7 +40,7 @@ export default function TermsCheckbox({ checked, onChange, required = true }: Te
                     <Link
                         href="/cookies"
                         target="_blank"
-                        className="text-[#FF2D55] font-semibold hover:underline"
+                        className="text-primary-600 font-semibold hover:underline"
                     >
                         Política de Cookies
                     </Link>

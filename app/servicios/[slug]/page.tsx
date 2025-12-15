@@ -676,7 +676,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                         className={`w-full font-bold py-3.5 px-4 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2 group/btn ${
                           fullyVerified
                             ? 'bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white'
-                            : 'bg-gradient-to-r from-[#FF2D55] to-[#FF6900] hover:from-[#E02850] hover:to-[#E65F00] text-white'
+                            : 'bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-[#E02850] hover:to-[#E65F00] text-white'
                         }`}
                       >
                         <UserPlus size={18} />
@@ -802,7 +802,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
       {showRequestModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="bg-gradient-to-r from-[#FF2D55] to-[#FF6900] p-4 md:p-6 text-white">
+            <div className="bg-gradient-to-r from-primary-500 to-secondary-500 p-4 md:p-6 text-white">
               <div className="flex items-center justify-between mb-3 md:mb-4">
                 <div>
                   <h2 className="text-xl md:text-2xl font-bold">Solicitar {service.name}</h2>
@@ -840,7 +840,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                   <div className="space-y-4 md:space-y-6 animate-fadeIn">
                     <div className="text-center mb-4 md:mb-6">
                       <div className="w-14 h-14 md:w-16 md:h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4">
-                        <MapPin className="text-[#FF6900]" size={28} />
+                        <MapPin className="text-secondary-600" size={28} />
                       </div>
                       <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-2">¿Dónde necesitas el servicio?</h3>
                       <p className="text-sm md:text-base text-gray-600">Selecciona o ingresa la dirección</p>
@@ -852,7 +852,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                           <label
                             key={addr.id}
                             className={`flex items-start gap-3 md:gap-4 p-3 md:p-4 border-2 rounded-xl cursor-pointer transition-all ${selectedAddressId === addr.id
-                              ? 'border-[#FF6900] bg-orange-50'
+                              ? 'border-secondary-500 bg-orange-50'
                               : 'border-gray-200 hover:border-orange-300 hover:bg-gray-50'
                               }`}
                           >
@@ -862,7 +862,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                               value={addr.id}
                               checked={selectedAddressId === addr.id}
                               onChange={(e) => setSelectedAddressId(e.target.value)}
-                              className="mt-1 w-4 h-4 md:w-5 md:h-5 text-[#FF6900]"
+                              className="mt-1 w-4 h-4 md:w-5 md:h-5 text-secondary-600"
                             />
                             <div className="flex-1 min-w-0">
                               <div className="font-semibold text-sm md:text-base text-gray-900 mb-1">{addr.label}</div>
@@ -873,7 +873,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                         <button
                           type="button"
                           onClick={() => router.push('/dashboard/addresses')}
-                          className="w-full py-2.5 md:py-3 border-2 border-dashed border-gray-300 rounded-xl text-[#FF6900] hover:border-[#FF6900] hover:bg-orange-50 transition font-medium flex items-center justify-center gap-2 text-sm md:text-base"
+                          className="w-full py-2.5 md:py-3 border-2 border-dashed border-gray-300 rounded-xl text-secondary-600 hover:border-secondary-500 hover:bg-orange-50 transition font-medium flex items-center justify-center gap-2 text-sm md:text-base"
                         >
                           <Plus size={18} />
                           Agregar nueva dirección
@@ -888,7 +888,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                             placeholder="Ej: Calle 123 #45-67, Barrio Centro"
                             value={requestData.address}
                             onChange={(e) => setRequestData({ ...requestData, address: e.target.value })}
-                            className="w-full pl-10 md:pl-12 pr-4 py-3 md:py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FF6900] focus:border-[#FF6900] outline-none transition text-sm md:text-base"
+                            className="w-full pl-10 md:pl-12 pr-4 py-3 md:py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-secondary-500 focus:border-secondary-500 outline-none transition text-sm md:text-base"
                           />
                         </div>
                         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-3 md:p-4">
@@ -903,7 +903,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                               <button
                                 type="button"
                                 onClick={() => router.push('/dashboard/addresses')}
-                                className="text-xs md:text-sm text-[#FF6900] hover:text-[#FF5900] font-semibold flex items-center gap-1"
+                                className="text-xs md:text-sm text-secondary-600 hover:text-secondary-700 font-semibold flex items-center gap-1"
                               >
                                 <Plus size={14} />
                                 Ir a mis direcciones
@@ -921,7 +921,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                   <div className="space-y-4 md:space-y-6 animate-fadeIn">
                     <div className="text-center mb-4 md:mb-6">
                       <div className="w-14 h-14 md:w-16 md:h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4">
-                        <Calendar className="text-[#FF6900]" size={28} />
+                        <Calendar className="text-secondary-600" size={28} />
                       </div>
                       <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-2">¿Cuándo necesitas el servicio?</h3>
                       <p className="text-sm md:text-base text-gray-600">Selecciona la urgencia o programa una fecha</p>
@@ -954,7 +954,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                       {/* Opción Programada */}
                       <label
                         className={`flex items-start gap-3 md:gap-4 p-4 md:p-5 border-2 rounded-xl cursor-pointer transition-all ${!requestData.isUrgent
-                          ? 'border-[#FF6900] bg-orange-50'
+                          ? 'border-secondary-500 bg-orange-50'
                           : 'border-gray-200 hover:border-orange-300 hover:bg-gray-50'
                           }`}
                       >
@@ -963,7 +963,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                           name="urgency"
                           checked={!requestData.isUrgent}
                           onChange={() => setRequestData({ ...requestData, isUrgent: false })}
-                          className="mt-1 w-4 h-4 md:w-5 md:h-5 text-[#FF6900]"
+                          className="mt-1 w-4 h-4 md:w-5 md:h-5 text-secondary-600"
                         />
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-3">
@@ -982,7 +982,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                                     min={new Date().toISOString().split('T')[0]}
                                     value={requestData.preferredDate}
                                     onChange={(e) => setRequestData({ ...requestData, preferredDate: e.target.value })}
-                                    className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-2.5 md:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6900] focus:border-[#FF6900] outline-none text-sm md:text-base"
+                                    className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-2.5 md:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-secondary-500 focus:border-secondary-500 outline-none text-sm md:text-base"
                                   />
                                 </div>
                               </div>
@@ -994,7 +994,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                                     type="time"
                                     value={requestData.preferredTime}
                                     onChange={(e) => setRequestData({ ...requestData, preferredTime: e.target.value })}
-                                    className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-2.5 md:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6900] focus:border-[#FF6900] outline-none text-sm md:text-base"
+                                    className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-2.5 md:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-secondary-500 focus:border-secondary-500 outline-none text-sm md:text-base"
                                   />
                                 </div>
                               </div>
@@ -1011,7 +1011,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                   <div className="space-y-3 md:space-y-6 animate-fadeIn">
                     <div className="text-center mb-3 md:mb-6">
                       <div className="w-12 h-12 md:w-16 md:h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-2 md:mb-4">
-                        <CheckCircle className="text-[#FF6900]" size={24} />
+                        <CheckCircle className="text-secondary-600" size={24} />
                       </div>
                       <h3 className="text-base md:text-xl font-bold text-gray-900 mb-1 md:mb-2">Detalles adicionales</h3>
                       <p className="text-xs md:text-base text-gray-600">Cuéntanos más sobre lo que necesitas</p>
@@ -1023,7 +1023,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-3">
                         <div className="flex items-start gap-2">
-                          <MapPin className="text-[#FF6900] mt-0.5 flex-shrink-0" size={14} />
+                          <MapPin className="text-secondary-600 mt-0.5 flex-shrink-0" size={14} />
                           <div className="min-w-0">
                             <p className="text-xs font-medium text-gray-700">Dirección</p>
                             <p className="text-xs text-gray-600 break-words">
@@ -1035,7 +1035,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                         </div>
 
                         <div className="flex items-start gap-2">
-                          <Calendar className="text-[#FF6900] mt-0.5 flex-shrink-0" size={14} />
+                          <Calendar className="text-secondary-600 mt-0.5 flex-shrink-0" size={14} />
                           <div className="min-w-0">
                             <p className="text-xs font-medium text-gray-700">Fecha y hora</p>
                             <p className="text-xs text-gray-600">
@@ -1066,7 +1066,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                         placeholder="Describe los detalles específicos: medidas, materiales, problemas específicos, etc."
                         value={requestData.notes}
                         onChange={(e) => setRequestData({ ...requestData, notes: e.target.value })}
-                        className="w-full px-3 md:px-4 py-2 md:py-3 border-2 border-orange-200 bg-orange-50 text-orange-900 rounded-xl focus:ring-2 focus:ring-[#FF6900] focus:border-[#FF6900] outline-none resize-none text-xs md:text-base"
+                        className="w-full px-3 md:px-4 py-2 md:py-3 border-2 border-orange-200 bg-orange-50 text-orange-900 rounded-xl focus:ring-2 focus:ring-secondary-500 focus:border-secondary-500 outline-none resize-none text-xs md:text-base"
                       />
                     </div>
                   </div>
@@ -1077,7 +1077,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                   <div className="space-y-4 md:space-y-6 animate-fadeIn">
                     <div className="text-center mb-4 md:mb-6">
                       <div className="w-14 h-14 md:w-16 md:h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4">
-                        <Camera className="text-[#FF6900]" size={28} />
+                        <Camera className="text-secondary-600" size={28} />
                       </div>
                       <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-2">Agrega fotos (opcional)</h3>
                       <p className="text-sm md:text-base text-gray-600">Ayuda a los profesionales a entender mejor tu necesidad</p>
@@ -1096,9 +1096,9 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                         />
                         <div className={`border-2 border-dashed rounded-xl p-6 md:p-8 text-center cursor-pointer transition-all ${photos.length >= 5
                           ? 'border-gray-300 bg-gray-100 cursor-not-allowed'
-                          : 'border-[#FF6900] bg-orange-50 hover:bg-orange-100'
+                          : 'border-secondary-500 bg-orange-50 hover:bg-orange-100'
                           }`}>
-                          <Upload className={`mx-auto mb-3 ${photos.length >= 5 ? 'text-gray-400' : 'text-[#FF6900]'}`} size={32} />
+                          <Upload className={`mx-auto mb-3 ${photos.length >= 5 ? 'text-gray-400' : 'text-secondary-600'}`} size={32} />
                           <p className={`font-semibold mb-1 ${photos.length >= 5 ? 'text-gray-500' : 'text-gray-900'}`}>
                             {photos.length >= 5 ? 'Máximo de fotos alcanzado' : 'Haz clic para subir fotos'}
                           </p>
@@ -1206,7 +1206,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                         }
                         setCurrentStep(currentStep + 1)
                       }}
-                      className="flex-1 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white px-4 md:px-6 py-2.5 md:py-3 rounded-xl hover:from-[#FF1D45] hover:to-[#FF5900] transition font-semibold flex items-center justify-center gap-2 shadow-lg shadow-orange-600/30 text-sm md:text-base"
+                      className="flex-1 bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-4 md:px-6 py-2.5 md:py-3 rounded-xl hover:from-primary-600 hover:to-secondary-600 transition font-semibold flex items-center justify-center gap-2 shadow-lg shadow-orange-600/30 text-sm md:text-base"
                     >
                       Continuar
                       <ChevronRight size={18} />
@@ -1216,7 +1216,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                       type="button"
                       onClick={submitRequest}
                       disabled={submitting}
-                      className="flex-1 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white px-4 md:px-6 py-2.5 md:py-3 rounded-xl hover:from-[#FF1D45] hover:to-[#FF5900] transition font-semibold flex items-center justify-center gap-2 shadow-lg shadow-orange-600/30 disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
+                      className="flex-1 bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-4 md:px-6 py-2.5 md:py-3 rounded-xl hover:from-primary-600 hover:to-secondary-600 transition font-semibold flex items-center justify-center gap-2 shadow-lg shadow-orange-600/30 disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
                     >
                       {submitting ? (
                         <>

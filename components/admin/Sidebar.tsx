@@ -113,7 +113,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
       {/* Mobile Menu Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white p-2.5 rounded-xl shadow-lg"
+        className="lg:hidden fixed top-4 left-4 z-50 bg-gradient-to-r from-primary-500 to-secondary-500 text-white p-2.5 rounded-xl shadow-lg"
       >
         {isOpen ? <X size={24} /> : <Menu size={24} />}
       </button>
@@ -127,7 +127,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
       )}
 
       {/* Sidebar */}
-      <div className={`w-64 bg-gradient-to-b from-[#FF2D55] to-[#FF6900] text-white h-screen fixed left-0 top-0 flex flex-col shadow-2xl z-40 transition-transform duration-300 ${
+      <div className={`w-64 bg-gradient-to-b from-primary-500 to-secondary-500 text-white h-screen fixed left-0 top-0 flex flex-col shadow-2xl z-40 transition-transform duration-300 ${
         isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       }`}>
         <div className="p-4 sm:p-6 border-b border-white/20">
@@ -164,7 +164,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
                             onClick={() => setIsOpen(false)}
                             className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 sm:py-3.5 rounded-lg sm:rounded-xl mb-1.5 sm:mb-2 transition-all font-semibold text-sm sm:text-base ${
                               isActive
-                                ? 'bg-white text-[#FF2D55] shadow-lg scale-105'
+                                ? 'bg-white text-primary-600 shadow-lg scale-105'
                                 : 'text-white/90 hover:bg-white/10 hover:text-white'
                             }`}
                           >
@@ -180,7 +180,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
                           onClick={() => handleSectionChange(item.id)}
                           className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 sm:py-3.5 rounded-lg sm:rounded-xl mb-1.5 sm:mb-2 transition-all font-semibold text-sm sm:text-base ${
                             isActive
-                              ? 'bg-white text-[#FF2D55] shadow-lg scale-105'
+                              ? 'bg-white text-primary-600 shadow-lg scale-105'
                               : 'text-white/90 hover:bg-white/10 hover:text-white'
                           }`}
                         >

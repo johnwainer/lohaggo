@@ -103,7 +103,7 @@ export default function DataTable({
           {exportable && (
             <button
               onClick={exportToCSV}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white rounded-lg hover:from-[#FF1D45] hover:to-[#FF5900] transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary-500 to-secondary-500 text-white rounded-lg hover:from-primary-600 hover:to-secondary-600 transition-colors"
             >
               <Download size={18} />
               <span>Exportar</span>
@@ -180,7 +180,7 @@ export default function DataTable({
                   onClick={() => setCurrentPage(page)}
                   className={`px-3 py-1 rounded-lg ${
                     currentPage === page
-                      ? 'bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white'
+                      ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white'
                       : 'hover:bg-gray-100'
                   }`}
                 >

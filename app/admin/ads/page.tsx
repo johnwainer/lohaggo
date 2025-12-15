@@ -200,7 +200,7 @@ export default function AdsAdminPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF2D55]"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
       </div>
     )
   }
@@ -214,7 +214,7 @@ export default function AdsAdminPage() {
         </div>
         <button
           onClick={() => setShowForm(true)}
-          className="bg-gradient-to-r from-[#FF2D55] via-[#FF3D00] to-[#FF6900] text-white px-6 py-3 rounded-xl hover:shadow-lg transition-all flex items-center gap-2 font-semibold"
+          className="bg-gradient-to-r from-primary-500 via-secondary-500 to-secondary-500 text-white px-6 py-3 rounded-xl hover:shadow-lg transition-all flex items-center gap-2 font-semibold"
         >
           <Plus className="w-5 h-5" />
           Nuevo Anuncio
@@ -237,7 +237,7 @@ export default function AdsAdminPage() {
                   type="text"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   required
                 />
               </div>
@@ -272,7 +272,7 @@ export default function AdsAdminPage() {
                   <button
                     type="button"
                     onClick={() => setShowImageEditor(true)}
-                    className="w-full border-2 border-dashed border-gray-300 rounded-xl p-8 hover:border-[#FF2D55] hover:bg-gray-50 transition-all"
+                    className="w-full border-2 border-dashed border-gray-300 rounded-xl p-8 hover:border-primary-500 hover:bg-gray-50 transition-all"
                   >
                     <ImageIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                     <p className="text-gray-600 font-semibold">
@@ -293,7 +293,7 @@ export default function AdsAdminPage() {
                   type="url"
                   value={formData.linkUrl}
                   onChange={(e) => setFormData({ ...formData, linkUrl: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   placeholder="https://ejemplo.com"
                 />
               </div>
@@ -305,7 +305,7 @@ export default function AdsAdminPage() {
                 <select
                   value={formData.placement}
                   onChange={(e) => setFormData({ ...formData, placement: e.target.value as any })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 >
                   <option value="HOME">Home</option>
                   <option value="SERVICE">Servicio</option>
@@ -319,7 +319,7 @@ export default function AdsAdminPage() {
                 <select
                   value={formData.cityId}
                   onChange={(e) => setFormData({ ...formData, cityId: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   required
                 >
                   <option value="">Selecciona una ciudad</option>
@@ -339,7 +339,7 @@ export default function AdsAdminPage() {
                   <select
                     value={formData.serviceId}
                     onChange={(e) => setFormData({ ...formData, serviceId: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     required={formData.placement === 'SERVICE'}
                   >
                     <option value="">Selecciona un servicio</option>
@@ -361,7 +361,7 @@ export default function AdsAdminPage() {
                     type="date"
                     value={formData.startDate}
                     onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     required
                   />
                 </div>
@@ -374,7 +374,7 @@ export default function AdsAdminPage() {
                     type="date"
                     value={formData.endDate}
                     onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   />
                 </div>
               </div>
@@ -387,7 +387,7 @@ export default function AdsAdminPage() {
                   type="number"
                   value={formData.priority}
                   onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value) })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   min="0"
                 />
               </div>
@@ -398,7 +398,7 @@ export default function AdsAdminPage() {
                   id="active"
                   checked={formData.active}
                   onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
-                  className="w-5 h-5 text-[#FF2D55] rounded focus:ring-[#FF2D55]"
+                  className="w-5 h-5 text-primary-600 rounded focus:ring-primary-500"
                 />
                 <label htmlFor="active" className="text-sm font-semibold text-gray-700">
                   Anuncio activo
@@ -408,7 +408,7 @@ export default function AdsAdminPage() {
               <div className="flex gap-3 pt-4">
                 <button
                   type="submit"
-                  className="flex-1 bg-gradient-to-r from-[#FF2D55] via-[#FF3D00] to-[#FF6900] text-white py-3 rounded-xl hover:shadow-lg transition-all font-semibold"
+                  className="flex-1 bg-gradient-to-r from-primary-500 via-secondary-500 to-secondary-500 text-white py-3 rounded-xl hover:shadow-lg transition-all font-semibold"
                 >
                   {editingAd ? 'Actualizar' : 'Crear'} Anuncio
                 </button>
@@ -431,7 +431,7 @@ export default function AdsAdminPage() {
             <p className="text-gray-500 text-lg">No hay anuncios creados</p>
             <button
               onClick={() => setShowForm(true)}
-              className="mt-4 text-[#FF2D55] hover:text-[#FF3D00] font-semibold"
+              className="mt-4 text-primary-600 hover:text-secondary-500 font-semibold"
             >
               Crear el primero
             </button>

@@ -12,14 +12,14 @@ interface StatCardProps {
 }
 
 const colorClasses = {
-  blue: 'from-[#FF2D55] to-[#FF6900]',
+  blue: 'from-primary-500 to-secondary-500',
   green: 'from-green-500 to-green-600',
   purple: 'from-purple-500 to-purple-600',
   yellow: 'from-yellow-500 to-yellow-600',
-  red: 'from-[#FF2D55] to-[#FF3D00]',
+  red: 'from-primary-500 to-secondary-500',
   teal: 'from-teal-500 to-teal-600',
   pink: 'from-pink-500 to-pink-600',
-  indigo: 'from-[#FF3D00] to-[#FF6900]',
+  indigo: 'from-secondary-500 to-secondary-500',
 }
 
 export default function StatCard({ title, value, icon: Icon, trend, color }: StatCardProps) {

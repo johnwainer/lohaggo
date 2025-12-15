@@ -187,7 +187,7 @@ export default function ImageEditor({ onImageUploaded, onCancel, placement }: Im
               <p className="text-gray-600 mb-4">
                 JPG, PNG o WebP (máx. 5MB)
               </p>
-              <label className="inline-block bg-gradient-to-r from-[#FF2D55] via-[#FF3D00] to-[#FF6900] text-white px-6 py-3 rounded-xl hover:shadow-lg transition-all cursor-pointer font-semibold">
+              <label className="inline-block bg-gradient-to-r from-primary-500 via-secondary-500 to-secondary-500 text-white px-6 py-3 rounded-xl hover:shadow-lg transition-all cursor-pointer font-semibold">
                 Seleccionar Archivo
                 <input
                   type="file"
@@ -286,7 +286,7 @@ export default function ImageEditor({ onImageUploaded, onCancel, placement }: Im
             <button
               onClick={handleUpload}
               disabled={uploading}
-              className="flex-1 bg-gradient-to-r from-[#FF2D55] via-[#FF3D00] to-[#FF6900] text-white py-3 rounded-xl hover:shadow-lg transition-all font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
+              className="flex-1 bg-gradient-to-r from-primary-500 via-secondary-500 to-secondary-500 text-white py-3 rounded-xl hover:shadow-lg transition-all font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {uploading ? (
                 <>

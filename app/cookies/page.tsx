@@ -5,7 +5,7 @@ export default function CookiesPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-[#FF2D55] via-[#FF3D00] to-[#FF6900] text-white pt-24 pb-16">
+      <section className="relative overflow-hidden bg-gradient-to-br from-primary-500 via-secondary-500 to-secondary-500 text-white pt-24 pb-16">
         <div className="absolute inset-0 overflow-hidden opacity-20">
           <div className="absolute -top-40 -right-40 w-96 h-96 bg-yellow-400 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slow"></div>
           <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-pink-400 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slow"></div>
@@ -57,7 +57,7 @@ export default function CookiesPage() {
             {/* Section 1 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">1</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">1</span>
                 ¿Qué son las Cookies?
               </h2>
               <div className="pl-11 space-y-3 text-gray-700">
@@ -81,7 +81,7 @@ export default function CookiesPage() {
             {/* Section 2 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">2</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">2</span>
                 ¿Por qué Utilizamos Cookies?
               </h2>
               <div className="pl-11 space-y-3 text-gray-700">
@@ -101,7 +101,7 @@ export default function CookiesPage() {
             {/* Section 3 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">3</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">3</span>
                 Tipos de Cookies que Utilizamos
               </h2>
               <div className="pl-11 space-y-6 text-gray-700">
@@ -109,7 +109,7 @@ export default function CookiesPage() {
                 {/* Strictly Necessary */}
                 <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
                   <div className="flex items-start gap-3 mb-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 h-10 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center flex-shrink-0">
                       <Shield className="w-5 h-5 text-white" />
                     </div>
                     <div>
@@ -137,7 +137,7 @@ export default function CookiesPage() {
                 {/* Functional */}
                 <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
                   <div className="flex items-start gap-3 mb-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 h-10 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center flex-shrink-0">
                       <Settings className="w-5 h-5 text-white" />
                     </div>
                     <div>
@@ -165,7 +165,7 @@ export default function CookiesPage() {
                 {/* Analytics */}
                 <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
                   <div className="flex items-start gap-3 mb-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 h-10 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center flex-shrink-0">
                       <BarChart className="w-5 h-5 text-white" />
                     </div>
                     <div>
@@ -194,7 +194,7 @@ export default function CookiesPage() {
                 {/* Marketing */}
                 <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
                   <div className="flex items-start gap-3 mb-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 h-10 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center flex-shrink-0">
                       <Eye className="w-5 h-5 text-white" />
                     </div>
                     <div>
@@ -226,7 +226,7 @@ export default function CookiesPage() {
             {/* Section 4 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">4</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">4</span>
                 Cookies de Terceros
               </h2>
               <div className="pl-11 space-y-4 text-gray-700">
@@ -239,7 +239,7 @@ export default function CookiesPage() {
                     <h3 className="font-bold text-gray-900 mb-2">4.1. Google Analytics</h3>
                     <p>Para análisis de tráfico y comportamiento de usuarios.</p>
                     <p className="text-sm text-gray-600 mt-1">
-                      Más información: <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="text-[#FF2D55] hover:underline">policies.google.com/privacy</a>
+                      Más información: <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">policies.google.com/privacy</a>
                     </p>
                   </div>
 
@@ -247,7 +247,7 @@ export default function CookiesPage() {
                     <h3 className="font-bold text-gray-900 mb-2">4.2. Google Ads</h3>
                     <p>Para publicidad y remarketing.</p>
                     <p className="text-sm text-gray-600 mt-1">
-                      Más información: <a href="https://policies.google.com/technologies/ads" target="_blank" rel="noopener noreferrer" className="text-[#FF2D55] hover:underline">policies.google.com/technologies/ads</a>
+                      Más información: <a href="https://policies.google.com/technologies/ads" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">policies.google.com/technologies/ads</a>
                     </p>
                   </div>
 
@@ -255,7 +255,7 @@ export default function CookiesPage() {
                     <h3 className="font-bold text-gray-900 mb-2">4.3. Facebook Pixel</h3>
                     <p>Para análisis y publicidad en redes sociales.</p>
                     <p className="text-sm text-gray-600 mt-1">
-                      Más información: <a href="https://www.facebook.com/privacy/explanation" target="_blank" rel="noopener noreferrer" className="text-[#FF2D55] hover:underline">facebook.com/privacy</a>
+                      Más información: <a href="https://www.facebook.com/privacy/explanation" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">facebook.com/privacy</a>
                     </p>
                   </div>
 
@@ -280,7 +280,7 @@ export default function CookiesPage() {
             {/* Section 5 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">5</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">5</span>
                 Cómo Controlar las Cookies
               </h2>
               <div className="pl-11 space-y-4 text-gray-700">
@@ -323,9 +323,9 @@ export default function CookiesPage() {
                   <h3 className="font-bold text-gray-900 mb-2">5.3. Herramientas de Terceros</h3>
                   <p>Puede optar por no participar en cookies de publicidad mediante:</p>
                   <ul className="list-disc pl-6 space-y-1 mt-2">
-                    <li>Google Ads Settings: <a href="https://adssettings.google.com" target="_blank" rel="noopener noreferrer" className="text-[#FF2D55] hover:underline">adssettings.google.com</a></li>
-                    <li>Your Online Choices: <a href="http://www.youronlinechoices.com" target="_blank" rel="noopener noreferrer" className="text-[#FF2D55] hover:underline">youronlinechoices.com</a></li>
-                    <li>Network Advertising Initiative: <a href="http://www.networkadvertising.org" target="_blank" rel="noopener noreferrer" className="text-[#FF2D55] hover:underline">networkadvertising.org</a></li>
+                    <li>Google Ads Settings: <a href="https://adssettings.google.com" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">adssettings.google.com</a></li>
+                    <li>Your Online Choices: <a href="http://www.youronlinechoices.com" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">youronlinechoices.com</a></li>
+                    <li>Network Advertising Initiative: <a href="http://www.networkadvertising.org" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">networkadvertising.org</a></li>
                   </ul>
                 </div>
 
@@ -341,7 +341,7 @@ export default function CookiesPage() {
             {/* Section 6 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">6</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">6</span>
                 Otras Tecnologías de Seguimiento
               </h2>
               <div className="pl-11 space-y-3 text-gray-700">
@@ -382,14 +382,14 @@ export default function CookiesPage() {
             {/* Section 7 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">7</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">7</span>
                 Cookies y Datos Personales
               </h2>
               <div className="pl-11 space-y-3 text-gray-700">
                 <p>
                   Algunas cookies pueden contener datos personales, especialmente si está autenticado en la 
                   plataforma. El tratamiento de estos datos se rige por nuestra{' '}
-                  <Link href="/privacy" className="text-[#FF2D55] font-bold hover:underline">
+                  <Link href="/privacy" className="text-primary-600 font-bold hover:underline">
                     Política de Privacidad
                   </Link>.
                 </p>
@@ -404,7 +404,7 @@ export default function CookiesPage() {
             {/* Section 8 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">8</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">8</span>
                 Actualizaciones de esta Política
               </h2>
               <div className="pl-11 space-y-3 text-gray-700">
@@ -423,7 +423,7 @@ export default function CookiesPage() {
             {/* Section 9 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">9</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">9</span>
                 Contacto
               </h2>
               <div className="pl-11 space-y-3 text-gray-700">
@@ -432,7 +432,7 @@ export default function CookiesPage() {
                   <p className="font-bold text-gray-900 mb-3">Departamento de Privacidad</p>
                   <div className="space-y-2">
                     <p className="flex items-center gap-2">
-                      <Mail className="w-4 h-4 text-[#FF2D55]" />
+                      <Mail className="w-4 h-4 text-primary-600" />
                       <strong>Email:</strong> privacidad@lohaggo.com
                     </p>
                     <p><strong>Soporte:</strong> soporte@lohaggo.com</p>
@@ -445,7 +445,7 @@ export default function CookiesPage() {
             {/* Footer */}
             <div className="mt-12 pt-8 border-t border-gray-200">
               <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Calendar className="w-4 h-4 text-[#FF2D55]" />
+                <Calendar className="w-4 h-4 text-primary-600" />
                 <span>Última actualización: Diciembre 2024</span>
               </div>
               <p className="text-sm text-gray-600 mt-4">
@@ -461,14 +461,14 @@ export default function CookiesPage() {
               href="/privacy"
               className="inline-flex items-center gap-2 bg-white px-6 py-3 rounded-xl font-bold text-gray-900 hover:shadow-lg transition-all border border-gray-200"
             >
-              <FileText className="w-4 h-4 text-[#FF2D55]" />
+              <FileText className="w-4 h-4 text-primary-600" />
               Política de Privacidad
             </Link>
             <Link
               href="/terms"
               className="inline-flex items-center gap-2 bg-white px-6 py-3 rounded-xl font-bold text-gray-900 hover:shadow-lg transition-all border border-gray-200"
             >
-              <FileText className="w-4 h-4 text-[#FF2D55]" />
+              <FileText className="w-4 h-4 text-primary-600" />
               Términos y Condiciones
             </Link>
           </div>

@@ -110,7 +110,7 @@ function ServiciosContent() {
         </div>
 
         {/* Search and Filters - Estilo Rappi */}
-        <div className="bg-white rounded-2xl md:rounded-3xl shadow-xl p-4 md:p-6 mb-6 md:mb-8 border-2 border-transparent hover:border-[#FF2D55]/20 transition">
+        <div className="bg-white rounded-2xl md:rounded-3xl shadow-xl p-4 md:p-6 mb-6 md:mb-8 border-2 border-transparent hover:border-primary-500/20 transition">
           <div className="flex flex-col md:flex-row gap-4">
             {/* Search */}
             <div className="flex-1 relative">
@@ -120,7 +120,7 @@ function ServiciosContent() {
                 placeholder="Buscar servicios..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 md:pl-12 pr-4 py-3 md:py-4 border-2 border-gray-200 rounded-xl md:rounded-2xl focus:ring-2 focus:ring-[#FF2D55] focus:border-[#FF2D55] outline-none text-gray-800 font-medium transition text-sm md:text-base"
+                className="w-full pl-10 md:pl-12 pr-4 py-3 md:py-4 border-2 border-gray-200 rounded-xl md:rounded-2xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none text-gray-800 font-medium transition text-sm md:text-base"
               />
             </div>
           </div>
@@ -136,7 +136,7 @@ function ServiciosContent() {
                 onClick={() => setSelectedCategory('')}
                 className={`px-4 md:px-6 py-2 md:py-3 rounded-xl md:rounded-2xl transition-all font-bold shadow-md text-sm md:text-base ${
                   selectedCategory === ''
-                    ? 'bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white scale-105'
+                    ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white scale-105'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
                 }`}
               >
@@ -148,7 +148,7 @@ function ServiciosContent() {
                   onClick={() => setSelectedCategory(category.slug)}
                   className={`px-4 md:px-6 py-2 md:py-3 rounded-xl md:rounded-2xl transition-all flex items-center gap-2 font-bold shadow-md text-sm md:text-base ${
                     selectedCategory === category.slug
-                      ? 'bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white scale-105'
+                      ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white scale-105'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
                   }`}
                 >
@@ -163,7 +163,7 @@ function ServiciosContent() {
         {/* Services Grid - Estilo Rappi */}
         {loading ? (
           <div className="text-center py-12 md:py-16">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 md:h-16 md:w-16 border-4 border-[#FF2D55] border-t-transparent"></div>
+            <div className="inline-block animate-spin rounded-full h-12 w-12 md:h-16 md:w-16 border-4 border-primary-500 border-t-transparent"></div>
             <p className="mt-4 md:mt-6 text-gray-600 text-base md:text-lg font-medium">Buscando servicios...</p>
           </div>
         ) : services.length === 0 ? (
@@ -172,7 +172,7 @@ function ServiciosContent() {
             <p className="text-gray-600 text-lg md:text-xl font-bold">No se encontraron servicios</p>
             {searchTerm ? (
               <p className="text-gray-500 mt-2 text-sm md:text-base px-4">
-                No encontramos resultados para "<span className="font-semibold text-[#FF2D55]">{searchTerm}</span>".
+                No encontramos resultados para "<span className="font-semibold text-primary-600">{searchTerm}</span>".
                 Intenta con otros términos como: plomero, electricista, limpieza, etc.
               </p>
             ) : (
@@ -183,10 +183,10 @@ function ServiciosContent() {
           <>
             <div className="mb-4 md:mb-6">
               {searchTerm ? (
-                <div className="bg-white rounded-xl md:rounded-2xl shadow-lg p-3 md:p-4 border-l-4 border-[#FF2D55]">
+                <div className="bg-white rounded-xl md:rounded-2xl shadow-lg p-3 md:p-4 border-l-4 border-primary-500">
                   <p className="text-gray-700 font-bold text-base md:text-lg">
                     {services.length} {services.length === 1 ? 'resultado encontrado' : 'resultados encontrados'} para
-                    <span className="text-[#FF2D55]"> "{searchTerm}"</span>
+                    <span className="text-primary-600"> "{searchTerm}"</span>
                   </p>
                   <p className="text-gray-600 text-xs md:text-sm mt-1">
                     Mostrando los servicios más relevantes
@@ -203,18 +203,18 @@ function ServiciosContent() {
                 <Link
                   key={service.id}
                   href={`/servicios/${service.slug}`}
-                  className="bg-white rounded-xl md:rounded-2xl shadow-md hover:shadow-2xl transition-all overflow-hidden group border-2 border-gray-100 hover:border-[#FF2D55]/30 transform hover:scale-105"
+                  className="bg-white rounded-xl md:rounded-2xl shadow-md hover:shadow-2xl transition-all overflow-hidden group border-2 border-gray-100 hover:border-primary-500/30 transform hover:scale-105"
                 >
                   <div className="p-4 md:p-6">
                     <div className="flex items-start justify-between mb-3 md:mb-4">
                       <span className="emoji-icon group-hover:scale-110 transition-transform inline-block" style={{ fontSize: '3em' }}>
                         {service.icon}
                       </span>
-                      <span className="bg-gradient-to-r from-[#FF2D55]/10 to-[#FF6900]/10 text-[#FF2D55] text-xs font-bold px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-[#FF2D55]/20">
+                      <span className="bg-gradient-to-r from-primary-500/10 to-secondary-500/10 text-primary-600 text-xs font-bold px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-primary-500/20">
                         {service.category.name}
                       </span>
                     </div>
-                    <h3 className="font-bold text-lg md:text-xl mb-2 md:mb-3 group-hover:text-[#FF2D55] transition text-gray-900">
+                    <h3 className="font-bold text-lg md:text-xl mb-2 md:mb-3 group-hover:text-primary-600 transition text-gray-900">
                       {service.name}
                     </h3>
                     <p className="text-gray-600 text-xs md:text-sm mb-3 md:mb-4 line-clamp-2 font-medium">
@@ -223,7 +223,7 @@ function ServiciosContent() {
                     <div className="flex items-center justify-between pt-3 md:pt-4 border-t-2 border-gray-100">
                       <div className="text-left">
                         <p className="text-gray-500 text-xs font-medium mb-1">Desde</p>
-                        <p className="text-[#FF2D55] text-base md:text-lg font-black">
+                        <p className="text-primary-600 text-base md:text-lg font-black">
                           {formatCurrency(service.basePrice)}
                         </p>
                       </div>
@@ -253,7 +253,7 @@ export default function ServiciosPage() {
     <Suspense
       fallback={
         <div className="min-h-screen flex items-center justify-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-[#FF2D55] border-t-transparent"></div>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary-500 border-t-transparent"></div>
         </div>
       }
     >

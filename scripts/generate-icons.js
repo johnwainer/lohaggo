@@ -34,7 +34,7 @@ async function generateIcons() {
         pipeline = sharp(svgBuffer)
           .resize(size, size, {
             fit: 'contain',
-            background: { r: 255, g: 105, b: 0, alpha: 1 } // #FF6900
+            background: { r: 255, g: 105, b: 0, alpha: 1 } // #00B894
           })
           .extend({
             top: Math.round((paddedSize - size) / 2),

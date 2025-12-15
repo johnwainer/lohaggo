@@ -120,7 +120,7 @@ export default function PaymentConfigPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-[#FF2D55] mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-primary-500 mx-auto mb-4"></div>
           <p className="text-gray-600 font-medium">Cargando configuración...</p>
         </div>
       </div>
@@ -139,7 +139,7 @@ export default function PaymentConfigPage() {
           <div className="max-w-4xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <CreditCard className="w-8 h-8 text-[#FF2D55]" />
+            <CreditCard className="w-8 h-8 text-primary-600" />
             Configuración de Pagos
           </h1>
           <p className="mt-2 text-gray-600">
@@ -176,7 +176,7 @@ export default function PaymentConfigPage() {
                     value="TEST"
                     checked={environment === 'TEST'}
                     onChange={(e) => setEnvironment(e.target.value as PaymentEnvironment)}
-                    className="w-4 h-4 text-[#FF2D55] focus:ring-[#FF2D55]"
+                    className="w-4 h-4 text-primary-600 focus:ring-primary-500"
                   />
                   <span className="text-gray-700 font-medium">Pruebas</span>
                 </label>
@@ -187,7 +187,7 @@ export default function PaymentConfigPage() {
                     value="PRODUCTION"
                     checked={environment === 'PRODUCTION'}
                     onChange={(e) => setEnvironment(e.target.value as PaymentEnvironment)}
-                    className="w-4 h-4 text-[#FF2D55] focus:ring-[#FF2D55]"
+                    className="w-4 h-4 text-primary-600 focus:ring-primary-500"
                   />
                   <span className="text-gray-700 font-medium">Producción</span>
                 </label>
@@ -221,7 +221,7 @@ export default function PaymentConfigPage() {
                     value={testAccessToken}
                     onChange={(e) => setTestAccessToken(e.target.value)}
                     placeholder={config?.hasTestCredentials ? '••••••••••••••••' : 'TEST-...'}
-                    className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent"
+                    className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   />
                   <button
                     type="button"
@@ -241,7 +241,7 @@ export default function PaymentConfigPage() {
                   value={testPublicKey}
                   onChange={(e) => setTestPublicKey(e.target.value)}
                   placeholder="TEST-..."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
               </div>
               <div>
@@ -253,7 +253,7 @@ export default function PaymentConfigPage() {
                   value={testClientId}
                   onChange={(e) => setTestClientId(e.target.value)}
                   placeholder="Client ID..."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
               </div>
               <div>
@@ -266,7 +266,7 @@ export default function PaymentConfigPage() {
                     value={testClientSecret}
                     onChange={(e) => setTestClientSecret(e.target.value)}
                     placeholder={config?.hasTestCredentials ? '••••••••••••••••' : 'Client Secret...'}
-                    className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent"
+                    className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   />
                   <button
                     type="button"
@@ -301,7 +301,7 @@ export default function PaymentConfigPage() {
                     value={productionAccessToken}
                     onChange={(e) => setProductionAccessToken(e.target.value)}
                     placeholder={config?.hasProductionCredentials ? '••••••••••••••••' : 'APP_USR-...'}
-                    className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent"
+                    className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   />
                   <button
                     type="button"
@@ -321,7 +321,7 @@ export default function PaymentConfigPage() {
                   value={productionPublicKey}
                   onChange={(e) => setProductionPublicKey(e.target.value)}
                   placeholder="APP_USR-..."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
               </div>
               <div>
@@ -333,7 +333,7 @@ export default function PaymentConfigPage() {
                   value={productionClientId}
                   onChange={(e) => setProductionClientId(e.target.value)}
                   placeholder="Client ID..."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
               </div>
               <div>
@@ -346,7 +346,7 @@ export default function PaymentConfigPage() {
                     value={productionClientSecret}
                     onChange={(e) => setProductionClientSecret(e.target.value)}
                     placeholder={config?.hasProductionCredentials ? '••••••••••••••••' : 'Client Secret...'}
-                    className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF2D55] focus:border-transparent"
+                    className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   />
                   <button
                     type="button"
@@ -381,7 +381,7 @@ export default function PaymentConfigPage() {
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 bg-[#FF2D55] text-white px-6 py-3 rounded-lg font-semibold hover:bg-[#E02850] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex-1 bg-primary-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-[#E02850] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {saving ? 'Guardando...' : 'Guardar Configuración'}
             </button>

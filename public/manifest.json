@@ -1,46 +1,33 @@
 {
-  "name": "LoHaggo",
+  "name": "LoHaggo - Servicios a tu alcance",
   "short_name": "LoHaggo",
-  "description": "Lo necesitas, LoHaggo. La forma más simple de encontrar cualquier servicio.",
+  "description": "Conecta con expertos verificados en segundos. La forma más rápida y segura de contratar servicios.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#FF6900",
-  "theme_color": "#FF2D55",
+  "background_color": "#00B894",
+  "theme_color": "#0066CC",
   "orientation": "portrait-primary",
   "scope": "/",
   "lang": "es-MX",
   "dir": "ltr",
-  "categories": ["business", "productivity", "lifestyle"],
+  "categories": ["business", "productivity", "utilities"],
   "icons": [
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icon-192-maskable.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any maskable"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     },
     {
-      "src": "/icon-512-maskable.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
-      "src": "/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any"
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
     }
   ],
   "screenshots": [
@@ -60,8 +47,8 @@
   "shortcuts": [
     {
       "name": "Buscar Servicios",
-      "short_name": "Servicios",
-      "description": "Explora todos los servicios disponibles",
+      "short_name": "Buscar",
+      "description": "Buscar servicios disponibles",
       "url": "/servicios",
       "icons": [
         {
@@ -71,22 +58,10 @@
       ]
     },
     {
-      "name": "Mis Reservas",
-      "short_name": "Reservas",
-      "description": "Ver mis reservas activas",
-      "url": "/dashboard",
-      "icons": [
-        {
-          "src": "/icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
-    },
-    {
-      "name": "Contacto",
-      "short_name": "Contacto",
-      "description": "Contacta con nosotros",
-      "url": "/contacto",
+      "name": "Mi Perfil",
+      "short_name": "Perfil",
+      "description": "Ver mi perfil",
+      "url": "/profile",
       "icons": [
         {
           "src": "/icon-192.png",

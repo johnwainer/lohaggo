@@ -28,11 +28,11 @@ export default async function Home() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Hero Section - Estilo Rappi */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-[#FF2D55] via-[#FF3D00] to-[#FF6900] text-white pt-24 pb-32 md:pt-28 md:pb-40">
+      <section className="relative overflow-hidden bg-gradient-to-br from-primary-500 via-secondary-500 to-accent-500 text-white pt-24 pb-32 md:pt-28 md:pb-40">
         <div className="absolute inset-0 overflow-hidden opacity-20">
-          <div className="absolute -top-40 -right-40 w-96 h-96 bg-yellow-400 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slow"></div>
-          <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-pink-400 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slow" style={{ animationDelay: '1s' }}></div>
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-orange-300 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slow" style={{ animationDelay: '2s' }}></div>
+          <div className="absolute -top-40 -right-40 w-96 h-96 bg-secondary-300 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slow"></div>
+          <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-accent-300 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slow" style={{ animationDelay: '1s' }}></div>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-primary-300 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slow" style={{ animationDelay: '2s' }}></div>
         </div>
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -94,7 +94,7 @@ export default async function Home() {
           <div className="bg-white rounded-3xl shadow-xl p-8">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl md:text-3xl font-black text-gray-900">Categorías populares</h2>
-              <Link href="/servicios" className="text-[#FF2D55] font-bold flex items-center gap-1 hover:gap-2 transition-all">
+              <Link href="/servicios" className="text-primary-500 font-bold flex items-center gap-1 hover:gap-2 transition-all">
                 Ver todas
                 <ChevronRight className="w-5 h-5" />
               </Link>
@@ -108,14 +108,14 @@ export default async function Home() {
                     href={`/servicios?category=${category.slug}`}
                     className="flex-shrink-0 w-36 md:w-32 group"
                   >
-                    <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 text-center hover:from-[#FF2D55]/10 hover:to-[#FF6900]/10 transition-all hover:shadow-lg border-2 border-transparent hover:border-[#FF2D55]/20">
+                    <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 text-center hover:from-primary-50 hover:to-secondary-50 transition-all hover:shadow-lg border-2 border-transparent hover:border-primary-200">
                       <div
                         className="flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform emoji-icon"
                         style={{ fontSize: '3em' }}
                       >
                         {category.icon}
                       </div>
-                      <h3 className="font-bold text-sm text-gray-800 group-hover:text-[#FF2D55] transition line-clamp-2">
+                      <h3 className="font-bold text-sm text-gray-800 group-hover:text-primary-600 transition line-clamp-2">
                         {category.name}
                       </h3>
                     </div>
@@ -136,32 +136,32 @@ export default async function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="bg-white rounded-2xl p-8 text-center hover:shadow-xl transition-all group border-2 border-transparent hover:border-[#FF2D55]/20">
-              <div className="bg-gradient-to-br from-[#FF2D55] to-[#FF6900] w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform">
+            <div className="bg-white rounded-2xl p-8 text-center hover:shadow-xl transition-all group border-2 border-transparent hover:border-primary-200">
+              <div className="bg-gradient-to-br from-primary-500 to-primary-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform">
                 <Clock className="w-8 h-8 text-white" />
               </div>
               <h3 className="text-xl font-bold mb-2 text-gray-900">Súper rápido</h3>
               <p className="text-gray-600 font-medium">Contrata en minutos, no en días</p>
             </div>
 
-            <div className="bg-white rounded-2xl p-8 text-center hover:shadow-xl transition-all group border-2 border-transparent hover:border-[#FF2D55]/20">
-              <div className="bg-gradient-to-br from-[#FF6900] to-[#FFB800] w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform">
+            <div className="bg-white rounded-2xl p-8 text-center hover:shadow-xl transition-all group border-2 border-transparent hover:border-secondary-200">
+              <div className="bg-gradient-to-br from-secondary-500 to-secondary-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform">
                 <Shield className="w-8 h-8 text-white" />
               </div>
               <h3 className="text-xl font-bold mb-2 text-gray-900">100% verificado</h3>
               <p className="text-gray-600 font-medium">Profesionales con identidad confirmada</p>
             </div>
 
-            <div className="bg-white rounded-2xl p-8 text-center hover:shadow-xl transition-all group border-2 border-transparent hover:border-[#FF2D55]/20">
-              <div className="bg-gradient-to-br from-[#FFB800] to-[#FFC107] w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform">
+            <div className="bg-white rounded-2xl p-8 text-center hover:shadow-xl transition-all group border-2 border-transparent hover:border-accent-200">
+              <div className="bg-gradient-to-br from-accent-500 to-accent-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform">
                 <Star className="w-8 h-8 text-white" />
               </div>
               <h3 className="text-xl font-bold mb-2 text-gray-900">Mejor calidad</h3>
               <p className="text-gray-600 font-medium">Reseñas reales de clientes verificados</p>
             </div>
 
-            <div className="bg-white rounded-2xl p-8 text-center hover:shadow-xl transition-all group border-2 border-transparent hover:border-[#FF2D55]/20">
-              <div className="bg-gradient-to-br from-[#FF2D55] to-[#C2185B] w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform">
+            <div className="bg-white rounded-2xl p-8 text-center hover:shadow-xl transition-all group border-2 border-transparent hover:border-primary-200">
+              <div className="bg-gradient-to-br from-primary-600 to-primary-700 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform">
                 <Zap className="w-8 h-8 text-white" />
               </div>
               <h3 className="text-xl font-bold mb-2 text-gray-900">Precios justos</h3>
@@ -188,7 +188,7 @@ export default async function Home() {
               </h2>
               <p className="text-gray-600 font-medium">Los más solicitados por nuestros usuarios</p>
             </div>
-            <Link href="/servicios" className="hidden md:flex text-[#FF2D55] font-bold items-center gap-1 hover:gap-2 transition-all">
+            <Link href="/servicios" className="hidden md:flex text-primary-500 font-bold items-center gap-1 hover:gap-2 transition-all">
               Ver todos
               <ChevronRight className="w-5 h-5" />
             </Link>
@@ -199,18 +199,18 @@ export default async function Home() {
               <Link
                 key={service.id}
                 href={`/servicios/${service.slug}`}
-                className="bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all overflow-hidden group border-2 border-gray-100 hover:border-[#FF2D55]/30"
+                className="bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all overflow-hidden group border-2 border-gray-100 hover:border-primary-300"
               >
-                <div className="h-48 md:h-44 bg-gradient-to-br from-[#FF2D55]/90 to-[#FF6900]/90 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <div className="h-48 md:h-44 bg-gradient-to-br from-primary-500 to-secondary-500 flex items-center justify-center group-hover:scale-110 transition-transform">
                   <span className="emoji-icon" style={{ fontSize: '3em' }}>{service.icon}</span>
                 </div>
                 <div className="p-5">
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="text-xs font-bold px-3 py-1 bg-gradient-to-r from-[#FF2D55]/10 to-[#FF6900]/10 text-[#FF2D55] rounded-full border border-[#FF2D55]/20">
+                    <span className="text-xs font-bold px-3 py-1 bg-primary-50 text-primary-600 rounded-full border border-primary-200">
                       {service.category.name}
                     </span>
                   </div>
-                  <h3 className="font-bold text-lg mb-2 text-gray-900 group-hover:text-[#FF2D55] transition">
+                  <h3 className="font-bold text-lg mb-2 text-gray-900 group-hover:text-primary-600 transition">
                     {service.name}
                   </h3>
                   <p className="text-gray-600 text-sm mb-4 line-clamp-2 font-medium">{service.description}</p>
@@ -220,7 +220,7 @@ export default async function Home() {
                       <span className="text-sm font-bold text-gray-900">4.8</span>
                       <span className="text-xs text-gray-500 ml-1">({service._count.partners})</span>
                     </div>
-                    <span className="text-[#FF2D55] font-black text-lg">Desde {formatCurrency(service.basePrice)}</span>
+                    <span className="text-primary-600 font-black text-lg">Desde {formatCurrency(service.basePrice)}</span>
                   </div>
                 </div>
               </Link>
@@ -230,7 +230,7 @@ export default async function Home() {
           <div className="text-center mt-10">
             <Link
               href="/servicios"
-              className="inline-flex items-center gap-2 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white px-10 py-4 rounded-2xl hover:from-[#FF1D45] hover:to-[#FF5900] transition-all font-bold shadow-lg hover:shadow-xl transform hover:scale-105"
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-10 py-4 rounded-2xl hover:from-primary-600 hover:to-secondary-600 transition-all font-bold shadow-lg hover:shadow-xl transform hover:scale-105"
             >
               Ver todos los servicios
               <ArrowRight className="w-5 h-5" />
@@ -240,10 +240,10 @@ export default async function Home() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-br from-[#FF2D55] via-[#FF3D00] to-[#FF6900] text-white relative overflow-hidden">
+      <section className="py-20 bg-gradient-to-br from-primary-500 via-secondary-500 to-accent-500 text-white relative overflow-hidden">
         <div className="absolute inset-0 overflow-hidden opacity-20">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-yellow-400 rounded-full mix-blend-overlay filter blur-3xl"></div>
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-pink-400 rounded-full mix-blend-overlay filter blur-3xl"></div>
+          <div className="absolute top-0 right-0 w-96 h-96 bg-secondary-300 rounded-full mix-blend-overlay filter blur-3xl"></div>
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-accent-300 rounded-full mix-blend-overlay filter blur-3xl"></div>
         </div>
 
         <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -274,7 +274,7 @@ export default async function Home() {
 
           <Link
             href="/register?role=partner"
-            className="inline-flex items-center gap-2 bg-white text-[#FF2D55] px-10 py-5 rounded-2xl hover:bg-gray-100 transition-all font-black text-lg shadow-2xl hover:shadow-3xl transform hover:scale-105"
+            className="inline-flex items-center gap-2 bg-white text-primary-600 px-10 py-5 rounded-2xl hover:bg-gray-100 transition-all font-black text-lg shadow-2xl hover:shadow-3xl transform hover:scale-105"
           >
             Regístrate como socio
             <ArrowRight className="w-5 h-5" />
@@ -291,7 +291,7 @@ export default async function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all border-2 border-transparent hover:border-[#FF2D55]/20">
+            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all border-2 border-transparent hover:border-primary-200">
               <div className="flex items-center gap-1 mb-4">
                 {[...Array(5)].map((_, i) => (
                   <Star key={i} className="w-5 h-5 text-[#FFB800] fill-[#FFB800]" />
@@ -301,7 +301,7 @@ export default async function Home() {
                 "Excelente servicio. Contraté un plomero y llegó en menos de 2 horas. Muy profesional y el precio fue justo."
               </p>
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-[#FF2D55] to-[#FF6900] rounded-full flex items-center justify-center text-white font-bold text-lg">
+                <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
                   M
                 </div>
                 <div>
@@ -311,7 +311,7 @@ export default async function Home() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all border-2 border-transparent hover:border-[#FF2D55]/20">
+            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all border-2 border-transparent hover:border-primary-200">
               <div className="flex items-center gap-1 mb-4">
                 {[...Array(5)].map((_, i) => (
                   <Star key={i} className="w-5 h-5 text-[#FFB800] fill-[#FFB800]" />
@@ -321,7 +321,7 @@ export default async function Home() {
                 "La mejor plataforma para encontrar servicios. Rápida, confiable y con excelentes profesionales."
               </p>
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-[#FF2D55] to-[#FF6900] rounded-full flex items-center justify-center text-white font-bold text-lg">
+                <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
                   J
                 </div>
                 <div>
@@ -331,7 +331,7 @@ export default async function Home() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all border-2 border-transparent hover:border-[#FF2D55]/20">
+            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all border-2 border-transparent hover:border-primary-200">
               <div className="flex items-center gap-1 mb-4">
                 {[...Array(5)].map((_, i) => (
                   <Star key={i} className="w-5 h-5 text-[#FFB800] fill-[#FFB800]" />
@@ -341,7 +341,7 @@ export default async function Home() {
                 "Increíble experiencia. El electricista que contraté fue muy profesional y resolvió mi problema rápidamente."
               </p>
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-[#FF2D55] to-[#FF6900] rounded-full flex items-center justify-center text-white font-bold text-lg">
+                <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
                   A
                 </div>
                 <div>

@@ -76,9 +76,9 @@ export function Navbar() {
         <button
           onClick={() => setOpen((prev) => !prev)}
           disabled={isGeolocating}
-          className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 px-4 py-2 rounded-xl border-2 border-gray-200 hover:border-[#FF2D55]/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 px-4 py-2 rounded-xl border-2 border-gray-200 hover:border-primary-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <MapPin size={16} className="text-[#FF2D55]" />
+          <MapPin size={16} className="text-primary-600" />
           <div className="flex flex-col text-left">
             <span className="text-[11px] uppercase tracking-wide text-gray-400 font-semibold">Ciudad</span>
             <span className="text-sm font-bold text-gray-800">
@@ -105,13 +105,13 @@ export function Navbar() {
                       }}
                       className={`w-full flex items-center justify-between px-3 py-3 text-sm font-medium transition-all rounded-lg ${
                         city.slug === selectedCity
-                          ? 'text-[#FF2D55] bg-[#FF2D55]/10 border-l-4 border-[#FF2D55]'
+                          ? 'text-primary-600 bg-primary-500/10 border-l-4 border-primary-500'
                           : 'text-gray-700 hover:bg-gray-50'
                       }`}
                     >
                       <span>{city.name}</span>
                       {city.slug === selectedCity && (
-                        <div className="w-2 h-2 rounded-full bg-[#FF2D55]" />
+                        <div className="w-2 h-2 rounded-full bg-primary-500" />
                       )}
                     </button>
                   ))}
@@ -149,7 +149,7 @@ export function Navbar() {
                   setShowCityModal(true)
                   setOpen(false)
                 }}
-                className="w-full text-left px-3 py-2 text-sm font-semibold text-[#FF2D55] hover:bg-[#FF2D55]/5 rounded-lg transition-all"
+                className="w-full text-left px-3 py-2 text-sm font-semibold text-primary-600 hover:bg-primary-500/5 rounded-lg transition-all"
               >
                 Ver todas las opciones
               </button>
@@ -169,13 +169,13 @@ export function Navbar() {
             <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center space-x-3 group">
               <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-2xl blur opacity-50 group-hover:opacity-75 transition"></div>
-                <div className="relative bg-gradient-to-r from-[#FF2D55] to-[#FF6900] p-2.5 rounded-2xl">
+                <div className="absolute inset-0 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-2xl blur opacity-50 group-hover:opacity-75 transition"></div>
+                <div className="relative bg-gradient-to-r from-primary-500 to-secondary-500 p-2.5 rounded-2xl">
                   <Sparkles className="w-6 h-6 text-white" />
                 </div>
               </div>
               <div>
-                <span className="text-2xl font-black bg-gradient-to-r from-[#FF2D55] to-[#FF6900] bg-clip-text text-transparent">
+                <span className="text-2xl font-black bg-gradient-to-r from-primary-500 to-secondary-500 bg-clip-text text-transparent">
                   LoHaggo
                 </span>
                 <div className="text-xs text-gray-500 font-semibold -mt-1">Lo necesitas</div>
@@ -192,8 +192,8 @@ export function Navbar() {
               href="/"
               className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
                 pathname === '/'
-                  ? 'text-[#FF2D55] bg-[#FF2D55]/5'
-                  : 'text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5'
+                  ? 'text-primary-600 bg-primary-500/5'
+                  : 'text-gray-700 hover:text-primary-600 hover:bg-primary-500/5'
               }`}
             >
               Inicio
@@ -202,8 +202,8 @@ export function Navbar() {
               href="/servicios"
               className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
                 pathname?.startsWith('/servicios')
-                  ? 'text-[#FF2D55] bg-[#FF2D55]/5'
-                  : 'text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5'
+                  ? 'text-primary-600 bg-primary-500/5'
+                  : 'text-gray-700 hover:text-primary-600 hover:bg-primary-500/5'
               }`}
             >
               Servicios
@@ -212,8 +212,8 @@ export function Navbar() {
               href="/faq"
               className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
                 pathname === '/faq'
-                  ? 'text-[#FF2D55] bg-[#FF2D55]/5'
-                  : 'text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5'
+                  ? 'text-primary-600 bg-primary-500/5'
+                  : 'text-gray-700 hover:text-primary-600 hover:bg-primary-500/5'
               }`}
             >
               FAQ
@@ -223,7 +223,7 @@ export function Navbar() {
               <>
                 <Link
                   href={getDashboardLink() || '/dashboard'}
-                  className="flex items-center space-x-2 text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 px-5 py-2.5 rounded-xl text-sm font-bold transition-all"
+                  className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-5 py-2.5 rounded-xl text-sm font-bold transition-all"
                 >
                   <LayoutDashboard size={18} />
                   <span>Panel</span>
@@ -234,7 +234,7 @@ export function Navbar() {
                 <div className="relative ml-4" ref={userMenuRef}>
                   <button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className="flex items-center space-x-3 bg-gray-50 hover:bg-gray-100 px-4 py-2.5 rounded-xl transition-all border-2 border-gray-200 hover:border-[#FF2D55]/30"
+                    className="flex items-center space-x-3 bg-gray-50 hover:bg-gray-100 px-4 py-2.5 rounded-xl transition-all border-2 border-gray-200 hover:border-primary-500/30"
                   >
                     {session.user.image ? (
                       <img
@@ -243,7 +243,7 @@ export function Navbar() {
                         className="w-9 h-9 rounded-full object-cover"
                       />
                     ) : (
-                      <div className="w-9 h-9 bg-gradient-to-br from-[#FF2D55] to-[#FF6900] rounded-full flex items-center justify-center text-white font-black text-sm">
+                      <div className="w-9 h-9 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center text-white font-black text-sm">
                         {session.user.name?.charAt(0).toUpperCase()}
                       </div>
                     )}
@@ -256,7 +256,7 @@ export function Navbar() {
                       <div className="px-4 py-3 border-b border-gray-100">
                         <p className="text-sm font-bold text-gray-900">{session.user.name}</p>
                         <p className="text-xs text-gray-500 font-medium">{session.user.email}</p>
-                        <span className="inline-block mt-2 text-xs font-bold text-[#FF2D55] bg-[#FF2D55]/10 px-3 py-1 rounded-full border border-[#FF2D55]/20">
+                        <span className="inline-block mt-2 text-xs font-bold text-primary-600 bg-primary-500/10 px-3 py-1 rounded-full border border-primary-500/20">
                           {session.user.role}
                         </span>
                       </div>
@@ -345,13 +345,13 @@ export function Navbar() {
               <div className="flex items-center space-x-3 ml-4">
                 <Link
                   href="/login"
-                  className="text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 px-6 py-2.5 rounded-xl font-bold transition-all"
+                  className="text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-6 py-2.5 rounded-xl font-bold transition-all"
                 >
                   Iniciar sesión
                 </Link>
                 <Link
                   href="/register"
-                  className="bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white px-6 py-2.5 rounded-xl hover:from-[#FF1D45] hover:to-[#FF5900] transition-all font-bold shadow-lg hover:shadow-xl transform hover:scale-105"
+                  className="bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-6 py-2.5 rounded-xl hover:from-primary-600 hover:to-secondary-600 transition-all font-bold shadow-lg hover:shadow-xl transform hover:scale-105"
                 >
                   Registrarse
                 </Link>
@@ -363,7 +363,7 @@ export function Navbar() {
           <div className="md:hidden flex items-center">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="text-gray-700 hover:text-[#FF2D55] p-2 rounded-lg hover:bg-[#FF2D55]/5 transition-all"
+              className="text-gray-700 hover:text-primary-600 p-2 rounded-lg hover:bg-primary-500/5 transition-all"
             >
               {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
@@ -379,10 +379,10 @@ export function Navbar() {
             <div className="mb-2">
               <button
                 onClick={() => setMobileCityDropdownOpen(!mobileCityDropdownOpen)}
-                className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 transition-all"
+                className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 transition-all"
               >
                 <div className="flex items-center space-x-2">
-                  <MapPin size={18} className="text-[#FF2D55]" />
+                  <MapPin size={18} className="text-primary-600" />
                   <span>
                     {isGeolocating ? 'Detectando...' : currentCity ? currentCity.name : 'Seleccionar ciudad'}
                   </span>
@@ -402,8 +402,8 @@ export function Navbar() {
                       }}
                       className={`w-full text-left px-4 py-2 rounded-lg text-xs font-medium transition-all ${
                         selectedCity === city.slug
-                          ? 'text-[#FF2D55] bg-[#FF2D55]/10'
-                          : 'text-gray-600 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5'
+                          ? 'text-primary-600 bg-primary-500/10'
+                          : 'text-gray-600 hover:text-primary-600 hover:bg-primary-500/5'
                       }`}
                     >
                       {city.name}
@@ -430,7 +430,7 @@ export function Navbar() {
                       setMobileCityDropdownOpen(false)
                       setMobileMenuOpen(false)
                     }}
-                    className="w-full text-left px-4 py-2 text-xs font-semibold text-[#FF2D55] hover:bg-[#FF2D55]/5 rounded-lg transition-all"
+                    className="w-full text-left px-4 py-2 text-xs font-semibold text-primary-600 hover:bg-primary-500/5 rounded-lg transition-all"
                   >
                     Ver todas las opciones
                   </button>
@@ -444,8 +444,8 @@ export function Navbar() {
               href="/"
               className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
                 pathname === '/'
-                  ? 'text-[#FF2D55] bg-[#FF2D55]/5'
-                  : 'text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5'
+                  ? 'text-primary-600 bg-primary-500/5'
+                  : 'text-gray-700 hover:text-primary-600 hover:bg-primary-500/5'
               }`}
               onClick={() => setMobileMenuOpen(false)}
             >
@@ -455,8 +455,8 @@ export function Navbar() {
               href="/servicios"
               className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
                 pathname?.startsWith('/servicios')
-                  ? 'text-[#FF2D55] bg-[#FF2D55]/5'
-                  : 'text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5'
+                  ? 'text-primary-600 bg-primary-500/5'
+                  : 'text-gray-700 hover:text-primary-600 hover:bg-primary-500/5'
               }`}
               onClick={() => setMobileMenuOpen(false)}
             >
@@ -466,8 +466,8 @@ export function Navbar() {
               href="/faq"
               className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
                 pathname === '/faq'
-                  ? 'text-[#FF2D55] bg-[#FF2D55]/5'
-                  : 'text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5'
+                  ? 'text-primary-600 bg-primary-500/5'
+                  : 'text-gray-700 hover:text-primary-600 hover:bg-primary-500/5'
               }`}
               onClick={() => setMobileMenuOpen(false)}
             >
@@ -478,7 +478,7 @@ export function Navbar() {
               <>
                 <Link
                   href={getDashboardLink() || '/dashboard'}
-                  className="flex items-center space-x-2 text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                  className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   <LayoutDashboard size={18} />
@@ -493,14 +493,14 @@ export function Navbar() {
                         className="w-10 h-10 rounded-full object-cover"
                       />
                     ) : (
-                      <div className="w-10 h-10 bg-gradient-to-br from-[#FF2D55] to-[#FF6900] rounded-full flex items-center justify-center text-white font-black">
+                      <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center text-white font-black">
                         {session.user.name?.charAt(0).toUpperCase()}
                       </div>
                     )}
                     <div>
                       <p className="text-sm font-bold text-gray-900">{session.user.name}</p>
                       <p className="text-xs text-gray-500 font-medium">{session.user.email}</p>
-                      <span className="inline-block mt-1 text-xs font-bold text-[#FF2D55] bg-[#FF2D55]/10 px-2 py-0.5 rounded-full border border-[#FF2D55]/20">
+                      <span className="inline-block mt-1 text-xs font-bold text-primary-600 bg-primary-500/10 px-2 py-0.5 rounded-full border border-primary-500/20">
                         {session.user.role}
                       </span>
                     </div>
@@ -509,7 +509,7 @@ export function Navbar() {
                     <>
                       <Link
                         href="/profile"
-                        className="flex items-center space-x-2 text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
                         onClick={() => setMobileMenuOpen(false)}
                       >
                         <User size={18} />
@@ -517,7 +517,7 @@ export function Navbar() {
                       </Link>
                       <Link
                         href="/my-ratings"
-                        className="flex items-center space-x-2 text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
                         onClick={() => setMobileMenuOpen(false)}
                       >
                         <Star size={18} />
@@ -529,7 +529,7 @@ export function Navbar() {
                     <>
                       <Link
                         href="/partner/services"
-                        className="flex items-center space-x-2 text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
                         onClick={() => setMobileMenuOpen(false)}
                       >
                         <Settings size={18} />
@@ -537,7 +537,7 @@ export function Navbar() {
                       </Link>
                       <Link
                         href="/partner/verification"
-                        className="flex items-center space-x-2 text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
                         onClick={() => setMobileMenuOpen(false)}
                       >
                         <Shield size={18} />
@@ -549,7 +549,7 @@ export function Navbar() {
                     <>
                       <Link
                         href="/dashboard/addresses"
-                        className="flex items-center space-x-2 text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
                         onClick={() => setMobileMenuOpen(false)}
                       >
                         <MapPin size={18} />
@@ -557,7 +557,7 @@ export function Navbar() {
                       </Link>
                       <Link
                         href="/dashboard/payment-methods"
-                        className="flex items-center space-x-2 text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
                         onClick={() => setMobileMenuOpen(false)}
                       >
                         <CreditCard size={18} />
@@ -568,7 +568,7 @@ export function Navbar() {
                   {session.user.role !== 'ADMIN' && (
                     <Link
                       href={session.user.role === 'PARTNER' ? '/partner/notifications' : '/notifications'}
-                      className="flex items-center space-x-2 text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                      className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
                       onClick={() => setMobileMenuOpen(false)}
                     >
                       <Bell size={18} />
@@ -588,14 +588,14 @@ export function Navbar() {
               <div className="space-y-2 border-t border-gray-200 pt-4 mt-4">
                 <Link
                   href="/login"
-                  className="block text-center text-gray-700 hover:text-[#FF2D55] hover:bg-[#FF2D55]/5 px-4 py-3 rounded-xl font-bold transition-all"
+                  className="block text-center text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl font-bold transition-all"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Iniciar sesión
                 </Link>
                 <Link
                   href="/register"
-                  className="block text-center bg-gradient-to-r from-[#FF2D55] to-[#FF6900] text-white px-4 py-3 rounded-xl hover:from-[#FF1D45] hover:to-[#FF5900] transition-all font-bold shadow-lg"
+                  className="block text-center bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-4 py-3 rounded-xl hover:from-primary-600 hover:to-secondary-600 transition-all font-bold shadow-lg"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Registrarse

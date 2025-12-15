@@ -5,7 +5,7 @@ export default function PrivacyPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-[#FF2D55] via-[#FF3D00] to-[#FF6900] text-white pt-24 pb-16">
+      <section className="relative overflow-hidden bg-gradient-to-br from-primary-500 via-secondary-500 to-secondary-500 text-white pt-24 pb-16">
         <div className="absolute inset-0 overflow-hidden opacity-20">
           <div className="absolute -top-40 -right-40 w-96 h-96 bg-yellow-400 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slow"></div>
           <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-pink-400 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slow"></div>
@@ -58,7 +58,7 @@ export default function PrivacyPage() {
             {/* Section 1 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">1</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">1</span>
                 Responsable del Tratamiento de Datos
               </h2>
               <div className="pl-11 space-y-3 text-gray-700">
@@ -72,7 +72,7 @@ export default function PrivacyPage() {
             {/* Section 2 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">2</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">2</span>
                 Información que Recopilamos
               </h2>
               <div className="pl-11 space-y-4 text-gray-700">
@@ -124,7 +124,7 @@ export default function PrivacyPage() {
             {/* Section 3 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">3</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">3</span>
                 Finalidad del Tratamiento de Datos
               </h2>
               <div className="pl-11 space-y-3 text-gray-700">
@@ -147,7 +147,7 @@ export default function PrivacyPage() {
             {/* Section 4 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">4</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">4</span>
                 Base Legal del Tratamiento
               </h2>
               <div className="pl-11 space-y-3 text-gray-700">
@@ -164,7 +164,7 @@ export default function PrivacyPage() {
             {/* Section 5 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">5</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">5</span>
                 Compartir Información con Terceros
               </h2>
               <div className="pl-11 space-y-4 text-gray-700">
@@ -196,7 +196,7 @@ export default function PrivacyPage() {
             {/* Section 6 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">6</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">6</span>
                 Derechos de los Titulares (Ley 1581 de 2012)
               </h2>
               <div className="pl-11 space-y-3 text-gray-700">
@@ -223,7 +223,7 @@ export default function PrivacyPage() {
             {/* Section 7 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">7</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">7</span>
                 Seguridad de los Datos
               </h2>
               <div className="pl-11 space-y-3 text-gray-700">
@@ -246,7 +246,7 @@ export default function PrivacyPage() {
             {/* Section 8 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">8</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">8</span>
                 Retención de Datos
               </h2>
               <div className="pl-11 space-y-3 text-gray-700">
@@ -266,7 +266,7 @@ export default function PrivacyPage() {
             {/* Section 9 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">9</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">9</span>
                 Transferencias Internacionales
               </h2>
               <div className="pl-11 space-y-3 text-gray-700">
@@ -285,7 +285,7 @@ export default function PrivacyPage() {
             {/* Section 10 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">10</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">10</span>
                 Menores de Edad
               </h2>
               <div className="pl-11 space-y-3 text-gray-700">
@@ -303,13 +303,13 @@ export default function PrivacyPage() {
             {/* Section 11 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">11</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">11</span>
                 Cookies y Tecnologías Similares
               </h2>
               <div className="pl-11 space-y-3 text-gray-700">
                 <p>
                   Utilizamos cookies y tecnologías similares para mejorar su experiencia. Para más información, 
-                  consulte nuestra <Link href="/cookies" className="text-[#FF2D55] font-bold hover:underline">Política de Cookies</Link>.
+                  consulte nuestra <Link href="/cookies" className="text-primary-600 font-bold hover:underline">Política de Cookies</Link>.
                 </p>
               </div>
             </div>
@@ -317,7 +317,7 @@ export default function PrivacyPage() {
             {/* Section 12 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">12</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">12</span>
                 Cambios a esta Política
               </h2>
               <div className="pl-11 space-y-3 text-gray-700">
@@ -339,7 +339,7 @@ export default function PrivacyPage() {
             {/* Section 13 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">13</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">13</span>
                 Contacto
               </h2>
               <div className="pl-11 space-y-3 text-gray-700">
@@ -348,7 +348,7 @@ export default function PrivacyPage() {
                   <p className="font-bold text-gray-900 mb-3">Oficial de Protección de Datos</p>
                   <div className="space-y-2">
                     <p className="flex items-center gap-2">
-                      <Mail className="w-4 h-4 text-[#FF2D55]" />
+                      <Mail className="w-4 h-4 text-primary-600" />
                       <strong>Email:</strong> privacidad@lohaggo.com
                     </p>
                     <p><strong>Dirección:</strong> Medellín, Antioquia, Colombia</p>
@@ -361,7 +361,7 @@ export default function PrivacyPage() {
             {/* Section 14 */}
             <div className="mb-10">
               <h2 className="text-2xl font-black text-gray-900 mb-4 flex items-center gap-3">
-                <span className="w-8 h-8 bg-gradient-to-r from-[#FF2D55] to-[#FF6900] rounded-lg flex items-center justify-center text-white text-sm">14</span>
+                <span className="w-8 h-8 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center text-white text-sm">14</span>
                 Autoridad de Control
               </h2>
               <div className="pl-11 space-y-3 text-gray-700">
@@ -383,7 +383,7 @@ export default function PrivacyPage() {
             {/* Footer */}
             <div className="mt-12 pt-8 border-t border-gray-200">
               <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Calendar className="w-4 h-4 text-[#FF2D55]" />
+                <Calendar className="w-4 h-4 text-primary-600" />
                 <span>Última actualización: Diciembre 2024</span>
               </div>
               <p className="text-sm text-gray-600 mt-4">
@@ -398,14 +398,14 @@ export default function PrivacyPage() {
               href="/terms"
               className="inline-flex items-center gap-2 bg-white px-6 py-3 rounded-xl font-bold text-gray-900 hover:shadow-lg transition-all border border-gray-200"
             >
-              <FileText className="w-4 h-4 text-[#FF2D55]" />
+              <FileText className="w-4 h-4 text-primary-600" />
               Términos y Condiciones
             </Link>
             <Link
               href="/cookies"
               className="inline-flex items-center gap-2 bg-white px-6 py-3 rounded-xl font-bold text-gray-900 hover:shadow-lg transition-all border border-gray-200"
             >
-              <FileText className="w-4 h-4 text-[#FF2D55]" />
+              <FileText className="w-4 h-4 text-primary-600" />
               Política de Cookies
             </Link>
           </div>
