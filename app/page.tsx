@@ -216,7 +216,7 @@ export default async function Home() {
                   <p className="text-gray-600 text-sm mb-4 line-clamp-2 font-medium">{service.description}</p>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1">
-                      <Star className="w-4 h-4 text-[#FFB800] fill-[#FFB800]" />
+                      <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
                       <span className="text-sm font-bold text-gray-900">4.8</span>
                       <span className="text-xs text-gray-500 ml-1">({service._count.partners})</span>
                     </div>
@@ -294,7 +294,7 @@ export default async function Home() {
             <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all border-2 border-transparent hover:border-primary-200">
               <div className="flex items-center gap-1 mb-4">
                 {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-5 h-5 text-[#FFB800] fill-[#FFB800]" />
+                  <Star key={i} className="w-5 h-5 text-yellow-500 fill-yellow-500" />
                 ))}
               </div>
               <p className="text-gray-700 mb-6 font-medium leading-relaxed">
@@ -314,7 +314,7 @@ export default async function Home() {
             <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all border-2 border-transparent hover:border-primary-200">
               <div className="flex items-center gap-1 mb-4">
                 {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-5 h-5 text-[#FFB800] fill-[#FFB800]" />
+                  <Star key={i} className="w-5 h-5 text-yellow-500 fill-yellow-500" />
                 ))}
               </div>
               <p className="text-gray-700 mb-6 font-medium leading-relaxed">
@@ -334,7 +334,7 @@ export default async function Home() {
             <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all border-2 border-transparent hover:border-primary-200">
               <div className="flex items-center gap-1 mb-4">
                 {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-5 h-5 text-[#FFB800] fill-[#FFB800]" />
+                  <Star key={i} className="w-5 h-5 text-yellow-500 fill-yellow-500" />
                 ))}
               </div>
               <p className="text-gray-700 mb-6 font-medium leading-relaxed">
