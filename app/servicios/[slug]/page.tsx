@@ -166,6 +166,13 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
       router.push('/login?redirect=/servicios/' + slug)
       return
     }
+    if (session.user?.isActive === false) {
+      setValidationModal({
+        isOpen: true,
+        message: 'Tu cuenta está inactiva. No puedes solicitar servicios. Contacta al administrador.'
+      })
+      return
+    }
     fetchAddresses()
     // Open the new request modal
     setShowRequestModal(true)
@@ -177,6 +184,13 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
       router.push('/login?redirect=/servicios/' + slug)
       return
     }
+    if (session.user?.isActive === false) {
+      setValidationModal({
+        isOpen: true,
+        message: 'Tu cuenta está inactiva. No puedes solicitar servicios. Contacta al administrador.'
+      })
+      return
+    }
     fetchAddresses()
     setCurrentStep(1)
     setSelectedPartnerId('')
@@ -186,6 +200,13 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
   const handleRequestToPartner = (partnerId: string) => {
     if (!session) {
       router.push('/login?redirect=/servicios/' + slug)
+      return
+    }
+    if (session.user?.isActive === false) {
+      setValidationModal({
+        isOpen: true,
+        message: 'Tu cuenta está inactiva. No puedes solicitar servicios. Contacta al administrador.'
+      })
       return
     }
     fetchAddresses()
