@@ -766,10 +766,11 @@ function PartnerDashboardContent() {
                               serviceName: booking.service.name,
                               clientName: booking.user.name
                             })}
-                            className="w-full bg-gradient-to-r from-primary-500 to-primary-600 text-white px-4 py-3.5 rounded-xl hover:from-primary-600 hover:to-primary-700 transition-all font-semibold flex items-center justify-center gap-2 mb-3 shadow-lg hover:shadow-xl"
+                            className="w-full bg-gradient-to-r from-primary-500 to-primary-600 text-white px-4 py-3.5 rounded-xl hover:from-primary-600 hover:to-primary-700 transition-all font-semibold flex items-center justify-center gap-2 mb-3 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:from-gray-400 disabled:to-gray-500"
+                            disabled={session?.user?.isActive === false}
                           >
                             <Star size={20} />
-                            Calificar Cliente
+                            Rate Client
                           </button>
                         )}
 
@@ -796,10 +797,11 @@ function PartnerDashboardContent() {
                             onClick={() => setChatModal({
                               isOpen: true,
                               proposalId: booking.proposalId!,
-                              partnerName: booking.user.name,
+                              partnerName: session?.user?.name || 'Socio',
                               serviceName: booking.service.name
                             })}
                             className="w-full bg-white text-gray-700 border-2 border-gray-300 px-4 py-3.5 rounded-xl hover:bg-gray-50 transition-all font-semibold flex items-center justify-center gap-2 mb-3 relative shadow-md hover:shadow-lg"
+                            disabled={session?.user?.isActive === false}
                           >
                             <MessageCircle size={20} />
                             Chat con el Cliente
@@ -817,14 +819,16 @@ function PartnerDashboardContent() {
                               <>
                                 <button
                                   onClick={() => updateBookingStatus(booking.id, 'CONFIRMED', booking.service.name)}
-                                  className="flex-1 bg-gradient-to-r from-primary-500 to-primary-600 text-white px-4 py-3.5 rounded-xl hover:from-primary-600 hover:to-primary-700 transition-all font-semibold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                                  className="flex-1 bg-gradient-to-r from-primary-500 to-primary-600 text-white px-4 py-3.5 rounded-xl hover:from-primary-600 hover:to-primary-700 transition-all font-semibold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                                  disabled={session?.user?.isActive === false}
                                 >
                                   <CheckCircle size={20} />
                                   Confirmar
                                 </button>
                                 <button
                                   onClick={() => updateBookingStatus(booking.id, 'CANCELLED', booking.service.name)}
-                                  className="flex-1 bg-white text-gray-700 border-2 border-gray-400 px-4 py-3.5 rounded-xl hover:bg-gray-50 transition-all font-semibold flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+                                  className="flex-1 bg-white text-gray-700 border-2 border-gray-400 px-4 py-3.5 rounded-xl hover:bg-gray-50 transition-all font-semibold flex items-center justify-center gap-2 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                                  disabled={session?.user?.isActive === false}
                                 >
                                   <XCircle size={20} />
                                   Rechazar
@@ -834,7 +838,8 @@ function PartnerDashboardContent() {
                             {booking.status === 'CONFIRMED' && (
                               <button
                                 onClick={() => updateBookingStatus(booking.id, 'IN_PROGRESS', booking.service.name)}
-                                className="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-3.5 rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all font-semibold shadow-lg hover:shadow-xl"
+                                className="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-3.5 rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled={session?.user?.isActive === false}
                               >
                                 Iniciar Servicio
                               </button>
@@ -842,7 +847,8 @@ function PartnerDashboardContent() {
                             {booking.status === 'IN_PROGRESS' && (
                               <button
                                 onClick={() => updateBookingStatus(booking.id, 'COMPLETED', booking.service.name)}
-                                className="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white px-4 py-3.5 rounded-xl hover:from-emerald-600 hover:to-green-700 transition-all font-semibold shadow-lg hover:shadow-xl"
+                                className="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white px-4 py-3.5 rounded-xl hover:from-emerald-600 hover:to-green-700 transition-all font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled={session?.user?.isActive === false}
                               >
                                 Marcar Completado
                               </button>
@@ -1019,10 +1025,11 @@ function PartnerDashboardContent() {
                         ) : (
                           <button
                             onClick={() => openProposalModal(request)}
-                            className="bg-gradient-to-r from-primary-500 to-primary-600 text-white px-4 py-3.5 rounded-xl font-semibold hover:from-primary-600 hover:to-primary-700 transition-all w-full flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                            className="bg-gradient-to-r from-primary-500 to-primary-600 text-white px-4 py-3.5 rounded-xl font-semibold hover:from-primary-600 hover:to-primary-700 transition-all w-full flex items-center justify-center gap-2 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={session?.user?.isActive === false}
                           >
                             <Send size={20} />
-                            Enviar Propuesta
+                            Send Proposal
                           </button>
                         )}
                       </div>
@@ -1147,6 +1154,7 @@ function PartnerDashboardContent() {
               <button
                 onClick={submitProposal}
                 className="bg-gradient-to-r from-primary-600 to-primary-700 text-white px-4 py-3 rounded-xl font-semibold hover:from-primary-700 hover:to-primary-800 transition-all disabled:bg-gray-300 disabled:cursor-not-allowed flex-1 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                disabled={session?.user?.isActive === false}
               >
                 <Send size={20} />
                 Enviar Propuesta
