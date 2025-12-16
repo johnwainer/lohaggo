@@ -9,6 +9,7 @@ declare module "next-auth" {
       image?: string | null
       clientRating?: number
       clientTotalReviews?: number
+      isActive?: boolean
     } & DefaultSession["user"]
   }
 
@@ -18,6 +19,7 @@ declare module "next-auth" {
     image?: string | null
     clientRating?: number
     clientTotalReviews?: number
+    isActive?: boolean
   }
 }
 
@@ -28,5 +30,6 @@ declare module "next-auth/jwt" {
     image?: string | null
     clientRating?: number
     clientTotalReviews?: number
+    isActive?: boolean
   }
 }

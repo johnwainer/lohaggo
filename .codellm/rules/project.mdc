@@ -1,0 +1,9 @@
+---
+description: PROJECT Rules
+globs: 
+alwaysApply: true
+---
+
+- The project is version-controlled in **Git**.
+- The application is deployed using **Vercel**.
+- The database is hosted on **Supabase**.

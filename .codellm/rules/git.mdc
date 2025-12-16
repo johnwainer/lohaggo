@@ -1,0 +1,52 @@
+---
+description: GIT Rules
+globs: 
+alwaysApply: true
+---
+
+# Your rule content
+
+- The agent MUST ensure that **all Git contributions are in English** only:
+  - Commit messages
+  - Branch names
+  - Tag names
+  - Pull Request titles and descriptions
+  - Code comments, docstrings, and documentation
+- The agent MUST automatically **translate any Spanish (or non‑English) text to English** before committing or pushing.
+- The agent MUST use **international naming conventions** for branches:
+  - Pattern:  
+    `type/scope/short-kebab-case-description`
+  - Allowed `type` values (lowercase): `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `ci`, `build`, `perf`
+  - `scope` MUST be a short English, kebab‑case identifier (e.g. `billing-service`, `auth`, `frontend`)
+  - Description MUST be in English, in kebab‑case (e.g. `add-invoice-endpoint`, `handle-expired-tokens`)
+- The agent MUST enforce **Conventional Commits** in English for all commit messages:
+  - Pattern:  
+    `type(scope): short imperative summary in English`
+  - Allowed `type` values: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`
+  - The summary MUST:
+    - Be imperative (e.g. "add", "fix", "update"), not past or continuous
+    - Be concise (ideally ≤ 72 characters)
+- The agent MUST validate **branch names** before any `git push`:
+  - Reject / rename branches that do not match:  
+    `^(feat|fix|chore|docs|refactor|test|ci|build|perf)/[a-z0-9-]+/[a-z0-9-]+$`
+- The agent MUST validate **commit messages** before any `git push`:
+  - Reject / rewrite messages that:
+    - Do not match the Conventional Commits pattern, or
+    - Contain Spanish or non‑English content
+- The agent MUST ensure all new **identifiers and files** use English and standard conventions:
+  - Classes / types: `PascalCase`
+  - Functions / methods / variables: `camelCase` or `snake_case` according to project style
+  - Constants: `UPPER_SNAKE_CASE`
+  - Files / directories: English, no accents or locale‑specific characters
+- The agent MUST ensure all **comments and documentation** added or edited are:
+  - Written in clear, technical English
+  - Using ISO‑8601 format for dates/times where needed (e.g. `2025-12-16T09:30:00Z`)
+- Before executing any `git push`, the agent MUST:
+  - Scan branch name, commit messages, and newly added/modified comments and docs
+  - Block the push if:
+    - Any Spanish or non‑English text is found
+    - Branch name does not follow the required pattern
+    - Commit messages do not follow Conventional Commits
+  - Attempt automatic fixes (translate, rename branch, rewrite commit messages) and only proceed when all rules are satisfied
+- When the agent performs automatic normalization (translation, renaming, message rewrite), it SHOULD:
+  - Add a short English note in the commit body or PR description documenting what was normalized (e.g. "Automation: normalized commit messages and branch name to English and Conventional Commits format.")

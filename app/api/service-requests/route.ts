@@ -18,7 +18,16 @@ export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions)
 
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { isActive: true }
+    })
+
+    if (!user?.isActive) {
+      return NextResponse.json({ error: 'Your account is inactive. Please contact the administrator.' }, { status: 403 })
     }
 
     const body = await req.json()

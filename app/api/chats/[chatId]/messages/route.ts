@@ -250,25 +250,35 @@ export async function POST(
     })
 
     if (!chat) {
-      return NextResponse.json({ error: 'Chat no encontrado' }, { status: 404 })
+      return NextResponse.json({ error: 'Chat not found' }, { status: 404 })
     }
 
     let isAuthorized = false
     let partnerProfile = null
 
     if (chat.clientId === session.user.id) {
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { isActive: true }
+      })
+      if (!user?.isActive) {
+        return NextResponse.json({ error: 'Your account is inactive. Please contact the administrator.' }, { status: 403 })
+      }
       isAuthorized = true
     } else if (session.user.role === 'PARTNER') {
       partnerProfile = await prisma.partnerProfile.findUnique({
         where: { userId: session.user.id }
       })
       if (partnerProfile && chat.partnerId === partnerProfile.id) {
+        if (!partnerProfile.isActive) {
+          return NextResponse.json({ error: 'Your account is inactive. Please contact the administrator.' }, { status: 403 })
+        }
         isAuthorized = true
       }
     }
 
     if (!isAuthorized) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
     const message = await prisma.chatMessage.create({
