@@ -164,7 +164,25 @@ async function handlePOST(req: NextRequest) {
           },
         })
       }
+
+      await prisma.partnerProfile.update({
+        where: { id: booking.partnerId },
+        data: {
+          completedServicesCount: {
+            increment: 1
+          }
+        }
+      })
     }
+
+    await prisma.user.update({
+      where: { id: booking.userId },
+      data: {
+        completedServicesCount: {
+          increment: 1
+        }
+      }
+    })
 
     return NextResponse.json({
       success: true,
