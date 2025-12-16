@@ -2,18 +2,9 @@
 
 import { useSession } from 'next-auth/react'
 import { AlertCircle } from 'lucide-react'
-import { useEffect } from 'react'
 
 export default function InactiveAccountBanner() {
-  const { data: session, update } = useSession()
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      update()
-    }, 5000)
-
-    return () => clearInterval(interval)
-  }, [update])
+  const { data: session } = useSession()
 
   if (!session?.user) return null
 

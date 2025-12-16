@@ -122,7 +122,7 @@ const requestStatusLabels: Record<string, string> = {
 }
 
 export default function DashboardPage() {
-  const { data: session, status, update } = useSession()
+  const { data: session, status } = useSession()
   const router = useRouter()
   const [bookings, setBookings] = useState<Booking[]>([])
   const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([])
@@ -240,16 +240,6 @@ export default function DashboardPage() {
       return () => clearInterval(interval)
     }
   }, [status, bookings, serviceRequests])
-
-  useEffect(() => {
-    if (status === 'authenticated') {
-      const interval = setInterval(() => {
-        update()
-      }, 5000)
-
-      return () => clearInterval(interval)
-    }
-  }, [status, update])
 
   const fetchUnreadCounts = async () => {
     try {
