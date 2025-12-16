@@ -152,7 +152,22 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
           <h1 className="text-6xl sm:text-7xl lg:text-8xl font-black mb-6 bg-gradient-to-r from-primary-500 via-primary-600 to-secondary-500 bg-clip-text text-transparent animate-gradient">
             {city.name}
           </h1>
-          
+
+          {city.fechaLanzamiento && (
+            <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm px-6 py-3 rounded-full mb-4 shadow-lg border-2 border-primary-200">
+              <Calendar className="w-5 h-5 text-primary-600" />
+              <span className="text-lg font-bold text-gray-800">
+                Lanzamiento: {new Date(city.fechaLanzamiento).toLocaleDateString('es-ES', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
+              </span>
+            </div>
+          )}
+
           <p className="text-2xl sm:text-3xl text-gray-700 mb-4 max-w-3xl mx-auto font-bold">
             ¡La revolución de servicios está llegando! 🚀
           </p>
