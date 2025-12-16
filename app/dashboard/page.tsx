@@ -1237,7 +1237,8 @@ export default function DashboardPage() {
                                 serviceName: booking.service.name,
                                 partnerName: booking.partner?.user.name || 'el socio'
                               })}
-                              className="w-full bg-gradient-to-r from-yellow-400 to-orange-400 text-white px-4 py-3.5 rounded-xl hover:from-yellow-500 hover:to-orange-500 transition-all font-semibold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                              disabled={session?.user?.isActive === false}
+                              className="w-full bg-gradient-to-r from-yellow-400 to-orange-400 text-white px-4 py-3.5 rounded-xl hover:from-yellow-500 hover:to-orange-500 transition-all font-semibold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               <Star size={20} />
                               Calificar Servicio
@@ -1265,7 +1266,8 @@ export default function DashboardPage() {
                           {booking.status === 'COMPLETED' && !booking.payment && (
                             <button
                               onClick={() => openPaymentModal(booking.id, booking.service.name, booking.totalPrice)}
-                              className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-3.5 rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all font-semibold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                              disabled={session?.user?.isActive === false}
+                              className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-3.5 rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all font-semibold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               <DollarSign size={20} />
                               Pagar Servicio
@@ -1298,7 +1300,8 @@ export default function DashboardPage() {
                                 partnerName: booking.partner?.user.name || 'Socio',
                                 serviceName: booking.service.name
                               })}
-                              className="w-full bg-white text-secondary-600 border-2 border-secondary-500 px-4 py-3.5 rounded-xl hover:bg-secondary-50 transition-all font-semibold flex items-center justify-center gap-2 relative shadow-md hover:shadow-lg"
+                              disabled={session?.user?.isActive === false}
+                              className="w-full bg-white text-secondary-600 border-2 border-secondary-500 px-4 py-3.5 rounded-xl hover:bg-secondary-50 transition-all font-semibold flex items-center justify-center gap-2 relative shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               <MessageCircle size={20} />
                               Chat con el Socio
@@ -1313,7 +1316,8 @@ export default function DashboardPage() {
                           {(booking.status === 'PENDING' || booking.status === 'CONFIRMED') && booking.payment?.status !== 'APPROVED' && (
                             <button
                               onClick={() => cancelBooking(booking.id, booking.service.name)}
-                              className="w-full bg-white text-gray-700 border-2 border-gray-400 px-4 py-3.5 rounded-xl hover:bg-gray-50 transition-all font-semibold flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+                              disabled={session?.user?.isActive === false}
+                              className="w-full bg-white text-gray-700 border-2 border-gray-400 px-4 py-3.5 rounded-xl hover:bg-gray-50 transition-all font-semibold flex items-center justify-center gap-2 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               <XCircle size={20} />
                               Cancelar Reserva
@@ -1751,7 +1755,8 @@ export default function DashboardPage() {
                                                 partnerName: proposal.partner.user.name,
                                                 serviceName: request.service.name
                                               })}
-                                              className="w-full bg-white border-2 border-orange-500 text-primary-600 px-4 py-3.5 rounded-xl hover:bg-primary-50 transition-all font-semibold flex items-center justify-center gap-2 relative shadow-md hover:shadow-lg"
+                                              disabled={session?.user?.isActive === false}
+                                              className="w-full bg-white border-2 border-orange-500 text-primary-600 px-4 py-3.5 rounded-xl hover:bg-primary-50 transition-all font-semibold flex items-center justify-center gap-2 relative shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                                             >
                                               <MessageCircle size={20} />
                                               Chat con el Socio
@@ -1765,7 +1770,8 @@ export default function DashboardPage() {
                                           {request.status === 'ACTIVE' && proposal.status === 'PENDING' && (
                                             <button
                                               onClick={() => acceptProposal(proposal.id, proposal.partner.user.name, proposal.price)}
-                                              className="w-full bg-gradient-to-r from-secondary-500 to-secondary-600 text-white px-4 py-3.5 rounded-xl hover:from-secondary-600 hover:to-secondary-700 transition-all font-semibold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                                              disabled={session?.user?.isActive === false}
+                                              className="w-full bg-gradient-to-r from-secondary-500 to-secondary-600 text-white px-4 py-3.5 rounded-xl hover:from-secondary-600 hover:to-secondary-700 transition-all font-semibold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
                                             >
                                               <CheckCircle size={20} />
                                               Aceptar Propuesta
