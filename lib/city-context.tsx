@@ -11,6 +11,8 @@ export type CityOption = {
   order: number
   latitude?: number
   longitude?: number
+  lanzamiento?: boolean
+  fechaLanzamiento?: string | null
 }
 
 type CityContextValue = {
