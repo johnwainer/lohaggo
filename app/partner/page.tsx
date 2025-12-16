@@ -416,7 +416,7 @@ function PartnerDashboardContent() {
   const completedCount = bookings.filter(b => b.status === 'COMPLETED').length
   const inProgressCount = bookings.filter(b => b.status === 'IN_PROGRESS').length
 
-  const filteredBookings = bookings.filter(booking => 
+  const filteredBookings = bookings.filter(booking =>
     booking.service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     booking.user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     booking.address.toLowerCase().includes(searchTerm.toLowerCase())
