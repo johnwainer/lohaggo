@@ -68,7 +68,7 @@ export default function CitiesSection() {
     try {
       const dataToSend = {
         ...formData,
-        fechaLanzamiento: formData.fechaLanzamiento ? new Date(formData.fechaLanzamiento).toISOString() : null
+        fechaLanzamiento: formData.lanzamiento && formData.fechaLanzamiento ? new Date(formData.fechaLanzamiento).toISOString() : null
       }
 
       const res = await fetch('/api/admin/cities', {
@@ -132,7 +132,7 @@ export default function CitiesSection() {
     try {
       const dataToSend = {
         ...editingData,
-        fechaLanzamiento: editingData.fechaLanzamiento ? new Date(editingData.fechaLanzamiento).toISOString() : null
+        fechaLanzamiento: editingData.lanzamiento && editingData.fechaLanzamiento ? new Date(editingData.fechaLanzamiento).toISOString() : null
       }
       await handleUpdate(editingId, dataToSend)
     } catch (error) {
@@ -266,7 +266,7 @@ export default function CitiesSection() {
                 <input
                   type="checkbox"
                   checked={formData.lanzamiento}
-                  onChange={(e) => setFormData({ ...formData, lanzamiento: e.target.checked, fechaLanzamiento: e.target.checked ? formData.fechaLanzamiento : null })}
+                  onChange={(e) => setFormData({ ...formData, lanzamiento: e.target.checked })}
                   className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                 />
                 Scheduled launch
@@ -418,7 +418,7 @@ export default function CitiesSection() {
                         <input
                           type="checkbox"
                           checked={editingData.lanzamiento}
-                          onChange={(e) => setEditingData({ ...editingData, lanzamiento: e.target.checked, fechaLanzamiento: e.target.checked ? editingData.fechaLanzamiento : null })}
+                          onChange={(e) => setEditingData({ ...editingData, lanzamiento: e.target.checked })}
                           className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                         />
                         Scheduled
