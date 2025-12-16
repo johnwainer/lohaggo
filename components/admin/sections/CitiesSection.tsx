@@ -145,7 +145,7 @@ export default function CitiesSection() {
     setEditingData(null)
   }
 
-  const formatDateForInput = (dateString: string | null): string => {
+  const formatDateForInput = (dateString: string | null | undefined): string => {
     if (!dateString) return ''
     const date = new Date(dateString)
     return date.toISOString().slice(0, 16)
