@@ -26,6 +26,7 @@ interface Service {
       id: string
       rating: number
       totalReviews: number
+      completedServicesCount: number
       verified: boolean
       user: {
         name: string
@@ -571,6 +572,10 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                   if (aFullyVerified && !bFullyVerified) return -1
                   if (!aFullyVerified && bFullyVerified) return 1
 
+                  if (a.partner.completedServicesCount !== b.partner.completedServicesCount) {
+                    return b.partner.completedServicesCount - a.partner.completedServicesCount
+                  }
+
                   return b.partner.rating - a.partner.rating
                 })
                 .map((partnerService) => {
@@ -661,6 +666,12 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                       </div>
 
                       <div className="mb-4 pb-4 border-b border-gray-200">
+                        <div className="flex items-center gap-2 mb-3">
+                          <CheckCircle size={16} className="text-green-600" />
+                          <span className="text-sm text-gray-700">
+                            <span className="font-bold text-green-600">{partnerService.partner.completedServicesCount}</span> {partnerService.partner.completedServicesCount === 1 ? 'servicio completado' : 'servicios completados'}
+                          </span>
+                        </div>
                         <div className="flex items-baseline gap-2">
                           <span className="text-gray-600 text-sm font-medium">Precio:</span>
                           <p className={`font-bold text-2xl md:text-3xl ${
