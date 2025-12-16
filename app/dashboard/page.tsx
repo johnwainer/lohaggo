@@ -567,11 +567,10 @@ export default function DashboardPage() {
   const totalProposals = serviceRequests.reduce((total, req) => total + req.proposals.length, 0)
 
   const filteredBookings = bookings
-    .filter(booking => {
-      if (filter && booking.status !== filter) return false
-      return booking.service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        booking.address.toLowerCase().includes(searchTerm.toLowerCase())
-    })
+    .filter(booking =>
+      booking.service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      booking.address.toLowerCase().includes(searchTerm.toLowerCase())
+    )
 
   const filteredRequests = serviceRequests.filter(request =>
     request.service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
