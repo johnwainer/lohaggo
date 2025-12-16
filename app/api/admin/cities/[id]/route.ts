@@ -10,7 +10,7 @@ const logger = createLogger('admin-cities-id')
 const cityUpdateSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   slug: z.string().min(1).max(100).optional(),
-  status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
+  status: z.enum(['ACTIVE', 'INACTIVE', 'COMING_SOON']).optional(),
   order: z.number().int().min(0).optional(),
   latitude: z.number().optional().nullable(),
   longitude: z.number().optional().nullable(),
