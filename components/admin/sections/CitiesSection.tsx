@@ -33,6 +33,7 @@ export default function CitiesSection() {
   const [cities, setCities] = useState<City[]>([])
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingData, setEditingData] = useState<Partial<City> | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
@@ -65,10 +66,15 @@ export default function CitiesSection() {
 
   const handleAdd = async () => {
     try {
+      const dataToSend = {
+        ...formData,
+        fechaLanzamiento: formData.fechaLanzamiento ? new Date(formData.fechaLanzamiento).toISOString() : null
+      }
+
       const res = await fetch('/api/admin/cities', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(dataToSend)
       })
 
       if (res.ok) {
@@ -92,6 +98,7 @@ export default function CitiesSection() {
       if (res.ok) {
         await fetchCities()
         setEditingId(null)
+        setEditingData(null)
       }
     } catch (error) {
       console.error('Error updating city:', error)
@@ -99,7 +106,7 @@ export default function CitiesSection() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('¿Estás seguro de que deseas eliminar esta ciudad?')) return
+    if (!confirm('Are you sure you want to delete this city?')) return
 
     try {
       const res = await fetch(`/api/admin/cities/${id}`, {
@@ -112,6 +119,36 @@ export default function CitiesSection() {
     } catch (error) {
       console.error('Error deleting city:', error)
     }
+  }
+
+  const startEditing = (city: City) => {
+    setEditingId(city.id)
+    setEditingData({ ...city })
+  }
+
+  const saveEditing = async () => {
+    if (!editingId || !editingData) return
+
+    try {
+      const dataToSend = {
+        ...editingData,
+        fechaLanzamiento: editingData.fechaLanzamiento ? new Date(editingData.fechaLanzamiento).toISOString() : null
+      }
+      await handleUpdate(editingId, dataToSend)
+    } catch (error) {
+      console.error('Error saving changes:', error)
+    }
+  }
+
+  const cancelEditing = () => {
+    setEditingId(null)
+    setEditingData(null)
+  }
+
+  const formatDateForInput = (dateString: string | null): string => {
+    if (!dateString) return ''
+    const date = new Date(dateString)
+    return date.toISOString().slice(0, 16)
   }
 
   if (loading) {
@@ -127,32 +164,32 @@ export default function CitiesSection() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Gestión de Ciudades</h2>
-          <p className="text-gray-600 mt-1">Administra las ciudades disponibles en la plataforma</p>
+          <h2 className="text-2xl font-bold text-gray-900">Cities Management</h2>
+          <p className="text-gray-600 mt-1">Manage the cities available on the platform</p>
         </div>
         <button
           onClick={() => setShowAddForm(true)}
           className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition"
         >
           <Plus size={20} />
-          Agregar Ciudad
+          Add City
         </button>
       </div>
 
       {showAddForm && (
         <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-          <h3 className="text-lg font-semibold mb-4">Nueva Ciudad</h3>
+          <h3 className="text-lg font-semibold mb-4">New City</h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nombre
+                Name
               </label>
               <input
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                placeholder="Ej: Medellín"
+                placeholder="E.g.: Medellin"
               />
             </div>
             <div>
@@ -164,26 +201,26 @@ export default function CitiesSection() {
                 value={formData.slug}
                 onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase() })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                placeholder="Ej: medellin"
+                placeholder="E.g.: medellin"
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Estado
+                Status
               </label>
               <select
                 value={formData.status}
                 onChange={(e) => setFormData({ ...formData, status: e.target.value as CityStatus })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               >
-                <option value="ACTIVE">Activa</option>
-                <option value="INACTIVE">Inactiva</option>
-                <option value="COMING_SOON">Próximamente</option>
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+                <option value="COMING_SOON">Coming Soon</option>
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Orden
+                Order
               </label>
               <input
                 type="number"
@@ -196,7 +233,7 @@ export default function CitiesSection() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <div className="flex items-center gap-1">
                   <Navigation size={14} />
-                  Latitud
+                  Latitude
                 </div>
               </label>
               <input
@@ -205,14 +242,14 @@ export default function CitiesSection() {
                 value={formData.latitude ?? ''}
                 onChange={(e) => setFormData({ ...formData, latitude: e.target.value ? parseFloat(e.target.value) : null })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                placeholder="Ej: 6.2442"
+                placeholder="E.g.: 6.2442"
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <div className="flex items-center gap-1">
                   <Navigation size={14} />
-                  Longitud
+                  Longitude
                 </div>
               </label>
               <input
@@ -221,7 +258,7 @@ export default function CitiesSection() {
                 value={formData.longitude ?? ''}
                 onChange={(e) => setFormData({ ...formData, longitude: e.target.value ? parseFloat(e.target.value) : null })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                placeholder="Ej: -75.5812"
+                placeholder="E.g.: -75.5812"
               />
             </div>
             <div className="col-span-2">
@@ -232,18 +269,18 @@ export default function CitiesSection() {
                   onChange={(e) => setFormData({ ...formData, lanzamiento: e.target.checked, fechaLanzamiento: e.target.checked ? formData.fechaLanzamiento : null })}
                   className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                 />
-                Lanzamiento programado
+                Scheduled launch
               </label>
             </div>
             {formData.lanzamiento && (
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Fecha de lanzamiento
+                  Launch date
                 </label>
                 <input
                   type="datetime-local"
-                  value={formData.fechaLanzamiento ?? ''}
-                  onChange={(e) => setFormData({ ...formData, fechaLanzamiento: e.target.value })}
+                  value={formatDateForInput(formData.fechaLanzamiento)}
+                  onChange={(e) => setFormData({ ...formData, fechaLanzamiento: e.target.value || null })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
               </div>
@@ -256,7 +293,7 @@ export default function CitiesSection() {
               className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition"
             >
               <Save size={18} />
-              Guardar
+              Save
             </button>
             <button
               onClick={() => {
@@ -266,7 +303,7 @@ export default function CitiesSection() {
               className="flex items-center gap-2 bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition"
             >
               <X size={18} />
-              Cancelar
+              Cancel
             </button>
           </div>
         </div>
@@ -278,25 +315,25 @@ export default function CitiesSection() {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Ciudad
+                City
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Slug
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Estado
+                Status
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Orden
+                Order
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Coordenadas
+                Coordinates
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Lanzamiento
+                Launch
               </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Acciones
+                Actions
               </th>
             </tr>
           </thead>
@@ -313,15 +350,15 @@ export default function CitiesSection() {
                   <span className="text-sm text-gray-600">{city.slug}</span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  {editingId === city.id ? (
+                  {editingId === city.id && editingData ? (
                     <select
-                      value={city.status}
-                      onChange={(e) => handleUpdate(city.id, { status: e.target.value as CityStatus })}
+                      value={editingData.status}
+                      onChange={(e) => setEditingData({ ...editingData, status: e.target.value as CityStatus })}
                       className="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500"
                     >
-                      <option value="ACTIVE">Activa</option>
-                      <option value="INACTIVE">Inactiva</option>
-                      <option value="COMING_SOON">Próximamente</option>
+                      <option value="ACTIVE">Active</option>
+                      <option value="INACTIVE">Inactive</option>
+                      <option value="COMING_SOON">Coming Soon</option>
                     </select>
                   ) : (
                     <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[city.status]}`}>
@@ -330,11 +367,11 @@ export default function CitiesSection() {
                   )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  {editingId === city.id ? (
+                  {editingId === city.id && editingData ? (
                     <input
                       type="number"
-                      value={city.order}
-                      onChange={(e) => handleUpdate(city.id, { order: parseInt(e.target.value) })}
+                      value={editingData.order}
+                      onChange={(e) => setEditingData({ ...editingData, order: parseInt(e.target.value) })}
                       className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
                     />
                   ) : (
@@ -342,23 +379,23 @@ export default function CitiesSection() {
                   )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  {editingId === city.id ? (
+                  {editingId === city.id && editingData ? (
                     <div className="flex flex-col gap-2">
                       <input
                         type="number"
                         step="0.0001"
-                        value={city.latitude ?? ''}
-                        onChange={(e) => handleUpdate(city.id, { latitude: e.target.value ? parseFloat(e.target.value) : null })}
+                        value={editingData.latitude ?? ''}
+                        onChange={(e) => setEditingData({ ...editingData, latitude: e.target.value ? parseFloat(e.target.value) : null })}
                         className="w-32 px-2 py-1 border border-gray-300 rounded text-xs"
-                        placeholder="Latitud"
+                        placeholder="Latitude"
                       />
                       <input
                         type="number"
                         step="0.0001"
-                        value={city.longitude ?? ''}
-                        onChange={(e) => handleUpdate(city.id, { longitude: e.target.value ? parseFloat(e.target.value) : null })}
+                        value={editingData.longitude ?? ''}
+                        onChange={(e) => setEditingData({ ...editingData, longitude: e.target.value ? parseFloat(e.target.value) : null })}
                         className="w-32 px-2 py-1 border border-gray-300 rounded text-xs"
-                        placeholder="Longitud"
+                        placeholder="Longitude"
                       />
                     </div>
                   ) : (
@@ -369,28 +406,28 @@ export default function CitiesSection() {
                           <span>{city.latitude.toFixed(4)}, {city.longitude.toFixed(4)}</span>
                         </div>
                       ) : (
-                        <span className="text-gray-400 italic">Sin coordenadas</span>
+                        <span className="text-gray-400 italic">No coordinates</span>
                       )}
                     </div>
                   )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  {editingId === city.id ? (
+                  {editingId === city.id && editingData ? (
                     <div className="flex flex-col gap-2">
                       <label className="flex items-center gap-2 text-sm">
                         <input
                           type="checkbox"
-                          checked={city.lanzamiento}
-                          onChange={(e) => handleUpdate(city.id, { lanzamiento: e.target.checked, fechaLanzamiento: e.target.checked ? city.fechaLanzamiento : null })}
+                          checked={editingData.lanzamiento}
+                          onChange={(e) => setEditingData({ ...editingData, lanzamiento: e.target.checked, fechaLanzamiento: e.target.checked ? editingData.fechaLanzamiento : null })}
                           className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                         />
-                        Programado
+                        Scheduled
                       </label>
-                      {city.lanzamiento && (
+                      {editingData.lanzamiento && (
                         <input
                           type="datetime-local"
-                          value={city.fechaLanzamiento ?? ''}
-                          onChange={(e) => handleUpdate(city.id, { fechaLanzamiento: e.target.value })}
+                          value={formatDateForInput(editingData.fechaLanzamiento)}
+                          onChange={(e) => setEditingData({ ...editingData, fechaLanzamiento: e.target.value || null })}
                           className="px-2 py-1 border border-gray-300 rounded text-xs"
                         />
                       )}
@@ -400,11 +437,11 @@ export default function CitiesSection() {
                       {city.lanzamiento ? (
                         <div className="flex flex-col gap-1">
                           <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-semibold">
-                            Programado
+                            Scheduled
                           </span>
                           {city.fechaLanzamiento && (
                             <span className="text-gray-500">
-                              {new Date(city.fechaLanzamiento).toLocaleString('es-ES', {
+                              {new Date(city.fechaLanzamiento).toLocaleString('en-US', {
                                 day: '2-digit',
                                 month: '2-digit',
                                 year: 'numeric',
@@ -415,7 +452,7 @@ export default function CitiesSection() {
                           )}
                         </div>
                       ) : (
-                        <span className="text-gray-400 italic">No programado</span>
+                        <span className="text-gray-400 italic">Not scheduled</span>
                       )}
                     </div>
                   )}
@@ -423,15 +460,23 @@ export default function CitiesSection() {
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <div className="flex items-center justify-end gap-2">
                     {editingId === city.id ? (
-                      <button
-                        onClick={() => setEditingId(null)}
-                        className="text-gray-600 hover:text-gray-900"
-                      >
-                        <X size={18} />
-                      </button>
+                      <>
+                        <button
+                          onClick={saveEditing}
+                          className="text-green-600 hover:text-green-900"
+                        >
+                          <Save size={18} />
+                        </button>
+                        <button
+                          onClick={cancelEditing}
+                          className="text-gray-600 hover:text-gray-900"
+                        >
+                          <X size={18} />
+                        </button>
+                      </>
                     ) : (
                       <button
-                        onClick={() => setEditingId(city.id)}
+                        onClick={() => startEditing(city)}
                         className="text-primary-600 hover:text-primary-900"
                       >
                         <Edit2 size={18} />
