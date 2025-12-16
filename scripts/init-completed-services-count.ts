@@ -31,7 +31,7 @@ async function initializeCompletedServicesCount() {
   }
 
   console.log(`Updating ${userCounts.size} users...`)
-  for (const [userId, count] of userCounts.entries()) {
+  for (const [userId, count] of Array.from(userCounts.entries())) {
     await prisma.user.update({
       where: { id: userId },
       data: { completedServicesCount: count }
@@ -39,7 +39,7 @@ async function initializeCompletedServicesCount() {
   }
 
   console.log(`Updating ${partnerCounts.size} partners...`)
-  for (const [partnerId, count] of partnerCounts.entries()) {
+  for (const [partnerId, count] of Array.from(partnerCounts.entries())) {
     await prisma.partnerProfile.update({
       where: { id: partnerId },
       data: { completedServicesCount: count }
