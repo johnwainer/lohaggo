@@ -93,7 +93,7 @@ interface ServiceRequest {
 }
 
 function PartnerDashboardContent() {
-  const { data: session, status } = useSession()
+  const { data: session, status, update } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
   const [bookings, setBookings] = useState<Booking[]>([])
@@ -226,6 +226,16 @@ function PartnerDashboardContent() {
       return () => clearInterval(interval)
     }
   }, [status, bookings, serviceRequests])
+
+  useEffect(() => {
+    if (status === 'authenticated') {
+      const interval = setInterval(() => {
+        update()
+      }, 5000)
+
+      return () => clearInterval(interval)
+    }
+  }, [status, update])
 
   const fetchUnreadCounts = async () => {
     try {
