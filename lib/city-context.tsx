@@ -63,7 +63,9 @@ export function CityProvider({ children }: { children: React.ReactNode }) {
             status: city.status as CityStatus,
             order: city.order || 0,
             latitude: city.latitude,
-            longitude: city.longitude
+            longitude: city.longitude,
+            lanzamiento: city.lanzamiento,
+            fechaLanzamiento: city.fechaLanzamiento
           }))
           .sort((a, b) => a.order - b.order)
 
