@@ -136,16 +136,18 @@ export async function DELETE(
       }
     }
 
-    // Notify partner/client about cancellation before deleting the booking
-    await notifyBookingStatusChange(id, 'CANCELLED')
-
-    await prisma.booking.delete({
-      where: { id }
+    // Update booking status to CANCELLED instead of deleting
+    const updatedBooking = await prisma.booking.update({
+      where: { id },
+      data: { status: 'CANCELLED' }
     })
+
+    // Notify partner/client about cancellation
+    await notifyBookingStatusChange(id, 'CANCELLED')
 
     return NextResponse.json({ message: "Reserva cancelada" })
   } catch (error) {
-    logger.error('Error deleting booking:', error)
+    logger.error('Error cancelling booking:', error)
     return NextResponse.json(
       { error: "Error al cancelar reserva" },
       { status: 500 }
