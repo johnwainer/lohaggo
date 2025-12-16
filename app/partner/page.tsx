@@ -770,7 +770,7 @@ function PartnerDashboardContent() {
                             disabled={session?.user?.isActive === false}
                           >
                             <Star size={20} />
-                            Rate Client
+                            Calificar Cliente
                           </button>
                         )}
 

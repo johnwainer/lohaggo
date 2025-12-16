@@ -1293,7 +1293,7 @@ export default function DashboardPage() {
                             </div>
                           )}
 
-                          {booking.proposalId && booking.payment?.status !== 'APPROVED' && (
+                          {booking.proposalId && booking.payment?.status !== 'APPROVED' && booking.status !== 'CANCELLED' && (
                             <button
                               onClick={() => setChatModal({
                                 isOpen: true,
