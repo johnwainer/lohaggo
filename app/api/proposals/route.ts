@@ -32,7 +32,11 @@ export async function POST(req: NextRequest) {
     })
 
     if (!partnerProfile) {
-      return NextResponse.json({ error: 'Solo los partners pueden enviar propuestas' }, { status: 403 })
+      return NextResponse.json({ error: 'Only partners can submit proposals' }, { status: 403 })
+    }
+
+    if (!partnerProfile.isActive) {
+      return NextResponse.json({ error: 'Your account is inactive. Please contact the administrator.' }, { status: 403 })
     }
 
     const serviceRequest = await prisma.serviceRequest.findUnique({

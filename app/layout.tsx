@@ -9,6 +9,7 @@ import PWAInstallPrompt from '@/components/PWAInstallPrompt'
 import PWARegister from '@/components/PWARegister'
 import TermsBanner from '@/components/TermsBanner'
 import TestModeBanner from '@/components/TestModeBanner'
+import InactiveAccountBanner from '@/components/InactiveAccountBanner'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -122,6 +123,7 @@ export default function RootLayout({
         <Providers>
           <PWARegister />
           <TestModeBanner />
+          <InactiveAccountBanner />
           <Navbar />
           <main className="min-h-screen">
             {children}

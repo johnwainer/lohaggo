@@ -16,6 +16,7 @@ model User {
   phone                 String?
   image                 String?
   role                  UserRole         @default(CLIENT)
+  isActive              Boolean          @default(true)
   pushSubscription      String?
   clientRating          Float            @default(0)
   clientTotalReviews    Int              @default(0)
@@ -41,6 +42,7 @@ model PartnerProfile {
   rating       Float                  @default(0)
   totalReviews Int                    @default(0)
   completedServicesCount Int          @default(0)
+  isActive     Boolean                @default(true)
   verified     Boolean                @default(false)
   city         City                   @default(MEDELLIN)
   createdAt    DateTime               @default(now())

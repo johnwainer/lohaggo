@@ -10,6 +10,7 @@ interface User {
   name: string
   phone: string | null
   role: string
+  isActive: boolean
   createdAt: string
   _count: {
     bookings: number
@@ -20,6 +21,7 @@ interface User {
     totalReviews: number
     verified: boolean
     city: string
+    isActive: boolean
   } | null
 }
 
@@ -68,7 +70,7 @@ export default function UsersSection() {
   }
 
   const handleDeleteUser = async (userId: string) => {
-    if (!confirm('¿Estás seguro de eliminar este usuario? Esta acción no se puede deshacer.')) return
+    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return
 
     try {
       const res = await fetch(`/api/admin/users?userId=${userId}`, {
@@ -76,14 +78,37 @@ export default function UsersSection() {
       })
 
       if (res.ok) {
-        alert('Usuario eliminado exitosamente')
+        alert('User deleted successfully')
         fetchUsers()
       } else {
-        alert('Error al eliminar usuario')
+        alert('Error deleting user')
       }
     } catch (error) {
       console.error('Error deleting user:', error)
-      alert('Error al eliminar usuario')
+      alert('Error deleting user')
+    }
+  }
+
+  const handleToggleActive = async (userId: string, currentStatus: boolean) => {
+    const action = currentStatus ? 'deactivate' : 'activate'
+    if (!confirm(`Are you sure you want to ${action} this user?`)) return
+
+    try {
+      const res = await fetch('/api/admin/users/toggle-active', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, isActive: !currentStatus })
+      })
+
+      if (res.ok) {
+        alert(`User ${action === 'deactivate' ? 'deactivated' : 'activated'} successfully`)
+        fetchUsers()
+      } else {
+        alert(`Error ${action}ing user`)
+      }
+    } catch (error) {
+      console.error(`Error toggling user active status:`, error)
+      alert(`Error ${action}ing user`)
     }
   }
 
@@ -114,7 +139,7 @@ export default function UsersSection() {
     },
     {
       key: 'role',
-      label: 'Rol',
+      label: 'Role',
       sortable: true,
       render: (value: string, row: User) => {
         const roleColors: Record<string, string> = {
@@ -123,30 +148,37 @@ export default function UsersSection() {
           CLIENT: 'bg-primary-100 text-primary-800'
         }
         const roleLabels: Record<string, string> = {
-          CLIENT: 'Cliente',
-          PARTNER: 'Socio',
+          CLIENT: 'Client',
+          PARTNER: 'Partner',
           ADMIN: 'Admin'
         }
         return (
-          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${roleColors[value]}`}>
-            {roleLabels[value]}
-          </span>
+          <div className="flex flex-col gap-1">
+            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${roleColors[value]}`}>
+              {roleLabels[value]}
+            </span>
+            {!row.isActive && (
+              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
+                Inactive
+              </span>
+            )}
+          </div>
         )
       }
     },
     {
       key: '_count',
-      label: 'Actividad',
+      label: 'Activity',
       render: (value: any) => (
         <div className="text-sm">
-          <div className="text-gray-700">{value.bookings} reservas</div>
-          <div className="text-gray-500">{value.serviceRequests} solicitudes</div>
+          <div className="text-gray-700">{value.bookings} bookings</div>
+          <div className="text-gray-500">{value.serviceRequests} requests</div>
         </div>
       )
     },
     {
       key: 'partnerProfile',
-      label: 'Socio',
+      label: 'Partner',
       render: (value: any) => {
         if (!value) return <span className="text-gray-400">-</span>
         return (
@@ -159,7 +191,7 @@ export default function UsersSection() {
             {value.verified && (
               <div className="flex items-center gap-1 text-green-600">
                 <Shield size={12} />
-                <span className="text-xs">Verificado</span>
+                <span className="text-xs">Verified</span>
               </div>
             )}
           </div>
@@ -168,12 +200,12 @@ export default function UsersSection() {
     },
     {
       key: 'createdAt',
-      label: 'Registro',
+      label: 'Registration',
       sortable: true,
       render: (value: string) => (
         <div className="flex items-center gap-1 text-sm text-gray-600">
           <Calendar size={14} />
-          {new Date(value).toLocaleDateString('es-ES')}
+          {new Date(value).toLocaleDateString('en-US')}
         </div>
       )
     },
@@ -187,14 +219,25 @@ export default function UsersSection() {
             value={row.role}
             className="text-xs border border-gray-300 rounded px-2 py-1"
           >
-            <option value="CLIENT">Cliente</option>
-            <option value="PARTNER">Socio</option>
+            <option value="CLIENT">Client</option>
+            <option value="PARTNER">Partner</option>
             <option value="ADMIN">Admin</option>
           </select>
           <button
+            onClick={() => handleToggleActive(row.id, row.isActive)}
+            className={`text-xs px-2 py-1 rounded ${
+              row.isActive
+                ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                : 'bg-green-100 text-green-700 hover:bg-green-200'
+            }`}
+            title={row.isActive ? 'Deactivate user' : 'Activate user'}
+          >
+            {row.isActive ? 'Deactivate' : 'Activate'}
+          </button>
+          <button
             onClick={() => handleDeleteUser(row.id)}
             className="text-red-600 hover:text-red-800 p-1"
-            title="Eliminar usuario"
+            title="Delete user"
           >
             <Trash2 size={16} />
           </button>

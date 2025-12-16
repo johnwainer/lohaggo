@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
         name: true,
         phone: true,
         role: true,
+        isActive: true,
         createdAt: true,
         _count: {
           select: {
@@ -45,6 +46,7 @@ export async function GET(request: NextRequest) {
             totalReviews: true,
             verified: true,
             city: true,
+            isActive: true,
           }
         }
       },

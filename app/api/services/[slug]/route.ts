@@ -43,7 +43,8 @@ export async function GET(
           where: {
             active: true,
             partner: {
-              city: cityEnum as any
+              city: cityEnum as any,
+              isActive: true
             }
           },
           include: {
