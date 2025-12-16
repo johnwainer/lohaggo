@@ -17,7 +17,7 @@ export default function InactiveAccountBanner() {
       <div className="flex items-center justify-center gap-2">
         <AlertCircle size={20} />
         <p className="font-medium">
-          Your account is inactive. You cannot perform actions on the platform. Contact the administrator for more information.
+          Tu cuenta está inactiva. No puedes realizar acciones en la plataforma. Contacta al administrador para más información.
         </p>
       </div>
     </div>
