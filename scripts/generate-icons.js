@@ -34,14 +34,14 @@ async function generateIcons() {
         pipeline = sharp(svgBuffer)
           .resize(size, size, {
             fit: 'contain',
-            background: { r: 255, g: 105, b: 0, alpha: 1 } // #00B894
+            background: { r: 0, g: 184, b: 148, alpha: 1 } // #00B894
           })
           .extend({
             top: Math.round((paddedSize - size) / 2),
             bottom: Math.round((paddedSize - size) / 2),
             left: Math.round((paddedSize - size) / 2),
             right: Math.round((paddedSize - size) / 2),
-            background: { r: 255, g: 105, b: 0, alpha: 1 }
+            background: { r: 0, g: 184, b: 148, alpha: 1 }
           })
           .resize(size, size);
       }
