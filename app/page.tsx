@@ -42,12 +42,12 @@ export default async function Home() {
               <span>LoHaggo, Lo necesitas</span>
             </div>
 
-            <h1 className="text-5xl md:text-7xl lg:text-8xl font-black mb-6 leading-tight tracking-tight">
+            <h1 className="text-4xl md:text-7xl lg:text-8xl font-black mb-6 leading-tight tracking-tight">
               Solicita cualquier servicio
               <span className="block bg-gradient-to-r from-yellow-200 to-white bg-clip-text text-transparent">en minutos</span>
             </h1>
 
-            <p className="text-xl md:text-2xl mb-12 text-white/90 font-medium max-w-2xl mx-auto">
+            <p className="text-lg md:text-2xl mb-12 text-white/90 font-medium max-w-2xl mx-auto">
               Hogar, belleza, salud, tecnología, eventos, mascotas...
             </p>
 
