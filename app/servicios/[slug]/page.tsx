@@ -912,35 +912,23 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                         </button>
                       </div>
                     ) : (
-                      <div className="space-y-4">
-                        <div className="relative">
-                          <MapPin className="absolute left-3 md:left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                          <input
-                            type="text"
-                            placeholder="Ej: Calle 123 #45-67, Barrio Centro"
-                            value={requestData.address}
-                            onChange={(e) => setRequestData({ ...requestData, address: e.target.value })}
-                            className="w-full pl-10 md:pl-12 pr-4 py-3 md:py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-secondary-500 focus:border-secondary-500 outline-none transition text-sm md:text-base"
-                          />
-                        </div>
-                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-3 md:p-4">
-                          <div className="flex items-start gap-2 md:gap-3">
-                            <div className="w-7 h-7 md:w-8 md:h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
-                              <span className="text-white text-base md:text-lg">💡</span>
-                            </div>
-                            <div>
-                              <p className="text-xs md:text-sm text-blue-900 font-medium mb-2">
-                                Guarda tus direcciones para solicitar servicios más rápido
-                              </p>
-                              <button
-                                type="button"
-                                onClick={() => router.push('/dashboard/addresses')}
-                                className="text-xs md:text-sm text-secondary-600 hover:text-secondary-700 font-semibold flex items-center gap-1"
-                              >
-                                <Plus size={14} />
-                                Ir a mis direcciones
-                              </button>
-                            </div>
+                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-3 md:p-4">
+                        <div className="flex items-start gap-2 md:gap-3">
+                          <div className="w-7 h-7 md:w-8 md:h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                            <span className="text-white text-base md:text-lg">💡</span>
+                          </div>
+                          <div>
+                            <p className="text-xs md:text-sm text-blue-900 font-medium mb-2">
+                              Guarda tus direcciones para solicitar servicios más rápido
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => router.push('/dashboard/addresses')}
+                              className="text-xs md:text-sm text-secondary-600 hover:text-secondary-700 font-semibold flex items-center gap-1"
+                            >
+                              <Plus size={14} />
+                              Ir a mis direcciones
+                            </button>
                           </div>
                         </div>
                       </div>
