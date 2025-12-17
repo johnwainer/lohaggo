@@ -127,7 +127,9 @@ export default function RootLayout({
           <TestModeBanner />
           <InactiveAccountBanner />
           <MobileHeader />
-          <Navbar />
+          <div className="hidden md:block">
+            <Navbar />
+          </div>
           <main className="min-h-screen md:pt-0 pt-14 md:pb-0 pb-16">
             {children}
           </main>
