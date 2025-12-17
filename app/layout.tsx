@@ -4,6 +4,8 @@ import './globals.css'
 import { Providers } from './providers'
 import { Navbar } from '@/components/Navbar'
 import { Footer } from '@/components/Footer'
+import { MobileHeader } from '@/components/mobile/MobileHeader'
+import { BottomNav } from '@/components/mobile/BottomNav'
 import NotificationPermissionPrompt from '@/components/NotificationPermissionPrompt'
 import PWAInstallPrompt from '@/components/PWAInstallPrompt'
 import PWARegister from '@/components/PWARegister'
@@ -124,11 +126,13 @@ export default function RootLayout({
           <PWARegister />
           <TestModeBanner />
           <InactiveAccountBanner />
+          <MobileHeader />
           <Navbar />
-          <main className="min-h-screen">
+          <main className="min-h-screen md:pt-0 pt-14 md:pb-0 pb-16">
             {children}
           </main>
           <Footer />
+          <BottomNav />
           <NotificationPermissionPrompt />
           <PWAInstallPrompt />
           <TermsBanner />
