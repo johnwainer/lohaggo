@@ -371,6 +371,48 @@ export function Navbar() {
         </div>
       </div>
 
+            <div className="border-t border-gray-200 pt-2"></div>
+
+            {!session && (
+              <>
+                <Link
+                  href="/"
+                  className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+                    pathname === '/'
+                      ? 'text-primary-600 bg-primary-500/5'
+                      : 'text-gray-700 hover:text-primary-600 hover:bg-primary-500/5'
+                  }`}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Inicio
+                </Link>
+                <Link
+                  href="/servicios"
+                  className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+                    pathname?.startsWith('/servicios')
+                      ? 'text-primary-600 bg-primary-500/5'
+                      : 'text-gray-700 hover:text-primary-600 hover:bg-primary-500/5'
+                  }`}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Servicios
+                </Link>
+              </>
+            )}
+
+            <Link
+              href="/faq"
+              className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+                pathname === '/faq'
+                  ? 'text-primary-600 bg-primary-500/5'
+                  : 'text-gray-700 hover:text-primary-600 hover:bg-primary-500/5'
+              }`}
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              FAQ
+            </Link>
+>>>>>>> 72ac184 (feat(ui): hide home, services, and profile from mobile menu for logged-in users)
+=======
       {/* Mobile Menu */}
       {mobileMenuOpen && (
         <div className="md:hidden bg-white border-t border-gray-200 animate-slide-down shadow-lg">
@@ -438,6 +480,32 @@ export function Navbar() {
               )}
             </div>
 
+            <div className="border-t border-gray-200 pt-2"></div>
+
+            {!session && (
+              <>
+                <Link
+                  href="/"
+                  className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+                    pathname === '/'
+                      ? 'text-primary-600 bg-primary-500/5'
+                      : 'text-gray-700 hover:text-primary-600 hover:bg-primary-500/5'
+                  }`}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Inicio
+                </Link>
+                <Link
+                  href="/servicios"
+                  className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+                    pathname?.startsWith('/servicios')
+                      ? 'text-primary-600 bg-primary-500/5'
+                      : 'text-gray-700 hover:text-primary-600 hover:bg-primary-500/5'
+                  }`}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Servicios
+                </Link>
               </>
             )}
 
@@ -452,7 +520,6 @@ export function Navbar() {
             >
               FAQ
             </Link>
->>>>>>> 72ac184 (feat(ui): hide home, services, and profile from mobile menu for logged-in users)
 =======
             <div className="border-t border-gray-200 pt-2"></div>
 
