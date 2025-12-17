@@ -224,30 +224,36 @@ export default function AddressesPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Header with navigation */}
       <header className="bg-white shadow-sm sticky top-0 z-40">
+        <"x  </div>34
+              <buttonflex itescenterjutifybetween
+                onClick={() => handleOpenModalgap-3 }m:gap-4 mn-0 flx1
+                className="flex items-center gap-1.5 sm:gap-2 bg-primary-500 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-primary-600 transition font-medium text-sm whitespace-nowrap"
+              >1g21
+                <Plus size={16} clmxsssm:18px]:h [18p-grayx600 trunc"t/>>
+              </div
+              <span className="hidden sm:inline">Agregar Dirección</span>
+              <span className="sm:hidden">Agregar</span>
+            </button>
+          </div>4primary-60 whispcnowap
+        </div>
+
+        <ClientDashboardNavm
+          bookingsCount={bookinsmCount}
+          requestsCount={requestsCount}
+          favoritesCount={favoritesCount}
+        />iv>
+
         <ClientDashboardNav
           bookingsCount={bookingsCount}
           requestsCount={requestsCount}
-          favoritesCount={favoritesCount}
+          favortesCount={faoritesCount}
         />
       </header>
 
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8"
+      </header>
+
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
-        <div className="mb-4 sm:mb-6">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <h2 className="text-xl sm:text-3xl font-bold text-gray-900 truncate">Mis Direcciones</h2>
-              <p className="text-gray-600 mt-1 text-xs sm:text-base hidden sm:block">Administra tus direcciones de servicio</p>
-            </div>
-            <button
-              onClick={() => handleOpenModal()}
-              className="flex items-center gap-1.5 sm:gap-2 bg-primary-500 text-white px-3 sm:px-6 py-2 sm:py-3 rounded-lg hover:bg-[#E02849] transition font-medium text-xs sm:text-base flex-shrink-0"
-            >
-              <Plus size={16} className="sm:w-[18px] sm:h-[18px]" />
-              <span className="hidden xs:inline">Agregar Dirección</span>
-              <span className="xs:hidden">Agregar</span>
-            </button>
-          </div>
-        </div>
 
         {addresses.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm p-8 sm:p-12 text-center">
