@@ -315,20 +315,20 @@ export default function VerificationPage() {
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-1 sm:gap-2">
+                      <div className="flex items-center gap-2">
                         <button
                           onClick={() => window.open(doc.documentUrl, '_blank')}
-                          className="p-1.5 sm:p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title="Ver documento"
                         >
-                          <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
+                          <Eye className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => handleDelete(doc.id)}
-                          className="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="Eliminar documento"
                         >
-                          <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                          <Trash2 className="w-5 h-5" />
                         </button>
                       </div>
                     </div>
