@@ -37,10 +37,83 @@ const tourSteps: TourStep[] = [
   }
 ]
 
+// Translation mappings for internationalization
+const tourTranslations = {
+  en: {
+    steps: [
+      {
+        title: '🔍 Search any service',
+        description: 'Type what you need: babysitter, plumber, cleaning... and find experts instantly.'
+      },
+      {
+        title: '📍 Select your city',
+        description: 'Choose your city to see available services in your area.'
+      },
+      {
+        title: '🧭 Quick navigation',
+        description: 'Use these buttons to navigate: Home, Services, and your Profile.'
+      },
+      {
+        title: '📂 Explore by categories',
+        description: 'Browse categories to discover all available services.'
+      }
+    ],
+    ui: {
+      previous: 'Previous',
+      next: 'Next',
+      finish: 'Finish',
+      dontShowAgain: 'Do not show again',
+      viewTutorial: 'View tutorial',
+      showTutorial: 'Show tutorial',
+      stepCounter: 'of'
+    }
+  },
+  es: {
+    steps: [
+      {
+        title: '🔍 Busca cualquier servicio',
+        description: 'Escribe lo que necesitas: niñera, plomero, limpieza... y encuentra expertos al instante.'
+      },
+      {
+        title: '📍 Selecciona tu ciudad',
+        description: 'Elige tu ciudad para ver servicios disponibles en tu zona.'
+      },
+      {
+        title: '🧭 Navegación rápida',
+        description: 'Usa estos botones para navegar: Inicio, Servicios y tu Perfil.'
+      },
+      {
+        title: '📂 Explora por categorías',
+        description: 'Navega por categorías para descubrir todos los servicios disponibles.'
+      }
+    ],
+    ui: {
+      previous: 'Anterior',
+      next: 'Siguiente',
+      finish: 'Finalizar',
+      dontShowAgain: 'No volver a mostrar',
+      viewTutorial: 'Ver tutorial',
+      showTutorial: 'Mostrar tutorial',
+      stepCounter: 'de'
+    }
+  }
+}
+
 export default function OnboardingTour() {
   const [isOpen, setIsOpen] = useState(false)
   const [currentStep, setCurrentStep] = useState(0)
   const [showFloatingButton, setShowFloatingButton] = useState(false)
+
+  // Get user language preference (default to Spanish)
+  const getUserLanguage = () => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('user-language') || 'es'
+    }
+    return 'es'
+  }
+
+  const currentLanguage = getUserLanguage() as 'en' | 'es'
+  const translations = tourTranslations[currentLanguage]
 
   useEffect(() => {
     const tourCompleted = localStorage.getItem('onboarding-tour-completed')
@@ -207,11 +280,11 @@ export default function OnboardingTour() {
       <button
         onClick={handleRestart}
         className="fixed bottom-24 right-4 md:bottom-6 md:right-6 z-50 w-12 h-12 bg-gradient-to-r from-primary-500 to-secondary-500 text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center group"
-        aria-label="Show tutorial"
+        aria-label={translations.ui.showTutorial}
       >
         <HelpCircle size={24} />
         <span className="absolute right-14 bg-gray-900 text-white text-xs px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-          View tutorial
+          {translations.ui.viewTutorial}
         </span>
       </button>
     )
@@ -244,8 +317,8 @@ export default function OnboardingTour() {
         </button>
 
         <div className="mb-4">
-          <h3 className="text-xl font-bold text-gray-900 mb-2">{step.title}</h3>
-          <p className="text-sm text-gray-600">{step.description}</p>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">{translations.steps[currentStep].title}</h3>
+          <p className="text-sm text-gray-600">{translations.steps[currentStep].description}</p>
         </div>
 
         <div className="flex items-center justify-between mb-4">
@@ -262,7 +335,7 @@ export default function OnboardingTour() {
             ))}
           </div>
           <span className="text-xs text-gray-500 font-medium">
-            {currentStep + 1} de {tourSteps.length}
+            {currentStep + 1} {translations.ui.stepCounter} {tourSteps.length}
           </span>
         </div>
 
@@ -273,14 +346,14 @@ export default function OnboardingTour() {
               className="flex-1 px-4 py-2.5 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition font-semibold flex items-center justify-center gap-2"
             >
               <ChevronLeft size={18} />
-              Previous
+              {translations.ui.previous}
             </button>
           )}
           <button
             onClick={handleNext}
             className="flex-1 px-4 py-2.5 bg-gradient-to-r from-primary-500 to-secondary-500 text-white rounded-xl hover:from-primary-600 hover:to-secondary-600 transition font-semibold flex items-center justify-center gap-2"
           >
-            {currentStep === tourSteps.length - 1 ? 'Finish' : 'Next'}
+            {currentStep === tourSteps.length - 1 ? translations.ui.finish : translations.ui.next}
             {currentStep < tourSteps.length - 1 && <ChevronRight size={18} />}
           </button>
         </div>
@@ -290,7 +363,7 @@ export default function OnboardingTour() {
             onClick={handleDontShowAgain}
             className="w-full mt-3 text-xs text-gray-500 hover:text-gray-700 transition"
           >
-            Do not show again
+            {translations.ui.dontShowAgain}
           </button>
         )}
       </div>
