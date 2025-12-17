@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { Bell, Check, CheckCheck, Home, Package, Activity, Settings, MessageSquare, Shield } from 'lucide-react'
+import { Bell, Check, CheckCheck } from 'lucide-react'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
+import PartnerDashboardNav from '@/components/PartnerDashboardNav'
 
 interface Notification {
   id: string
@@ -146,14 +147,12 @@ export default function PartnerNotificationsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <header className="bg-white shadow-sm sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div>
-                <div className="flex sm:block items-center gap-2">
-                  <h1 className="text-2xl font-bold text-gray-900">Notificaciones</h1>
-                  <p className="text-sm text-gray-600">({unreadCount} sin leer)</p>
-                </div>
+            <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+              <div className="min-w-0 flex-1">
+                <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">Notificaciones</h1>
+                <p className="text-xs sm:text-sm text-gray-600 truncate hidden sm:block">({unreadCount} sin leer)</p>
               </div>
             </div>
 
@@ -169,46 +168,10 @@ export default function PartnerNotificationsPage() {
           </div>
         </div>
 
-        <div className="border-t border-gray-200 bg-gray-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <nav className="flex gap-0.5 sm:gap-1 overflow-x-auto scrollbar-hide">
-              <button
-                onClick={() => router.push('/partner')}
-                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
-              >
-                <Home size={20} className="sm:w-[22px] sm:h-[22px]" />
-                <span className="hidden sm:inline">Resumen</span>
-              </button>
-
-              <button
-                onClick={() => router.push('/partner?tab=bookings')}
-                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
-              >
-                <Package size={20} className="sm:w-[22px] sm:h-[22px]" />
-                <span className="hidden sm:inline">Mis Reservas</span>
-                {bookingsCount > 0 && (
-                  <span className="bg-primary-600 text-white text-[10px] px-2 py-0.5 rounded-full ml-2">
-                    {bookingsCount}
-                  </span>
-                )}
-              </button>
-
-              <button
-                onClick={() => router.push('/partner?tab=my-requests')}
-                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
-              >
-                <MessageSquare size={20} className="sm:w-[22px] sm:h-[22px]" />
-                <span className="hidden sm:inline">Para Mí</span>
-                {myRequestsCount > 0 && (
-                  <span className="bg-primary-500 text-white text-[10px] px-2 py-0.5 rounded-full ml-2">
-                    {myRequestsCount}
-                  </span>
-                )}
-              </button>
-
-            </nav>
-          </div>
-        </div>
+        <PartnerDashboardNav
+          bookingsCount={bookingsCount}
+          requestsCount={myRequestsCount}
+        />
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
