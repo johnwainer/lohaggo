@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { CreditCard, Plus, Trash2, Check, AlertCircle, Home, Package, MessageSquare, Heart } from 'lucide-react'
 import Link from 'next/link'
+import ClientDashboardNav from '@/components/ClientDashboardNav'
 interface PaymentMethod { id: string; lastFourDigits: string; cardBrand: string; cardholderName: string; expirationMonth: number; expirationYear: number; isDefault: boolean; isActive: boolean; createdAt: string }
 export default function PaymentMethodsPage() {
   const { status } = useSession()
@@ -102,7 +103,6 @@ export default function PaymentMethodsPage() {
     }
   }
   if (status === 'loading' || loading) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><div className="h-12 w-12 rounded-full border-4 border-primary-500 border-t-transparent animate-spin" /></div>
-  const navItems = [{ icon: Home, label: 'Resumen', href: '/dashboard' }, { icon: Package, label: 'Mis Reservas', href: '/dashboard?tab=bookings', count: bookingsCount }, { icon: MessageSquare, label: 'Mis Solicitudes', href: '/dashboard?tab=requests', count: requestsCount }, { icon: Heart, label: 'Favoritos', href: '/dashboard?tab=favorites', count: favoritesCount }]
   const formatExpiry = (month: number, year: number) => `${String(month).padStart(2, '0')}/${String(year).slice(-2)}`
   return (
     <div className="min-h-screen bg-gray-50">
@@ -111,7 +111,11 @@ export default function PaymentMethodsPage() {
           <div><h1 className="text-2xl font-bold text-gray-900">Métodos de Pago</h1><p className="text-sm text-gray-600">Administra tus tarjetas guardadas</p></div>
           <Link href="/dashboard/payment-methods/add" className="inline-flex items-center gap-2 rounded-lg bg-primary-500 px-4 py-2 text-white font-semibold hover:bg-primary-600 transition-colors"><Plus className="w-4 h-4" />Agregar método</Link>
         </div>
-        <div className="border-t border-gray-200 bg-gray-50"><div className="max-w-5xl mx-auto flex gap-2 overflow-x-auto px-2 py-2">{navItems.map(item => (<button key={item.label} onClick={() => router.push(item.href)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-white transition-colors whitespace-nowrap"><item.icon className="w-5 h-5" />{item.label}{'count' in item && item.count !== undefined && item.count > 0 && <span className={`text-white text-xs px-2 py-0.5 rounded-full ${item.label === 'Favoritos' ? 'bg-red-500' : item.label === 'Mis Solicitudes' ? 'bg-primary-500' : 'bg-primary-600'}`}>{item.count}</span>}</button>))}</div></div>
+        <ClientDashboardNav
+          bookingsCount={bookingsCount}
+          requestsCount={requestsCount}
+          favoritesCount={favoritesCount}
+        />
       </header>
       <main className="max-w-5xl mx-auto px-4 py-8 space-y-5">
         {error && <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800"><AlertCircle className="w-5 h-5 mt-0.5" /><div><p className="font-semibold">Hubo un problema</p><p className="text-sm">{error}</p></div></div>}

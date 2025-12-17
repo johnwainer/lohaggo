@@ -8,6 +8,7 @@ import {
   Package, MessageSquare, Heart
 } from 'lucide-react'
 import { useCity } from '@/lib/city-context'
+import ClientDashboardNav from '@/components/ClientDashboardNav'
 
 interface Address {
   id: string
@@ -221,72 +222,13 @@ export default function AddressesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header con submenú */}
+      {/* Header with navigation */}
       <header className="bg-white shadow-sm sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-              <div className="min-w-0 flex-1">
-                <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">Mis Direcciones</h1>
-                <p className="text-xs sm:text-sm text-gray-600 truncate hidden sm:block">Administra tus direcciones de servicio</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="border-t border-gray-200 bg-gray-50">
-          <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
-            <nav className="flex gap-0.5 sm:gap-1 overflow-x-auto scrollbar-hide">
-              <button
-                onClick={() => router.push('/dashboard')}
-                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
-              >
-                <Home size={20} className="sm:w-[22px] sm:h-[22px]" />
-                <span className="hidden sm:inline">Resumen</span>
-              </button>
-
-              <button
-                onClick={() => router.push('/dashboard')}
-                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
-              >
-                <Package size={20} className="sm:w-[22px] sm:h-[22px]" />
-                <span className="hidden sm:inline">Mis Reservas</span>
-                {bookingsCount > 0 && (
-                  <span className="bg-primary-600 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
-                    {bookingsCount}
-                  </span>
-                )}
-              </button>
-
-              <button
-                onClick={() => router.push('/dashboard')}
-                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
-              >
-                <MessageSquare size={20} className="sm:w-[22px] sm:h-[22px]" />
-                <span className="hidden sm:inline">Mis Solicitudes</span>
-                {requestsCount > 0 && (
-                  <span className="bg-primary-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
-                    {requestsCount}
-                  </span>
-                )}
-              </button>
-
-              <button
-                onClick={() => router.push('/dashboard?tab=favorites')}
-                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
-              >
-                <Heart size={20} className="sm:w-[22px] sm:h-[22px]" />
-                <span className="hidden sm:inline">Favoritos</span>
-                {favoritesCount > 0 && (
-                  <span className="bg-red-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
-                    {favoritesCount}
-                  </span>
-                )}
-              </button>
-
-            </nav>
-          </div>
-        </div>
+        <ClientDashboardNav
+          bookingsCount={bookingsCount}
+          requestsCount={requestsCount}
+          favoritesCount={favoritesCount}
+        />
       </header>
 
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
