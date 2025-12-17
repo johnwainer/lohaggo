@@ -494,7 +494,7 @@ export default function ProfilePage() {
             ) : (
               <>
                 <button
-                  onClick={() => router.push('/dashboard')}
+                  onClick={() => router.push('/my-ratings?view=client')}
                   className="w-full bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 text-left group"
                 >
                   <div className="flex items-start justify-between mb-4">
