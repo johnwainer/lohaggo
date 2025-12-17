@@ -44,7 +44,7 @@ export default function PartnerHeader({
     {
       id: 'bookings',
       label: 'My Bookings',
-      icon: <Package size={20} className="sm:w-[22px] sm:h-[22px]" />,
+      icon: <Package size={24} className="sm:w-[22px] sm:h-[22px]" />,
       badge: bookingsCount,
       badgeColor: 'bg-primary-600',
       onClick: () => onTabChange?.('bookings'),
@@ -52,7 +52,7 @@ export default function PartnerHeader({
     {
       id: 'my-requests',
       label: 'For Me',
-      icon: <MessageSquare size={20} className="sm:w-[22px] sm:h-[22px]" />,
+      icon: <MessageSquare size={24} className="sm:w-[22px] sm:h-[22px]" />,
       badge: requestsCount,
       badgeColor: 'bg-primary-500',
       onClick: () => onTabChange?.('my-requests'),
@@ -90,7 +90,7 @@ export default function PartnerHeader({
             <nav className="flex gap-0.5 sm:gap-1 overflow-x-auto scrollbar-hide">
               {navItems.map((item) => {
                 const isActive = activeTab === item.id
-                const itemClasses = `flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${
+                const itemClasses = `flex items-center gap-2 sm:gap-2 px-4 sm:px-4 py-3 sm:py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${
                   isActive
                     ? 'border-primary-600 text-primary-600'
                     : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
@@ -106,7 +106,7 @@ export default function PartnerHeader({
                     <span className="hidden sm:inline">{item.label}</span>
                     {item.badge && item.badge > 0 && (
                       <span
-                        className={`${item.badgeColor} text-white text-xs px-2 py-0.5 rounded-full`}
+                        className={`${item.badgeColor} text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full`}
                       >
                         {item.badge}
                       </span>
