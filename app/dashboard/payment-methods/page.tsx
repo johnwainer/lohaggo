@@ -107,9 +107,20 @@ export default function PaymentMethodsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm sticky top-0 z-40">
-        <div className="max-w-5xl mx-auto px-4 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div><h1 className="text-2xl font-bold text-gray-900">Métodos de Pago</h1><p className="text-sm text-gray-600">Administra tus tarjetas guardadas</p></div>
-          <Link href="/dashboard/payment-methods/add" className="inline-flex items-center gap-2 rounded-lg bg-primary-500 px-4 py-2 text-white font-semibold hover:bg-primary-600 transition-colors"><Plus className="w-4 h-4" />Agregar método</Link>
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+              <div className="min-w-0 flex-1">
+                <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">Métodos de Pago</h1>
+                <p className="text-xs sm:text-sm text-gray-600 truncate hidden sm:block">Administra tus tarjetas guardadas</p>
+              </div>
+            </div>
+            <Link href="/dashboard/payment-methods/add" className="inline-flex items-center gap-2 rounded-lg bg-primary-500 px-4 py-2 text-sm sm:text-base text-white font-semibold hover:bg-primary-600 transition-colors whitespace-nowrap">
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Agregar método</span>
+              <span className="sm:hidden">Agregar</span>
+            </Link>
+          </div>
         </div>
         <ClientDashboardNav
           bookingsCount={bookingsCount}
@@ -117,7 +128,7 @@ export default function PaymentMethodsPage() {
           favoritesCount={favoritesCount}
         />
       </header>
-      <main className="max-w-5xl mx-auto px-4 py-8 space-y-5">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-5">
         {error && <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800"><AlertCircle className="w-5 h-5 mt-0.5" /><div><p className="font-semibold">Hubo un problema</p><p className="text-sm">{error}</p></div></div>}
         {success && <div className="flex items-start gap-3 rounded-lg border border-green-200 bg-green-50 p-4 text-green-800"><Check className="w-5 h-5 mt-0.5" /><p className="font-semibold">{success}</p></div>}
         {paymentMethods.length === 0 ? <div className="rounded-2xl border-2 border-dashed border-gray-200 bg-white p-10 text-center space-y-3"><CreditCard className="mx-auto h-12 w-12 text-gray-300" /><p className="text-lg font-semibold text-gray-900">Aún no tienes métodos de pago guardados</p><p className="text-sm text-gray-600">Agrega una tarjeta para pagar tus servicios de forma segura.</p><Link href="/dashboard/payment-methods/add" className="inline-flex items-center gap-2 rounded-lg bg-primary-500 px-4 py-2 text-white font-semibold hover:bg-primary-600 transition-colors"><Plus className="w-4 h-4" />Agregar método de pago</Link></div> : <div className="grid gap-4 md:grid-cols-2">{paymentMethods.map(method => (<div key={method.id} className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm space-y-4"><div className="flex items-center justify-between"><div className="flex items-center gap-3"><div className="rounded-xl bg-primary-500/10 p-3 text-primary-600"><CreditCard className="w-6 h-6" /></div><div><p className="text-xs uppercase text-gray-500">{method.cardBrand}</p><p className="text-xl font-semibold tracking-widest">**** **** **** {method.lastFourDigits}</p><p className="text-sm text-gray-600">{method.cardholderName}</p></div></div>{method.isDefault && <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700"><Check className="w-4 h-4" />Predeterminado</span>}</div><div className="flex justify-between text-sm text-gray-600"><span>Vence {formatExpiry(method.expirationMonth, method.expirationYear)}</span><span>{method.isActive ? 'Activa' : 'Inactiva'}</span></div><div className="flex justify-between text-xs text-gray-500">Creada {new Date(method.createdAt).toLocaleDateString('es-CO')}</div><div className="flex flex-wrap gap-3">{!method.isDefault && <button onClick={() => handleSetDefault(method.id)} className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"><Check className="w-4 h-4" />Predeterminar</button>}<button onClick={() => handleDelete(method)} className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors"><Trash2 className="w-4 h-4" />Eliminar</button></div></div>))}</div>}
