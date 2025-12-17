@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { User, Mail, Camera, Save, AlertCircle, CheckCircle, Home, Package, MessageSquare, Activity, Star, MapPin, Shield, Briefcase, ChevronRight, CreditCard, GraduationCap, Heart } from 'lucide-react'
 import ClientDashboardNav from '@/components/ClientDashboardNav'
+import PartnerDashboardNav from '@/components/PartnerDashboardNav'
 
 export default function ProfilePage() {
   const { data: session, status, update } = useSession()
@@ -216,43 +217,10 @@ export default function ProfilePage() {
           <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
             <nav className="flex gap-0.5 sm:gap-1 overflow-x-auto scrollbar-hide">
               {isPartner ? (
-                <>
-                  <button
-                    onClick={() => router.push('/partner')}
-                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
-                  >
-                    <Home size={20} className="sm:w-[22px] sm:h-[22px]" />
-                    <span className="hidden sm:inline">Resumen</span>
-                  </button>
-
-                  <button
-                    onClick={() => router.push('/partner?tab=bookings')}
-                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
-                  >
-                    <Package size={20} className="sm:w-[22px] sm:h-[22px]" />
-                    <span className="hidden sm:inline">Mis Reservas</span>
-                    {bookingsCount > 0 && (
-                      <span className="bg-primary-600 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
-                        {bookingsCount}
-                      </span>
-                    )}
-                  </button>
-
-                  <button
-                    onClick={() => router.push('/partner?tab=my-requests')}
-                    className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
-                  >
-                    <MessageSquare size={20} className="sm:w-[22px] sm:h-[22px]" />
-                    <span className="hidden sm:inline">Para Mí</span>
-                    {requestsCount > 0 && (
-                      <span className="bg-primary-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
-                        {requestsCount}
-                      </span>
-                    )}
-                  </button>
-
-
-                </>
+                <PartnerDashboardNav
+                  bookingsCount={bookingsCount}
+                  requestsCount={requestsCount}
+                />
               ) : (
                 <ClientDashboardNav
                   bookingsCount={bookingsCount}
