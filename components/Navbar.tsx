@@ -392,48 +392,73 @@ export function Navbar() {
 
               {/* Collapsible city list for mobile */}
               {mobileCityDropdownOpen && (
-                <div className="mt-1 space-y-1 pl-4 animate-slide-down">
-                  {getActiveCities().map((city) => (
-                    <button
-                      key={city.slug}
-                      onClick={() => {
-                        setSelectedCity(city.slug)
-                        setMobileCityDropdownOpen(false)
-                      }}
-                      className={`w-full text-left px-4 py-2 rounded-lg text-xs font-medium transition-all ${
-                        selectedCity === city.slug
-                          ? 'text-primary-600 bg-primary-500/10'
-                          : 'text-gray-600 hover:text-primary-600 hover:bg-primary-500/5'
-                      }`}
-                    >
-                      {city.name}
-                    </button>
-                  ))}
-                  {cities.filter(c => c.status === 'COMING_SOON').length > 0 && (
+                <div className="mt-2 bg-white rounded-xl shadow-lg border border-gray-100 py-2 animate-slide-down">
+                  {cities.filter(c => c.status === 'ACTIVE').length > 0 && (
                     <>
-                      <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                        Próximamente
+                      <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                        Ciudades disponibles
+                      </p>
+                      <div className="space-y-1 px-2">
+                        {cities.filter(c => c.status === 'ACTIVE').map((city) => (
+                          <button
+                            key={city.slug}
+                            onClick={() => {
+                              setSelectedCity(city.slug)
+                              setMobileCityDropdownOpen(false)
+                            }}
+                            className={`w-full flex items-center justify-between px-3 py-3 text-sm font-medium transition-all rounded-lg ${
+                              city.slug === selectedCity
+                                ? 'text-primary-600 bg-primary-500/10 border-l-4 border-primary-500'
+                                : 'text-gray-700 hover:bg-gray-50'
+                            }`}
+                          >
+                            <span>{city.name}</span>
+                            {city.slug === selectedCity && (
+                              <div className="w-2 h-2 rounded-full bg-primary-500" />
+                            )}
+                          </button>
+                        ))}
                       </div>
-                      {cities.filter(c => c.status === 'COMING_SOON').map((city) => (
-                        <div
-                          key={city.slug}
-                          className="w-full text-left px-4 py-2 rounded-lg text-xs font-medium text-gray-400 cursor-not-allowed"
-                        >
-                          {city.name}
-                        </div>
-                      ))}
                     </>
                   )}
-                  <button
-                    onClick={() => {
-                      setShowCityModal(true)
-                      setMobileCityDropdownOpen(false)
-                      setMobileMenuOpen(false)
-                    }}
-                    className="w-full text-left px-4 py-2 text-xs font-semibold text-primary-600 hover:bg-primary-500/5 rounded-lg transition-all"
-                  >
-                    Ver todas las opciones
-                  </button>
+
+                  {cities.filter(c => c.status === 'COMING_SOON').length > 0 && (
+                    <>
+                      <div className="border-t border-gray-100 my-2" />
+                      <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                        Próximamente
+                      </p>
+                      <div className="space-y-1 px-2">
+                        {cities.filter(c => c.status === 'COMING_SOON').map((city) => (
+                          <button
+                            key={city.slug}
+                            onClick={() => {
+                              setMobileCityDropdownOpen(false)
+                              setMobileMenuOpen(false)
+                              router.push(`/ciudad/${city.slug}`)
+                            }}
+                            className="w-full flex items-center justify-between px-3 py-3 text-sm font-medium text-primary-600 hover:bg-primary-50 rounded-lg transition-all cursor-pointer"
+                          >
+                            <span>{city.name}</span>
+                            <span className="text-xs bg-primary-200 px-2 py-1 rounded-full">Pronto</span>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  <div className="border-t border-gray-100 mt-2 pt-2 px-2">
+                    <button
+                      onClick={() => {
+                        setShowCityModal(true)
+                        setMobileCityDropdownOpen(false)
+                        setMobileMenuOpen(false)
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm font-semibold text-primary-600 hover:bg-primary-500/5 rounded-lg transition-all"
+                    >
+                      Ver todas las opciones
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
