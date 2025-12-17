@@ -115,7 +115,7 @@ export default function AboutPage() {
           <div className="text-center">
             <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-5 py-2.5 rounded-full text-sm font-semibold mb-8 border border-white/30">
               <Sparkles className="w-4 h-4" />
-              <span>Lo necesitas, LoHaggo.</span>
+              <span>LoHaggo, Lo necesitas.</span>
             </div>
 
             <h1 className="text-5xl md:text-6xl lg:text-7xl font-black mb-6 leading-tight">

@@ -1,6 +1,6 @@
 # LoHaggo - Plataforma de Marketplace de Servicios
 
-**Lo necesitas, LoHaggo.** - La forma más simple de encontrar cualquier servicio. Una plataforma moderna y segura para solicitar servicios con dashboards para clientes, socios y administradores.
+**LoHaggo, Lo necesitas.** - La forma más simple de encontrar cualquier servicio. Una plataforma moderna y segura para solicitar servicios con dashboards para clientes, socios y administradores.
 
 ## 🚀 Características Principales
 

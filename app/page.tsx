@@ -39,16 +39,16 @@ export default async function Home() {
           <div className="max-w-4xl mx-auto text-center">
             <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-5 py-2.5 rounded-full text-sm font-semibold mb-8 border border-white/30">
               <Sparkles className="w-4 h-4" />
-              <span>Lo necesitas, LoHaggo.</span>
+              <span>LoHaggo, Lo necesitas</span>
             </div>
 
             <h1 className="text-5xl md:text-7xl lg:text-8xl font-black mb-6 leading-tight tracking-tight">
-              Servicios a tu
-              <span className="block bg-gradient-to-r from-yellow-200 to-white bg-clip-text text-transparent">alcance</span>
+              Solicita cualquier servicio
+              <span className="block bg-gradient-to-r from-yellow-200 to-white bg-clip-text text-transparent">en minutos</span>
             </h1>
 
             <p className="text-xl md:text-2xl mb-12 text-white/90 font-medium max-w-2xl mx-auto">
-              Conecta con expertos verificados en segundos.
+              Hogar, belleza, salud, tecnología, eventos, mascotas...
             </p>
 
             <div className="max-w-3xl mx-auto mb-16">
