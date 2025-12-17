@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { formatCurrency } from '@/lib/utils'
 import SearchBar from '@/components/SearchBar'
 import AdBanner from '@/components/ads/AdBanner'
+import HomeClientWrapper from '@/components/HomeClientWrapper'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,8 +27,9 @@ export default async function Home() {
   })
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Hero Section - Estilo Rappi */}
+    <HomeClientWrapper>
+      <div className="min-h-screen bg-gray-50">
+        {/* Hero Section - Estilo Rappi */}
       <section className="relative overflow-hidden bg-gradient-to-br from-primary-500 via-secondary-500 to-accent-500 text-white pt-24 pb-32 md:pt-28 md:pb-40">
         <div className="absolute inset-0 overflow-hidden opacity-20">
           <div className="absolute -top-40 -right-40 w-96 h-96 bg-secondary-300 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slow"></div>
@@ -100,7 +102,7 @@ export default async function Home() {
               </Link>
             </div>
             
-            <div className="overflow-x-auto scrollbar-hide -mx-4 px-4">
+            <div className="overflow-x-auto scrollbar-hide -mx-4 px-4" data-tour="service-categories">
               <div className="flex gap-4 pb-4">
                 {categories.map((category: any) => (
                   <Link
@@ -353,6 +355,7 @@ export default async function Home() {
           </div>
         </div>
       </section>
-    </div>
+      </div>
+    </HomeClientWrapper>
   )
 }
