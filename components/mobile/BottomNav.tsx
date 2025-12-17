@@ -1,30 +1,37 @@
 'use client'
 
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Home, FileText, Calendar, User } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 
 export function BottomNav() {
   const pathname = usePathname()
+  const router = useRouter()
   const { data: session } = useSession()
 
-  if (!session) return null
+  const isPartner = session?.user?.role === 'PARTNER'
 
-  const isPartner = session.user?.role === 'PARTNER'
+  const handleNavigation = (href: string, requiresAuth: boolean) => {
+    if (requiresAuth && !session) {
+      router.push(`/login?callbackUrl=${encodeURIComponent(href)}`)
+    } else {
+      router.push(href)
+    }
+  }
 
   const clientTabs = [
-    { href: '/', icon: Home, label: 'Home' },
-    { href: '/dashboard', icon: FileText, label: 'Requests' },
-    { href: '/dashboard', icon: Calendar, label: 'Bookings' },
-    { href: '/profile', icon: User, label: 'Profile' },
+    { href: '/', icon: Home, label: 'Home', requiresAuth: false },
+    { href: '/dashboard', icon: FileText, label: 'Requests', requiresAuth: true },
+    { href: '/dashboard', icon: Calendar, label: 'Bookings', requiresAuth: true },
+    { href: '/profile', icon: User, label: 'Profile', requiresAuth: true },
   ]
 
   const partnerTabs = [
-    { href: '/partner', icon: Home, label: 'Home' },
-    { href: '/partner/requests', icon: FileText, label: 'Requests' },
-    { href: '/partner/services', icon: Calendar, label: 'Services' },
-    { href: '/profile', icon: User, label: 'Profile' },
+    { href: '/partner', icon: Home, label: 'Home', requiresAuth: false },
+    { href: '/partner/requests', icon: FileText, label: 'Requests', requiresAuth: true },
+    { href: '/partner/services', icon: Calendar, label: 'Services', requiresAuth: true },
+    { href: '/profile', icon: User, label: 'Profile', requiresAuth: true },
   ]
 
   const tabs = isPartner ? partnerTabs : clientTabs
@@ -37,9 +44,9 @@ export function BottomNav() {
           const Icon = tab.icon
 
           return (
-            <Link
+            <button
               key={tab.href}
-              href={tab.href}
+              onClick={() => handleNavigation(tab.href, tab.requiresAuth)}
               className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 transition-colors ${
                 isActive
                   ? 'text-primary-600'
@@ -48,7 +55,7 @@ export function BottomNav() {
             >
               <Icon className="w-6 h-6" />
               <span className="text-xs font-medium">{tab.label}</span>
-            </Link>
+            </button>
           )
         })}
       </div>
