@@ -18,7 +18,7 @@ export default function SearchBar() {
   }
 
   return (
-    <form onSubmit={handleSearch}>
+    <form onSubmit={handleSearch} data-tour="search-bar">
       <div className="bg-white rounded-2xl md:rounded-3xl shadow-2xl p-2 md:p-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:gap-3 hover:shadow-3xl transition-shadow">
         <div className="flex items-center gap-2 md:gap-3 flex-1">
           <Search className="w-5 h-5 md:w-6 md:h-6 text-gray-400 ml-3 md:ml-4 flex-shrink-0" />
