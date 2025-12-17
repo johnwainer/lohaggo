@@ -38,8 +38,8 @@ export default function PartnerHeader({
   const navItems: NavItem[] = [
     {
       id: 'overview',
-      label: 'Resumen',
-      icon: <Home size={20} className="sm:w-[22px] sm:h-[22px]" />,
+      label: 'Overview',
+      icon: <Home size={24} className="sm:w-[22px] sm:h-[22px]" />,
       onClick: () => onTabChange?.('overview'),
     },
     {
