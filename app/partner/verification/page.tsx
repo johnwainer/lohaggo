@@ -278,57 +278,59 @@ export default function VerificationPage() {
           ) : (
             <div className="space-y-4">
               {documents.map((doc) => (
-                <div key={doc.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4 flex-1">
-                      <FileText className="w-8 h-8 text-gray-400" />
-                      <div className="flex-1">
-                        <h3 className="font-medium text-gray-900">{getDocumentLabel(doc.type)}</h3>
-                        <p className="text-sm text-gray-500">
+                <div key={doc.id} className="border rounded-lg p-3 sm:p-4 hover:bg-gray-50 transition-colors">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex items-start sm:items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                      <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-gray-400 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-gray-900 text-sm sm:text-base truncate">{getDocumentLabel(doc.type)}</h3>
+                        <p className="text-xs sm:text-sm text-gray-500">
                           Subido el {new Date(doc.createdAt).toLocaleDateString('es-CO')}
                         </p>
                         {doc.rejectionReason && (
-                          <p className="text-sm text-red-600 mt-1">
+                          <p className="text-xs sm:text-sm text-red-600 mt-1 break-words">
                             Razón de rechazo: {doc.rejectionReason}
                           </p>
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-4">
                       <div className="flex items-center gap-2">
                         {doc.status === 'APPROVED' && (
-                          <span className="flex items-center gap-1 text-green-600 text-sm font-medium">
+                          <span className="flex items-center gap-1 text-green-600 text-xs sm:text-sm font-medium">
                             <CheckCircle className="w-4 h-4" />
-                            Aprobado
+                            <span className="hidden sm:inline">Aprobado</span>
                           </span>
                         )}
                         {doc.status === 'REJECTED' && (
-                          <span className="flex items-center gap-1 text-red-600 text-sm font-medium">
+                          <span className="flex items-center gap-1 text-red-600 text-xs sm:text-sm font-medium">
                             <XCircle className="w-4 h-4" />
-                            Rechazado
+                            <span className="hidden sm:inline">Rechazado</span>
                           </span>
                         )}
                         {doc.status === 'PENDING' && (
-                          <span className="flex items-center gap-1 text-yellow-600 text-sm font-medium">
+                          <span className="flex items-center gap-1 text-yellow-600 text-xs sm:text-sm font-medium">
                             <Clock className="w-4 h-4" />
-                            Pendiente
+                            <span className="hidden sm:inline">Pendiente</span>
                           </span>
                         )}
                       </div>
-                      <button
-                        onClick={() => window.open(doc.documentUrl, '_blank')}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Ver documento"
-                      >
-                        <Eye className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(doc.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Eliminar documento"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
+                      <div className="flex items-center gap-1 sm:gap-2">
+                        <button
+                          onClick={() => window.open(doc.documentUrl, '_blank')}
+                          className="p-1.5 sm:p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Ver documento"
+                        >
+                          <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(doc.id)}
+                          className="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Eliminar documento"
+                        >
+                          <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
