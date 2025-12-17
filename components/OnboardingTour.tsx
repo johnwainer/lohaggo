@@ -13,26 +13,26 @@ interface TourStep {
 const tourSteps: TourStep[] = [
   {
     target: 'search-bar',
-    title: '🔍 Busca cualquier servicio',
-    description: 'Escribe lo que necesitas: niñera, plomero, limpieza... y encuentra expertos al instante.',
+    title: '🔍 Search any service',
+    description: 'Type what you need: babysitter, plumber, cleaning... and find experts instantly.',
     position: 'bottom'
   },
   {
     target: 'city-selector',
-    title: '📍 Selecciona tu ciudad',
-    description: 'Elige tu ciudad para ver servicios disponibles en tu zona.',
+    title: '📍 Select your city',
+    description: 'Choose your city to see available services in your area.',
     position: 'bottom'
   },
   {
     target: 'bottom-nav',
-    title: '🧭 Navegación rápida',
-    description: 'Usa estos botones para navegar: Inicio, Servicios y tu Perfil.',
+    title: '🧭 Quick navigation',
+    description: 'Use these buttons to navigate: Home, Services, and your Profile.',
     position: 'top'
   },
   {
     target: 'service-categories',
-    title: '📂 Explora por categorías',
-    description: 'Navega por categorías para descubrir todos los servicios disponibles.',
+    title: '📂 Explore by categories',
+    description: 'Browse categories to discover all available services.',
     position: 'top'
   }
 ]
@@ -45,13 +45,40 @@ export default function OnboardingTour() {
   useEffect(() => {
     const tourCompleted = localStorage.getItem('onboarding-tour-completed')
     const dontShowAgain = localStorage.getItem('onboarding-tour-dont-show')
-    
+
     if (!tourCompleted && !dontShowAgain) {
       setTimeout(() => setIsOpen(true), 1000)
     } else {
       setShowFloatingButton(true)
     }
   }, [])
+
+  useEffect(() => {
+    if (isOpen) {
+      const step = tourSteps[currentStep]
+      const element = getTargetElement(step.target)
+
+      if (element) {
+        const rect = element.getBoundingClientRect()
+        const windowHeight = window.innerHeight
+        const windowWidth = window.innerWidth
+
+        const isElementVisible =
+          rect.top >= 0 &&
+          rect.left >= 0 &&
+          rect.bottom <= windowHeight &&
+          rect.right <= windowWidth
+
+        if (!isElementVisible) {
+          element.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+            inline: 'center'
+          })
+        }
+      }
+    }
+  }, [currentStep, isOpen])
 
   const handleNext = () => {
     if (currentStep < tourSteps.length - 1) {
@@ -107,42 +134,72 @@ export default function OnboardingTour() {
   const getTooltipStyle = () => {
     const step = tourSteps[currentStep]
     const element = getTargetElement(step.target)
-    
+
     if (!element) return { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }
-    
+
     const rect = element.getBoundingClientRect()
-    const tooltipWidth = 320
-    const tooltipHeight = 200
-    
+    const windowHeight = window.innerHeight
+    const windowWidth = window.innerWidth
+    const tooltipWidth = Math.min(320, windowWidth - 32)
+    const tooltipHeight = 220
+    const padding = 20
+
+    let top = 0
+    let left = 0
+    let transform = ''
+
     switch (step.position) {
       case 'top':
-        return {
-          top: rect.top - tooltipHeight - 20,
-          left: rect.left + rect.width / 2 - tooltipWidth / 2
+        top = rect.top - tooltipHeight - padding
+        left = rect.left + rect.width / 2
+        transform = 'translateX(-50%)'
+
+        if (top < padding) {
+          top = rect.bottom + padding
         }
+        break
+
       case 'bottom':
-        return {
-          top: rect.bottom + 20,
-          left: rect.left + rect.width / 2 - tooltipWidth / 2
+        top = rect.bottom + padding
+        left = rect.left + rect.width / 2
+        transform = 'translateX(-50%)'
+
+        if (top + tooltipHeight > windowHeight - padding) {
+          top = rect.top - tooltipHeight - padding
         }
+        break
+
       case 'left':
-        return {
-          top: rect.top + rect.height / 2 - tooltipHeight / 2,
-          left: rect.left - tooltipWidth - 20
+        top = rect.top + rect.height / 2
+        left = rect.left - tooltipWidth - padding
+        transform = 'translateY(-50%)'
+
+        if (left < padding) {
+          left = rect.right + padding
         }
+        break
+
       case 'right':
-        return {
-          top: rect.top + rect.height / 2 - tooltipHeight / 2,
-          left: rect.right + 20
+        top = rect.top + rect.height / 2
+        left = rect.right + padding
+        transform = 'translateY(-50%)'
+
+        if (left + tooltipWidth > windowWidth - padding) {
+          left = rect.left - tooltipWidth - padding
         }
+        break
+
       case 'center':
       default:
-        return {
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)'
-        }
+        top = windowHeight / 2
+        left = windowWidth / 2
+        transform = 'translate(-50%, -50%)'
     }
+
+    left = Math.max(padding, Math.min(left, windowWidth - tooltipWidth - padding))
+    top = Math.max(padding, Math.min(top, windowHeight - tooltipHeight - padding))
+
+    return { top, left, transform }
   }
 
   if (!isOpen && showFloatingButton) {
@@ -150,11 +207,11 @@ export default function OnboardingTour() {
       <button
         onClick={handleRestart}
         className="fixed bottom-24 right-4 md:bottom-6 md:right-6 z-50 w-12 h-12 bg-gradient-to-r from-primary-500 to-secondary-500 text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center group"
-        aria-label="Mostrar tutorial"
+        aria-label="Show tutorial"
       >
         <HelpCircle size={24} />
         <span className="absolute right-14 bg-gray-900 text-white text-xs px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-          Ver tutorial
+          View tutorial
         </span>
       </button>
     )
@@ -176,7 +233,7 @@ export default function OnboardingTour() {
       />
       
       <div
-        className="fixed z-[102] bg-white rounded-2xl shadow-2xl p-6 max-w-sm animate-fadeIn"
+        className="fixed z-[102] bg-white rounded-2xl shadow-2xl p-6 w-[calc(100vw-2rem)] md:w-80 animate-fadeIn"
         style={tooltipStyle}
       >
         <button
@@ -216,14 +273,14 @@ export default function OnboardingTour() {
               className="flex-1 px-4 py-2.5 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition font-semibold flex items-center justify-center gap-2"
             >
               <ChevronLeft size={18} />
-              Anterior
+              Previous
             </button>
           )}
           <button
             onClick={handleNext}
             className="flex-1 px-4 py-2.5 bg-gradient-to-r from-primary-500 to-secondary-500 text-white rounded-xl hover:from-primary-600 hover:to-secondary-600 transition font-semibold flex items-center justify-center gap-2"
           >
-            {currentStep === tourSteps.length - 1 ? 'Finalizar' : 'Siguiente'}
+            {currentStep === tourSteps.length - 1 ? 'Finish' : 'Next'}
             {currentStep < tourSteps.length - 1 && <ChevronRight size={18} />}
           </button>
         </div>
@@ -233,7 +290,7 @@ export default function OnboardingTour() {
             onClick={handleDontShowAgain}
             className="w-full mt-3 text-xs text-gray-500 hover:text-gray-700 transition"
           >
-            No volver a mostrar
+            Do not show again
           </button>
         )}
       </div>
