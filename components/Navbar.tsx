@@ -370,6 +370,509 @@ export function Navbar() {
           </div>
         </div>
       </div>
+      {/* Mobile Menu */}      {/* Mobile Menu */}
+      {mobileMenuOpen && (
+  {mobileMenuOpen && (md:hidden bg-white animate-slide-down shadow-lg">
+          <div className="x-4 p pb-4 space-y-2>
+            {/* City Selector - Mobile */}
+            <div className="mb-2">
+              <button
+                onClick={() => setMobileCityDropdownOpen(!mobileCityDropdownOpen)}
+                className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 transition-all"
+              >
+                <div className="flex items-center space-x-2">
+                  <MapPin size={18} className="text-primary-600" />
+                  <span
+                    {isGeolocating ? 'Detectando...' : currentCity ? currentCity.name : 'Seleccionar ciudad'}
+                  span>
+                </>
+                <ChevronDown size={16} className={`transition-transform ${mobileCityDropdownOpen ? 'rotate-180' : ''}`} />
+              </button
+        <div className="md:hidden bg-white border-t border-gray-200 animate-slide-down shadow-lg">
+            <di/* Collapsible city list for mobile */}
+              {mobileCityDropdownOpen && (
+                <div className="mt-1 space-y-1 pl-4 animate-slide-down">
+                  {getActiveCities().map((city) => (
+                    <button
+                      key={city.slug}
+                      onClick={() => {
+                        setSelectedCity(city.slug)
+                        setMobileCityDropdownOpen(false)
+                      }}
+                      className={`w-full text-left px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                        selectedCity === city.slug
+                          ? 'text-primary-600 bg-primary-500/10'
+                          : 'text-gray-600 hover:text-primary-600 hover:bg-primary-500/5'
+                      }`}
+                    >
+                      {city.name}
+                    </button>
+                  ))}
+                  {cities.filter(c => c.status === 'COMING_SOON').length > 0 && (
+                    <>
+                      <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                        Próximamente
+                      </div>
+                      {cities.filter(c => c.status === 'COMING_SOON').map((city) => (
+                        <div
+                          key={city.slug}
+                          className="w-full text-left px-4 py-2 rounded-lg text-xs font-medium text-gray-400 cursor-not-allowed"
+                        >
+                          {city.name}
+                        </div>
+                      ))}
+                    </>
+                  )}
+                  <button
+                    onClick={() => {
+                      setShowCityModal(true)
+                      setMobileCityDropdownOpen(false)
+                      setMobileMenuOpen(false)
+                    }}
+                    className="w-full text-left px-4 py-2 text-xs font-semibold text-primary-600 hover:bg-primary-500/5 rounded-lg transition-all"
+                  >
+                    Ver todas las opciones
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-gray-200 pt-2"></div>
+
+            {v className="px-4 pt-2 pb-4 space-y-2">
+            {/* City Selector - Mobile */}
+            <div className="mb-2">
+              <button
+                onClick={() => setMobileCityDropdownOpen(!mobileCityDropdownOpen)}
+                className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 transition-all"
+              > 'text-primary-600 bg-primary-500/5'
+                      :text-gray-700 hover:hover:'
+                  }`}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Home
+                </Link>
+                <Link
+                  href="/servicios"
+                  className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+                    pathname?.startsWith('/servicios')
+                      ? 'text-primary-600 bg-primary-500/5'
+                      : 'text-gray-700 hover:text-primary-600 hover:bg-primary-500/5'
+                  }`}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Services
+                </Link>
+              </>
+            )}
+
+            <Link
+              href="/faq"
+              className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+                pathname === '/faq
+                  ? 'text-primary-600 bg-primary-500/5'
+            <div className="flex items-center space-x-2">
+              }`}
+              onClick={() => setMobileMenuOpen(false)<
+            >
+              FAQ
+            </Link>
+=======
+              </>
+            )}
+
+            <Link
+              href="/faq"
+              className={Mblock px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+                pathname === '/faq'
+                  ? 'text-primary-600 bg-primary-500/5'
+                  : 'text-gray-700 hover:text-primary-600 hover:bg-primary-500/5'
+              }`}
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              FAQ
+            </Link>
+>>>>>>> 72ac184 (feat(ui): hide home, services, and profile from mobile menu for logged-in users)
+
+            {session ? (
+              <>
+                <Link
+                  href={getDashboardLink() || '/dashboard'}
+                  className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <LayoutDashboard size={18} />
+                  <span>Panel</span>
+                </Link>
+                <div className="border-t border-gray-200 pt-2 mt-2 space-y-2">
+                  <div className="flex items-center space-x-3 px-4 py-2 mb-1">
+                    {session.user.image ? (
+                      <img
+                        src={session.user.image}
+                        alt="Profile"
+                        className="w-10 h-10 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center text-white font-black">
+                        {session.user.name?.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-sm font-bold text-gray-900">{session.user.name}</p>
+                      <p className="text-xs text-gray-500 font-medium">{session.user.email}</p>
+                      <span className="inline-block mt-1 text-xs font-bold text-primary-600 bg-primary-500/10 px-2 py-0.5 rounded-full border border-primary-500/20">
+                        {session.user.role}
+                      </span>
+                    </div>
+                  </div>
+                  {session.user.role !== 'ADMIN' && (
+                    <>
+                      <Link
+                        href="/my-ratings"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <Star size={18} />
+                        <span>Mis Calificaciones</span>
+                      </Link>
+                    </>
+                  )}
+                  {session.user.role === 'PARTNER' && (
+                    <>
+                      <Link
+                        href="/partner/services"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <Settings size={18} />
+                        <span>Mis Servicios</span>
+                      </Link>
+                      <Link
+                        href="/partner/verification"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <Shield size={18} />
+                        <span>Verificación</span>
+                      </Link>
+                    </>
+                  )}
+                  {session.user.role === 'CLIENT' && (
+                    <>
+                      <Link
+                        href="/dashboard/addresses"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <MapPin size={18} />
+                        <span>Mis Direcciones</span>
+                      </Link>
+                      <Link
+                        href="/dashboard/payment-methods"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <CreditCard size={18} />
+                        <span>Mis Métodos de Pago</span>
+                      </Link>
+                    </>
+                  )}
+                  {session.user.role !== 'ADMIN' && (
+                    <Link
+                      href={session.user.role === 'PARTNER' ? '/partner/notifications' : '/notifications'}
+                      className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <Bell size={18} />
+                      <span>Notificaciones</span>
+                    </Link>
+                  )}
+                  <button
+                    onClick={() => signOut({ callbackUrl: '/' })}
+                    className="w-full flex items-center space-x-2 text-red-600 hover:text-red-700 hover:bg-red-50 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                  >
+                    <LogOut size={18} />
+                    <span>Cerrar sesión</span>
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-2 border-t border-gray-200 pt-4 mt-4">
+                <Link
+                  href="/login"
+                  className="block text-center text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl font-bold transition-all"
+                  onClick={() => setMobileMenuOpen(false)a
+                >pPin size={18} className="text-primary-600" />
+                  Iniciar sesión
+                </Link>
+                <Link
+                  href="/register"
+                  className="block text-center bg-gradient-to-r from-primary-500 to-sec<sdary-500 text-white px-4 py-3 rounded-xl hover:from-primary-600 hover:to-secondary-600 transition-all font-bold shadow-lg"
+                  onpan>alse)}
+                >
+                  Registrarse
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+=======
+      {/* Mobile Menu */}
+      {mobileMenuOpen && (
+        <div className="md:hidden bg-white border-t border-gray-200 animte-side-down shadow-lg">
+          <div clasNam="px-4 pt-2 pb-4 space-y-2">
+            {/* City Selector - Mobile */}
+            <div className="mb-2">
+              <button
+                onClick={() => setMobileCityDropdownOpen(!mobileCityDropdownOpen
+                className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 transition-all"
+              >
+                <div className="flex items-center space-x-2">
+                  <MapPin size={18} className="text-primary-600" /    {isGeolocating ? 'Detectando...' : currentCity ? currentCity.name : 'Seleccionar ciudad'}
+                  <span>
+                    {isGeolocating ? 'Detectando...' : currentCity ? currentCity.name : 'Seleccionar ciudad'}
+                  </span>
+                </div>
+                <ChevronDown size={16} className={`transition-transform ${mobileCityDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* Collapsible city list for mobile */}
+              {mobileCityDropdownOpen && (
+                <div className="mt-1 space-y-1 pl-4 animate-slide-down">
+                  {getActiveCities().map((city) => (
+                    <button
+                      key={city.slug}
+                      onClick={() => {
+                        setSelectedCity(city.slug)
+                        setMobileCityDropdownOpen(false)
+                      }}
+                      className={`w-full text-left px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                        selectedCity === city.slug
+                          ? 'text-primary-600 bg-primary-500/10'
+                          : 'text-gray-600 hover:text-primary-600 hover:bg-primary-500/5'
+                      }`}
+                    >
+                      {city.name}
+                    </button>
+                  ))}
+                  {cities.filter(c => c.status === 'COM<NG_SOON').le/gth > 0 && (
+                    <>
+                      <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                        Coming Soon
+                      </div>
+                      {cities.filter(c => c.status === 'COMING_SOON').map((city) => (
+                        <div
+                          key={city.slug}
+                          className="w-full text-left px-4 py-2 rounded-lg text-xs font-medium text-gray-400 cursor-not-allowed"
+                        >
+                          {city.name}
+                        </div>
+                      ))}
+                    </>
+                  )}
+                  <button
+                    onClick={() => {
+                      setShowCityModal(true)
+                      setMobileCityDropdownOpen(false)
+                      setMobileMenuOpen(false)
+                    }}
+                    className="w-full text-left px-4 py-2 text-xs font-semibold text-primary-600 hover:bg-primary-500/5 rounded-lg transition-all"
+                  >
+                    View all options
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-gray-200 pt-2"></div>
+
+            {!session && (
+              <>
+                <Link
+                  href="/"
+                  className={`block px-4 py-3 rounded-xl text-sm font-bold transstion-all ${
+                    pathname === '/'
+                      ? 'text-primary-600 bg-primary-500/5'
+                      : 'text-gray-700 hover:text-primary-600 hover:bg-primary-500/5'
+                  }`}
+                  onClipk={() => setMobaleMenuOpen(false)}
+                >
+                  Hnme>
+                </div>
+                <ChevronDown size={16} className={`transition-transform ${mobileCityDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* Collapsible city list for mobile */}
+              {mobileCityDropdownOpen && (
+                <div className="mt-1 space-y-1 pl-4 animate-slide-down">
+                  {getActiveCities().map((city) => (
+                    <button
+                      key={city.slug}
+                      oneick={() => {
+                        setSelectedCity(city.slug)
+                        setMobileCityDropdownOpen(false)
+                      }}
+                      className={`w-full text-left px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                        selectedCity === city.slug
+                          ? 'text-primary-600 bg-primary-500/10'
+                          : 'text-gray-600 hover:text-primary-600 hover:bg-primary-500/5'
+                      }`}
+                    >
+                      {city.name}
+                    </button>
+                  ))}
+                  {cities.filter(c => c.status === 'COMING_SOON').length > 0 && (
+                    <>
+                   
+
+            {session ? (   <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+              < 
+                <Link
+                  href={getDashboardLink() || '/dashboard'}
+                  className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <LayoutDashboard size={18} / 
+                  <span Dashboard</span>
+                </Link 
+                <div className="border-t border-gray-200 pt-2 mt-2 space-y-2" 
+                  <div className="flex items-center space-x-3 px-4 py-2 mb-1" 
+                    {session.user.image ? (
+                      <img
+                        src={session.user.image}
+                        alt="Profile"
+                        className="w-10 h-10 rounded-full object-cover"
+                      / 
+                    ) : (
+                      <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center text-white font-black">
+                        {session.user.name?.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-sm font-bold text-gray-900">{session.user.name}</p>
+                      <p className="text-xs text-gray-500 font-medium">{session.user.email}</p>
+                      <span className="inline-block mt-1 text-xs font-bold text-primary-600 bg-primary-500/10 px-  py-0.5 rounded-full border border-prim ry-500/20">
+                        {session.user.role}
+                      </span>
+                    </div>
+                  </div>
+                  {session.user.role !== 'ADMIN' && (
+                    <>
+                      <Link
+                        href="/my-ratings"
+                         lassName="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <Star size={  } />
+                        <span>My Ratings</span>
+                      </Link>
+                    </>
+                  )}
+                  {session.user.role === 'PARTNER' && (
+                    <>
+                      <Link
+                        href="/partner/services"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-  py-3 rounded-xl text-sm font-bold transition-all"
+                        onClick={() => setMobileMenuOpen false)}
+                      >
+                        <Settings size={18} />
+                        <span>My Services</span>
+                      </Link>
+                      <Link
+                        href="/partner/verification"
+                        className=" lex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl t xt-sm font-bold tr nsi ion-all"
+                        onClick={ ) => setMobileMen Open(false)}
+                      >
+                        <Shield size={18} />
+                        <span>Verification</span>
+                      </L nk>
+                    </>
+                  P}
+                  {session.user.role === 'CLIENT' && (
+                    <>
+                      <Link
+                        href="/dashboard/addresses"
+                        className="flex items-center space-x-2 text-gray-700 hoverrtext-primary-600óxover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <MapPin size={18} />
+                        <span>My Admressas</span>
+               m      </Link>
+                      <Link
+                        href="/dasebnard/paytent-methods"
+                        className="flex items-centerpace-x-2 text-gray-700 hov:text-primary-600 hoer:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transtion-all"
+                        onClik={() => setMobileMenuOpen(false)}
+                      >
+                        <CrditCard ize={18} />
+                       <sp>My Payment Methos</span>
+                      </Link>
+                    </>
+                  )}
+                  {session.user.role !== 'ADMIN' && (
+                    <Link
+                      href={session.user.role === 'PARTNER'? '/artne/notificatins' : '/notifications'}
+                      className="lex tems-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-x txt-smont-bold tansition-all"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <Bell size={18} />
+                      <span>Notifications</span>
+                    </Link>
+                  )}
+                  <buttn
+                    onClick={() => signOut({ callbackUrl: '/' })}
+                    classNae="w-fullflex ites-center space-x-2 text-red-600 hver:text-red-700 hover:g-red-50 px-4 py-3 rounded-xl text-sm font-bold transtion-al"
+                  >
+                    <LogOut siz={18}/>
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div classNa="space-y-2 border-t border-gray-200 pt-4 mt-4">
+                <Lik
+                  href="/login"
+                  className="block text-center text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 ronded-xlont-bld tansition-all"
+                 onCick={() => setMbileMenuOpen(false)}
+                >
+                  Sin In
+                </Link>
+                <Link
+                  href="/reister"
+                  className="block text-centr bg-graient-to-r fromprmary-500 to-secodary-500 text-white px-4 py-3ronded-xl hover:from-primary-600 hover:to-condary-600 tansition-all font-bold shadow-lg"
+                  onClick={() => setMobileMenuOpen(fale)}
+                >
+                  Sign Up
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+      }
+                      </div>
+                      {cities.filter(c => c.status === 'COMING_SOON').map((city) => (
+                        <div
+                          key={city.slug}
+                          className="w-full text-left px-4 py-2 rounded-lg text-xs font-medium text-gray-400 cursor-not-allowed"
+                        >
+                          {city.name}
+                        </div>
+                      ))}
+                    </>
+                  )}
+                  <button
+                    onClick={() => {
+                      setShowCityModal(true)
+                      setMobileCityDropdownOpen(false)
+                      setMobileMenuOpen(false)
+                    }}
+                    className="w-full text-left px-4 py-2 text-xs font-semibold text-primary-600 hover:bg-primary-500/5 rounded-lg transition-all"
+                  >
+                    Ver todas las opciones
+                  </button>
+                </div>
+              )}
+            </div>
 
             <div className="border-t border-gray-200 pt-2"></div>
 
@@ -384,7 +887,7 @@ export function Navbar() {
                   }`}
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  Inicio
+                  Home
                 </Link>
                 <Link
                   href="/servicios"
@@ -395,7 +898,7 @@ export function Navbar() {
                   }`}
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  Servicios
+                  Services
                 </Link>
               </>
             )}
@@ -411,7 +914,378 @@ export function Navbar() {
             >
               FAQ
             </Link>
+=======
+              </>
+            )}
+
+            <Link
+              href="/faq"
+              className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+                pathname === '/faq'
+                  ? 'text-primary-600 bg-primary-500/5'
+                  : 'text-gray-700 hover:text-primary-600 hover:bg-primary-500/5'
+              }`}
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              FAQ
+            </Link>
 >>>>>>> 72ac184 (feat(ui): hide home, services, and profile from mobile menu for logged-in users)
+
+            {session ? (
+              <>
+                <Link
+                  href={getDashboardLink() || '/dashboard'}
+                  className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <LayoutDashboard size={18} />
+                  <span>Panel</span>
+                </Link>
+                <div className="border-t border-gray-200 pt-2 mt-2 space-y-2">
+                  <div className="flex items-center space-x-3 px-4 py-2 mb-1">
+                    {session.user.image ? (
+                      <img
+                        src={session.user.image}
+                        alt="Profile"
+                        className="w-10 h-10 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center text-white font-black">
+                        {session.user.name?.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-sm font-bold text-gray-900">{session.user.name}</p>
+                      <p className="text-xs text-gray-500 font-medium">{session.user.email}</p>
+                      <span className="inline-block mt-1 text-xs font-bold text-primary-600 bg-primary-500/10 px-2 py-0.5 rounded-full border border-primary-500/20">
+                        {session.user.role}
+                      </span>
+                    </div>
+                  </div>
+                  {session.user.role !== 'ADMIN' && (
+                    <>
+                      <Link
+                        href="/my-ratings"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <Star size={18} />
+                        <span>Mis Calificaciones</span>
+                      </Link>
+                    </>
+                  )}
+                  {session.user.role === 'PARTNER' && (
+                    <>
+                      <Link
+                        href="/partner/services"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <Settings size={18} />
+                        <span>Mis Servicios</span>
+                      </Link>
+                      <Link
+                        href="/partner/verification"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <Shield size={18} />
+                        <span>Verificación</span>
+                      </Link>
+                    </>
+                  )}
+                  {session.user.role === 'CLIENT' && (
+                    <>
+                      <Link
+                        href="/dashboard/addresses"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <MapPin size={18} />
+                        <span>Mis Direcciones</span>
+                      </Link>
+                      <Link
+                        href="/dashboard/payment-methods"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <CreditCard size={18} />
+                        <span>Mis Métodos de Pago</span>
+                      </Link>
+                    </>
+                  )}
+                  {session.user.role !== 'ADMIN' && (
+                    <Link
+                      href={session.user.role === 'PARTNER' ? '/partner/notifications' : '/notifications'}
+                      className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <Bell size={18} />
+                      <span>Notificaciones</span>
+                    </Link>
+                  )}
+                  <button
+                    onClick={() => signOut({ callbackUrl: '/' })}
+                    className="w-full flex items-center space-x-2 text-red-600 hover:text-red-700 hover:bg-red-50 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                  >
+                    <LogOut size={18} />
+                    <span>Cerrar sesión</span>
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-2 border-t border-gray-200 pt-4 mt-4">
+                <Link
+                  href="/login"
+                  className="block text-center text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl font-bold transition-all"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Iniciar sesión
+                </Link>
+                <Link
+                  href="/register"
+                  className="block text-center bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-4 py-3 rounded-xl hover:from-primary-600 hover:to-secondary-600 transition-all font-bold shadow-lg"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Registrarse
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+=======
+      {/* Mobile Menu */}
+      {mobileMenuOpen && (
+        <div className="md:hidden bg-white border-t border-gray-200 animate-slide-down shadow-lg">
+          <div className="px-4 pt-2 pb-4 space-y-2">
+            {/* City Selector - Mobile */}
+            <div className="mb-2">
+              <button
+                onClick={() => setMobileCityDropdownOpen(!mobileCityDropdownOpen)}
+                className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 transition-all"
+              >
+                <div className="flex items-center space-x-2">
+                  <MapPin size={18} className="text-primary-600" />
+                  <span>
+                    {isGeolocating ? 'Detectando...' : currentCity ? currentCity.name : 'Seleccionar ciudad'}
+                  </span>
+                </div>
+                <ChevronDown size={16} className={`transition-transform ${mobileCityDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* Collapsible city list for mobile */}
+              {mobileCityDropdownOpen && (
+                <div className="mt-1 space-y-1 pl-4 animate-slide-down">
+                  {getActiveCities().map((city) => (
+                    <button
+                      key={city.slug}
+                      onClick={() => {
+                        setSelectedCity(city.slug)
+                        setMobileCityDropdownOpen(false)
+                      }}
+                      className={`w-full text-left px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                        selectedCity === city.slug
+                          ? 'text-primary-600 bg-primary-500/10'
+                          : 'text-gray-600 hover:text-primary-600 hover:bg-primary-500/5'
+                      }`}
+                    >
+                      {city.name}
+                    </button>
+                  ))}
+                  {cities.filter(c => c.status === 'COMING_SOON').length > 0 && (
+                    <>
+                      <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                        Coming Soon
+                      </div>
+                      {cities.filter(c => c.status === 'COMING_SOON').map((city) => (
+                        <div
+                          key={city.slug}
+                          className="w-full text-left px-4 py-2 rounded-lg text-xs font-medium text-gray-400 cursor-not-allowed"
+                        >
+                          {city.name}
+                        </div>
+                      ))}
+                    </>
+                  )}
+                  <button
+                    onClick={() => {
+                      setShowCityModal(true)
+                      setMobileCityDropdownOpen(false)
+                      setMobileMenuOpen(false)
+                    }}
+                    className="w-full text-left px-4 py-2 text-xs font-semibold text-primary-600 hover:bg-primary-500/5 rounded-lg transition-all"
+                  >
+                    View all options
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-gray-200 pt-2"></div>
+
+            {!session && (
+              <>
+                <Link
+                  href="/"
+                  className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+                    pathname === '/'
+                      ? 'text-primary-600 bg-primary-500/5'
+                      : 'text-gray-700 hover:text-primary-600 hover:bg-primary-500/5'
+                  }`}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Home
+                </Link>
+                <Link
+                  href="/servicios"
+                  className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+                    pathname?.startsWith('/servicios')
+                      ? 'text-primary-600 bg-primary-500/5'
+                      : 'text-gray-700 hover:text-primary-600 hover:bg-primary-500/5'
+                  }`}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Services
+                </Link>
+              </>
+            )}
+
+            <Link
+              href="/faq"
+              className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+                pathname === '/faq'
+                  ? 'text-primary-600 bg-primary-500/5'
+                  : 'text-gray-700 hover:text-primary-600 hover:bg-primary-500/5'
+              }`}
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              FAQ
+            </Link>
+
+            {session ? (
+              <>
+                <Link
+                  href={getDashboardLink() || '/dashboard'}
+                  className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <LayoutDashboard size={18} />
+                  <span>Dashboard</span>
+                </Link>
+                <div className="border-t border-gray-200 pt-2 mt-2 space-y-2">
+                  <div className="flex items-center space-x-3 px-4 py-2 mb-1">
+                    {session.user.image ? (
+                      <img
+                        src={session.user.image}
+                        alt="Profile"
+                        className="w-10 h-10 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center text-white font-black">
+                        {session.user.name?.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-sm font-bold text-gray-900">{session.user.name}</p>
+                      <p className="text-xs text-gray-500 font-medium">{session.user.email}</p>
+                      <span className="inline-block mt-1 text-xs font-bold text-primary-600 bg-primary-500/10 px-2 py-0.5 rounded-full border border-primary-500/20">
+                        {session.user.role}
+                      </span>
+                    </div>
+                  </div>
+                  {session.user.role !== 'ADMIN' && (
+                    <>
+                      <Link
+                        href="/my-ratings"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <Star size={18} />
+                        <span>My Ratings</span>
+                      </Link>
+                    </>
+                  )}
+                  {session.user.role === 'PARTNER' && (
+                    <>
+                      <Link
+                        href="/partner/services"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <Settings size={18} />
+                        <span>My Services</span>
+                      </Link>
+                      <Link
+                        href="/partner/verification"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <Shield size={18} />
+                        <span>Verification</span>
+                      </Link>
+                    </>
+                  )}
+                  {session.user.role === 'CLIENT' && (
+                    <>
+                      <Link
+                        href="/dashboard/addresses"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <MapPin size={18} />
+                        <span>My Addresses</span>
+                      </Link>
+                      <Link
+                        href="/dashboard/payment-methods"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <CreditCard size={18} />
+                        <span>My Payment Methods</span>
+                      </Link>
+                    </>
+                  )}
+                  {session.user.role !== 'ADMIN' && (
+                    <Link
+                      href={session.user.role === 'PARTNER' ? '/partner/notifications' : '/notifications'}
+                      className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <Bell size={18} />
+                      <span>Notifications</span>
+                    </Link>
+                  )}
+                  <button
+                    onClick={() => signOut({ callbackUrl: '/' })}
+                    className="w-full flex items-center space-x-2 text-red-600 hover:text-red-700 hover:bg-red-50 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                  >
+                    <LogOut size={18} />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-2 border-t border-gray-200 pt-4 mt-4">
+                <Link
+                  href="/login"
+                  className="block text-center text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl font-bold transition-all"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Sign In
+                </Link>
+                <Link
+                  href="/register"
+                  className="block text-center bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-4 py-3 rounded-xl hover:from-primary-600 hover:to-secondary-600 transition-all font-bold shadow-lg"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Sign Up
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 =======
       {/* Mobile Menu */}
       {mobileMenuOpen && (
