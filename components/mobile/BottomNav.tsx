@@ -37,7 +37,7 @@ export function BottomNav() {
   const partnerTabs = [
     { href: '/partner', icon: Home, label: 'Inicio', requiresAuth: false },
     { href: '/partner/services', icon: Search, label: 'Servicios', requiresAuth: true },
-    { href: '/partner/requests', icon: Calendar, label: 'Reservas', requiresAuth: true },
+    { href: '/partner', icon: Calendar, label: 'Reservas', requiresAuth: true },
     { href: '/profile', icon: User, label: 'Perfil', requiresAuth: true },
   ]
 
