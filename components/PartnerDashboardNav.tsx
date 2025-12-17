@@ -22,28 +22,28 @@ export default function PartnerDashboardNav({
         <nav className="flex gap-0.5 sm:gap-1 overflow-x-auto scrollbar-hide">
           <button
             onClick={() => router.push('/partner')}
-            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${
+            className={`flex items-center gap-2 sm:gap-2 px-4 sm:px-4 py-3 sm:py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${
               activeTab === 'overview'
                 ? 'border-primary-600 text-primary-600'
                 : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
             }`}
           >
-            <Home size={24} />
+            <Home size={24} className="sm:w-[22px] sm:h-[22px]" />
             <span className="hidden sm:inline">Resumen</span>
           </button>
 
           <button
             onClick={() => router.push('/partner?tab=bookings')}
-            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${
+            className={`flex items-center gap-2 sm:gap-2 px-4 sm:px-4 py-3 sm:py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${
               activeTab === 'bookings'
                 ? 'border-primary-600 text-primary-600'
                 : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
             }`}
           >
-            <Package size={24} />
+            <Package size={24} className="sm:w-[22px] sm:h-[22px]" />
             <span className="hidden sm:inline">Mis Reservas</span>
             {bookingsCount > 0 && (
-              <span className="bg-primary-600 text-white text-xs px-2 py-0.5 rounded-full">
+              <span className="bg-primary-600 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
                 {bookingsCount}
               </span>
             )}
@@ -51,16 +51,16 @@ export default function PartnerDashboardNav({
 
           <button
             onClick={() => router.push('/partner?tab=my-requests')}
-            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${
+            className={`flex items-center gap-2 sm:gap-2 px-4 sm:px-4 py-3 sm:py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${
               activeTab === 'my-requests'
                 ? 'border-primary-600 text-primary-600'
                 : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
             }`}
           >
-            <MessageSquare size={24} />
+            <MessageSquare size={24} className="sm:w-[22px] sm:h-[22px]" />
             <span className="hidden sm:inline">Para Mí</span>
             {requestsCount > 0 && (
-              <span className="bg-primary-500 text-white text-xs px-2 py-0.5 rounded-full">
+              <span className="bg-primary-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
                 {requestsCount}
               </span>
             )}
