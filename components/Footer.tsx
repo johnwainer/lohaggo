@@ -35,7 +35,7 @@ export function Footer() {
               </div>
             </Link>
             <p className="text-gray-400 leading-relaxed font-medium">
-              Lo necesitas, LoHaggo. La forma más simple de encontrar cualquier servicio.
+              LoHaggo, Lo necesitas. La forma más simple de encontrar cualquier servicio.
             </p>
             <div className="flex space-x-4">
               <a href="#" className="w-10 h-10 bg-white/10 hover:bg-gradient-to-r hover:from-primary-500 hover:to-secondary-500 rounded-full flex items-center justify-center transition-all transform hover:scale-110">
