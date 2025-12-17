@@ -1,8 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { Home, Package, Bell, Activity, Settings, MessageSquare, Shield, Star } from 'lucide-react'
-import { DESIGN_SYSTEM } from '@/lib/design-system'
+import { Home, Package, MessageSquare } from 'lucide-react'
 
 interface NavItem {
   id: string
@@ -44,7 +43,7 @@ export default function PartnerHeader({
     },
     {
       id: 'bookings',
-      label: 'Mis Reservas',
+      label: 'My Bookings',
       icon: <Package size={20} className="sm:w-[22px] sm:h-[22px]" />,
       badge: bookingsCount,
       badgeColor: 'bg-primary-600',
@@ -52,7 +51,7 @@ export default function PartnerHeader({
     },
     {
       id: 'my-requests',
-      label: 'Para Mí',
+      label: 'For Me',
       icon: <MessageSquare size={20} className="sm:w-[22px] sm:h-[22px]" />,
       badge: requestsCount,
       badgeColor: 'bg-primary-500',
@@ -69,14 +68,14 @@ export default function PartnerHeader({
   }
 
   return (
-    <header className={DESIGN_SYSTEM.components.header.base}>
-      <div className={DESIGN_SYSTEM.components.header.container}>
+    <header className="bg-white shadow-sm sticky top-0 z-40">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div>
-              <h1 className={DESIGN_SYSTEM.components.header.title}>{title}</h1>
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">{title}</h1>
               {subtitle && (
-                <p className={`${DESIGN_SYSTEM.components.header.subtitle} hidden sm:block`}>
+                <p className="text-xs sm:text-sm text-gray-600 truncate hidden sm:block">
                   {subtitle}
                 </p>
               )}
@@ -86,15 +85,15 @@ export default function PartnerHeader({
       </div>
 
       {showNavigation && (
-        <div className={DESIGN_SYSTEM.components.nav.container}>
-          <div className={DESIGN_SYSTEM.components.nav.wrapper}>
-            <nav className={DESIGN_SYSTEM.components.nav.menu}>
+        <div className="border-t border-gray-200 bg-gray-50">
+          <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
+            <nav className="flex gap-0.5 sm:gap-1 overflow-x-auto scrollbar-hide">
               {navItems.map((item) => {
                 const isActive = activeTab === item.id
-                const itemClasses = `${DESIGN_SYSTEM.components.nav.item.base} ${
+                const itemClasses = `flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${
                   isActive
-                    ? DESIGN_SYSTEM.components.nav.item.active
-                    : DESIGN_SYSTEM.components.nav.item.inactive
+                    ? 'border-primary-600 text-primary-600'
+                    : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                 }`
 
                 return (
@@ -107,7 +106,7 @@ export default function PartnerHeader({
                     <span className="hidden sm:inline">{item.label}</span>
                     {item.badge && item.badge > 0 && (
                       <span
-                        className={`${item.badgeColor} text-white text-[10px] px-2 py-0.5 rounded-full ml-2`}
+                        className={`${item.badgeColor} text-white text-xs px-2 py-0.5 rounded-full`}
                       >
                         {item.badge}
                       </span>
