@@ -185,12 +185,12 @@ export default function MyRatingsPage() {
       {userRole === 'PARTNER' ? (
         <>
           <header className="bg-white shadow-sm sticky top-0 z-40">
-            <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-3 sm:py-4">
+            <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 sm:gap-3 min-w-0 flex-1 sm:gap-4 min-w-0 flex-1">
-                  <div className="min-w-0 flex-1" className="min-w-0 flex-1">
-                    <h1 className="text-lg sm:text-lg sm:text-2xl font-bold te truncatext-gray-900 truncate">Mis Calificaciones</h1>
-                    <p className="t-xt-xss smsm text-gray-600 trun truncate hidden sm:blockcate hidden sm:block">Calificaciones que has recibido de los clientes</p>
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+                  <div className="min-w-0 flex-1">
+                    <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">Mis Calificaciones</h1>
+                    <p className="text-xs sm:text-sm text-gray-600 truncate hidden sm:block">Calificaciones que has recibido de los clientes</p>
                   </div>
                 </div>
               </div>
