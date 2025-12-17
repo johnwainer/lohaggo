@@ -440,39 +440,43 @@ export function Navbar() {
 
             <div className="border-t border-gray-200 pt-2"></div>
 
-            <Link
-              href="/"
-              className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
-                pathname === '/'
-                  ? 'text-primary-600 bg-primary-500/5'
-                  : 'text-gray-700 hover:text-primary-600 hover:bg-primary-500/5'
-              }`}
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Inicio
-            </Link>
-            <Link
-              href="/servicios"
-              className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
-                pathname?.startsWith('/servicios')
-                  ? 'text-primary-600 bg-primary-500/5'
-                  : 'text-gray-700 hover:text-primary-600 hover:bg-primary-500/5'
-              }`}
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Servicios
-            </Link>
-            <Link
-              href="/faq"
-              className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
-                pathname === '/faq'
-                  ? 'text-primary-600 bg-primary-500/5'
-                  : 'text-gray-700 hover:text-primary-600 hover:bg-primary-500/5'
-              }`}
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              FAQ
-            </Link>
+            {!session && (
+              <>
+                <Link
+                  href="/"
+                  className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+                    pathname === '/'
+                      ? 'text-primary-600 bg-primary-500/5'
+                      : 'text-gray-700 hover:text-primary-600 hover:bg-primary-500/5'
+                  }`}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Inicio
+                </Link>
+                <Link
+                  href="/servicios"
+                  className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+                    pathname?.startsWith('/servicios')
+                      ? 'text-primary-600 bg-primary-500/5'
+                      : 'text-gray-700 hover:text-primary-600 hover:bg-primary-500/5'
+                  }`}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Servicios
+                </Link>
+                <Link
+                  href="/faq"
+                  className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+                    pathname === '/faq'
+                      ? 'text-primary-600 bg-primary-500/5'
+                      : 'text-gray-700 hover:text-primary-600 hover:bg-primary-500/5'
+                  }`}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  FAQ
+                </Link>
+              </>
+            )}
 
             {session ? (
               <>
@@ -507,14 +511,6 @@ export function Navbar() {
                   </div>
                   {session.user.role !== 'ADMIN' && (
                     <>
-                      <Link
-                        href="/profile"
-                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        <User size={18} />
-                        <span>Mi Perfil</span>
-                      </Link>
                       <Link
                         href="/my-ratings"
                         className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
