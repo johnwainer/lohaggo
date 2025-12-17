@@ -488,6 +488,17 @@ export function Navbar() {
                   <LayoutDashboard size={18} />
                   <span>Panel</span>
                 </Link>
+                <Link
+                  href="/faq"
+                  className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+                    pathname === '/faq'
+                      ? 'text-primary-600 bg-primary-500/5'
+                      : 'text-gray-700 hover:text-primary-600 hover:bg-primary-500/5'
+                  }`}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  FAQ
+                </Link>
                 <div className="border-t border-gray-200 pt-2 mt-2 space-y-2">
                   <div className="flex items-center space-x-3 px-4 py-2 mb-1">
                     {session.user.image ? (
