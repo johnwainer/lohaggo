@@ -758,25 +758,25 @@ export default function DashboardPage() {
               <nav className="flex gap-0.5 sm:gap-1 overflow-x-auto scrollbar-hide">
                 <button
                   onClick={() => setActiveTab('overview')}
-                  className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition whitespace-nowrap ${
+                  className={`flex items-center gap-2 sm:gap-2 px-4 sm:px-4 py-3 sm:py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${
                     activeTab === 'overview'
                       ? 'border-primary-600 text-primary-600'
                       : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                   }`}
                 >
-                  <Home size={20} className="sm:w-[22px] sm:h-[22px]" />
+                  <Home size={24} className="sm:w-[22px] sm:h-[22px]" />
                   <span className="hidden sm:inline">Resumen</span>
                 </button>
 
                 <button
                   onClick={() => setActiveTab('bookings')}
-                  className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition whitespace-nowrap ${
+                  className={`flex items-center gap-2 sm:gap-2 px-4 sm:px-4 py-3 sm:py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${
                     activeTab === 'bookings'
                       ? 'border-primary-600 text-primary-600'
                       : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                   }`}
                 >
-                  <Package size={20} className="sm:w-[22px] sm:h-[22px]" />
+                  <Package size={24} className="sm:w-[22px] sm:h-[22px]" />
                   <span className="hidden sm:inline">Mis Reservas</span>
                   {bookings.length > 0 && (
                     <span className="bg-primary-600 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
@@ -787,13 +787,13 @@ export default function DashboardPage() {
 
                 <button
                   onClick={() => setActiveTab('requests')}
-                  className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition whitespace-nowrap ${
+                  className={`flex items-center gap-2 sm:gap-2 px-4 sm:px-4 py-3 sm:py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${
                     activeTab === 'requests'
                       ? 'border-primary-600 text-primary-600'
                       : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                   }`}
                 >
-                  <MessageSquare size={20} className="sm:w-[22px] sm:h-[22px]" />
+                  <MessageSquare size={24} className="sm:w-[22px] sm:h-[22px]" />
                   <span className="hidden sm:inline">Mis Solicitudes</span>
                   {serviceRequests.length > 0 && (
                     <span className="bg-primary-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
@@ -804,13 +804,13 @@ export default function DashboardPage() {
 
                 <button
                   onClick={() => setActiveTab('favorites')}
-                  className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition whitespace-nowrap ${
+                  className={`flex items-center gap-2 sm:gap-2 px-4 sm:px-4 py-3 sm:py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${
                     activeTab === 'favorites'
                       ? 'border-primary-600 text-primary-600'
                       : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                   }`}
                 >
-                  <Heart size={20} className="sm:w-[22px] sm:h-[22px]" />
+                  <Heart size={24} className="sm:w-[22px] sm:h-[22px]" />
                   <span className="hidden sm:inline">Favoritos</span>
                   {favoritePartners.length > 0 && (
                     <span className="bg-primary-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
