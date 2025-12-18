@@ -210,64 +210,15 @@ export default function OnboardingTour() {
 
     if (!element) return { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }
 
-    const rect = element.getBoundingClientRect()
     const windowHeight = window.innerHeight
     const windowWidth = window.innerWidth
     const tooltipWidth = Math.min(320, windowWidth - 32)
     const tooltipHeight = 220
     const padding = 20
 
-    let top = 0
-    let left = 0
-    let transform = ''
-
-    switch (step.position) {
-      case 'top':
-        top = rect.top - tooltipHeight - padding
-        left = rect.left + rect.width / 2
-        transform = 'translateX(-50%)'
-
-        if (top < padding) {
-          top = rect.bottom + padding
-        }
-        break
-
-      case 'bottom':
-        top = rect.bottom + padding
-        left = rect.left + rect.width / 2
-        transform = 'translateX(-50%)'
-
-        if (top + tooltipHeight > windowHeight - padding) {
-          top = rect.top - tooltipHeight - padding
-        }
-        break
-
-      case 'left':
-        top = rect.top + rect.height / 2
-        left = rect.left - tooltipWidth - padding
-        transform = 'translateY(-50%)'
-
-        if (left < padding) {
-          left = rect.right + padding
-        }
-        break
-
-      case 'right':
-        top = rect.top + rect.height / 2
-        left = rect.right + padding
-        transform = 'translateY(-50%)'
-
-        if (left + tooltipWidth > windowWidth - padding) {
-          left = rect.left - tooltipWidth - padding
-        }
-        break
-
-      case 'center':
-      default:
-        top = windowHeight / 2
-        left = windowWidth / 2
-        transform = 'translate(-50%, -50%)'
-    }
+    let top = windowHeight / 2
+    let left = windowWidth / 2
+    let transform = 'translate(-50%, -50%)'
 
     left = Math.max(padding, Math.min(left, windowWidth - tooltipWidth - padding))
     top = Math.max(padding, Math.min(top, windowHeight - tooltipHeight - padding))
