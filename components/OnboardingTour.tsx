@@ -18,7 +18,7 @@ const tourSteps: TourStep[] = [
     position: 'bottom'
   },
   {
-    target: 'city-selector',
+    target: 'navbar',
     title: '🎯 Navigation bar',
     description: 'Here you can select your city, browse sections (Home, Services, FAQ), and access your profile or sign in.',
     position: 'bottom'
@@ -71,30 +71,30 @@ const tourTranslations = {
   es: {
     steps: [
       {
-        title: '🔍 Busca cualquier servicio',
-        description: 'Escribe lo que necesitas: niñera, plomero, limpieza... y encuentra expertos al instante.'
+        title: '🔍 Search any service',
+        description: 'Type what you need: babysitter, plumber, cleaning... and find experts instantly.'
       },
       {
-        title: '🎯 Barra de navegación',
-        description: 'Aquí puedes seleccionar tu ciudad, navegar por las secciones (Inicio, Servicios, FAQ), y acceder a tu perfil o iniciar sesión.'
+        title: '🎯 Navigation bar',
+        description: 'Here you can select your city, browse sections (Home, Services, FAQ), and access your profile or sign in.'
       },
       {
-        title: '🧭 Navegación rápida',
-        description: 'Usa estos botones para navegar: Inicio, Servicios y tu Perfil.'
+        title: '🧭 Quick navigation',
+        description: 'Use these buttons to navigate: Home, Services, and your Profile.'
       },
       {
-        title: '📂 Explora por categorías',
-        description: 'Navega por categorías para descubrir todos los servicios disponibles.'
+        title: '📂 Explore by categories',
+        description: 'Browse categories to discover all available services.'
       }
     ],
     ui: {
-      previous: 'Anterior',
-      next: 'Siguiente',
-      finish: 'Finalizar',
-      dontShowAgain: 'No volver a mostrar',
-      viewTutorial: 'Ver tutorial',
-      showTutorial: 'Mostrar tutorial',
-      stepCounter: 'de'
+      previous: 'Previous',
+      next: 'Next',
+      finish: 'Finish',
+      dontShowAgain: 'Do not show again',
+      viewTutorial: 'View tutorial',
+      showTutorial: 'Show tutorial',
+      stepCounter: 'of'
     }
   }
 }
@@ -103,28 +103,42 @@ export default function OnboardingTour() {
   const [isOpen, setIsOpen] = useState(false)
   const [currentStep, setCurrentStep] = useState(0)
   const [showFloatingButton, setShowFloatingButton] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
 
-  // Get user language preference (default to Spanish)
+  // Get user language preference (default to English)
   const getUserLanguage = () => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('user-language') || 'es'
+      return localStorage.getItem('user-language') || 'en'
     }
-    return 'es'
+    return 'en'
   }
 
   const currentLanguage = getUserLanguage() as 'en' | 'es'
   const translations = tourTranslations[currentLanguage]
 
   useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  useEffect(() => {
+    if (!isMobile) return
+
     const tourCompleted = localStorage.getItem('onboarding-tour-completed')
     const dontShowAgain = localStorage.getItem('onboarding-tour-dont-show')
 
     if (!tourCompleted && !dontShowAgain) {
-      setTimeout(() => setIsOpen(true), 1000)
+      setShowFloatingButton(true)
     } else {
       setShowFloatingButton(true)
     }
-  }, [])
+  }, [isMobile])
 
   useEffect(() => {
     if (isOpen) {
@@ -215,11 +229,13 @@ export default function OnboardingTour() {
     }
   }
 
+  if (!isMobile) return null
+
   if (!isOpen && showFloatingButton) {
     return (
       <button
         onClick={handleRestart}
-        className="fixed bottom-24 right-4 md:bottom-6 md:right-6 z-50 w-12 h-12 bg-gradient-to-r from-primary-500 to-secondary-500 text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center group"
+        className="fixed bottom-24 right-4 z-50 w-12 h-12 bg-gradient-to-r from-primary-500 to-secondary-500 text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center group"
         aria-label={translations.ui.showTutorial}
       >
         <HelpCircle size={24} />
