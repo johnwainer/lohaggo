@@ -105,12 +105,12 @@ export default function OnboardingTour() {
   const [showFloatingButton, setShowFloatingButton] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
 
-  // Get user language preference (default to English)
+  // Get user language preference (default to Spanish)
   const getUserLanguage = () => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('user-language') || 'en'
+      return localStorage.getItem('user-language') || 'es'
     }
-    return 'en'
+    return 'es'
   }
 
   const currentLanguage = getUserLanguage() as 'en' | 'es'
@@ -249,18 +249,19 @@ export default function OnboardingTour() {
   if (!isOpen) return null
 
   const step = tourSteps[currentStep]
+  const translatedStep = translations.steps[currentStep]
   const highlightStyle = getHighlightStyle()
   const tooltipStyle = getTooltipStyle()
 
   return (
     <>
       <div className="fixed inset-0 bg-black/70 z-[100] animate-fadeIn" onClick={handleComplete} />
-      
+
       <div
         className="fixed z-[101] border-4 border-primary-500 rounded-xl pointer-events-none transition-all duration-300"
         style={highlightStyle}
       />
-      
+
       <div
         className="fixed z-[102] bg-white rounded-2xl shadow-2xl p-6 w-[calc(100vw-2rem)] md:w-80 animate-fadeIn"
         style={tooltipStyle}
@@ -273,8 +274,8 @@ export default function OnboardingTour() {
         </button>
 
         <div className="mb-4">
-          <h3 className="text-xl font-bold text-gray-900 mb-2">{step.title}</h3>
-          <p className="text-sm text-gray-600">{step.description}</p>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">{translatedStep.title}</h3>
+          <p className="text-sm text-gray-600">{translatedStep.description}</p>
         </div>
 
         <div className="flex items-center justify-between mb-4">
