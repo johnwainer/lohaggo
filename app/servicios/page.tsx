@@ -46,7 +46,6 @@ function ServiciosContent() {
       const data = await res.json()
       setCategories(data)
     } catch (error) {
-      console.error('Error fetching categories:', error)
     }
   }
 
@@ -61,7 +60,6 @@ function ServiciosContent() {
       const data = await res.json()
       setServices(data)
     } catch (error) {
-      console.error('Error fetching services:', error)
     } finally {
       setLoading(false)
     }
