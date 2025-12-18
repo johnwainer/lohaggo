@@ -19,8 +19,8 @@ const tourSteps: TourStep[] = [
   },
   {
     target: 'city-selector',
-    title: '📍 Select your city',
-    description: 'Choose your city to see available services in your area.',
+    title: '🎯 Navigation bar',
+    description: 'Here you can select your city, browse sections (Home, Services, FAQ), and access your profile or sign in.',
     position: 'bottom'
   },
   {
@@ -46,8 +46,8 @@ const tourTranslations = {
         description: 'Type what you need: babysitter, plumber, cleaning... and find experts instantly.'
       },
       {
-        title: '📍 Select your city',
-        description: 'Choose your city to see available services in your area.'
+        title: '🎯 Navigation bar',
+        description: 'Here you can select your city, browse sections (Home, Services, FAQ), and access your profile or sign in.'
       },
       {
         title: '🧭 Quick navigation',
@@ -75,8 +75,8 @@ const tourTranslations = {
         description: 'Escribe lo que necesitas: niñera, plomero, limpieza... y encuentra expertos al instante.'
       },
       {
-        title: '📍 Selecciona tu ciudad',
-        description: 'Elige tu ciudad para ver servicios disponibles en tu zona.'
+        title: '🎯 Barra de navegación',
+        description: 'Aquí puedes seleccionar tu ciudad, navegar por las secciones (Inicio, Servicios, FAQ), y acceder a tu perfil o iniciar sesión.'
       },
       {
         title: '🧭 Navegación rápida',
