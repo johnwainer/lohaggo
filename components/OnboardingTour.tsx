@@ -13,26 +13,26 @@ interface TourStep {
 const tourSteps: TourStep[] = [
   {
     target: 'search-bar',
-    title: '🔍 Busca cualquier servicio',
-    description: 'Escribe lo que necesitas: niñera, plomero, limpieza... y encuentra expertos al instante.',
+    title: '🔍 Search any service',
+    description: 'Type what you need: babysitter, plumber, cleaning... and find experts instantly.',
     position: 'bottom'
   },
   {
     target: 'navbar',
-    title: '🎯 Barra de navegación',
-    description: 'Aquí puedes seleccionar tu ciudad, navegar por las secciones (Inicio, Servicios, FAQ), y acceder a tu perfil o iniciar sesión.',
+    title: '🎯 Navigation bar',
+    description: 'Here you can select your city, browse sections (Home, Services, FAQ), and access your profile or sign in.',
     position: 'bottom'
   },
   {
     target: 'bottom-nav',
-    title: '🧭 Navegación rápida',
-    description: 'Usa estos botones para navegar: Inicio, Servicios y tu Perfil.',
+    title: '🧭 Quick navigation',
+    description: 'Use these buttons to navigate: Home, Services, and your Profile.',
     position: 'top'
   },
   {
     target: 'service-categories',
-    title: '📂 Explora por categorías',
-    description: 'Navega por categorías para descubrir todos los servicios disponibles.',
+    title: '📂 Explore by categories',
+    description: 'Browse categories to discover all available services.',
     position: 'top'
   }
 ]
@@ -273,8 +273,8 @@ export default function OnboardingTour() {
         </button>
 
         <div className="mb-4">
-          <h3 className="text-xl font-bold text-gray-900 mb-2">{translations.steps[currentStep].title}</h3>
-          <p className="text-sm text-gray-600">{translations.steps[currentStep].description}</p>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">{step.title}</h3>
+          <p className="text-sm text-gray-600">{step.description}</p>
         </div>
 
         <div className="flex items-center justify-between mb-4">
