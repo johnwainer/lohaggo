@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Search, Filter, X, Star } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
+import ServicesTour from '@/components/ServicesTour'
 
 interface Service {
   id: string
@@ -98,6 +99,7 @@ function ServiciosContent() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <ServicesTour />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
         {/* Header - Estilo Rappi */}
         <div className="mb-6 md:mb-8">
@@ -113,7 +115,7 @@ function ServiciosContent() {
         <div className="bg-white rounded-2xl md:rounded-3xl shadow-xl p-4 md:p-6 mb-6 md:mb-8 border-2 border-transparent hover:border-primary-500/20 transition">
           <div className="flex flex-col md:flex-row gap-4">
             {/* Search */}
-            <div className="flex-1 relative">
+            <div className="flex-1 relative" data-tour="services-search">
               <Search className="absolute left-3 md:left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
               <input
                 type="text"
@@ -126,7 +128,7 @@ function ServiciosContent() {
           </div>
 
           {/* Category Filters */}
-          <div className="mt-4 md:mt-6">
+          <div className="mt-4 md:mt-6" data-tour="services-categories">
             <div className="flex items-center gap-2 mb-3 md:mb-4">
               <Filter size={18} className="text-gray-700 md:w-[22px] md:h-[22px]" />
               <span className="font-bold text-gray-900 text-base md:text-lg">Categorías:</span>
@@ -198,7 +200,7 @@ function ServiciosContent() {
                 </p>
               )}
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6" data-tour="services-grid">
               {services.map((service) => (
                 <Link
                   key={service.id}
