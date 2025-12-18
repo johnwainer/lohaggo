@@ -44,49 +44,37 @@ export function CityProvider({ children }: { children: React.ReactNode }) {
       try {
         const res = await fetch('/api/cities', { signal: controller.signal })
         if (!res.ok) {
-          console.error('Failed to fetch cities')
           setLoading(false)
           return
         }
 
         const data = await res.json()
-        if (!Array.isArray(data)) {
-          setLoading(false)
-          return
-        }
+        const cityList: CityOption[] = data.map((city: any) => ({
+          id: city.id,
+          name: city.name,
+          slug: city.slug,
+          status: city.status,
+          latitude: city.latitude,
+          longitude: city.longitude
+        }))
 
-        const mappedCities: CityOption[] = data
-          .map((city: any) => ({
-            id: city.id,
-            slug: city.slug,
-            name: city.name,
-            status: city.status as CityStatus,
-            order: city.order || 0,
-            latitude: city.latitude,
-            longitude: city.longitude,
-            lanzamiento: city.lanzamiento,
-            fechaLanzamiento: city.fechaLanzamiento
-          }))
-          .sort((a, b) => a.order - b.order)
+        setCities(cityList)
 
-        setCities(mappedCities)
-
-        const savedCity = typeof window !== 'undefined' ? localStorage.getItem('selectedCity') : null
-
-        if (savedCity) {
-          const city = mappedCities.find(c => c.slug === savedCity && c.status === 'ACTIVE')
-          if (city) {
-            setSelectedCityState(savedCity)
-            setLoading(false)
-            return
+        if (typeof window !== 'undefined') {
+          const savedCity = localStorage.getItem('selectedCity')
+          if (savedCity) {
+            const cityExists = cityList.find(c => c.slug === savedCity && c.status === 'ACTIVE')
+            if (cityExists) {
+              setSelectedCityState(savedCity)
+            } else {
+              localStorage.removeItem('selectedCity')
+              setShowCityModal(true)
+            }
+          } else {
+            setShowCityModal(true)
           }
-        }
-
-        const hasActiveCities = mappedCities.some(c => c.status === 'ACTIVE')
-        if (hasActiveCities) {
-          await tryGeolocation(mappedCities)
         } else {
-          const firstCity = mappedCities[0]
+          const firstCity = cityList.find(c => c.status === 'ACTIVE')
           if (firstCity) {
             setSelectedCityState(firstCity.slug)
           }
@@ -95,7 +83,6 @@ export function CityProvider({ children }: { children: React.ReactNode }) {
         setLoading(false)
       } catch (error: any) {
         if (error.name === 'AbortError') return
-        console.error('Error fetching cities:', error)
         setLoading(false)
       }
     }
@@ -137,7 +124,6 @@ export function CityProvider({ children }: { children: React.ReactNode }) {
         selectDefaultCity(cityList)
       }
     } catch (error) {
-      console.log('Geolocation failed or denied:', error)
       setShowCityModal(true)
       selectDefaultCity(cityList)
     } finally {

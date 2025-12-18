@@ -12,8 +12,6 @@ export default function PWARegister() {
       navigator.serviceWorker
         .register('/sw.js', { scope: '/' })
         .then((registration) => {
-          console.log('✅ Service Worker registered:', registration.scope)
-
           // Check for updates every hour
           setInterval(() => {
             registration.update()
@@ -36,7 +34,6 @@ export default function PWARegister() {
           })
         })
         .catch((error) => {
-          console.error('❌ Service Worker registration failed:', error)
         })
 
       // Handle service worker controller change
@@ -56,7 +53,6 @@ export default function PWARegister() {
       })
 
       window.addEventListener('appinstalled', () => {
-        console.log('✅ PWA installed successfully')
         localStorage.removeItem('pwa-prompt-available')
         deferredPrompt = null
       })
