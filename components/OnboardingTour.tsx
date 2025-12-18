@@ -13,26 +13,26 @@ interface TourStep {
 const tourSteps: TourStep[] = [
   {
     target: 'search-bar',
-    title: '🔍 Search any service',
-    description: 'Type what you need: babysitter, plumber, cleaning... and find experts instantly.',
+    title: '🔍 Busca cualquier servicio',
+    description: 'Escribe lo que necesitas: niñera, plomero, limpieza... y encuentra expertos al instante.',
     position: 'bottom'
   },
   {
     target: 'navbar',
-    title: '🎯 Navigation bar',
-    description: 'Here you can select your city, browse sections (Home, Services, FAQ), and access your profile or sign in.',
+    title: '🎯 Barra de navegación',
+    description: 'Aquí puedes seleccionar tu ciudad, navegar por las secciones (Inicio, Servicios, FAQ), y acceder a tu perfil o iniciar sesión.',
     position: 'bottom'
   },
   {
     target: 'bottom-nav',
-    title: '🧭 Quick navigation',
-    description: 'Use these buttons to navigate: Home, Services, and your Profile.',
+    title: '🧭 Navegación rápida',
+    description: 'Usa estos botones para navegar: Inicio, Servicios y tu Perfil.',
     position: 'top'
   },
   {
     target: 'service-categories',
-    title: '📂 Explore by categories',
-    description: 'Browse categories to discover all available services.',
+    title: '📂 Explora por categorías',
+    description: 'Navega por categorías para descubrir todos los servicios disponibles.',
     position: 'top'
   }
 ]
@@ -71,30 +71,30 @@ const tourTranslations = {
   es: {
     steps: [
       {
-        title: '🔍 Search any service',
-        description: 'Type what you need: babysitter, plumber, cleaning... and find experts instantly.'
+        title: '🔍 Busca cualquier servicio',
+        description: 'Escribe lo que necesitas: niñera, plomero, limpieza... y encuentra expertos al instante.'
       },
       {
-        title: '🎯 Navigation bar',
-        description: 'Here you can select your city, browse sections (Home, Services, FAQ), and access your profile or sign in.'
+        title: '🎯 Barra de navegación',
+        description: 'Aquí puedes seleccionar tu ciudad, navegar por las secciones (Inicio, Servicios, FAQ), y acceder a tu perfil o iniciar sesión.'
       },
       {
-        title: '🧭 Quick navigation',
-        description: 'Use these buttons to navigate: Home, Services, and your Profile.'
+        title: '🧭 Navegación rápida',
+        description: 'Usa estos botones para navegar: Inicio, Servicios y tu Perfil.'
       },
       {
-        title: '📂 Explore by categories',
-        description: 'Browse categories to discover all available services.'
+        title: '📂 Explora por categorías',
+        description: 'Navega por categorías para descubrir todos los servicios disponibles.'
       }
     ],
     ui: {
-      previous: 'Previous',
-      next: 'Next',
-      finish: 'Finish',
-      dontShowAgain: 'Do not show again',
-      viewTutorial: 'View tutorial',
-      showTutorial: 'Show tutorial',
-      stepCounter: 'of'
+      previous: 'Anterior',
+      next: 'Siguiente',
+      finish: 'Finalizar',
+      dontShowAgain: 'No volver a mostrar',
+      viewTutorial: 'Ver tutorial',
+      showTutorial: 'Mostrar tutorial',
+      stepCounter: 'de'
     }
   }
 }
