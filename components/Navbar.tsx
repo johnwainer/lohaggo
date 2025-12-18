@@ -72,7 +72,7 @@ export function Navbar() {
     const comingSoonCities = cities.filter(c => c.status === 'COMING_SOON')
 
     return (
-      <div className="hidden md:block relative" ref={dropdownRef} data-tour="city-selector">
+      <div className="hidden md:block relative" ref={dropdownRef}>
         <button
           onClick={() => setOpen((prev) => !prev)}
           disabled={isGeolocating}
@@ -163,7 +163,7 @@ export function Navbar() {
   return (
     <>
       <CityModal />
-      <nav className="bg-white shadow-md sticky top-0 z-50 border-b border-gray-200">
+      <nav className="bg-white shadow-md sticky top-0 z-50 border-b border-gray-200" data-tour="navbar">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-20">
             <div className="flex items-center gap-6">
