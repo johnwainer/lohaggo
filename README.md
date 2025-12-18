@@ -79,6 +79,12 @@
 - **Interfaz Intuitiva**: Navegación clara y simple
 - **Retroalimentación Visual**: Estados de carga, confirmaciones y errores claros
 - **PWA Ready**: Capacidades de Progressive Web App
+- **Tours Interactivos**: Guías paso a paso para nuevos usuarios en mobile
+  - **Tour de Inicio**: Introducción a búsqueda, navegación y categorías
+  - **Tour de Servicios**: Guía de búsqueda, filtros y exploración de servicios
+  - **Botón de Ayuda Flotante**: Acceso rápido para reactivar tours
+  - **Persistencia**: Tours se muestran solo una vez, con opción "No volver a mostrar"
+  - **Auto-scroll**: Elementos destacados siempre visibles durante el tour
 
 ## 🛠️ Tecnologías
 
