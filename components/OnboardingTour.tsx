@@ -205,25 +205,14 @@ export default function OnboardingTour() {
   }
 
   const getTooltipStyle = () => {
-    const step = tourSteps[currentStep]
-    const element = getTargetElement(step.target)
-
-    if (!element) return { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }
-
     const windowHeight = window.innerHeight
     const windowWidth = window.innerWidth
-    const tooltipWidth = Math.min(320, windowWidth - 32)
-    const tooltipHeight = 220
-    const padding = 20
 
-    let top = windowHeight / 2
-    let left = windowWidth / 2
-    let transform = 'translate(-50%, -50%)'
-
-    left = Math.max(padding, Math.min(left, windowWidth - tooltipWidth - padding))
-    top = Math.max(padding, Math.min(top, windowHeight - tooltipHeight - padding))
-
-    return { top, left, transform }
+    return {
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)'
+    }
   }
 
   if (!isOpen && showFloatingButton) {
