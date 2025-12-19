@@ -8,6 +8,7 @@ import { formatCurrency } from '@/lib/utils'
 import { useCity } from '@/lib/city-context'
 import ConfirmModal from '@/components/ConfirmModal'
 import AdBanner from '@/components/ads/AdBanner'
+import ServiceDetailTour from '@/components/ServiceDetailTour'
 
 interface Service {
   id: string
@@ -503,9 +504,10 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <ServiceDetailTour />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
         {/* Service Header */}
-        <div className="bg-white rounded-xl shadow-md p-4 md:p-8 mb-6 md:mb-8">
+        <div className="bg-white rounded-xl shadow-md p-4 md:p-8 mb-6 md:mb-8" data-tour="service-header">
           <div className="flex flex-col sm:flex-row items-start gap-4 md:gap-6">
             <div className="emoji-icon" style={{ fontSize: '3em' }}>{service.icon}</div>
             <div className="flex-1 w-full">
@@ -546,7 +548,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
 
         {/* Booking Button - Only show if partners available */}
         {service.partners.length > 0 && (
-          <div className="relative overflow-hidden bg-gradient-to-br from-primary-50 via-secondary-50 to-accent-50 rounded-2xl shadow-lg border-2 border-primary-200 p-6 md:p-8 mb-6 md:mb-8 group hover:shadow-xl transition-all duration-300">
+          <div className="relative overflow-hidden bg-gradient-to-br from-primary-50 via-secondary-50 to-accent-50 rounded-2xl shadow-lg border-2 border-primary-200 p-6 md:p-8 mb-6 md:mb-8 group hover:shadow-xl transition-all duration-300" data-tour="request-button">
             <div className="absolute inset-0 bg-gradient-to-r from-primary-400/10 to-secondary-400/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
 
             <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
@@ -582,7 +584,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
 
         {/* Available Professionals */}
         {service.partners.length > 0 ? (
-          <div className="bg-white rounded-xl shadow-md p-4 md:p-8">
+          <div className="bg-white rounded-xl shadow-md p-4 md:p-8" data-tour="partners-list">
             <h2 className="text-xl md:text-2xl font-bold mb-4 md:mb-6">Profesionales disponibles</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               {service.partners
