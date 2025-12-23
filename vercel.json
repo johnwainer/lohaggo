@@ -9,7 +9,7 @@
         },
         {
           "key": "Access-Control-Allow-Origin",
-          "value": "https://app.lohaggo.local"
+          "value": "*"
         },
         {
           "key": "Access-Control-Allow-Methods",
