@@ -81,14 +81,17 @@ function ServiciosContent() {
     }
   }
 
-  const saveSearchHistory = async (query: string) => {
+  const saveSearchHistory = async (query: string, hasResults: boolean = true) => {
     if (!session?.user || !query.trim() || query.trim().length < 2) return
 
     try {
       await fetch('/api/search-history', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: query.trim() })
+        body: JSON.stringify({
+          query: query.trim(),
+          hasResults
+        })
       })
       fetchSearchHistory()
     } catch (error) {
@@ -126,13 +129,20 @@ function ServiciosContent() {
       const res = await fetch(url)
       const data = await res.json()
 
+      let resultServices = []
       if (data.services) {
+        resultServices = data.services
         setServices(data.services)
         if (data.suggestions) {
           setSuggestions(data.suggestions)
         }
       } else {
+        resultServices = data
         setServices(data)
+      }
+
+      if (searchTerm && searchTerm.length >= 2) {
+        saveSearchHistory(searchTerm, resultServices.length > 0)
       }
     } catch (error) {
     } finally {
@@ -193,9 +203,6 @@ function ServiciosContent() {
     if (initialized) {
       const timeoutId = setTimeout(() => {
         fetchServices()
-        if (searchTerm && searchTerm.length >= 2) {
-          saveSearchHistory(searchTerm)
-        }
       }, 300)
 
       return () => clearTimeout(timeoutId)
