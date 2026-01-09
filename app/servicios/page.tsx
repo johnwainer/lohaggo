@@ -166,7 +166,7 @@ function ServiciosContent() {
               <Search className="absolute left-3 md:left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
               <input
                 type="text"
-                placeholder="Buscar servicios... (ej. plomero, electricista, limpieza)"
+                placeholder="Search services... (e.g. plumber, electrician, cleaning)"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onFocus={() => searchTerm.length >= 2 && setShowAutocomplete(true)}
@@ -175,33 +175,42 @@ function ServiciosContent() {
               />
 
               {showAutocomplete && autocompleteResults.length > 0 && (
-                <div className="absolute z-50 w-full mt-2 bg-white rounded-xl shadow-2xl border-2 border-gray-100 overflow-hidden">
-                  <div className="p-2 bg-gray-50 border-b border-gray-200">
-                    <p className="text-xs font-bold text-gray-600 uppercase">Sugerencias</p>
+                <div className="absolute z-50 w-full mt-2 bg-white rounded-xl shadow-2xl border-2 border-gray-100 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="p-2 bg-gradient-to-r from-primary-50 to-secondary-50 border-b border-gray-200">
+                    <p className="text-xs font-bold text-gray-700 uppercase tracking-wide">💡 Suggestions</p>
                   </div>
-                  {autocompleteResults.map((service) => (
-                    <Link
-                      key={service.id}
-                      href={`/servicios/${service.slug}`}
-                      className="flex items-center gap-3 p-3 hover:bg-primary-50 transition border-b border-gray-100 last:border-0"
-                    >
-                      <span className="text-2xl">{service.icon}</span>
-                      <div className="flex-1">
-                        <p className="font-bold text-sm text-gray-900">{service.name}</p>
-                        <p className="text-xs text-gray-500">{service.category.name}</p>
-                      </div>
-                      <p className="text-sm font-bold text-primary-600">{formatCurrency(service.basePrice)}</p>
-                    </Link>
-                  ))}
+                  <div className="max-h-[300px] overflow-y-auto">
+                    {autocompleteResults.map((service) => (
+                      <Link
+                        key={service.id}
+                        href={`/servicios/${service.slug}`}
+                        className="flex items-center gap-3 p-3 hover:bg-gradient-to-r hover:from-primary-50 hover:to-secondary-50 transition-all duration-200 border-b border-gray-100 last:border-0 group"
+                      >
+                        <span className="text-2xl group-hover:scale-110 transition-transform duration-200">{service.icon}</span>
+                        <div className="flex-1">
+                          <p className="font-bold text-sm text-gray-900 group-hover:text-primary-600 transition-colors">{service.name}</p>
+                          <p className="text-xs text-gray-500">{service.category.name}</p>
+                        </div>
+                        <p className="text-sm font-bold text-primary-600">{formatCurrency(service.basePrice)}</p>
+                      </Link>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
           </div>
 
-          <div className="mt-4 md:mt-6" data-tour="services-categories">
+          <div
+            className={`mt-4 md:mt-6 transition-all duration-300 ${
+              showAutocomplete && autocompleteResults.length > 0
+                ? 'opacity-0 max-h-0 overflow-hidden pointer-events-none'
+                : 'opacity-100 max-h-[500px]'
+            }`}
+            data-tour="services-categories"
+          >
             <div className="flex items-center gap-2 mb-3 md:mb-4">
               <Filter size={18} className="text-gray-700 md:w-[22px] md:h-[22px]" />
-              <span className="font-bold text-gray-900 text-base md:text-lg">Categorías:</span>
+              <span className="font-bold text-gray-900 text-base md:text-lg">Categories:</span>
             </div>
             <div className="flex flex-wrap gap-2 md:gap-3">
               <button
@@ -212,7 +221,7 @@ function ServiciosContent() {
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
                 }`}
               >
-                Todos
+                All
               </button>
               {categories.map((category) => (
                 <button
