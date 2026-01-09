@@ -209,7 +209,10 @@ export default function SearchAnalyticsPage() {
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ query, percent }) => `${query}: ${(percent * 100).toFixed(0)}%`}
+                      label={(props: any) => {
+                        const entry = analytics.topSearches[props.index];
+                        return `${entry.query}: ${(props.percent * 100).toFixed(0)}%`;
+                      }}
                       outerRadius={120}
                       fill="#8884d8"
                       dataKey="count"
