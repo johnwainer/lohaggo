@@ -1,29 +1,69 @@
-import { Capacitor } from '@capacitor/core';
-
 export const isNativePlatform = (): boolean => {
-  return Capacitor.isNativePlatform();
+  if (typeof window === 'undefined') return false;
+  try {
+    const { Capacitor } = require('@capacitor/core');
+    return Capacitor.isNativePlatform();
+  } catch {
+    return false;
+  }
 };
 
 export const isAndroid = (): boolean => {
-  return Capacitor.getPlatform() === 'android';
+  if (typeof window === 'undefined') return false;
+  try {
+    const { Capacitor } = require('@capacitor/core');
+    return Capacitor.getPlatform() === 'android';
+  } catch {
+    return false;
+  }
 };
 
 export const isIOS = (): boolean => {
-  return Capacitor.getPlatform() === 'ios';
+  if (typeof window === 'undefined') return false;
+  try {
+    const { Capacitor } = require('@capacitor/core');
+    return Capacitor.getPlatform() === 'ios';
+  } catch {
+    return false;
+  }
 };
 
 export const isWeb = (): boolean => {
-  return Capacitor.getPlatform() === 'web';
+  if (typeof window === 'undefined') return true;
+  try {
+    const { Capacitor } = require('@capacitor/core');
+    return Capacitor.getPlatform() === 'web';
+  } catch {
+    return true;
+  }
 };
 
 export const getPlatform = (): string => {
-  return Capacitor.getPlatform();
+  if (typeof window === 'undefined') return 'web';
+  try {
+    const { Capacitor } = require('@capacitor/core');
+    return Capacitor.getPlatform();
+  } catch {
+    return 'web';
+  }
 };
 
 export const isPluginAvailable = (pluginName: string): boolean => {
-  return Capacitor.isPluginAvailable(pluginName);
+  if (typeof window === 'undefined') return false;
+  try {
+    const { Capacitor } = require('@capacitor/core');
+    return Capacitor.isPluginAvailable(pluginName);
+  } catch {
+    return false;
+  }
 };
 
 export const convertFileSrc = (filePath: string): string => {
-  return Capacitor.convertFileSrc(filePath);
+  if (typeof window === 'undefined') return filePath;
+  try {
+    const { Capacitor } = require('@capacitor/core');
+    return Capacitor.convertFileSrc(filePath);
+  } catch {
+    return filePath;
+  }
 };
