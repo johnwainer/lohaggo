@@ -13,6 +13,7 @@ export default function AdminLayoutClient({
   const getActiveSectionFromPath = () => {
     if (pathname === '/admin') return 'dashboard'
     if (pathname.startsWith('/admin/ads')) return 'ads'
+    if (pathname.startsWith('/admin/search-analytics')) return 'search-analytics'
     if (pathname.startsWith('/admin/payment-config')) return 'payment-config'
     if (pathname.startsWith('/admin/commissions')) return 'commissions'
     if (pathname.startsWith('/admin/payouts')) return 'payouts'

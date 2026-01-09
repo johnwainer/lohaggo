@@ -58,6 +58,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
       label: 'Marketing',
       items: [
         { id: 'ads', label: 'Publicidad', icon: Megaphone, isLink: true, href: '/admin/ads' },
+        { id: 'search-analytics', label: 'Búsquedas', icon: BarChart3, isLink: true, href: '/admin/search-analytics' },
       ]
     },
     {
