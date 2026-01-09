@@ -2,8 +2,9 @@
 
 import { useEffect, useState, Suspense, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import Link from 'next/link'
-import { Search, Filter, X, Star, Lightbulb } from 'lucide-react'
+import { Search, Filter, X, Star, Lightbulb, Clock, Trash2 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import ServicesTour from '@/components/ServicesTour'
 
@@ -37,8 +38,15 @@ interface Suggestions {
   similarServices: Service[]
 }
 
+interface SearchHistoryItem {
+  id: string
+  query: string
+  createdAt: string
+}
+
 function ServiciosContent() {
   const searchParams = useSearchParams()
+  const { data: session } = useSession()
   const [services, setServices] = useState<Service[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string>('')
@@ -48,12 +56,61 @@ function ServiciosContent() {
   const [suggestions, setSuggestions] = useState<Suggestions | null>(null)
   const [autocompleteResults, setAutocompleteResults] = useState<Service[]>([])
   const [showAutocomplete, setShowAutocomplete] = useState(false)
+  const [searchHistory, setSearchHistory] = useState<SearchHistoryItem[]>([])
+  const [showHistory, setShowHistory] = useState(false)
 
   const fetchCategories = async () => {
     try {
       const res = await fetch('/api/categories')
       const data = await res.json()
       setCategories(data)
+    } catch (error) {
+    }
+  }
+
+  const fetchSearchHistory = async () => {
+    if (!session?.user) return
+
+    try {
+      const res = await fetch('/api/search-history')
+      if (res.ok) {
+        const data = await res.json()
+        setSearchHistory(data)
+      }
+    } catch (error) {
+    }
+  }
+
+  const saveSearchHistory = async (query: string) => {
+    if (!session?.user || !query.trim() || query.trim().length < 2) return
+
+    try {
+      await fetch('/api/search-history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: query.trim() })
+      })
+      fetchSearchHistory()
+    } catch (error) {
+    }
+  }
+
+  const deleteSearchHistoryItem = async (id: string) => {
+    try {
+      await fetch(`/api/search-history?id=${id}`, {
+        method: 'DELETE'
+      })
+      setSearchHistory(prev => prev.filter(item => item.id !== id))
+    } catch (error) {
+    }
+  }
+
+  const clearSearchHistory = async () => {
+    try {
+      await fetch('/api/search-history', {
+        method: 'DELETE'
+      })
+      setSearchHistory([])
     } catch (error) {
     }
   }
@@ -108,6 +165,7 @@ function ServiciosContent() {
   useEffect(() => {
     const init = async () => {
       await fetchCategories()
+      await fetchSearchHistory()
 
       const urlSearch = searchParams.get('search')
       const urlCategory = searchParams.get('category')
@@ -126,9 +184,18 @@ function ServiciosContent() {
   }, [searchParams])
 
   useEffect(() => {
+    if (session?.user) {
+      fetchSearchHistory()
+    }
+  }, [session])
+
+  useEffect(() => {
     if (initialized) {
       const timeoutId = setTimeout(() => {
         fetchServices()
+        if (searchTerm && searchTerm.length >= 2) {
+          saveSearchHistory(searchTerm)
+        }
       }, 300)
 
       return () => clearTimeout(timeoutId)
@@ -169,10 +236,64 @@ function ServiciosContent() {
                 placeholder="Servicios de búsqueda... (por ejemplo, fontanero, electricista, limpieza)"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                onFocus={() => searchTerm.length >= 2 && setShowAutocomplete(true)}
-                onBlur={() => setTimeout(() => setShowAutocomplete(false), 200)}
+                onFocus={() => {
+                  if (searchTerm.length >= 2) {
+                    setShowAutocomplete(true)
+                  } else {
+                    setShowHistory(true)
+                  }
+                }}
+                onBlur={() => {
+                  setTimeout(() => {
+                    setShowAutocomplete(false)
+                    setShowHistory(false)
+                  }, 200)
+                }}
                 className="w-full pl-10 md:pl-12 pr-4 py-3 md:py-4 border-2 border-gray-200 rounded-xl md:rounded-2xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none text-gray-800 font-medium transition text-sm md:text-base"
               />
+
+              {showHistory && searchHistory.length > 0 && !searchTerm && session?.user && (
+                <div className="absolute z-50 w-full mt-2 bg-white rounded-xl shadow-2xl border-2 border-gray-100 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="p-3 bg-gradient-to-r from-primary-50 to-secondary-50 border-b border-gray-200 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Clock size={16} className="text-gray-700" />
+                      <p className="text-xs font-bold text-gray-700 uppercase tracking-wide">Búsquedas recientes</p>
+                    </div>
+                    <button
+                      onClick={clearSearchHistory}
+                      className="text-xs text-red-600 hover:text-red-700 font-semibold flex items-center gap-1"
+                    >
+                      <Trash2 size={14} />
+                      Limpiar
+                    </button>
+                  </div>
+                  <div className="max-h-[250px] overflow-y-auto">
+                    {searchHistory.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center gap-3 p-3 hover:bg-gradient-to-r hover:from-primary-50 hover:to-secondary-50 transition-all duration-200 border-b border-gray-100 last:border-0 group"
+                      >
+                        <Clock size={16} className="text-gray-400 group-hover:text-primary-500 transition-colors" />
+                        <button
+                          onClick={() => {
+                            setSearchTerm(item.query)
+                            setShowHistory(false)
+                          }}
+                          className="flex-1 text-left text-sm text-gray-700 group-hover:text-primary-600 font-medium transition-colors"
+                        >
+                          {item.query}
+                        </button>
+                        <button
+                          onClick={() => deleteSearchHistoryItem(item.id)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-600"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {showAutocomplete && autocompleteResults.length > 0 && (
                 <div className="absolute z-50 w-full mt-2 bg-white rounded-xl shadow-2xl border-2 border-gray-100 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">

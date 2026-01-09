@@ -33,6 +33,7 @@ model User {
   serviceRequests       ServiceRequest[]
   clientChats           Chat[]           @relation("ClientChats")
   favoritePartners      FavoritePartner[]
+  searchHistory         SearchHistory[]
 }
 
 model PartnerProfile {
@@ -577,6 +578,17 @@ model Advertisement {
   @@index([placement, active, startDate, endDate])
   @@index([serviceId])
   @@index([cityId])
+}
+
+model SearchHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  query     String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
 }
 
 enum AdPlacement {
