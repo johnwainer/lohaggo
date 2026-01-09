@@ -81,8 +81,6 @@ export const serviceSynonyms: Record<string, string[]> = {
 
   'fotografia': ['fotografía', 'fotografo', 'fotógrafo', 'foto', 'sesion fotografica', 'sesión fotográfica', 'book', 'fotografia profesional', 'fotografía profesional', 'retrato', 'eventos', 'bodas', 'quinceaños', 'quince años', 'producto', 'estudio fotografico', 'estudio fotográfico', 'fotografo profesional', 'fotógrafo profesional'],
 
-  'catering': ['comida', 'eventos', 'banquete', 'buffet', 'bufet', 'servicio de comida', 'pasabocas', 'coctel', 'cóctel', 'almuerzo', 'cena', 'desayuno', 'refrigerio', 'catering para eventos', 'servicio de catering', 'comida para eventos'],
-
   'dj': ['música', 'musica', 'fiesta', 'evento', 'sonido', 'disc jockey', 'animacion', 'animación', 'boda', 'quinceaños', 'quince años', 'cumpleaños', 'corporativo', 'equipo sonido', 'luces', 'dj para eventos', 'dj profesional', 'disc jokey'],
 
   'decoracion': ['decoración', 'decorador', 'diseño de interiores', 'ambientacion', 'ambientación', 'decoracion eventos', 'decoración eventos', 'decoracion hogar', 'decoración hogar', 'interiorismo', 'cortinas', 'tapetes', 'cuadros', 'adornos', 'decorador de interiores', 'diseñador de interiores'],
@@ -148,6 +146,28 @@ export const serviceSynonyms: Record<string, string[]> = {
   'fachadas': ['fachada', 'edificio', 'casa', 'local', 'limpieza altura', 'presion', 'presión', 'hidrolavadora', 'limpieza de fachadas', 'lavado de fachadas', 'limpieza a presion', 'limpieza a presión'],
 
   'cocinas industriales': ['cocina industrial', 'restaurante', 'cafeteria', 'cafetería', 'campana', 'grasa', 'horno', 'parrilla', 'limpieza de cocinas industriales', 'limpieza de restaurantes'],
+
+  'alimentacion': ['alimentación', 'comida', 'comidas', 'alimentos', 'cocina', 'cocinero', 'chef', 'gastronomia', 'gastronomía', 'catering', 'banquete', 'menu', 'menú', 'platos', 'recetas', 'preparacion comida', 'preparación comida', 'servicio de comida', 'comida a domicilio', 'delivery comida', 'food', 'meal', 'cocinar', 'preparar comida'],
+
+  'chef a domicilio': ['chef', 'cocinero', 'cocinera', 'chef privado', 'chef personal', 'cocina a domicilio', 'cocinero a domicilio', 'chef en casa', 'cocinar en casa', 'servicio de chef', 'chef profesional', 'chef particular', 'personal chef', 'private chef'],
+
+  'catering': ['catering eventos', 'servicio de catering', 'comida eventos', 'banquete', 'buffet', 'bufet', 'comida bodas', 'comida cumpleaños', 'comida corporativa', 'eventos', 'celebraciones', 'fiestas', 'pasabocas', 'bocaditos', 'coctel', 'cóctel', 'refrigerio', 'lunch', 'almuerzo eventos', 'cena eventos', 'catering empresarial', 'catering social'],
+
+  'meal prep': ['meal prep', 'preparacion comidas', 'preparación comidas', 'comida semanal', 'batch cooking', 'comida preparada', 'tupper', 'lonchera', 'viandas', 'comida lista', 'comida empacada', 'meal planning', 'plan de comidas', 'comida para semana', 'comidas saludables preparadas', 'prep de comidas'],
+
+  'reposteria': ['repostería', 'pasteleria', 'pastelería', 'tortas', 'pasteles', 'tartas', 'ponques', 'ponqué', 'cupcakes', 'magdalenas', 'muffins', 'galletas', 'cookies', 'postres', 'dulces', 'bizcochos', 'cake', 'torta personalizada', 'torta decorada', 'torta de cumpleaños', 'torta de bodas', 'wedding cake', 'pastelero', 'repostero', 'panaderia', 'panadería'],
+
+  'comida saludable': ['comida sana', 'comida fit', 'comida fitness', 'healthy food', 'alimentacion saludable', 'alimentación saludable', 'comida nutritiva', 'comida balanceada', 'dieta', 'menu saludable', 'menú saludable', 'comida light', 'bajo calorias', 'bajo calorías', 'proteina', 'proteína', 'ensaladas', 'bowl', 'poke', 'comida organica', 'comida orgánica', 'clean eating', 'comida natural'],
+
+  'desayunos': ['desayuno', 'breakfast', 'desayuno sorpresa', 'desayuno a domicilio', 'desayuno en cama', 'desayuno romantico', 'desayuno romántico', 'desayuno especial', 'brunch', 'desayuno decorado', 'desayuno personalizado', 'desayuno cumpleaños', 'desayuno aniversario', 'desayuno regalo', 'caja desayuno', 'box desayuno'],
+
+  'parrillada': ['parrilla', 'asado', 'bbq', 'barbecue', 'barbacoa', 'carne asada', 'parrillero', 'asador', 'parrillada a domicilio', 'servicio de parrilla', 'carnes', 'churrasco', 'costillas', 'chorizo', 'morcilla', 'pollo asado', 'cerdo asado', 'res asada', 'grill', 'grillmaster'],
+
+  'cocina internacional': ['comida internacional', 'cocina extranjera', 'comida italiana', 'comida francesa', 'comida asiatica', 'comida asiática', 'comida china', 'comida japonesa', 'sushi', 'comida mexicana', 'tacos', 'comida tailandesa', 'comida india', 'curry', 'pasta', 'pizza', 'risotto', 'paella', 'comida española', 'comida peruana', 'ceviche', 'chef internacional'],
+
+  'lunch corporativo': ['almuerzo corporativo', 'almuerzo empresarial', 'comida oficina', 'lunch oficina', 'almuerzo ejecutivo', 'menu ejecutivo', 'menú ejecutivo', 'comida empresas', 'catering corporativo', 'almuerzo trabajo', 'comida trabajo', 'lunch empresarial', 'servicio almuerzo', 'almuerzo diario', 'menu diario', 'menú diario'],
+
+  'comida vegana': ['vegano', 'vegan', 'vegetariano', 'vegetarian', 'plant based', 'plant-based', 'sin carne', 'sin lacteos', 'sin lácteos', 'sin huevo', 'comida vegetariana', 'menu vegano', 'menú vegano', 'menu vegetariano', 'menú vegetariano', 'cocina vegana', 'cocina vegetariana', 'tofu', 'tempeh', 'seitan', 'legumbres', 'verduras', 'veggie'],
 
   'garajes': ['garaje', 'bodega', 'sotano', 'sótano', 'parqueadero', 'estacionamiento', 'limpieza profunda', 'limpieza de garajes', 'limpieza de bodegas'],
 
@@ -251,6 +271,18 @@ export const commonTypos: Record<string, string> = {
   'atencion': 'atención',
   'proteccion': 'protección',
   'solucion': 'solución',
+  'alimentacion': 'alimentación',
+  'gastronomia': 'gastronomía',
+  'reposteria': 'repostería',
+  'pasteleria': 'pastelería',
+  'panaderia': 'panadería',
+  'preparacion': 'preparación',
+  'calorias': 'calorías',
+  'proteina': 'proteína',
+  'organica': 'orgánica',
+  'romantico': 'romántico',
+  'asiatica': 'asiática',
+  'lacteos': 'lácteos',
 }
 
 export function normalizeSearchTerm(term: string): string {
