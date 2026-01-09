@@ -153,7 +153,7 @@ function ServiciosContent() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
         <div className="mb-6 md:mb-8">
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-black mb-2 md:mb-3 text-gray-900">
-            All services
+            All Services
           </h1>
           <p className="text-gray-600 text-base md:text-lg font-medium">
             Find the perfect service for you
@@ -166,7 +166,7 @@ function ServiciosContent() {
               <Search className="absolute left-3 md:left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
               <input
                 type="text"
-                placeholder="Search services... (e.g. plumber, electrician, cleaning)"
+                placeholder="Buscar servicios... (ej. plomero, electricista, limpieza)"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onFocus={() => searchTerm.length >= 2 && setShowAutocomplete(true)}
@@ -177,7 +177,7 @@ function ServiciosContent() {
               {showAutocomplete && autocompleteResults.length > 0 && (
                 <div className="absolute z-50 w-full mt-2 bg-white rounded-xl shadow-2xl border-2 border-gray-100 overflow-hidden">
                   <div className="p-2 bg-gray-50 border-b border-gray-200">
-                    <p className="text-xs font-bold text-gray-600 uppercase">Suggestions</p>
+                    <p className="text-xs font-bold text-gray-600 uppercase">Sugerencias</p>
                   </div>
                   {autocompleteResults.map((service) => (
                     <Link
@@ -201,7 +201,7 @@ function ServiciosContent() {
           <div className="mt-4 md:mt-6" data-tour="services-categories">
             <div className="flex items-center gap-2 mb-3 md:mb-4">
               <Filter size={18} className="text-gray-700 md:w-[22px] md:h-[22px]" />
-              <span className="font-bold text-gray-900 text-base md:text-lg">Categories:</span>
+              <span className="font-bold text-gray-900 text-base md:text-lg">Categorías:</span>
             </div>
             <div className="flex flex-wrap gap-2 md:gap-3">
               <button
@@ -212,7 +212,7 @@ function ServiciosContent() {
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
                 }`}
               >
-                All
+                Todos
               </button>
               {categories.map((category) => (
                 <button
@@ -235,16 +235,16 @@ function ServiciosContent() {
         {loading ? (
           <div className="text-center py-12 md:py-16">
             <div className="inline-block animate-spin rounded-full h-12 w-12 md:h-16 md:w-16 border-4 border-primary-500 border-t-transparent"></div>
-            <p className="mt-4 md:mt-6 text-gray-600 text-base md:text-lg font-medium">Searching for services...</p>
+            <p className="mt-4 md:mt-6 text-gray-600 text-base md:text-lg font-medium">Buscando servicios...</p>
           </div>
         ) : services.length === 0 ? (
           <div className="space-y-6">
             <div className="text-center py-12 md:py-16 bg-white rounded-2xl md:rounded-3xl shadow-xl">
               <div className="text-5xl md:text-6xl mb-4">😔</div>
-              <p className="text-gray-600 text-lg md:text-xl font-bold">No services found</p>
+              <p className="text-gray-600 text-lg md:text-xl font-bold">No se encontraron servicios</p>
               {searchTerm && (
                 <p className="text-gray-500 mt-2 text-sm md:text-base px-4">
-                  We couldn't find results for "<span className="font-semibold text-primary-600">{searchTerm}</span>".
+                  No pudimos encontrar resultados para "<span className="font-semibold text-primary-600">{searchTerm}</span>".
                 </p>
               )}
             </div>
@@ -255,7 +255,7 @@ function ServiciosContent() {
                   <div className="bg-white rounded-2xl shadow-lg p-6">
                     <div className="flex items-center gap-2 mb-4">
                       <Lightbulb className="text-yellow-500" size={24} />
-                      <h3 className="text-lg font-bold text-gray-900">Did you mean?</h3>
+                      <h3 className="text-lg font-bold text-gray-900">¿Quisiste decir?</h3>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {suggestions.didYouMean.map((term, index) => (
@@ -273,7 +273,7 @@ function ServiciosContent() {
 
                 {suggestions.similarServices.length > 0 && (
                   <div className="bg-white rounded-2xl shadow-lg p-6">
-                    <h3 className="text-lg font-bold text-gray-900 mb-4">Similar services</h3>
+                    <h3 className="text-lg font-bold text-gray-900 mb-4">Servicios similares</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       {suggestions.similarServices.map((service) => (
                         <Link
@@ -297,7 +297,7 @@ function ServiciosContent() {
 
                 {suggestions.popularServices.length > 0 && (
                   <div className="bg-white rounded-2xl shadow-lg p-6">
-                    <h3 className="text-lg font-bold text-gray-900 mb-4">Popular services</h3>
+                    <h3 className="text-lg font-bold text-gray-900 mb-4">Servicios populares</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       {suggestions.popularServices.map((service) => (
                         <Link
