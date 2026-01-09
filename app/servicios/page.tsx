@@ -166,7 +166,7 @@ function ServiciosContent() {
               <Search className="absolute left-3 md:left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
               <input
                 type="text"
-                placeholder="Search services... (e.g. plumber, electrician, cleaning)"
+                placeholder="Servicios de búsqueda... (por ejemplo, fontanero, electricista, limpieza)"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onFocus={() => searchTerm.length >= 2 && setShowAutocomplete(true)}
@@ -177,7 +177,7 @@ function ServiciosContent() {
               {showAutocomplete && autocompleteResults.length > 0 && (
                 <div className="absolute z-50 w-full mt-2 bg-white rounded-xl shadow-2xl border-2 border-gray-100 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                   <div className="p-2 bg-gradient-to-r from-primary-50 to-secondary-50 border-b border-gray-200">
-                    <p className="text-xs font-bold text-gray-700 uppercase tracking-wide">💡 Suggestions</p>
+                    <p className="text-xs font-bold text-gray-700 uppercase tracking-wide">💡 Sugerencias</p>
                   </div>
                   <div className="max-h-[300px] overflow-y-auto">
                     {autocompleteResults.map((service) => (
@@ -210,7 +210,7 @@ function ServiciosContent() {
           >
             <div className="flex items-center gap-2 mb-3 md:mb-4">
               <Filter size={18} className="text-gray-700 md:w-[22px] md:h-[22px]" />
-              <span className="font-bold text-gray-900 text-base md:text-lg">Categories:</span>
+              <span className="font-bold text-gray-900 text-base md:text-lg">Categorías</span>
             </div>
             <div className="flex flex-wrap gap-2 md:gap-3">
               <button
@@ -221,7 +221,7 @@ function ServiciosContent() {
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
                 }`}
               >
-                All
+                Todos
               </button>
               {categories.map((category) => (
                 <button
