@@ -153,10 +153,10 @@ function ServiciosContent() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
         <div className="mb-6 md:mb-8">
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-black mb-2 md:mb-3 text-gray-900">
-            All Services
+            Todos los servicios
           </h1>
           <p className="text-gray-600 text-base md:text-lg font-medium">
-            Find the perfect service for you
+            Encuentra el servicio perfecto para ti
           </p>
         </div>
 
