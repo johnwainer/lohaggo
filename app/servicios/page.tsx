@@ -235,11 +235,23 @@ function ServiciosContent() {
                 type="text"
                 placeholder="Servicios de búsqueda... (por ejemplo, fontanero, electricista, limpieza)"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setSearchTerm(value)
+                  if (value.length >= 2) {
+                    setShowHistory(false)
+                    setShowAutocomplete(true)
+                  } else {
+                    setShowAutocomplete(false)
+                    if (value.length === 0) {
+                      setShowHistory(true)
+                    }
+                  }
+                }}
                 onFocus={() => {
                   if (searchTerm.length >= 2) {
                     setShowAutocomplete(true)
-                  } else {
+                  } else if (searchTerm.length === 0) {
                     setShowHistory(true)
                   }
                 }}
@@ -247,7 +259,7 @@ function ServiciosContent() {
                   setTimeout(() => {
                     setShowAutocomplete(false)
                     setShowHistory(false)
-                  }, 200)
+                  }, 150)
                 }}
                 className="w-full pl-10 md:pl-12 pr-4 py-3 md:py-4 border-2 border-gray-200 rounded-xl md:rounded-2xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none text-gray-800 font-medium transition text-sm md:text-base"
               />
