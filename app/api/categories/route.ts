@@ -15,7 +15,7 @@ export async function GET() {
           select: { services: true }
         }
       },
-      orderBy: { order: "asc" }
+      orderBy: { name: "asc" }
     })
 
     return NextResponse.json(categories)
