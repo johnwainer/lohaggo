@@ -74,11 +74,11 @@ export async function POST(request: NextRequest) {
     const services = await prisma.service.findMany({
       where: {
         OR: [
-          { name: { contains: sanitized, mode: 'insensitive' } },
-          { description: { contains: sanitized, mode: 'insensitive' } },
-          { category: { name: { contains: sanitized, mode: 'insensitive' } } },
+          { name: { contains: sanitized, mode: 'insensitive' as const } },
+          { description: { contains: sanitized, mode: 'insensitive' as const } },
+          { category: { name: { contains: sanitized, mode: 'insensitive' as const } } },
           ...searchTerms.map(term => ({
-            name: { contains: term, mode: 'insensitive' }
+            name: { contains: term, mode: 'insensitive' as const }
           }))
         ]
       },
