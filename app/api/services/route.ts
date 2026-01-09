@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { expandSearchTerms, calculateRelevanceScore } from "@/lib/searchSynonyms"
+import { expandSearchTerms, calculateRelevanceScore, normalizeSearchTerm, getSuggestions } from "@/lib/searchSynonyms"
 import { createLogger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
@@ -40,25 +40,33 @@ export async function GET(request: Request) {
     })
 
     if (search) {
+      const normalizedSearch = normalizeSearchTerm(search)
       const expandedTerms = expandSearchTerms(search)
 
       const filteredServices = services.filter(service => {
-        const name = service.name.toLowerCase()
-        const description = service.description.toLowerCase()
-        const categoryName = service.category.name.toLowerCase()
-        const searchLower = search.toLowerCase()
+        const name = normalizeSearchTerm(service.name)
+        const description = normalizeSearchTerm(service.description)
+        const categoryName = normalizeSearchTerm(service.category.name)
 
-        if (name.includes(searchLower) ||
-            description.includes(searchLower) ||
-            categoryName.includes(searchLower)) {
+        if (name.includes(normalizedSearch) ||
+            description.includes(normalizedSearch) ||
+            categoryName.includes(normalizedSearch)) {
           return true
         }
 
-        return expandedTerms.some(term =>
-          name.includes(term) ||
-          description.includes(term) ||
-          categoryName.includes(term)
-        )
+        if (normalizedSearch.length >= 3) {
+          if (name.startsWith(normalizedSearch) ||
+              categoryName.startsWith(normalizedSearch)) {
+            return true
+          }
+        }
+
+        return expandedTerms.some(term => {
+          const normalizedTerm = normalizeSearchTerm(term)
+          return name.includes(normalizedTerm) ||
+                 description.includes(normalizedTerm) ||
+                 categoryName.includes(normalizedTerm)
+        })
       })
 
       const servicesWithScore = filteredServices.map(service => ({
@@ -69,9 +77,35 @@ export async function GET(request: Request) {
       services = servicesWithScore
         .sort((a, b) => b.relevanceScore - a.relevanceScore)
         .map(({ relevanceScore, ...service }) => service)
+
+      if (services.length === 0) {
+        const allServices = await prisma.service.findMany({
+          include: {
+            category: true,
+            _count: {
+              select: { partners: true }
+            }
+          },
+          orderBy: [
+            { popular: "desc" },
+            { name: "asc" }
+          ]
+        })
+
+        const suggestions = getSuggestions(search, allServices)
+
+        return NextResponse.json({
+          services: [],
+          suggestions: {
+            didYouMean: suggestions.didYouMean,
+            popularServices: suggestions.popularServices,
+            similarServices: suggestions.similarServices
+          }
+        })
+      }
     }
 
-    return NextResponse.json(services)
+    return NextResponse.json({ services, suggestions: null })
   } catch (error) {
     logger.error('Error fetching services:', error || undefined)
     return NextResponse.json(

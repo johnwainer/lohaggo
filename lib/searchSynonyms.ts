@@ -1,124 +1,288 @@
+function removeAccents(str: string): string {
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+}
+
+function calculateLevenshteinDistance(str1: string, str2: string): number {
+  const matrix: number[][] = []
+
+  for (let i = 0; i <= str2.length; i++) {
+    matrix[i] = [i]
+  }
+
+  for (let j = 0; j <= str1.length; j++) {
+    matrix[0][j] = j
+  }
+
+  for (let i = 1; i <= str2.length; i++) {
+    for (let j = 1; j <= str1.length; j++) {
+      if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1]
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        )
+      }
+    }
+  }
+
+  return matrix[str2.length][str1.length]
+}
+
 export const serviceSynonyms: Record<string, string[]> = {
-  // SERVICIOS EXISTENTES - Sinónimos expandidos
-  'plomero': ['plomería', 'fontanero', 'gasfitero', 'cañería', 'tubería', 'agua', 'desagüe', 'fuga', 'llave', 'grifo', 'inodoro', 'sanitario', 'baño', 'ducha', 'sifón', 'válvula', 'tubo', 'destape', 'alcantarilla', 'drenaje'],
-  'electricista': ['electricidad', 'luz', 'corriente', 'cable', 'instalación eléctrica', 'toma', 'enchufe', 'interruptor', 'breaker', 'tablero', 'corto circuito', 'voltaje', 'amperaje', 'cableado', 'iluminación', 'lámpara', 'bombillo', 'apagón'],
-  'carpintero': ['carpintería', 'madera', 'mueble', 'puerta', 'ventana', 'closet', 'armario', 'estante', 'repisa', 'cajonera', 'escritorio', 'mesa', 'silla', 'cama', 'ropero', 'biblioteca', 'mueble a medida'],
-  'pintor': ['pintura', 'pintar', 'pared', 'color', 'brocha', 'rodillo', 'esmalte', 'latex', 'vinilo', 'techo', 'fachada', 'retoque', 'acabado', 'imprimante', 'sellador', 'barniz', 'laca'],
-  'limpieza': ['limpiar', 'aseo', 'limpiador', 'desinfección', 'higiene', 'orden', 'organización', 'trapear', 'barrer', 'aspirar', 'sacudir', 'pulir', 'brillar', 'lavar'],
-  'jardinero': ['jardinería', 'jardín', 'pasto', 'césped', 'plantas', 'poda', 'riego', 'paisajismo', 'cortar pasto', 'guadaña', 'fertilizante', 'abono', 'flores', 'árboles', 'arbustos', 'diseño jardín'],
-  'cerrajero': ['cerradura', 'llave', 'candado', 'puerta', 'seguridad', 'chapa', 'cilindro', 'bombín', 'duplicado llave', 'apertura puerta', 'cambio chapa', 'llave codificada', 'llave auto'],
-  'albañil': ['albañilería', 'construcción', 'obra', 'cemento', 'ladrillo', 'pared', 'muro', 'mampostería', 'concreto', 'hormigón', 'revoque', 'estuco', 'friso', 'columna', 'viga', 'cimiento'],
-  'mecánico': ['mecánica', 'auto', 'carro', 'vehículo', 'motor', 'reparación', 'mantenimiento', 'taller', 'frenos', 'suspensión', 'transmisión', 'embrague', 'batería', 'alternador', 'arranque', 'radiador', 'escape', 'afinación', 'diagnóstico', 'scanner', 'aceite', 'filtros'],
-  'aire acondicionado': ['clima', 'climatización', 'refrigeración', 'ventilación', 'frío', 'calor', 'hvac', 'split', 'minisplit', 'central', 'ventana', 'portátil', 'mantenimiento aire', 'recarga gas', 'limpieza aire', 'instalación aire'],
-  'mudanza': ['mudanzas', 'traslado', 'transporte', 'embalaje', 'empaque', 'mover', 'trasteo', 'acarreo', 'carga', 'descarga', 'camión', 'flete', 'bodegaje'],
-  'fumigación': ['fumigar', 'plagas', 'insectos', 'control de plagas', 'desinfección', 'exterminio', 'cucarachas', 'hormigas', 'ratones', 'termitas', 'mosquitos', 'chinches', 'pulgas', 'garrapatas'],
-  'vidrio': ['vidriero', 'cristal', 'ventana', 'espejo', 'vitrina', 'parabrisas', 'vidrio templado', 'vidrio laminado', 'instalación vidrio', 'cambio vidrio', 'corte vidrio'],
-  'tapicería': ['tapizar', 'muebles', 'sofá', 'silla', 'tela', 'cuero', 'retapizar', 'restauración muebles', 'cojines', 'respaldo', 'asiento'],
-  'soldadura': ['soldar', 'soldador', 'metal', 'hierro', 'acero', 'soldadura eléctrica', 'soldadura mig', 'soldadura tig', 'soldadura autógena', 'aluminio', 'inoxidable', 'reparación metal'],
-  'techado': ['techo', 'tejado', 'goteras', 'impermeabilización', 'tejas', 'zinc', 'eternit', 'teja española', 'teja asfáltica', 'cubierta', 'canal', 'bajante', 'reparación techo'],
-  'piscina': ['alberca', 'pileta', 'mantenimiento de piscina', 'limpieza de piscina', 'cloro', 'químicos', 'filtro', 'bomba', 'jacuzzi', 'hidromasaje'],
-  'masaje': ['masajista', 'terapia', 'relajación', 'spa', 'masoterapia', 'masaje terapéutico', 'masaje deportivo', 'masaje relajante', 'quiromasaje', 'reflexología', 'drenaje linfático'],
-  'peluquería': ['peluquero', 'corte de pelo', 'cabello', 'estilista', 'barbería', 'barber', 'corte hombre', 'corte mujer', 'corte niño', 'peinado', 'brushing', 'secado', 'tintura', 'color'],
-  'manicure': ['uñas', 'manicura', 'pedicure', 'nail art', 'esmaltado', 'gel', 'acrílico', 'semipermanente', 'decoración uñas', 'cutícula', 'limado'],
-  'maquillaje': ['maquillador', 'makeup', 'belleza', 'cosmética', 'maquillaje social', 'maquillaje novia', 'maquillaje profesional', 'cejas', 'pestañas', 'base', 'corrector'],
-  'entrenador': ['entrenamiento', 'fitness', 'gym', 'ejercicio', 'personal trainer', 'coach', 'rutina', 'pesas', 'cardio', 'funcional', 'crossfit', 'yoga', 'pilates', 'spinning'],
-  'nutricionista': ['nutrición', 'dieta', 'alimentación', 'dietista', 'plan alimenticio', 'bajar peso', 'adelgazar', 'ganar masa', 'nutrición deportiva', 'consulta nutricional'],
-  'clases': ['profesor', 'maestro', 'tutor', 'enseñanza', 'educación', 'academia', 'tutoría', 'refuerzo', 'apoyo escolar', 'matemáticas', 'inglés', 'español', 'física', 'química'],
-  'fotografía': ['fotógrafo', 'foto', 'sesión fotográfica', 'book', 'fotografía profesional', 'retrato', 'eventos', 'bodas', 'quinceaños', 'producto', 'estudio fotográfico'],
-  'catering': ['comida', 'eventos', 'banquete', 'buffet', 'servicio de comida', 'pasabocas', 'coctel', 'almuerzo', 'cena', 'desayuno', 'refrigerio'],
-  'dj': ['música', 'fiesta', 'evento', 'sonido', 'disc jockey', 'animación', 'boda', 'quinceaños', 'cumpleaños', 'corporativo', 'equipo sonido', 'luces'],
-  'decoración': ['decorador', 'diseño de interiores', 'ambientación', 'decoración eventos', 'decoración hogar', 'interiorismo', 'cortinas', 'tapetes', 'cuadros', 'adornos'],
-  'seguridad': ['vigilancia', 'guardia', 'protección', 'custodia', 'vigilante', 'escolta', 'seguridad privada', 'ronda', 'monitoreo'],
-  'niñera': ['cuidado de niños', 'babysitter', 'nanny', 'cuidadora', 'niñero', 'cuidado infantil', 'guardería', 'acompañamiento niños'],
-  'enfermera': ['enfermería', 'cuidado', 'salud', 'atención médica', 'enfermero', 'auxiliar enfermería', 'curaciones', 'inyecciones', 'toma signos', 'presión'],
-  'veterinario': ['veterinaria', 'mascota', 'perro', 'gato', 'animal', 'consulta veterinaria', 'vacunas', 'desparasitación', 'cirugía', 'peluquería canina', 'baño mascota'],
-  'lavandería': ['lavar', 'ropa', 'tintorería', 'planchado', 'lavado', 'secado', 'doblado', 'limpieza en seco', 'lavado alfombras', 'lavado cortinas'],
-  'costura': ['costurera', 'arreglo de ropa', 'confección', 'sastre', 'modista', 'ajuste', 'dobladillo', 'cierre', 'botones', 'reparación ropa', 'vestido a medida'],
-  'computadora': ['computador', 'pc', 'laptop', 'ordenador', 'informática', 'tecnología', 'soporte técnico', 'reparación pc', 'formateo', 'windows', 'mac', 'virus', 'lento', 'mantenimiento pc'],
-  'celular': ['móvil', 'smartphone', 'teléfono', 'reparación de celular', 'pantalla', 'batería', 'iphone', 'samsung', 'android', 'táctil', 'software', 'desbloqueo'],
-  'internet': ['wifi', 'red', 'conexión', 'router', 'modem', 'fibra óptica', 'banda ancha', 'instalación internet', 'configuración red', 'repetidor', 'señal'],
-  'software': ['programa', 'aplicación', 'app', 'sistema', 'desarrollo', 'programación', 'web', 'móvil', 'base datos', 'erp', 'crm'],
-  'diseño': ['diseñador', 'gráfico', 'web', 'logo', 'branding', 'diseño gráfico', 'diseño web', 'ux', 'ui', 'photoshop', 'illustrator', 'flyer', 'banner', 'tarjetas'],
-  'traducción': ['traductor', 'idioma', 'lenguaje', 'inglés', 'francés', 'alemán', 'portugués', 'traducción documentos', 'interpretación', 'subtítulos'],
-  'contabilidad': ['contador', 'contable', 'finanzas', 'impuestos', 'declaración renta', 'facturación', 'nómina', 'estados financieros', 'balance', 'auditoría'],
-  'legal': ['abogado', 'jurídico', 'derecho', 'asesoría legal', 'consulta legal', 'demanda', 'contrato', 'laboral', 'civil', 'penal', 'familia', 'divorcio'],
-  'arquitectura': ['arquitecto', 'planos', 'diseño arquitectónico', 'construcción', 'remodelación', 'proyecto', 'obra', 'licencia construcción', 'renders', 'maqueta', 'presupuesto obra'],
+  'plomero': ['plomeria', 'plomería', 'fontanero', 'gasfitero', 'gasfiter', 'cañeria', 'cañería', 'tuberia', 'tubería', 'agua', 'desague', 'desagüe', 'fuga', 'llave', 'grifo', 'canilla', 'inodoro', 'sanitario', 'baño', 'ducha', 'regadera', 'sifon', 'sifón', 'valvula', 'válvula', 'tubo', 'destape', 'destapar', 'alcantarilla', 'drenaje', 'plomero a domicilio', 'plomero urgente', 'plomero 24 horas', 'reparacion de fugas', 'reparación de fugas', 'instalacion de agua', 'instalación de agua'],
 
-  // HOGAR Y MANTENIMIENTO - Servicios nuevos con sinónimos expandidos
-  'impermeabilización': ['impermeabilizar', 'filtración', 'humedad', 'goteras', 'terraza', 'azotea', 'techo', 'sika', 'membrana', 'sellado', 'protección agua', 'anti goteras', 'filtraciones'],
-  'cortinas': ['persianas', 'blackout', 'roller', 'vertical', 'horizontal', 'enrollable', 'romana', 'sheer', 'instalación cortinas', 'medición cortinas', 'reparación persianas'],
-  'pulido': ['brillado', 'abrillantado', 'mármol', 'granito', 'piso', 'cristalizado', 'encerado', 'lustrado', 'brillo', 'pulir pisos', 'madera'],
-  'cielo raso': ['drywall', 'plafón', 'falso techo', 'cielorraso', 'pvc', 'aluminio', 'yeso', 'superboard', 'instalación techo'],
-  'herrería': ['herrero', 'rejas', 'portones', 'metal', 'hierro forjado', 'estructuras metálicas', 'barandas', 'escaleras', 'soldadura', 'fabricación metal'],
-  'enchapes': ['baldosas', 'cerámica', 'porcelanato', 'azulejos', 'revestimiento', 'piso', 'pared', 'baño', 'cocina', 'instalación baldosas'],
-  'tanque': ['tanque de agua', 'cisterna', 'aljibe', 'reservorio', 'limpieza tanque', 'desinfección tanque', 'agua potable'],
-  'riego': ['sistema de riego', 'aspersores', 'goteo', 'jardín', 'plantas', 'automatización riego', 'timer', 'válvulas'],
-  'piscinas': ['alberca', 'pileta', 'mantenimiento piscina', 'limpieza piscina', 'químicos', 'cloro', 'filtro', 'bomba'],
-  'puertas': ['puerta', 'ventana', 'ajuste', 'reparación', 'vidrio', 'chapa', 'bisagra', 'marco'],
+  'electricista': ['electricidad', 'electrisista', 'electrisidad', 'luz', 'corriente', 'cable', 'instalacion electrica', 'instalación eléctrica', 'toma', 'enchufe', 'tomacorriente', 'interruptor', 'breaker', 'breker', 'tablero', 'corto circuito', 'cortocircuito', 'voltaje', 'amperaje', 'cableado', 'iluminacion', 'iluminación', 'lampara', 'lámpara', 'bombillo', 'foco', 'apagon', 'apagón', 'electricista a domicilio', 'electricista urgente', 'electricista 24 horas', 'instalacion de luz', 'instalación de luz', 'reparacion electrica', 'reparación eléctrica'],
 
-  // LIMPIEZA ESPECIALIZADA - Sinónimos expandidos
-  'post-construcción': ['post construcción', 'después obra', 'escombros', 'polvo', 'limpieza obra', 'remodelación', 'construcción'],
-  'desinfección': ['sanitización', 'desinfectar', 'higienizar', 'esterilizar', 'covid', 'virus', 'bacterias', 'fumigación', 'ozono'],
-  'tapizados': ['tapicería', 'sofá', 'muebles', 'colchón', 'limpieza profunda', 'sillas', 'alfombra', 'vapor', 'manchas'],
-  'organización': ['organizador', 'orden', 'marie kondo', 'declutter', 'ordenar', 'clasificar', 'closet', 'armario'],
-  'fachadas': ['fachada', 'edificio', 'casa', 'local', 'limpieza altura', 'presión', 'hidrolavadora'],
-  'cocinas industriales': ['cocina industrial', 'restaurante', 'cafetería', 'campana', 'grasa', 'horno', 'parrilla'],
-  'garajes': ['garaje', 'bodega', 'sótano', 'parqueadero', 'estacionamiento', 'limpieza profunda'],
+  'carpintero': ['carpinteria', 'carpintería', 'madera', 'mueble', 'puerta', 'ventana', 'closet', 'clóset', 'armario', 'estante', 'repisa', 'cajonera', 'escritorio', 'mesa', 'silla', 'cama', 'ropero', 'biblioteca', 'mueble a medida', 'muebles a medida', 'carpintero a domicilio', 'reparacion de muebles', 'reparación de muebles', 'fabricacion de muebles', 'fabricación de muebles', 'muebles de madera', 'trabajo en madera'],
 
-  // REPARACIONES Y MANTENIMIENTO - Sinónimos expandidos
-  'lavadora': ['lavadora', 'secadora', 'lavasecadora', 'centrifugado', 'reparación lavadora', 'mantenimiento lavadora', 'lg', 'samsung', 'whirlpool', 'mabe'],
-  'nevera': ['refrigerador', 'frigorífico', 'congelador', 'freezer', 'reparación nevera', 'no enfría', 'fuga gas', 'termostato'],
-  'estufa': ['cocina', 'hornilla', 'horno', 'gas', 'eléctrica', 'reparación estufa', 'quemador', 'encendido'],
-  'gas': ['gasodoméstico', 'instalación gas', 'fuga gas', 'certificado gas', 'tubería gas', 'regulador', 'válvula', 'gas natural', 'pipeta'],
-  'persianas': ['persiana', 'enrollable', 'vertical', 'horizontal', 'reparación persiana', 'motor', 'cadena', 'lamas'],
-  'bicicleta': ['bici', 'cicla', 'rodado', 'frenos', 'cambios', 'reparación bicicleta', 'mantenimiento bici', 'llanta', 'cadena', 'piñón'],
-  'tapicería muebles': ['tapizar', 'retapizar', 'sofá', 'silla', 'restauración', 'tela', 'cuero', 'espuma', 'resortes'],
+  'pintor': ['pintura', 'pintar', 'pared', 'color', 'brocha', 'rodillo', 'esmalte', 'latex', 'látex', 'vinilo', 'vinilico', 'vinílico', 'techo', 'fachada', 'retoque', 'acabado', 'imprimante', 'sellador', 'barniz', 'laca', 'pintor a domicilio', 'pintura de casas', 'pintura de apartamentos', 'pintura interior', 'pintura exterior', 'pintura de paredes', 'pintura de techos'],
 
-  // BELLEZA Y BIENESTAR - Sinónimos expandidos
-  'depilación': ['depilar', 'cera', 'láser', 'hilo', 'rasurar', 'depilación definitiva', 'ipl', 'luz pulsada', 'brasilera', 'axilas', 'piernas'],
-  'facial': ['limpieza facial', 'tratamiento facial', 'hidratación', 'anti-edad', 'peeling', 'mascarilla', 'piel', 'acné', 'manchas'],
-  'pestañas': ['extensiones', 'lifting', 'permanente', 'tinte', 'pestañas pelo a pelo', 'volumen', 'rizado', 'lash lift'],
-  'micropigmentación': ['microblading', 'cejas', 'labios', 'delineado permanente', 'tatuaje', 'pigmentación', 'pelo a pelo', 'ombré'],
-  'keratina': ['alisado', 'botox capilar', 'tratamiento capilar', 'liso', 'alisado brasilero', 'nanoplastia', 'progresivo'],
-  'spa': ['spa domicilio', 'masaje', 'relajación', 'jacuzzi', 'sauna', 'aromaterapia', 'piedras calientes', 'exfoliación'],
-  'asesoría imagen': ['personal shopper', 'estilismo', 'vestuario', 'colorimetría', 'armario', 'estilo personal', 'moda'],
+  'limpieza': ['limpiar', 'aseo', 'limpiador', 'desinfeccion', 'desinfección', 'higiene', 'orden', 'organizacion', 'organización', 'trapear', 'barrer', 'aspirar', 'sacudir', 'pulir', 'brillar', 'lavar', 'limpieza del hogar', 'limpieza de casa', 'limpieza de apartamento', 'limpieza profunda', 'limpieza general', 'limpieza a domicilio', 'servicio de limpieza', 'empleada domestica', 'empleada doméstica', 'señora de limpieza'],
 
-  // SALUD Y CUIDADO - Sinónimos expandidos
-  'psicología': ['psicólogo', 'terapia', 'consulta psicológica', 'salud mental', 'ansiedad', 'depresión', 'estrés', 'terapia online', 'psicoterapia'],
-  'adultos mayores': ['tercera edad', 'ancianos', 'cuidador', 'acompañamiento', 'enfermería geriátrica', 'abuelos', 'personas mayores'],
-  'inyecciones': ['inyección', 'vacuna', 'medicamento', 'enfermería', 'intramuscular', 'intravenosa', 'aplicación medicamentos'],
-  'respiratoria': ['terapia respiratoria', 'nebulización', 'pulmones', 'oxígeno', 'fisioterapia respiratoria', 'epoc', 'asma'],
-  'terapia ocupacional': ['rehabilitación', 'funcional', 'motricidad', 'actividades diarias', 'terapeuta ocupacional'],
+  'jardinero': ['jardineria', 'jardinería', 'jardin', 'jardín', 'pasto', 'cesped', 'césped', 'grama', 'plantas', 'poda', 'riego', 'paisajismo', 'cortar pasto', 'cortar cesped', 'cortar césped', 'guadaña', 'guadañar', 'fertilizante', 'abono', 'flores', 'arboles', 'árboles', 'arbustos', 'diseño jardin', 'diseño jardín', 'mantenimiento de jardin', 'mantenimiento de jardín', 'jardinero a domicilio'],
 
-  // TECNOLOGÍA Y SEGURIDAD - Sinónimos expandidos
-  'cámaras': ['cctv', 'seguridad', 'vigilancia', 'alarma', 'dvr', 'nvr', 'ip', 'hikvision', 'dahua', 'video vigilancia', 'monitoreo'],
-  'tv': ['televisor', 'televisión', 'home theater', 'montaje', 'soporte', 'smart tv', 'samsung', 'lg', 'sony', 'instalación tv', 'pared'],
-  'consolas': ['playstation', 'xbox', 'nintendo', 'switch', 'videojuegos', 'ps4', 'ps5', 'reparación consola', 'joystick'],
-  'paneles solares': ['energía solar', 'fotovoltaica', 'renovable', 'inversor', 'solar', 'ahorro energía', 'batería', 'autoconsumo'],
-  'smart home': ['domótica', 'casa inteligente', 'alexa', 'google home', 'automatización', 'iot', 'control voz', 'luces inteligentes'],
-  'datos': ['recuperación', 'disco duro', 'backup', 'información perdida', 'recuperar archivos', 'ssd', 'usb', 'celular', 'formateo'],
+  'cerrajero': ['cerradura', 'llave', 'candado', 'puerta', 'seguridad', 'chapa', 'cilindro', 'bombin', 'bombín', 'duplicado llave', 'copia de llave', 'apertura puerta', 'abrir puerta', 'cambio chapa', 'cambio de cerradura', 'llave codificada', 'llave auto', 'cerrajero a domicilio', 'cerrajero urgente', 'cerrajero 24 horas', 'cerrajeria', 'cerrajería'],
 
-  // AUTOMOTRIZ - Sinónimos expandidos
-  'aceite': ['cambio aceite', 'filtro', 'lubricante', 'motor', 'aceite motor', 'sintético', 'mineral', 'mantenimiento carro'],
-  'polarizado': ['lámina', 'insulfilm', 'tintado', 'vidrios', 'polarizado auto', 'película', 'oscurecer vidrios', 'rayos uv'],
-  'mecánica domicilio': ['mecánico casa', 'reparación auto', 'carro', 'vehículo', 'diagnóstico', 'scanner', 'frenos', 'suspensión'],
-  'pintura automotriz': ['pintura carro', 'retoque', 'rayón', 'abolladura', 'latonería', 'pintura auto', 'cabina'],
+  'albañil': ['albañileria', 'albañilería', 'construccion', 'construcción', 'obra', 'cemento', 'ladrillo', 'pared', 'muro', 'mamposteria', 'mampostería', 'concreto', 'hormigon', 'hormigón', 'revoque', 'estuco', 'friso', 'columna', 'viga', 'cimiento', 'albañil a domicilio', 'maestro de obra', 'construccion de casas', 'construcción de casas', 'remodelacion', 'remodelación', 'ampliacion', 'ampliación'],
 
-  // PROFESIONAL - Sinónimos expandidos
-  'asesoría contable': ['contador', 'contabilidad', 'declaración renta', 'impuestos', 'facturación', 'rut', 'dian', 'estados financieros', 'nómina'],
+  'mecanico': ['mecánico', 'mecanica', 'mecánica', 'auto', 'carro', 'coche', 'vehiculo', 'vehículo', 'motor', 'reparacion', 'reparación', 'mantenimiento', 'taller', 'frenos', 'suspension', 'suspensión', 'transmision', 'transmisión', 'embrague', 'clutch', 'bateria', 'batería', 'alternador', 'arranque', 'radiador', 'escape', 'afinacion', 'afinación', 'diagnostico', 'diagnóstico', 'scanner', 'escaner', 'aceite', 'filtros', 'mecanico a domicilio', 'mecánico a domicilio', 'mecanica automotriz', 'mecánica automotriz'],
+
+  'aire acondicionado': ['aire', 'clima', 'climatizacion', 'climatización', 'refrigeracion', 'refrigeración', 'ventilacion', 'ventilación', 'frio', 'frío', 'calor', 'hvac', 'split', 'minisplit', 'mini split', 'central', 'ventana', 'portatil', 'portátil', 'mantenimiento aire', 'recarga gas', 'limpieza aire', 'instalacion aire', 'instalación aire', 'reparacion aire acondicionado', 'reparación aire acondicionado', 'tecnico de aire', 'técnico de aire'],
+
+  'mudanza': ['mudanzas', 'traslado', 'transporte', 'embalaje', 'empaque', 'mover', 'trasteo', 'acarreo', 'carga', 'descarga', 'camion', 'camión', 'flete', 'bodegaje', 'mudanza de casa', 'mudanza de apartamento', 'mudanza de oficina', 'servicio de mudanza', 'empresa de mudanzas'],
+
+  'fumigacion': ['fumigación', 'fumigar', 'plagas', 'insectos', 'control de plagas', 'desinfeccion', 'desinfección', 'exterminio', 'cucarachas', 'hormigas', 'ratones', 'ratas', 'termitas', 'comején', 'mosquitos', 'zancudos', 'chinches', 'pulgas', 'garrapatas', 'fumigacion a domicilio', 'fumigación a domicilio', 'control de insectos'],
+
+  'vidrio': ['vidriero', 'cristal', 'ventana', 'espejo', 'vitrina', 'parabrisas', 'vidrio templado', 'vidrio laminado', 'instalacion vidrio', 'instalación vidrio', 'cambio vidrio', 'corte vidrio', 'reparacion de vidrios', 'reparación de vidrios', 'vidriero a domicilio'],
+
+  'tapiceria': ['tapicería', 'tapizar', 'muebles', 'sofa', 'sofá', 'silla', 'tela', 'cuero', 'retapizar', 'restauracion muebles', 'restauración muebles', 'cojines', 'respaldo', 'asiento', 'tapiceria de muebles', 'tapicería de muebles', 'tapicero'],
+
+  'soldadura': ['soldar', 'soldador', 'metal', 'hierro', 'acero', 'soldadura electrica', 'soldadura eléctrica', 'soldadura mig', 'soldadura tig', 'soldadura autogena', 'soldadura autógena', 'aluminio', 'inoxidable', 'reparacion metal', 'reparación metal', 'soldador a domicilio', 'trabajo de soldadura'],
+
+  'techado': ['techo', 'tejado', 'goteras', 'impermeabilizacion', 'impermeabilización', 'tejas', 'zinc', 'eternit', 'teja española', 'teja asfaltica', 'teja asfáltica', 'cubierta', 'canal', 'bajante', 'reparacion techo', 'reparación techo', 'instalacion de techo', 'instalación de techo', 'techador'],
+
+  'piscina': ['alberca', 'pileta', 'mantenimiento de piscina', 'limpieza de piscina', 'cloro', 'quimicos', 'químicos', 'filtro', 'bomba', 'jacuzzi', 'yacusi', 'hidromasaje', 'mantenimiento de alberca', 'limpieza de alberca', 'piscinero'],
+
+  'masaje': ['masajista', 'terapia', 'relajacion', 'relajación', 'spa', 'masoterapia', 'masaje terapeutico', 'masaje terapéutico', 'masaje deportivo', 'masaje relajante', 'quiromasaje', 'reflexologia', 'reflexología', 'drenaje linfatico', 'drenaje linfático', 'masaje a domicilio', 'masajes', 'masajista profesional'],
+
+  'peluqueria': ['peluquería', 'peluquero', 'corte de pelo', 'cabello', 'estilista', 'barberia', 'barbería', 'barber', 'barbero', 'corte hombre', 'corte mujer', 'corte niño', 'corte niña', 'peinado', 'brushing', 'secado', 'tintura', 'tinte', 'color', 'peluqueria a domicilio', 'peluquería a domicilio', 'salon de belleza', 'salón de belleza'],
+
+  'manicure': ['uñas', 'manicura', 'pedicure', 'pedicura', 'nail art', 'esmaltado', 'gel', 'acrilico', 'acrílico', 'semipermanente', 'decoracion uñas', 'decoración uñas', 'cuticula', 'cutícula', 'limado', 'manicure a domicilio', 'pedicure a domicilio', 'manicurista'],
+
+  'maquillaje': ['maquillador', 'makeup', 'belleza', 'cosmetica', 'cosmética', 'maquillaje social', 'maquillaje novia', 'maquillaje profesional', 'cejas', 'pestañas', 'base', 'corrector', 'maquillaje a domicilio', 'maquilladora', 'maquillaje para eventos'],
+
+  'entrenador': ['entrenamiento', 'fitness', 'gym', 'gimnasio', 'ejercicio', 'personal trainer', 'coach', 'rutina', 'pesas', 'cardio', 'funcional', 'crossfit', 'yoga', 'pilates', 'spinning', 'entrenador personal', 'entrenador a domicilio', 'preparador fisico', 'preparador físico'],
+
+  'nutricionista': ['nutricion', 'nutrición', 'dieta', 'alimentacion', 'alimentación', 'dietista', 'plan alimenticio', 'bajar peso', 'adelgazar', 'ganar masa', 'nutricion deportiva', 'nutrición deportiva', 'consulta nutricional', 'nutricionista a domicilio', 'nutriologo', 'nutriólogo'],
+
+  'clases': ['profesor', 'maestro', 'tutor', 'enseñanza', 'educacion', 'educación', 'academia', 'tutoria', 'tutoría', 'refuerzo', 'apoyo escolar', 'matematicas', 'matemáticas', 'ingles', 'inglés', 'español', 'fisica', 'física', 'quimica', 'química', 'clases particulares', 'clases a domicilio', 'profesor particular'],
+
+  'fotografia': ['fotografía', 'fotografo', 'fotógrafo', 'foto', 'sesion fotografica', 'sesión fotográfica', 'book', 'fotografia profesional', 'fotografía profesional', 'retrato', 'eventos', 'bodas', 'quinceaños', 'quince años', 'producto', 'estudio fotografico', 'estudio fotográfico', 'fotografo profesional', 'fotógrafo profesional'],
+
+  'catering': ['comida', 'eventos', 'banquete', 'buffet', 'bufet', 'servicio de comida', 'pasabocas', 'coctel', 'cóctel', 'almuerzo', 'cena', 'desayuno', 'refrigerio', 'catering para eventos', 'servicio de catering', 'comida para eventos'],
+
+  'dj': ['música', 'musica', 'fiesta', 'evento', 'sonido', 'disc jockey', 'animacion', 'animación', 'boda', 'quinceaños', 'quince años', 'cumpleaños', 'corporativo', 'equipo sonido', 'luces', 'dj para eventos', 'dj profesional', 'disc jokey'],
+
+  'decoracion': ['decoración', 'decorador', 'diseño de interiores', 'ambientacion', 'ambientación', 'decoracion eventos', 'decoración eventos', 'decoracion hogar', 'decoración hogar', 'interiorismo', 'cortinas', 'tapetes', 'cuadros', 'adornos', 'decorador de interiores', 'diseñador de interiores'],
+
+  'seguridad': ['vigilancia', 'guardia', 'proteccion', 'protección', 'custodia', 'vigilante', 'escolta', 'seguridad privada', 'ronda', 'monitoreo', 'servicio de seguridad', 'empresa de seguridad', 'guardaespaldas'],
+
+  'niñera': ['cuidado de niños', 'babysitter', 'nanny', 'cuidadora', 'niñero', 'cuidado infantil', 'guarderia', 'guardería', 'acompañamiento niños', 'niñera a domicilio', 'cuidadora de niños', 'nana'],
+
+  'enfermera': ['enfermeria', 'enfermería', 'cuidado', 'salud', 'atencion medica', 'atención médica', 'enfermero', 'auxiliar enfermeria', 'auxiliar enfermería', 'curaciones', 'inyecciones', 'toma signos', 'presion', 'presión', 'enfermera a domicilio', 'enfermero a domicilio', 'cuidados de enfermeria', 'cuidados de enfermería'],
+
+  'veterinario': ['veterinaria', 'mascota', 'perro', 'gato', 'animal', 'consulta veterinaria', 'vacunas', 'desparasitacion', 'desparasitación', 'cirugia', 'cirugía', 'peluqueria canina', 'peluquería canina', 'baño mascota', 'veterinario a domicilio', 'veterinaria a domicilio', 'medico veterinario', 'médico veterinario'],
+
+  'lavanderia': ['lavandería', 'lavar', 'ropa', 'tintoreria', 'tintorería', 'planchado', 'lavado', 'secado', 'doblado', 'limpieza en seco', 'lavado alfombras', 'lavado cortinas', 'servicio de lavanderia', 'servicio de lavandería', 'lavado de ropa'],
+
+  'costura': ['costurera', 'arreglo de ropa', 'confeccion', 'confección', 'sastre', 'modista', 'ajuste', 'dobladillo', 'cierre', 'botones', 'reparacion ropa', 'reparación ropa', 'vestido a medida', 'costurera a domicilio', 'arreglos de ropa'],
+
+  'computadora': ['computador', 'pc', 'laptop', 'ordenador', 'informatica', 'informática', 'tecnologia', 'tecnología', 'soporte tecnico', 'soporte técnico', 'reparacion pc', 'reparación pc', 'formateo', 'windows', 'mac', 'virus', 'lento', 'mantenimiento pc', 'tecnico de computadoras', 'técnico de computadoras', 'reparacion de computadoras', 'reparación de computadoras'],
+
+  'celular': ['movil', 'móvil', 'smartphone', 'telefono', 'teléfono', 'reparacion de celular', 'reparación de celular', 'pantalla', 'bateria', 'batería', 'iphone', 'samsung', 'android', 'tactil', 'táctil', 'software', 'desbloqueo', 'tecnico de celulares', 'técnico de celulares', 'reparacion de telefonos', 'reparación de teléfonos'],
+
+  'internet': ['wifi', 'red', 'conexion', 'conexión', 'router', 'ruteador', 'modem', 'módem', 'fibra optica', 'fibra óptica', 'banda ancha', 'instalacion internet', 'instalación internet', 'configuracion red', 'configuración red', 'repetidor', 'señal', 'tecnico de internet', 'técnico de internet'],
+
+  'software': ['programa', 'aplicacion', 'aplicación', 'app', 'sistema', 'desarrollo', 'programacion', 'programación', 'web', 'movil', 'móvil', 'base datos', 'erp', 'crm', 'desarrollo de software', 'programador', 'desarrollador'],
+
+  'diseño': ['diseñador', 'grafico', 'gráfico', 'web', 'logo', 'branding', 'diseño grafico', 'diseño gráfico', 'diseño web', 'ux', 'ui', 'photoshop', 'illustrator', 'flyer', 'banner', 'tarjetas', 'diseñador grafico', 'diseñador gráfico', 'diseñador web'],
+
+  'traduccion': ['traducción', 'traductor', 'idioma', 'lenguaje', 'ingles', 'inglés', 'frances', 'francés', 'aleman', 'alemán', 'portugues', 'português', 'traduccion documentos', 'traducción documentos', 'interpretacion', 'interpretación', 'subtitulos', 'subtítulos', 'traductor profesional'],
+
+  'contabilidad': ['contador', 'contable', 'finanzas', 'impuestos', 'declaracion renta', 'declaración renta', 'facturacion', 'facturación', 'nomina', 'nómina', 'estados financieros', 'balance', 'auditoria', 'auditoría', 'contador publico', 'contador público', 'servicios contables'],
+
+  'legal': ['abogado', 'juridico', 'jurídico', 'derecho', 'asesoria legal', 'asesoría legal', 'consulta legal', 'demanda', 'contrato', 'laboral', 'civil', 'penal', 'familia', 'divorcio', 'abogado profesional', 'servicios legales', 'asesoria juridica', 'asesoría jurídica'],
+
+  'arquitectura': ['arquitecto', 'planos', 'diseño arquitectonico', 'diseño arquitectónico', 'construccion', 'construcción', 'remodelacion', 'remodelación', 'proyecto', 'obra', 'licencia construccion', 'licencia construcción', 'renders', 'maqueta', 'presupuesto obra', 'arquitecto profesional', 'diseño de casas'],
+
+  'impermeabilizacion': ['impermeabilización', 'impermeabilizar', 'filtracion', 'filtración', 'humedad', 'goteras', 'terraza', 'azotea', 'techo', 'sika', 'membrana', 'sellado', 'proteccion agua', 'protección agua', 'anti goteras', 'filtraciones', 'impermeabilizacion de techos', 'impermeabilización de techos'],
+
+  'cortinas': ['persianas', 'blackout', 'roller', 'vertical', 'horizontal', 'enrollable', 'romana', 'sheer', 'instalacion cortinas', 'instalación cortinas', 'medicion cortinas', 'medición cortinas', 'reparacion persianas', 'reparación persianas', 'cortinas a medida', 'persianas a medida'],
+
+  'pulido': ['brillado', 'abrillantado', 'marmol', 'mármol', 'granito', 'piso', 'cristalizado', 'encerado', 'lustrado', 'brillo', 'pulir pisos', 'madera', 'pulido de pisos', 'pulido de marmol', 'pulido de mármol'],
+
+  'cielo raso': ['drywall', 'plafon', 'plafón', 'falso techo', 'cielorraso', 'pvc', 'aluminio', 'yeso', 'superboard', 'instalacion techo', 'instalación techo', 'cielo falso', 'instalacion de cielo raso', 'instalación de cielo raso'],
+
+  'herreria': ['herrería', 'herrero', 'rejas', 'portones', 'metal', 'hierro forjado', 'estructuras metalicas', 'estructuras metálicas', 'barandas', 'escaleras', 'soldadura', 'fabricacion metal', 'fabricación metal', 'trabajo de herreria', 'trabajo de herrería'],
+
+  'enchapes': ['baldosas', 'ceramica', 'cerámica', 'porcelanato', 'azulejos', 'revestimiento', 'piso', 'pared', 'baño', 'cocina', 'instalacion baldosas', 'instalación baldosas', 'enchapador', 'instalacion de ceramica', 'instalación de cerámica'],
+
+  'tanque': ['tanque de agua', 'cisterna', 'aljibe', 'reservorio', 'limpieza tanque', 'desinfeccion tanque', 'desinfección tanque', 'agua potable', 'limpieza de tanques', 'mantenimiento de tanques'],
+
+  'riego': ['sistema de riego', 'aspersores', 'goteo', 'jardin', 'jardín', 'plantas', 'automatizacion riego', 'automatización riego', 'timer', 'valvulas', 'válvulas', 'instalacion de riego', 'instalación de riego', 'sistema de aspersion', 'sistema de aspersión'],
+
+  'piscinas': ['alberca', 'pileta', 'mantenimiento piscina', 'limpieza piscina', 'quimicos', 'químicos', 'cloro', 'filtro', 'bomba', 'mantenimiento de piscinas', 'limpieza de piscinas', 'piscinero'],
+
+  'puertas': ['puerta', 'ventana', 'ajuste', 'reparacion', 'reparación', 'vidrio', 'chapa', 'bisagra', 'marco', 'instalacion de puertas', 'instalación de puertas', 'reparacion de puertas', 'reparación de puertas'],
+
+  'post-construccion': ['post construcción', 'post construccion', 'despues obra', 'después obra', 'escombros', 'polvo', 'limpieza obra', 'remodelacion', 'remodelación', 'construccion', 'construcción', 'limpieza post obra', 'limpieza despues de obra', 'limpieza después de obra'],
+
+  'desinfeccion': ['desinfección', 'sanitizacion', 'sanitización', 'desinfectar', 'higienizar', 'esterilizar', 'covid', 'virus', 'bacterias', 'fumigacion', 'fumigación', 'ozono', 'desinfeccion profunda', 'desinfección profunda'],
+
+  'tapizados': ['tapiceria', 'tapicería', 'sofa', 'sofá', 'muebles', 'colchon', 'colchón', 'limpieza profunda', 'sillas', 'alfombra', 'vapor', 'manchas', 'limpieza de tapizados', 'limpieza de muebles'],
+
+  'organizacion': ['organización', 'organizador', 'orden', 'marie kondo', 'declutter', 'ordenar', 'clasificar', 'closet', 'clóset', 'armario', 'organizacion del hogar', 'organización del hogar', 'organizador profesional'],
+
+  'fachadas': ['fachada', 'edificio', 'casa', 'local', 'limpieza altura', 'presion', 'presión', 'hidrolavadora', 'limpieza de fachadas', 'lavado de fachadas', 'limpieza a presion', 'limpieza a presión'],
+
+  'cocinas industriales': ['cocina industrial', 'restaurante', 'cafeteria', 'cafetería', 'campana', 'grasa', 'horno', 'parrilla', 'limpieza de cocinas industriales', 'limpieza de restaurantes'],
+
+  'garajes': ['garaje', 'bodega', 'sotano', 'sótano', 'parqueadero', 'estacionamiento', 'limpieza profunda', 'limpieza de garajes', 'limpieza de bodegas'],
+
+  'lavadora': ['lavadora', 'secadora', 'lavasecadora', 'centrifugado', 'reparacion lavadora', 'reparación lavadora', 'mantenimiento lavadora', 'lg', 'samsung', 'whirlpool', 'mabe', 'tecnico de lavadoras', 'técnico de lavadoras'],
+
+  'nevera': ['refrigerador', 'frigorifico', 'frigorífico', 'congelador', 'freezer', 'reparacion nevera', 'reparación nevera', 'no enfria', 'no enfría', 'fuga gas', 'termostato', 'tecnico de neveras', 'técnico de neveras', 'reparacion de refrigeradores', 'reparación de refrigeradores'],
+
+  'estufa': ['cocina', 'hornilla', 'horno', 'gas', 'electrica', 'eléctrica', 'reparacion estufa', 'reparación estufa', 'quemador', 'encendido', 'tecnico de estufas', 'técnico de estufas', 'reparacion de cocinas', 'reparación de cocinas'],
+
+  'gas': ['gasodomestico', 'gasodoméstico', 'instalacion gas', 'instalación gas', 'fuga gas', 'certificado gas', 'tuberia gas', 'tubería gas', 'regulador', 'valvula', 'válvula', 'gas natural', 'pipeta', 'gasfitero', 'tecnico de gas', 'técnico de gas'],
+
+  'persianas': ['persiana', 'enrollable', 'vertical', 'horizontal', 'reparacion persiana', 'reparación persiana', 'motor', 'cadena', 'lamas', 'instalacion de persianas', 'instalación de persianas', 'reparacion de persianas', 'reparación de persianas'],
+
+  'bicicleta': ['bici', 'cicla', 'rodado', 'frenos', 'cambios', 'reparacion bicicleta', 'reparación bicicleta', 'mantenimiento bici', 'llanta', 'cadena', 'piñon', 'piñón', 'taller de bicicletas', 'mecanico de bicicletas', 'mecánico de bicicletas'],
+
+  'tapiceria muebles': ['tapizar', 'retapizar', 'sofa', 'sofá', 'silla', 'restauracion', 'restauración', 'tela', 'cuero', 'espuma', 'resortes', 'tapicero', 'tapiceria de muebles', 'tapicería de muebles'],
+
+  'depilacion': ['depilación', 'depilar', 'cera', 'laser', 'láser', 'hilo', 'rasurar', 'depilacion definitiva', 'depilación definitiva', 'ipl', 'luz pulsada', 'brasilera', 'axilas', 'piernas', 'depilacion a domicilio', 'depilación a domicilio'],
+
+  'facial': ['limpieza facial', 'tratamiento facial', 'hidratacion', 'hidratación', 'anti-edad', 'peeling', 'mascarilla', 'piel', 'acne', 'acné', 'manchas', 'facial a domicilio', 'tratamientos faciales'],
+
+  'pestañas': ['extensiones', 'lifting', 'permanente', 'tinte', 'pestañas pelo a pelo', 'volumen', 'rizado', 'lash lift', 'extensiones de pestañas', 'pestañas postizas'],
+
+  'micropigmentacion': ['micropigmentación', 'microblading', 'cejas', 'labios', 'delineado permanente', 'tatuaje', 'pigmentacion', 'pigmentación', 'pelo a pelo', 'ombre', 'ombré', 'micropigmentacion de cejas', 'micropigmentación de cejas'],
+
+  'keratina': ['alisado', 'botox capilar', 'tratamiento capilar', 'liso', 'alisado brasilero', 'nanoplastia', 'progresivo', 'keratina brasilera', 'alisado permanente'],
+
+  'spa': ['spa domicilio', 'masaje', 'relajacion', 'relajación', 'jacuzzi', 'yacusi', 'sauna', 'aromaterapia', 'piedras calientes', 'exfoliacion', 'exfoliación', 'spa a domicilio', 'tratamientos spa'],
+
+  'asesoria imagen': ['asesoría imagen', 'personal shopper', 'estilismo', 'vestuario', 'colorimetria', 'colorimetría', 'armario', 'estilo personal', 'moda', 'asesor de imagen', 'consultor de imagen'],
+
+  'psicologia': ['psicología', 'psicologo', 'psicólogo', 'terapia', 'consulta psicologica', 'consulta psicológica', 'salud mental', 'ansiedad', 'depresion', 'depresión', 'estres', 'estrés', 'terapia online', 'psicoterapia', 'psicologo online', 'psicólogo online'],
+
+  'adultos mayores': ['tercera edad', 'ancianos', 'cuidador', 'acompañamiento', 'enfermeria geriatrica', 'enfermería geriátrica', 'abuelos', 'personas mayores', 'cuidado de adultos mayores', 'cuidador de ancianos'],
+
+  'inyecciones': ['inyeccion', 'inyección', 'vacuna', 'medicamento', 'enfermeria', 'enfermería', 'intramuscular', 'intravenosa', 'aplicacion medicamentos', 'aplicación medicamentos', 'aplicacion de inyecciones', 'aplicación de inyecciones'],
+
+  'respiratoria': ['terapia respiratoria', 'nebulizacion', 'nebulización', 'pulmones', 'oxigeno', 'oxígeno', 'fisioterapia respiratoria', 'epoc', 'asma', 'terapeuta respiratorio'],
+
+  'terapia ocupacional': ['rehabilitacion', 'rehabilitación', 'funcional', 'motricidad', 'actividades diarias', 'terapeuta ocupacional', 'terapia ocupacional a domicilio'],
+
+  'camaras': ['cámaras', 'cctv', 'seguridad', 'vigilancia', 'alarma', 'dvr', 'nvr', 'ip', 'hikvision', 'dahua', 'video vigilancia', 'monitoreo', 'instalacion de camaras', 'instalación de cámaras', 'camaras de seguridad', 'cámaras de seguridad'],
+
+  'tv': ['televisor', 'television', 'televisión', 'home theater', 'montaje', 'soporte', 'smart tv', 'samsung', 'lg', 'sony', 'instalacion tv', 'instalación tv', 'pared', 'montaje de tv', 'instalacion de televisor', 'instalación de televisor'],
+
+  'consolas': ['playstation', 'xbox', 'nintendo', 'switch', 'videojuegos', 'ps4', 'ps5', 'reparacion consola', 'reparación consola', 'joystick', 'control', 'reparacion de consolas', 'reparación de consolas'],
+
+  'paneles solares': ['energia solar', 'energía solar', 'fotovoltaica', 'renovable', 'inversor', 'solar', 'ahorro energia', 'ahorro energía', 'bateria', 'batería', 'autoconsumo', 'instalacion de paneles solares', 'instalación de paneles solares'],
+
+  'smart home': ['domotica', 'domótica', 'casa inteligente', 'alexa', 'google home', 'automatizacion', 'automatización', 'iot', 'control voz', 'luces inteligentes', 'hogar inteligente', 'automatizacion del hogar', 'automatización del hogar'],
+
+  'datos': ['recuperacion', 'recuperación', 'disco duro', 'backup', 'informacion perdida', 'información perdida', 'recuperar archivos', 'ssd', 'usb', 'celular', 'formateo', 'recuperacion de datos', 'recuperación de datos'],
+
+  'aceite': ['cambio aceite', 'filtro', 'lubricante', 'motor', 'aceite motor', 'sintetico', 'sintético', 'mineral', 'mantenimiento carro', 'cambio de aceite', 'servicio de aceite'],
+
+  'polarizado': ['lamina', 'lámina', 'insulfilm', 'tintado', 'vidrios', 'polarizado auto', 'pelicula', 'película', 'oscurecer vidrios', 'rayos uv', 'polarizado de autos', 'polarizado de carros'],
+
+  'mecanica domicilio': ['mecánica domicilio', 'mecanico casa', 'mecánico casa', 'reparacion auto', 'reparación auto', 'carro', 'vehiculo', 'vehículo', 'diagnostico', 'diagnóstico', 'scanner', 'escaner', 'frenos', 'suspension', 'suspensión', 'mecanico a domicilio', 'mecánico a domicilio'],
+
+  'pintura automotriz': ['pintura carro', 'retoque', 'rayon', 'rayón', 'abolladura', 'latoneria', 'latonería', 'pintura auto', 'cabina', 'pintura de carros', 'pintura de autos'],
+
+  'asesoria contable': ['asesoría contable', 'contador', 'contabilidad', 'declaracion renta', 'declaración renta', 'impuestos', 'facturacion', 'facturación', 'rut', 'dian', 'estados financieros', 'nomina', 'nómina', 'servicios contables', 'contador publico', 'contador público'],
+}
+
+export const commonTypos: Record<string, string> = {
+  'plomeria': 'plomería',
+  'electrisista': 'electricista',
+  'electrisidad': 'electricidad',
+  'carpinteria': 'carpintería',
+  'albañileria': 'albañilería',
+  'mecanico': 'mecánico',
+  'mecanica': 'mecánica',
+  'jardineria': 'jardinería',
+  'cerrajeria': 'cerrajería',
+  'fumigacion': 'fumigación',
+  'tapiceria': 'tapicería',
+  'peluqueria': 'peluquería',
+  'barberia': 'barbería',
+  'fotografia': 'fotografía',
+  'decoracion': 'decoración',
+  'organizacion': 'organización',
+  'desinfeccion': 'desinfección',
+  'depilacion': 'depilación',
+  'micropigmentacion': 'micropigmentación',
+  'psicologia': 'psicología',
+  'rehabilitacion': 'rehabilitación',
+  'camaras': 'cámaras',
+  'domotica': 'domótica',
+  'recuperacion': 'recuperación',
+  'reparacion': 'reparación',
+  'instalacion': 'instalación',
+  'construccion': 'construcción',
+  'remodelacion': 'remodelación',
+  'impermeabilizacion': 'impermeabilización',
+  'refrigeracion': 'refrigeración',
+  'climatizacion': 'climatización',
+  'ventilacion': 'ventilación',
+  'traduccion': 'traducción',
+  'nutricion': 'nutrición',
+  'educacion': 'educación',
+  'atencion': 'atención',
+  'proteccion': 'protección',
+  'solucion': 'solución',
+}
+
+export function normalizeSearchTerm(term: string): string {
+  let normalized = term.toLowerCase().trim()
+  normalized = removeAccents(normalized)
+
+  if (commonTypos[normalized]) {
+    return commonTypos[normalized]
+  }
+
+  return normalized
 }
 
 export function expandSearchTerms(searchTerm: string): string[] {
-  const normalizedTerm = searchTerm.toLowerCase().trim()
-  const expandedTerms = [normalizedTerm]
+  const normalizedTerm = normalizeSearchTerm(searchTerm)
+  const expandedTerms = [normalizedTerm, searchTerm.toLowerCase().trim()]
 
   for (const [key, synonyms] of Object.entries(serviceSynonyms)) {
-    if (normalizedTerm.includes(key) || key.includes(normalizedTerm)) {
+    const normalizedKey = normalizeSearchTerm(key)
+
+    if (normalizedTerm.includes(normalizedKey) ||
+        normalizedKey.includes(normalizedTerm) ||
+        normalizedTerm.length >= 3 && normalizedKey.startsWith(normalizedTerm)) {
       expandedTerms.push(key, ...synonyms)
     }
 
     for (const synonym of synonyms) {
-      if (normalizedTerm.includes(synonym) || synonym.includes(normalizedTerm)) {
+      const normalizedSynonym = normalizeSearchTerm(synonym)
+
+      if (normalizedTerm.includes(normalizedSynonym) ||
+          normalizedSynonym.includes(normalizedTerm) ||
+          normalizedTerm.length >= 3 && normalizedSynonym.startsWith(normalizedTerm)) {
         expandedTerms.push(key, ...synonyms)
         break
       }
@@ -128,29 +292,84 @@ export function expandSearchTerms(searchTerm: string): string[] {
   return Array.from(new Set(expandedTerms))
 }
 
+export function findSimilarTerms(searchTerm: string, maxDistance: number = 2): string[] {
+  const normalizedTerm = normalizeSearchTerm(searchTerm)
+  const similarTerms: string[] = []
+
+  if (normalizedTerm.length < 3) return similarTerms
+
+  const allTerms: string[] = []
+  for (const [key, synonyms] of Object.entries(serviceSynonyms)) {
+    allTerms.push(key)
+    allTerms.push(...synonyms)
+  }
+
+  for (const term of allTerms) {
+    const normalizedCandidate = normalizeSearchTerm(term)
+    const distance = calculateLevenshteinDistance(normalizedTerm, normalizedCandidate)
+
+    if (distance <= maxDistance && distance > 0) {
+      similarTerms.push(term)
+    }
+  }
+
+  return similarTerms.slice(0, 5)
+}
+
 export function calculateRelevanceScore(service: any, searchTerm: string): number {
-  const normalizedSearch = searchTerm.toLowerCase().trim()
+  const normalizedSearch = normalizeSearchTerm(searchTerm)
   let score = 0
 
-  const name = service.name.toLowerCase()
-  const description = service.description.toLowerCase()
-  const category = service.category.name.toLowerCase()
+  const name = normalizeSearchTerm(service.name)
+  const description = normalizeSearchTerm(service.description)
+  const category = normalizeSearchTerm(service.category.name)
 
   if (name === normalizedSearch) score += 100
   else if (name.includes(normalizedSearch)) score += 50
   else if (normalizedSearch.includes(name)) score += 40
+  else if (name.startsWith(normalizedSearch)) score += 60
 
   if (description.includes(normalizedSearch)) score += 20
 
   if (category === normalizedSearch) score += 30
   else if (category.includes(normalizedSearch)) score += 15
+  else if (category.startsWith(normalizedSearch)) score += 25
 
   const expandedTerms = expandSearchTerms(normalizedSearch)
   for (const term of expandedTerms) {
-    if (name.includes(term)) score += 10
-    if (description.includes(term)) score += 5
-    if (category.includes(term)) score += 8
+    const normalizedTerm = normalizeSearchTerm(term)
+    if (name.includes(normalizedTerm)) score += 10
+    if (description.includes(normalizedTerm)) score += 5
+    if (category.includes(normalizedTerm)) score += 8
   }
 
   return score
+}
+
+export function getSuggestions(searchTerm: string, allServices: any[]): {
+  didYouMean: string[]
+  popularServices: any[]
+  similarServices: any[]
+} {
+  const similarTerms = findSimilarTerms(searchTerm)
+
+  const popularServices = allServices
+    .filter(s => s.popular)
+    .slice(0, 6)
+
+  const normalizedSearch = normalizeSearchTerm(searchTerm)
+  const similarServices = allServices
+    .filter(service => {
+      const name = normalizeSearchTerm(service.name)
+      const category = normalizeSearchTerm(service.category.name)
+      return name.includes(normalizedSearch.substring(0, 3)) ||
+             category.includes(normalizedSearch.substring(0, 3))
+    })
+    .slice(0, 6)
+
+  return {
+    didYouMean: similarTerms,
+    popularServices,
+    similarServices
+  }
 }
