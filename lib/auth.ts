@@ -15,7 +15,7 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error("Email y contraseña requeridos")
+          throw new Error("Email and password are required")
         }
 
         const user = await prisma.user.findUnique({
@@ -24,7 +24,7 @@ export const authOptions: NextAuthOptions = {
         })
 
         if (!user) {
-          throw new Error("Usuario no encontrado")
+          throw new Error("User not found")
         }
 
         const isPasswordValid = await bcrypt.compare(
@@ -33,7 +33,7 @@ export const authOptions: NextAuthOptions = {
         )
 
         if (!isPasswordValid) {
-          throw new Error("Contraseña incorrecta")
+          throw new Error("Invalid password")
         }
 
         return {
@@ -98,13 +98,16 @@ export const authOptions: NextAuthOptions = {
           : "next-auth.session-token",
       options: {
         httpOnly: true,
-        sameSite: "lax",
+        sameSite: env.NODE_ENV === "production" ? "none" : "lax",
         path: "/",
-        secure: env.NODE_ENV === "production",
+        secure: true,
+        domain: env.NODE_ENV === "production" ? ".lohaggo.com" : undefined,
       },
     },
   },
   secret: env.NEXTAUTH_SECRET_CURRENT || env.NEXTAUTH_SECRET,
+  useSecureCookies: true,
+  debug: env.NODE_ENV === "development",
 }
 
 export async function getCurrentUser() {
