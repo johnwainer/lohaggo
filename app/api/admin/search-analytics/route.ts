@@ -24,11 +24,15 @@ export async function GET(request: NextRequest) {
     const days = parseInt(searchParams.get('days') || '30')
     const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
 
+    console.log('Fetching search analytics for period:', { days, startDate })
+
     const totalSearches = await prisma.searchHistory.count({
       where: {
         createdAt: { gte: startDate }
       }
     })
+
+    console.log('Total searches found:', totalSearches)
 
     const uniqueUsers = await prisma.searchHistory.findMany({
       where: {
@@ -117,7 +121,7 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    return NextResponse.json({
+    const response = {
       summary: {
         totalSearches,
         uniqueUsers: uniqueUsers.length,
@@ -140,9 +144,13 @@ export async function GET(request: NextRequest) {
         userEmail: item.user.email,
         createdAt: item.createdAt
       }))
-    })
+    }
+
+    console.log('Analytics response:', JSON.stringify(response, null, 2))
+
+    return NextResponse.json(response)
   } catch (error) {
     console.error('Error fetching search analytics:', error)
-    return NextResponse.json({ error: 'Error retrieving analytics' }, { status: 500 })
+    return NextResponse.json({ error: 'Error retrieving analytics', details: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 })
   }
 }
