@@ -1,25 +1,16 @@
 'use client'
 
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { Home, Search, Calendar, User } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 
 export function BottomNav() {
   const pathname = usePathname()
-  const router = useRouter()
   const { data: session } = useSession()
 
   const isPartner = session?.user?.role === 'PARTNER'
   const isClient = session?.user?.role === 'CLIENT'
-
-  const handleNavigation = (href: string, requiresAuth: boolean) => {
-    if (requiresAuth && !session) {
-      router.push(`/login?callbackUrl=${encodeURIComponent(href)}`)
-    } else {
-      router.push(href)
-    }
-  }
 
   const loggedOutTabs = [
     { href: '/', icon: Home, label: 'Inicio', requiresAuth: false },
@@ -49,11 +40,12 @@ export function BottomNav() {
         {tabs.map((tab) => {
           const isActive = pathname === tab.href
           const Icon = tab.icon
+          const href = tab.requiresAuth && !session ? `/login?callbackUrl=${encodeURIComponent(tab.href)}` : tab.href
 
           return (
-            <button
+            <Link
               key={tab.href}
-              onClick={() => handleNavigation(tab.href, tab.requiresAuth)}
+              href={href}
               className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 transition-colors ${
                 isActive
                   ? 'text-primary-600'
@@ -62,7 +54,7 @@ export function BottomNav() {
             >
               <Icon className="w-6 h-6" />
               <span className="text-xs font-medium">{tab.label}</span>
-            </button>
+            </Link>
           )
         })}
       </div>

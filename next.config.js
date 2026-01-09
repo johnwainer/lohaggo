@@ -1,3 +1,5 @@
+const isMobileBuild = process.env.NEXT_PUBLIC_PLATFORM === 'mobile';
+
 const securityHeaders = [
   {
     key: 'X-DNS-Prefetch-Control',
@@ -50,7 +52,13 @@ const securityHeaders = [
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  
+
+  ...(isMobileBuild && {
+    output: 'export',
+    distDir: 'out',
+    trailingSlash: false,
+  }),
+
   async headers() {
     return [
       {
@@ -78,6 +86,9 @@ const nextConfig = {
       },
     ],
     formats: ['image/avif', 'image/webp'],
+    ...(isMobileBuild && {
+      unoptimized: true,
+    }),
   },
 
   experimental: {
@@ -86,20 +97,22 @@ const nextConfig = {
     },
   },
 
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-        net: false,
-        tls: false,
-      }
-    }
-    return config
-  },
+  turbopack: {},
 
   env: {
-    NEXT_PUBLIC_APP_NAME: 'Haggo',
+    NEXT_PUBLIC_API_URL: isMobileBuild 
+      ? process.env.NEXT_PUBLIC_API_URL || 'https://lohaggo.com/api'
+      : process.env.NEXT_PUBLIC_API_URL || '/api',
+  },
+
+  webpack: (config, { isServer }) => {
+    if (isMobileBuild && isServer) {
+      config.externals = config.externals || [];
+      config.externals.push({
+        '@prisma/client': 'commonjs @prisma/client',
+      });
+    }
+    return config;
   },
 }
 

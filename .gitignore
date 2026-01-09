@@ -57,3 +57,13 @@ prisma/migrations
 .idea/
 *.swp
 *.swo
+
+# Capacitor
+android/
+ios/
+*.apk
+*.aab
+*.ipa
+.capacitor/
+capacitor.config.json
+.api-backup/

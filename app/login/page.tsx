@@ -5,12 +5,15 @@ import { signIn, useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Mail, Lock, ArrowRight, Sparkles, Shield, Zap } from 'lucide-react'
+import { isNativePlatform } from '@/lib/platform'
+import { mobileAuth } from '@/lib/auth-mobile'
 
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirect = searchParams.get('redirect') || '/dashboard'
   const { data: session, status } = useSession()
+  const isMobile = isNativePlatform()
 
   const [formData, setFormData] = useState({
     email: '',
@@ -21,21 +24,35 @@ function LoginForm() {
   const [acceptedTerms, setAcceptedTerms] = useState(false)
 
   useEffect(() => {
-    if (status === 'authenticated' && session?.user) {
+    if (isMobile) {
+      const mobileSession = mobileAuth.getSession()
+      if (mobileSession?.user) {
+        const targetRedirect = searchParams.get('redirect')
+        let redirectPath = targetRedirect || '/dashboard'
+
+        if (mobileSession.user.role === 'ADMIN') {
+          redirectPath = targetRedirect || '/admin'
+        } else if (mobileSession.user.role === 'PARTNER') {
+          redirectPath = targetRedirect || '/partner'
+        }
+
+        console.log('[Login] Redirecting authenticated mobile user to:', redirectPath)
+        router.push(redirectPath)
+      }
+    } else if (status === 'authenticated' && session?.user) {
       const targetRedirect = searchParams.get('redirect')
+      let redirectPath = targetRedirect || '/dashboard'
 
       if (session.user.role === 'ADMIN') {
-        router.push(targetRedirect || '/admin')
-        router.refresh()
+        redirectPath = targetRedirect || '/admin'
       } else if (session.user.role === 'PARTNER') {
-        router.push(targetRedirect || '/partner')
-        router.refresh()
-      } else {
-        router.push(targetRedirect || '/dashboard')
-        router.refresh()
+        redirectPath = targetRedirect || '/partner'
       }
+
+      console.log('[Login] Redirecting authenticated user to:', redirectPath)
+      router.push(redirectPath)
     }
-  }, [status, session, router, searchParams])
+  }, [status, session, router, searchParams, isMobile])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -49,31 +66,51 @@ function LoginForm() {
     setLoading(true)
 
     try {
-      const result = await signIn('credentials', {
-        email: formData.email,
-        password: formData.password,
-        redirect: false
-      })
+      if (isMobile) {
+        const result = await mobileAuth.signIn(formData.email, formData.password)
 
-      if (result?.error) {
-        setError('Email o contraseña incorrectos')
-        setLoading(false)
-      } else if (result?.ok) {
-        const response = await fetch('/api/auth/session')
-        const sessionData = await response.json()
+        if (result.error) {
+          setError('Email o contraseña incorrectos')
+          setLoading(false)
+        } else if (result.ok) {
+          const targetRedirect = searchParams.get('redirect')
+          await new Promise(resolve => setTimeout(resolve, 500))
+          router.push(targetRedirect || '/dashboard')
+          router.refresh()
+        }
+      } else {
+        const result = await signIn('credentials', {
+          email: formData.email,
+          password: formData.password,
+          redirect: false
+        })
 
-        if (sessionData?.user?.role === 'ADMIN') {
-          window.location.href = searchParams.get('redirect') || '/admin'
-        } else if (sessionData?.user?.role === 'PARTNER') {
-          window.location.href = searchParams.get('redirect') || '/partner'
-        } else {
-          window.location.href = searchParams.get('redirect') || '/dashboard'
+        if (result?.error) {
+          setError('Email o contraseña incorrectos')
+          setLoading(false)
+        } else if (result?.ok) {
+          const targetRedirect = searchParams.get('redirect')
+          await new Promise(resolve => setTimeout(resolve, 500))
+          router.push(targetRedirect || '/dashboard')
+          router.refresh()
         }
       }
     } catch (error) {
+      console.error('[Login] Error:', error)
       setError('Error al iniciar sesión')
       setLoading(false)
     }
+  }
+
+  if (!isMobile && status === 'loading') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary-500 via-secondary-500 to-secondary-500 flex items-center justify-center">
+        <div className="relative">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-white"></div>
+          <div className="absolute inset-0 rounded-full h-16 w-16 border-t-4 border-white/30 animate-pulse"></div>
+        </div>
+      </div>
+    )
   }
 
   if (status === 'loading') {

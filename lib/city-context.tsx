@@ -1,6 +1,9 @@
 'use client'
 
 import { createContext, useContext, useMemo, useState, useEffect } from 'react'
+import { GeolocationService } from './geolocation-service'
+import { StorageService } from './storage-service'
+import { apiClient } from './api-client'
 
 export type CityStatus = 'ACTIVE' | 'INACTIVE' | 'COMING_SOON'
 export type CityOption = {
@@ -42,13 +45,7 @@ export function CityProvider({ children }: { children: React.ReactNode }) {
 
     const fetchCities = async () => {
       try {
-        const res = await fetch('/api/cities', { signal: controller.signal })
-        if (!res.ok) {
-          setLoading(false)
-          return
-        }
-
-        const data = await res.json()
+        const data = await apiClient.get('/cities')
         const cityList: CityOption[] = data.map((city: any) => ({
           id: city.id,
           name: city.name,
@@ -61,13 +58,13 @@ export function CityProvider({ children }: { children: React.ReactNode }) {
         setCities(cityList)
 
         if (typeof window !== 'undefined') {
-          const savedCity = localStorage.getItem('selectedCity')
+          const savedCity = await StorageService.get('selectedCity')
           if (savedCity) {
             const cityExists = cityList.find(c => c.slug === savedCity && c.status === 'ACTIVE')
             if (cityExists) {
               setSelectedCityState(savedCity)
             } else {
-              localStorage.removeItem('selectedCity')
+              await StorageService.remove('selectedCity')
               setShowCityModal(true)
             }
           } else {
@@ -95,20 +92,13 @@ export function CityProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const tryGeolocation = async (cityList: CityOption[]) => {
-    if (!navigator.geolocation) {
-      selectDefaultCity(cityList)
-      return
-    }
-
     setIsGeolocating(true)
 
     try {
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          timeout: 5000,
-          maximumAge: 300000,
-          enableHighAccuracy: false
-        })
+      const position = await GeolocationService.getCurrentPosition({
+        timeout: 5000,
+        maximumAge: 300000,
+        enableHighAccuracy: false
       })
 
       const { latitude, longitude } = position.coords
@@ -117,13 +107,14 @@ export function CityProvider({ children }: { children: React.ReactNode }) {
       if (nearestCity && nearestCity.status === 'ACTIVE') {
         setSelectedCityState(nearestCity.slug)
         if (typeof window !== 'undefined') {
-          localStorage.setItem('selectedCity', nearestCity.slug)
+          await StorageService.set('selectedCity', nearestCity.slug)
         }
       } else {
         setShowCityModal(true)
         selectDefaultCity(cityList)
       }
     } catch (error) {
+      console.error('Geolocation error:', error)
       setShowCityModal(true)
       selectDefaultCity(cityList)
     } finally {
@@ -181,7 +172,7 @@ export function CityProvider({ children }: { children: React.ReactNode }) {
     if (city && city.status === 'ACTIVE') {
       setSelectedCityState(citySlug)
       if (typeof window !== 'undefined') {
-        localStorage.setItem('selectedCity', citySlug)
+        StorageService.set('selectedCity', citySlug)
       }
       setShowCityModal(false)
     }

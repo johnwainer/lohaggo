@@ -1,30 +1,84 @@
+'use client'
+
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Search, Star, Shield, Zap, Clock, Users, CheckCircle, ArrowRight, Sparkles, ChevronRight } from 'lucide-react'
-import { prisma } from '@/lib/prisma'
 import { formatCurrency } from '@/lib/utils'
 import SearchBar from '@/components/SearchBar'
 import AdBanner from '@/components/ads/AdBanner'
 import HomeClientWrapper from '@/components/HomeClientWrapper'
+import { AppDownloadSection } from '@/components/AppDownloadSection'
+import { apiClient } from '@/lib/api-client'
+import { isNativePlatform } from '@/lib/platform'
 
-export const dynamic = 'force-dynamic'
+interface Category {
+  id: string
+  name: string
+  slug: string
+  icon: string
+  order: number
+  _count?: {
+    services: number
+  }
+}
 
-export default async function Home() {
-  const categories = await prisma.category.findMany({
-    orderBy: { order: 'asc' },
-    take: 12
-  })
+interface Service {
+  id: string
+  name: string
+  slug: string
+  description: string
+  icon: string
+  basePrice: number
+  popular: boolean
+  category: {
+    id: string
+    name: string
+    slug: string
+  }
+  _count: {
+    partners: number
+  }
+}
 
-  const popularServices = await prisma.service.findMany({
-    where: { popular: true },
-    include: {
-      category: true,
-      _count: {
-        select: { partners: true }
+export default function Home() {
+  const [categories, setCategories] = useState<Category[]>([])
+  const [popularServices, setPopularServices] = useState<Service[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        console.log('🔄 Fetching home data from API...')
+        const [categoriesData, servicesData] = await Promise.all([
+          apiClient.get<Category[]>('/categories'),
+          apiClient.get<Service[]>('/services?popular=true')
+        ])
+
+        console.log('✅ Categories loaded:', categoriesData.length)
+        console.log('✅ Popular services loaded:', servicesData.length)
+
+        setCategories(categoriesData.slice(0, 12))
+        setPopularServices(servicesData.slice(0, 20))
+      } catch (error) {
+        console.error('❌ Error fetching home data:', error)
+      } finally {
+        setLoading(false)
       }
-    },
-    take: 20,
-    orderBy: { name: 'asc' }
-  })
+    }
+
+    fetchData()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <HomeClientWrapper>
@@ -197,10 +251,14 @@ export default async function Home() {
           </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {popularServices.map((service: any) => (
+            {popularServices.map((service: any) => {
+              const isMobile = isNativePlatform()
+              const href = isMobile ? `/servicios?slug=${service.slug}` : `/servicios/${service.slug}`
+
+              return (
               <Link
                 key={service.id}
-                href={`/servicios/${service.slug}`}
+                href={href}
                 className="bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all overflow-hidden group border-2 border-gray-100 hover:border-primary-300"
               >
                 <div className="h-48 md:h-44 bg-gradient-to-br from-primary-500 to-secondary-500 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -226,7 +284,8 @@ export default async function Home() {
                   </div>
                 </div>
               </Link>
-            ))}
+              )
+            })}
           </div>
 
           <div className="text-center mt-10">
@@ -283,6 +342,9 @@ export default async function Home() {
           </Link>
         </div>
       </section>
+
+      {/* App Download Section */}
+      <AppDownloadSection variant="home" />
 
       {/* Testimonials */}
       <section className="py-16 bg-gray-50">

@@ -40,6 +40,19 @@ const fetchWithTimeout = async (
   }
 };
 
+const getAuthHeaders = (): Record<string, string> => {
+  if (typeof window === 'undefined') return {};
+
+  if (isNativePlatform()) {
+    const token = localStorage.getItem('lohaggo_token');
+    if (token) {
+      return { Authorization: `Bearer ${token}` };
+    }
+  }
+
+  return {};
+};
+
 export const apiClient = {
   get: async <T = any>(endpoint: string, options?: RequestOptions): Promise<T> => {
     const baseUrl = getApiBaseUrl();
@@ -52,6 +65,7 @@ export const apiClient = {
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
+        ...getAuthHeaders(),
         ...options?.headers,
       },
     });
@@ -78,6 +92,7 @@ export const apiClient = {
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
+        ...getAuthHeaders(),
         ...options?.headers,
       },
       body: data ? JSON.stringify(data) : undefined,
@@ -102,6 +117,7 @@ export const apiClient = {
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
+        ...getAuthHeaders(),
         ...options?.headers,
       },
       body: data ? JSON.stringify(data) : undefined,
@@ -122,6 +138,7 @@ export const apiClient = {
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
+        ...getAuthHeaders(),
         ...options?.headers,
       },
     });
@@ -145,6 +162,7 @@ export const apiClient = {
       credentials: 'include',
       body: formData,
       headers: {
+        ...getAuthHeaders(),
         ...options?.headers,
       },
     });

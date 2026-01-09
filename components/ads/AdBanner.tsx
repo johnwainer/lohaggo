@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 import { useCity } from '@/lib/city-context'
+import { apiClient } from '@/lib/api-client'
 
 interface Advertisement {
   id: string
@@ -26,7 +27,9 @@ export default function AdBanner({ placement, serviceId, className = '' }: AdBan
   const { selectedCity } = useCity()
 
   useEffect(() => {
-    fetchAds()
+    if (selectedCity) {
+      fetchAds()
+    }
   }, [placement, serviceId, selectedCity])
 
   useEffect(() => {
@@ -51,12 +54,11 @@ export default function AdBanner({ placement, serviceId, className = '' }: AdBan
 
   const fetchAds = async () => {
     try {
-      let url = `/api/ads?placement=${placement}&city=${selectedCity.toUpperCase()}`
+      let url = `/ads?placement=${placement}&city=${selectedCity.toLowerCase()}`
       if (serviceId) {
         url += `&serviceId=${serviceId}`
       }
-      const response = await fetch(url)
-      const data = await response.json()
+      const data = await apiClient.get<Advertisement[]>(url)
       setAds(data)
     } catch (error) {
       console.error('Error fetching ads:', error)
@@ -65,11 +67,7 @@ export default function AdBanner({ placement, serviceId, className = '' }: AdBan
 
   const trackImpression = async (adId: string) => {
     try {
-      await fetch('/api/ads/track', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adId, type: 'impression' })
-      })
+      await apiClient.post('/ads/track', { adId, type: 'impression' })
     } catch (error) {
       console.error('Error tracking impression:', error)
     }
@@ -77,11 +75,7 @@ export default function AdBanner({ placement, serviceId, className = '' }: AdBan
 
   const trackClick = async (adId: string) => {
     try {
-      await fetch('/api/ads/track', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adId, type: 'click' })
-      })
+      await apiClient.post('/ads/track', { adId, type: 'click' })
     } catch (error) {
       console.error('Error tracking click:', error)
     }
@@ -130,7 +124,7 @@ export default function AdBanner({ placement, serviceId, className = '' }: AdBan
             alt={currentAd.title}
             className="w-full h-full object-cover"
           />
-          
+
           <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-sm text-white text-xs px-3 py-1 rounded-full font-medium">
             Publicidad
           </div>
