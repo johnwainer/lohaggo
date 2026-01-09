@@ -331,12 +331,12 @@ function ServiciosContent() {
                     <span className="text-primary-600"> "{searchTerm}"</span>
                   </p>
                   <p className="text-gray-600 text-xs md:text-sm mt-1">
-                    Showing the most relevant services
+                    Displaying the most relevant services
                   </p>
                 </div>
               ) : (
                 <p className="text-gray-700 font-bold text-base md:text-lg">
-                  {services.length} {services.length === 1 ? 'available service' : 'available services'}
+                  {services.length} {services.length === 1 ? 'service available' : 'services available'}
                 </p>
               )}
             </div>
