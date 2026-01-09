@@ -327,16 +327,16 @@ function ServiciosContent() {
               {searchTerm ? (
                 <div className="bg-white rounded-xl md:rounded-2xl shadow-lg p-3 md:p-4 border-l-4 border-primary-500">
                   <p className="text-gray-700 font-bold text-base md:text-lg">
-                    {services.length} {services.length === 1 ? 'result found' : 'results found'} for
+                    {services.length} {services.length === 1 ? 'resultado encontrado' : 'resultados encontrados'} para
                     <span className="text-primary-600"> "{searchTerm}"</span>
                   </p>
                   <p className="text-gray-600 text-xs md:text-sm mt-1">
-                    Displaying the most relevant services
+                    Mostrando los resultados más relevantes
                   </p>
                 </div>
               ) : (
                 <p className="text-gray-700 font-bold text-base md:text-lg">
-                  {services.length} {services.length === 1 ? 'service available' : 'services available'}
+                  {services.length} {services.length === 1 ? 'servicio disponible' : 'servicios disponibles'}
                 </p>
               )}
             </div>
