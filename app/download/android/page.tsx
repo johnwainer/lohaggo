@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Smartphone, Download, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Home, Menu, Share2, Plus, ArrowLeft } from 'lucide-react'
+import { Smartphone, Download, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Home, Menu, Share2, Plus, ArrowLeft, Zap } from 'lucide-react'
 
 export default function AndroidDownloadPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null)
@@ -32,7 +32,7 @@ export default function AndroidDownloadPage() {
 
   const handleInstall = async () => {
     if (!deferredPrompt) {
-      alert('To install the app, use your browser menu and select "Add to home screen" or "Install app"')
+      alert('Para instalar la app, usa el menú de tu navegador (⋮) y selecciona "Agregar a pantalla de inicio" o "Instalar app"')
       return
     }
 
@@ -48,12 +48,12 @@ export default function AndroidDownloadPage() {
 
   const faqs = [
     {
-      question: 'Why do I not see the install button?',
-      answer: 'Make sure you are using Chrome, Edge, or Samsung Internet. If you have already installed the app previously, you will not see the button. Also verify that you are accessing via HTTPS.'
+      question: '¿Por qué no veo el botón de instalación?',
+      answer: 'Asegúrate de estar usando Chrome, Edge o Samsung Internet. Si ya instalaste la app anteriormente, no verás el botón. También verifica que estés accediendo desde HTTPS.'
     },
     {
-      question: 'Does the app take up a lot of space?',
-      answer: 'No, the PWA is very lightweight, generally less than 5MB. Additionally, it updates automatically without requiring additional downloads.'
+      question: '¿La app ocupa mucho espacio?',
+      answer: 'No, la PWA es muy ligera, generalmente menos de 5MB. Además, se actualiza automáticamente sin necesidad de descargas adicionales.'
     },
     {
       question: '¿Puedo desinstalar la app?',
@@ -104,29 +104,34 @@ export default function AndroidDownloadPage() {
           <div className="bg-white rounded-3xl shadow-2xl p-8 mb-12 border border-gray-100">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                <Download className="w-6 h-6 text-green-600" />
+                <Zap className="w-6 h-6 text-green-600" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-900">Quick Installation</h2>
+              <h2 className="text-2xl font-bold text-gray-900">One-Click Installation</h2>
             </div>
 
             <button
               onClick={handleInstall}
-              className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-6 rounded-2xl font-bold text-lg shadow-xl hover:shadow-2xl transition-all transform hover:scale-105 mb-4"
+              className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-6 rounded-2xl font-bold text-xl shadow-xl hover:shadow-2xl transition-all transform hover:scale-105 mb-4 flex items-center justify-center gap-3"
             >
-              <Download className="w-6 h-6 inline-block mr-2" />
-              Install App Now
+              <Download className="w-7 h-7" />
+              Install Application
             </button>
 
             {canInstall ? (
-              <p className="text-center text-sm text-gray-600 mb-6">
-                Click the button to install the app on your device
-              </p>
+              <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
+                <div className="flex gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-green-900">
+                    <strong>Ready to install!</strong> Click the button above and the app will be automatically installed on your device.
+                  </div>
+                </div>
+              </div>
             ) : (
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
                 <div className="flex gap-3">
                   <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                   <div className="text-sm text-amber-900">
-                    <strong>Note:</strong> If the button does not work, use your browser menu and select "Add to home screen" or follow the instructions below.
+                    <strong>Manual installation:</strong> Click the button above or use your browser menu (⋮) and select "Add to home screen".
                   </div>
                 </div>
               </div>
