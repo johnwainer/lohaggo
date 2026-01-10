@@ -210,7 +210,7 @@ export default function IOSDownloadPage() {
                 5
               </div>
               <div className="flex-1">
-                <h3 className="font-black text-gray-900 mb-3 text-xl">Ready! Open the app</h3>
+                <h3 className="font-black text-gray-900 mb-3 text-xl">Ready! Open the App</h3>
                 <p className="text-gray-700 text-lg">Find the LoHaggo icon on your home screen and open it like any other app</p>
               </div>
             </div>
