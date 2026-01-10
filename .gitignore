@@ -57,7 +57,3 @@ prisma/migrations
 .idea/
 *.swp
 *.swo
-
-# mobile apps
-ios/
-android/
