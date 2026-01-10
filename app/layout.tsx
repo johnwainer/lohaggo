@@ -4,6 +4,7 @@ import './globals.css'
 import { Providers } from './providers'
 import { Navbar } from '@/components/Navbar'
 import { Footer } from '@/components/Footer'
+import { AppDownloadBanner } from '@/components/AppDownloadBanner'
 import { BottomNav } from '@/components/mobile/BottomNav'
 import NotificationPermissionPrompt from '@/components/NotificationPermissionPrompt'
 import PWAInstallPrompt from '@/components/PWAInstallPrompt'
@@ -129,6 +130,7 @@ export default function RootLayout({
           <main className="min-h-screen md:pb-0 pb-16">
             {children}
           </main>
+          <AppDownloadBanner />
           <Footer />
           <BottomNav />
           <NotificationPermissionPrompt />
