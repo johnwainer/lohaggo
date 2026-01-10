@@ -132,6 +132,49 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* CTA Section - Professional Registration */}
+      <section className="py-20 bg-gradient-to-br from-primary-500 via-secondary-500 to-accent-500 text-white relative overflow-hidden">
+        <div className="absolute inset-0 overflow-hidden opacity-20">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-secondary-300 rounded-full mix-blend-overlay filter blur-3xl"></div>
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-accent-300 rounded-full mix-blend-overlay filter blur-3xl"></div>
+        </div>
+
+        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-5 py-2.5 rounded-full text-sm font-bold mb-8 border border-white/30">
+            <Sparkles className="w-4 h-4" />
+            <span>Join our community</span>
+          </div>
+
+          <h2 className="text-4xl md:text-5xl font-black mb-6">Are you a professional?</h2>
+          <p className="text-xl md:text-2xl mb-10 text-white/90 font-medium max-w-2xl mx-auto">
+            Connect with thousands of clients and grow your business
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-10">
+            <div className="flex items-center gap-3 bg-white/20 backdrop-blur-md px-6 py-4 rounded-2xl border border-white/30">
+              <CheckCircle className="w-6 h-6" />
+              <span className="font-bold">No hidden commissions</span>
+            </div>
+            <div className="flex items-center gap-3 bg-white/20 backdrop-blur-md px-6 py-4 rounded-2xl border border-white/30">
+              <CheckCircle className="w-6 h-6" />
+              <span className="font-bold">Secure payments</span>
+            </div>
+            <div className="flex items-center gap-3 bg-white/20 backdrop-blur-md px-6 py-4 rounded-2xl border border-white/30">
+              <CheckCircle className="w-6 h-6" />
+              <span className="font-bold">24/7 support</span>
+            </div>
+          </div>
+
+          <Link
+            href="/register?role=partner"
+            className="inline-flex items-center gap-2 bg-white text-primary-600 px-10 py-5 rounded-2xl hover:bg-gray-100 transition-all font-black text-lg shadow-2xl hover:shadow-3xl transform hover:scale-105"
+          >
+            Register as a partner
+            <ArrowRight className="w-5 h-5" />
+          </Link>
+        </div>
+      </section>
+
       {/* Features Section */}
       <section className="py-16 bg-gray-50" aria-labelledby="benefits-heading">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -241,49 +284,6 @@ export default async function Home() {
               <ArrowRight className="w-5 h-5" />
             </Link>
           </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-br from-primary-500 via-secondary-500 to-accent-500 text-white relative overflow-hidden">
-        <div className="absolute inset-0 overflow-hidden opacity-20">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-secondary-300 rounded-full mix-blend-overlay filter blur-3xl"></div>
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-accent-300 rounded-full mix-blend-overlay filter blur-3xl"></div>
-        </div>
-
-        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-5 py-2.5 rounded-full text-sm font-bold mb-8 border border-white/30">
-            <Sparkles className="w-4 h-4" />
-            <span>Únete a nuestra comunidad</span>
-          </div>
-
-          <h2 className="text-4xl md:text-5xl font-black mb-6">¿Eres profesional?</h2>
-          <p className="text-xl md:text-2xl mb-10 text-white/90 font-medium max-w-2xl mx-auto">
-            Conecta con miles de clientes y haz crecer tu negocio
-          </p>
-
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-10">
-            <div className="flex items-center gap-3 bg-white/20 backdrop-blur-md px-6 py-4 rounded-2xl border border-white/30">
-              <CheckCircle className="w-6 h-6" />
-              <span className="font-bold">Sin comisiones ocultas</span>
-            </div>
-            <div className="flex items-center gap-3 bg-white/20 backdrop-blur-md px-6 py-4 rounded-2xl border border-white/30">
-              <CheckCircle className="w-6 h-6" />
-              <span className="font-bold">Pagos seguros</span>
-            </div>
-            <div className="flex items-center gap-3 bg-white/20 backdrop-blur-md px-6 py-4 rounded-2xl border border-white/30">
-              <CheckCircle className="w-6 h-6" />
-              <span className="font-bold">Soporte 24/7</span>
-            </div>
-          </div>
-
-          <Link
-            href="/register?role=partner"
-            className="inline-flex items-center gap-2 bg-white text-primary-600 px-10 py-5 rounded-2xl hover:bg-gray-100 transition-all font-black text-lg shadow-2xl hover:shadow-3xl transform hover:scale-105"
-          >
-            Regístrate como socio
-            <ArrowRight className="w-5 h-5" />
-          </Link>
         </div>
       </section>
 
