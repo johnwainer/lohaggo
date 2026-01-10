@@ -1,21 +1,18 @@
-import { redirect } from 'next/navigation'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { Metadata } from 'next'
 
-export default async function PartnerLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  const session = await getServerSession(authOptions)
+export const metadata: Metadata = {
+  title: 'Únete como Profesional - LoHaggo | Gana Dinero Ofreciendo tus Servicios',
+  description: 'Únete a LoHaggo como profesional y aumenta tus ingresos. Conecta con miles de clientes que buscan tus servicios. Registro gratis, sin comisiones ocultas y pagos seguros.',
+  openGraph: {
+    title: 'Únete a LoHaggo como Profesional - Aumenta tus Ingresos',
+    description: 'Regístrate gratis y empieza a recibir solicitudes de clientes cerca de ti. Plomeros, electricistas, carpinteros y más.',
+    url: 'https://lohaggo.com/partner',
+  },
+  alternates: {
+    canonical: '/partner',
+  },
+}
 
-  if (!session?.user) {
-    redirect('/login')
-  }
-
-  if (session.user.role !== 'PARTNER') {
-    redirect('/')
-  }
-
-  return <>{children}</>
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return children
 }

@@ -1,4 +1,5 @@
-import { Metadata } from 'next'
+'use client'
+
 import { useState } from 'react'
 import Link from 'next/link'
 import {
@@ -17,21 +18,6 @@ import {
   ChevronRight,
   Sparkles
 } from 'lucide-react'
-
-export const metadata: Metadata = {
-  title: 'How It Works - LoHaggo | Complete Guide to Hiring Professional Services',
-  description: 'Learn how LoHaggo works step by step. Search services, compare professionals, schedule, and pay securely. Complete guide for clients and professionals.',
-  openGraph: {
-    title: 'How It Works - LoHaggo Step-by-Step Guide',
-    description: 'Discover how easy it is to hire professional services with LoHaggo. Search, compare, schedule, and pay in minutes.',
-    url: 'https://lohaggo.com/how-it-works',
-  },
-  alternates: {
-    canonical: '/how-it-works',
-  },
-}
-
-'use client'
 
 export default function HowItWorksPage() {
   const [activeTab, setActiveTab] = useState<'client' | 'partner'>('client')
