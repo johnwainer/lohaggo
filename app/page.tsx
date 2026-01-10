@@ -46,11 +46,11 @@ export default async function Home() {
 
             <h1 className="text-4xl md:text-7xl lg:text-8xl font-black mb-6 leading-tight tracking-tight">
               Contrata Servicios Profesionales
-              <span className="block bg-gradient-to-r from-yellow-200 to-white bg-clip-text text-transparent">en México en Minutos</span>
+              <span className="block bg-gradient-to-r from-yellow-200 to-white bg-clip-text text-transparent">en Colombia en Minutos</span>
             </h1>
 
             <p className="text-lg md:text-2xl mb-12 text-white/90 font-medium max-w-2xl mx-auto">
-              Plomeros, electricistas, limpieza, carpinteros, jardineros y más. Profesionales verificados cerca de ti.
+              Plomeros, electricistas, limpieza, carpinteros, jardineros y más. Profesionales verificados en Medellín.
             </p>
 
             <div className="max-w-3xl mx-auto mb-16">

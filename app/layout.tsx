@@ -18,10 +18,10 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   metadataBase: new URL('https://lohaggo.com'),
   title: {
-    default: 'LoHaggo - Encuentra y Contrata Servicios Profesionales en México | Plomeros, Electricistas, Limpieza y Más',
+    default: 'LoHaggo - Encuentra y Contrata Servicios Profesionales en Colombia | Plomeros, Electricistas, Limpieza y Más',
     template: '%s | LoHaggo - Servicios Profesionales'
   },
-  description: 'Encuentra y contrata servicios profesionales en México. Plomeros, electricistas, limpieza, reparaciones y más. Expertos verificados, precios transparentes y reservas en minutos. ¡Solicita tu servicio ahora!',
+  description: 'Encuentra y contrata servicios profesionales en Colombia. Plomeros, electricistas, limpieza, reparaciones y más. Expertos verificados en Medellín, precios transparentes y reservas en minutos. ¡Solicita tu servicio ahora!',
   manifest: '/manifest.json',
   applicationName: 'LoHaggo',
   keywords: [
@@ -34,7 +34,8 @@ export const metadata: Metadata = {
     'limpieza',
     'reparaciones',
     'profesionales verificados',
-    'servicios en México',
+    'servicios en Colombia',
+    'servicios en Medellín',
     'contratación de servicios',
     'servicios del hogar',
     'mantenimiento',
@@ -42,7 +43,8 @@ export const metadata: Metadata = {
     'lo haggo',
     'expertos verificados',
     'jardinería',
-    'servicios profesionales México'
+    'servicios profesionales Colombia',
+    'servicios profesionales Medellín'
   ],
   authors: [{ name: 'LoHaggo', url: 'https://lohaggo.com' }],
   creator: 'LoHaggo',
@@ -81,23 +83,23 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     siteName: 'LoHaggo',
-    title: 'LoHaggo - Encuentra Servicios Profesionales en México | Plomeros, Electricistas, Limpieza y Más',
-    description: 'Contrata servicios profesionales verificados en México. Plomeros, electricistas, limpieza, reparaciones y más. Cotiza gratis, compara precios y contrata en minutos. ¡Servicio garantizado!',
-    locale: 'es_MX',
+    title: 'LoHaggo - Encuentra Servicios Profesionales en Colombia | Plomeros, Electricistas, Limpieza y Más',
+    description: 'Contrata servicios profesionales verificados en Colombia. Plomeros, electricistas, limpieza, reparaciones y más en Medellín. Cotiza gratis, compara precios y contrata en minutos. ¡Servicio garantizado!',
+    locale: 'es_CO',
     url: 'https://lohaggo.com',
     images: [
       {
         url: '/icon-512.png',
         width: 512,
         height: 512,
-        alt: 'LoHaggo - Plataforma de Servicios Profesionales en México',
+        alt: 'LoHaggo - Plataforma de Servicios Profesionales en Colombia',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'LoHaggo - Encuentra Servicios Profesionales en México',
-    description: 'Plomeros, electricistas, limpieza, mudanzas y más. Conecta con expertos verificados cerca de ti.',
+    title: 'LoHaggo - Encuentra Servicios Profesionales en Colombia',
+    description: 'Plomeros, electricistas, limpieza, mudanzas y más en Medellín. Conecta con expertos verificados cerca de ti.',
     images: ['/icon-512.png'],
     creator: '@lohaggo',
   },
@@ -158,21 +160,22 @@ export default function RootLayout({
               "@context": "https://schema.org",
               "@type": "LocalBusiness",
               "name": "LoHaggo",
-              "description": "Professional services platform in Mexico. Connect with verified experts in plumbing, electrical work, cleaning, repairs and more.",
+              "description": "Professional services platform in Colombia. Connect with verified experts in plumbing, electrical work, cleaning, repairs and more in Medellín.",
               "url": "https://lohaggo.com",
               "logo": "https://lohaggo.com/icon-512.png",
               "image": "https://lohaggo.com/icon-512.png",
-              "telephone": "+52-55-1234-5678",
+              "telephone": "+57-4-123-4567",
               "email": "contacto@lohaggo.com",
               "address": {
                 "@type": "PostalAddress",
-                "addressCountry": "MX",
-                "addressLocality": "Mexico"
+                "addressCountry": "CO",
+                "addressLocality": "Medellín",
+                "addressRegion": "Antioquia"
               },
               "geo": {
                 "@type": "GeoCoordinates",
-                "latitude": "19.4326",
-                "longitude": "-99.1332"
+                "latitude": "6.2442",
+                "longitude": "-75.5812"
               },
               "priceRange": "$$",
               "openingHoursSpecification": {
@@ -200,8 +203,12 @@ export default function RootLayout({
                 "reviewCount": "1250"
               },
               "areaServed": {
-                "@type": "Country",
-                "name": "Mexico"
+                "@type": "City",
+                "name": "Medellín",
+                "containedIn": {
+                  "@type": "Country",
+                  "name": "Colombia"
+                }
               }
             })
           }}
@@ -231,7 +238,7 @@ export default function RootLayout({
               "name": "LoHaggo",
               "url": "https://lohaggo.com",
               "logo": "https://lohaggo.com/icon-512.png",
-              "description": "Leading platform in Mexico to hire verified professional services. Plumbers, electricians, cleaning, carpenters and more.",
+              "description": "Leading platform in Colombia to hire verified professional services. Plumbers, electricians, cleaning, carpenters and more in Medellín.",
               "foundingDate": "2024",
               "founders": [
                 {
@@ -241,11 +248,13 @@ export default function RootLayout({
               ],
               "address": {
                 "@type": "PostalAddress",
-                "addressCountry": "MX"
+                "addressCountry": "CO",
+                "addressLocality": "Medellín",
+                "addressRegion": "Antioquia"
               },
               "contactPoint": {
                 "@type": "ContactPoint",
-                "telephone": "+52-55-1234-5678",
+                "telephone": "+57-4-123-4567",
                 "contactType": "customer service",
                 "email": "contacto@lohaggo.com",
                 "availableLanguage": ["Spanish", "English"]

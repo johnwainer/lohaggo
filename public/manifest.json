@@ -1,14 +1,14 @@
 {
-  "name": "LoHaggo - Servicios Profesionales en México",
+  "name": "LoHaggo - Servicios Profesionales en Colombia",
   "short_name": "LoHaggo",
-  "description": "Encuentra y contrata servicios profesionales verificados en México. Plomeros, electricistas, limpieza, reparaciones y más. Cotiza gratis y contrata en minutos.",
+  "description": "Encuentra y contrata servicios profesionales verificados en Colombia. Plomeros, electricistas, limpieza, reparaciones y más en Medellín. Cotiza gratis y contrata en minutos.",
   "start_url": "/?utm_source=pwa",
   "display": "standalone",
   "background_color": "#00B894",
   "theme_color": "#0066CC",
   "orientation": "portrait-primary",
   "scope": "/",
-  "lang": "es-MX",
+  "lang": "es-CO",
   "dir": "ltr",
   "categories": ["business", "productivity", "utilities", "lifestyle"],
   "icons": [
