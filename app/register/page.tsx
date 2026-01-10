@@ -43,7 +43,16 @@ function RegisterForm() {
       fetch('/api/services')
         .then((res) => res.json())
         .then((data) => {
-          if (Array.isArray(data)) {
+          if (data.services && Array.isArray(data.services)) {
+            setServicesCatalog(
+              data.services.map((service: any) => ({
+                id: service.id,
+                name: service.name,
+                slug: service.slug,
+                basePrice: service.basePrice,
+              }))
+            )
+          } else if (Array.isArray(data)) {
             setServicesCatalog(
               data.map((service: any) => ({
                 id: service.id,
