@@ -90,7 +90,7 @@ export default function AndroidDownloadPage() {
             LoHaggo for Android
           </h1>
           <p className="text-xl md:text-2xl text-gray-700 max-w-2xl mx-auto font-medium">
-            Install our app in <span className="text-green-600 font-bold">1 click</span> and access all services faster
+            Install our app with <span className="text-green-600 font-bold">one click</span> and access all services faster
           </p>
         </div>
 
@@ -100,7 +100,7 @@ export default function AndroidDownloadPage() {
               <CheckCircle2 className="w-20 h-20 text-green-600 animate-bounce" />
               <Sparkles className="w-8 h-8 text-yellow-500 absolute -top-2 -right-2 animate-pulse" />
             </div>
-            <h2 className="text-3xl font-black text-green-900 mb-3">App installed successfully!</h2>
+            <h2 className="text-3xl font-black text-green-900 mb-3">App Installed Successfully!</h2>
             <p className="text-green-700 text-lg mb-8">You can now use LoHaggo from your home screen</p>
             <Link href="/" className="inline-flex items-center gap-3 bg-gradient-to-r from-green-500 to-green-600 text-white px-10 py-5 rounded-2xl font-bold text-lg hover:from-green-600 hover:to-green-700 transition-all shadow-xl hover:shadow-2xl transform hover:scale-105">
               <Rocket className="w-6 h-6" />
@@ -133,7 +133,7 @@ export default function AndroidDownloadPage() {
                 <div className="flex gap-4">
                   <CheckCircle2 className="w-7 h-7 text-green-600 flex-shrink-0 mt-0.5 animate-pulse" />
                   <div>
-                    <h3 className="font-black text-green-900 text-lg mb-2">Ready to install!</h3>
+                    <h3 className="font-black text-green-900 text-lg mb-2">Ready to Install!</h3>
                     <p className="text-green-800">Click the button above and the app will be automatically installed on your device.</p>
                   </div>
                 </div>
@@ -143,7 +143,7 @@ export default function AndroidDownloadPage() {
                 <div className="flex gap-4">
                   <AlertCircle className="w-7 h-7 text-amber-600 flex-shrink-0 mt-0.5" />
                   <div>
-                    <h3 className="font-black text-amber-900 text-lg mb-2">Manual installation</h3>
+                    <h3 className="font-black text-amber-900 text-lg mb-2">Manual Installation</h3>
                     <p className="text-amber-800">Click the button above or use your browser menu (⋮) and select "Add to home screen".</p>
                   </div>
                 </div>
@@ -154,13 +154,11 @@ export default function AndroidDownloadPage() {
               <div className="flex gap-4">
                 <Shield className="w-7 h-7 text-blue-600 flex-shrink-0 mt-0.5" />
                 <div>
-                  <h3 className="font-black text-blue-900 text-lg mb-2">Compatible browsers</h3>
+                  <h3 className="font-black text-blue-900 text-lg mb-2">Compatible Browsers</h3>
                   <p className="text-blue-800">Chrome, Edge, Samsung Internet, Firefox, Opera</p>
                 </div>
               </div>
             </div>
-          </div>
-        )}
           </div>
         )}
 

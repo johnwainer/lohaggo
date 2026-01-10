@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Smartphone, Download, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Share2, Plus, ArrowLeft } from 'lucide-react'
+import { Smartphone, Download, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Share2, Plus, ArrowLeft, Sparkles, Rocket, Shield, Apple } from 'lucide-react'
 
 export default function IOSDownloadPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null)
