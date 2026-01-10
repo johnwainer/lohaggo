@@ -1,8 +1,9 @@
 import Link from 'next/link'
-import { 
-  Target, 
-  Users, 
-  Heart, 
+import { Metadata } from 'next'
+import {
+  Target,
+  Users,
+  Heart,
   Award,
   Zap,
   Shield,
@@ -15,6 +16,19 @@ import {
   Clock,
   DollarSign
 } from 'lucide-react'
+
+export const metadata: Metadata = {
+  title: 'About Us - LoHaggo | Professional Services Platform in Mexico',
+  description: 'Discover LoHaggo, the leading platform in Mexico for hiring professional services. We connect thousands of users with verified experts in plumbing, electrical work, cleaning, and more.',
+  openGraph: {
+    title: 'About LoHaggo - Connecting Professionals with Clients',
+    description: 'Learn how LoHaggo is revolutionizing the way professional services are hired in Mexico.',
+    url: 'https://lohaggo.com/about',
+  },
+  alternates: {
+    canonical: '/about',
+  },
+}
 
 export default function AboutPage() {
   const stats = [

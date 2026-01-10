@@ -1,3 +1,18 @@
+import { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Join as a Professional - LoHaggo | Earn Money Offering Your Services',
+  description: 'Join LoHaggo as a professional and increase your income. Connect with thousands of customers looking for your services. Free registration, no hidden fees, and secure payments.',
+  openGraph: {
+    title: 'Join LoHaggo as a Professional - Increase Your Income',
+    description: 'Register for free and start receiving service requests from customers near you. Plumbers, electricians, carpenters, and more.',
+    url: 'https://lohaggo.com/partner',
+  },
+  alternates: {
+    canonical: '/partner',
+  },
+}
+
 'use client'
 
 import { useEffect, useState, Suspense } from 'react'

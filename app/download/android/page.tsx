@@ -1,3 +1,18 @@
+import { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Download Android App - LoHaggo | Install PWA on your Android Device',
+  description: 'Download and install the LoHaggo app on your Android device. One-click installation, quick access to professional services and real-time notifications.',
+  openGraph: {
+    title: 'Install LoHaggo on Android - Progressive Web App (PWA)',
+    description: 'Install the LoHaggo app on your Android with 1 click. Compatible with Chrome, Edge and Samsung Internet.',
+    url: 'https://lohaggo.com/download/android',
+  },
+  alternates: {
+    canonical: '/download/android',
+  },
+}
+
 'use client'
 
 import { useState, useEffect } from 'react'

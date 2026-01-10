@@ -1,8 +1,22 @@
 'use client'
 
+import { Metadata } from 'next'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Smartphone, Download, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Share2, Plus, ArrowLeft, Sparkles, Rocket, Shield, Apple } from 'lucide-react'
+
+export const metadata: Metadata = {
+  title: 'Download iOS App - LoHaggo | Install PWA on your iPhone or iPad',
+  description: 'Download and install the LoHaggo app on your iPhone or iPad. Installation from Safari, quick access to professional services and optimized experience for iOS.',
+  openGraph: {
+    title: 'Install LoHaggo on iOS - Progressive Web App (PWA)',
+    description: 'Install the LoHaggo app on your iPhone or iPad from Safari. No App Store, direct installation.',
+    url: 'https://lohaggo.com/download/ios',
+  },
+  alternates: {
+    canonical: '/download/ios',
+  },
+}
 
 export default function IOSDownloadPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null)
