@@ -83,10 +83,10 @@ export default function IOSDownloadPage() {
             </svg>
           </div>
           <h1 className="text-4xl md:text-5xl font-black text-gray-900 mb-4">
-            Instala LoHaggo en iOS
+            LoHaggo para iOS
           </h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Accede más rápido a todos los servicios con nuestra app optimizada para tu iPhone o iPad
+            Instala nuestra app en tu iPhone o iPad y accede más rápido a todos los servicios
           </p>
         </div>
 
@@ -210,63 +210,63 @@ export default function IOSDownloadPage() {
                 5
               </div>
               <div className="flex-1">
-                <h3 className="font-black text-gray-900 mb-3 text-xl">Ready! Open the App</h3>
-                <p className="text-gray-700 text-lg">Find the LoHaggo icon on your home screen and open it like any other app</p>
+                <h3 className="font-black text-gray-900 mb-3 text-xl">¡Listo! Abre la app</h3>
+                <p className="text-gray-700 text-lg">Encuentra el ícono de LoHaggo en tu pantalla de inicio y ábrelo como cualquier otra app</p>
               </div>
             </div>
           </div>
         </div>
 
         <div className="bg-gradient-to-br from-gray-100 via-slate-100 to-zinc-100 rounded-3xl shadow-2xl p-8 md:p-10 mb-12 border-2 border-gray-200">
-          <h2 className="text-3xl font-black text-gray-900 mb-8 text-center">App Benefits</h2>
+          <h2 className="text-3xl font-black text-gray-900 mb-8 text-center">Beneficios de la App</h2>
           <div className="grid md:grid-cols-2 gap-6">
             <div className="flex gap-4 bg-white/70 backdrop-blur-sm p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
               <CheckCircle2 className="w-8 h-8 text-green-600 flex-shrink-0" />
               <div>
-                <h3 className="font-black text-gray-900 mb-2 text-lg">Instant Access</h3>
-                <p className="text-gray-700">Open the app directly from your home screen</p>
+                <h3 className="font-black text-gray-900 mb-2 text-lg">Acceso instantáneo</h3>
+                <p className="text-gray-700">Abre la app directamente desde tu pantalla de inicio</p>
               </div>
             </div>
             <div className="flex gap-4 bg-white/70 backdrop-blur-sm p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
               <CheckCircle2 className="w-8 h-8 text-green-600 flex-shrink-0" />
               <div>
-                <h3 className="font-black text-gray-900 mb-2 text-lg">Push Notifications</h3>
-                <p className="text-gray-700">Receive alerts about your bookings and messages</p>
+                <h3 className="font-black text-gray-900 mb-2 text-lg">Notificaciones push</h3>
+                <p className="text-gray-700">Recibe alertas sobre tus reservas y mensajes</p>
               </div>
             </div>
             <div className="flex gap-4 bg-white/70 backdrop-blur-sm p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
               <CheckCircle2 className="w-8 h-8 text-green-600 flex-shrink-0" />
               <div>
-                <h3 className="font-black text-gray-900 mb-2 text-lg">Optimized Experience</h3>
-                <p className="text-gray-700">Interface designed specifically for iOS devices</p>
+                <h3 className="font-black text-gray-900 mb-2 text-lg">Experiencia optimizada</h3>
+                <p className="text-gray-700">Interfaz diseñada específicamente para dispositivos iOS</p>
               </div>
             </div>
             <div className="flex gap-4 bg-white/70 backdrop-blur-sm p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
               <CheckCircle2 className="w-8 h-8 text-green-600 flex-shrink-0" />
               <div>
-                <h3 className="font-black text-gray-900 mb-2 text-lg">Automatic Updates</h3>
-                <p className="text-gray-700">Always have the latest version without manual downloads</p>
+                <h3 className="font-black text-gray-900 mb-2 text-lg">Actualizaciones automáticas</h3>
+                <p className="text-gray-700">Siempre tendrás la última versión sin descargas manuales</p>
               </div>
             </div>
             <div className="flex gap-4 bg-white/70 backdrop-blur-sm p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
               <CheckCircle2 className="w-8 h-8 text-green-600 flex-shrink-0" />
               <div>
-                <h3 className="font-black text-gray-900 mb-2 text-lg">No App Store Required</h3>
-                <p className="text-gray-700">No need to download from the App Store</p>
+                <h3 className="font-black text-gray-900 mb-2 text-lg">Sin App Store</h3>
+                <p className="text-gray-700">No necesitas descargar desde la App Store</p>
               </div>
             </div>
             <div className="flex gap-4 bg-white/70 backdrop-blur-sm p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
               <CheckCircle2 className="w-8 h-8 text-green-600 flex-shrink-0" />
               <div>
-                <h3 className="font-black text-gray-900 mb-2 text-lg">Minimal Storage</h3>
-                <p className="text-gray-700">Takes up much less space than a native app</p>
+                <h3 className="font-black text-gray-900 mb-2 text-lg">Menos almacenamiento</h3>
+                <p className="text-gray-700">Ocupa mucho menos espacio que una app nativa</p>
               </div>
             </div>
           </div>
         </div>
 
         <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl p-8 md:p-10 border-2 border-gray-100">
-          <h2 className="text-3xl font-black text-gray-900 mb-8">Frequently Asked Questions</h2>
+          <h2 className="text-3xl font-black text-gray-900 mb-8">Preguntas Frecuentes</h2>
           <div className="space-y-4">
             {faqs.map((faq, index) => (
               <div key={index} className="border-2 border-gray-200 rounded-2xl overflow-hidden hover:border-blue-300 transition-all shadow-lg">
