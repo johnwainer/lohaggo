@@ -109,33 +109,30 @@ export default function AndroidDownloadPage() {
               <h2 className="text-2xl font-bold text-gray-900">Quick Installation</h2>
             </div>
 
+            <button
+              onClick={handleInstall}
+              className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-6 rounded-2xl font-bold text-lg shadow-xl hover:shadow-2xl transition-all transform hover:scale-105 mb-4"
+            >
+              <Download className="w-6 h-6 inline-block mr-2" />
+              Install App Now
+            </button>
+
             {canInstall ? (
-              <>
-                <button
-                  onClick={handleInstall}
-                  className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-6 rounded-2xl font-bold text-lg shadow-xl hover:shadow-2xl transition-all transform hover:scale-105 mb-4"
-                >
-                  <Download className="w-6 h-6 inline-block mr-2" />
-                  Install App Now
-                </button>
-                <p className="text-center text-sm text-gray-600 mb-6">
-                  Click the button to install the app on your device
-                </p>
-              </>
+              <p className="text-center text-sm text-gray-600 mb-6">
+                Click the button to install the app on your device
+              </p>
             ) : (
-              <>
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
-                  <div className="flex gap-3">
-                    <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                    <div className="text-sm text-amber-900">
-                      <strong>Manual installation:</strong> The automatic button is not available. Follow the instructions below to install manually.
-                    </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+                <div className="flex gap-3">
+                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-amber-900">
+                    <strong>Note:</strong> If the button does not work, use your browser menu and select "Add to home screen" or follow the instructions below.
                   </div>
                 </div>
-              </>
+              </div>
             )}
 
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
               <div className="flex gap-3">
                 <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                 <div className="text-sm text-blue-900">
