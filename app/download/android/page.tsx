@@ -263,12 +263,6 @@ export default function AndroidDownloadPage() {
           </div>
         </div>
 
-        <div className="mt-12 text-center">
-          <p className="text-gray-600 mb-4">Need additional help?</p>
-          <Link href="/contact" className="inline-block text-primary-600 hover:text-primary-700 font-bold">
-            Contact us →
-          </Link>
-        </div>
       </div>
     </div>
   )

@@ -290,13 +290,6 @@ export default function IOSDownloadPage() {
             ))}
           </div>
         </div>
-
-        <div className="mt-12 text-center">
-          <p className="text-gray-700 mb-4 text-lg">Need additional help?</p>
-          <Link href="/contact" className="inline-block text-primary-600 hover:text-primary-700 font-bold">
-            Contact Us →
-          </Link>
-        </div>
       </div>
     </div>
   )
