@@ -204,7 +204,7 @@ export default function AndroidDownloadPage() {
         </div>
 
         <div className="bg-gradient-to-br from-green-100 via-emerald-100 to-teal-100 rounded-3xl shadow-2xl p-8 md:p-10 mb-12 border-2 border-green-200">
-          <h2 className="text-3xl font-black text-gray-900 mb-8 text-center">App Benefits</h2>
+          <h2 className="text-3xl font-black text-gray-900 mb-8 text-center">Beneficios de la App</h2>
           <div className="grid md:grid-cols-2 gap-6">
             <div className="flex gap-4 bg-white/70 backdrop-blur-sm p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
               <CheckCircle2 className="w-8 h-8 text-green-600 flex-shrink-0" />
