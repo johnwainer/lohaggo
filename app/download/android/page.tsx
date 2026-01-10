@@ -209,36 +209,36 @@ export default function AndroidDownloadPage() {
             <div className="flex gap-4 bg-white/70 backdrop-blur-sm p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
               <CheckCircle2 className="w-8 h-8 text-green-600 flex-shrink-0" />
               <div>
-                <h3 className="font-black text-gray-900 mb-2 text-lg">Instant Access</h3>
-                <p className="text-gray-700">Open the app directly from your home screen</p>
+                <h3 className="font-black text-gray-900 mb-2 text-lg">Acceso instantáneo</h3>
+                <p className="text-gray-700">Abre la app directamente desde tu pantalla de inicio</p>
               </div>
             </div>
             <div className="flex gap-4 bg-white/70 backdrop-blur-sm p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
               <CheckCircle2 className="w-8 h-8 text-green-600 flex-shrink-0" />
               <div>
-                <h3 className="font-black text-gray-900 mb-2 text-lg">Push Notifications</h3>
-                <p className="text-gray-700">Receive alerts about your bookings and messages</p>
+                <h3 className="font-black text-gray-900 mb-2 text-lg">Notificaciones push</h3>
+                <p className="text-gray-700">Recibe alertas sobre tus reservas y mensajes</p>
               </div>
             </div>
             <div className="flex gap-4 bg-white/70 backdrop-blur-sm p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
               <CheckCircle2 className="w-8 h-8 text-green-600 flex-shrink-0" />
               <div>
-                <h3 className="font-black text-gray-900 mb-2 text-lg">Optimized Experience</h3>
-                <p className="text-gray-700">Interface designed specifically for mobile devices</p>
+                <h3 className="font-black text-gray-900 mb-2 text-lg">Experiencia optimizada</h3>
+                <p className="text-gray-700">Interfaz diseñada específicamente para dispositivos móviles</p>
               </div>
             </div>
             <div className="flex gap-4 bg-white/70 backdrop-blur-sm p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
               <CheckCircle2 className="w-8 h-8 text-green-600 flex-shrink-0" />
               <div>
-                <h3 className="font-black text-gray-900 mb-2 text-lg">Automatic Updates</h3>
-                <p className="text-gray-700">Always have the latest version without manual downloads</p>
+                <h3 className="font-black text-gray-900 mb-2 text-lg">Actualizaciones automáticas</h3>
+                <p className="text-gray-700">Siempre tendrás la última versión sin descargas manuales</p>
               </div>
             </div>
           </div>
         </div>
 
         <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl p-8 md:p-10 border-2 border-gray-100">
-          <h2 className="text-3xl font-black text-gray-900 mb-8">Frequently Asked Questions</h2>
+          <h2 className="text-3xl font-black text-gray-900 mb-8">Preguntas Frecuentes</h2>
           <div className="space-y-4">
             {faqs.map((faq, index) => (
               <div key={index} className="border-2 border-gray-200 rounded-2xl overflow-hidden hover:border-green-300 transition-all shadow-lg">
