@@ -6,16 +6,44 @@ import { Smartphone, Download, CheckCircle2, AlertCircle, ChevronDown, ChevronUp
 
 export default function IOSDownloadPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null)
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
   const [isInstalled, setIsInstalled] = useState(false)
+  const [canInstall, setCanInstall] = useState(false)
 
   useEffect(() => {
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      setIsInstalled(true)
+    const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as any).standalone ||
+      document.referrer.includes('android-app://')
+
+    setIsInstalled(isStandaloneMode)
+
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault()
+      setDeferredPrompt(e)
+      setCanInstall(true)
+    }
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
     }
   }, [])
 
-  const handleInstall = () => {
-    alert('Para instalar en iOS, sigue las instrucciones a continuación usando el botón de compartir de Safari')
+  const handleInstall = async () => {
+    if (!deferredPrompt) {
+      alert('Para instalar en iOS, sigue las instrucciones a continuación usando el botón de compartir de Safari')
+      return
+    }
+
+    deferredPrompt.prompt()
+    const { outcome } = await deferredPrompt.userChoice
+
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null)
+      setIsInstalled(true)
+      setCanInstall(false)
+    }
   }
 
   const faqs = [
@@ -82,25 +110,32 @@ export default function IOSDownloadPage() {
               <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
                 <Download className="w-6 h-6 text-blue-600" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-900">Instalación en Safari</h2>
-            </div>
-            
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
-              <div className="flex gap-3">
-                <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-amber-900">
-                  <strong>Importante:</strong> Debes usar Safari para instalar la app. Si estás en otro navegador, abre esta página en Safari primero.
-                </div>
-              </div>
+              <h2 className="text-2xl font-bold text-gray-900">Installation on Safari</h2>
             </div>
 
-            <button
-              onClick={handleInstall}
-              className="w-full bg-gradient-to-r from-gray-700 to-gray-900 text-white py-6 rounded-2xl font-bold text-lg shadow-xl hover:shadow-2xl transition-all transform hover:scale-105"
-            >
-              <Download className="w-6 h-6 inline-block mr-2" />
-              Ver Instrucciones de Instalación
-            </button>
+            {canInstall ? (
+              <>
+                <button
+                  onClick={handleInstall}
+                  className="w-full bg-gradient-to-r from-gray-700 to-gray-900 text-white py-6 rounded-2xl font-bold text-lg shadow-xl hover:shadow-2xl transition-all transform hover:scale-105 mb-4"
+                >
+                  <Download className="w-6 h-6 inline-block mr-2" />
+                  Install App Now
+                </button>
+                <p className="text-center text-sm text-gray-600 mb-6">
+                  Click the button to install the app on your device
+                </p>
+              </>
+            ) : (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+                <div className="flex gap-3">
+                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-amber-900">
+                    <strong>Important:</strong> You must use Safari to install the app. If you are on another browser, open this page in Safari first. Follow the instructions below.
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

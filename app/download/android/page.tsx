@@ -8,45 +8,52 @@ export default function AndroidDownloadPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null)
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
   const [isInstalled, setIsInstalled] = useState(false)
+  const [canInstall, setCanInstall] = useState(false)
 
   useEffect(() => {
-    const handler = (e: any) => {
+    const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as any).standalone ||
+      document.referrer.includes('android-app://')
+
+    setIsInstalled(isStandaloneMode)
+
+    const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault()
       setDeferredPrompt(e)
+      setCanInstall(true)
     }
 
-    window.addEventListener('beforeinstallprompt', handler)
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
 
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      setIsInstalled(true)
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
     }
-
-    return () => window.removeEventListener('beforeinstallprompt', handler)
   }, [])
 
   const handleInstall = async () => {
     if (!deferredPrompt) {
-      alert('Para instalar la app, usa el menú de tu navegador y selecciona "Agregar a pantalla de inicio" o "Instalar app"')
+      alert('To install the app, use your browser menu and select "Add to home screen" or "Install app"')
       return
     }
 
     deferredPrompt.prompt()
     const { outcome } = await deferredPrompt.userChoice
-    
+
     if (outcome === 'accepted') {
       setDeferredPrompt(null)
       setIsInstalled(true)
+      setCanInstall(false)
     }
   }
 
   const faqs = [
     {
-      question: '¿Por qué no veo el botón de instalación?',
-      answer: 'Asegúrate de estar usando Chrome, Edge o Samsung Internet. Si ya instalaste la app anteriormente, no verás el botón. También verifica que estés accediendo desde HTTPS.'
+      question: 'Why do I not see the install button?',
+      answer: 'Make sure you are using Chrome, Edge, or Samsung Internet. If you have already installed the app previously, you will not see the button. Also verify that you are accessing via HTTPS.'
     },
     {
-      question: '¿La app ocupa mucho espacio?',
-      answer: 'No, la PWA es muy ligera, generalmente menos de 5MB. Además, se actualiza automáticamente sin necesidad de descargas adicionales.'
+      question: 'Does the app take up a lot of space?',
+      answer: 'No, the PWA is very lightweight, generally less than 5MB. Additionally, it updates automatically without requiring additional downloads.'
     },
     {
       question: '¿Puedo desinstalar la app?',
@@ -99,22 +106,40 @@ export default function AndroidDownloadPage() {
               <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
                 <Download className="w-6 h-6 text-green-600" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-900">Instalación Rápida</h2>
+              <h2 className="text-2xl font-bold text-gray-900">Quick Installation</h2>
             </div>
-            
-            <button
-              onClick={handleInstall}
-              className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-6 rounded-2xl font-bold text-lg shadow-xl hover:shadow-2xl transition-all transform hover:scale-105 mb-6"
-            >
-              <Download className="w-6 h-6 inline-block mr-2" />
-              Instalar App Ahora
-            </button>
+
+            {canInstall ? (
+              <>
+                <button
+                  onClick={handleInstall}
+                  className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-6 rounded-2xl font-bold text-lg shadow-xl hover:shadow-2xl transition-all transform hover:scale-105 mb-4"
+                >
+                  <Download className="w-6 h-6 inline-block mr-2" />
+                  Install App Now
+                </button>
+                <p className="text-center text-sm text-gray-600 mb-6">
+                  Click the button to install the app on your device
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
+                  <div className="flex gap-3">
+                    <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-amber-900">
+                      <strong>Manual installation:</strong> The automatic button is not available. Follow the instructions below to install manually.
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
 
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
               <div className="flex gap-3">
                 <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                 <div className="text-sm text-blue-900">
-                  <strong>Navegadores compatibles:</strong> Chrome, Edge, Samsung Internet, Firefox, Opera
+                  <strong>Compatible browsers:</strong> Chrome, Edge, Samsung Internet, Firefox, Opera
                 </div>
               </div>
             </div>
