@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Smartphone, Download, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Home, Menu, Share2, Plus, ArrowLeft, Zap } from 'lucide-react'
+import { Smartphone, Download, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Menu, ArrowLeft, Zap, Sparkles, Rocket, Shield } from 'lucide-react'
 
 export default function AndroidDownloadPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null)
@@ -70,115 +70,131 @@ export default function AndroidDownloadPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-green-50">
-      <div className="max-w-4xl mx-auto px-4 py-12">
-        <Link href="/" className="inline-flex items-center gap-2 text-gray-600 hover:text-primary-600 mb-8 font-semibold">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 relative overflow-hidden">
+      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiMwMGMwNTEiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDE2YzAtMi4yMSAxLjc5LTQgNC00czQgMS43OSA0IDQtMS43OSA0LTQgNC00LTEuNzktNC00em0wIDI0YzAtMi4yMSAxLjc5LTQgNC00czQgMS43OSA0IDQtMS43OSA0LTQgNC00LTEuNzktNC00ek0xMiAxNmMwLTIuMjEgMS43OS00IDQtNHM0IDEuNzkgNCA0LTEuNzkgNC00IDQtNC0xLjc5LTQtNHptMCAyNGMwLTIuMjEgMS43OS00IDQtNHM0IDEuNzkgNCA0LTEuNzkgNC00IDQtNC0xLjc5LTQtNHoiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-40"></div>
+
+      <div className="max-w-5xl mx-auto px-4 py-8 md:py-12 relative z-10">
+        <Link href="/" className="inline-flex items-center gap-2 text-gray-700 hover:text-green-600 mb-8 font-semibold transition-all hover:gap-3">
           <ArrowLeft className="w-5 h-5" />
-          Volver al inicio
+          Back to home
         </Link>
 
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-green-400 to-green-600 rounded-3xl mb-6 shadow-2xl">
-            <svg className="w-12 h-12 text-white" viewBox="0 0 24 24" fill="currentColor">
+        <div className="text-center mb-12 animate-fade-in">
+          <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-green-400 via-green-500 to-green-600 rounded-3xl mb-6 shadow-2xl transform hover:scale-110 transition-transform duration-300 relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-green-300 to-green-500 rounded-3xl blur-xl opacity-50 animate-pulse"></div>
+            <svg className="w-14 h-14 text-white relative z-10" viewBox="0 0 24 24" fill="currentColor">
               <path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4483-.9993.9993-.9993c.5511 0 .9993.4483.9993.9993.0001.5511-.4482.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4483.9993.9993 0 .5511-.4483.9997-.9993.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.416.416 0 00-.5676.1521l-2.0223 3.503C15.5902 8.2439 13.8533 7.8508 12 7.8508s-3.5902.3931-5.1367 1.0989L4.841 5.4467a.4161.4161 0 00-.5677-.1521.4157.4157 0 00-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3435-4.1021-2.6892-7.5743-6.1185-9.4396"/>
             </svg>
           </div>
-          <h1 className="text-4xl md:text-5xl font-black text-gray-900 mb-4">
-            Instala LoHaggo en Android
+          <h1 className="text-5xl md:text-6xl font-black text-gray-900 mb-4 bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+            LoHaggo for Android
           </h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Accede más rápido a todos los servicios con nuestra app optimizada para tu dispositivo Android
+          <p className="text-xl md:text-2xl text-gray-700 max-w-2xl mx-auto font-medium">
+            Install our app in <span className="text-green-600 font-bold">1 click</span> and access all services faster
           </p>
         </div>
 
         {isInstalled ? (
-          <div className="bg-green-50 border-2 border-green-500 rounded-2xl p-8 mb-12 text-center">
-            <CheckCircle2 className="w-16 h-16 text-green-600 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-green-900 mb-2">¡App instalada correctamente!</h2>
-            <p className="text-green-700 mb-6">Ya puedes usar LoHaggo desde tu pantalla de inicio</p>
-            <Link href="/" className="inline-block bg-green-600 text-white px-8 py-4 rounded-xl font-bold hover:bg-green-700 transition-all">
-              Abrir LoHaggo
+          <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-400 rounded-3xl p-10 mb-12 text-center shadow-2xl transform hover:scale-105 transition-transform">
+            <div className="relative inline-block mb-4">
+              <CheckCircle2 className="w-20 h-20 text-green-600 animate-bounce" />
+              <Sparkles className="w-8 h-8 text-yellow-500 absolute -top-2 -right-2 animate-pulse" />
+            </div>
+            <h2 className="text-3xl font-black text-green-900 mb-3">App installed successfully!</h2>
+            <p className="text-green-700 text-lg mb-8">You can now use LoHaggo from your home screen</p>
+            <Link href="/" className="inline-flex items-center gap-3 bg-gradient-to-r from-green-500 to-green-600 text-white px-10 py-5 rounded-2xl font-bold text-lg hover:from-green-600 hover:to-green-700 transition-all shadow-xl hover:shadow-2xl transform hover:scale-105">
+              <Rocket className="w-6 h-6" />
+              Open LoHaggo
             </Link>
           </div>
         ) : (
-          <div className="bg-white rounded-3xl shadow-2xl p-8 mb-12 border border-gray-100">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                <Zap className="w-6 h-6 text-green-600" />
+          <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl p-8 md:p-10 mb-12 border-2 border-green-100 transform hover:shadow-3xl transition-all">
+            <div className="flex items-center gap-4 mb-8">
+              <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-green-600 rounded-2xl flex items-center justify-center shadow-lg">
+                <Zap className="w-8 h-8 text-white" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-900">One-Click Installation</h2>
+              <div>
+                <h2 className="text-3xl font-black text-gray-900">One-Click Installation</h2>
+                <p className="text-gray-600 text-sm">Fast, easy, and secure</p>
+              </div>
             </div>
 
             <button
               onClick={handleInstall}
-              className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-6 rounded-2xl font-bold text-xl shadow-xl hover:shadow-2xl transition-all transform hover:scale-105 mb-4 flex items-center justify-center gap-3"
+              className="w-full bg-gradient-to-r from-green-500 via-green-600 to-emerald-600 text-white py-7 rounded-2xl font-black text-2xl shadow-2xl hover:shadow-3xl transition-all transform hover:scale-105 mb-6 flex items-center justify-center gap-4 relative overflow-hidden group"
             >
-              <Download className="w-7 h-7" />
-              Install Application
+              <div className="absolute inset-0 bg-gradient-to-r from-green-400 to-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              <Download className="w-8 h-8 relative z-10 animate-bounce" />
+              <span className="relative z-10">Install Application</span>
             </button>
 
             {canInstall ? (
-              <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
-                <div className="flex gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                  <div className="text-sm text-green-900">
-                    <strong>Ready to install!</strong> Click the button above and the app will be automatically installed on your device.
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-2xl p-6 mb-6 shadow-lg">
+                <div className="flex gap-4">
+                  <CheckCircle2 className="w-7 h-7 text-green-600 flex-shrink-0 mt-0.5 animate-pulse" />
+                  <div>
+                    <h3 className="font-black text-green-900 text-lg mb-2">Ready to install!</h3>
+                    <p className="text-green-800">Click the button above and the app will be automatically installed on your device.</p>
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
-                <div className="flex gap-3">
-                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                  <div className="text-sm text-amber-900">
-                    <strong>Manual installation:</strong> Click the button above or use your browser menu (⋮) and select "Add to home screen".
+              <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-2xl p-6 mb-6 shadow-lg">
+                <div className="flex gap-4">
+                  <AlertCircle className="w-7 h-7 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="font-black text-amber-900 text-lg mb-2">Manual installation</h3>
+                    <p className="text-amber-800">Click the button above or use your browser menu (⋮) and select "Add to home screen".</p>
                   </div>
                 </div>
               </div>
             )}
 
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-              <div className="flex gap-3">
-                <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-blue-900">
-                  <strong>Compatible browsers:</strong> Chrome, Edge, Samsung Internet, Firefox, Opera
+            <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-200 rounded-2xl p-6 shadow-lg">
+              <div className="flex gap-4">
+                <Shield className="w-7 h-7 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="font-black text-blue-900 text-lg mb-2">Compatible browsers</h3>
+                  <p className="text-blue-800">Chrome, Edge, Samsung Internet, Firefox, Opera</p>
                 </div>
               </div>
             </div>
           </div>
         )}
+          </div>
+        )}
 
-        <div className="bg-white rounded-3xl shadow-xl p-8 mb-12 border border-gray-100">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary-100 rounded-xl flex items-center justify-center">
-              <Smartphone className="w-5 h-5 text-primary-600" />
+        <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl p-8 md:p-10 mb-12 border-2 border-gray-100">
+          <h2 className="text-3xl font-black text-gray-900 mb-8 flex items-center gap-4">
+            <div className="w-12 h-12 bg-gradient-to-br from-primary-400 to-primary-600 rounded-2xl flex items-center justify-center shadow-lg">
+              <Smartphone className="w-6 h-6 text-white" />
             </div>
-            Instrucciones Paso a Paso
+            Step-by-Step Instructions
           </h2>
 
-          <div className="space-y-6">
-            <div className="flex gap-4">
-              <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg">
+          <div className="space-y-8">
+            <div className="flex gap-5 group hover:bg-green-50 p-5 rounded-2xl transition-all">
+              <div className="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-green-400 to-green-600 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-xl group-hover:scale-110 transition-transform">
                 1
               </div>
               <div className="flex-1">
-                <h3 className="font-bold text-gray-900 mb-2 text-lg">Abre el menú de tu navegador</h3>
-                <p className="text-gray-600 mb-3">Toca los tres puntos verticales <Menu className="w-4 h-4 inline" /> en la esquina superior derecha</p>
-                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                  <p className="text-sm text-gray-700"><strong>Chrome:</strong> Menú → "Agregar a pantalla de inicio"</p>
-                  <p className="text-sm text-gray-700 mt-2"><strong>Edge:</strong> Menú → "Aplicaciones" → "Instalar esta aplicación"</p>
-                  <p className="text-sm text-gray-700 mt-2"><strong>Samsung Internet:</strong> Menú → "Agregar página a"</p>
+                <h3 className="font-black text-gray-900 mb-3 text-xl">Open your browser menu</h3>
+                <p className="text-gray-700 mb-4 text-lg">Tap the three vertical dots <Menu className="w-5 h-5 inline" /> in the top right corner</p>
+                <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-5 border-2 border-gray-200 shadow-inner">
+                  <p className="text-gray-800 font-semibold mb-2"><strong className="text-green-600">Chrome:</strong> Menu → "Add to home screen"</p>
+                  <p className="text-gray-800 font-semibold mb-2"><strong className="text-blue-600">Edge:</strong> Menu → "Apps" → "Install this app"</p>
+                  <p className="text-gray-800 font-semibold"><strong className="text-purple-600">Samsung Internet:</strong> Menu → "Add page to"</p>
                 </div>
               </div>
             </div>
 
-            <div className="flex gap-4">
-              <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg">
+            <div className="flex gap-5 group hover:bg-green-50 p-5 rounded-2xl transition-all">
+              <div className="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-green-400 to-green-600 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-xl group-hover:scale-110 transition-transform">
                 2
               </div>
               <div className="flex-1">
                 <h3 className="font-bold text-gray-900 mb-2 text-lg">Selecciona "Instalar" o "Agregar"</h3>
-                <p className="text-gray-600">Confirma la instalación cuando aparezca el mensaje</p>
+                <p className="text-gray-600">Confirm the installation when the prompt appears</p>
               </div>
             </div>
 
@@ -187,65 +203,65 @@ export default function AndroidDownloadPage() {
                 3
               </div>
               <div className="flex-1">
-                <h3 className="font-bold text-gray-900 mb-2 text-lg">¡Listo! Abre la app</h3>
-                <p className="text-gray-600">Busca el ícono de LoHaggo en tu pantalla de inicio y ábrelo</p>
+                <h3 className="font-bold text-gray-900 mb-2 text-lg">Done! Open the app</h3>
+                <p className="text-gray-600">Find the LoHaggo icon on your home screen and open it</p>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-primary-50 to-secondary-50 rounded-3xl shadow-xl p-8 mb-12 border border-primary-100">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Beneficios de la App</h2>
+        <div className="bg-gradient-to-br from-green-100 via-emerald-100 to-teal-100 rounded-3xl shadow-2xl p-8 md:p-10 mb-12 border-2 border-green-200">
+          <h2 className="text-3xl font-black text-gray-900 mb-8 text-center">App Benefits</h2>
           <div className="grid md:grid-cols-2 gap-6">
-            <div className="flex gap-3">
-              <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0" />
+            <div className="flex gap-4 bg-white/70 backdrop-blur-sm p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
+              <CheckCircle2 className="w-8 h-8 text-green-600 flex-shrink-0" />
               <div>
-                <h3 className="font-bold text-gray-900 mb-1">Acceso instantáneo</h3>
-                <p className="text-gray-600 text-sm">Abre la app directamente desde tu pantalla de inicio</p>
+                <h3 className="font-black text-gray-900 mb-2 text-lg">Instant access</h3>
+                <p className="text-gray-700">Open the app directly from your home screen</p>
               </div>
             </div>
-            <div className="flex gap-3">
-              <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0" />
+            <div className="flex gap-4 bg-white/70 backdrop-blur-sm p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
+              <CheckCircle2 className="w-8 h-8 text-green-600 flex-shrink-0" />
               <div>
-                <h3 className="font-bold text-gray-900 mb-1">Notificaciones push</h3>
-                <p className="text-gray-600 text-sm">Recibe alertas sobre tus reservas y mensajes</p>
+                <h3 className="font-black text-gray-900 mb-2 text-lg">Push notifications</h3>
+                <p className="text-gray-700">Receive alerts about your bookings and messages</p>
               </div>
             </div>
-            <div className="flex gap-3">
-              <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0" />
+            <div className="flex gap-4 bg-white/70 backdrop-blur-sm p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
+              <CheckCircle2 className="w-8 h-8 text-green-600 flex-shrink-0" />
               <div>
-                <h3 className="font-bold text-gray-900 mb-1">Experiencia optimizada</h3>
-                <p className="text-gray-600 text-sm">Interfaz diseñada específicamente para móviles</p>
+                <h3 className="font-black text-gray-900 mb-2 text-lg">Optimized experience</h3>
+                <p className="text-gray-700">Interface designed specifically for mobile devices</p>
               </div>
             </div>
-            <div className="flex gap-3">
-              <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0" />
+            <div className="flex gap-4 bg-white/70 backdrop-blur-sm p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
+              <CheckCircle2 className="w-8 h-8 text-green-600 flex-shrink-0" />
               <div>
-                <h3 className="font-bold text-gray-900 mb-1">Actualizaciones automáticas</h3>
-                <p className="text-gray-600 text-sm">Siempre tendrás la última versión sin descargas</p>
+                <h3 className="font-black text-gray-900 mb-2 text-lg">Automatic updates</h3>
+                <p className="text-gray-700">Always have the latest version without manual downloads</p>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-100">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Preguntas Frecuentes</h2>
+        <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl p-8 md:p-10 border-2 border-gray-100">
+          <h2 className="text-3xl font-black text-gray-900 mb-8">Frequently Asked Questions</h2>
           <div className="space-y-4">
             {faqs.map((faq, index) => (
-              <div key={index} className="border border-gray-200 rounded-xl overflow-hidden">
+              <div key={index} className="border-2 border-gray-200 rounded-2xl overflow-hidden hover:border-green-300 transition-all shadow-lg">
                 <button
                   onClick={() => setOpenFaq(openFaq === index ? null : index)}
-                  className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+                  className="w-full flex items-center justify-between p-6 hover:bg-green-50 transition-colors"
                 >
-                  <span className="font-semibold text-gray-900 text-left">{faq.question}</span>
+                  <span className="font-bold text-gray-900 text-left text-lg">{faq.question}</span>
                   {openFaq === index ? (
-                    <ChevronUp className="w-5 h-5 text-gray-500 flex-shrink-0" />
+                    <ChevronUp className="w-6 h-6 text-green-600 flex-shrink-0" />
                   ) : (
-                    <ChevronDown className="w-5 h-5 text-gray-500 flex-shrink-0" />
+                    <ChevronDown className="w-6 h-6 text-gray-500 flex-shrink-0" />
                   )}
                 </button>
                 {openFaq === index && (
-                  <div className="px-4 pb-4 text-gray-600">
+                  <div className="px-6 pb-6 text-gray-700 text-lg bg-green-50/50">
                     {faq.answer}
                   </div>
                 )}

@@ -96,42 +96,51 @@ export default function IOSDownloadPage() {
         </div>
 
         {isInstalled ? (
-          <div className="bg-green-50 border-2 border-green-500 rounded-2xl p-8 mb-12 text-center">
-            <CheckCircle2 className="w-16 h-16 text-green-600 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-green-900 mb-2">¡App instalada correctamente!</h2>
-            <p className="text-green-700 mb-6">Ya puedes usar LoHaggo desde tu pantalla de inicio</p>
-            <Link href="/" className="inline-block bg-green-600 text-white px-8 py-4 rounded-xl font-bold hover:bg-green-700 transition-all">
+          <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-400 rounded-3xl p-10 mb-12 text-center shadow-2xl transform hover:scale-105 transition-transform">
+            <div className="relative inline-block mb-4">
+              <CheckCircle2 className="w-20 h-20 text-green-600 animate-bounce" />
+              <Sparkles className="w-8 h-8 text-yellow-500 absolute -top-2 -right-2 animate-pulse" />
+            </div>
+            <h2 className="text-3xl font-black text-green-900 mb-3">¡App instalada correctamente!</h2>
+            <p className="text-green-700 text-lg mb-8">Ya puedes usar LoHaggo desde tu pantalla de inicio</p>
+            <Link href="/" className="inline-flex items-center gap-3 bg-gradient-to-r from-green-500 to-green-600 text-white px-10 py-5 rounded-2xl font-bold text-lg hover:from-green-600 hover:to-green-700 transition-all shadow-xl hover:shadow-2xl transform hover:scale-105">
+              <Rocket className="w-6 h-6" />
               Abrir LoHaggo
             </Link>
           </div>
         ) : (
-          <div className="bg-white rounded-3xl shadow-2xl p-8 mb-12 border border-gray-100">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                <Download className="w-6 h-6 text-blue-600" />
+          <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl p-8 md:p-10 mb-12 border-2 border-gray-200 transform hover:shadow-3xl transition-all">
+            <div className="flex items-center gap-4 mb-8">
+              <div className="w-16 h-16 bg-gradient-to-br from-gray-700 to-gray-900 rounded-2xl flex items-center justify-center shadow-lg">
+                <Apple className="w-8 h-8 text-white" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-900">Installation on Safari</h2>
+              <div>
+                <h2 className="text-3xl font-black text-gray-900">Instalación en Safari</h2>
+                <p className="text-gray-600 text-sm">Solo disponible en Safari</p>
+              </div>
             </div>
 
             {canInstall ? (
               <>
                 <button
                   onClick={handleInstall}
-                  className="w-full bg-gradient-to-r from-gray-700 to-gray-900 text-white py-6 rounded-2xl font-bold text-lg shadow-xl hover:shadow-2xl transition-all transform hover:scale-105 mb-4"
+                  className="w-full bg-gradient-to-r from-gray-700 via-gray-800 to-gray-900 text-white py-7 rounded-2xl font-black text-2xl shadow-2xl hover:shadow-3xl transition-all transform hover:scale-105 mb-4 flex items-center justify-center gap-4 relative overflow-hidden group"
                 >
-                  <Download className="w-6 h-6 inline-block mr-2" />
-                  Install App Now
+                  <div className="absolute inset-0 bg-gradient-to-r from-gray-600 to-gray-800 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                  <Download className="w-8 h-8 relative z-10 animate-bounce" />
+                  <span className="relative z-10">Instalar Aplicación</span>
                 </button>
-                <p className="text-center text-sm text-gray-600 mb-6">
-                  Click the button to install the app on your device
+                <p className="text-center text-gray-600 mb-6 text-lg">
+                  Haz clic en el botón para instalar la app en tu dispositivo
                 </p>
               </>
             ) : (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
-                <div className="flex gap-3">
-                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                  <div className="text-sm text-amber-900">
-                    <strong>Important:</strong> You must use Safari to install the app. If you are on another browser, open this page in Safari first. Follow the instructions below.
+              <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-2xl p-6 mb-6 shadow-lg">
+                <div className="flex gap-4">
+                  <AlertCircle className="w-7 h-7 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="font-black text-amber-900 text-lg mb-2">Importante</h3>
+                    <p className="text-amber-800">Debes usar Safari para instalar la app. Si estás en otro navegador, abre esta página en Safari primero. Sigue las instrucciones a continuación.</p>
                   </div>
                 </div>
               </div>
@@ -139,146 +148,146 @@ export default function IOSDownloadPage() {
           </div>
         )}
 
-        <div className="bg-white rounded-3xl shadow-xl p-8 mb-12 border border-gray-100">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary-100 rounded-xl flex items-center justify-center">
-              <Smartphone className="w-5 h-5 text-primary-600" />
+        <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl p-8 md:p-10 mb-12 border-2 border-gray-100">
+          <h2 className="text-3xl font-black text-gray-900 mb-8 flex items-center gap-4">
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
+              <Smartphone className="w-6 h-6 text-white" />
             </div>
             Instrucciones Paso a Paso
           </h2>
 
-          <div className="space-y-6">
-            <div className="flex gap-4">
-              <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg">
+          <div className="space-y-8">
+            <div className="flex gap-5 group hover:bg-blue-50 p-5 rounded-2xl transition-all">
+              <div className="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-blue-400 to-blue-600 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-xl group-hover:scale-110 transition-transform">
                 1
               </div>
               <div className="flex-1">
-                <h3 className="font-bold text-gray-900 mb-2 text-lg">Abre Safari</h3>
-                <p className="text-gray-600 mb-3">Si estás en otro navegador, copia esta URL y ábrela en Safari</p>
-                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                  <code className="text-sm text-gray-700 break-all">https://lohaggo.com</code>
+                <h3 className="font-black text-gray-900 mb-3 text-xl">Abre Safari</h3>
+                <p className="text-gray-700 mb-4 text-lg">Si estás en otro navegador, copia esta URL y ábrela en Safari</p>
+                <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-5 border-2 border-gray-200 shadow-inner">
+                  <code className="text-gray-800 font-semibold break-all">https://lohaggo.com</code>
                 </div>
               </div>
             </div>
 
-            <div className="flex gap-4">
-              <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg">
+            <div className="flex gap-5 group hover:bg-blue-50 p-5 rounded-2xl transition-all">
+              <div className="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-blue-400 to-blue-600 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-xl group-hover:scale-110 transition-transform">
                 2
               </div>
               <div className="flex-1">
-                <h3 className="font-bold text-gray-900 mb-2 text-lg">Toca el botón de compartir</h3>
-                <p className="text-gray-600 mb-3">Es el ícono de un cuadrado con una flecha hacia arriba <Share2 className="w-4 h-4 inline" /> en la parte inferior de Safari</p>
-                <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
-                  <p className="text-sm text-blue-900">
+                <h3 className="font-black text-gray-900 mb-3 text-xl">Toca el botón de compartir</h3>
+                <p className="text-gray-700 mb-4 text-lg">Es el ícono de un cuadrado con una flecha hacia arriba <Share2 className="w-5 h-5 inline" /> en la parte inferior de Safari</p>
+                <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-5 border-2 border-blue-200 shadow-inner">
+                  <p className="text-blue-900 font-semibold">
                     <strong>Ubicación:</strong> En iPhone, está en la parte inferior central. En iPad, está en la parte superior derecha.
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="flex gap-4">
-              <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg">
+            <div className="flex gap-5 group hover:bg-blue-50 p-5 rounded-2xl transition-all">
+              <div className="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-blue-400 to-blue-600 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-xl group-hover:scale-110 transition-transform">
                 3
               </div>
               <div className="flex-1">
-                <h3 className="font-bold text-gray-900 mb-2 text-lg">Selecciona "Agregar a pantalla de inicio"</h3>
-                <p className="text-gray-600 mb-3">Desplázate hacia abajo en el menú y busca esta opción con el ícono <Plus className="w-4 h-4 inline" /></p>
-                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                  <p className="text-sm text-gray-700">
+                <h3 className="font-black text-gray-900 mb-3 text-xl">Selecciona "Agregar a pantalla de inicio"</h3>
+                <p className="text-gray-700 mb-4 text-lg">Desplázate hacia abajo en el menú y busca esta opción con el ícono <Plus className="w-5 h-5 inline" /></p>
+                <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-5 border-2 border-gray-200 shadow-inner">
+                  <p className="text-gray-800 font-semibold">
                     Si no ves esta opción, asegúrate de estar en Safari y no en modo privado
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="flex gap-4">
-              <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg">
+            <div className="flex gap-5 group hover:bg-blue-50 p-5 rounded-2xl transition-all">
+              <div className="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-blue-400 to-blue-600 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-xl group-hover:scale-110 transition-transform">
                 4
               </div>
               <div className="flex-1">
-                <h3 className="font-bold text-gray-900 mb-2 text-lg">Confirma el nombre y toca "Agregar"</h3>
-                <p className="text-gray-600">Puedes cambiar el nombre si lo deseas, luego toca "Agregar" en la esquina superior derecha</p>
+                <h3 className="font-black text-gray-900 mb-3 text-xl">Confirma el nombre y toca "Agregar"</h3>
+                <p className="text-gray-700 text-lg">Puedes cambiar el nombre si lo deseas, luego toca "Agregar" en la esquina superior derecha</p>
               </div>
             </div>
 
-            <div className="flex gap-4">
-              <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg">
+            <div className="flex gap-5 group hover:bg-blue-50 p-5 rounded-2xl transition-all">
+              <div className="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-blue-400 to-blue-600 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-xl group-hover:scale-110 transition-transform">
                 5
               </div>
               <div className="flex-1">
-                <h3 className="font-bold text-gray-900 mb-2 text-lg">¡Listo! Abre la app</h3>
-                <p className="text-gray-600">Busca el ícono de LoHaggo en tu pantalla de inicio y ábrelo como cualquier otra app</p>
+                <h3 className="font-bold text-gray-900 mb-2 text-lg">Ready! Open the app</h3>
+                <p className="text-gray-600">Find the LoHaggo icon on your home screen and open it like any other app</p>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-primary-50 to-secondary-50 rounded-3xl shadow-xl p-8 mb-12 border border-primary-100">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Beneficios de la App</h2>
+        <div className="bg-gradient-to-br from-gray-100 via-slate-100 to-zinc-100 rounded-3xl shadow-2xl p-8 md:p-10 mb-12 border-2 border-gray-200">
+          <h2 className="text-3xl font-black text-gray-900 mb-8 text-center">App Benefits</h2>
           <div className="grid md:grid-cols-2 gap-6">
-            <div className="flex gap-3">
-              <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0" />
+            <div className="flex gap-4 bg-white/70 backdrop-blur-sm p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
+              <CheckCircle2 className="w-8 h-8 text-green-600 flex-shrink-0" />
               <div>
-                <h3 className="font-bold text-gray-900 mb-1">Acceso instantáneo</h3>
-                <p className="text-gray-600 text-sm">Abre la app directamente desde tu pantalla de inicio</p>
+                <h3 className="font-black text-gray-900 mb-2 text-lg">Instant access</h3>
+                <p className="text-gray-700">Open the app directly from your home screen</p>
               </div>
             </div>
-            <div className="flex gap-3">
-              <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0" />
+            <div className="flex gap-4 bg-white/70 backdrop-blur-sm p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
+              <CheckCircle2 className="w-8 h-8 text-green-600 flex-shrink-0" />
               <div>
-                <h3 className="font-bold text-gray-900 mb-1">Notificaciones push</h3>
-                <p className="text-gray-600 text-sm">Recibe alertas sobre tus reservas y mensajes</p>
+                <h3 className="font-black text-gray-900 mb-2 text-lg">Push notifications</h3>
+                <p className="text-gray-700">Receive alerts about your bookings and messages</p>
               </div>
             </div>
-            <div className="flex gap-3">
-              <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0" />
+            <div className="flex gap-4 bg-white/70 backdrop-blur-sm p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
+              <CheckCircle2 className="w-8 h-8 text-green-600 flex-shrink-0" />
               <div>
-                <h3 className="font-bold text-gray-900 mb-1">Experiencia optimizada</h3>
-                <p className="text-gray-600 text-sm">Interfaz diseñada específicamente para iOS</p>
+                <h3 className="font-black text-gray-900 mb-2 text-lg">Optimized experience</h3>
+                <p className="text-gray-700">Interface designed specifically for iOS</p>
               </div>
             </div>
-            <div className="flex gap-3">
-              <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0" />
+            <div className="flex gap-4 bg-white/70 backdrop-blur-sm p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
+              <CheckCircle2 className="w-8 h-8 text-green-600 flex-shrink-0" />
               <div>
-                <h3 className="font-bold text-gray-900 mb-1">Actualizaciones automáticas</h3>
-                <p className="text-gray-600 text-sm">Siempre tendrás la última versión sin descargas</p>
+                <h3 className="font-black text-gray-900 mb-2 text-lg">Automatic updates</h3>
+                <p className="text-gray-700">Always have the latest version without downloads</p>
               </div>
             </div>
-            <div className="flex gap-3">
-              <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0" />
+            <div className="flex gap-4 bg-white/70 backdrop-blur-sm p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
+              <CheckCircle2 className="w-8 h-8 text-green-600 flex-shrink-0" />
               <div>
-                <h3 className="font-bold text-gray-900 mb-1">Sin App Store</h3>
-                <p className="text-gray-600 text-sm">No necesitas descargar desde la App Store</p>
+                <h3 className="font-black text-gray-900 mb-2 text-lg">No App Store required</h3>
+                <p className="text-gray-700">No need to download from the App Store</p>
               </div>
             </div>
-            <div className="flex gap-3">
-              <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0" />
+            <div className="flex gap-4 bg-white/70 backdrop-blur-sm p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
+              <CheckCircle2 className="w-8 h-8 text-green-600 flex-shrink-0" />
               <div>
-                <h3 className="font-bold text-gray-900 mb-1">Menos espacio</h3>
-                <p className="text-gray-600 text-sm">Ocupa mucho menos espacio que una app nativa</p>
+                <h3 className="font-black text-gray-900 mb-2 text-lg">Less storage</h3>
+                <p className="text-gray-700">Takes up much less space than a native app</p>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-100">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Preguntas Frecuentes</h2>
+        <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl p-8 md:p-10 border-2 border-gray-100">
+          <h2 className="text-3xl font-black text-gray-900 mb-8">Frequently Asked Questions</h2>
           <div className="space-y-4">
             {faqs.map((faq, index) => (
-              <div key={index} className="border border-gray-200 rounded-xl overflow-hidden">
+              <div key={index} className="border-2 border-gray-200 rounded-2xl overflow-hidden hover:border-blue-300 transition-all shadow-lg">
                 <button
                   onClick={() => setOpenFaq(openFaq === index ? null : index)}
-                  className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+                  className="w-full flex items-center justify-between p-6 hover:bg-blue-50 transition-colors"
                 >
-                  <span className="font-semibold text-gray-900 text-left">{faq.question}</span>
+                  <span className="font-bold text-gray-900 text-left text-lg">{faq.question}</span>
                   {openFaq === index ? (
-                    <ChevronUp className="w-5 h-5 text-gray-500 flex-shrink-0" />
+                    <ChevronUp className="w-6 h-6 text-blue-600 flex-shrink-0" />
                   ) : (
-                    <ChevronDown className="w-5 h-5 text-gray-500 flex-shrink-0" />
+                    <ChevronDown className="w-6 h-6 text-gray-500 flex-shrink-0" />
                   )}
                 </button>
                 {openFaq === index && (
-                  <div className="px-4 pb-4 text-gray-600">
+                  <div className="px-6 pb-6 text-gray-700 text-lg bg-blue-50/50">
                     {faq.answer}
                   </div>
                 )}
@@ -288,7 +297,7 @@ export default function IOSDownloadPage() {
         </div>
 
         <div className="mt-12 text-center">
-          <p className="text-gray-600 mb-4">¿Necesitas ayuda adicional?</p>
+          <p className="text-gray-700 mb-4 text-lg">Need additional help?</p>
           <Link href="/contact" className="inline-block text-primary-600 hover:text-primary-700 font-bold">
             Contáctanos →
           </Link>
