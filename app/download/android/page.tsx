@@ -76,7 +76,7 @@ export default function AndroidDownloadPage() {
       <div className="max-w-5xl mx-auto px-4 py-8 md:py-12 relative z-10">
         <Link href="/" className="inline-flex items-center gap-2 text-gray-700 hover:text-green-600 mb-8 font-semibold transition-all hover:gap-3">
           <ArrowLeft className="w-5 h-5" />
-          Back to home
+          Back to Home
         </Link>
 
         <div className="text-center mb-12 animate-fade-in">
