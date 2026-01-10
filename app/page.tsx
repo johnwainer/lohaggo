@@ -45,12 +45,12 @@ export default async function Home() {
             </div>
 
             <h1 className="text-4xl md:text-7xl lg:text-8xl font-black mb-6 leading-tight tracking-tight">
-              Solicita cualquier servicio
-              <span className="block bg-gradient-to-r from-yellow-200 to-white bg-clip-text text-transparent">en minutos</span>
+              Contrata Servicios Profesionales
+              <span className="block bg-gradient-to-r from-yellow-200 to-white bg-clip-text text-transparent">en México en Minutos</span>
             </h1>
 
             <p className="text-lg md:text-2xl mb-12 text-white/90 font-medium max-w-2xl mx-auto">
-              Hogar, belleza, salud, tecnología, eventos, mascotas...
+              Plomeros, electricistas, limpieza, carpinteros, jardineros y más. Profesionales verificados cerca de ti.
             </p>
 
             <div className="max-w-3xl mx-auto mb-16">
@@ -91,17 +91,17 @@ export default async function Home() {
       </section>
 
       {/* Categories Section - Estilo Rappi con scroll horizontal */}
-      <section className="py-12 bg-white -mt-20 relative z-10">
+      <section className="py-12 bg-white -mt-20 relative z-10" aria-labelledby="categories-heading">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="bg-white rounded-3xl shadow-xl p-8">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl md:text-3xl font-black text-gray-900">Categorías populares</h2>
-              <Link href="/servicios" className="text-primary-500 font-bold flex items-center gap-1 hover:gap-2 transition-all">
+              <h2 id="categories-heading" className="text-2xl md:text-3xl font-black text-gray-900">Categorías de Servicios Profesionales</h2>
+              <Link href="/servicios" className="text-primary-500 font-bold flex items-center gap-1 hover:gap-2 transition-all" aria-label="Ver todas las categorías de servicios">
                 Ver todas
                 <ChevronRight className="w-5 h-5" />
               </Link>
             </div>
-            
+
             <div className="overflow-x-auto scrollbar-hide -mx-4 px-4" data-tour="service-categories">
               <div className="flex gap-4 pb-4">
                 {categories.map((category: any) => (
@@ -109,11 +109,14 @@ export default async function Home() {
                     key={category.id}
                     href={`/servicios?category=${category.slug}`}
                     className="flex-shrink-0 w-36 md:w-32 group"
+                    aria-label={`Ver servicios de ${category.name}`}
                   >
                     <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 text-center hover:from-primary-50 hover:to-secondary-50 transition-all hover:shadow-lg border-2 border-transparent hover:border-primary-200">
                       <div
                         className="flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform emoji-icon"
                         style={{ fontSize: '3em' }}
+                        role="img"
+                        aria-label={category.name}
                       >
                         {category.icon}
                       </div>
@@ -130,45 +133,45 @@ export default async function Home() {
       </section>
 
       {/* Features Section */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-16 bg-gray-50" aria-labelledby="benefits-heading">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-black mb-4 text-gray-900">¿Por qué LoHaggo?</h2>
-            <p className="text-gray-600 text-lg font-medium">La forma más rápida y segura de contratar servicios</p>
+            <h2 id="benefits-heading" className="text-3xl md:text-4xl font-black mb-4 text-gray-900">¿Por qué Contratar en LoHaggo?</h2>
+            <p className="text-gray-600 text-lg font-medium">La plataforma líder en México para servicios profesionales a domicilio</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="bg-white rounded-2xl p-8 text-center hover:shadow-xl transition-all group border-2 border-transparent hover:border-primary-200">
+            <article className="bg-white rounded-2xl p-8 text-center hover:shadow-xl transition-all group border-2 border-transparent hover:border-primary-200">
               <div className="bg-gradient-to-br from-primary-500 to-primary-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform">
                 <Clock className="w-8 h-8 text-white" />
               </div>
               <h3 className="text-xl font-bold mb-2 text-gray-900">Súper rápido</h3>
               <p className="text-gray-600 font-medium">Contrata en minutos, no en días</p>
-            </div>
+            </article>
 
-            <div className="bg-white rounded-2xl p-8 text-center hover:shadow-xl transition-all group border-2 border-transparent hover:border-secondary-200">
+            <article className="bg-white rounded-2xl p-8 text-center hover:shadow-xl transition-all group border-2 border-transparent hover:border-secondary-200">
               <div className="bg-gradient-to-br from-secondary-500 to-secondary-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform">
                 <Shield className="w-8 h-8 text-white" />
               </div>
               <h3 className="text-xl font-bold mb-2 text-gray-900">100% verificado</h3>
               <p className="text-gray-600 font-medium">Profesionales con identidad confirmada</p>
-            </div>
+            </article>
 
-            <div className="bg-white rounded-2xl p-8 text-center hover:shadow-xl transition-all group border-2 border-transparent hover:border-accent-200">
+            <article className="bg-white rounded-2xl p-8 text-center hover:shadow-xl transition-all group border-2 border-transparent hover:border-accent-200">
               <div className="bg-gradient-to-br from-accent-500 to-accent-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform">
                 <Star className="w-8 h-8 text-white" />
               </div>
               <h3 className="text-xl font-bold mb-2 text-gray-900">Mejor calidad</h3>
               <p className="text-gray-600 font-medium">Reseñas reales de clientes verificados</p>
-            </div>
+            </article>
 
-            <div className="bg-white rounded-2xl p-8 text-center hover:shadow-xl transition-all group border-2 border-transparent hover:border-primary-200">
+            <article className="bg-white rounded-2xl p-8 text-center hover:shadow-xl transition-all group border-2 border-transparent hover:border-primary-200">
               <div className="bg-gradient-to-br from-primary-600 to-primary-700 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform">
                 <Zap className="w-8 h-8 text-white" />
               </div>
               <h3 className="text-xl font-bold mb-2 text-gray-900">Precios justos</h3>
               <p className="text-gray-600 font-medium">Compara y elige la mejor opción</p>
-            </div>
+            </article>
           </div>
         </div>
       </section>
@@ -181,16 +184,16 @@ export default async function Home() {
       </section>
 
       {/* Popular Services */}
-      <section className="py-16 bg-white">
+      <section className="py-16 bg-white" aria-labelledby="popular-services-heading">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-2">
-                Servicios más populares
+              <h2 id="popular-services-heading" className="text-3xl md:text-4xl font-black text-gray-900 mb-2">
+                Servicios Profesionales Más Solicitados
               </h2>
-              <p className="text-gray-600 font-medium">Los más solicitados por nuestros usuarios</p>
+              <p className="text-gray-600 font-medium">Plomeros, electricistas, limpieza y más servicios cerca de ti</p>
             </div>
-            <Link href="/servicios" className="hidden md:flex text-primary-500 font-bold items-center gap-1 hover:gap-2 transition-all">
+            <Link href="/servicios" className="hidden md:flex text-primary-500 font-bold items-center gap-1 hover:gap-2 transition-all" aria-label="Ver todos los servicios">
               Ver todos
               <ChevronRight className="w-5 h-5" />
             </Link>

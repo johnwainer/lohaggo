@@ -1,13 +1,31 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://haggo.com/sitemap.xml
+# Disallow private pages
+Disallow: /api/
+Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /profile/
+Disallow: /login
+Disallow: /register
+Disallow: /notifications
+Disallow: /my-ratings
 
+# Allow important pages
+Allow: /servicios
+Allow: /about
+Allow: /how-it-works
+Allow: /partner
+Allow: /contact
+Allow: /faq
+Allow: /download
+
+# Sitemap
+Sitemap: https://lohaggo.com/sitemap.xml
+
+# Crawl-delay for bots
 User-agent: Googlebot
-Allow: /
-
-User-agent: Googlebot-Image
-Allow: /
+Crawl-delay: 0
 
 User-agent: Bingbot
-Allow: /
+Crawl-delay: 1

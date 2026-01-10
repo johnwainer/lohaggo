@@ -222,6 +222,77 @@ export default function RootLayout({
             })
           }}
         />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              "name": "LoHaggo",
+              "url": "https://lohaggo.com",
+              "logo": "https://lohaggo.com/icon-512.png",
+              "description": "Leading platform in Mexico to hire verified professional services. Plumbers, electricians, cleaning, carpenters and more.",
+              "foundingDate": "2024",
+              "founders": [
+                {
+                  "@type": "Person",
+                  "name": "LoHaggo Team"
+                }
+              ],
+              "address": {
+                "@type": "PostalAddress",
+                "addressCountry": "MX"
+              },
+              "contactPoint": {
+                "@type": "ContactPoint",
+                "telephone": "+52-55-1234-5678",
+                "contactType": "customer service",
+                "email": "contacto@lohaggo.com",
+                "availableLanguage": ["Spanish", "English"]
+              },
+              "sameAs": [
+                "https://facebook.com/lohaggo",
+                "https://twitter.com/lohaggo",
+                "https://instagram.com/lohaggo"
+              ]
+            })
+          }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "BreadcrumbList",
+              "itemListElement": [
+                {
+                  "@type": "ListItem",
+                  "position": 1,
+                  "name": "Home",
+                  "item": "https://lohaggo.com"
+                },
+                {
+                  "@type": "ListItem",
+                  "position": 2,
+                  "name": "Services",
+                  "item": "https://lohaggo.com/servicios"
+                },
+                {
+                  "@type": "ListItem",
+                  "position": 3,
+                  "name": "How It Works",
+                  "item": "https://lohaggo.com/how-it-works"
+                },
+                {
+                  "@type": "ListItem",
+                  "position": 4,
+                  "name": "Join as Professional",
+                  "item": "https://lohaggo.com/partner"
+                }
+              ]
+            })
+          }}
+        />
       </head>
       <body className={inter.className}>
         <Providers>
