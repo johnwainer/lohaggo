@@ -74,11 +74,6 @@ export default function AndroidDownloadPage() {
       <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiMwMGMwNTEiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDE2YzAtMi4yMSAxLjc5LTQgNC00czQgMS43OSA0IDQtMS43OSA0LTQgNC00LTEuNzktNC00em0wIDI0YzAtMi4yMSAxLjc5LTQgNC00czQgMS43OSA0IDQtMS43OSA0LTQgNC00LTEuNzktNC00ek0xMiAxNmMwLTIuMjEgMS43OS00IDQtNHM0IDEuNzkgNCA0LTEuNzkgNC00IDQtNC0xLjc5LTQtNHptMCAyNGMwLTIuMjEgMS43OS00IDQtNHM0IDEuNzkgNCA0LTEuNzkgNC00IDQtNC0xLjc5LTQtNHoiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-40"></div>
 
       <div className="max-w-5xl mx-auto px-4 py-8 md:py-12 relative z-10">
-        <Link href="/" className="inline-flex items-center gap-2 text-gray-700 hover:text-green-600 mb-8 font-semibold transition-all hover:gap-3">
-          <ArrowLeft className="w-5 h-5" />
-          Back to Home
-        </Link>
-
         <div className="text-center mb-12 animate-fade-in">
           <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-green-400 via-green-500 to-green-600 rounded-3xl mb-6 shadow-2xl transform hover:scale-110 transition-transform duration-300 relative">
             <div className="absolute inset-0 bg-gradient-to-br from-green-300 to-green-500 rounded-3xl blur-xl opacity-50 animate-pulse"></div>
@@ -87,10 +82,10 @@ export default function AndroidDownloadPage() {
             </svg>
           </div>
           <h1 className="text-5xl md:text-6xl font-black text-gray-900 mb-4 bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-            LoHaggo for Android
+            LoHaggo para Android
           </h1>
           <p className="text-xl md:text-2xl text-gray-700 max-w-2xl mx-auto font-medium">
-            Install our app with <span className="text-green-600 font-bold">one click</span> and access all services faster
+            Instala nuestra app en <span className="text-green-600 font-bold">1 clic</span> y accede más rápido a todos los servicios
           </p>
         </div>
 
@@ -100,11 +95,11 @@ export default function AndroidDownloadPage() {
               <CheckCircle2 className="w-20 h-20 text-green-600 animate-bounce" />
               <Sparkles className="w-8 h-8 text-yellow-500 absolute -top-2 -right-2 animate-pulse" />
             </div>
-            <h2 className="text-3xl font-black text-green-900 mb-3">App Installed Successfully!</h2>
-            <p className="text-green-700 text-lg mb-8">You can now use LoHaggo from your home screen</p>
+            <h2 className="text-3xl font-black text-green-900 mb-3">¡App instalada correctamente!</h2>
+            <p className="text-green-700 text-lg mb-8">Ya puedes usar LoHaggo desde tu pantalla de inicio</p>
             <Link href="/" className="inline-flex items-center gap-3 bg-gradient-to-r from-green-500 to-green-600 text-white px-10 py-5 rounded-2xl font-bold text-lg hover:from-green-600 hover:to-green-700 transition-all shadow-xl hover:shadow-2xl transform hover:scale-105">
               <Rocket className="w-6 h-6" />
-              Open LoHaggo
+              Abrir LoHaggo
             </Link>
           </div>
         ) : (
@@ -114,8 +109,8 @@ export default function AndroidDownloadPage() {
                 <Zap className="w-8 h-8 text-white" />
               </div>
               <div>
-                <h2 className="text-3xl font-black text-gray-900">One-Click Installation</h2>
-                <p className="text-gray-600 text-sm">Fast, easy, and secure</p>
+                <h2 className="text-3xl font-black text-gray-900">Instalación con 1 Clic</h2>
+                <p className="text-gray-600 text-sm">Rápido, fácil y seguro</p>
               </div>
             </div>
 
@@ -125,7 +120,7 @@ export default function AndroidDownloadPage() {
             >
               <div className="absolute inset-0 bg-gradient-to-r from-green-400 to-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
               <Download className="w-8 h-8 relative z-10 animate-bounce" />
-              <span className="relative z-10">Install Application</span>
+              <span className="relative z-10">Instalar Aplicación</span>
             </button>
 
             {canInstall ? (
@@ -133,8 +128,8 @@ export default function AndroidDownloadPage() {
                 <div className="flex gap-4">
                   <CheckCircle2 className="w-7 h-7 text-green-600 flex-shrink-0 mt-0.5 animate-pulse" />
                   <div>
-                    <h3 className="font-black text-green-900 text-lg mb-2">Ready to Install!</h3>
-                    <p className="text-green-800">Click the button above and the app will be automatically installed on your device.</p>
+                    <h3 className="font-black text-green-900 text-lg mb-2">¡Listo para instalar!</h3>
+                    <p className="text-green-800">Haz clic en el botón de arriba y la app se instalará automáticamente en tu dispositivo.</p>
                   </div>
                 </div>
               </div>
@@ -143,8 +138,8 @@ export default function AndroidDownloadPage() {
                 <div className="flex gap-4">
                   <AlertCircle className="w-7 h-7 text-amber-600 flex-shrink-0 mt-0.5" />
                   <div>
-                    <h3 className="font-black text-amber-900 text-lg mb-2">Manual Installation</h3>
-                    <p className="text-amber-800">Click the button above or use your browser menu (⋮) and select "Add to home screen".</p>
+                    <h3 className="font-black text-amber-900 text-lg mb-2">Instalación manual</h3>
+                    <p className="text-amber-800">Haz clic en el botón de arriba o usa el menú del navegador (⋮) y selecciona "Agregar a pantalla de inicio".</p>
                   </div>
                 </div>
               </div>
@@ -154,7 +149,7 @@ export default function AndroidDownloadPage() {
               <div className="flex gap-4">
                 <Shield className="w-7 h-7 text-blue-600 flex-shrink-0 mt-0.5" />
                 <div>
-                  <h3 className="font-black text-blue-900 text-lg mb-2">Compatible Browsers</h3>
+                  <h3 className="font-black text-blue-900 text-lg mb-2">Navegadores compatibles</h3>
                   <p className="text-blue-800">Chrome, Edge, Samsung Internet, Firefox, Opera</p>
                 </div>
               </div>
@@ -167,7 +162,7 @@ export default function AndroidDownloadPage() {
             <div className="w-12 h-12 bg-gradient-to-br from-primary-400 to-primary-600 rounded-2xl flex items-center justify-center shadow-lg">
               <Smartphone className="w-6 h-6 text-white" />
             </div>
-            Step-by-Step Instructions
+            Instrucciones Paso a Paso
           </h2>
 
           <div className="space-y-8">
@@ -176,12 +171,12 @@ export default function AndroidDownloadPage() {
                 1
               </div>
               <div className="flex-1">
-                <h3 className="font-black text-gray-900 mb-3 text-xl">Open your browser menu</h3>
-                <p className="text-gray-700 mb-4 text-lg">Tap the three vertical dots <Menu className="w-5 h-5 inline" /> in the top right corner</p>
+                <h3 className="font-black text-gray-900 mb-3 text-xl">Abre el menú de tu navegador</h3>
+                <p className="text-gray-700 mb-4 text-lg">Toca los tres puntos verticales <Menu className="w-5 h-5 inline" /> en la esquina superior derecha</p>
                 <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-5 border-2 border-gray-200 shadow-inner">
-                  <p className="text-gray-800 font-semibold mb-2"><strong className="text-green-600">Chrome:</strong> Menu → "Add to home screen"</p>
-                  <p className="text-gray-800 font-semibold mb-2"><strong className="text-blue-600">Edge:</strong> Menu → "Apps" → "Install this app"</p>
-                  <p className="text-gray-800 font-semibold"><strong className="text-purple-600">Samsung Internet:</strong> Menu → "Add page to"</p>
+                  <p className="text-gray-800 font-semibold mb-2"><strong className="text-green-600">Chrome:</strong> Menú → "Agregar a pantalla de inicio"</p>
+                  <p className="text-gray-800 font-semibold mb-2"><strong className="text-blue-600">Edge:</strong> Menú → "Aplicaciones" → "Instalar esta aplicación"</p>
+                  <p className="text-gray-800 font-semibold"><strong className="text-purple-600">Samsung Internet:</strong> Menú → "Agregar página a"</p>
                 </div>
               </div>
             </div>
@@ -191,18 +186,18 @@ export default function AndroidDownloadPage() {
                 2
               </div>
               <div className="flex-1">
-                <h3 className="font-bold text-gray-900 mb-2 text-lg">Selecciona "Instalar" o "Agregar"</h3>
-                <p className="text-gray-600">Confirm the installation when the prompt appears</p>
+                <h3 className="font-black text-gray-900 mb-3 text-xl">Selecciona "Instalar" o "Agregar"</h3>
+                <p className="text-gray-700 text-lg">Confirma la instalación cuando aparezca el mensaje</p>
               </div>
             </div>
 
-            <div className="flex gap-4">
-              <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg">
+            <div className="flex gap-5 group hover:bg-green-50 p-5 rounded-2xl transition-all">
+              <div className="flex-shrink-0 w-14 h-14 bg-gradient-to-br from-green-400 to-green-600 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-xl group-hover:scale-110 transition-transform">
                 3
               </div>
               <div className="flex-1">
-                <h3 className="font-bold text-gray-900 mb-2 text-lg">Done! Open the app</h3>
-                <p className="text-gray-600">Find the LoHaggo icon on your home screen and open it</p>
+                <h3 className="font-black text-gray-900 mb-3 text-xl">¡Listo! Abre la app</h3>
+                <p className="text-gray-700 text-lg">Encuentra el ícono de LoHaggo en tu pantalla de inicio y ábrelo</p>
               </div>
             </div>
           </div>
@@ -214,28 +209,28 @@ export default function AndroidDownloadPage() {
             <div className="flex gap-4 bg-white/70 backdrop-blur-sm p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
               <CheckCircle2 className="w-8 h-8 text-green-600 flex-shrink-0" />
               <div>
-                <h3 className="font-black text-gray-900 mb-2 text-lg">Instant access</h3>
+                <h3 className="font-black text-gray-900 mb-2 text-lg">Instant Access</h3>
                 <p className="text-gray-700">Open the app directly from your home screen</p>
               </div>
             </div>
             <div className="flex gap-4 bg-white/70 backdrop-blur-sm p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
               <CheckCircle2 className="w-8 h-8 text-green-600 flex-shrink-0" />
               <div>
-                <h3 className="font-black text-gray-900 mb-2 text-lg">Push notifications</h3>
+                <h3 className="font-black text-gray-900 mb-2 text-lg">Push Notifications</h3>
                 <p className="text-gray-700">Receive alerts about your bookings and messages</p>
               </div>
             </div>
             <div className="flex gap-4 bg-white/70 backdrop-blur-sm p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
               <CheckCircle2 className="w-8 h-8 text-green-600 flex-shrink-0" />
               <div>
-                <h3 className="font-black text-gray-900 mb-2 text-lg">Optimized experience</h3>
+                <h3 className="font-black text-gray-900 mb-2 text-lg">Optimized Experience</h3>
                 <p className="text-gray-700">Interface designed specifically for mobile devices</p>
               </div>
             </div>
             <div className="flex gap-4 bg-white/70 backdrop-blur-sm p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
               <CheckCircle2 className="w-8 h-8 text-green-600 flex-shrink-0" />
               <div>
-                <h3 className="font-black text-gray-900 mb-2 text-lg">Automatic updates</h3>
+                <h3 className="font-black text-gray-900 mb-2 text-lg">Automatic Updates</h3>
                 <p className="text-gray-700">Always have the latest version without manual downloads</p>
               </div>
             </div>
@@ -269,9 +264,9 @@ export default function AndroidDownloadPage() {
         </div>
 
         <div className="mt-12 text-center">
-          <p className="text-gray-600 mb-4">¿Necesitas ayuda adicional?</p>
+          <p className="text-gray-600 mb-4">Need additional help?</p>
           <Link href="/contact" className="inline-block text-primary-600 hover:text-primary-700 font-bold">
-            Contáctanos →
+            Contact us →
           </Link>
         </div>
       </div>

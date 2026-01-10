@@ -76,11 +76,6 @@ export default function IOSDownloadPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
       <div className="max-w-4xl mx-auto px-4 py-12">
-        <Link href="/" className="inline-flex items-center gap-2 text-gray-600 hover:text-primary-600 mb-8 font-semibold">
-          <ArrowLeft className="w-5 h-5" />
-          Volver al inicio
-        </Link>
-
         <div className="text-center mb-12">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-gray-700 to-gray-900 rounded-3xl mb-6 shadow-2xl">
             <svg className="w-12 h-12 text-white" viewBox="0 0 24 24" fill="currentColor">
@@ -215,8 +210,8 @@ export default function IOSDownloadPage() {
                 5
               </div>
               <div className="flex-1">
-                <h3 className="font-bold text-gray-900 mb-2 text-lg">Ready! Open the app</h3>
-                <p className="text-gray-600">Find the LoHaggo icon on your home screen and open it like any other app</p>
+                <h3 className="font-black text-gray-900 mb-3 text-xl">Ready! Open the app</h3>
+                <p className="text-gray-700 text-lg">Find the LoHaggo icon on your home screen and open it like any other app</p>
               </div>
             </div>
           </div>
@@ -228,42 +223,42 @@ export default function IOSDownloadPage() {
             <div className="flex gap-4 bg-white/70 backdrop-blur-sm p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
               <CheckCircle2 className="w-8 h-8 text-green-600 flex-shrink-0" />
               <div>
-                <h3 className="font-black text-gray-900 mb-2 text-lg">Instant access</h3>
+                <h3 className="font-black text-gray-900 mb-2 text-lg">Instant Access</h3>
                 <p className="text-gray-700">Open the app directly from your home screen</p>
               </div>
             </div>
             <div className="flex gap-4 bg-white/70 backdrop-blur-sm p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
               <CheckCircle2 className="w-8 h-8 text-green-600 flex-shrink-0" />
               <div>
-                <h3 className="font-black text-gray-900 mb-2 text-lg">Push notifications</h3>
+                <h3 className="font-black text-gray-900 mb-2 text-lg">Push Notifications</h3>
                 <p className="text-gray-700">Receive alerts about your bookings and messages</p>
               </div>
             </div>
             <div className="flex gap-4 bg-white/70 backdrop-blur-sm p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
               <CheckCircle2 className="w-8 h-8 text-green-600 flex-shrink-0" />
               <div>
-                <h3 className="font-black text-gray-900 mb-2 text-lg">Optimized experience</h3>
-                <p className="text-gray-700">Interface designed specifically for iOS</p>
+                <h3 className="font-black text-gray-900 mb-2 text-lg">Optimized Experience</h3>
+                <p className="text-gray-700">Interface designed specifically for iOS devices</p>
               </div>
             </div>
             <div className="flex gap-4 bg-white/70 backdrop-blur-sm p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
               <CheckCircle2 className="w-8 h-8 text-green-600 flex-shrink-0" />
               <div>
-                <h3 className="font-black text-gray-900 mb-2 text-lg">Automatic updates</h3>
-                <p className="text-gray-700">Always have the latest version without downloads</p>
+                <h3 className="font-black text-gray-900 mb-2 text-lg">Automatic Updates</h3>
+                <p className="text-gray-700">Always have the latest version without manual downloads</p>
               </div>
             </div>
             <div className="flex gap-4 bg-white/70 backdrop-blur-sm p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
               <CheckCircle2 className="w-8 h-8 text-green-600 flex-shrink-0" />
               <div>
-                <h3 className="font-black text-gray-900 mb-2 text-lg">No App Store required</h3>
+                <h3 className="font-black text-gray-900 mb-2 text-lg">No App Store Required</h3>
                 <p className="text-gray-700">No need to download from the App Store</p>
               </div>
             </div>
             <div className="flex gap-4 bg-white/70 backdrop-blur-sm p-5 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
               <CheckCircle2 className="w-8 h-8 text-green-600 flex-shrink-0" />
               <div>
-                <h3 className="font-black text-gray-900 mb-2 text-lg">Less storage</h3>
+                <h3 className="font-black text-gray-900 mb-2 text-lg">Minimal Storage</h3>
                 <p className="text-gray-700">Takes up much less space than a native app</p>
               </div>
             </div>
@@ -299,7 +294,7 @@ export default function IOSDownloadPage() {
         <div className="mt-12 text-center">
           <p className="text-gray-700 mb-4 text-lg">Need additional help?</p>
           <Link href="/contact" className="inline-block text-primary-600 hover:text-primary-700 font-bold">
-            Contáctanos →
+            Contact Us →
           </Link>
         </div>
       </div>
