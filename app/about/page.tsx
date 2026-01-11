@@ -18,11 +18,11 @@ import {
 } from 'lucide-react'
 
 export const metadata: Metadata = {
-  title: 'About Us - LoHaggo | Professional Services Platform in Colombia',
-  description: 'Discover LoHaggo, the leading platform in Colombia for hiring professional services. We connect thousands of users with verified experts in plumbing, electrical work, cleaning, and more.',
+  title: 'Acerca de Nosotros - LoHaggo | Plataforma de Servicios Profesionales en Colombia',
+  description: 'Descubre LoHaggo, la plataforma líder en Colombia para contratar servicios profesionales. Conectamos miles de usuarios con expertos verificados en plomería, electricidad, limpieza y más.',
   openGraph: {
-    title: 'About LoHaggo - Connecting Professionals with Clients',
-    description: 'Learn how LoHaggo is revolutionizing the way professional services are hired in Colombia.',
+    title: 'Acerca de LoHaggo - Conectando Profesionales con Clientes',
+    description: 'Conoce cómo LoHaggo está revolucionando la forma de contratar servicios profesionales en Colombia.',
     url: 'https://www.lohaggo.com/about',
   },
   alternates: {
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
 
 export default function AboutPage() {
   const stats = [
-    { icon: Users, value: '1K+', label: 'Beta testers' },
+    { icon: Users, value: '1K+', label: 'Probadores beta' },
     { icon: CheckCircle, value: '500+', label: 'Servicios en prueba' },
     { icon: Star, value: '4.8/5', label: 'Calificación beta' },
     { icon: Globe, value: '5+', label: 'Ciudades piloto' }
