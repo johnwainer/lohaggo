@@ -16,12 +16,12 @@ import InactiveAccountBanner from '@/components/InactiveAccountBanner'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://lohaggo.com'),
+  metadataBase: new URL('https://www.lohaggo.com'),
   title: {
-    default: 'LoHaggo - Encuentra y Contrata Servicios Profesionales en Colombia | Plomeros, Electricistas, Limpieza y Más',
-    template: '%s | LoHaggo - Servicios Profesionales'
+    default: 'LoHaggo - Servicios Profesionales en Colombia | Plomeros, Electricistas y Más',
+    template: '%s | LoHaggo'
   },
-  description: 'Encuentra y contrata servicios profesionales en Colombia. Plomeros, electricistas, limpieza, reparaciones y más. Expertos verificados en Medellín, precios transparentes y reservas en minutos. ¡Solicita tu servicio ahora!',
+  description: 'Contrata servicios profesionales en Colombia: plomeros, electricistas, limpieza y más. Expertos verificados en Medellín con precios transparentes. ¡Reserva en minutos!',
   manifest: '/manifest.json',
   applicationName: 'LoHaggo',
   keywords: [
@@ -46,11 +46,11 @@ export const metadata: Metadata = {
     'servicios profesionales Colombia',
     'servicios profesionales Medellín'
   ],
-  authors: [{ name: 'LoHaggo', url: 'https://lohaggo.com' }],
+  authors: [{ name: 'LoHaggo', url: 'https://www.lohaggo.com' }],
   creator: 'LoHaggo',
   publisher: 'LoHaggo',
   alternates: {
-    canonical: 'https://lohaggo.com',
+    canonical: 'https://www.lohaggo.com',
   },
   icons: {
     icon: [
@@ -83,10 +83,10 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     siteName: 'LoHaggo',
-    title: 'LoHaggo - Encuentra Servicios Profesionales en Colombia | Plomeros, Electricistas, Limpieza y Más',
-    description: 'Contrata servicios profesionales verificados en Colombia. Plomeros, electricistas, limpieza, reparaciones y más en Medellín. Cotiza gratis, compara precios y contrata en minutos. ¡Servicio garantizado!',
+    title: 'LoHaggo - Servicios Profesionales en Colombia | Plomeros, Electricistas y Más',
+    description: 'Contrata servicios profesionales en Colombia: plomeros, electricistas, limpieza y más. Expertos verificados en Medellín con precios transparentes. ¡Reserva en minutos!',
     locale: 'es_CO',
-    url: 'https://lohaggo.com',
+    url: 'https://www.lohaggo.com',
     images: [
       {
         url: '/icon-512.png',
@@ -98,8 +98,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'LoHaggo - Encuentra Servicios Profesionales en Colombia',
-    description: 'Plomeros, electricistas, limpieza, mudanzas y más en Medellín. Conecta con expertos verificados cerca de ti.',
+    title: 'LoHaggo - Servicios Profesionales en Colombia',
+    description: 'Contrata servicios profesionales en Colombia: plomeros, electricistas, limpieza y más. Expertos verificados en Medellín con precios transparentes. ¡Reserva en minutos!',
     images: ['/icon-512.png'],
     creator: '@lohaggo',
   },
@@ -161,9 +161,9 @@ export default function RootLayout({
               "@type": "LocalBusiness",
               "name": "LoHaggo",
               "description": "Professional services platform in Colombia. Connect with verified experts in plumbing, electrical work, cleaning, repairs and more in Medellín.",
-              "url": "https://lohaggo.com",
-              "logo": "https://lohaggo.com/icon-512.png",
-              "image": "https://lohaggo.com/icon-512.png",
+              "url": "https://www.lohaggo.com",
+              "logo": "https://www.lohaggo.com/icon-512.png",
+              "image": "https://www.lohaggo.com/icon-512.png",
               "telephone": "+57-4-123-4567",
               "email": "contacto@lohaggo.com",
               "address": {
@@ -220,10 +220,10 @@ export default function RootLayout({
               "@context": "https://schema.org",
               "@type": "WebSite",
               "name": "LoHaggo",
-              "url": "https://lohaggo.com",
+              "url": "https://www.lohaggo.com",
               "potentialAction": {
                 "@type": "SearchAction",
-                "target": "https://lohaggo.com/servicios?q={search_term_string}",
+                "target": "https://www.lohaggo.com/servicios?q={search_term_string}",
                 "query-input": "required name=search_term_string"
               }
             })
@@ -236,8 +236,8 @@ export default function RootLayout({
               "@context": "https://schema.org",
               "@type": "Organization",
               "name": "LoHaggo",
-              "url": "https://lohaggo.com",
-              "logo": "https://lohaggo.com/icon-512.png",
+              "url": "https://www.lohaggo.com",
+              "logo": "https://www.lohaggo.com/icon-512.png",
               "description": "Leading platform in Colombia to hire verified professional services. Plumbers, electricians, cleaning, carpenters and more in Medellín.",
               "foundingDate": "2024",
               "founders": [
@@ -278,25 +278,25 @@ export default function RootLayout({
                   "@type": "ListItem",
                   "position": 1,
                   "name": "Home",
-                  "item": "https://lohaggo.com"
+                  "item": "https://www.lohaggo.com"
                 },
                 {
                   "@type": "ListItem",
                   "position": 2,
                   "name": "Services",
-                  "item": "https://lohaggo.com/servicios"
+                  "item": "https://www.lohaggo.com/servicios"
                 },
                 {
                   "@type": "ListItem",
                   "position": 3,
                   "name": "How It Works",
-                  "item": "https://lohaggo.com/how-it-works"
+                  "item": "https://www.lohaggo.com/how-it-works"
                 },
                 {
                   "@type": "ListItem",
                   "position": 4,
                   "name": "Join as Professional",
-                  "item": "https://lohaggo.com/partner"
+                  "item": "https://www.lohaggo.com/partner"
                 }
               ]
             })

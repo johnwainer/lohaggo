@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Instala LoHaggo en iOS - App Progresiva (PWA)',
     description: 'Instala la app de LoHaggo en tu iPhone o iPad desde Safari. Sin App Store, instalación directa.',
-    url: 'https://lohaggo.com/download/ios',
+    url: 'https://www.lohaggo.com/download/ios',
   },
   alternates: {
     canonical: '/download/ios',

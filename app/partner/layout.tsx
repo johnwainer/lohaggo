@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Únete a LoHaggo como Profesional - Aumenta tus Ingresos',
     description: 'Regístrate gratis y empieza a recibir solicitudes de clientes cerca de ti. Plomeros, electricistas, carpinteros y más.',
-    url: 'https://lohaggo.com/partner',
+    url: 'https://www.lohaggo.com/partner',
   },
   alternates: {
     canonical: '/partner',

@@ -1,12 +1,12 @@
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Descargar App Android - LoHaggo | Instala la PWA en tu Dispositivo Android',
-  description: 'Descarga e instala la app de LoHaggo en tu dispositivo Android. Instalación con 1 clic, acceso rápido a servicios profesionales y notificaciones en tiempo real.',
+  title: 'Download Android App - LoHaggo | Install the PWA on Your Android Device',
+  description: 'Download and install the LoHaggo app on your Android device. One-click installation, quick access to professional services and real-time notifications.',
   openGraph: {
-    title: 'Instala LoHaggo en Android - App Progresiva (PWA)',
-    description: 'Instala la app de LoHaggo en tu Android con 1 clic. Compatible con Chrome, Edge y Samsung Internet.',
-    url: 'https://lohaggo.com/download/android',
+    title: 'Install LoHaggo on Android - Progressive Web App (PWA)',
+    description: 'Install the LoHaggo app on your Android with one click. Compatible with Chrome, Edge and Samsung Internet.',
+    url: 'https://www.lohaggo.com/download/android',
   },
   alternates: {
     canonical: '/download/android',

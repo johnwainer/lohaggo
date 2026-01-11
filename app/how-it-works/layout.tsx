@@ -1,12 +1,12 @@
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Cómo Funciona LoHaggo | Guía Completa para Contratar Servicios Profesionales',
-  description: 'Aprende cómo funciona LoHaggo paso a paso. Busca servicios, compara profesionales, agenda y paga de forma segura. Guía completa para clientes y profesionales.',
+  title: 'How LoHaggo Works | Complete Guide to Hiring Professional Services',
+  description: 'Learn how LoHaggo works step by step. Search services, compare professionals, schedule and pay securely. Complete guide for clients and professionals.',
   openGraph: {
-    title: 'Cómo Funciona LoHaggo - Guía Paso a Paso',
-    description: 'Descubre lo fácil que es contratar servicios profesionales con LoHaggo. Busca, compara, agenda y paga en minutos.',
-    url: 'https://lohaggo.com/how-it-works',
+    title: 'How LoHaggo Works - Step by Step Guide',
+    description: 'Discover how easy it is to hire professional services with LoHaggo. Search, compare, schedule and pay in minutes.',
+    url: 'https://www.lohaggo.com/how-it-works',
   },
   alternates: {
     canonical: '/how-it-works',

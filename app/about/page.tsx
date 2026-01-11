@@ -18,12 +18,12 @@ import {
 } from 'lucide-react'
 
 export const metadata: Metadata = {
-  title: 'About Us - LoHaggo | Professional Services Platform in Mexico',
-  description: 'Discover LoHaggo, the leading platform in Mexico for hiring professional services. We connect thousands of users with verified experts in plumbing, electrical work, cleaning, and more.',
+  title: 'About Us - LoHaggo | Professional Services Platform in Colombia',
+  description: 'Discover LoHaggo, the leading platform in Colombia for hiring professional services. We connect thousands of users with verified experts in plumbing, electrical work, cleaning, and more.',
   openGraph: {
     title: 'About LoHaggo - Connecting Professionals with Clients',
-    description: 'Learn how LoHaggo is revolutionizing the way professional services are hired in Mexico.',
-    url: 'https://lohaggo.com/about',
+    description: 'Learn how LoHaggo is revolutionizing the way professional services are hired in Colombia.',
+    url: 'https://www.lohaggo.com/about',
   },
   alternates: {
     canonical: '/about',

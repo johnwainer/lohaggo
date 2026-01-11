@@ -50,7 +50,7 @@ export default async function Home() {
             </h1>
 
             <p className="text-lg md:text-2xl mb-12 text-white/90 font-medium max-w-2xl mx-auto">
-              Plomeros, electricistas, limpieza, carpinteros, jardineros y más. Profesionales verificados en Medellín.
+              Encuentra y contrata plomeros, electricistas, limpieza, carpinteros, jardineros y más. Profesionales verificados en Medellín con precios transparentes. Reserva tu servicio ahora.
             </p>
 
             <div className="max-w-3xl mx-auto mb-16">
@@ -120,9 +120,9 @@ export default async function Home() {
                       >
                         {category.icon}
                       </div>
-                      <h3 className="font-bold text-sm text-gray-800 group-hover:text-primary-600 transition line-clamp-2">
+                      <div className="font-bold text-sm text-gray-800 group-hover:text-primary-600 transition line-clamp-2">
                         {category.name}
-                      </h3>
+                      </div>
                     </div>
                   </Link>
                 ))}
@@ -179,8 +179,8 @@ export default async function Home() {
       <section className="py-16 bg-gray-50" aria-labelledby="benefits-heading">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 id="benefits-heading" className="text-3xl md:text-4xl font-black mb-4 text-gray-900">¿Por qué Contratar en LoHaggo?</h2>
-            <p className="text-gray-600 text-lg font-medium">La plataforma líder en México para servicios profesionales a domicilio</p>
+            <h2 id="benefits-heading" className="text-3xl md:text-4xl font-black mb-4 text-gray-900">Why hire professional services on LoHaggo?</h2>
+            <p className="text-gray-600 text-lg font-medium">The leading platform in Colombia to hire professional home services in Medellín</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -188,7 +188,7 @@ export default async function Home() {
               <div className="bg-gradient-to-br from-primary-500 to-primary-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform">
                 <Clock className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-xl font-bold mb-2 text-gray-900">Súper rápido</h3>
+              <div className="text-xl font-bold mb-2 text-gray-900">Súper rápido</div>
               <p className="text-gray-600 font-medium">Contrata en minutos, no en días</p>
             </article>
 
@@ -196,7 +196,7 @@ export default async function Home() {
               <div className="bg-gradient-to-br from-secondary-500 to-secondary-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform">
                 <Shield className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-xl font-bold mb-2 text-gray-900">100% verificado</h3>
+              <div className="text-xl font-bold mb-2 text-gray-900">100% verificado</div>
               <p className="text-gray-600 font-medium">Profesionales con identidad confirmada</p>
             </article>
 
@@ -204,7 +204,7 @@ export default async function Home() {
               <div className="bg-gradient-to-br from-accent-500 to-accent-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform">
                 <Star className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-xl font-bold mb-2 text-gray-900">Mejor calidad</h3>
+              <div className="text-xl font-bold mb-2 text-gray-900">Mejor calidad</div>
               <p className="text-gray-600 font-medium">Reseñas reales de clientes verificados</p>
             </article>
 
@@ -212,7 +212,7 @@ export default async function Home() {
               <div className="bg-gradient-to-br from-primary-600 to-primary-700 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform">
                 <Zap className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-xl font-bold mb-2 text-gray-900">Precios justos</h3>
+              <div className="text-xl font-bold mb-2 text-gray-900">Precios justos</div>
               <p className="text-gray-600 font-medium">Compara y elige la mejor opción</p>
             </article>
           </div>
@@ -258,9 +258,9 @@ export default async function Home() {
                       {service.category.name}
                     </span>
                   </div>
-                  <h3 className="font-bold text-lg mb-2 text-gray-900 group-hover:text-primary-600 transition">
+                  <div className="font-bold text-lg mb-2 text-gray-900 group-hover:text-primary-600 transition">
                     {service.name}
-                  </h3>
+                  </div>
                   <p className="text-gray-600 text-sm mb-4 line-clamp-2 font-medium">{service.description}</p>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1">
