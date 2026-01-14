@@ -165,6 +165,7 @@ model ServiceRequest {
   partnerId     String?
   address       String
   notes         String?
+  budget        Float?
   city          City                 @default(MEDELLIN)
   preferredDate DateTime?
   preferredTime String?

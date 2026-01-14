@@ -39,6 +39,37 @@ export async function POST(req: NextRequest) {
 
     const validatedData = validation.data
 
+    if (validatedData.budget) {
+      if (validatedData.partnerId) {
+        const partnerService = await prisma.partnerService.findFirst({
+          where: {
+            partnerId: validatedData.partnerId,
+            serviceId: validatedData.serviceId
+          },
+          select: { price: true }
+        })
+
+        if (partnerService && validatedData.budget < partnerService.price) {
+          return NextResponse.json(
+            { error: `The budget must be at least ${partnerService.price} for this partner's service` },
+            { status: 400 }
+          )
+        }
+      } else {
+        const service = await prisma.service.findUnique({
+          where: { id: validatedData.serviceId },
+          select: { basePrice: true }
+        })
+
+        if (service && validatedData.budget < service.basePrice) {
+          return NextResponse.json(
+            { error: `The budget must be at least ${service.basePrice} for this service` },
+            { status: 400 }
+          )
+        }
+      }
+    }
+
     const expiresAt = new Date()
     expiresAt.setHours(expiresAt.getHours() + 24)
 
@@ -60,6 +91,7 @@ export async function POST(req: NextRequest) {
         partnerId: validatedData.partnerId || null,
         address: validatedData.address,
         notes: validatedData.notes || null,
+        budget: validatedData.budget || null,
         city: (validatedData.city as City) || City.MEDELLIN,
         preferredDate: preferredDateTime,
         preferredTime: validatedData.preferredTime || null,
