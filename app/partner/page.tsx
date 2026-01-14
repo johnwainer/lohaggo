@@ -1044,7 +1044,7 @@ function PartnerDashboardContent() {
                             disabled={session?.user?.isActive === false}
                           >
                             <Send size={20} />
-                            Send Proposal
+                            Enviar propuesta
                           </button>
                         )}
                       </div>
