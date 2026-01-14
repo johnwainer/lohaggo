@@ -352,7 +352,7 @@ function ServiciosContent() {
               <Filter size={18} className="text-gray-700 md:w-[22px] md:h-[22px]" />
               <span className="font-bold text-gray-900 text-base md:text-lg">Categorías</span>
             </div>
-            <div className="flex flex-wrap gap-2 md:gap-3">
+            <div className="grid grid-cols-4 md:flex md:flex-wrap gap-2 md:gap-3">
               <button
                 onClick={() => setSelectedCategory('')}
                 className={`px-4 md:px-6 py-2 md:py-3 rounded-xl md:rounded-2xl transition-all font-bold shadow-md text-sm md:text-base ${
