@@ -314,7 +314,7 @@ function ServiciosContent() {
                 </div>
               )}
 
-              {showAutocomplete && autocompleteResults.length > 0 && (
+              {false && showAutocomplete && autocompleteResults.length > 0 && (
                 <div className="absolute z-50 w-full mt-2 bg-white rounded-xl shadow-2xl border-2 border-gray-100 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                   <div className="p-2 bg-gradient-to-r from-primary-50 to-secondary-50 border-b border-gray-200">
                     <p className="text-xs font-bold text-gray-700 uppercase tracking-wide">💡 Sugerencias</p>
