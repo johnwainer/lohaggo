@@ -971,7 +971,7 @@ function PartnerDashboardContent() {
                                 <DollarSign size={18} className="text-green-600" />
                               </div>
                               <div>
-                                <p className="text-xs font-semibold text-green-700 mb-1">Client budget</p>
+                                <p className="text-xs font-semibold text-green-700 mb-1">Presupuesto del cliente</p>
                                 <span className="text-lg font-bold text-green-800">{formatCurrency(request.budget)}</span>
                               </div>
                             </div>
