@@ -63,6 +63,7 @@ interface ServiceRequest {
   preferredDate?: string
   preferredTime?: string
   partnerId?: string | null
+  budget?: number
   service: {
     name: string
     icon: string
@@ -960,6 +961,20 @@ function PartnerDashboardContent() {
                           <div className="bg-gray-50 border-2 border-gray-200 rounded-xl p-4 mb-4">
                             <p className="text-xs font-semibold text-gray-700 mb-2">Detalles:</p>
                             <p className="text-sm text-gray-800">{request.notes}</p>
+                          </div>
+                        )}
+
+                        {request.budget && (
+                          <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4 mb-4">
+                            <div className="flex items-start gap-3">
+                              <div className="bg-green-200 rounded-lg p-2 flex-shrink-0">
+                                <DollarSign size={18} className="text-green-600" />
+                              </div>
+                              <div>
+                                <p className="text-xs font-semibold text-green-700 mb-1">Client budget</p>
+                                <span className="text-lg font-bold text-green-800">{formatCurrency(request.budget)}</span>
+                              </div>
+                            </div>
                           </div>
                         )}
 
