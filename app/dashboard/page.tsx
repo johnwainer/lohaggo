@@ -1577,7 +1577,7 @@ export default function DashboardPage() {
                                 <DollarSign size={18} className="text-green-600" />
                               </div>
                               <div>
-                                <p className="text-xs text-green-600 font-semibold mb-1">Client budget</p>
+                                <p className="text-xs text-green-600 font-semibold mb-1">Presupuesto del cliente</p>
                                 <span className="text-sm font-medium text-green-700">{formatCurrency(request.budget)}</span>
                               </div>
                             </div>
