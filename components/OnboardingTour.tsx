@@ -255,7 +255,7 @@ export default function OnboardingTour() {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/70 z-[100] animate-fadeIn" onClick={handleComplete} />
+      <div className="fixed inset-0 bg-black/70 z-[100] animate-fadeIn pointer-events-none" />
 
       <div
         className="fixed z-[101] border-4 border-primary-500 rounded-xl pointer-events-none transition-all duration-300"
@@ -263,7 +263,7 @@ export default function OnboardingTour() {
       />
 
       <div
-        className="fixed z-[102] bg-white rounded-2xl shadow-2xl p-6 w-[calc(100vw-2rem)] md:w-80 animate-fadeIn"
+        className="fixed z-[102] bg-white rounded-2xl shadow-2xl p-6 w-[calc(100vw-2rem)] md:w-80 animate-fadeIn pointer-events-auto"
         style={tooltipStyle}
       >
         <button
