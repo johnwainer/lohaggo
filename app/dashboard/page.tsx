@@ -61,6 +61,7 @@ interface ServiceRequest {
   isUrgent?: boolean
   preferredDate?: string
   preferredTime?: string
+  budget?: number
   service: {
     name: string
     icon: string
@@ -1565,8 +1566,19 @@ export default function DashboardPage() {
                                 <AlertCircle size={18} className="text-amber-600" />
                               </div>
                               <div>
-                                <p className="text-xs text-amber-600 font-semibold mb-1">Urgente</p>
-                                <span className="text-sm font-medium text-amber-700">⚡ Lo más pronto posible</span>
+                                <p className="text-xs text-amber-600 font-semibold mb-1">Urgent</p>
+                                <span className="text-sm font-medium text-amber-700">⚡ As soon as possible</span>
+                              </div>
+                            </div>
+                          )}
+                          {request.budget && (
+                            <div className="flex items-start gap-3 p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-200">
+                              <div className="bg-green-100 rounded-lg p-2 flex-shrink-0">
+                                <DollarSign size={18} className="text-green-600" />
+                              </div>
+                              <div>
+                                <p className="text-xs text-green-600 font-semibold mb-1">Client budget</p>
+                                <span className="text-sm font-medium text-green-700">{formatCurrency(request.budget)}</span>
                               </div>
                             </div>
                           )}
