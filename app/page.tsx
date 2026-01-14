@@ -174,8 +174,8 @@ export default async function Home() {
       <section className="py-16 bg-gray-50" aria-labelledby="benefits-heading">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 id="benefits-heading" className="text-3xl md:text-4xl font-black mb-4 text-gray-900">Why hire professional services on LoHaggo?</h2>
-            <p className="text-gray-600 text-lg font-medium">The leading platform in Colombia to hire professional home services in Medellín</p>
+            <h2 id="benefits-heading" className="text-3xl md:text-4xl font-black mb-4 text-gray-900">¿Por qué contratar servicios profesionales en LoHaggo?</h2>
+            <p className="text-gray-600 text-lg font-medium">La plataforma líder en Colombia para contratar servicios profesionales del hogar en Medellín</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
