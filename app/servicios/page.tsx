@@ -398,7 +398,7 @@ function ServiciosContent() {
               )}
             </div>
 
-            {false && suggestions && (
+            {suggestions && (
               <>
                 {(suggestions?.didYouMean?.length ?? 0) > 0 && (
                   <div className="bg-white rounded-2xl shadow-lg p-6">
