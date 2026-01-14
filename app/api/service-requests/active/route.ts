@@ -16,6 +16,7 @@ interface ServiceRequestWithProposals {
   createdAt: string
   serviceId: string
   userId: string
+  budget?: number
   proposals: Array<{
     id: string
     status: string
