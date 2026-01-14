@@ -400,7 +400,7 @@ function ServiciosContent() {
 
             {false && suggestions && (
               <>
-                {suggestions?.didYouMean?.length > 0 && (
+                {(suggestions?.didYouMean?.length ?? 0) > 0 && (
                   <div className="bg-white rounded-2xl shadow-lg p-6">
                     <div className="flex items-center gap-2 mb-4">
                       <Lightbulb className="text-yellow-500" size={24} />
@@ -420,7 +420,7 @@ function ServiciosContent() {
                   </div>
                 )}
 
-                {suggestions?.similarServices?.length > 0 && (
+                {(suggestions?.similarServices?.length ?? 0) > 0 && (
                   <div className="bg-white rounded-2xl shadow-lg p-6">
                     <h3 className="text-lg font-bold text-gray-900 mb-4">Servicios similares</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -444,7 +444,7 @@ function ServiciosContent() {
                   </div>
                 )}
 
-                {suggestions?.popularServices?.length > 0 && (
+                {(suggestions?.popularServices?.length ?? 0) > 0 && (
                   <div className="bg-white rounded-2xl shadow-lg p-6">
                     <h3 className="text-lg font-bold text-gray-900 mb-4">Servicios populares</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
