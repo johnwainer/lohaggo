@@ -214,7 +214,7 @@ export default function PartnerRequestsPage() {
                     <div className="flex items-start gap-2 bg-green-50 border border-green-200 rounded-lg p-3">
                       <DollarSign className="text-green-600 mt-0.5" size={16} />
                       <div>
-                        <p className="text-xs font-semibold text-green-600 mb-0.5">Client budget</p>
+                        <p className="text-xs font-semibold text-green-600 mb-0.5">Presupuesto del cliente</p>
                         <span className="text-sm font-medium text-green-700">${request.budget.toLocaleString('en-US')}</span>
                       </div>
                     </div>

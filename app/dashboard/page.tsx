@@ -1566,8 +1566,8 @@ export default function DashboardPage() {
                                 <AlertCircle size={18} className="text-amber-600" />
                               </div>
                               <div>
-                                <p className="text-xs text-amber-600 font-semibold mb-1">Urgent</p>
-                                <span className="text-sm font-medium text-amber-700">⚡ As soon as possible</span>
+                                <p className="text-xs text-amber-600 font-semibold mb-1">Urgente</p>
+                                <span className="text-sm font-medium text-amber-700">⚡ Lo más pronto posible</span>
                               </div>
                             </div>
                           )}
