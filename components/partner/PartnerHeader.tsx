@@ -37,13 +37,13 @@ export default function PartnerHeader({
   const navItems: NavItem[] = [
     {
       id: 'overview',
-      label: 'Overview',
+      label: 'Resumen',
       icon: <Home size={24} className="sm:w-[22px] sm:h-[22px]" />,
       onClick: () => onTabChange?.('overview'),
     },
     {
       id: 'bookings',
-      label: 'My Bookings',
+      label: 'Mis Reservas',
       icon: <Package size={24} className="sm:w-[22px] sm:h-[22px]" />,
       badge: bookingsCount,
       badgeColor: 'bg-primary-600',
@@ -51,7 +51,7 @@ export default function PartnerHeader({
     },
     {
       id: 'my-requests',
-      label: 'For Me',
+      label: 'Para Mí',
       icon: <MessageSquare size={24} className="sm:w-[22px] sm:h-[22px]" />,
       badge: requestsCount,
       badgeColor: 'bg-primary-500',
