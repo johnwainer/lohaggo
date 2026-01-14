@@ -30,7 +30,7 @@ export default async function Home() {
     <HomeClientWrapper>
       <div className="min-h-screen bg-gray-50">
         {/* Hero Section - Estilo Rappi */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-primary-500 via-secondary-500 to-accent-500 text-white pt-24 pb-32 md:pt-28 md:pb-40">
+      <section className="relative overflow-hidden bg-gradient-to-br from-primary-500 via-secondary-500 to-accent-500 text-white pt-16 pb-24 md:pt-20 md:pb-32">
         <div className="absolute inset-0 overflow-hidden opacity-20">
           <div className="absolute -top-40 -right-40 w-96 h-96 bg-secondary-300 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slow"></div>
           <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-accent-300 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slow" style={{ animationDelay: '1s' }}></div>
