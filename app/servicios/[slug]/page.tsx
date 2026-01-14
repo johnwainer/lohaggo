@@ -1097,7 +1097,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                     {/* Budget */}
                     <div>
                       <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5 md:mb-2">
-                        Your budget (optional)
+                        Tu presupuesto (opcional)
                       </label>
                       <div className="relative">
                         <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
@@ -1105,7 +1105,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                           type="number"
                           min="0"
                           step="0.01"
-                          placeholder={`Minimum: ${formatCurrency(selectedPartnerId ? service.partners.find(p => p.partner.id === selectedPartnerId)?.price || service.basePrice : service.basePrice)}`}
+                          placeholder={`Mínimo: ${formatCurrency(selectedPartnerId ? service.partners.find(p => p.partner.id === selectedPartnerId)?.price || service.basePrice : service.basePrice)}`}
                           value={requestData.budget}
                           onChange={(e) => setRequestData({ ...requestData, budget: e.target.value })}
                           className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-2.5 md:py-3 border-2 border-primary-200 bg-primary-50 text-primary-900 rounded-xl focus:ring-2 focus:ring-secondary-500 focus:border-secondary-500 outline-none text-xs md:text-base"
@@ -1113,8 +1113,8 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                       </div>
                       <p className="text-xs text-gray-500 mt-1">
                         {selectedPartnerId
-                          ? `The budget must be at least ${formatCurrency(service.partners.find(p => p.partner.id === selectedPartnerId)?.price || service.basePrice)} for this partner`
-                          : `The budget must be at least ${formatCurrency(service.basePrice)} for this service`
+                          ? `El presupuesto debe ser al menos ${formatCurrency(service.partners.find(p => p.partner.id === selectedPartnerId)?.price || service.basePrice)} para este socio`
+                          : `El presupuesto debe ser al menos ${formatCurrency(service.basePrice)} para este servicio`
                         }
                       </p>
                     </div>
