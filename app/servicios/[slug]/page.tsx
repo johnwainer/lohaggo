@@ -837,8 +837,8 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
 
       {/* Request Modal */}
       {showRequestModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto relative z-[101]">
             <div className="bg-gradient-to-r from-primary-500 to-secondary-500 p-4 md:p-6 text-white">
               <div className="flex items-center justify-between mb-3 md:mb-4">
                 <div>
