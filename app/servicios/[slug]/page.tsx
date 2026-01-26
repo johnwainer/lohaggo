@@ -848,7 +848,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                       Para: {service.partners.find(p => p.partner.id === selectedPartnerId)?.partner.user.name}
                     </p>
                   )}
-                  <p className="text-primary-100 text-xs md:text-sm mt-1">Paso {currentStep} de 4</p>
+                  <p className="text-primary-100 text-xs md:text-sm mt-1">Paso {currentStep} de 5</p>
                 </div>
                 <button
                   onClick={() => setShowRequestModal(false)}
@@ -860,7 +860,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
 
               {/* Progress Bar */}
               <div className="flex gap-2">
-                {[1, 2, 3, 4].map((step) => (
+                {[1, 2, 3, 4, 5].map((step) => (
                   <div
                     key={step}
                     className={`h-1.5 md:h-2 flex-1 rounded-full transition-all duration-300 ${step <= currentStep ? 'bg-white' : 'bg-white/30'
@@ -872,14 +872,76 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
 
             <div>
               <div className="p-4 md:p-6">
-                <PlatformTrustBanner
-                  variant="warning"
-                  context="booking"
-                  className="mb-6"
-                />
-
-                {/* Step 1: Dirección */}
+                {/* Step 1: Trust Platform Banner */}
                 {currentStep === 1 && (
+                  <div className="space-y-4 md:space-y-6 animate-fadeIn">
+                    <div className="text-center mb-4 md:mb-6">
+                      <div className="w-14 h-14 md:w-16 md:h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4">
+                        <Shield className="text-secondary-600" size={28} />
+                      </div>
+                      <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-2">Tu seguridad es nuestra prioridad</h3>
+                      <p className="text-sm md:text-base text-gray-600">Conoce los beneficios de solicitar servicios a través de nuestra plataforma</p>
+                    </div>
+
+                    <PlatformTrustBanner
+                      variant="info"
+                      context="booking"
+                      className="mb-4"
+                    />
+
+                    <div className="bg-gradient-to-br from-primary-50 to-secondary-50 rounded-xl p-4 md:p-6 space-y-4">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm">
+                          <ShieldCheck className="text-primary-600" size={20} />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-gray-900 mb-1">Profesionales verificados</h4>
+                          <p className="text-sm text-gray-600">Todos nuestros socios pasan por un proceso de verificación riguroso</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm">
+                          <CreditCard className="text-primary-600" size={20} />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-gray-900 mb-1">Pagos seguros</h4>
+                          <p className="text-sm text-gray-600">Tu dinero está protegido hasta que el servicio sea completado satisfactoriamente</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm">
+                          <GraduationCap className="text-primary-600" size={20} />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-gray-900 mb-1">Garantía de calidad</h4>
+                          <p className="text-sm text-gray-600">Si algo sale mal, estamos aquí para ayudarte a resolverlo</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0">
+                          <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
+                            <span className="text-lg">⚠️</span>
+                          </div>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-yellow-900 mb-1">Importante</p>
+                          <p className="text-xs text-yellow-800">
+                            Nunca compartas información de pago fuera de la plataforma.
+                            Mantén toda la comunicación y transacciones dentro de LoHaggo para tu protección.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 2: Dirección */}
+                {currentStep === 2 && (
                   <div className="space-y-4 md:space-y-6 animate-fadeIn">
                     <div className="text-center mb-4 md:mb-6">
                       <div className="w-14 h-14 md:w-16 md:h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4">
@@ -947,8 +1009,8 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                   </div>
                 )}
 
-                {/* Step 2: Fecha y Hora */}
-                {currentStep === 2 && (
+                {/* Step 3: Fecha y Hora */}
+                {currentStep === 3 && (
                   <div className="space-y-4 md:space-y-6 animate-fadeIn">
                     <div className="text-center mb-4 md:mb-6">
                       <div className="w-14 h-14 md:w-16 md:h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4">
@@ -1037,8 +1099,8 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                   </div>
                 )}
 
-                {/* Step 3: Detalles y Confirmación */}
-                {currentStep === 3 && (
+                {/* Step 4: Detalles y Confirmación */}
+                {currentStep === 4 && (
                   <div className="space-y-3 md:space-y-6 animate-fadeIn">
                     <div className="text-center mb-3 md:mb-6">
                       <div className="w-12 h-12 md:w-16 md:h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-2 md:mb-4">
@@ -1128,8 +1190,8 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                   </div>
                 )}
 
-                {/* Step 4: Fotos */}
-                {currentStep === 4 && (
+                {/* Step 5: Fotos */}
+                {currentStep === 5 && (
                   <div className="space-y-4 md:space-y-6 animate-fadeIn">
                     <div className="text-center mb-4 md:mb-6">
                       <div className="w-14 h-14 md:w-16 md:h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4">
@@ -1231,11 +1293,11 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                     </button>
                   )}
 
-                  {currentStep < 4 ? (
+                  {currentStep < 5 ? (
                     <button
                       type="button"
                       onClick={() => {
-                        if (currentStep === 1) {
+                        if (currentStep === 2) {
                           if (addresses.length > 0 && !selectedAddressId) {
                             setValidationModal({
                               isOpen: true,
@@ -1251,7 +1313,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                             return
                           }
                         }
-                        if (currentStep === 2) {
+                        if (currentStep === 3) {
                           if (!requestData.isUrgent && (!requestData.preferredDate || !requestData.preferredTime)) {
                             setValidationModal({
                               isOpen: true,
