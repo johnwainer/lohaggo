@@ -902,16 +902,6 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
 
                       <div className="flex items-start gap-2.5">
                         <div className="flex-shrink-0 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-sm">
-                          <CreditCard className="text-primary-600" size={16} />
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-sm text-gray-900 mb-0.5">Pagos seguros</h4>
-                          <p className="text-xs text-gray-600">Tu dinero protegido hasta completar el servicio</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-start gap-2.5">
-                        <div className="flex-shrink-0 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-sm">
                           <GraduationCap className="text-primary-600" size={16} />
                         </div>
                         <div>
