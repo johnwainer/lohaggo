@@ -405,3 +405,99 @@ export function getSuggestions(searchTerm: string, allServices: any[]): {
     similarServices
   }
 }
+
+export function getRelatedServicesByCategory(
+  primaryService: any,
+  allServices: any[],
+  limit: number = 6
+): any[] {
+  if (!primaryService || !primaryService.category) return []
+
+  const categorySlug = primaryService.category.slug || primaryService.category.id
+
+  return allServices
+    .filter(service => {
+      const serviceCategory = service.category.slug || service.category.id
+      return serviceCategory === categorySlug && service.id !== primaryService.id
+    })
+    .sort((a, b) => {
+      if (a.popular && !b.popular) return -1
+      if (!a.popular && b.popular) return 1
+
+      const aPartners = a._count?.partners || 0
+      const bPartners = b._count?.partners || 0
+      if (aPartners !== bPartners) return bPartners - aPartners
+
+      return a.name.localeCompare(b.name)
+    })
+    .slice(0, limit)
+}
+
+export function enhancedSearch(
+  services: any[],
+  searchTerm: string
+): {
+  results: any[]
+  relatedByCategory: any[]
+  topMatch: any | null
+} {
+  const normalizedSearch = normalizeSearchTerm(searchTerm)
+  const expandedTerms = expandSearchTerms(searchTerm)
+  const searchWords = normalizedSearch.split(' ').filter(w => w.length >= 2)
+
+  const filteredServices = services.filter(service => {
+    const name = normalizeSearchTerm(service.name)
+    const description = normalizeSearchTerm(service.description)
+    const categoryName = normalizeSearchTerm(service.category.name)
+
+    if (name.includes(normalizedSearch) ||
+        description.includes(normalizedSearch) ||
+        categoryName.includes(normalizedSearch)) {
+      return true
+    }
+
+    if (normalizedSearch.length >= 3) {
+      if (name.startsWith(normalizedSearch) ||
+          categoryName.startsWith(normalizedSearch)) {
+        return true
+      }
+    }
+
+    for (const word of searchWords) {
+      if (word.length < 2) continue
+      if (name.includes(word) || categoryName.includes(word)) {
+        return true
+      }
+    }
+
+    return expandedTerms.some(term => {
+      const normalizedTerm = normalizeSearchTerm(term)
+      if (normalizedTerm.length < 2) return false
+      return name.includes(normalizedTerm) ||
+             description.includes(normalizedTerm) ||
+             categoryName.includes(normalizedTerm)
+    })
+  })
+
+  const servicesWithScore = filteredServices.map(service => ({
+    ...service,
+    relevanceScore: calculateRelevanceScore(service, searchTerm)
+  }))
+
+  const sortedServices = servicesWithScore
+    .sort((a, b) => b.relevanceScore - a.relevanceScore)
+
+  const topMatch = sortedServices.length > 0 ? sortedServices[0] : null
+
+  const relatedByCategory = topMatch
+    ? getRelatedServicesByCategory(topMatch, services, 6)
+    : []
+
+  const results = sortedServices.map(({ relevanceScore, ...service }) => service)
+
+  return {
+    results,
+    relatedByCategory,
+    topMatch: topMatch ? { ...topMatch, relevanceScore: undefined } : null
+  }
+}
