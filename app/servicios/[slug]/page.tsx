@@ -888,44 +888,6 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                       context="booking"
                       className="mb-3"
                     />
-
-                    <div className="bg-gradient-to-br from-primary-50 to-secondary-50 rounded-xl p-3 md:p-4 space-y-3">
-                      <div className="flex items-start gap-2.5">
-                        <div className="flex-shrink-0 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-sm">
-                          <ShieldCheck className="text-primary-600" size={16} />
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-sm text-gray-900 mb-0.5">Profesionales verificados</h4>
-                          <p className="text-xs text-gray-600">Verificación rigurosa de todos nuestros socios</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-start gap-2.5">
-                        <div className="flex-shrink-0 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-sm">
-                          <GraduationCap className="text-primary-600" size={16} />
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-sm text-gray-900 mb-0.5">Garantía de calidad</h4>
-                          <p className="text-xs text-gray-600">Estamos aquí para ayudarte si algo sale mal</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-3">
-                      <div className="flex items-start gap-2.5">
-                        <div className="flex-shrink-0">
-                          <div className="w-7 h-7 bg-yellow-100 rounded-full flex items-center justify-center">
-                            <span className="text-base">⚠️</span>
-                          </div>
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-xs font-medium text-yellow-900 mb-0.5">Importante</p>
-                          <p className="text-xs text-yellow-800">
-                            Nunca compartas información de pago fuera de la plataforma. Mantén toda comunicación dentro de LoHaggo.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
                   </div>
                 )}
 
