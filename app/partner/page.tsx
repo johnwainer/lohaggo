@@ -19,6 +19,7 @@ import PartnerHeader from '@/components/partner/PartnerHeader'
 import StatCard from '@/components/shared/StatCard'
 import LoadingSpinner from '@/components/shared/LoadingSpinner'
 import EmptyState from '@/components/shared/EmptyState'
+import PlatformTrustBanner from '@/components/PlatformTrustBanner'
 
 interface Booking {
   id: string
@@ -498,6 +499,11 @@ function PartnerDashboardContent() {
           {/* Overview Tab */}
           {activeTab === 'overview' && (
             <div className="space-y-6 sm:space-y-8 mt-6">
+              <PlatformTrustBanner
+                variant="info"
+                context="partner"
+                className="mb-6"
+              />
               {/* Stats Grid */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg border border-gray-200 p-4 sm:p-6 hover:shadow-xl transition-all">

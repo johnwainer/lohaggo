@@ -5,6 +5,7 @@ import { formatCurrency } from '@/lib/utils'
 import SearchBar from '@/components/SearchBar'
 import AdBanner from '@/components/ads/AdBanner'
 import HomeClientWrapper from '@/components/HomeClientWrapper'
+import PlatformTrustBanner from '@/components/PlatformTrustBanner'
 
 export const dynamic = 'force-dynamic'
 
@@ -177,6 +178,12 @@ export default async function Home() {
             <h2 id="benefits-heading" className="text-3xl md:text-4xl font-black mb-4 text-gray-900">¿Por qué contratar servicios profesionales en LoHaggo?</h2>
             <p className="text-gray-600 text-lg font-medium">La plataforma líder en Colombia para contratar servicios profesionales del hogar en Medellín</p>
           </div>
+
+          <PlatformTrustBanner
+            variant="info"
+            context="general"
+            className="mb-12 max-w-4xl mx-auto"
+          />
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <article className="bg-white rounded-2xl p-8 text-center hover:shadow-xl transition-all group border-2 border-transparent hover:border-primary-200">

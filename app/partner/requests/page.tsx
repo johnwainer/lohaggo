@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { MapPin, User, DollarSign, Send, MessageSquare } from 'lucide-react'
+import PlatformTrustBanner from '@/components/PlatformTrustBanner'
 
 interface ServiceRequest {
   id: string
@@ -155,6 +156,12 @@ export default function PartnerRequestsPage() {
             Solicitudes de servicio disponibles para enviar propuestas
           </p>
         </div>
+
+        <PlatformTrustBanner
+          variant="info"
+          context="partner"
+          className="mb-8"
+        />
 
         {/* Requests List */}
         {requests.length === 0 ? (

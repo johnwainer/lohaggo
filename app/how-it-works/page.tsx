@@ -18,6 +18,7 @@ import {
   ChevronRight,
   Sparkles
 } from 'lucide-react'
+import PlatformTrustBanner from '@/components/PlatformTrustBanner'
 
 export default function HowItWorksPage() {
   const [activeTab, setActiveTab] = useState<'client' | 'partner'>('client')
@@ -196,6 +197,12 @@ export default function HowItWorksPage() {
       {/* Steps Section */}
       <section className="py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <PlatformTrustBanner
+            variant="info"
+            context={activeTab === 'client' ? 'general' : 'partner'}
+            className="mb-12"
+          />
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {steps.map((step, index) => {
               const Icon = step.icon

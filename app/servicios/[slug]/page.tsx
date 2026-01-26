@@ -9,6 +9,7 @@ import { useCity } from '@/lib/city-context'
 import ConfirmModal from '@/components/ConfirmModal'
 import AdBanner from '@/components/ads/AdBanner'
 import ServiceDetailTour from '@/components/ServiceDetailTour'
+import PlatformTrustBanner from '@/components/PlatformTrustBanner'
 
 interface Service {
   id: string
@@ -871,6 +872,12 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
 
             <div>
               <div className="p-4 md:p-6">
+                <PlatformTrustBanner
+                  variant="warning"
+                  context="booking"
+                  className="mb-6"
+                />
+
                 {/* Step 1: Dirección */}
                 {currentStep === 1 && (
                   <div className="space-y-4 md:space-y-6 animate-fadeIn">

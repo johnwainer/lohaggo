@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react'
 import { Send, X, MessageCircle, Loader2 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
+import PlatformTrustBanner from './PlatformTrustBanner'
 
 interface ChatMessage {
   id: string
@@ -189,6 +190,12 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 bg-gray-50">
+          <PlatformTrustBanner
+            variant="warning"
+            context="chat"
+            className="mb-4"
+          />
+
           {loading ? (
             <div className="flex items-center justify-center h-full">
               <Loader2 className="w-8 h-8 animate-spin text-primary-600" />

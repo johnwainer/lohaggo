@@ -48,6 +48,8 @@ function ServiciosContent() {
   const searchParams = useSearchParams()
   const { data: session } = useSession()
   const [services, setServices] = useState<Service[]>([])
+  const [relatedServices, setRelatedServices] = useState<Service[]>([])
+  const [topMatch, setTopMatch] = useState<Service | null>(null)
   const [categories, setCategories] = useState<Category[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string>('')
   const [searchTerm, setSearchTerm] = useState('')
@@ -121,6 +123,8 @@ function ServiciosContent() {
   const fetchServices = async () => {
     setLoading(true)
     setSuggestions(null)
+    setRelatedServices([])
+    setTopMatch(null)
     try {
       let url = '/api/services?'
       if (selectedCategory) url += `category=${selectedCategory}&`
@@ -133,6 +137,15 @@ function ServiciosContent() {
       if (data.services) {
         resultServices = data.services
         setServices(data.services)
+
+        if (data.relatedByCategory && data.relatedByCategory.length > 0) {
+          setRelatedServices(data.relatedByCategory)
+        }
+
+        if (data.topMatch) {
+          setTopMatch(data.topMatch)
+        }
+
         if (data.suggestions) {
           setSuggestions(data.suggestions)
         }
@@ -532,6 +545,69 @@ function ServiciosContent() {
                 </Link>
               ))}
             </div>
+
+            {relatedServices.length > 0 && (
+              <div className="mt-8 md:mt-12">
+                <div className="bg-gradient-to-r from-primary-50 to-secondary-50 rounded-2xl md:rounded-3xl p-6 md:p-8 border-2 border-primary-100">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="bg-white p-3 rounded-xl shadow-md">
+                      <Lightbulb className="text-primary-600" size={24} />
+                    </div>
+                    <div>
+                      <h3 className="text-xl md:text-2xl font-bold text-gray-900">
+                        Servicios relacionados
+                      </h3>
+                      <p className="text-gray-600 text-sm md:text-base">
+                        Otros servicios de {topMatch?.category.name || 'esta categoría'} que podrían interesarte
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                    {relatedServices.map((service) => (
+                      <Link
+                        key={service.id}
+                        href={`/servicios/${service.slug}`}
+                        className="bg-white rounded-xl md:rounded-2xl shadow-md hover:shadow-xl transition-all overflow-hidden group border-2 border-gray-100 hover:border-primary-500/30 transform hover:scale-105"
+                      >
+                        <div className="p-4 md:p-5">
+                          <div className="flex items-start justify-between mb-3">
+                            <span className="emoji-icon group-hover:scale-110 transition-transform inline-block" style={{ fontSize: '2.5em' }}>
+                              {service.icon}
+                            </span>
+                            <span className="bg-primary-50 text-primary-600 text-xs font-bold px-3 py-1.5 rounded-full">
+                              {service.category.name}
+                            </span>
+                          </div>
+                          <h4 className="font-bold text-base md:text-lg mb-2 group-hover:text-primary-600 transition text-gray-900">
+                            {service.name}
+                          </h4>
+                          <p className="text-gray-600 text-xs md:text-sm mb-3 line-clamp-2">
+                            {service.description}
+                          </p>
+                          <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                            <div className="text-left">
+                              <p className="text-gray-500 text-xs mb-1">Desde</p>
+                              <p className="text-primary-600 text-sm md:text-base font-bold">
+                                {formatCurrency(service.basePrice)}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <div className="flex items-center gap-1 mb-1">
+                                <Star className="w-3 h-3 md:w-3.5 md:h-3.5 text-yellow-500 fill-yellow-500" />
+                                <span className="text-xs font-bold text-gray-900">4.8</span>
+                              </div>
+                              <p className="text-gray-500 text-xs">
+                                {service._count.partners} disponibles
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>
