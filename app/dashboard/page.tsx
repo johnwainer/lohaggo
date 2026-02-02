@@ -1044,11 +1044,6 @@ export default function DashboardPage() {
                         ) : (
                           favoritePartners.slice(0, 5).map((fav) => (
                             <div key={fav.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 hover:bg-primary-50 border border-gray-100 hover:border-primary-200 transition-all cursor-pointer group">
-                              <img
-                                src={fav.partner?.user?.profilePicture || '/default-avatar.png'}
-                                alt={fav.partner?.user?.name}
-                                className="w-10 h-10 rounded-full object-cover border-2 border-gray-200 group-hover:border-primary-300 transition-colors"
-                              />
                               <div className="flex-1 min-w-0">
                                 <p className="font-semibold text-sm text-gray-900 truncate group-hover:text-primary-600 transition-colors">{fav.partner?.user?.name}</p>
                                 <p className="text-xs text-gray-500 truncate">{fav.partner?.services?.[0]?.service?.name}</p>
