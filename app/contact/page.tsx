@@ -1,67 +1,35 @@
 'use client'
 
-import { useState } from 'react'
 import Link from 'next/link'
 import { 
   Mail, 
-  Phone, 
   MapPin, 
-  Send,
   MessageSquare,
-  User,
-  Building2,
-  Clock,
-  CheckCircle,
   Sparkles,
-  ArrowRight,
   Facebook,
-  Twitter,
   Instagram,
-  Linkedin
+  ExternalLink
 } from 'lucide-react'
 
 export default function ContactPage() {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    userType: 'client',
-    subject: '',
-    message: ''
-  })
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isSubmitted, setIsSubmitted] = useState(false)
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    
-    setIsSubmitting(false)
-    setIsSubmitted(true)
-    
-    // Reset form after 3 seconds
-    setTimeout(() => {
-      setIsSubmitted(false)
-      setFormData({
-        name: '',
-        email: '',
-        phone: '',
-        userType: 'client',
-        subject: '',
-        message: ''
-      })
-    }, 3000)
-  }
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    })
-  }
+  const socialChannels = [
+    {
+      icon: Facebook,
+      name: 'Facebook',
+      description: 'Síguenos y envíanos un mensaje directo',
+      href: 'https://www.facebook.com/lohaggo',
+      color: 'from-blue-500 to-blue-600',
+      hoverColor: 'hover:from-blue-600 hover:to-blue-700'
+    },
+    {
+      icon: Instagram,
+      name: 'Instagram',
+      description: 'Contáctanos por mensaje directo',
+      href: 'https://www.instagram.com/lohaggo_',
+      color: 'from-pink-500 to-purple-600',
+      hoverColor: 'hover:from-pink-600 hover:to-purple-700'
+    }
+  ]
 
   const contactInfo = [
     {
@@ -71,44 +39,10 @@ export default function ContactPage() {
       link: 'mailto:hola@lohaggo.com'
     },
     {
-      icon: Phone,
-      title: 'Teléfono',
-      value: '+52 55 1234 5678',
-      link: 'tel:+525512345678'
-    },
-    {
       icon: MapPin,
-      title: 'Oficina',
-      value: 'Ciudad de México, México',
+      title: 'Ubicación',
+      value: 'Medellín, Antioquia, Colombia',
       link: '#'
-    },
-    {
-      icon: Clock,
-      title: 'Horario',
-      value: 'Lun - Vie: 9:00 - 18:00',
-      link: '#'
-    }
-  ]
-
-  const socialLinks = [
-    { icon: Facebook, href: '#', label: 'Facebook' },
-    { icon: Twitter, href: '#', label: 'Twitter' },
-    { icon: Instagram, href: '#', label: 'Instagram' },
-    { icon: Linkedin, href: '#', label: 'LinkedIn' }
-  ]
-
-  const faqs = [
-    {
-      question: '¿Cuánto tiempo tarda en responder?',
-      answer: 'Respondemos en menos de 24 horas hábiles'
-    },
-    {
-      question: '¿Puedo agendar una llamada?',
-      answer: 'Sí, menciona tu disponibilidad en el mensaje'
-    },
-    {
-      question: '¿Atienden fines de semana?',
-      answer: 'Soporte limitado sábados de 10:00 - 14:00'
     }
   ]
 
@@ -133,292 +67,108 @@ export default function ContactPage() {
             </h1>
             
             <p className="text-xl md:text-2xl mb-8 text-white/90 font-medium max-w-3xl mx-auto">
-              ¿Tienes preguntas? Nos encantaría escucharte. Envíanos un mensaje y te responderemos lo antes posible.
+              ¿Tienes preguntas? Nos encantaría escucharte. Contáctanos por nuestras redes sociales.
             </p>
           </div>
         </div>
       </section>
 
-      {/* Main Content */}
+      {/* Social Media CTAs */}
       <section className="py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-            {/* Contact Form */}
-            <div className="lg:col-span-2">
-              <div className="bg-white rounded-3xl shadow-xl p-8 md:p-12 border border-gray-100">
-                <div className="mb-8">
-                  <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-3">
-                    Envíanos un mensaje
-                  </h2>
-                  <p className="text-gray-600 font-medium">
-                    Completa el formulario y nos pondremos en contacto contigo pronto
-                  </p>
-                </div>
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-4">
+              Escríbenos por redes sociales
+            </h2>
+            <p className="text-xl text-gray-600 font-medium max-w-2xl mx-auto">
+              Elige tu canal favorito y contáctanos. Respondemos rápido.
+            </p>
+          </div>
 
-                {isSubmitted ? (
-                  <div className="text-center py-12">
-                    <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 animate-bounce">
-                      <CheckCircle className="w-10 h-10 text-green-600" />
-                    </div>
-                    <h3 className="text-2xl font-black text-gray-900 mb-3">
-                      ¡Mensaje enviado!
-                    </h3>
-                    <p className="text-gray-600 font-medium">
-                      Gracias por contactarnos. Te responderemos pronto.
-                    </p>
-                  </div>
-                ) : (
-                  <form onSubmit={handleSubmit} className="space-y-6">
-                    {/* User Type Selection */}
-                    <div>
-                      <label className="block text-sm font-bold text-gray-900 mb-3">
-                        Soy un:
-                      </label>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div
-                          onClick={() => setFormData({ ...formData, userType: 'client' })}
-                          className={`flex items-center justify-center gap-3 p-4 rounded-xl border-2 transition-all font-bold cursor-pointer ${
-                            formData.userType === 'client'
-                              ? 'border-primary-500 bg-gradient-to-r from-primary-500/10 to-secondary-500/10 text-primary-600'
-                              : 'border-gray-200 hover:border-gray-300 text-gray-600'
-                          }`}
-                        >
-                          <User className="w-5 h-5" />
-                          Cliente
-                        </div>
-                        <div
-                          onClick={() => setFormData({ ...formData, userType: 'partner' })}
-                          className={`flex items-center justify-center gap-3 p-4 rounded-xl border-2 transition-all font-bold cursor-pointer ${
-                            formData.userType === 'partner'
-                              ? 'border-primary-500 bg-gradient-to-r from-primary-500/10 to-secondary-500/10 text-primary-600'
-                              : 'border-gray-200 hover:border-gray-300 text-gray-600'
-                          }`}
-                        >
-                          <Building2 className="w-5 h-5" />
-                          Socio/Profesional
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Name */}
-                    <div>
-                      <label htmlFor="name" className="block text-sm font-bold text-gray-900 mb-2">
-                        Nombre completo *
-                      </label>
-                      <input
-                        type="text"
-                        id="name"
-                        name="name"
-                        value={formData.name}
-                        onChange={handleChange}
-                        required
-                        className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all font-medium"
-                        placeholder="Tu nombre"
-                      />
-                    </div>
-
-                    {/* Email and Phone */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label htmlFor="email" className="block text-sm font-bold text-gray-900 mb-2">
-                          Email *
-                        </label>
-                        <input
-                          type="email"
-                          id="email"
-                          name="email"
-                          value={formData.email}
-                          onChange={handleChange}
-                          required
-                          className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all font-medium"
-                          placeholder="tu@email.com"
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="phone" className="block text-sm font-bold text-gray-900 mb-2">
-                          Teléfono
-                        </label>
-                        <input
-                          type="tel"
-                          id="phone"
-                          name="phone"
-                          value={formData.phone}
-                          onChange={handleChange}
-                          className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all font-medium"
-                          placeholder="+52 55 1234 5678"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Subject */}
-                    <div>
-                      <label htmlFor="subject" className="block text-sm font-bold text-gray-900 mb-2">
-                        Asunto *
-                      </label>
-                      <select
-                        id="subject"
-                        name="subject"
-                        value={formData.subject}
-                        onChange={handleChange}
-                        required
-                        className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all font-medium"
-                      >
-                        <option value="">Selecciona un asunto</option>
-                        <option value="general">Consulta general</option>
-                        <option value="support">Soporte técnico</option>
-                        <option value="partnership">Convertirme en socio</option>
-                        <option value="billing">Facturación</option>
-                        <option value="feedback">Sugerencias</option>
-                        <option value="other">Otro</option>
-                      </select>
-                    </div>
-
-                    {/* Message */}
-                    <div>
-                      <label htmlFor="message" className="block text-sm font-bold text-gray-900 mb-2">
-                        Mensaje *
-                      </label>
-                      <textarea
-                        id="message"
-                        name="message"
-                        value={formData.message}
-                        onChange={handleChange}
-                        required
-                        rows={6}
-                        className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition-all resize-none font-medium"
-                        placeholder="Cuéntanos cómo podemos ayudarte..."
-                      />
-                    </div>
-
-                    {/* Submit Button */}
-                    <button
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="w-full bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-8 py-4 rounded-xl font-bold text-lg hover:shadow-xl transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                          Enviando...
-                        </>
-                      ) : (
-                        <>
-                          Enviar mensaje
-                          <Send className="w-5 h-5" />
-                        </>
-                      )}
-                    </button>
-                  </form>
-                )}
-              </div>
-            </div>
-
-            {/* Contact Info Sidebar */}
-            <div className="space-y-6">
-              {/* Contact Cards */}
-              <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-100">
-                <h3 className="text-2xl font-black text-gray-900 mb-6">
-                  Información de contacto
-                </h3>
-                <div className="space-y-6">
-                  {contactInfo.map((info, index) => {
-                    const Icon = info.icon
-                    return (
-                      <a
-                        key={index}
-                        href={info.link}
-                        className="flex items-start gap-4 group"
-                      >
-                        <div className="w-12 h-12 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
-                          <Icon className="w-6 h-6 text-white" />
-                        </div>
-                        <div>
-                          <div className="text-sm font-bold text-gray-500 mb-1">
-                            {info.title}
-                          </div>
-                          <div className="text-gray-900 font-bold group-hover:text-primary-600 transition-colors">
-                            {info.value}
-                          </div>
-                        </div>
-                      </a>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {/* Social Links */}
-              <div className="bg-gradient-to-br from-primary-500 to-secondary-500 rounded-3xl shadow-xl p-8 text-white">
-                <h3 className="text-2xl font-black mb-4">
-                  Síguenos
-                </h3>
-                <p className="text-white/90 font-medium mb-6">
-                  Mantente al día con nuestras novedades
-                </p>
-                <div className="flex gap-3">
-                  {socialLinks.map((social, index) => {
-                    const Icon = social.icon
-                    return (
-                      <a
-                        key={index}
-                        href={social.href}
-                        aria-label={social.label}
-                        className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center hover:bg-white/20 transition-all border border-white/20 hover:scale-110"
-                      >
-                        <Icon className="w-5 h-5" />
-                      </a>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {/* Quick FAQs */}
-              <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-100">
-                <h3 className="text-2xl font-black text-gray-900 mb-6">
-                  Preguntas frecuentes
-                </h3>
-                <div className="space-y-4">
-                  {faqs.map((faq, index) => (
-                    <div key={index}>
-                      <div className="text-sm font-bold text-gray-900 mb-1">
-                        {faq.question}
-                      </div>
-                      <div className="text-sm text-gray-600 font-medium">
-                        {faq.answer}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <Link
-                  href="/faq"
-                  className="inline-flex items-center gap-2 text-primary-600 font-bold mt-6 hover:gap-3 transition-all"
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto mb-16">
+            {socialChannels.map((channel, index) => {
+              const Icon = channel.icon
+              return (
+                <a
+                  key={index}
+                  href={channel.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group relative bg-white rounded-3xl shadow-xl p-8 border border-gray-100 hover:shadow-2xl transition-all transform hover:scale-105"
                 >
-                  Ver todas las preguntas
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-              </div>
-            </div>
+                  <div className="absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-5 rounded-3xl transition-opacity"></div>
+                  
+                  <div className="relative">
+                    <div className={`w-16 h-16 bg-gradient-to-r ${channel.color} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
+                      <Icon className="w-8 h-8 text-white" />
+                    </div>
+                    
+                    <h3 className="text-2xl font-black text-gray-900 mb-2">
+                      {channel.name}
+                    </h3>
+                    
+                    <p className="text-gray-600 font-medium mb-6">
+                      {channel.description}
+                    </p>
+                    
+                    <div className={`inline-flex items-center gap-2 bg-gradient-to-r ${channel.color} ${channel.hoverColor} text-white px-6 py-3 rounded-xl font-bold transition-all`}>
+                      Contactar ahora
+                      <ExternalLink className="w-4 h-4" />
+                    </div>
+                  </div>
+                </a>
+              )
+            })}
+          </div>
+
+          {/* Contact Info Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            {contactInfo.map((info, index) => {
+              const Icon = info.icon
+              return (
+                <a
+                  key={index}
+                  href={info.link}
+                  className="bg-white rounded-3xl shadow-xl p-8 border border-gray-100 hover:shadow-2xl transition-all group"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="w-14 h-14 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                      <Icon className="w-7 h-7 text-white" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-bold text-gray-500 mb-2">
+                        {info.title}
+                      </div>
+                      <div className="text-lg text-gray-900 font-bold group-hover:text-primary-600 transition-colors">
+                        {info.value}
+                      </div>
+                    </div>
+                  </div>
+                </a>
+              )
+            })}
           </div>
         </div>
       </section>
 
-      {/* Map Section (Optional) */}
+      {/* FAQ Link Section */}
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="bg-gradient-to-br from-gray-100 to-gray-50 rounded-3xl p-12 text-center border border-gray-200">
             <Sparkles className="w-12 h-12 text-primary-600 mx-auto mb-6" />
             <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-4">
-              ¿Prefieres hablar directamente?
+              ¿Tienes preguntas frecuentes?
             </h2>
             <p className="text-xl text-gray-600 font-medium mb-8 max-w-2xl mx-auto">
-              Agenda una llamada con nuestro equipo y resolveremos todas tus dudas
+              Visita nuestra sección de preguntas frecuentes para encontrar respuestas rápidas
             </p>
-            <a
-              href="tel:+525512345678"
+            <Link
+              href="/faq"
               className="inline-flex items-center gap-2 bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-8 py-4 rounded-xl font-bold text-lg hover:shadow-xl transition-all transform hover:scale-105"
             >
-              <Phone className="w-5 h-5" />
-              Llamar ahora
-            </a>
+              Ver preguntas frecuentes
+              <ExternalLink className="w-5 h-5" />
+            </Link>
           </div>
         </div>
       </section>
