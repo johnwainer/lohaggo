@@ -153,11 +153,11 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
             {city.name}
           </h1>
 
-          {city.fechaLanzamiento && (
+          {city.launchDate && (
             <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm px-6 py-3 rounded-full mb-4 shadow-lg border-2 border-primary-200">
               <Calendar className="w-5 h-5 text-primary-600" />
               <span className="text-lg font-bold text-gray-800">
-                Lanzamiento: {new Date(city.fechaLanzamiento).toLocaleDateString('es-ES', {
+                Lanzamiento: {new Date(city.launchDate).toLocaleDateString('es-ES', {
                   year: 'numeric',
                   month: 'long',
                   day: 'numeric',

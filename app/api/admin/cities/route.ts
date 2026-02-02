@@ -14,9 +14,9 @@ const cityCreateSchema = z.object({
   order: z.number().int().min(0).optional(),
   latitude: z.number().optional().nullable(),
   longitude: z.number().optional().nullable(),
-  lanzamiento: z.boolean().optional(),
-  fechaLanzamiento: z.string().datetime().optional().nullable(),
-  registroSocios: z.boolean().optional()
+  isLaunched: z.boolean().optional(),
+  launchDate: z.string().datetime().optional().nullable(),
+  partnerRegistry: z.boolean().optional()
 })
 
 export async function GET(request: NextRequest) {
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { name, slug, status, order, latitude, longitude, lanzamiento, fechaLanzamiento, registroSocios } = validation.data
+    const { name, slug, status, order, latitude, longitude, isLaunched, launchDate, partnerRegistry } = validation.data
 
     const city = await prisma.cityConfig.create({
       data: {
@@ -66,9 +66,9 @@ export async function POST(request: NextRequest) {
         order: order ?? 0,
         latitude: latitude ?? null,
         longitude: longitude ?? null,
-        lanzamiento: lanzamiento ?? false,
-        fechaLanzamiento: fechaLanzamiento ? new Date(fechaLanzamiento) : null,
-        registroSocios: registroSocios ?? false
+        is_launched: isLaunched ?? false,
+        launch_date: launchDate ? new Date(launchDate) : null,
+        partner_registry: partnerRegistry ?? false
       }
     })
 

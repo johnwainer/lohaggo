@@ -13,9 +13,9 @@ interface City {
   order: number
   latitude: number | null
   longitude: number | null
-  lanzamiento: boolean
-  fechaLanzamiento: string | null
-  registroSocios: boolean
+  isLaunched: boolean
+  launchDate: string | null
+  partnerRegistry: boolean
 }
 
 const statusLabels: Record<CityStatus, string> = {
@@ -43,9 +43,9 @@ export default function CitiesSection() {
     order: 0,
     latitude: null as number | null,
     longitude: null as number | null,
-    lanzamiento: false,
-    fechaLanzamiento: null as string | null,
-    registroSocios: false
+    isLaunched: false,
+    launchDate: null as string | null,
+    partnerRegistry: false
   })
 
   useEffect(() => {
@@ -70,7 +70,7 @@ export default function CitiesSection() {
     try {
       const dataToSend = {
         ...formData,
-        fechaLanzamiento: formData.lanzamiento && formData.fechaLanzamiento ? new Date(formData.fechaLanzamiento).toISOString() : null
+        launchDate: formData.isLaunched && formData.launchDate ? new Date(formData.launchDate).toISOString() : null
       }
 
       const res = await fetch('/api/admin/cities', {
@@ -82,7 +82,7 @@ export default function CitiesSection() {
       if (res.ok) {
         await fetchCities()
         setShowAddForm(false)
-        setFormData({ name: '', slug: '', status: 'ACTIVE', order: 0, latitude: null, longitude: null, lanzamiento: false, fechaLanzamiento: null, registroSocios: false })
+        setFormData({ name: '', slug: '', status: 'ACTIVE', order: 0, latitude: null, longitude: null, isLaunched: false, launchDate: null, partnerRegistry: false })
       }
     } catch (error) {
       console.error('Error adding city:', error)
@@ -134,7 +134,7 @@ export default function CitiesSection() {
     try {
       const dataToSend = {
         ...editingData,
-        fechaLanzamiento: editingData.lanzamiento && editingData.fechaLanzamiento ? new Date(editingData.fechaLanzamiento).toISOString() : null
+        launchDate: editingData.isLaunched && editingData.launchDate ? new Date(editingData.launchDate).toISOString() : null
       }
       await handleUpdate(editingId, dataToSend)
     } catch (error) {
@@ -268,23 +268,23 @@ export default function CitiesSection() {
                 <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
                   <input
                     type="checkbox"
-                    checked={formData.lanzamiento}
-                    onChange={(e) => setFormData({ ...formData, lanzamiento: e.target.checked })}
+                    checked={formData.isLaunched}
+                    onChange={(e) => setFormData({ ...formData, isLaunched: e.target.checked })}
                     className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                   />
                   Scheduled launch
                 </label>
               </div>
             )}
-            {formData.lanzamiento && formData.status !== 'ACTIVE' && (
+            {formData.isLaunched && formData.status !== 'ACTIVE' && (
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Launch date
                 </label>
                 <input
                   type="datetime-local"
-                  value={formatDateForInput(formData.fechaLanzamiento)}
-                  onChange={(e) => setFormData({ ...formData, fechaLanzamiento: e.target.value || null })}
+                  value={formatDateForInput(formData.launchDate)}
+                  onChange={(e) => setFormData({ ...formData, launchDate: e.target.value || null })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
               </div>
@@ -294,8 +294,8 @@ export default function CitiesSection() {
                 <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
                   <input
                     type="checkbox"
-                    checked={formData.registroSocios}
-                    onChange={(e) => setFormData({ ...formData, registroSocios: e.target.checked })}
+                    checked={formData.partnerRegistry}
+                    onChange={(e) => setFormData({ ...formData, partnerRegistry: e.target.checked })}
                     className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                   />
                   Partner registration enabled
@@ -315,7 +315,7 @@ export default function CitiesSection() {
             <button
               onClick={() => {
                 setShowAddForm(false)
-                setFormData({ name: '', slug: '', status: 'ACTIVE' as CityStatus, order: 0, latitude: null, longitude: null, lanzamiento: false, fechaLanzamiento: null, registroSocios: false })
+                setFormData({ name: '', slug: '', status: 'ACTIVE' as CityStatus, order: 0, latitude: null, longitude: null, isLaunched: false, launchDate: null, partnerRegistry: false })
               }}
               className="flex items-center gap-2 bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition"
             >
@@ -437,32 +437,32 @@ export default function CitiesSection() {
                       <label className="flex items-center gap-2 text-sm">
                         <input
                           type="checkbox"
-                          checked={editingData.lanzamiento}
-                          onChange={(e) => setEditingData({ ...editingData, lanzamiento: e.target.checked })}
+                          checked={editingData.isLaunched}
+                          onChange={(e) => setEditingData({ ...editingData, isLaunched: e.target.checked })}
                           disabled={editingData.status === 'ACTIVE'}
                           className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
                         />
                         Scheduled
                       </label>
-                      {editingData.lanzamiento && editingData.status !== 'ACTIVE' && (
+                      {editingData.isLaunched && editingData.status !== 'ACTIVE' && (
                         <input
                           type="datetime-local"
-                          value={formatDateForInput(editingData.fechaLanzamiento)}
-                          onChange={(e) => setEditingData({ ...editingData, fechaLanzamiento: e.target.value || null })}
+                          value={formatDateForInput(editingData.launchDate)}
+                          onChange={(e) => setEditingData({ ...editingData, launchDate: e.target.value || null })}
                           className="px-2 py-1 border border-gray-300 rounded text-xs"
                         />
                       )}
                     </div>
                   ) : (
                     <div className="text-xs text-gray-600">
-                      {city.lanzamiento && city.status !== 'ACTIVE' ? (
+                      {city.isLaunched && city.status !== 'ACTIVE' ? (
                         <div className="flex flex-col gap-1">
                           <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-semibold">
                             Scheduled
                           </span>
-                          {city.fechaLanzamiento && (
+                          {city.launchDate && (
                             <span className="text-gray-500">
-                              {new Date(city.fechaLanzamiento).toLocaleString('en-US', {
+                              {new Date(city.launchDate).toLocaleString('en-US', {
                                 day: '2-digit',
                                 month: '2-digit',
                                 year: 'numeric',
@@ -484,8 +484,8 @@ export default function CitiesSection() {
                       <label className="flex items-center gap-2 text-sm">
                         <input
                           type="checkbox"
-                          checked={editingData.registroSocios}
-                          onChange={(e) => setEditingData({ ...editingData, registroSocios: e.target.checked })}
+                          checked={editingData.partnerRegistry}
+                          onChange={(e) => setEditingData({ ...editingData, partnerRegistry: e.target.checked })}
                           className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                         />
                         Enabled
@@ -496,7 +496,7 @@ export default function CitiesSection() {
                   ) : (
                     <div className="text-xs text-gray-600">
                       {city.status === 'ACTIVE' ? (
-                        city.registroSocios ? (
+                        city.partnerRegistry ? (
                           <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-semibold">
                             Enabled
                           </span>

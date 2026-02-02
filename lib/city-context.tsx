@@ -11,9 +11,9 @@ export type CityOption = {
   order: number
   latitude?: number
   longitude?: number
-  lanzamiento?: boolean
-  fechaLanzamiento?: string | null
-  registroSocios?: boolean
+  isLaunched?: boolean
+  launchDate?: string | null
+  partnerRegistry?: boolean
 }
 
 type CityContextValue = {
@@ -55,9 +55,12 @@ export function CityProvider({ children }: { children: React.ReactNode }) {
           name: city.name,
           slug: city.slug,
           status: city.status,
+          order: city.order,
           latitude: city.latitude,
           longitude: city.longitude,
-          registroSocios: city.registroSocios || false
+          isLaunched: city.isLaunched || false,
+          launchDate: city.launchDate || null,
+          partnerRegistry: city.partnerRegistry || false
         }))
 
         setCities(cityList)

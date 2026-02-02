@@ -22,7 +22,7 @@ interface CityData {
   name: string
   slug: string
   status: string
-  fechaLanzamiento?: string
+  launchDate?: string
 }
 
 export default function PartnerWelcomePage({ params }: { params: Promise<{ citySlug: string }> }) {
@@ -74,11 +74,11 @@ export default function PartnerWelcomePage({ params }: { params: Promise<{ cityS
     return null
   }
 
-  const launchDate = city.fechaLanzamiento 
-    ? new Date(city.fechaLanzamiento).toLocaleDateString('es-ES', { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
+  const launchDate = city.launchDate
+    ? new Date(city.launchDate).toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
       })
     : 'Próximamente'
 

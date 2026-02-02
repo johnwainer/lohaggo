@@ -14,9 +14,9 @@ const cityUpdateSchema = z.object({
   order: z.number().int().min(0).optional(),
   latitude: z.number().optional().nullable(),
   longitude: z.number().optional().nullable(),
-  lanzamiento: z.boolean().optional(),
-  fechaLanzamiento: z.string().datetime().optional().nullable(),
-  registroSocios: z.boolean().optional()
+  isLaunched: z.boolean().optional(),
+  launchDate: z.string().datetime().optional().nullable(),
+  partnerRegistry: z.boolean().optional()
 })
 
 export async function PUT(
@@ -41,7 +41,7 @@ export async function PUT(
       )
     }
 
-    const { name, slug, status, order, latitude, longitude, lanzamiento, fechaLanzamiento, registroSocios } = validation.data
+    const { name, slug, status, order, latitude, longitude, isLaunched, launchDate, partnerRegistry } = validation.data
 
     const city = await prisma.cityConfig.update({
       where: { id },
@@ -52,9 +52,9 @@ export async function PUT(
         ...(order !== undefined && { order }),
         ...(latitude !== undefined && { latitude }),
         ...(longitude !== undefined && { longitude }),
-        ...(lanzamiento !== undefined && { lanzamiento }),
-        ...(fechaLanzamiento !== undefined && { fechaLanzamiento: fechaLanzamiento ? new Date(fechaLanzamiento) : null }),
-        ...(registroSocios !== undefined && { registroSocios })
+        ...(isLaunched !== undefined && { isLaunched }),
+        ...(launchDate !== undefined && { launchDate: launchDate ? new Date(launchDate) : null }),
+        ...(partnerRegistry !== undefined && { partnerRegistry })
       }
     })
 

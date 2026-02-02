@@ -180,7 +180,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     const citySlug = localStorage.getItem('selectedCity') || 'medellin'
     const currentCity = getCityBySlug(citySlug)
 
-    if (currentCity?.registroSocios) {
+    if (currentCity?.partnerRegistry) {
       router.push('/registro-socios')
       return
     }
@@ -206,7 +206,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     const citySlug = localStorage.getItem('selectedCity') || 'medellin'
     const currentCity = getCityBySlug(citySlug)
 
-    if (currentCity?.registroSocios) {
+    if (currentCity?.partnerRegistry) {
       router.push('/registro-socios')
       return
     }
