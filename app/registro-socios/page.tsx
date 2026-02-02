@@ -9,9 +9,10 @@ import { UserPlus, CheckCircle, TrendingUp, Shield, DollarSign, Clock, Users, Ar
 export default function RegistroSociosPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const { currentCity } = useCity()
+  const { selectedCity, getCityBySlug } = useCity()
   const [isLoading, setIsLoading] = useState(false)
 
+  const currentCity = getCityBySlug(selectedCity)
   const cityName = currentCity?.name || 'tu ciudad'
 
   const handleRegistroSocio = async () => {
