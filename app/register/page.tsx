@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Mail, Lock, User, Phone, MapPin, Check, ArrowRight, Sparkles, Shield, Zap, DollarSign, Clock, Users, Star } from 'lucide-react'
+import { Mail, Lock, User, Phone, MapPin, Check, ArrowRight, Sparkles, Shield, Zap, DollarSign, Clock, Users, Star, Search } from 'lucide-react'
 import { useCity } from '@/lib/city-context'
 import { formatCurrency } from '@/lib/utils'
 
@@ -26,6 +26,7 @@ function RegisterForm() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [acceptedTerms, setAcceptedTerms] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const [servicesCatalog, setServicesCatalog] = useState<
     Array<{ id: string; name: string; slug: string; basePrice?: number }>
   >([])
@@ -431,49 +432,75 @@ function RegisterForm() {
                       {formData.services.length}/5 seleccionados
                     </span>
                   </div>
+
+                  <div className="relative mb-3 group">
+                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-primary-600 transition-colors" size={20} />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all hover:border-gray-300"
+                      placeholder="Buscar servicios..."
+                    />
+                  </div>
+
                   <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-xl divide-y">
                     {servicesCatalog.length === 0 ? (
                       <div className="p-4 text-sm text-gray-500 text-center">
                         Cargando catálogo de servicios...
                       </div>
                     ) : (
-                      servicesCatalog.map((service) => {
-                        const selected = formData.services.includes(service.slug)
-                        const isDisabled = !selected && formData.services.length >= 5
-                        return (
-                          <button
-                            key={service.id}
-                            type="button"
-                            onClick={() => toggleService(service.slug)}
-                            disabled={isDisabled}
-                            className={`w-full flex items-center justify-between px-4 py-3 text-left transition ${
-                              selected
-                                ? 'bg-primary-500/5 text-primary-600 font-semibold'
-                                : isDisabled
-                                ? 'bg-gray-50 opacity-50 cursor-not-allowed'
-                                : 'hover:bg-gray-50'
-                            }`}
-                          >
-                            <div>
-                              <p className="text-sm font-medium">{service.name}</p>
-                              {service.basePrice && (
-                                <p className="text-xs text-gray-500">
-                                  Desde {formatCurrency(service.basePrice)}
-                                </p>
-                              )}
+                      (() => {
+                        const filteredServices = servicesCatalog.filter((service) =>
+                          service.name.toLowerCase().includes(searchQuery.toLowerCase())
+                        )
+
+                        if (filteredServices.length === 0) {
+                          return (
+                            <div className="p-4 text-sm text-gray-500 text-center">
+                              No se encontraron servicios que coincidan con tu búsqueda
                             </div>
-                            <span
-                              className={`inline-flex items-center justify-center w-6 h-6 rounded-full border-2 transition ${
+                          )
+                        }
+
+                        return filteredServices.map((service) => {
+                          const selected = formData.services.includes(service.slug)
+                          const isDisabled = !selected && formData.services.length >= 5
+                          return (
+                            <button
+                              key={service.id}
+                              type="button"
+                              onClick={() => toggleService(service.slug)}
+                              disabled={isDisabled}
+                              className={`w-full flex items-center justify-between px-4 py-3 text-left transition ${
                                 selected
-                                  ? 'border-primary-500 bg-primary-500 text-white'
-                                  : 'border-gray-300 text-gray-300'
+                                  ? 'bg-primary-500/5 text-primary-600 font-semibold'
+                                  : isDisabled
+                                  ? 'bg-gray-50 opacity-50 cursor-not-allowed'
+                                  : 'hover:bg-gray-50'
                               }`}
                             >
-                              {selected && <Check size={14} />}
-                            </span>
-                          </button>
-                        )
-                      })
+                              <div>
+                                <p className="text-sm font-medium">{service.name}</p>
+                                {service.basePrice && (
+                                  <p className="text-xs text-gray-500">
+                                    Desde {formatCurrency(service.basePrice)}
+                                  </p>
+                                )}
+                              </div>
+                              <span
+                                className={`inline-flex items-center justify-center w-6 h-6 rounded-full border-2 transition ${
+                                  selected
+                                    ? 'border-primary-500 bg-primary-500 text-white'
+                                    : 'border-gray-300 text-gray-300'
+                                }`}
+                              >
+                                {selected && <Check size={14} />}
+                              </span>
+                            </button>
+                          )
+                        })
+                      })()
                     )}
                   </div>
                   <p className="mt-2 text-xs text-gray-500">
