@@ -49,6 +49,7 @@ export default function PartnerRequestsPage() {
     notes: ''
   })
   const [submitting, setSubmitting] = useState(false)
+  const [verificationRequired, setVerificationRequired] = useState(false)
 
   useEffect(() => {
     if (status === 'loading') return
@@ -65,6 +66,12 @@ export default function PartnerRequestsPage() {
       if (res.ok) {
         const data = await res.json()
         setRequests(data)
+        setVerificationRequired(false)
+      } else if (res.status === 403) {
+        const error = await res.json()
+        if (error.requiresVerification) {
+          setVerificationRequired(true)
+        }
       }
     } catch (error) {
       console.error('Error fetching requests:', error)
@@ -142,6 +149,32 @@ export default function PartnerRequestsPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    )
+  }
+
+  if (verificationRequired) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <div className="bg-white rounded-2xl shadow-xl p-8 md:p-12 text-center">
+            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <MessageSquare className="w-10 h-10 text-red-600" />
+            </div>
+            <h2 className="text-3xl font-black text-gray-900 mb-4">
+              Verificación requerida
+            </h2>
+            <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
+              Para poder ver y responder a solicitudes de servicio, debes tener tus documentos de identidad y antecedentes verificados y aprobados.
+            </p>
+            <button
+              onClick={() => router.push('/partner/verification')}
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-8 py-4 rounded-xl font-bold text-lg hover:shadow-xl transition-all transform hover:scale-105"
+            >
+              Ir a verificación
+            </button>
+          </div>
+        </div>
       </div>
     )
   }

@@ -80,7 +80,22 @@ export async function GET(
       )
     }
 
-    return NextResponse.json(service)
+    // Filtrar socios que tengan documentos de identidad y antecedentes aprobados
+    const filteredPartners = service.partners.filter(partnerService => {
+      const documents = partnerService.partner.documents || []
+      const hasIdentityDoc = documents.some(
+        doc => ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE'].includes(doc.type)
+      )
+      const hasBackgroundCheck = documents.some(
+        doc => doc.type === 'ANTECEDENTES'
+      )
+      return hasIdentityDoc && hasBackgroundCheck
+    })
+
+    return NextResponse.json({
+      ...service,
+      partners: filteredPartners
+    })
   } catch (error) {
     logger.error('Error fetching servicio:', error || undefined)
     return NextResponse.json(

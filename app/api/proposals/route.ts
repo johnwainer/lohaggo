@@ -28,7 +28,14 @@ export async function POST(req: NextRequest) {
     const validatedData = validation.data
 
     const partnerProfile = await prisma.partnerProfile.findUnique({
-      where: { userId: session.user.id }
+      where: { userId: session.user.id },
+      include: {
+        documents: {
+          where: {
+            status: 'APPROVED'
+          }
+        }
+      }
     })
 
     if (!partnerProfile) {
@@ -37,6 +44,20 @@ export async function POST(req: NextRequest) {
 
     if (!partnerProfile.isActive) {
       return NextResponse.json({ error: 'Your account is inactive. Please contact the administrator.' }, { status: 403 })
+    }
+
+    // Verify that the partner has approved identity documents and background check
+    const hasIdentityDoc = partnerProfile.documents.some(
+      doc => ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE'].includes(doc.type)
+    )
+    const hasBackgroundCheck = partnerProfile.documents.some(
+      doc => doc.type === 'ANTECEDENTES'
+    )
+
+    if (!hasIdentityDoc || !hasBackgroundCheck) {
+      return NextResponse.json({
+        error: 'You must have your identity documents and background check verified to submit proposals'
+      }, { status: 403 })
     }
 
     const serviceRequest = await prisma.serviceRequest.findUnique({

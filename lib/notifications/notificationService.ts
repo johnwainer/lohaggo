@@ -143,7 +143,12 @@ export async function notifyNewServiceRequest(serviceRequestId: string) {
               include: {
                 partner: {
                   include: {
-                    user: true
+                    user: true,
+                    documents: {
+                      where: {
+                        status: 'APPROVED'
+                      }
+                    }
                   }
                 }
               }
@@ -153,7 +158,12 @@ export async function notifyNewServiceRequest(serviceRequestId: string) {
         user: true,
         partner: {
           include: {
-            user: true
+            user: true,
+            documents: {
+              where: {
+                status: 'APPROVED'
+              }
+            }
           }
         }
       }
@@ -163,17 +173,26 @@ export async function notifyNewServiceRequest(serviceRequestId: string) {
 
     // If partnerId is specified, only notify that specific partner
     if (serviceRequest.partnerId && serviceRequest.partner) {
-      await createNotification({
-        userId: serviceRequest.partner.user.id,
-        type: "NEW_SERVICE_REQUEST",
-        title: "Nueva solicitud directa",
-        message: `${serviceRequest.user.name} te ha solicitado ${serviceRequest.service.name}`,
-        data: {
-          serviceRequestId: serviceRequest.id,
-          serviceId: serviceRequest.serviceId,
-          isDirect: true
-        }
-      })
+      const hasIdentityDoc = serviceRequest.partner.documents.some(
+        doc => ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE'].includes(doc.type)
+      )
+      const hasBackgroundCheck = serviceRequest.partner.documents.some(
+        doc => doc.type === 'ANTECEDENTES'
+      )
+
+      if (hasIdentityDoc && hasBackgroundCheck) {
+        await createNotification({
+          userId: serviceRequest.partner.user.id,
+          type: "NEW_SERVICE_REQUEST",
+          title: "Nueva solicitud directa",
+          message: `${serviceRequest.user.name} te ha solicitado ${serviceRequest.service.name}`,
+          data: {
+            serviceRequestId: serviceRequest.id,
+            serviceId: serviceRequest.serviceId,
+            isDirect: true
+          }
+        })
+      }
     } else {
       // Otherwise, notify all partners offering this service in the city
       const partners = serviceRequest.service.partners.filter(
@@ -181,16 +200,25 @@ export async function notifyNewServiceRequest(serviceRequestId: string) {
       )
 
       for (const partnerService of partners) {
-        await createNotification({
-          userId: partnerService.partner.user.id,
-          type: "NEW_SERVICE_REQUEST",
-          title: "Nueva solicitud de servicio",
-          message: `${serviceRequest.user.name} solicita ${serviceRequest.service.name}`,
-          data: {
-            serviceRequestId: serviceRequest.id,
-            serviceId: serviceRequest.serviceId
-          }
-        })
+        const hasIdentityDoc = partnerService.partner.documents.some(
+          doc => ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE'].includes(doc.type)
+        )
+        const hasBackgroundCheck = partnerService.partner.documents.some(
+          doc => doc.type === 'ANTECEDENTES'
+        )
+
+        if (hasIdentityDoc && hasBackgroundCheck) {
+          await createNotification({
+            userId: partnerService.partner.user.id,
+            type: "NEW_SERVICE_REQUEST",
+            title: "Nueva solicitud de servicio",
+            message: `${serviceRequest.user.name} solicita ${serviceRequest.service.name}`,
+            data: {
+              serviceRequestId: serviceRequest.id,
+              serviceId: serviceRequest.serviceId
+            }
+          })
+        }
       }
     }
   } catch (error) {

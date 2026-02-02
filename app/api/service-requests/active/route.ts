@@ -47,12 +47,32 @@ export async function GET() {
           include: {
             service: true
           }
+        },
+        documents: {
+          where: {
+            status: 'APPROVED'
+          }
         }
       }
     })
 
     if (!partnerProfile) {
       return NextResponse.json({ error: 'Solo los partners pueden ver solicitudes activas' }, { status: 403 })
+    }
+
+    // Verificar que el socio tenga documentos de identidad y antecedentes aprobados
+    const hasIdentityDoc = partnerProfile.documents.some(
+      doc => ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE'].includes(doc.type)
+    )
+    const hasBackgroundCheck = partnerProfile.documents.some(
+      doc => doc.type === 'ANTECEDENTES'
+    )
+
+    if (!hasIdentityDoc || !hasBackgroundCheck) {
+      return NextResponse.json({
+        error: 'Debes tener tus documentos de identidad y antecedentes verificados para ver solicitudes de servicio',
+        requiresVerification: true
+      }, { status: 403 })
     }
 
     // Obtener los IDs de servicios que ofrece este partner

@@ -120,6 +120,41 @@ export async function POST(request: Request) {
 
     const { serviceId, scheduledDate, scheduledTime, address, notes, totalPrice, partnerId, proposalId } = validation.data
 
+    // Si se especifica un partnerId, verificar que tenga documentos aprobados
+    if (partnerId) {
+      const partner = await prisma.partnerProfile.findUnique({
+        where: { id: partnerId },
+        include: {
+          documents: {
+            where: {
+              status: 'APPROVED'
+            }
+          }
+        }
+      })
+
+      if (!partner) {
+        return NextResponse.json(
+          { error: "Socio no encontrado" },
+          { status: 404 }
+        )
+      }
+
+      const hasIdentityDoc = partner.documents.some(
+        doc => ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE'].includes(doc.type)
+      )
+      const hasBackgroundCheck = partner.documents.some(
+        doc => doc.type === 'ANTECEDENTES'
+      )
+
+      if (!hasIdentityDoc || !hasBackgroundCheck) {
+        return NextResponse.json(
+          { error: "Este socio no tiene la verificación completa para prestar servicios" },
+          { status: 403 }
+        )
+      }
+    }
+
     const booking = await prisma.booking.create({
       data: {
         userId: user.id,
