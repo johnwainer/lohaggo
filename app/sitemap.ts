@@ -83,9 +83,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   try {
     const services = await prisma.service.findMany({
-      where: {
-        isActive: true,
-      },
       select: {
         slug: true,
         updatedAt: true,
@@ -99,9 +96,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.85,
     }))
 
-    const cities = await prisma.city.findMany({
+    const cities = await prisma.cityConfig.findMany({
       where: {
-        isActive: true,
+        status: 'ACTIVE',
       },
       select: {
         slug: true,
