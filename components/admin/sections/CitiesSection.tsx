@@ -315,7 +315,7 @@ export default function CitiesSection() {
             <button
               onClick={() => {
                 setShowAddForm(false)
-                setFormData({ name: '', slug: '', status: 'ACTIVE' as CityStatus, order: 0, latitude: null, longitude: null, lanzamiento: false, fechaLanzamiento: null })
+                setFormData({ name: '', slug: '', status: 'ACTIVE' as CityStatus, order: 0, latitude: null, longitude: null, lanzamiento: false, fechaLanzamiento: null, registroSocios: false })
               }}
               className="flex items-center gap-2 bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition"
             >
