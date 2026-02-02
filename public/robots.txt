@@ -6,8 +6,15 @@ Disallow: /api/
 Disallow: /admin/
 Disallow: /dashboard/
 Disallow: /profile/
+Disallow: /partner/dashboard
+Disallow: /partner/requests
+Disallow: /partner/bookings
+Disallow: /partner/verification
+Disallow: /partner/earnings
+Disallow: /partner/profile
 Disallow: /login
 Disallow: /register
+Disallow: /registro-socios
 Disallow: /notifications
 Disallow: /my-ratings
 
@@ -15,13 +22,16 @@ Disallow: /my-ratings
 Allow: /servicios
 Allow: /about
 Allow: /how-it-works
-Allow: /partner
+Allow: /partner$
 Allow: /contact
 Allow: /faq
 Allow: /download
+Allow: /privacy
+Allow: /terms
+Allow: /cookies
 
 # Sitemap
-Sitemap: https://lohaggo.com/sitemap.xml
+Sitemap: https://www.lohaggo.com/sitemap.xml
 
 # Crawl-delay for bots
 User-agent: Googlebot

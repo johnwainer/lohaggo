@@ -1,9 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { 
-  Mail, 
-  MapPin, 
+import {
+  Mail,
+  MapPin,
   MessageSquare,
   Sparkles,
   Facebook,

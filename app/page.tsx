@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { Metadata } from 'next'
 import { Search, Star, Shield, Zap, Clock, Users, CheckCircle, ArrowRight, Sparkles, ChevronRight } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import { formatCurrency } from '@/lib/utils'
@@ -8,6 +9,78 @@ import HomeClientWrapper from '@/components/HomeClientWrapper'
 import PlatformTrustBanner from '@/components/PlatformTrustBanner'
 
 export const dynamic = 'force-dynamic'
+
+export const metadata: Metadata = {
+  title: 'LoHaggo - Servicios Profesionales en Colombia | Plomeros, Electricistas y Más',
+  description: 'Contrata servicios profesionales en Colombia: plomeros, electricistas, limpieza, carpinteros, jardineros y más. Expertos verificados en Medellín con precios transparentes. ¡Reserva en minutos!',
+  keywords: [
+    'servicios a domicilio Colombia',
+    'servicios profesionales Medellín',
+    'contratar plomero Medellín',
+    'electricista Medellín',
+    'carpintero profesional',
+    'servicio de limpieza',
+    'jardinería Medellín',
+    'reparaciones del hogar',
+    'profesionales verificados',
+    'servicios del hogar Colombia',
+    'mantenimiento del hogar',
+    'lohaggo',
+    'expertos verificados Colombia'
+  ],
+  openGraph: {
+    title: 'LoHaggo - Servicios Profesionales en Colombia',
+    description: 'Contrata servicios profesionales en Colombia: plomeros, electricistas, limpieza y más. Expertos verificados en Medellín con precios transparentes.',
+    url: 'https://www.lohaggo.com',
+    siteName: 'LoHaggo',
+    locale: 'es_CO',
+    type: 'website',
+  },
+  alternates: {
+    canonical: 'https://www.lohaggo.com',
+  },
+}
+
+async function getOrganizationSchema() {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'LoHaggo',
+    url: 'https://www.lohaggo.com',
+    logo: 'https://www.lohaggo.com/icon-512.png',
+    description: 'Plataforma de servicios profesionales en Colombia. Conectamos clientes con profesionales verificados en Medellín.',
+    address: {
+      '@type': 'PostalAddress',
+      addressLocality: 'Medellín',
+      addressRegion: 'Antioquia',
+      addressCountry: 'CO'
+    },
+    contactPoint: {
+      '@type': 'ContactPoint',
+      email: 'hola@lohaggo.com',
+      contactType: 'customer service',
+      availableLanguage: 'Spanish'
+    },
+    sameAs: [
+      'https://www.facebook.com/lohaggo',
+      'https://www.instagram.com/lohaggo_'
+    ]
+  }
+}
+
+async function getWebsiteSchema() {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'LoHaggo',
+    url: 'https://www.lohaggo.com',
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: 'https://www.lohaggo.com/servicios?q={search_term_string}',
+      'query-input': 'required name=search_term_string'
+    }
+  }
+}
 
 export default async function Home() {
   const categories = await prisma.category.findMany({
@@ -27,8 +100,20 @@ export default async function Home() {
     orderBy: { name: 'asc' }
   })
 
+  const organizationSchema = await getOrganizationSchema()
+  const websiteSchema = await getWebsiteSchema()
+
   return (
-    <HomeClientWrapper>
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
+      />
+      <HomeClientWrapper>
       <div className="min-h-screen bg-gray-50">
         {/* Hero Section - Estilo Rappi */}
       <section className="relative overflow-hidden bg-gradient-to-br from-primary-500 via-secondary-500 to-accent-500 text-white pt-16 pb-24 md:pt-20 md:pb-32">
@@ -361,6 +446,7 @@ export default async function Home() {
         </div>
       </section>
       </div>
-    </HomeClientWrapper>
+      </HomeClientWrapper>
+    </>
   )
 }
