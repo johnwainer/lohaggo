@@ -172,6 +172,45 @@ function PartnerDashboardContent() {
     clientName: ''
   })
 
+  const [verificationAlert, setVerificationAlert] = useState<{
+    isOpen: boolean
+    missingDocs: boolean
+    missingEducation: boolean
+  }>({
+    isOpen: false,
+    missingDocs: false,
+    missingEducation: false
+  })
+
+  const fetchVerificationStatus = async () => {
+    try {
+      const res = await fetch('/api/partner/documents')
+      if (res.ok) {
+        const documents = await res.json()
+
+        const hasApprovedIdentity = documents.some((d: any) =>
+          ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP'].includes(d.type) &&
+          d.status === 'APPROVED'
+        )
+
+        const hasApprovedEducation = documents.some((d: any) =>
+          ['DIPLOMA_BACHILLERATO', 'DIPLOMA_TECNICO', 'DIPLOMA_TECNOLOGO', 'DIPLOMA_PROFESIONAL', 'DIPLOMA_POSGRADO', 'CERTIFICADO_CURSO'].includes(d.type) &&
+          d.status === 'APPROVED'
+        )
+
+        if (!hasApprovedIdentity || !hasApprovedEducation) {
+          setVerificationAlert({
+            isOpen: true,
+            missingDocs: !hasApprovedIdentity,
+            missingEducation: !hasApprovedEducation
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching verification status:', error)
+    }
+  }
+
   const fetchBookings = async () => {
     setLoading(true)
     try {
@@ -210,6 +249,7 @@ function PartnerDashboardContent() {
       } else {
         fetchBookings()
         fetchServiceRequests()
+        fetchVerificationStatus()
       }
     }
   }, [status, filter, session, activeTab])
@@ -1194,6 +1234,98 @@ function PartnerDashboardContent() {
           serviceName={chatModal.serviceName}
           onClose={() => setChatModal({ isOpen: false, proposalId: '', partnerName: '', serviceName: '' })}
         />
+      )}
+
+      {verificationAlert.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="bg-gradient-to-r from-red-600 to-orange-600 p-6 rounded-t-2xl">
+              <div className="flex items-center gap-4">
+                <div className="bg-white bg-opacity-20 p-3 rounded-full">
+                  <Shield className="text-white" size={32} />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-white">¡Verificación Pendiente!</h2>
+                  <p className="text-white text-opacity-90 mt-1">Completa tu perfil para poder trabajar</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="text-red-600 flex-shrink-0 mt-1" size={24} />
+                  <div>
+                    <h3 className="font-bold text-red-900 text-lg mb-2">Acción Requerida</h3>
+                    <p className="text-red-800 mb-3">
+                      Para poder recibir solicitudes de servicios y trabajar en la plataforma, debes completar tu verificación:
+                    </p>
+                    <ul className="space-y-2">
+                      {verificationAlert.missingDocs && (
+                        <li className="flex items-center gap-2 text-red-800">
+                          <XCircle className="text-red-600 flex-shrink-0" size={20} />
+                          <span className="font-semibold">Documento de identidad no verificado</span>
+                        </li>
+                      )}
+                      {verificationAlert.missingEducation && (
+                        <li className="flex items-center gap-2 text-red-800">
+                          <XCircle className="text-red-600 flex-shrink-0" size={20} />
+                          <span className="font-semibold">Estudios no verificados</span>
+                        </li>
+                      )}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="text-blue-600 flex-shrink-0 mt-1" size={24} />
+                  <div>
+                    <h3 className="font-bold text-blue-900 mb-2">¿Qué necesitas hacer?</h3>
+                    <ol className="space-y-2 text-blue-800">
+                      {verificationAlert.missingDocs && (
+                        <li className="flex items-start gap-2">
+                          <span className="font-bold">1.</span>
+                          <span>Sube tu documento de identidad (Cédula, Pasaporte o PEP)</span>
+                        </li>
+                      )}
+                      {verificationAlert.missingEducation && (
+                        <li className="flex items-start gap-2">
+                          <span className="font-bold">{verificationAlert.missingDocs ? '2' : '1'}.</span>
+                          <span>Sube tus certificados de estudios (Diploma o certificados de cursos)</span>
+                        </li>
+                      )}
+                      <li className="flex items-start gap-2">
+                        <span className="font-bold">{verificationAlert.missingDocs && verificationAlert.missingEducation ? '3' : '2'}.</span>
+                        <span>Espera la aprobación del equipo de Haggo (generalmente 24-48 horas)</span>
+                      </li>
+                    </ol>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setVerificationAlert({ ...verificationAlert, isOpen: false })}
+                  className="flex-1 bg-gray-200 text-gray-700 px-6 py-3 rounded-xl font-semibold hover:bg-gray-300 transition-all"
+                >
+                  Recordar más tarde
+                </button>
+                <button
+                  onClick={() => {
+                    setVerificationAlert({ ...verificationAlert, isOpen: false })
+                    router.push('/partner/verification')
+                  }}
+                  className="flex-1 bg-gradient-to-r from-primary-600 to-primary-700 text-white px-6 py-3 rounded-xl font-semibold hover:from-primary-700 hover:to-primary-800 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                >
+                  <Shield size={20} />
+                  Completar Verificación
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

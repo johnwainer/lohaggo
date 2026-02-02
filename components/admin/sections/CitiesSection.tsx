@@ -261,18 +261,20 @@ export default function CitiesSection() {
                 placeholder="E.g.: -75.5812"
               />
             </div>
-            <div className="col-span-2">
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                <input
-                  type="checkbox"
-                  checked={formData.lanzamiento}
-                  onChange={(e) => setFormData({ ...formData, lanzamiento: e.target.checked })}
-                  className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-                />
-                Scheduled launch
-              </label>
-            </div>
-            {formData.lanzamiento && (
+            {formData.status !== 'ACTIVE' && (
+              <div className="col-span-2">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={formData.lanzamiento}
+                    onChange={(e) => setFormData({ ...formData, lanzamiento: e.target.checked })}
+                    className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                  />
+                  Scheduled launch
+                </label>
+              </div>
+            )}
+            {formData.lanzamiento && formData.status !== 'ACTIVE' && (
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Launch date
@@ -283,6 +285,19 @@ export default function CitiesSection() {
                   onChange={(e) => setFormData({ ...formData, fechaLanzamiento: e.target.value || null })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
+              </div>
+            )}
+            {formData.status === 'ACTIVE' && (
+              <div className="col-span-2">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={formData.registroSocios}
+                    onChange={(e) => setFormData({ ...formData, registroSocios: e.target.checked })}
+                    className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                  />
+                  Partner registration enabled
+                </label>
               </div>
             )}
           </div>
@@ -331,6 +346,9 @@ export default function CitiesSection() {
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Launch
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Partner Registration
               </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Actions
@@ -419,11 +437,12 @@ export default function CitiesSection() {
                           type="checkbox"
                           checked={editingData.lanzamiento}
                           onChange={(e) => setEditingData({ ...editingData, lanzamiento: e.target.checked })}
-                          className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                          disabled={editingData.status === 'ACTIVE'}
+                          className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
                         />
                         Scheduled
                       </label>
-                      {editingData.lanzamiento && (
+                      {editingData.lanzamiento && editingData.status !== 'ACTIVE' && (
                         <input
                           type="datetime-local"
                           value={formatDateForInput(editingData.fechaLanzamiento)}
@@ -434,7 +453,7 @@ export default function CitiesSection() {
                     </div>
                   ) : (
                     <div className="text-xs text-gray-600">
-                      {city.lanzamiento ? (
+                      {city.lanzamiento && city.status !== 'ACTIVE' ? (
                         <div className="flex flex-col gap-1">
                           <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-semibold">
                             Scheduled
@@ -453,6 +472,37 @@ export default function CitiesSection() {
                         </div>
                       ) : (
                         <span className="text-gray-400 italic">Not scheduled</span>
+                      )}
+                    </div>
+                  )}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {editingId === city.id && editingData ? (
+                    editingData.status === 'ACTIVE' ? (
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={editingData.registroSocios}
+                          onChange={(e) => setEditingData({ ...editingData, registroSocios: e.target.checked })}
+                          className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                        />
+                        Enabled
+                      </label>
+                    ) : (
+                      <span className="text-xs text-gray-400 italic">Only available for active cities</span>
+                    )
+                  ) : (
+                    <div className="text-xs text-gray-600">
+                      {city.status === 'ACTIVE' ? (
+                        city.registroSocios ? (
+                          <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-semibold">
+                            Enabled
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 italic">Disabled</span>
+                        )
+                      ) : (
+                        <span className="text-gray-400 italic">N/A</span>
                       )}
                     </div>
                   )}

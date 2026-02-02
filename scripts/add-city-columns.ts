@@ -20,9 +20,10 @@ async function addColumns() {
     console.log('🔄 Adding missing columns to CityConfig table...')
     
     await prisma.$executeRaw`
-      ALTER TABLE "CityConfig" 
+      ALTER TABLE "CityConfig"
       ADD COLUMN IF NOT EXISTS "lanzamiento" BOOLEAN DEFAULT false,
-      ADD COLUMN IF NOT EXISTS "fechaLanzamiento" TIMESTAMP(3);
+      ADD COLUMN IF NOT EXISTS "fechaLanzamiento" TIMESTAMP(3),
+      ADD COLUMN IF NOT EXISTS "registroSocios" BOOLEAN DEFAULT false;
     `
     
     console.log('✅ Columns added successfully to production database')

@@ -13,6 +13,7 @@ export type CityOption = {
   longitude?: number
   lanzamiento?: boolean
   fechaLanzamiento?: string | null
+  registroSocios?: boolean
 }
 
 type CityContextValue = {
@@ -55,7 +56,8 @@ export function CityProvider({ children }: { children: React.ReactNode }) {
           slug: city.slug,
           status: city.status,
           latitude: city.latitude,
-          longitude: city.longitude
+          longitude: city.longitude,
+          registroSocios: city.registroSocios || false
         }))
 
         setCities(cityList)

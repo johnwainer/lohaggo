@@ -176,8 +176,16 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
       })
       return
     }
+
+    const citySlug = localStorage.getItem('selectedCity') || 'medellin'
+    const currentCity = getCityBySlug(citySlug)
+
+    if (currentCity?.registroSocios) {
+      router.push('/registro-socios')
+      return
+    }
+
     fetchAddresses()
-    // Open the new request modal
     setShowRequestModal(true)
   }
 
@@ -194,6 +202,15 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
       })
       return
     }
+
+    const citySlug = localStorage.getItem('selectedCity') || 'medellin'
+    const currentCity = getCityBySlug(citySlug)
+
+    if (currentCity?.registroSocios) {
+      router.push('/registro-socios')
+      return
+    }
+
     fetchAddresses()
     setCurrentStep(1)
     setSelectedPartnerId('')
