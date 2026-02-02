@@ -20,7 +20,7 @@ export default function RegistroSociosPage() {
     if (session) {
       await signOut({ redirect: false })
     }
-    window.location.href = 'https://forms.gle/tu-link-de-registro-de-socios'
+    window.location.href = 'https://www.lohaggo.com/register?role=partner'
   }
 
   return (
