@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Sparkles, Facebook, Twitter, Instagram, Linkedin, Mail, Phone, MapPin, Heart } from 'lucide-react'
+import { Sparkles, Facebook, Instagram, Mail, Phone, MapPin, Heart } from 'lucide-react'
 
 export function Footer() {
   const pathname = usePathname()
@@ -38,17 +38,11 @@ export function Footer() {
               LoHaggo, Lo necesitas. La forma más simple de encontrar cualquier servicio.
             </p>
             <div className="flex space-x-4">
-              <a href="#" className="w-10 h-10 bg-white/10 hover:bg-gradient-to-r hover:from-primary-500 hover:to-secondary-500 rounded-full flex items-center justify-center transition-all transform hover:scale-110">
+              <a href="https://www.facebook.com/lohaggo" target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white/10 hover:bg-gradient-to-r hover:from-primary-500 hover:to-secondary-500 rounded-full flex items-center justify-center transition-all transform hover:scale-110">
                 <Facebook size={18} />
               </a>
-              <a href="#" className="w-10 h-10 bg-white/10 hover:bg-gradient-to-r hover:from-primary-500 hover:to-secondary-500 rounded-full flex items-center justify-center transition-all transform hover:scale-110">
-                <Twitter size={18} />
-              </a>
-              <a href="#" className="w-10 h-10 bg-white/10 hover:bg-gradient-to-r hover:from-primary-500 hover:to-secondary-500 rounded-full flex items-center justify-center transition-all transform hover:scale-110">
+              <a href="https://www.instagram.com/lohaggo_" target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white/10 hover:bg-gradient-to-r hover:from-primary-500 hover:to-secondary-500 rounded-full flex items-center justify-center transition-all transform hover:scale-110">
                 <Instagram size={18} />
-              </a>
-              <a href="#" className="w-10 h-10 bg-white/10 hover:bg-gradient-to-r hover:from-primary-500 hover:to-secondary-500 rounded-full flex items-center justify-center transition-all transform hover:scale-110">
-                <Linkedin size={18} />
               </a>
             </div>
           </div>
@@ -96,10 +90,6 @@ export function Footer() {
               <li className="flex items-start space-x-3 text-gray-400">
                 <MapPin size={20} className="text-primary-600 flex-shrink-0 mt-1" />
                 <span className="font-medium">Medellín, Antioquia, Colombia</span>
-              </li>
-              <li className="flex items-center space-x-3 text-gray-400">
-                <Phone size={20} className="text-primary-600 flex-shrink-0" />
-                <span className="font-medium">+57 (4) 604 5678</span>
               </li>
               <li className="flex items-center space-x-3 text-gray-400">
                 <Mail size={20} className="text-primary-600 flex-shrink-0" />
