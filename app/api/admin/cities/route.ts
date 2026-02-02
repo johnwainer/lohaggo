@@ -66,9 +66,9 @@ export async function POST(request: NextRequest) {
         order: order ?? 0,
         latitude: latitude ?? null,
         longitude: longitude ?? null,
-        is_launched: isLaunched ?? false,
-        launch_date: launchDate ? new Date(launchDate) : null,
-        partner_registry: partnerRegistry ?? false
+        isLaunched: isLaunched ?? false,
+        launchDate: launchDate ? new Date(launchDate) : null,
+        partnerRegistry: partnerRegistry ?? false
       }
     })
 
