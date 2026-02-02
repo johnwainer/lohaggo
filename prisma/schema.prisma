@@ -413,8 +413,9 @@ model CityConfig {
   order            Int             @default(0)
   latitude         Float?
   longitude        Float?
-  lanzamiento      Boolean         @default(false)
-  fechaLanzamiento DateTime?
+  isLaunched       Boolean         @default(false)
+  launchDate       DateTime?
+  partnerRegistry  Boolean         @default(false)
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
   advertisements   Advertisement[]
