@@ -15,6 +15,7 @@ interface City {
   longitude: number | null
   lanzamiento: boolean
   fechaLanzamiento: string | null
+  registroSocios: boolean
 }
 
 const statusLabels: Record<CityStatus, string> = {
@@ -43,7 +44,8 @@ export default function CitiesSection() {
     latitude: null as number | null,
     longitude: null as number | null,
     lanzamiento: false,
-    fechaLanzamiento: null as string | null
+    fechaLanzamiento: null as string | null,
+    registroSocios: false
   })
 
   useEffect(() => {
@@ -80,7 +82,7 @@ export default function CitiesSection() {
       if (res.ok) {
         await fetchCities()
         setShowAddForm(false)
-        setFormData({ name: '', slug: '', status: 'ACTIVE', order: 0, latitude: null, longitude: null, lanzamiento: false, fechaLanzamiento: null })
+        setFormData({ name: '', slug: '', status: 'ACTIVE', order: 0, latitude: null, longitude: null, lanzamiento: false, fechaLanzamiento: null, registroSocios: false })
       }
     } catch (error) {
       console.error('Error adding city:', error)
