@@ -92,6 +92,14 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
   const [loadingFavorite, setLoadingFavorite] = useState<string | null>(null)
 
   useEffect(() => {
+    const citySlug = localStorage.getItem('selectedCity') || 'medellin'
+    const currentCity = getCityBySlug(citySlug)
+
+    if (currentCity?.partnerRegistry) {
+      router.push('/registro-socios')
+      return
+    }
+
     fetchService()
     if (session?.user) {
       fetchFavorites()
