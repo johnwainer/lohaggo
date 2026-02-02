@@ -161,7 +161,6 @@ function LoginForm() {
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all"
-                      placeholder="tu@email.com"
                     />
                   </div>
                 </div>
@@ -178,7 +177,6 @@ function LoginForm() {
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                       className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all"
-                      placeholder="••••••••"
                     />
                   </div>
                 </div>
@@ -250,26 +248,6 @@ function LoginForm() {
                     Regístrate aquí
                   </Link>
                 </p>
-              </div>
-
-              <div className="mt-8 pt-8 border-t border-gray-200">
-                <p className="text-sm text-gray-500 text-center mb-3 font-medium">
-                  Usuarios de prueba:
-                </p>
-                <div className="space-y-2 text-xs text-gray-600 bg-gray-50 p-4 rounded-xl">
-                  <p className="flex justify-between">
-                    <span className="font-medium">Cliente:</span>
-                    <span>cliente@test.com / password123</span>
-                  </p>
-                  <p className="flex justify-between">
-                    <span className="font-medium">Socio:</span>
-                    <span>socio1@test.com / password123</span>
-                  </p>
-                  <p className="flex justify-between">
-                    <span className="font-medium">Admin:</span>
-                    <span>admin@servicios.com / password123</span>
-                  </p>
-                </div>
               </div>
             </div>
           </div>
