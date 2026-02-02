@@ -108,7 +108,7 @@ export default function CitiesSection() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this city?')) return
+    if (!confirm('¿Estás seguro de que quieres eliminar esta ciudad?')) return
 
     try {
       const res = await fetch(`/api/admin/cities/${id}`, {
@@ -166,32 +166,32 @@ export default function CitiesSection() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Cities Management</h2>
-          <p className="text-gray-600 mt-1">Manage the cities available on the platform</p>
+          <h2 className="text-2xl font-bold text-gray-900">Gestión de Ciudades</h2>
+          <p className="text-gray-600 mt-1">Administra las ciudades disponibles en la plataforma</p>
         </div>
         <button
           onClick={() => setShowAddForm(true)}
           className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition"
         >
           <Plus size={20} />
-          Add City
+          Agregar Ciudad
         </button>
       </div>
 
       {showAddForm && (
         <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-          <h3 className="text-lg font-semibold mb-4">New City</h3>
+          <h3 className="text-lg font-semibold mb-4">Nueva Ciudad</h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Name
+                Nombre
               </label>
               <input
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                placeholder="E.g.: Medellin"
+                placeholder="Ej.: Medellín"
               />
             </div>
             <div>
@@ -203,26 +203,26 @@ export default function CitiesSection() {
                 value={formData.slug}
                 onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase() })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                placeholder="E.g.: medellin"
+                placeholder="Ej.: medellin"
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Status
+                Estado
               </label>
               <select
                 value={formData.status}
                 onChange={(e) => setFormData({ ...formData, status: e.target.value as CityStatus })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               >
-                <option value="ACTIVE">Active</option>
-                <option value="INACTIVE">Inactive</option>
-                <option value="COMING_SOON">Coming Soon</option>
+                <option value="ACTIVE">Activa</option>
+                <option value="INACTIVE">Inactiva</option>
+                <option value="COMING_SOON">Próximamente</option>
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Order
+                Orden
               </label>
               <input
                 type="number"
@@ -235,7 +235,7 @@ export default function CitiesSection() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <div className="flex items-center gap-1">
                   <Navigation size={14} />
-                  Latitude
+                  Latitud
                 </div>
               </label>
               <input
@@ -244,14 +244,14 @@ export default function CitiesSection() {
                 value={formData.latitude ?? ''}
                 onChange={(e) => setFormData({ ...formData, latitude: e.target.value ? parseFloat(e.target.value) : null })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                placeholder="E.g.: 6.2442"
+                placeholder="Ej.: 6.2442"
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <div className="flex items-center gap-1">
                   <Navigation size={14} />
-                  Longitude
+                  Longitud
                 </div>
               </label>
               <input
@@ -260,7 +260,7 @@ export default function CitiesSection() {
                 value={formData.longitude ?? ''}
                 onChange={(e) => setFormData({ ...formData, longitude: e.target.value ? parseFloat(e.target.value) : null })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                placeholder="E.g.: -75.5812"
+                placeholder="Ej.: -75.5812"
               />
             </div>
             {formData.status !== 'ACTIVE' && (
@@ -272,14 +272,14 @@ export default function CitiesSection() {
                     onChange={(e) => setFormData({ ...formData, isLaunched: e.target.checked })}
                     className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                   />
-                  Scheduled launch
+                  Programar lanzamiento
                 </label>
               </div>
             )}
             {formData.isLaunched && formData.status !== 'ACTIVE' && (
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Launch date
+                  Fecha de lanzamiento
                 </label>
                 <input
                   type="datetime-local"
@@ -298,7 +298,7 @@ export default function CitiesSection() {
                     onChange={(e) => setFormData({ ...formData, partnerRegistry: e.target.checked })}
                     className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                   />
-                  Partner registration enabled
+                  Registro de socios habilitado
                 </label>
               </div>
             )}
@@ -310,7 +310,7 @@ export default function CitiesSection() {
               className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition"
             >
               <Save size={18} />
-              Save
+              Guardar
             </button>
             <button
               onClick={() => {
@@ -320,7 +320,7 @@ export default function CitiesSection() {
               className="flex items-center gap-2 bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition"
             >
               <X size={18} />
-              Cancel
+              Cancelar
             </button>
           </div>
         </div>
@@ -332,28 +332,28 @@ export default function CitiesSection() {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                City
+                Ciudad
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Slug
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
+                Estado
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Order
+                Orden
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Coordinates
+                Coordenadas
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Launch
+                Lanzamiento
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Partner Registration
+                Registro de Socios
               </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
+                Acciones
               </th>
             </tr>
           </thead>
@@ -376,9 +376,9 @@ export default function CitiesSection() {
                       onChange={(e) => setEditingData({ ...editingData, status: e.target.value as CityStatus })}
                       className="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500"
                     >
-                      <option value="ACTIVE">Active</option>
-                      <option value="INACTIVE">Inactive</option>
-                      <option value="COMING_SOON">Coming Soon</option>
+                      <option value="ACTIVE">Activa</option>
+                      <option value="INACTIVE">Inactiva</option>
+                      <option value="COMING_SOON">Próximamente</option>
                     </select>
                   ) : (
                     <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[city.status]}`}>
@@ -426,7 +426,7 @@ export default function CitiesSection() {
                           <span>{city.latitude.toFixed(4)}, {city.longitude.toFixed(4)}</span>
                         </div>
                       ) : (
-                        <span className="text-gray-400 italic">No coordinates</span>
+                        <span className="text-gray-400 italic">Sin coordenadas</span>
                       )}
                     </div>
                   )}
@@ -442,7 +442,7 @@ export default function CitiesSection() {
                           disabled={editingData.status === 'ACTIVE'}
                           className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
                         />
-                        Scheduled
+                        Programado
                       </label>
                       {editingData.isLaunched && editingData.status !== 'ACTIVE' && (
                         <input
@@ -458,11 +458,11 @@ export default function CitiesSection() {
                       {city.isLaunched && city.status !== 'ACTIVE' ? (
                         <div className="flex flex-col gap-1">
                           <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-semibold">
-                            Scheduled
+                            Programado
                           </span>
                           {city.launchDate && (
                             <span className="text-gray-500">
-                              {new Date(city.launchDate).toLocaleString('en-US', {
+                              {new Date(city.launchDate).toLocaleString('es-ES', {
                                 day: '2-digit',
                                 month: '2-digit',
                                 year: 'numeric',
@@ -473,7 +473,7 @@ export default function CitiesSection() {
                           )}
                         </div>
                       ) : (
-                        <span className="text-gray-400 italic">Not scheduled</span>
+                        <span className="text-gray-400 italic">No programado</span>
                       )}
                     </div>
                   )}
@@ -498,10 +498,10 @@ export default function CitiesSection() {
                       {city.status === 'ACTIVE' ? (
                         city.partnerRegistry ? (
                           <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-semibold">
-                            Enabled
+                            Habilitado
                           </span>
                         ) : (
-                          <span className="text-gray-400 italic">Disabled</span>
+                          <span className="text-gray-400 italic">Deshabilitado</span>
                         )
                       ) : (
                         <span className="text-gray-400 italic">N/A</span>
