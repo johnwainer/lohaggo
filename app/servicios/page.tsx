@@ -263,6 +263,7 @@ function ServiciosContent() {
   }, [searchParams])
 
   useEffect(() => {
+    console.log('Session status:', session?.user ? 'Logged in' : 'Not logged in', session)
     if (session?.user) {
       fetchSearchHistory()
       fetchFavoriteServices()
@@ -575,20 +576,18 @@ function ServiciosContent() {
                         <span className="bg-gradient-to-r from-primary-500/10 to-secondary-500/10 text-primary-600 text-xs font-bold px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-primary-500/20">
                           {service.category.name}
                         </span>
-                        {session?.user && (
-                          <button
-                            onClick={(e) => toggleFavoriteService(e, service.id)}
-                            disabled={loadingFavorite === service.id}
-                            className={`p-2 rounded-xl transition-all shadow-md hover:shadow-lg ${
-                              favoriteServices.has(service.id)
-                                ? 'bg-gradient-to-br from-primary-100 to-amber-100 text-primary-600 hover:from-orange-200 hover:to-amber-200'
-                                : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-                            } ${loadingFavorite === service.id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            title={favoriteServices.has(service.id) ? 'Quitar de favoritos' : 'Agregar a favoritos'}
-                          >
-                            <Heart size={16} fill={favoriteServices.has(service.id) ? 'currentColor' : 'none'} />
-                          </button>
-                        )}
+                        <button
+                          onClick={(e) => toggleFavoriteService(e, service.id)}
+                          disabled={loadingFavorite === service.id || !session?.user}
+                          className={`p-2 rounded-xl transition-all shadow-md hover:shadow-lg ${
+                            favoriteServices.has(service.id)
+                              ? 'bg-gradient-to-br from-primary-100 to-amber-100 text-primary-600 hover:from-orange-200 hover:to-amber-200'
+                              : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                          } ${loadingFavorite === service.id || !session?.user ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          title={!session?.user ? 'Inicia sesión para agregar a favoritos' : favoriteServices.has(service.id) ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+                        >
+                          <Heart size={16} fill={favoriteServices.has(service.id) ? 'currentColor' : 'none'} />
+                        </button>
                       </div>
                     </div>
                     <h3 className="font-bold text-lg md:text-xl mb-2 md:mb-3 group-hover:text-primary-600 transition text-gray-900">
@@ -651,20 +650,18 @@ function ServiciosContent() {
                               <span className="bg-primary-50 text-primary-600 text-xs font-bold px-3 py-1.5 rounded-full">
                                 {service.category.name}
                               </span>
-                              {session?.user && (
-                                <button
-                                  onClick={(e) => toggleFavoriteService(e, service.id)}
-                                  disabled={loadingFavorite === service.id}
-                                  className={`p-1.5 rounded-lg transition-all shadow-md hover:shadow-lg ${
-                                    favoriteServices.has(service.id)
-                                      ? 'bg-gradient-to-br from-primary-100 to-amber-100 text-primary-600 hover:from-orange-200 hover:to-amber-200'
-                                      : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-                                  } ${loadingFavorite === service.id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                  title={favoriteServices.has(service.id) ? 'Quitar de favoritos' : 'Agregar a favoritos'}
-                                >
-                                  <Heart size={14} fill={favoriteServices.has(service.id) ? 'currentColor' : 'none'} />
-                                </button>
-                              )}
+                              <button
+                                onClick={(e) => toggleFavoriteService(e, service.id)}
+                                disabled={loadingFavorite === service.id || !session?.user}
+                                className={`p-1.5 rounded-lg transition-all shadow-md hover:shadow-lg ${
+                                  favoriteServices.has(service.id)
+                                    ? 'bg-gradient-to-br from-primary-100 to-amber-100 text-primary-600 hover:from-orange-200 hover:to-amber-200'
+                                    : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                                } ${loadingFavorite === service.id || !session?.user ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                title={!session?.user ? 'Inicia sesión para agregar a favoritos' : favoriteServices.has(service.id) ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+                              >
+                                <Heart size={14} fill={favoriteServices.has(service.id) ? 'currentColor' : 'none'} />
+                              </button>
                             </div>
                           </div>
                           <h4 className="font-bold text-base md:text-lg mb-2 group-hover:text-primary-600 transition text-gray-900">
