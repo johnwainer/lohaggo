@@ -194,7 +194,7 @@ function ServiciosContent() {
       const res = await fetch('/api/favorite-services')
       if (res.ok) {
         const data = await res.json()
-        const favoriteIds = new Set(data.map((fav: any) => fav.serviceId))
+        const favoriteIds = new Set<string>(data.map((fav: any) => fav.serviceId))
         setFavoriteServices(favoriteIds)
       }
     } catch (error) {
