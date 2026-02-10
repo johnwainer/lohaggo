@@ -62,6 +62,7 @@ function ServiciosContent() {
   const [showHistory, setShowHistory] = useState(false)
   const [favoriteServices, setFavoriteServices] = useState<Set<string>>(new Set())
   const [loadingFavorite, setLoadingFavorite] = useState<string | null>(null)
+  const [favoriteServicesList, setFavoriteServicesList] = useState<Service[]>([])
 
   const fetchCategories = async () => {
     try {
@@ -196,6 +197,9 @@ function ServiciosContent() {
         const data = await res.json()
         const favoriteIds = new Set<string>(data.map((fav: any) => fav.serviceId))
         setFavoriteServices(favoriteIds)
+
+        const servicesData = data.map((fav: any) => fav.service)
+        setFavoriteServicesList(servicesData)
       }
     } catch (error) {
       console.error('Error fetching favorite services:', error)
@@ -233,6 +237,8 @@ function ServiciosContent() {
           }
           return newSet
         })
+
+        await fetchFavoriteServices()
       }
     } catch (error) {
       console.error('Error toggling favorite service:', error)
@@ -410,6 +416,27 @@ function ServiciosContent() {
               )}
             </div>
           </div>
+
+          {session?.user && favoriteServicesList.length > 0 && (
+            <div className="mt-4 md:mt-6">
+              <div className="flex items-center gap-2 mb-3 md:mb-4">
+                <Heart size={18} className="text-primary-600 md:w-[22px] md:h-[22px] fill-current" />
+                <span className="font-bold text-gray-900 text-base md:text-lg">Mis Favoritos</span>
+              </div>
+              <div className="flex gap-2 md:gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                {favoriteServicesList.map((service) => (
+                  <Link
+                    key={service.id}
+                    href={`/servicios/${service.slug}`}
+                    className="flex-shrink-0 flex flex-col items-center gap-2 p-3 md:p-4 bg-gradient-to-br from-primary-50 to-amber-50 hover:from-primary-100 hover:to-amber-100 rounded-xl md:rounded-2xl transition-all shadow-md hover:shadow-lg hover:scale-105 border-2 border-primary-200 min-w-[80px] md:min-w-[100px]"
+                  >
+                    <span className="text-3xl md:text-4xl">{service.icon}</span>
+                    <span className="text-xs md:text-sm font-bold text-gray-900 text-center line-clamp-2">{service.name}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div
             className={`mt-4 md:mt-6 transition-all duration-300 ${
