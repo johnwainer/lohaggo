@@ -1433,7 +1433,6 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
         confirmText="Entendido"
         type={successModal.type}
       />
-      </div>
     </div>
   )
 }
