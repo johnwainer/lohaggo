@@ -98,6 +98,8 @@ const nextConfig = {
     return config
   },
 
+  turbopack: {},
+
   env: {
     NEXT_PUBLIC_APP_NAME: 'Haggo',
   },
