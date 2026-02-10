@@ -128,6 +128,7 @@ export default function DashboardPage() {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([])
   const [favoritePartners, setFavoritePartners] = useState<any[]>([])
+  const [favoriteServices, setFavoriteServices] = useState<any[]>([])
   const [clientCommissionRate, setClientCommissionRate] = useState<number>(5.0)
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string>('')
@@ -328,14 +329,24 @@ export default function DashboardPage() {
 
   const fetchFavorites = async () => {
     try {
-      const res = await fetch('/api/favorites')
-      if (res.ok) {
-        const data = await res.json()
+      const [partnersRes, servicesRes] = await Promise.all([
+        fetch('/api/favorites'),
+        fetch('/api/favorite-services')
+      ])
+
+      if (partnersRes.ok) {
+        const data = await partnersRes.json()
         setFavoritePartners(data)
+      }
+
+      if (servicesRes.ok) {
+        const data = await servicesRes.json()
+        setFavoriteServices(data)
       }
     } catch (error) {
       console.error('Error fetching favorites:', error)
       setFavoritePartners([])
+      setFavoriteServices([])
     }
   }
 
@@ -350,6 +361,32 @@ export default function DashboardPage() {
       }
     } catch (error) {
       console.error('Error removing favorite:', error)
+    }
+  }
+
+  const removeFavoriteService = async (serviceId: string) => {
+    try {
+      const res = await fetch(`/api/favorite-services?serviceId=${serviceId}`, {
+        method: 'DELETE'
+      })
+
+      if (res.ok) {
+        setFavoriteServices(prev => prev.filter(fav => fav.serviceId !== serviceId))
+        setModal({
+          isOpen: true,
+          title: 'Service removed',
+          message: 'The service has been removed from your favorites',
+          type: 'success'
+        })
+      }
+    } catch (error) {
+      console.error('Error removing favorite service:', error)
+      setModal({
+        isOpen: true,
+        title: 'Error',
+        message: 'Could not remove the service from favorites',
+        type: 'error'
+      })
     }
   }
 
@@ -1459,6 +1496,89 @@ export default function DashboardPage() {
                   })}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Servicios Favoritos */}
+          {favoriteServices.length > 0 && (
+            <div className="mt-8">
+              <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+                <div className="bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl p-2">
+                  <Heart size={24} className="text-white" fill="currentColor" />
+                </div>
+                Servicios Favoritos
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                {favoriteServices.map((favorite) => {
+                  const service = favorite.service
+                  return (
+                    <div
+                      key={favorite.id}
+                      className="group bg-white rounded-2xl sm:rounded-3xl shadow-lg hover:shadow-2xl transition-all overflow-hidden border-2 border-gray-200 hover:border-primary-200"
+                    >
+                      <div className="p-5 sm:p-6">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex items-start gap-4 flex-1">
+                            <div className="text-4xl sm:text-5xl group-hover:scale-110 transition-transform">
+                              {service.icon}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-bold text-lg sm:text-xl text-gray-900 mb-2 group-hover:text-primary-600 transition-colors">
+                                {service.name}
+                              </h4>
+                              <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
+                                <span className="bg-gradient-to-r from-gray-100 to-gray-200 px-3 py-1 rounded-lg font-medium border border-gray-300">
+                                  {service.category.name}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => removeFavoriteService(service.id)}
+                            className="p-3 rounded-xl bg-gradient-to-br from-primary-100 to-amber-100 text-primary-600 hover:from-orange-200 hover:to-amber-200 transition-all shadow-md hover:shadow-lg flex-shrink-0"
+                          >
+                            <Heart size={22} fill="currentColor" />
+                          </button>
+                        </div>
+
+                        {service.description && (
+                          <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                            {service.description}
+                          </p>
+                        )}
+
+                        {favorite.partners && favorite.partners.length > 0 && (
+                          <div className="mb-4">
+                            <p className="text-xs font-semibold text-gray-700 mb-2">
+                              {favorite.partners.length} {favorite.partners.length === 1 ? 'socio disponible' : 'socios disponibles'}
+                            </p>
+                            <div className="flex -space-x-2">
+                              {favorite.partners.slice(0, 3).map((partner: any) => (
+                                <div
+                                  key={partner.id}
+                                  className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg border-2 border-white"
+                                  title={partner.user.name}
+                                >
+                                  {partner.user.name?.charAt(0) || 'P'}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <button
+                          onClick={() => router.push(`/servicios/${service.slug}`)}
+                          className="w-full bg-gradient-to-r from-primary-600 to-primary-700 text-white font-semibold py-3.5 px-4 rounded-xl hover:from-primary-700 hover:to-primary-800 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                        >
+                          <span>{service.icon}</span>
+                          <span>Ver Servicio</span>
+                          <ChevronRight size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           )}
 

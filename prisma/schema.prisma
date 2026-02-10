@@ -33,6 +33,7 @@ model User {
   serviceRequests       ServiceRequest[]
   clientChats           Chat[]           @relation("ClientChats")
   favoritePartners      FavoritePartner[]
+  favoriteServices      FavoriteService[]
   searchHistory         SearchHistory[]
 }
 
@@ -88,6 +89,7 @@ model Service {
   category        Category         @relation(fields: [categoryId], references: [id])
   serviceRequests ServiceRequest[]
   advertisements  Advertisement[]
+  favoritedBy     FavoriteService[]
 }
 
 model PartnerService {
@@ -556,6 +558,19 @@ model FavoritePartner {
   @@unique([userId, partnerId])
   @@index([userId])
   @@index([partnerId])
+}
+
+model FavoriteService {
+  id        String   @id @default(cuid())
+  userId    String
+  serviceId String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, serviceId])
+  @@index([userId])
+  @@index([serviceId])
 }
 
 model Advertisement {

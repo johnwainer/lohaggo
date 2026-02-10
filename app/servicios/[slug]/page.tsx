@@ -90,6 +90,8 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
   })
   const [favoritePartners, setFavoritePartners] = useState<Set<string>>(new Set())
   const [loadingFavorite, setLoadingFavorite] = useState<string | null>(null)
+  const [isFavoriteService, setIsFavoriteService] = useState(false)
+  const [loadingFavoriteService, setLoadingFavoriteService] = useState(false)
 
   useEffect(() => {
     const citySlug = localStorage.getItem('selectedCity') || 'medellin'
@@ -103,6 +105,12 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     fetchService()
     if (session?.user) {
       fetchFavorites()
+    }
+  }, [slug, session])
+
+  useEffect(() => {
+    if (service && session?.user) {
+      fetchFavoriteServices()
     }
   }, [slug, session])
 
@@ -169,6 +177,57 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
       console.error('Error toggling favorite:', error)
     } finally {
       setLoadingFavorite(null)
+    }
+  }
+
+  const fetchFavoriteServices = async () => {
+    if (!service) return
+
+    try {
+      const res = await fetch('/api/favorite-services')
+      if (res.ok) {
+        const data = await res.json()
+        const isFav = data.some((fav: any) => fav.serviceId === service.id)
+        setIsFavoriteService(isFav)
+      }
+    } catch (error) {
+      console.error('Error fetching favorite services:', error)
+    }
+  }
+
+  const toggleFavoriteService = async () => {
+    if (!session) {
+      router.push('/login?redirect=/servicios/' + slug)
+      return
+    }
+
+    if (!service) return
+
+    setLoadingFavoriteService(true)
+    try {
+      if (isFavoriteService) {
+        const res = await fetch(`/api/favorite-services?serviceId=${service.id}`, {
+          method: 'DELETE'
+        })
+
+        if (res.ok) {
+          setIsFavoriteService(false)
+        }
+      } else {
+        const res = await fetch('/api/favorite-services', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ serviceId: service.id })
+        })
+
+        if (res.ok) {
+          setIsFavoriteService(true)
+        }
+      }
+    } catch (error) {
+      console.error('Error toggling favorite service:', error)
+    } finally {
+      setLoadingFavoriteService(false)
     }
   }
 
@@ -476,9 +535,11 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
 
   const isFullyVerified = (documents?: Array<{ type: string; status: string }>) => {
     if (!documents || documents.length === 0) return false
+  const IDENTITY_TYPES = ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP']
+  const EDUCATION_TYPES = ['DIPLOMA_BACHILLERATO', 'DIPLOMA_TECNICO', 'DIPLOMA_TECNOLOGO', 'DIPLOMA_PROFESIONAL', 'DIPLOMA_POSGRADO', 'CERTIFICADO_CURSO']
 
-    const IDENTITY_TYPES = ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP']
-    const EDUCATION_TYPES = ['DIPLOMA_BACHILLERATO', 'DIPLOMA_TECNICO', 'DIPLOMA_TECNOLOGO', 'DIPLOMA_PROFESIONAL', 'DIPLOMA_POSGRADO', 'CERTIFICADO_CURSO']
+  const isFullyVerified = (documents?: Array<{ type: string; status: string }>) => {
+    if (!documents || documents.length === 0) return false
 
     const hasIdentity = documents.some(d => IDENTITY_TYPES.includes(d.type) && d.status === 'APPROVED')
     const hasEducation = documents.some(d => EDUCATION_TYPES.includes(d.type) && d.status === 'APPROVED')
@@ -489,9 +550,6 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
 
   const getVerificationBadges = (documents?: Array<{ type: string; status: string }>) => {
     if (!documents || documents.length === 0) return null
-
-    const IDENTITY_TYPES = ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP']
-    const EDUCATION_TYPES = ['DIPLOMA_BACHILLERATO', 'DIPLOMA_TECNICO', 'DIPLOMA_TECNOLOGO', 'DIPLOMA_PROFESIONAL', 'DIPLOMA_POSGRADO', 'CERTIFICADO_CURSO']
 
     const hasIdentity = documents.some(d => IDENTITY_TYPES.includes(d.type) && d.status === 'APPROVED')
     const hasEducation = documents.some(d => EDUCATION_TYPES.includes(d.type) && d.status === 'APPROVED')
