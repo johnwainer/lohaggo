@@ -602,6 +602,20 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                 <span className="bg-primary-100 text-primary-700 text-xs md:text-sm font-medium px-3 py-1 rounded-full w-fit">
                   {service.category.name}
                 </span>
+                {session?.user && (
+                  <button
+                    onClick={toggleFavoriteService}
+                    disabled={loadingFavoriteService}
+                    className={`ml-auto sm:ml-2 p-2.5 rounded-xl transition-all shadow-md hover:shadow-lg ${
+                      isFavoriteService
+                        ? 'bg-gradient-to-br from-primary-100 to-amber-100 text-primary-600 hover:from-orange-200 hover:to-amber-200'
+                        : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                    } ${loadingFavoriteService ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    title={isFavoriteService ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+                  >
+                    <Heart size={20} fill={isFavoriteService ? 'currentColor' : 'none'} />
+                  </button>
+                )}
               </div>
               <p className="text-gray-600 text-base md:text-lg mb-4 md:mb-6">{service.description}</p>
 
@@ -1419,6 +1433,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
         confirmText="Entendido"
         type={successModal.type}
       />
+      </div>
     </div>
   )
 }
