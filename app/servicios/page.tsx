@@ -579,14 +579,14 @@ function ServiciosContent() {
                         <button
                           onClick={(e) => toggleFavoriteService(e, service.id)}
                           disabled={loadingFavorite === service.id || !session?.user}
-                          className={`p-1.5 md:p-2 rounded-lg md:rounded-xl transition-all shadow-md hover:shadow-lg ${
+                          className={`p-2 md:p-2.5 rounded-lg md:rounded-xl transition-all shadow-md hover:shadow-lg ${
                             favoriteServices.has(service.id)
                               ? 'bg-gradient-to-br from-primary-100 to-amber-100 text-primary-600 hover:from-orange-200 hover:to-amber-200'
                               : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
                           } ${loadingFavorite === service.id || !session?.user ? 'opacity-50 cursor-not-allowed' : ''}`}
                           title={!session?.user ? 'Inicia sesión para agregar a favoritos' : favoriteServices.has(service.id) ? 'Quitar de favoritos' : 'Agregar a favoritos'}
                         >
-                          <Heart className="w-4 h-4 md:w-5 md:h-5" fill={favoriteServices.has(service.id) ? 'currentColor' : 'none'} />
+                          <Heart className="w-5 h-5 md:w-5 md:h-5" fill={favoriteServices.has(service.id) ? 'currentColor' : 'none'} />
                         </button>
                       </div>
                     </div>
@@ -653,14 +653,14 @@ function ServiciosContent() {
                               <button
                                 onClick={(e) => toggleFavoriteService(e, service.id)}
                                 disabled={loadingFavorite === service.id || !session?.user}
-                                className={`p-1.5 md:p-2 rounded-lg transition-all shadow-md hover:shadow-lg ${
+                                className={`p-2 md:p-2 rounded-lg transition-all shadow-md hover:shadow-lg ${
                                   favoriteServices.has(service.id)
                                     ? 'bg-gradient-to-br from-primary-100 to-amber-100 text-primary-600 hover:from-orange-200 hover:to-amber-200'
                                     : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
                                 } ${loadingFavorite === service.id || !session?.user ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 title={!session?.user ? 'Inicia sesión para agregar a favoritos' : favoriteServices.has(service.id) ? 'Quitar de favoritos' : 'Agregar a favoritos'}
                               >
-                                <Heart className="w-3.5 h-3.5 md:w-4 md:h-4" fill={favoriteServices.has(service.id) ? 'currentColor' : 'none'} />
+                                <Heart className="w-4 h-4 md:w-4 md:h-4" fill={favoriteServices.has(service.id) ? 'currentColor' : 'none'} />
                               </button>
                             </div>
                           </div>
