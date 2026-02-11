@@ -19,6 +19,14 @@ function LoginForm() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [acceptedTerms, setAcceptedTerms] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState({
+    email: '',
+    password: ''
+  })
+  const [touched, setTouched] = useState({
+    email: false,
+    password: false
+  })
 
   useEffect(() => {
     if (status === 'authenticated' && session?.user) {
@@ -37,9 +45,71 @@ function LoginForm() {
     }
   }, [status, session, router, searchParams])
 
+  // Validar formato de correo electrónico
+  const validateEmail = (email: string) => {
+    if (!email) {
+      return 'El correo electrónico es obligatorio'
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      return 'Por favor ingresa un correo electrónico válido'
+    }
+    return ''
+  }
+
+  // Validar requisitos de contraseña
+  const validatePassword = (password: string) => {
+    if (!password) {
+      return 'La contraseña es obligatoria'
+    }
+    if (password.length < 6) {
+      return 'La contraseña debe tener al menos 6 caracteres'
+    }
+    return ''
+  }
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setFormData({ ...formData, email: value })
+    if (touched.email) {
+      setFieldErrors({ ...fieldErrors, email: validateEmail(value) })
+    }
+  }
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setFormData({ ...formData, password: value })
+    if (touched.password) {
+      setFieldErrors({ ...fieldErrors, password: validatePassword(value) })
+    }
+  }
+
+  const handleEmailBlur = () => {
+    setTouched({ ...touched, email: true })
+    setFieldErrors({ ...fieldErrors, email: validateEmail(formData.email) })
+  }
+
+  const handlePasswordBlur = () => {
+    setTouched({ ...touched, password: true })
+    setFieldErrors({ ...fieldErrors, password: validatePassword(formData.password) })
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+
+    setTouched({ email: true, password: true })
+    const emailError = validateEmail(formData.email)
+    const passwordError = validatePassword(formData.password)
+
+    setFieldErrors({
+      email: emailError,
+      password: passwordError
+    })
+
+    if (emailError || passwordError) {
+      return
+    }
 
     if (!acceptedTerms) {
       setError('Debes aceptar los Términos y Condiciones y la Política de Privacidad para continuar')
@@ -154,15 +224,28 @@ function LoginForm() {
                     Email
                   </label>
                   <div className="relative group">
-                    <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-primary-600 transition-colors" size={20} />
+                    <Mail className={`absolute left-4 top-1/2 transform -translate-y-1/2 transition-colors ${
+                      fieldErrors.email && touched.email ? 'text-red-500' : 'text-gray-400 group-focus-within:text-primary-600'
+                    }`} size={20} />
                     <input
                       type="email"
-                      required
                       value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all"
+                      onChange={handleEmailChange}
+                      onBlur={handleEmailBlur}
+                      className={`w-full pl-12 pr-4 py-3.5 border-2 rounded-xl focus:ring-2 outline-none transition-all ${
+                        fieldErrors.email && touched.email
+                          ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500'
+                          : 'border-gray-200 focus:ring-primary-500/20 focus:border-primary-500'
+                      }`}
+                      placeholder="tu@email.com"
                     />
                   </div>
+                  {fieldErrors.email && touched.email && (
+                    <p className="text-sm text-red-600 flex items-center gap-1 animate-fade-in">
+                      <span className="inline-block w-1 h-1 bg-red-600 rounded-full"></span>
+                      {fieldErrors.email}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -170,15 +253,28 @@ function LoginForm() {
                     Contraseña
                   </label>
                   <div className="relative group">
-                    <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-primary-600 transition-colors" size={20} />
+                    <Lock className={`absolute left-4 top-1/2 transform -translate-y-1/2 transition-colors ${
+                      fieldErrors.password && touched.password ? 'text-red-500' : 'text-gray-400 group-focus-within:text-primary-600'
+                    }`} size={20} />
                     <input
                       type="password"
-                      required
                       value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all"
+                      onChange={handlePasswordChange}
+                      onBlur={handlePasswordBlur}
+                      className={`w-full pl-12 pr-4 py-3.5 border-2 rounded-xl focus:ring-2 outline-none transition-all ${
+                        fieldErrors.password && touched.password
+                          ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500'
+                          : 'border-gray-200 focus:ring-primary-500/20 focus:border-primary-500'
+                      }`}
+                      placeholder="••••••••"
                     />
                   </div>
+                  {fieldErrors.password && touched.password && (
+                    <p className="text-sm text-red-600 flex items-center gap-1 animate-fade-in">
+                      <span className="inline-block w-1 h-1 bg-red-600 rounded-full"></span>
+                      {fieldErrors.password}
+                    </p>
+                  )}
                 </div>
 
                 <div className="pt-2">
@@ -189,7 +285,6 @@ function LoginForm() {
                         checked={acceptedTerms}
                         onChange={(e) => setAcceptedTerms(e.target.checked)}
                         className="w-5 h-5 border-2 border-gray-300 rounded-lg cursor-pointer checked:bg-primary-500 checked:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:ring-offset-2 transition-all"
-                        required
                       />
                     </div>
                     <span className="text-sm text-gray-700 leading-relaxed">

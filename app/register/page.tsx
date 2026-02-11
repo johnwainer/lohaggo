@@ -30,6 +30,18 @@ function RegisterForm() {
   const [servicesCatalog, setServicesCatalog] = useState<
     Array<{ id: string; name: string; slug: string; basePrice?: number }>
   >([])
+  const [fieldErrors, setFieldErrors] = useState({
+    name: '',
+    email: '',
+    password: '',
+    phone: ''
+  })
+  const [touched, setTouched] = useState({
+    name: false,
+    email: false,
+    password: false,
+    phone: false
+  })
 
   useEffect(() => {
     if (cities.length > 0 && !formData.city) {
@@ -76,6 +88,90 @@ function RegisterForm() {
     }
   }, [formData.role])
 
+  const validateName = (name: string) => {
+    if (!name) {
+      return 'El nombre es obligatorio'
+    }
+    if (name.length < 2) {
+      return 'El nombre debe tener al menos 2 caracteres'
+    }
+    return ''
+  }
+
+  const validateEmail = (email: string) => {
+    if (!email) {
+      return 'El correo electrónico es obligatorio'
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      return 'Por favor ingresa un correo electrónico válido'
+    }
+    return ''
+  }
+
+  const validatePassword = (password: string) => {
+    if (!password) {
+      return 'La contraseña es obligatoria'
+    }
+    if (password.length < 6) {
+      return 'La contraseña debe tener al menos 6 caracteres'
+    }
+    return ''
+  }
+
+  const validatePhone = (phone: string) => {
+    if (!phone) {
+      return 'El teléfono es obligatorio'
+    }
+    const phoneRegex = /^[0-9]{10}$/
+    if (!phoneRegex.test(phone.replace(/\s/g, ''))) {
+      return 'Por favor ingresa un número de teléfono válido (10 dígitos)'
+    }
+    return ''
+  }
+
+  const handleFieldChange = (field: string, value: string) => {
+    setFormData({ ...formData, [field]: value })
+    if (touched[field as keyof typeof touched]) {
+      let error = ''
+      switch (field) {
+        case 'name':
+          error = validateName(value)
+          break
+        case 'email':
+          error = validateEmail(value)
+          break
+        case 'password':
+          error = validatePassword(value)
+          break
+        case 'phone':
+          error = validatePhone(value)
+          break
+      }
+      setFieldErrors({ ...fieldErrors, [field]: error })
+    }
+  }
+
+  const handleFieldBlur = (field: string) => {
+    setTouched({ ...touched, [field]: true })
+    let error = ''
+    switch (field) {
+      case 'name':
+        error = validateName(formData.name)
+        break
+      case 'email':
+        error = validateEmail(formData.email)
+        break
+      case 'password':
+        error = validatePassword(formData.password)
+        break
+      case 'phone':
+        error = validatePhone(formData.phone)
+        break
+    }
+    setFieldErrors({ ...fieldErrors, [field]: error })
+  }
+
   const toggleService = (slug: string) => {
     setFormData((prev) => {
       const alreadySelected = prev.services.includes(slug)
@@ -97,6 +193,23 @@ function RegisterForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+
+    setTouched({ name: true, email: true, password: true, phone: true })
+    const nameError = validateName(formData.name)
+    const emailError = validateEmail(formData.email)
+    const passwordError = validatePassword(formData.password)
+    const phoneError = validatePhone(formData.phone)
+
+    setFieldErrors({
+      name: nameError,
+      email: emailError,
+      password: passwordError,
+      phone: phoneError
+    })
+
+    if (nameError || emailError || passwordError || phoneError) {
+      return
+    }
 
     if (!acceptedTerms) {
       setError('Debes aceptar los Términos y Condiciones y la Política de Privacidad para continuar')
@@ -328,15 +441,28 @@ function RegisterForm() {
                   Nombre completo
                 </label>
                 <div className="relative group">
-                  <User className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-primary-600 transition-colors" size={20} />
+                  <User className={`absolute left-4 top-1/2 transform -translate-y-1/2 transition-colors ${
+                    fieldErrors.name && touched.name ? 'text-red-500' : 'text-gray-400 group-focus-within:text-primary-600'
+                  }`} size={20} />
                   <input
                     type="text"
-                    required
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all hover:border-gray-300"
+                    onChange={(e) => handleFieldChange('name', e.target.value)}
+                    onBlur={() => handleFieldBlur('name')}
+                    className={`w-full pl-12 pr-4 py-3 border-2 rounded-xl focus:ring-2 outline-none transition-all ${
+                      fieldErrors.name && touched.name
+                        ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500'
+                        : 'border-gray-200 focus:ring-primary-500/20 focus:border-primary-500 hover:border-gray-300'
+                    }`}
+                    placeholder="Juan Pérez"
                   />
                 </div>
+                {fieldErrors.name && touched.name && (
+                  <p className="text-sm text-red-600 flex items-center gap-1 animate-fade-in">
+                    <span className="inline-block w-1 h-1 bg-red-600 rounded-full"></span>
+                    {fieldErrors.name}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -344,15 +470,28 @@ function RegisterForm() {
                   Email
                 </label>
                 <div className="relative group">
-                  <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-primary-600 transition-colors" size={20} />
+                  <Mail className={`absolute left-4 top-1/2 transform -translate-y-1/2 transition-colors ${
+                    fieldErrors.email && touched.email ? 'text-red-500' : 'text-gray-400 group-focus-within:text-primary-600'
+                  }`} size={20} />
                   <input
                     type="email"
-                    required
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all hover:border-gray-300"
+                    onChange={(e) => handleFieldChange('email', e.target.value)}
+                    onBlur={() => handleFieldBlur('email')}
+                    className={`w-full pl-12 pr-4 py-3 border-2 rounded-xl focus:ring-2 outline-none transition-all ${
+                      fieldErrors.email && touched.email
+                        ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500'
+                        : 'border-gray-200 focus:ring-primary-500/20 focus:border-primary-500 hover:border-gray-300'
+                    }`}
+                    placeholder="tu@email.com"
                   />
                 </div>
+                {fieldErrors.email && touched.email && (
+                  <p className="text-sm text-red-600 flex items-center gap-1 animate-fade-in">
+                    <span className="inline-block w-1 h-1 bg-red-600 rounded-full"></span>
+                    {fieldErrors.email}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -360,14 +499,28 @@ function RegisterForm() {
                   Teléfono
                 </label>
                 <div className="relative group">
-                  <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-primary-600 transition-colors" size={20} />
+                  <Phone className={`absolute left-4 top-1/2 transform -translate-y-1/2 transition-colors ${
+                    fieldErrors.phone && touched.phone ? 'text-red-500' : 'text-gray-400 group-focus-within:text-primary-600'
+                  }`} size={20} />
                   <input
                     type="tel"
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all hover:border-gray-300"
+                    onChange={(e) => handleFieldChange('phone', e.target.value)}
+                    onBlur={() => handleFieldBlur('phone')}
+                    className={`w-full pl-12 pr-4 py-3 border-2 rounded-xl focus:ring-2 outline-none transition-all ${
+                      fieldErrors.phone && touched.phone
+                        ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500'
+                        : 'border-gray-200 focus:ring-primary-500/20 focus:border-primary-500 hover:border-gray-300'
+                    }`}
+                    placeholder="3001234567"
                   />
                 </div>
+                {fieldErrors.phone && touched.phone && (
+                  <p className="text-sm text-red-600 flex items-center gap-1 animate-fade-in">
+                    <span className="inline-block w-1 h-1 bg-red-600 rounded-full"></span>
+                    {fieldErrors.phone}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -375,16 +528,28 @@ function RegisterForm() {
                   Contraseña
                 </label>
                 <div className="relative group">
-                  <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-primary-600 transition-colors" size={20} />
+                  <Lock className={`absolute left-4 top-1/2 transform -translate-y-1/2 transition-colors ${
+                    fieldErrors.password && touched.password ? 'text-red-500' : 'text-gray-400 group-focus-within:text-primary-600'
+                  }`} size={20} />
                   <input
                     type="password"
-                    required
-                    minLength={6}
                     value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all"
+                    onChange={(e) => handleFieldChange('password', e.target.value)}
+                    onBlur={() => handleFieldBlur('password')}
+                    className={`w-full pl-12 pr-4 py-3.5 border-2 rounded-xl focus:ring-2 outline-none transition-all ${
+                      fieldErrors.password && touched.password
+                        ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500'
+                        : 'border-gray-200 focus:ring-primary-500/20 focus:border-primary-500'
+                    }`}
+                    placeholder="••••••••"
                   />
                 </div>
+                {fieldErrors.password && touched.password && (
+                  <p className="text-sm text-red-600 flex items-center gap-1 animate-fade-in">
+                    <span className="inline-block w-1 h-1 bg-red-600 rounded-full"></span>
+                    {fieldErrors.password}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
