@@ -42,6 +42,15 @@ function RegisterForm() {
     password: false,
     phone: false
   })
+  const [passwordStrength, setPasswordStrength] = useState<{
+    level: 'weak' | 'medium' | 'strong' | null
+    score: number
+    feedback: string[]
+  }>({
+    level: null,
+    score: 0,
+    feedback: []
+  })
 
   useEffect(() => {
     if (cities.length > 0 && !formData.city) {
@@ -109,12 +118,72 @@ function RegisterForm() {
     return ''
   }
 
+  const calculatePasswordStrength = (password: string) => {
+    if (!password) {
+      return { level: null, score: 0, feedback: [] } as {
+        level: 'weak' | 'medium' | 'strong' | null
+        score: number
+        feedback: string[]
+      }
+    }
+
+    let score = 0
+    const feedback: string[] = []
+
+    if (password.length >= 8) {
+      score += 25
+    } else {
+      feedback.push('Usa al menos 8 caracteres')
+    }
+
+    if (/[a-z]/.test(password) && /[A-Z]/.test(password)) {
+      score += 25
+    } else {
+      feedback.push('Incluye mayúsculas y minúsculas')
+    }
+
+    if (/[0-9]/.test(password)) {
+      score += 25
+    } else {
+      feedback.push('Incluye al menos un número')
+    }
+
+    if (/[^A-Za-z0-9]/.test(password)) {
+      score += 25
+    } else {
+      feedback.push('Incluye un carácter especial (!@#$%^&*)')
+    }
+
+    let level: 'weak' | 'medium' | 'strong' | null = null
+    if (score >= 75) {
+      level = 'strong'
+    } else if (score >= 50) {
+      level = 'medium'
+    } else if (score > 0) {
+      level = 'weak'
+    }
+
+    return { level, score, feedback }
+  }
+
   const validatePassword = (password: string) => {
     if (!password) {
       return 'La contraseña es obligatoria'
     }
-    if (password.length < 6) {
-      return 'La contraseña debe tener al menos 6 caracteres'
+    if (password.length < 8) {
+      return 'La contraseña debe tener al menos 8 caracteres'
+    }
+    if (!/[A-Z]/.test(password)) {
+      return 'La contraseña debe incluir al menos una mayúscula'
+    }
+    if (!/[a-z]/.test(password)) {
+      return 'La contraseña debe incluir al menos una minúscula'
+    }
+    if (!/[0-9]/.test(password)) {
+      return 'La contraseña debe incluir al menos un número'
+    }
+    if (!/[^A-Za-z0-9]/.test(password)) {
+      return 'La contraseña debe incluir al menos un carácter especial (!@#$%^&*)'
     }
     return ''
   }
@@ -132,6 +201,12 @@ function RegisterForm() {
 
   const handleFieldChange = (field: string, value: string) => {
     setFormData({ ...formData, [field]: value })
+
+    if (field === 'password') {
+      const strength = calculatePasswordStrength(value)
+      setPasswordStrength(strength)
+    }
+
     if (touched[field as keyof typeof touched]) {
       let error = ''
       switch (field) {
@@ -544,6 +619,51 @@ function RegisterForm() {
                     placeholder="••••••••"
                   />
                 </div>
+
+                {formData.password && passwordStrength.level && (
+                  <div className="space-y-2 animate-fade-in">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full transition-all duration-300 ${
+                            passwordStrength.level === 'weak'
+                              ? 'bg-red-500 w-1/3'
+                              : passwordStrength.level === 'medium'
+                              ? 'bg-yellow-500 w-2/3'
+                              : 'bg-green-500 w-full'
+                          }`}
+                        />
+                      </div>
+                      <span
+                        className={`text-xs font-semibold ${
+                          passwordStrength.level === 'weak'
+                            ? 'text-red-600'
+                            : passwordStrength.level === 'medium'
+                            ? 'text-yellow-600'
+                            : 'text-green-600'
+                        }`}
+                      >
+                        {passwordStrength.level === 'weak'
+                          ? 'Débil'
+                          : passwordStrength.level === 'medium'
+                          ? 'Media'
+                          : 'Fuerte'}
+                      </span>
+                    </div>
+
+                    {passwordStrength.feedback.length > 0 && (
+                      <div className="space-y-1">
+                        {passwordStrength.feedback.map((tip, index) => (
+                          <p key={index} className="text-xs text-gray-600 flex items-center gap-1.5">
+                            <span className="inline-block w-1 h-1 bg-gray-400 rounded-full"></span>
+                            {tip}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {fieldErrors.password && touched.password && (
                   <p className="text-sm text-red-600 flex items-center gap-1 animate-fade-in">
                     <span className="inline-block w-1 h-1 bg-red-600 rounded-full"></span>
