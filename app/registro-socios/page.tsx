@@ -59,7 +59,7 @@ export default function RegistroSociosPage() {
           <div className="flex items-center justify-center gap-3 mb-8">
             <Sparkles className="w-8 h-8 text-yellow-300" />
             <h2 className="text-3xl md:text-4xl font-black text-white">
-              ¿Por qué unirte a Haggo?
+              ¿Por qué unirte a LoHaggo?
             </h2>
             <Sparkles className="w-8 h-8 text-yellow-300" />
           </div>

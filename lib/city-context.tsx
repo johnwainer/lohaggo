@@ -63,9 +63,6 @@ export function CityProvider({ children }: { children: React.ReactNode }) {
           partnerRegistry: city.partnerRegistry || false
         }))
 
-        console.log('🏙️ Cities loaded:', cityList)
-        console.log('🏙️ Medellín partner registry:', cityList.find(c => c.slug === 'medellin')?.partnerRegistry)
-
         setCities(cityList)
 
         if (typeof window !== 'undefined') {
