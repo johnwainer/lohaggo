@@ -1,12 +1,8 @@
-const CACHE_NAME = 'lohaggo-v3';
-const RUNTIME_CACHE = 'lohaggo-runtime-v3';
-const IMAGE_CACHE = 'lohaggo-images-v3';
+const CACHE_NAME = 'lohaggo-v4';
+const RUNTIME_CACHE = 'lohaggo-runtime-v4';
+const IMAGE_CACHE = 'lohaggo-images-v4';
 
 const PRECACHE_URLS = [
-  '/',
-  '/servicios',
-  '/dashboard',
-  '/contacto',
   '/manifest.json',
   '/icon.svg',
   '/icon-192.png',
@@ -28,8 +24,16 @@ const CACHE_STRATEGIES = {
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(PRECACHE_URLS))
+      .then((cache) => {
+        return cache.addAll(PRECACHE_URLS).catch((error) => {
+          console.error('Failed to cache resources during install:', error);
+          return Promise.resolve();
+        });
+      })
       .then(() => self.skipWaiting())
+      .catch((error) => {
+        console.error('Service Worker installation failed:', error);
+      })
   );
 });
 
