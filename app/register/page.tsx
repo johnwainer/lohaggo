@@ -197,9 +197,12 @@ function RegisterForm() {
     if (!phone) {
       return 'El teléfono es obligatorio'
     }
-    const phoneRegex = /^[0-9]{10}$/
-    if (!phoneRegex.test(phone.replace(/\s/g, ''))) {
-      return 'Por favor ingresa un número de teléfono válido (10 dígitos)'
+    const cleanPhone = phone.replace(/\s/g, '')
+    if (!/^[0-9]{10}$/.test(cleanPhone)) {
+      return 'El teléfono debe tener 10 dígitos'
+    }
+    if (!cleanPhone.startsWith('3')) {
+      return 'El teléfono debe comenzar con 3 (formato colombiano)'
     }
     return ''
   }
@@ -214,8 +217,27 @@ function RegisterForm() {
     return ''
   }
 
+  const formatPhoneNumber = (value: string) => {
+    const cleaned = value.replace(/\D/g, '')
+    const limited = cleaned.slice(0, 10)
+
+    if (limited.length <= 3) {
+      return limited
+    } else if (limited.length <= 6) {
+      return `${limited.slice(0, 3)} ${limited.slice(3)}`
+    } else {
+      return `${limited.slice(0, 3)} ${limited.slice(3, 6)} ${limited.slice(6)}`
+    }
+  }
+
   const handleFieldChange = (field: string, value: string) => {
-    setFormData({ ...formData, [field]: value })
+    let processedValue = value
+
+    if (field === 'phone') {
+      processedValue = formatPhoneNumber(value)
+    }
+
+    setFormData({ ...formData, [field]: processedValue })
 
     if (field === 'password') {
       const strength = calculatePasswordStrength(value)
@@ -240,16 +262,16 @@ function RegisterForm() {
       let error = ''
       switch (field) {
         case 'name':
-          error = validateName(value)
+          error = validateName(processedValue)
           break
         case 'email':
-          error = validateEmail(value)
+          error = validateEmail(processedValue)
           break
         case 'password':
-          error = validatePassword(value)
+          error = validatePassword(processedValue)
           break
         case 'phone':
-          error = validatePhone(value)
+          error = validatePhone(processedValue)
           break
       }
       setFieldErrors({ ...fieldErrors, [field]: error })
@@ -621,7 +643,7 @@ function RegisterForm() {
                         ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500'
                         : 'border-gray-200 focus:ring-primary-500/20 focus:border-primary-500 hover:border-gray-300'
                     }`}
-                    placeholder="3001234567"
+                    placeholder="300 123 4567"
                   />
                 </div>
                 {fieldErrors.phone && touched.phone && (
