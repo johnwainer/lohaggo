@@ -1,6 +1,6 @@
-const CACHE_NAME = 'lohaggo-v2';
-const RUNTIME_CACHE = 'lohaggo-runtime-v2';
-const IMAGE_CACHE = 'lohaggo-images-v2';
+const CACHE_NAME = 'lohaggo-v3';
+const RUNTIME_CACHE = 'lohaggo-runtime-v3';
+const IMAGE_CACHE = 'lohaggo-images-v3';
 
 const PRECACHE_URLS = [
   '/',
@@ -12,8 +12,10 @@ const PRECACHE_URLS = [
   '/icon-192.png',
   '/icon-512.png',
   '/apple-icon.png',
+  '/apple-touch-icon.png',
   '/favicon-16x16.png',
   '/favicon-32x32.png',
+  '/grid.svg',
   '/offline.html'
 ];
 
@@ -120,21 +122,20 @@ async function staleWhileRevalidate(request, cacheName) {
   const cache = await caches.open(cacheName);
   const cached = await cache.match(request);
 
-  const fetchPromise = fetch(request).then((response) => {
-    if (response.ok) {
-      cache.put(request, response.clone());
-    }
-    return response;
-  });
+  const fetchPromise = fetch(request)
+    .then((response) => {
+      if (response.ok) {
+        cache.put(request, response.clone());
+      }
+      return response;
+    })
+    .catch(async () => {
+      // If network request fails, return cached version or offline page
+      return cached || (await cache.match('/offline.html')) || new Response('Offline', { status: 503 });
+    });
 
   return cached || fetchPromise;
 }
-
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
-});
 
 self.addEventListener('push', (event) => {
   let notificationData = {
