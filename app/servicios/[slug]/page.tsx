@@ -239,7 +239,12 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     const citySlug = localStorage.getItem('selectedCity') || 'medellin'
     const currentCity = getCityBySlug(citySlug)
 
+    console.log('🔍 DEBUG - City Slug:', citySlug)
+    console.log('🔍 DEBUG - Current City:', currentCity)
+    console.log('🔍 DEBUG - Partner Registry:', currentCity?.partnerRegistry)
+
     if (currentCity?.partnerRegistry) {
+      console.log('✅ Redirigiendo a /registro-socios')
       router.push('/registro-socios')
       return
     }
@@ -265,7 +270,12 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     const citySlug = localStorage.getItem('selectedCity') || 'medellin'
     const currentCity = getCityBySlug(citySlug)
 
+    console.log('🔍 DEBUG - City Slug:', citySlug)
+    console.log('🔍 DEBUG - Current City:', currentCity)
+    console.log('🔍 DEBUG - Partner Registry:', currentCity?.partnerRegistry)
+
     if (currentCity?.partnerRegistry) {
+      console.log('✅ Redirigiendo a /registro-socios')
       router.push('/registro-socios')
       return
     }
