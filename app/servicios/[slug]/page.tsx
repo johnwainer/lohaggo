@@ -533,8 +533,6 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     )
   }
 
-  const isFullyVerified = (documents?: Array<{ type: string; status: string }>) => {
-    if (!documents || documents.length === 0) return false
   const IDENTITY_TYPES = ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP']
   const EDUCATION_TYPES = ['DIPLOMA_BACHILLERATO', 'DIPLOMA_TECNICO', 'DIPLOMA_TECNOLOGO', 'DIPLOMA_PROFESIONAL', 'DIPLOMA_POSGRADO', 'CERTIFICADO_CURSO']
 
