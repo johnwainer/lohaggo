@@ -298,6 +298,20 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
       })
       return
     }
+
+    const citySlug = localStorage.getItem('selectedCity') || 'medellin'
+    const currentCity = getCityBySlug(citySlug)
+
+    console.log('🔍 DEBUG (RequestToPartner) - City Slug:', citySlug)
+    console.log('🔍 DEBUG (RequestToPartner) - Current City:', currentCity)
+    console.log('🔍 DEBUG (RequestToPartner) - Partner Registry:', currentCity?.partnerRegistry)
+
+    if (currentCity?.partnerRegistry) {
+      console.log('✅ Redirigiendo a /registro-socios')
+      router.push('/registro-socios')
+      return
+    }
+
     fetchAddresses()
     setCurrentStep(1)
     setSelectedPartnerId(partnerId)
