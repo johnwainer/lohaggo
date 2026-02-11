@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { signIn, useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Mail, Lock, ArrowRight, Sparkles, Shield, Zap } from 'lucide-react'
+import { Mail, Lock, ArrowRight, Sparkles, Shield, Zap, Eye, EyeOff } from 'lucide-react'
 
 function LoginForm() {
   const router = useRouter()
@@ -19,6 +19,7 @@ function LoginForm() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [acceptedTerms, setAcceptedTerms] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const [fieldErrors, setFieldErrors] = useState({
     email: '',
     password: ''
@@ -257,17 +258,24 @@ function LoginForm() {
                       fieldErrors.password && touched.password ? 'text-red-500' : 'text-gray-400 group-focus-within:text-primary-600'
                     }`} size={20} />
                     <input
-                      type="password"
+                      type={showPassword ? 'text' : 'password'}
                       value={formData.password}
                       onChange={handlePasswordChange}
                       onBlur={handlePasswordBlur}
-                      className={`w-full pl-12 pr-4 py-3.5 border-2 rounded-xl focus:ring-2 outline-none transition-all ${
+                      className={`w-full pl-12 pr-12 py-3.5 border-2 rounded-xl focus:ring-2 outline-none transition-all ${
                         fieldErrors.password && touched.password
                           ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500'
                           : 'border-gray-200 focus:ring-primary-500/20 focus:border-primary-500'
                       }`}
                       placeholder="••••••••"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
                   </div>
                   {fieldErrors.password && touched.password && (
                     <p className="text-sm text-red-600 flex items-center gap-1 animate-fade-in">

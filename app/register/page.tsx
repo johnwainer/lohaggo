@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Mail, Lock, User, Phone, MapPin, Check, ArrowRight, Sparkles, Shield, Zap, DollarSign, Clock, Users, Star, Search } from 'lucide-react'
+import { Mail, Lock, User, Phone, MapPin, Check, ArrowRight, Sparkles, Shield, Zap, DollarSign, Clock, Users, Star, Search, Eye, EyeOff } from 'lucide-react'
 import { useCity } from '@/lib/city-context'
 import { formatCurrency } from '@/lib/utils'
 
@@ -18,6 +18,7 @@ function RegisterForm() {
     name: '',
     email: '',
     password: '',
+    confirmPassword: '',
     phone: '',
     role: roleParam === 'partner' ? 'PARTNER' : 'CLIENT',
     city: '',
@@ -27,6 +28,8 @@ function RegisterForm() {
   const [loading, setLoading] = useState(false)
   const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [servicesCatalog, setServicesCatalog] = useState<
     Array<{ id: string; name: string; slug: string; basePrice?: number }>
   >([])
@@ -34,12 +37,14 @@ function RegisterForm() {
     name: '',
     email: '',
     password: '',
+    confirmPassword: '',
     phone: ''
   })
   const [touched, setTouched] = useState({
     name: false,
     email: false,
     password: false,
+    confirmPassword: false,
     phone: false
   })
   const [passwordStrength, setPasswordStrength] = useState<{
@@ -199,12 +204,36 @@ function RegisterForm() {
     return ''
   }
 
+  const validateConfirmPassword = (confirmPassword: string, password: string) => {
+    if (!confirmPassword) {
+      return 'Por favor confirma tu contraseña'
+    }
+    if (confirmPassword !== password) {
+      return 'Las contraseñas no coinciden'
+    }
+    return ''
+  }
+
   const handleFieldChange = (field: string, value: string) => {
     setFormData({ ...formData, [field]: value })
 
     if (field === 'password') {
       const strength = calculatePasswordStrength(value)
       setPasswordStrength(strength)
+
+      if (touched.confirmPassword && formData.confirmPassword) {
+        const confirmError = validateConfirmPassword(formData.confirmPassword, value)
+        setFieldErrors({ ...fieldErrors, password: '', confirmPassword: confirmError })
+        return
+      }
+    }
+
+    if (field === 'confirmPassword') {
+      if (touched.confirmPassword) {
+        const error = validateConfirmPassword(value, formData.password)
+        setFieldErrors({ ...fieldErrors, confirmPassword: error })
+      }
+      return
     }
 
     if (touched[field as keyof typeof touched]) {
@@ -240,6 +269,9 @@ function RegisterForm() {
       case 'password':
         error = validatePassword(formData.password)
         break
+      case 'confirmPassword':
+        error = validateConfirmPassword(formData.confirmPassword, formData.password)
+        break
       case 'phone':
         error = validatePhone(formData.phone)
         break
@@ -269,20 +301,22 @@ function RegisterForm() {
     e.preventDefault()
     setError('')
 
-    setTouched({ name: true, email: true, password: true, phone: true })
+    setTouched({ name: true, email: true, password: true, confirmPassword: true, phone: true })
     const nameError = validateName(formData.name)
     const emailError = validateEmail(formData.email)
     const passwordError = validatePassword(formData.password)
+    const confirmPasswordError = validateConfirmPassword(formData.confirmPassword, formData.password)
     const phoneError = validatePhone(formData.phone)
 
     setFieldErrors({
       name: nameError,
       email: emailError,
       password: passwordError,
+      confirmPassword: confirmPasswordError,
       phone: phoneError
     })
 
-    if (nameError || emailError || passwordError || phoneError) {
+    if (nameError || emailError || passwordError || confirmPasswordError || phoneError) {
       return
     }
 
@@ -607,17 +641,24 @@ function RegisterForm() {
                     fieldErrors.password && touched.password ? 'text-red-500' : 'text-gray-400 group-focus-within:text-primary-600'
                   }`} size={20} />
                   <input
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     value={formData.password}
                     onChange={(e) => handleFieldChange('password', e.target.value)}
                     onBlur={() => handleFieldBlur('password')}
-                    className={`w-full pl-12 pr-4 py-3.5 border-2 rounded-xl focus:ring-2 outline-none transition-all ${
+                    className={`w-full pl-12 pr-12 py-3.5 border-2 rounded-xl focus:ring-2 outline-none transition-all ${
                       fieldErrors.password && touched.password
                         ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500'
                         : 'border-gray-200 focus:ring-primary-500/20 focus:border-primary-500'
                     }`}
                     placeholder="••••••••"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
                 </div>
 
                 {formData.password && passwordStrength.level && (
@@ -668,6 +709,42 @@ function RegisterForm() {
                   <p className="text-sm text-red-600 flex items-center gap-1 animate-fade-in">
                     <span className="inline-block w-1 h-1 bg-red-600 rounded-full"></span>
                     {fieldErrors.password}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-gray-700">
+                  Confirmar contraseña
+                </label>
+                <div className="relative group">
+                  <Lock className={`absolute left-4 top-1/2 transform -translate-y-1/2 transition-colors ${
+                    fieldErrors.confirmPassword && touched.confirmPassword ? 'text-red-500' : 'text-gray-400 group-focus-within:text-primary-600'
+                  }`} size={20} />
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    value={formData.confirmPassword}
+                    onChange={(e) => handleFieldChange('confirmPassword', e.target.value)}
+                    onBlur={() => handleFieldBlur('confirmPassword')}
+                    className={`w-full pl-12 pr-12 py-3.5 border-2 rounded-xl focus:ring-2 outline-none transition-all ${
+                      fieldErrors.confirmPassword && touched.confirmPassword
+                        ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500'
+                        : 'border-gray-200 focus:ring-primary-500/20 focus:border-primary-500'
+                    }`}
+                    placeholder="••••••••"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
+                {fieldErrors.confirmPassword && touched.confirmPassword && (
+                  <p className="text-sm text-red-600 flex items-center gap-1 animate-fade-in">
+                    <span className="inline-block w-1 h-1 bg-red-600 rounded-full"></span>
+                    {fieldErrors.confirmPassword}
                   </p>
                 )}
               </div>
