@@ -468,17 +468,6 @@ export function Navbar() {
             {!session && (
               <>
                 <Link
-                  href="/"
-                  className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
-                    pathname === '/'
-                      ? 'text-primary-600 bg-primary-500/5'
-                      : 'text-gray-700 hover:text-primary-600 hover:bg-primary-500/5'
-                  }`}
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Inicio
-                </Link>
-                <Link
                   href="/servicios"
                   className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
                     pathname?.startsWith('/servicios')
@@ -505,17 +494,6 @@ export function Navbar() {
 
             {session ? (
               <>
-                <Link
-                  href="/"
-                  className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
-                    pathname === '/'
-                      ? 'text-primary-600 bg-primary-500/5'
-                      : 'text-gray-700 hover:text-primary-600 hover:bg-primary-500/5'
-                  }`}
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Inicio
-                </Link>
                 <Link
                   href="/servicios"
                   className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
