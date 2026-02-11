@@ -1434,4 +1434,3 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     </div>
   )
 }
-}
