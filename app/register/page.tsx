@@ -30,6 +30,7 @@ function RegisterForm() {
   const [searchQuery, setSearchQuery] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [servicesError, setServicesError] = useState('')
   const [servicesCatalog, setServicesCatalog] = useState<
     Array<{ id: string; name: string; slug: string; basePrice?: number }>
   >([])
@@ -310,11 +311,17 @@ function RegisterForm() {
         return prev
       }
 
+      const newServices = alreadySelected
+        ? prev.services.filter((serviceSlug) => serviceSlug !== slug)
+        : [...prev.services, slug]
+
+      if (newServices.length > 0) {
+        setServicesError('')
+      }
+
       return {
         ...prev,
-        services: alreadySelected
-          ? prev.services.filter((serviceSlug) => serviceSlug !== slug)
-          : [...prev.services, slug],
+        services: newServices,
       }
     })
   }
@@ -322,6 +329,7 @@ function RegisterForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setServicesError('')
 
     setTouched({ name: true, email: true, password: true, confirmPassword: true, phone: true })
     const nameError = validateName(formData.name)
@@ -339,6 +347,11 @@ function RegisterForm() {
     })
 
     if (nameError || emailError || passwordError || confirmPasswordError || phoneError) {
+      return
+    }
+
+    if (formData.role === 'PARTNER' && formData.services.length === 0) {
+      setServicesError('Debes seleccionar al menos 1 servicio que ofreces')
       return
     }
 
@@ -806,7 +819,7 @@ function RegisterForm() {
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <label className="block text-sm font-medium text-gray-700">
-                      Servicios que ofreces (máximo 5)
+                      Servicios que ofreces (máximo 5) <span className="text-red-500">*</span>
                     </label>
                     <span className={`text-xs font-medium ${formData.services.length >= 5 ? 'text-red-600' : 'text-gray-500'}`}>
                       {formData.services.length}/5 seleccionados
@@ -883,6 +896,12 @@ function RegisterForm() {
                       })()
                     )}
                   </div>
+                  {servicesError && (
+                    <p className="mt-2 text-sm text-red-600 flex items-center gap-1 animate-fade-in">
+                      <span className="inline-block w-1 h-1 bg-red-600 rounded-full"></span>
+                      {servicesError}
+                    </p>
+                  )}
                   <p className="mt-2 text-xs text-gray-500">
                     Podrás ajustar tus servicios y precios desde tu panel una vez te registres.
                   </p>
