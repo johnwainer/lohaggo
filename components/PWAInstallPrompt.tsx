@@ -17,14 +17,13 @@ export default function PWAInstallPrompt() {
     setIsStandalone(isStandaloneMode);
 
     const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-      
       const installDismissed = localStorage.getItem('pwa-install-dismissed');
       const dismissedTime = installDismissed ? parseInt(installDismissed) : 0;
       const daysSinceDismissed = (Date.now() - dismissedTime) / (1000 * 60 * 60 * 24);
-      
+
       if (!installDismissed || daysSinceDismissed > 7) {
+        e.preventDefault();
+        setDeferredPrompt(e);
         setTimeout(() => setShowInstallPrompt(true), 3000);
       }
     };
