@@ -506,6 +506,28 @@ export function Navbar() {
             {session ? (
               <>
                 <Link
+                  href="/"
+                  className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+                    pathname === '/'
+                      ? 'text-primary-600 bg-primary-500/5'
+                      : 'text-gray-700 hover:text-primary-600 hover:bg-primary-500/5'
+                  }`}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Inicio
+                </Link>
+                <Link
+                  href="/servicios"
+                  className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+                    pathname?.startsWith('/servicios')
+                      ? 'text-primary-600 bg-primary-500/5'
+                      : 'text-gray-700 hover:text-primary-600 hover:bg-primary-500/5'
+                  }`}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Servicios
+                </Link>
+                <Link
                   href={getDashboardLink() || '/dashboard'}
                   className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
                   onClick={() => setMobileMenuOpen(false)}
@@ -617,17 +639,17 @@ export function Navbar() {
                 </div>
               </>
             ) : (
-              <div className="space-y-2 border-t border-gray-200 pt-4 mt-4">
+              <div className="space-y-3 border-t border-gray-200 pt-4 mt-4">
                 <Link
                   href="/login"
-                  className="block text-center text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl font-bold transition-all"
+                  className="block text-center bg-white border-2 border-primary-500 text-primary-600 hover:bg-primary-50 px-4 py-3 rounded-xl font-bold transition-all shadow-sm hover:shadow-md"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Iniciar sesión
                 </Link>
                 <Link
                   href="/register"
-                  className="block text-center bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-4 py-3 rounded-xl hover:from-primary-600 hover:to-secondary-600 transition-all font-bold shadow-lg"
+                  className="block text-center bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-4 py-3 rounded-xl hover:from-primary-600 hover:to-secondary-600 transition-all font-bold shadow-lg hover:shadow-xl"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Registrarse
