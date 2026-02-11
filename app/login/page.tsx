@@ -222,7 +222,7 @@ function LoginForm() {
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-2">
                   <label className="block text-sm font-semibold text-gray-700">
-                    Email
+                    Email <span className="text-red-500">*</span>
                   </label>
                   <div className="relative group">
                     <Mail className={`absolute left-4 top-1/2 transform -translate-y-1/2 transition-colors ${
@@ -251,7 +251,7 @@ function LoginForm() {
 
                 <div className="space-y-2">
                   <label className="block text-sm font-semibold text-gray-700">
-                    Contraseña
+                    Contraseña <span className="text-red-500">*</span>
                   </label>
                   <div className="relative group">
                     <Lock className={`absolute left-4 top-1/2 transform -translate-y-1/2 transition-colors ${

@@ -569,7 +569,7 @@ function RegisterForm() {
 
               <div className="space-y-2">
                 <label className="block text-sm font-semibold text-gray-700">
-                  Nombre completo
+                  Nombre completo <span className="text-red-500">*</span>
                 </label>
                 <div className="relative group">
                   <User className={`absolute left-4 top-1/2 transform -translate-y-1/2 transition-colors ${
@@ -598,7 +598,7 @@ function RegisterForm() {
 
               <div className="space-y-2">
                 <label className="block text-sm font-semibold text-gray-700">
-                  Email
+                  Email <span className="text-red-500">*</span>
                 </label>
                 <div className="relative group">
                   <Mail className={`absolute left-4 top-1/2 transform -translate-y-1/2 transition-colors ${
@@ -627,7 +627,7 @@ function RegisterForm() {
 
               <div className="space-y-2">
                 <label className="block text-sm font-semibold text-gray-700">
-                  Teléfono
+                  Teléfono <span className="text-red-500">*</span>
                 </label>
                 <div className="relative group">
                   <Phone className={`absolute left-4 top-1/2 transform -translate-y-1/2 transition-colors ${
@@ -656,7 +656,7 @@ function RegisterForm() {
 
               <div className="space-y-2">
                 <label className="block text-sm font-semibold text-gray-700">
-                  Contraseña
+                  Contraseña <span className="text-red-500">*</span>
                 </label>
                 <div className="relative group">
                   <Lock className={`absolute left-4 top-1/2 transform -translate-y-1/2 transition-colors ${
@@ -737,7 +737,7 @@ function RegisterForm() {
 
               <div className="space-y-2">
                 <label className="block text-sm font-semibold text-gray-700">
-                  Confirmar contraseña
+                  Confirmar contraseña <span className="text-red-500">*</span>
                 </label>
                 <div className="relative group">
                   <Lock className={`absolute left-4 top-1/2 transform -translate-y-1/2 transition-colors ${
@@ -773,7 +773,7 @@ function RegisterForm() {
 
               <div className="space-y-2">
                 <label className="block text-sm font-semibold text-gray-700">
-                  Ciudad
+                  Ciudad <span className="text-red-500">*</span>
                 </label>
                 <div className="relative group">
                   <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-primary-600 transition-colors" size={20} />
