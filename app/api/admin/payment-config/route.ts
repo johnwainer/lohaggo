@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
+import { validateMercadoPagoAccessToken } from '@/lib/mercadopago'
 
 const logger = createLogger('admin-payment-config')
 
@@ -24,6 +25,13 @@ export async function GET() {
       })
     }
 
+    const [testValidation, productionValidation] = await Promise.all([
+      config.testAccessToken ? validateMercadoPagoAccessToken(config.testAccessToken) : Promise.resolve(null),
+      config.productionAccessToken ? validateMercadoPagoAccessToken(config.productionAccessToken) : Promise.resolve(null),
+    ])
+
+    const activeValidation = config.environment === 'PRODUCTION' ? productionValidation : testValidation
+
     return NextResponse.json({
       id: config.id,
       environment: config.environment,
@@ -32,7 +40,12 @@ export async function GET() {
       testPublicKey: config.testPublicKey,
       testClientId: config.testClientId,
       productionPublicKey: config.productionPublicKey,
-      productionClientId: config.productionClientId
+      productionClientId: config.productionClientId,
+      activeEnvironmentReady: !!activeValidation?.ok,
+      validation: {
+        test: testValidation,
+        production: productionValidation,
+      },
     })
   } catch (error) {
     logger.error('Error fetching payment config:', error || undefined)
@@ -63,10 +76,31 @@ export async function PUT(request: NextRequest) {
 
     let config = await prisma.paymentConfig.findFirst()
 
+    const selectedEnvironment = environment || config?.environment || 'TEST'
+    const selectedAccessToken =
+      selectedEnvironment === 'PRODUCTION'
+        ? (productionAccessToken || config?.productionAccessToken)
+        : (testAccessToken || config?.testAccessToken)
+
+    if (!selectedAccessToken) {
+      return NextResponse.json(
+        { error: `Debes configurar access token para ${selectedEnvironment}` },
+        { status: 400 }
+      )
+    }
+
+    const tokenValidation = await validateMercadoPagoAccessToken(selectedAccessToken)
+    if (!tokenValidation.ok) {
+      return NextResponse.json(
+        { error: `Credenciales inválidas para ${selectedEnvironment}: ${tokenValidation.error}` },
+        { status: 400 }
+      )
+    }
+
     if (!config) {
       config = await prisma.paymentConfig.create({
         data: {
-          environment: environment || 'TEST',
+          environment: selectedEnvironment,
           testAccessToken,
           testPublicKey,
           testClientId,
@@ -81,7 +115,7 @@ export async function PUT(request: NextRequest) {
       config = await prisma.paymentConfig.update({
         where: { id: config.id },
         data: {
-          environment,
+          environment: selectedEnvironment,
           ...(testAccessToken && { testAccessToken }),
           ...(testPublicKey && { testPublicKey }),
           ...(testClientId && { testClientId }),
@@ -98,7 +132,11 @@ export async function PUT(request: NextRequest) {
       id: config.id,
       environment: config.environment,
       hasTestCredentials: !!(config.testAccessToken && config.testPublicKey && config.testClientId && config.testClientSecret),
-      hasProductionCredentials: !!(config.productionAccessToken && config.productionPublicKey && config.productionClientId && config.productionClientSecret)
+      hasProductionCredentials: !!(config.productionAccessToken && config.productionPublicKey && config.productionClientId && config.productionClientSecret),
+      activeEnvironmentReady: true,
+      validation: {
+        active: tokenValidation,
+      },
     })
   } catch (error) {
     logger.error('Error updating payment config:', error || undefined)

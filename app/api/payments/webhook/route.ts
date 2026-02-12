@@ -95,19 +95,25 @@ async function handlePOST(req: NextRequest) {
         return NextResponse.json({ received: true });
       }
 
-      const payment = await prisma.payment.findFirst({
-        where: { mercadopagoId: String(paymentId) },
-      });
-
-      if (!payment) {
-        logger.warn('Payment not found in database', { paymentId });
-        return NextResponse.json({ received: true });
-      }
-
       const { client: mercadopago } = await getMercadoPagoClient();
       const paymentClient = new Payment(mercadopago);
       const mpResponse = await paymentClient.get({ id: String(paymentId) });
       const mpPayment = mpResponse;
+      const externalReference = (mpPayment as any)?.external_reference?.toString?.() || null;
+
+      const payment = await prisma.payment.findFirst({
+        where: {
+          OR: [
+            { mercadopagoId: String(paymentId) },
+            ...(externalReference ? [{ bookingId: externalReference }] : []),
+          ],
+        },
+      });
+
+      if (!payment) {
+        logger.warn('Payment not found in database', { paymentId, externalReference });
+        return NextResponse.json({ received: true });
+      }
 
       const mpStatusRaw = (mpPayment?.status ?? '').toString().toLowerCase();
 
@@ -205,17 +211,23 @@ async function handlePOST(req: NextRequest) {
         });
 
         if (booking.partnerId) {
-          await prisma.payout.create({
-            data: {
-              paymentId: payment.id,
-              partnerId: booking.partnerId,
-              amount: serviceAmount,
-              partnerCommission,
-              partnerCommissionRate,
-              netAmount,
-              status: 'PENDING',
-            },
-          });
+          const existingPayout = await prisma.payout.findUnique({
+            where: { paymentId: payment.id },
+          })
+
+          if (!existingPayout) {
+            await prisma.payout.create({
+              data: {
+                paymentId: payment.id,
+                partnerId: booking.partnerId,
+                amount: serviceAmount,
+                partnerCommission,
+                partnerCommissionRate,
+                netAmount,
+                status: 'PENDING',
+              },
+            });
+          }
         } else {
           logger.warn('Payout not created: booking without partnerId', {
             bookingId: booking.id,

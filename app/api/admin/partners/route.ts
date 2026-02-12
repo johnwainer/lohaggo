@@ -43,7 +43,20 @@ export async function GET() {
             bookings: true,
             proposals: true,
           }
-        }
+        },
+        bankAccounts: {
+          where: { isActive: true },
+          orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
+          take: 1,
+          select: {
+            id: true,
+            bankName: true,
+            accountType: true,
+            accountNumber: true,
+            isDefault: true,
+            mercadoPagoRecipientId: true,
+          },
+        },
       },
       orderBy: { createdAt: 'desc' }
     })

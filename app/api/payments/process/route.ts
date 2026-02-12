@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
 import { paymentRateLimiter } from '@/lib/rate-limit'
 import { paymentProcessSchema, validateRequest } from '@/lib/validation'
+import { getPaymentEnvironment } from '@/lib/payout-processor'
 
 const logger = createLogger('payments-process')
 
@@ -24,6 +25,14 @@ async function handlePOST(req: NextRequest) {
     }
 
     const { bookingId, paymentMethodId } = validation.data
+    const paymentEnvironment = await getPaymentEnvironment()
+
+    if (paymentEnvironment === 'PRODUCTION') {
+      return NextResponse.json(
+        { error: 'En producción usa /api/payments/create y webhook de Mercado Pago para confirmar pagos.' },
+        { status: 400 }
+      )
+    }
 
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
@@ -91,11 +100,12 @@ async function handlePOST(req: NextRequest) {
     const clientCommission = (serviceAmount * clientCommissionRate) / 100
     const totalAmount = serviceAmount + clientCommission
 
-    logger.info('Processing payment', {
+    logger.info('Processing test payment simulation', {
       bookingId,
       userId: session.user.id,
       clientCommissionRate,
       partnerCommissionRate,
+      paymentEnvironment,
     })
 
     let paymentId: string

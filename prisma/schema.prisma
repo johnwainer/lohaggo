@@ -63,6 +63,7 @@ model PartnerProfile {
   directRequests ServiceRequest[]     @relation("DirectRequests")
   favoritedBy  FavoritePartner[]
   fraudSignals FraudSignal[]
+  bankAccounts PartnerBankAccount[]
 }
 
 model Category {
@@ -354,11 +355,15 @@ model Payout {
   id                    String         @id @default(cuid())
   paymentId             String         @unique
   partnerId             String
+  bankAccountId         String?
   amount                Float
   partnerCommission     Float
   partnerCommissionRate Float
   netAmount             Float
   status                PayoutStatus   @default(PENDING)
+  externalTransferId    String?
+  processorStatus       String?
+  processorMessage      String?
   processedBy           String?
   processedAt           DateTime?
   notes                 String?
@@ -366,10 +371,13 @@ model Payout {
   updatedAt             DateTime       @updatedAt
   partner               PartnerProfile @relation(fields: [partnerId], references: [id])
   payment               Payment        @relation(fields: [paymentId], references: [id])
+  bankAccount           PartnerBankAccount? @relation(fields: [bankAccountId], references: [id], onDelete: SetNull)
 
   @@index([partnerId])
   @@index([status])
   @@index([paymentId])
+  @@index([bankAccountId])
+  @@index([externalTransferId])
 }
 
 model PlatformConfig {
@@ -612,6 +620,30 @@ model SearchHistory {
 
   @@index([userId])
   @@index([createdAt])
+}
+
+model PartnerBankAccount {
+  id                    String         @id @default(cuid())
+  partnerId             String
+  bankName              String
+  accountType           String
+  accountNumber         String
+  accountHolderName     String
+  holderDocumentType    String
+  holderDocumentNumber  String
+  city                  String?
+  branchCode            String?
+  isDefault             Boolean        @default(false)
+  isActive              Boolean        @default(true)
+  verifiedAt            DateTime?
+  mercadoPagoRecipientId String?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  partner               PartnerProfile @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  payouts               Payout[]
+
+  @@index([partnerId, isDefault, isActive])
+  @@index([mercadoPagoRecipientId])
 }
 
 model AdminAuditLog {

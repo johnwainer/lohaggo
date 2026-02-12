@@ -12,11 +12,22 @@ interface Payout {
   status: string
   createdAt: string
   processedAt: string | null
+  processorStatus?: string | null
+  processorMessage?: string | null
+  externalTransferId?: string | null
   partner: {
     user: {
       name: string
       email: string
     }
+    bankAccounts?: Array<{
+      id: string
+      bankName: string
+      accountType: string
+      accountNumber: string
+      isDefault: boolean
+      mercadoPagoRecipientId?: string | null
+    }>
   }
   payment: {
     booking: {
@@ -32,6 +43,7 @@ export default function PayoutsSection() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('PENDING')
   const [processing, setProcessing] = useState<string | null>(null)
+  const [selectedPayoutIds, setSelectedPayoutIds] = useState<string[]>([])
 
   useEffect(() => {
     fetchPayouts()
@@ -66,7 +78,10 @@ export default function PayoutsSection() {
       })
 
       if (response.ok) {
-        alert('Pago procesado exitosamente')
+        const payload = await response.json()
+        const ok = payload?.summary?.success || 0
+        const fail = payload?.summary?.failed || 0
+        alert(`Proceso finalizado. Exitosos: ${ok}, Fallidos: ${fail}`)
         fetchPayouts()
       } else {
         const error = await response.json()
@@ -74,6 +89,38 @@ export default function PayoutsSection() {
       }
     } catch (error) {
       alert('Error al procesar pago')
+    } finally {
+      setProcessing(null)
+    }
+  }
+
+  const toggleSelection = (payoutId: string, checked: boolean) => {
+    setSelectedPayoutIds((prev) =>
+      checked ? Array.from(new Set([...prev, payoutId])) : prev.filter((id) => id !== payoutId)
+    )
+  }
+
+  const handleProcessBatch = async () => {
+    if (!selectedPayoutIds.length) return
+    if (!confirm(`¿Procesar ${selectedPayoutIds.length} pagos seleccionados?`)) return
+
+    setProcessing('batch')
+    try {
+      const response = await fetch('/api/payouts/process-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payoutIds: selectedPayoutIds }),
+      })
+      const payload = await response.json()
+      if (!response.ok) {
+        alert(payload?.error || 'Error al procesar pagos en lote')
+      } else {
+        alert(`Proceso finalizado. Exitosos: ${payload.summary.success}, Fallidos: ${payload.summary.failed}`)
+        setSelectedPayoutIds([])
+        await fetchPayouts()
+      }
+    } catch {
+      alert('Error al procesar pagos en lote')
     } finally {
       setProcessing(null)
     }
@@ -169,6 +216,13 @@ export default function PayoutsSection() {
             <option value="COMPLETED">Completados</option>
             <option value="FAILED">Fallidos</option>
           </select>
+          <button
+            onClick={handleProcessBatch}
+            disabled={processing === 'batch' || selectedPayoutIds.length === 0}
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {processing === 'batch' ? 'Procesando lote...' : `Procesar lote (${selectedPayoutIds.length})`}
+          </button>
         </div>
 
         {loading ? (
@@ -185,6 +239,7 @@ export default function PayoutsSection() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200">
+                  <th className="text-center py-3 px-2 text-sm font-semibold text-gray-700">Sel</th>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Socio</th>
                   <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
                     Servicio
@@ -201,6 +256,9 @@ export default function PayoutsSection() {
                   <th className="text-center py-3 px-4 text-sm font-semibold text-gray-700">
                     Estado
                   </th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">
+                    Cuenta / Transferencia
+                  </th>
                   <th className="text-center py-3 px-4 text-sm font-semibold text-gray-700">
                     Acciones
                   </th>
@@ -209,6 +267,14 @@ export default function PayoutsSection() {
               <tbody>
                 {payouts.map((payout) => (
                   <tr key={payout.id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="py-4 px-2 text-center">
+                      <input
+                        type="checkbox"
+                        disabled={payout.status !== 'PENDING'}
+                        checked={selectedPayoutIds.includes(payout.id)}
+                        onChange={(e) => toggleSelection(payout.id, e.target.checked)}
+                      />
+                    </td>
                     <td className="py-4 px-4">
                       <div>
                         <p className="font-medium text-gray-900">{payout.partner.user.name}</p>
@@ -248,6 +314,21 @@ export default function PayoutsSection() {
                           {getStatusIcon(payout.status)}
                           {payout.status}
                         </span>
+                      </div>
+                    </td>
+                    <td className="py-4 px-4">
+                      <div className="text-xs text-gray-600">
+                        {payout.partner.bankAccounts?.[0] ? (
+                          <>
+                            <p>{payout.partner.bankAccounts[0].bankName} · {payout.partner.bankAccounts[0].accountType}</p>
+                            <p>****{payout.partner.bankAccounts[0].accountNumber.slice(-4)}</p>
+                          </>
+                        ) : (
+                          <p className="text-red-600">Sin cuenta bancaria activa</p>
+                        )}
+                        {payout.externalTransferId && <p>ID: {payout.externalTransferId}</p>}
+                        {payout.processorStatus && <p>{payout.processorStatus}</p>}
+                        {payout.processorMessage && <p className="truncate max-w-[240px]">{payout.processorMessage}</p>}
                       </div>
                     </td>
                     <td className="py-4 px-4">

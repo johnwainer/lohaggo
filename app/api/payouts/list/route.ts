@@ -33,6 +33,11 @@ export async function GET(req: NextRequest) {
         partner: {
           include: {
             user: true,
+            bankAccounts: {
+              where: { isActive: true },
+              orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
+              take: 1,
+            },
           },
         },
         payment: {

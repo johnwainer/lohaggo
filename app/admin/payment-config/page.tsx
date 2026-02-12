@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import Sidebar from '@/components/admin/Sidebar'
 import { CreditCard, Key, AlertCircle, CheckCircle, Eye, EyeOff } from 'lucide-react'
 
 type PaymentEnvironment = 'TEST' | 'PRODUCTION'
@@ -17,6 +16,11 @@ interface PaymentConfig {
   testClientId?: string
   productionPublicKey?: string
   productionClientId?: string
+  activeEnvironmentReady?: boolean
+  validation?: {
+    test?: { ok: boolean; status: number; error?: string | null } | null
+    production?: { ok: boolean; status: number; error?: string | null } | null
+  }
 }
 
 export default function PaymentConfigPage() {
@@ -132,11 +136,8 @@ export default function PaymentConfigPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <Sidebar activeSection="payment-config" onSectionChange={() => router.push('/admin')} />
-      <main className="flex-1 overflow-auto ml-0 lg:ml-8">
-        <div className="p-3 sm:p-6 lg:p-8">
-          <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-4xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
             <CreditCard className="w-8 h-8 text-primary-600" />
@@ -145,6 +146,16 @@ export default function PaymentConfigPage() {
           <p className="mt-2 text-gray-600">
             Configura las credenciales de Mercadopago para ambientes de prueba y producción
           </p>
+          {config && (
+            <div className={`mt-3 inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${
+              config.activeEnvironmentReady
+                ? 'bg-green-50 text-green-700 border border-green-200'
+                : 'bg-red-50 text-red-700 border border-red-200'
+            }`}>
+              <span className="font-semibold">Estado ambiente activo:</span>
+              <span>{config.activeEnvironmentReady ? 'Conectado y validado' : 'Credenciales inválidas o incompletas'}</span>
+            </div>
+          )}
         </div>
 
         {message && (
@@ -394,9 +405,7 @@ export default function PaymentConfigPage() {
             </button>
           </div>
         </form>
-          </div>
-        </div>
-      </main>
+      </div>
     </div>
   )
 }
