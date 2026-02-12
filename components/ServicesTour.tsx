@@ -112,8 +112,6 @@ export default function ServicesTour() {
   }, [])
 
   useEffect(() => {
-    if (!isMobile) return
-
     const tourCompleted = localStorage.getItem('services-tour-completed')
     const dontShowAgain = localStorage.getItem('services-tour-dont-show')
 
@@ -122,7 +120,7 @@ export default function ServicesTour() {
     } else {
       setShowFloatingButton(true)
     }
-  }, [isMobile])
+  }, [])
 
   useEffect(() => {
     if (isOpen) {

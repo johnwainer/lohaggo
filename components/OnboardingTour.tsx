@@ -128,8 +128,6 @@ export default function OnboardingTour() {
   }, [])
 
   useEffect(() => {
-    if (!isMobile) return
-
     const tourCompleted = localStorage.getItem('onboarding-tour-completed')
     const dontShowAgain = localStorage.getItem('onboarding-tour-dont-show')
 
@@ -138,7 +136,7 @@ export default function OnboardingTour() {
     } else {
       setShowFloatingButton(true)
     }
-  }, [isMobile])
+  }, [])
 
   useEffect(() => {
     if (isOpen) {

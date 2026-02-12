@@ -112,10 +112,8 @@ export default function ServiceDetailTour() {
   }, [])
 
   useEffect(() => {
-    if (!isMobile) return
-
     setShowFloatingButton(true)
-  }, [isMobile])
+  }, [])
 
   useEffect(() => {
     if (isOpen) {
