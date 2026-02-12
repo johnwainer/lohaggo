@@ -240,9 +240,6 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     const currentCity = getCityBySlug(citySlug)
 
     if (currentCity?.partnerRegistry) {
-      if (session) {
-        await signOut({ redirect: false })
-      }
       window.location.href = 'https://www.lohaggo.com/register?role=partner'
       return
     }
@@ -269,9 +266,6 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     const currentCity = getCityBySlug(citySlug)
 
     if (currentCity?.partnerRegistry) {
-      if (session) {
-        await signOut({ redirect: false })
-      }
       window.location.href = 'https://www.lohaggo.com/register?role=partner'
       return
     }
@@ -299,9 +293,6 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     const currentCity = getCityBySlug(citySlug)
 
     if (currentCity?.partnerRegistry) {
-      if (session) {
-        await signOut({ redirect: false })
-      }
       window.location.href = 'https://www.lohaggo.com/register?role=partner'
       return
     }
