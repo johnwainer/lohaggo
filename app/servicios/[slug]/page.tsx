@@ -240,7 +240,10 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     const currentCity = getCityBySlug(citySlug)
 
     if (currentCity?.partnerRegistry) {
-      router.push('/registro-socios')
+      setValidationModal({
+        isOpen: true,
+        message: `Actualmente estamos en proceso de registro de socios en ${currentCity.name}. Pronto podrás solicitar servicios aquí. ¡Gracias por tu paciencia!`
+      })
       return
     }
 
@@ -266,7 +269,10 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     const currentCity = getCityBySlug(citySlug)
 
     if (currentCity?.partnerRegistry) {
-      router.push('/registro-socios')
+      setValidationModal({
+        isOpen: true,
+        message: `Actualmente estamos en proceso de registro de socios en ${currentCity.name}. Pronto podrás solicitar servicios aquí. ¡Gracias por tu paciencia!`
+      })
       return
     }
 
@@ -293,7 +299,10 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     const currentCity = getCityBySlug(citySlug)
 
     if (currentCity?.partnerRegistry) {
-      router.push('/registro-socios')
+      setValidationModal({
+        isOpen: true,
+        message: `Actualmente estamos en proceso de registro de socios en ${currentCity.name}. Pronto podrás solicitar servicios aquí. ¡Gracias por tu paciencia!`
+      })
       return
     }
 
