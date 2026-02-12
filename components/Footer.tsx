@@ -3,10 +3,12 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Sparkles, Facebook, Instagram, Mail, Phone, MapPin, Heart } from 'lucide-react'
+import { useSession, signOut } from 'next-auth/react'
 
 export function Footer() {
   const pathname = usePathname()
   const currentYear = new Date().getFullYear()
+  const { data: session } = useSession()
 
   // Hide footer on admin pages
   if (pathname?.startsWith('/admin')) {
@@ -69,15 +71,36 @@ export function Footer() {
               {[
                 { name: 'Sobre nosotros', href: '/about' },
                 { name: 'Cómo funciona', href: '/how-it-works' },
-                { name: 'Conviértete en socio', href: '/register?role=partner' },
+                {
+                  name: 'Conviértete en socio',
+                  href: '/register?role=partner',
+                  onClick: async (e: React.MouseEvent) => {
+                    e.preventDefault()
+                    if (session) {
+                      await signOut({ redirect: false })
+                    }
+                    window.location.href = '/register?role=partner'
+                  }
+                },
                 { name: 'FAQ', href: '/faq' },
                 { name: 'Contacto', href: '/contact' }
               ].map((item) => (
                 <li key={item.name}>
-                  <Link href={item.href} className="text-gray-400 hover:text-primary-600 transition-colors flex items-center group font-medium">
-                    <span className="w-1.5 h-1.5 bg-primary-500 rounded-full mr-2 group-hover:scale-150 transition-transform"></span>
-                    {item.name}
-                  </Link>
+                  {item.onClick ? (
+                    <a
+                      href={item.href}
+                      onClick={item.onClick}
+                      className="text-gray-400 hover:text-primary-600 transition-colors flex items-center group font-medium cursor-pointer"
+                    >
+                      <span className="w-1.5 h-1.5 bg-primary-500 rounded-full mr-2 group-hover:scale-150 transition-transform"></span>
+                      {item.name}
+                    </a>
+                  ) : (
+                    <Link href={item.href} className="text-gray-400 hover:text-primary-600 transition-colors flex items-center group font-medium">
+                      <span className="w-1.5 h-1.5 bg-primary-500 rounded-full mr-2 group-hover:scale-150 transition-transform"></span>
+                      {item.name}
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>
@@ -97,12 +120,17 @@ export function Footer() {
               </li>
             </ul>
             <div className="mt-6">
-              <Link
-                href="/register?role=partner"
+              <button
+                onClick={async () => {
+                  if (session) {
+                    await signOut({ redirect: false })
+                  }
+                  window.location.href = 'https://www.lohaggo.com/register?role=partner'
+                }}
                 className="inline-block bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-6 py-3 rounded-xl hover:from-primary-600 hover:to-secondary-600 transition-all font-bold text-sm shadow-lg hover:shadow-xl transform hover:scale-105"
               >
                 Únete como socio
-              </Link>
+              </button>
             </div>
           </div>
         </div>

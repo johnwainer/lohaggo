@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { DollarSign, Clock, Star, CheckCircle, MapPin, Plus, Calendar, X, ChevronRight, Camera, Upload, Trash2, Shield, CreditCard, GraduationCap, ShieldCheck, UserPlus, Bell, Briefcase, TrendingUp, Users, Sparkles, Heart } from 'lucide-react'
-import { useSession } from 'next-auth/react'
+import { useSession, signOut } from 'next-auth/react'
 import { formatCurrency } from '@/lib/utils'
 import { useCity } from '@/lib/city-context'
 import ConfirmModal from '@/components/ConfirmModal'
@@ -223,7 +223,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     }
   }
 
-  const handleBooking = () => {
+  const handleBooking = async () => {
     if (!session) {
       router.push('/login?redirect=/servicios/' + slug)
       return
@@ -240,7 +240,10 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     const currentCity = getCityBySlug(citySlug)
 
     if (currentCity?.partnerRegistry) {
-      router.push('/registro-socios')
+      if (session) {
+        await signOut({ redirect: false })
+      }
+      window.location.href = 'https://www.lohaggo.com/register?role=partner'
       return
     }
 
@@ -249,7 +252,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
   }
 
   // New function name for handling requests (kept for clarity/compatibility)
-  const handleRequest = () => {
+  const handleRequest = async () => {
     if (!session) {
       router.push('/login?redirect=/servicios/' + slug)
       return
@@ -266,7 +269,10 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     const currentCity = getCityBySlug(citySlug)
 
     if (currentCity?.partnerRegistry) {
-      router.push('/registro-socios')
+      if (session) {
+        await signOut({ redirect: false })
+      }
+      window.location.href = 'https://www.lohaggo.com/register?role=partner'
       return
     }
 
@@ -276,7 +282,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     setShowRequestModal(true)
   }
 
-  const handleRequestToPartner = (partnerId: string) => {
+  const handleRequestToPartner = async (partnerId: string) => {
     if (!session) {
       router.push('/login?redirect=/servicios/' + slug)
       return
@@ -293,7 +299,10 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     const currentCity = getCityBySlug(citySlug)
 
     if (currentCity?.partnerRegistry) {
-      router.push('/registro-socios')
+      if (session) {
+        await signOut({ redirect: false })
+      }
+      window.location.href = 'https://www.lohaggo.com/register?role=partner'
       return
     }
 
@@ -862,7 +871,12 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                         </div>
                       </div>
                       <button
-                        onClick={() => router.push('/register?role=partner')}
+                        onClick={async () => {
+                          if (session) {
+                            await signOut({ redirect: false })
+                          }
+                          window.location.href = 'https://www.lohaggo.com/register?role=partner'
+                        }}
                         className="w-full bg-gradient-to-r from-primary-500 to-secondary-500 text-white font-semibold py-3 px-4 rounded-lg hover:from-primary-600 hover:to-secondary-600 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 group"
                       >
                         <UserPlus size={18} />
