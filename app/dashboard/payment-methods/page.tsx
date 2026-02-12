@@ -1,14 +1,12 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
 import { CreditCard, Plus, Trash2, Check, AlertCircle, Home, Package, MessageSquare, Heart } from 'lucide-react'
 import Link from 'next/link'
 import ClientDashboardNav from '@/components/ClientDashboardNav'
 interface PaymentMethod { id: string; lastFourDigits: string; cardBrand: string; cardholderName: string; expirationMonth: number; expirationYear: number; isDefault: boolean; isActive: boolean; createdAt: string }
 export default function PaymentMethodsPage() {
   const { status } = useSession()
-  const router = useRouter()
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -65,12 +63,11 @@ export default function PaymentMethodsPage() {
     }
   }
   useEffect(() => {
-    if (status === 'unauthenticated') router.push('/login')
     if (status === 'authenticated') {
       fetchMethods()
       fetchCounts()
     }
-  }, [status, router])
+  }, [status])
   useEffect(() => {
     if (!success) return
     const timer = setTimeout(() => setSuccess(null), 4000)

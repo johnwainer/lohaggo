@@ -52,9 +52,7 @@ export default function VerificationPage() {
   const [requestsCount, setRequestsCount] = useState(0)
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/login')
-    } else if (session?.user?.role !== 'PARTNER') {
+    if (status === 'authenticated' && session?.user?.role !== 'PARTNER') {
       router.push('/')
     }
   }, [session, status, router])

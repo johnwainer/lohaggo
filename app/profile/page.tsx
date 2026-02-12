@@ -85,9 +85,6 @@ export default function ProfilePage() {
   }
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/login')
-    }
     if (session?.user) {
       setName(session.user.name || '')
       setEmail(session.user.email || '')

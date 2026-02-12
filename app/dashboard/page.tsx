@@ -225,10 +225,6 @@ export default function DashboardPage() {
   const [loadingBreakdown, setLoadingBreakdown] = useState(false)
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/login')
-      return
-    }
     if (status === 'authenticated') {
       fetchBookings()
       fetchServiceRequests()

@@ -38,7 +38,7 @@ interface ServiceRequest {
 }
 
 export default function PartnerRequestsPage() {
-  const { data: session, status } = useSession()
+  const { status } = useSession()
   const router = useRouter()
   const [requests, setRequests] = useState<ServiceRequest[]>([])
   const [loading, setLoading] = useState(true)
@@ -52,13 +52,9 @@ export default function PartnerRequestsPage() {
   const [verificationRequired, setVerificationRequired] = useState(false)
 
   useEffect(() => {
-    if (status === 'loading') return
-    if (!session) {
-      router.push('/login')
-      return
-    }
+    if (status !== 'authenticated') return
     fetchActiveRequests()
-  }, [session, status])
+  }, [status])
 
   const fetchActiveRequests = async () => {
     try {

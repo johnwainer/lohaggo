@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
 import { Star, ArrowLeft, Calendar, MessageSquare, User, MapPin, Package, Activity, Bell, Settings, Shield, Home, Heart } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import ClientDashboardNav from '@/components/ClientDashboardNav'
@@ -39,7 +38,6 @@ interface Review {
 
 export default function MyRatingsPage() {
   const { data: session, status } = useSession()
-  const router = useRouter()
   const [reviews, setReviews] = useState<Review[]>([])
   const [loading, setLoading] = useState(true)
   const [userRole, setUserRole] = useState<'CLIENT' | 'PARTNER' | null>(null)
@@ -50,11 +48,6 @@ export default function MyRatingsPage() {
   const [favoritesCount, setFavoritesCount] = useState(0)
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/login')
-      return
-    }
-
     if (status === 'authenticated') {
       fetchReviews()
       if (session?.user?.role === 'PARTNER') {

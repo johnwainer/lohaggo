@@ -43,9 +43,7 @@ export default function PartnerAchievementsPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/login')
-    } else if (session?.user?.role !== 'PARTNER') {
+    if (status === 'authenticated' && session?.user?.role !== 'PARTNER') {
       router.push('/')
     }
   }, [session, status, router])

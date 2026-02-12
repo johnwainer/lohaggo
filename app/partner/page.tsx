@@ -246,9 +246,7 @@ function PartnerDashboardContent() {
   }
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/login')
-    } else if (status === 'authenticated') {
+    if (status === 'authenticated') {
       if (session?.user?.role !== 'PARTNER') {
         router.push('/dashboard')
       } else {

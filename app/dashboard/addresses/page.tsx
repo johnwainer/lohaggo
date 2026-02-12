@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
 import {
   MapPin, Plus, Edit2, Trash2, Home, Building, Star, ArrowLeft,
   Package, MessageSquare, Heart
@@ -28,7 +27,6 @@ interface Address {
 
 export default function AddressesPage() {
   const { data: session, status } = useSession()
-  const router = useRouter()
   const { cities, getCityBySlug } = useCity()
   const [addresses, setAddresses] = useState<Address[]>([])
   const [loading, setLoading] = useState(true)
@@ -52,13 +50,11 @@ export default function AddressesPage() {
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/login')
-    } else if (status === 'authenticated') {
+    if (status === 'authenticated') {
       fetchAddresses()
       fetchCounts()
     }
-  }, [status, router])
+  }, [status])
 
   useEffect(() => {
     if (cities.length > 0 && !formData.city) {

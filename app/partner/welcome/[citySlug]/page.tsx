@@ -33,11 +33,6 @@ export default function PartnerWelcomePage({ params }: { params: Promise<{ cityS
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/login')
-      return
-    }
-
     const fetchCity = async () => {
       try {
         const res = await fetch('/api/cities')

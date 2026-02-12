@@ -57,9 +57,7 @@ export default function NotificationsPage() {
   }
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/login')
-    } else if (status === 'authenticated') {
+    if (status === 'authenticated') {
       fetchNotifications()
       fetchCounts()
     }

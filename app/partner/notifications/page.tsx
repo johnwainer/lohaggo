@@ -28,9 +28,7 @@ export default function PartnerNotificationsPage() {
   const [myRequestsCount, setMyRequestsCount] = useState(0)
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/login')
-    } else if (status === 'authenticated') {
+    if (status === 'authenticated') {
       if (session?.user?.role !== 'PARTNER') {
         router.push('/dashboard')
         return

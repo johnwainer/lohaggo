@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
 import {
   Plus,
   Trash2,
@@ -38,7 +37,6 @@ const CITIES = [
 
 export default function ServicesManagementPage() {
   const { data: session, status } = useSession()
-  const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [allServices, setAllServices] = useState<Service[]>([])
   const [activeServices, setActiveServices] = useState<Service[]>([])
@@ -49,15 +47,11 @@ export default function ServicesManagementPage() {
   const [requestsCount, setRequestsCount] = useState(0)
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/login')
-      return
-    }
     if (status === 'authenticated') {
       fetchServices()
       fetchCounts()
     }
-  }, [status, router])
+  }, [status])
 
   const fetchCounts = async () => {
     try {
