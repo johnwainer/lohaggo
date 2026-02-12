@@ -1,5 +1,6 @@
 import pino from 'pino'
 import { env } from './env'
+import { recordOperationalMetric } from './monitoring-metrics'
 
 const sensitiveKeys = [
   'password',
@@ -129,6 +130,7 @@ export function createLogger(context: string) {
       logger.info({ context, ...sanitizeForLog(data) }, message)
     },
     error: (message: string, error?: any, data?: any) => {
+      recordOperationalMetric('api_error')
       logger.error(
         {
           context,

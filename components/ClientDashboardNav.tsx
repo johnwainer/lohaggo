@@ -24,6 +24,7 @@ export default function ClientDashboardNav({
         <nav className="flex gap-0.5 sm:gap-1 overflow-x-auto scrollbar-hide">
           <button
             onClick={() => router.push('/dashboard')}
+            data-testid="dashboard-tab-overview"
             className={`flex items-center gap-2 sm:gap-2 px-4 sm:px-4 py-3 sm:py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${
               activeTab === 'overview'
                 ? 'border-primary-600 text-primary-600'
@@ -36,6 +37,7 @@ export default function ClientDashboardNav({
 
           <button
             onClick={() => router.push('/dashboard')}
+            data-testid="dashboard-tab-bookings"
             className={`flex items-center gap-2 sm:gap-2 px-4 sm:px-4 py-3 sm:py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${
               activeTab === 'bookings'
                 ? 'border-primary-600 text-primary-600'
@@ -53,6 +55,7 @@ export default function ClientDashboardNav({
 
           <button
             onClick={() => router.push('/dashboard')}
+            data-testid="dashboard-tab-requests"
             className={`flex items-center gap-2 sm:gap-2 px-4 sm:px-4 py-3 sm:py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${
               activeTab === 'requests'
                 ? 'border-primary-600 text-primary-600'
@@ -70,6 +73,7 @@ export default function ClientDashboardNav({
 
           <button
             onClick={() => router.push('/dashboard?tab=favorites')}
+            data-testid="dashboard-tab-favorites"
             className={`flex items-center gap-2 sm:gap-2 px-4 sm:px-4 py-3 sm:py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${
               activeTab === 'favorites'
                 ? 'border-primary-600 text-primary-600'

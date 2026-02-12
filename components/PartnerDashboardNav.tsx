@@ -22,6 +22,7 @@ export default function PartnerDashboardNav({
         <nav className="flex gap-0.5 sm:gap-1 overflow-x-auto scrollbar-hide">
           <button
             onClick={() => router.push('/partner')}
+            data-testid="partner-tab-overview"
             className={`flex items-center gap-2 sm:gap-2 px-4 sm:px-4 py-3 sm:py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${
               activeTab === 'overview'
                 ? 'border-primary-600 text-primary-600'
@@ -34,6 +35,7 @@ export default function PartnerDashboardNav({
 
           <button
             onClick={() => router.push('/partner?tab=bookings')}
+            data-testid="partner-tab-bookings"
             className={`flex items-center gap-2 sm:gap-2 px-4 sm:px-4 py-3 sm:py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${
               activeTab === 'bookings'
                 ? 'border-primary-600 text-primary-600'
@@ -51,6 +53,7 @@ export default function PartnerDashboardNav({
 
           <button
             onClick={() => router.push('/partner?tab=my-requests')}
+            data-testid="partner-tab-my-requests"
             className={`flex items-center gap-2 sm:gap-2 px-4 sm:px-4 py-3 sm:py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${
               activeTab === 'my-requests'
                 ? 'border-primary-600 text-primary-600'

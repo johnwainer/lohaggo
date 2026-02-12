@@ -4,6 +4,7 @@ import CredentialsProvider from "next-auth/providers/credentials"
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
 import { env } from "@/lib/env"
+import { recordOperationalMetric } from "@/lib/monitoring-metrics"
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -15,6 +16,7 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
+          recordOperationalMetric('login_failure')
           throw new Error("Email y contraseña requeridos")
         }
 
@@ -24,6 +26,7 @@ export const authOptions: NextAuthOptions = {
         })
 
         if (!user) {
+          recordOperationalMetric('login_failure')
           throw new Error("Usuario no encontrado")
         }
 
@@ -33,6 +36,7 @@ export const authOptions: NextAuthOptions = {
         )
 
         if (!isPasswordValid) {
+          recordOperationalMetric('login_failure')
           throw new Error("Contraseña incorrecta")
         }
 

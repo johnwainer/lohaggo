@@ -1,0 +1,212 @@
+{
+  "generatedAt": "2026-02-12T19:03:11.144Z",
+  "baseUrl": "https://www.lohaggo.com",
+  "scenarios": [
+    {
+      "viewport": "desktop",
+      "role": "client",
+      "loginOk": true,
+      "validSession": [
+        {
+          "route": "/dashboard",
+          "finalUrl": "https://www.lohaggo.com/dashboard",
+          "ok": true
+        },
+        {
+          "route": "/profile",
+          "finalUrl": "https://www.lohaggo.com/profile",
+          "ok": true
+        },
+        {
+          "route": "/dashboard/addresses",
+          "finalUrl": "https://www.lohaggo.com/dashboard/addresses",
+          "ok": true
+        },
+        {
+          "route": "/dashboard/payment-methods",
+          "finalUrl": "https://www.lohaggo.com/dashboard/payment-methods",
+          "ok": true
+        },
+        {
+          "route": "/notifications",
+          "finalUrl": "https://www.lohaggo.com/notifications",
+          "ok": true
+        },
+        {
+          "route": "/my-ratings",
+          "finalUrl": "https://www.lohaggo.com/my-ratings",
+          "ok": true
+        }
+      ],
+      "incognito": [
+        {
+          "route": "/dashboard",
+          "finalUrl": "https://www.lohaggo.com/login",
+          "ok": true
+        },
+        {
+          "route": "/profile",
+          "finalUrl": "https://www.lohaggo.com/login",
+          "ok": true
+        },
+        {
+          "route": "/dashboard/addresses",
+          "finalUrl": "https://www.lohaggo.com/login",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "viewport": "desktop",
+      "role": "partner",
+      "loginOk": true,
+      "validSession": [
+        {
+          "route": "/partner",
+          "finalUrl": "https://www.lohaggo.com/partner",
+          "ok": true
+        },
+        {
+          "route": "/partner/services",
+          "finalUrl": "https://www.lohaggo.com/partner/services",
+          "ok": true
+        },
+        {
+          "route": "/partner/verification",
+          "finalUrl": "https://www.lohaggo.com/partner/verification",
+          "ok": true
+        },
+        {
+          "route": "/partner/notifications",
+          "finalUrl": "https://www.lohaggo.com/partner/notifications",
+          "ok": true
+        },
+        {
+          "route": "/profile",
+          "finalUrl": "https://www.lohaggo.com/profile",
+          "ok": true
+        }
+      ],
+      "incognito": [
+        {
+          "route": "/partner",
+          "finalUrl": "https://www.lohaggo.com/login",
+          "ok": true
+        },
+        {
+          "route": "/partner/services",
+          "finalUrl": "https://www.lohaggo.com/login",
+          "ok": true
+        },
+        {
+          "route": "/partner/verification",
+          "finalUrl": "https://www.lohaggo.com/login",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "viewport": "mobile",
+      "role": "client",
+      "loginOk": true,
+      "validSession": [
+        {
+          "route": "/dashboard",
+          "finalUrl": "https://www.lohaggo.com/dashboard",
+          "ok": true
+        },
+        {
+          "route": "/profile",
+          "finalUrl": "https://www.lohaggo.com/profile",
+          "ok": true
+        },
+        {
+          "route": "/dashboard/addresses",
+          "finalUrl": "https://www.lohaggo.com/dashboard/addresses",
+          "ok": true
+        },
+        {
+          "route": "/dashboard/payment-methods",
+          "finalUrl": "https://www.lohaggo.com/dashboard/payment-methods",
+          "ok": true
+        },
+        {
+          "route": "/notifications",
+          "finalUrl": "https://www.lohaggo.com/notifications",
+          "ok": true
+        },
+        {
+          "route": "/my-ratings",
+          "finalUrl": "https://www.lohaggo.com/my-ratings",
+          "ok": true
+        }
+      ],
+      "incognito": [
+        {
+          "route": "/dashboard",
+          "finalUrl": "https://www.lohaggo.com/login",
+          "ok": true
+        },
+        {
+          "route": "/profile",
+          "finalUrl": "https://www.lohaggo.com/login",
+          "ok": true
+        },
+        {
+          "route": "/dashboard/addresses",
+          "finalUrl": "https://www.lohaggo.com/login",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "viewport": "mobile",
+      "role": "partner",
+      "loginOk": true,
+      "validSession": [
+        {
+          "route": "/partner",
+          "finalUrl": "https://www.lohaggo.com/partner",
+          "ok": true
+        },
+        {
+          "route": "/partner/services",
+          "finalUrl": "https://www.lohaggo.com/partner/services",
+          "ok": true
+        },
+        {
+          "route": "/partner/verification",
+          "finalUrl": "https://www.lohaggo.com/partner/verification",
+          "ok": true
+        },
+        {
+          "route": "/partner/notifications",
+          "finalUrl": "https://www.lohaggo.com/partner/notifications",
+          "ok": true
+        },
+        {
+          "route": "/profile",
+          "finalUrl": "https://www.lohaggo.com/profile",
+          "ok": true
+        }
+      ],
+      "incognito": [
+        {
+          "route": "/partner",
+          "finalUrl": "https://www.lohaggo.com/login",
+          "ok": true
+        },
+        {
+          "route": "/partner/services",
+          "finalUrl": "https://www.lohaggo.com/login",
+          "ok": true
+        },
+        {
+          "route": "/partner/verification",
+          "finalUrl": "https://www.lohaggo.com/login",
+          "ok": true
+        }
+      ]
+    }
+  ]
+}

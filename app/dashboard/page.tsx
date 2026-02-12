@@ -1113,6 +1113,7 @@ export default function DashboardPage() {
                       <div className="space-y-2">
                         <button
                           onClick={() => router.push('/servicios')}
+                          data-testid="dashboard-cta-search-services"
                           className="w-full bg-white/20 backdrop-blur-sm hover:bg-white/30 border border-white/30 text-white font-medium py-3 rounded-xl transition-all flex items-center justify-between px-4"
                         >
                           <span className="flex items-center gap-2">
@@ -1123,6 +1124,7 @@ export default function DashboardPage() {
                         </button>
                         <button
                           onClick={() => router.push('/profile')}
+                          data-testid="dashboard-cta-profile"
                           className="w-full bg-white/20 backdrop-blur-sm hover:bg-white/30 border border-white/30 text-white font-medium py-3 rounded-xl transition-all flex items-center justify-between px-4"
                         >
                           <span className="flex items-center gap-2">
@@ -1133,6 +1135,7 @@ export default function DashboardPage() {
                         </button>
                         <button
                           onClick={() => router.push('/dashboard/addresses')}
+                          data-testid="dashboard-cta-addresses"
                           className="w-full bg-white/20 backdrop-blur-sm hover:bg-white/30 border border-white/30 text-white font-medium py-3 rounded-xl transition-all flex items-center justify-between px-4"
                         >
                           <span className="flex items-center gap-2">

@@ -2,14 +2,50 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 import { env } from './lib/env'
+import { recordAuthSessionMetric, recordOperationalMetric } from './lib/monitoring-metrics'
 
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
 const authSecret = env.NEXTAUTH_SECRET_CURRENT || env.NEXTAUTH_SECRET
 
 function getRateLimitKey(request: NextRequest): string {
-  const forwarded = request.headers.get('x-forwarded-for')
-  const ip = forwarded ? forwarded.split(',')[0] : (request as any).ip || 'unknown'
+  const ip = getClientIp(request)
   return `${ip}-${request.nextUrl.pathname}`
+}
+
+function getClientIp(request: NextRequest): string {
+  const forwarded = request.headers.get('x-forwarded-for')
+  return forwarded ? forwarded.split(',')[0].trim() : (request as any).ip || 'unknown'
+}
+
+function getOriginRoute(request: NextRequest): string {
+  const referer = request.headers.get('referer')
+  if (!referer) return 'direct'
+  try {
+    const url = new URL(referer)
+    return `${url.pathname}${url.search}`
+  } catch {
+    return referer
+  }
+}
+
+function logAuthSessionTelemetry(request: NextRequest, status: number, rateLimitHit: boolean) {
+  const payload = {
+    type: 'auth_session_telemetry',
+    ts: new Date().toISOString(),
+    status,
+    path: request.nextUrl.pathname,
+    method: request.method,
+    originRoute: getOriginRoute(request),
+    userAgent: request.headers.get('user-agent') || 'unknown',
+    rateLimitHit,
+    ip: getClientIp(request),
+  }
+
+  if (status >= 400 || rateLimitHit) {
+    console.warn(JSON.stringify(payload))
+  } else {
+    console.info(JSON.stringify(payload))
+  }
 }
 
 function checkRateLimit(key: string, limit: number, windowMs: number): boolean {
@@ -51,11 +87,22 @@ export async function middleware(request: NextRequest) {
       const key = getRateLimitKey(request)
       const allowed = checkRateLimit(key, 300, 5 * 60 * 1000)
       if (!allowed) {
+        recordAuthSessionMetric(429, true)
+        recordOperationalMetric('auth_session_429')
+        logAuthSessionTelemetry(request, 429, true)
         return NextResponse.json(
           { error: 'Too many session requests. Please try again later.' },
-          { status: 429 }
+          {
+            status: 429,
+            headers: {
+              'x-auth-session-rate-limit-hit': '1',
+            },
+          }
         )
       }
+
+      recordAuthSessionMetric(200, false)
+      logAuthSessionTelemetry(request, 200, false)
     } else if (pathname === '/api/auth/csrf' || pathname === '/api/auth/providers') {
       const key = getRateLimitKey(request)
       const allowed = checkRateLimit(key, 120, 5 * 60 * 1000)
@@ -145,6 +192,10 @@ export async function middleware(request: NextRequest) {
   }
 
   const response = NextResponse.next()
+
+  if (pathname === '/api/auth/session') {
+    response.headers.set('x-auth-session-rate-limit-hit', '0')
+  }
 
   if (pathname.startsWith('/api/')) {
     const origin = request.headers.get('origin')

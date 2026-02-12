@@ -1,0 +1,911 @@
+[
+  {
+    "scenario": "public-desktop",
+    "checks": [
+      {
+        "step": "/",
+        "ok": true,
+        "h1": "Contrata Servicios Profesionalesen Colombia en Minutos",
+        "ms": 11732,
+        "finalUrl": "https://www.lohaggo.com/"
+      },
+      {
+        "step": "/servicios",
+        "ok": true,
+        "h1": "Todos los servicios",
+        "ms": 966,
+        "finalUrl": "https://www.lohaggo.com/servicios"
+      },
+      {
+        "step": "/servicios/impermeabilizacion",
+        "ok": true,
+        "h1": "Impermeabilización",
+        "ms": 990,
+        "finalUrl": "https://www.lohaggo.com/servicios/impermeabilizacion"
+      },
+      {
+        "step": "/faq",
+        "ok": true,
+        "h1": "Preguntas Frecuentes",
+        "ms": 842,
+        "finalUrl": "https://www.lohaggo.com/faq"
+      },
+      {
+        "step": "/contact",
+        "ok": true,
+        "h1": "Contáctanos",
+        "ms": 871,
+        "finalUrl": "https://www.lohaggo.com/contact"
+      },
+      {
+        "step": "/how-it-works",
+        "ok": true,
+        "h1": "¿Cómo funcionaLoHaggo?",
+        "ms": 836,
+        "finalUrl": "https://www.lohaggo.com/how-it-works"
+      },
+      {
+        "step": "/register",
+        "ok": true,
+        "h1": "Encuentra elservicio perfecto",
+        "ms": 897,
+        "finalUrl": "https://www.lohaggo.com/register"
+      },
+      {
+        "step": "/login",
+        "ok": true,
+        "h1": "LoHaggoLo necesitas",
+        "ms": 924,
+        "finalUrl": "https://www.lohaggo.com/login"
+      },
+      {
+        "step": "search-servicios",
+        "ok": true,
+        "cards": 12
+      }
+    ],
+    "networkErrors": [
+      {
+        "url": "https://www.lohaggo.com/",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/_next/static/chunks/app/faq/page-647b77abf3558390.js",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/api/auth/session",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/api/cities",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/?_rsc=p37cr",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/api/ads?placement=HOME&city=",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/api/payment-mode",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/servicios/clases-particulares?_rsc=1u6db",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/servicios/catering-eventos?_rsc=1u6db",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/servicios/chef-a-domicilio?_rsc=1u6db",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/servicios/cerrajeria?_rsc=1u6db",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/servicios/cambio-aceite?_rsc=1u6db",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/?_rsc=1u6db",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/?_rsc=1054j",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/?_rsc=seev7",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/?_rsc=gxphe",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/?_rsc=1he2t",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/?_rsc=19be9",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/terms?_rsc=15802",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/terms?_rsc=1mwma",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/about?_rsc=enum7",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/terms?_rsc=enum7",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/?_rsc=to9i9",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/?_rsc=1xcwl",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/servicios/instalacion-riego?_rsc=1xcwl",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/servicios/reparacion-calentadores?_rsc=1u6db",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/servicios/instalacion-riego?_rsc=1u6db",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "consoleErrors": [
+      "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Failed to fetch {error: Object, url: /api/auth/session, message: Failed to fetch}",
+      "Error fetching ads: TypeError: Failed to fetch\n    at f (https://www.lohaggo.com/_next/static/chunks/4172-51b380e389c76db7.js:1:1683)\n    at https://www.lohaggo.com/_next/static/chunks/4172-51b380e389c76db7.js:1:1295\n    at iy (https://www.lohaggo.com/_next/static/chunks/4bd1b696-43ba64781d20dbb7.js:1:92227)\n    at um (https://www.lohaggo.com/_next/static/chunks/4bd1b696-43ba64781d20dbb7.js:1:116077)\n    at up (https://www.lohaggo.com/_next/static/chunks/4bd1b696-43ba64781d20dbb7.js:1:115739)\n    at um (https://www.lohaggo.com/_next/static/chunks/4bd1b696-43ba64781d20dbb7.js:1:116122)\n    at up (https://www.lohaggo.com/_next/static/chunks/4bd1b696-43ba64781d20dbb7.js:1:115739)\n    at um (https://www.lohaggo.com/_next/static/chunks/4bd1b696-43ba64781d20dbb7.js:1:116122)\n    at up (https://www.lohaggo.com/_next/static/chunks/4bd1b696-43ba64781d20dbb7.js:1:115739)\n    at um (https://www.lohaggo.com/_next/static/chunks/4bd1b696-43ba64781d20dbb7.js:1:116122)"
+    ],
+    "pageErrors": []
+  },
+  {
+    "scenario": "client-desktop",
+    "checks": [
+      {
+        "step": "api-login",
+        "ok": true
+      },
+      {
+        "step": "home",
+        "ok": true,
+        "finalUrl": "https://www.lohaggo.com/dashboard"
+      },
+      {
+        "step": "tab-Resumen",
+        "ok": false,
+        "clicked": null
+      },
+      {
+        "step": "tab-Mis Reservas",
+        "ok": false,
+        "clicked": null
+      },
+      {
+        "step": "tab-Mis Solicitudes",
+        "ok": false,
+        "clicked": null
+      },
+      {
+        "step": "tab-Mis Favoritos",
+        "ok": false,
+        "clicked": null
+      },
+      {
+        "step": "/dashboard",
+        "ok": true,
+        "h1": "Resumen General",
+        "ms": 818,
+        "finalUrl": "https://www.lohaggo.com/dashboard"
+      },
+      {
+        "step": "/profile",
+        "ok": true,
+        "h1": "Mi Perfil",
+        "ms": 880,
+        "finalUrl": "https://www.lohaggo.com/profile"
+      },
+      {
+        "step": "/dashboard/addresses",
+        "ok": true,
+        "h1": "Mis Direcciones",
+        "ms": 927,
+        "finalUrl": "https://www.lohaggo.com/dashboard/addresses"
+      },
+      {
+        "step": "/dashboard/payment-methods",
+        "ok": true,
+        "h1": "Métodos de Pago",
+        "ms": 938,
+        "finalUrl": "https://www.lohaggo.com/dashboard/payment-methods"
+      },
+      {
+        "step": "/notifications",
+        "ok": true,
+        "h1": "Notificaciones",
+        "ms": 897,
+        "finalUrl": "https://www.lohaggo.com/notifications"
+      },
+      {
+        "step": "/my-ratings",
+        "ok": true,
+        "h1": "Mis Calificaciones",
+        "ms": 886,
+        "finalUrl": "https://www.lohaggo.com/my-ratings"
+      }
+    ],
+    "networkErrors": [
+      {
+        "url": "https://www.lohaggo.com/dashboard",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/?_rsc=15moa",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/api/chat/unread-count?proposalId=cmhp824pk0007lw5kp5tqltys",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/api/chat/unread-count?proposalId=cmikmrqbi0001qmgykbi48yi1",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/api/chat/unread-count?proposalId=cmirnlqme00011325fw4ftawg",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/api/chat/unread-count?proposalId=cmhp824pk0007lw5kp5tqltys",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/api/chat/unread-count?proposalId=cmhp2gm8c0001wanwc4qes60r",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/api/chat/unread-count?proposalId=cmhpan3ey0001ms0s0d6n1b9t",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/api/chat/unread-count?proposalId=cmhpan3ey0001ms0s0d6n1b9t",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/?_rsc=18t7j",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/api/chat/unread-count?proposalId=cmirnlqme00011325fw4ftawg",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/api/chat/unread-count?proposalId=cmhp2gm8c0001wanwc4qes60r",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/api/chat/unread-count?proposalId=cmhp824pk0007lw5kp5tqltys",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/api/chat/unread-count?proposalId=cmhjcspy5000dkviizl0gxl27",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/api/chat/unread-count?proposalId=cmikmrqbi0001qmgykbi48yi1",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/api/chat/unread-count?proposalId=cmh3mkels000d1119efyj259a",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/api/chat/unread-count?proposalId=cmhpan3ey0001ms0s0d6n1b9t",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/api/chat/unread-count?proposalId=cmhurk3av000176rw9zp0brhr",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/api/chat/unread-count?proposalId=cmhapy58u000jrze1tezrhyog",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/?_rsc=cfcua",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/?_rsc=v1zz8",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/dashboard?_rsc=9vcop",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/dashboard?_rsc=14jv8",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/?_rsc=1kwae",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "consoleErrors": [],
+    "pageErrors": []
+  },
+  {
+    "scenario": "partner-desktop",
+    "checks": [
+      {
+        "step": "api-login",
+        "ok": true
+      },
+      {
+        "step": "home",
+        "ok": true,
+        "finalUrl": "https://www.lohaggo.com/partner"
+      },
+      {
+        "step": "tab-Resumen",
+        "ok": false,
+        "clicked": null
+      },
+      {
+        "step": "tab-Mis Reservas",
+        "ok": false,
+        "clicked": null
+      },
+      {
+        "step": "tab-Para Mí",
+        "ok": false,
+        "clicked": null
+      },
+      {
+        "step": "/partner",
+        "ok": true,
+        "h1": "Resumen General",
+        "ms": 848,
+        "finalUrl": "https://www.lohaggo.com/partner"
+      },
+      {
+        "step": "/partner/services",
+        "ok": true,
+        "h1": "Gestión de Servicios",
+        "ms": 873,
+        "finalUrl": "https://www.lohaggo.com/partner/services"
+      },
+      {
+        "step": "/partner/verification",
+        "ok": true,
+        "h1": "Verificación de Documentos",
+        "ms": 864,
+        "finalUrl": "https://www.lohaggo.com/partner/verification"
+      },
+      {
+        "step": "/partner/notifications",
+        "ok": true,
+        "h1": "Notificaciones",
+        "ms": 878,
+        "finalUrl": "https://www.lohaggo.com/partner/notifications"
+      },
+      {
+        "step": "/profile",
+        "ok": true,
+        "h1": "Mi Perfil",
+        "ms": 895,
+        "finalUrl": "https://www.lohaggo.com/profile"
+      }
+    ],
+    "networkErrors": [
+      {
+        "url": "https://www.lohaggo.com/partner",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/servicios?_rsc=2ppz7",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/servicios?_rsc=1b8t8",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/faq?_rsc=1rolw",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/servicios?_rsc=1mnb0",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/?_rsc=1ho9n",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "consoleErrors": [],
+    "pageErrors": []
+  },
+  {
+    "scenario": "public-mobile",
+    "checks": [
+      {
+        "step": "/",
+        "ok": true,
+        "h1": "Contrata Servicios Profesionalesen Colombia en Minutos",
+        "ms": 2121,
+        "finalUrl": "https://www.lohaggo.com/"
+      },
+      {
+        "step": "/servicios",
+        "ok": true,
+        "h1": "Todos los servicios",
+        "ms": 839,
+        "finalUrl": "https://www.lohaggo.com/servicios"
+      },
+      {
+        "step": "/servicios/impermeabilizacion",
+        "ok": true,
+        "h1": "Impermeabilización",
+        "ms": 861,
+        "finalUrl": "https://www.lohaggo.com/servicios/impermeabilizacion"
+      },
+      {
+        "step": "/faq",
+        "ok": true,
+        "h1": "Preguntas Frecuentes",
+        "ms": 830,
+        "finalUrl": "https://www.lohaggo.com/faq"
+      },
+      {
+        "step": "/contact",
+        "ok": true,
+        "h1": "Contáctanos",
+        "ms": 818,
+        "finalUrl": "https://www.lohaggo.com/contact"
+      },
+      {
+        "step": "/how-it-works",
+        "ok": true,
+        "h1": "¿Cómo funcionaLoHaggo?",
+        "ms": 818,
+        "finalUrl": "https://www.lohaggo.com/how-it-works"
+      },
+      {
+        "step": "/register",
+        "ok": true,
+        "h1": "Encuentra elservicio perfecto",
+        "ms": 853,
+        "finalUrl": "https://www.lohaggo.com/register"
+      },
+      {
+        "step": "/login",
+        "ok": true,
+        "h1": "LoHaggoLo necesitas",
+        "ms": 925,
+        "finalUrl": "https://www.lohaggo.com/login"
+      },
+      {
+        "step": "search-servicios",
+        "ok": true,
+        "cards": 12
+      }
+    ],
+    "networkErrors": [
+      {
+        "url": "https://www.lohaggo.com/?_rsc=p37cr",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/?_rsc=1u6db",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/?_rsc=1054j",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/?_rsc=1he2t",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/?_rsc=lqhut",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/?_rsc=19be9",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/_next/static/chunks/app/download/ios/page-87eba370c1336c23.js",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/?_rsc=to9i9",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/servicios/plomeria?_rsc=1u6db",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "consoleErrors": [],
+    "pageErrors": []
+  },
+  {
+    "scenario": "client-mobile",
+    "checks": [
+      {
+        "step": "api-login",
+        "ok": true
+      },
+      {
+        "step": "home",
+        "ok": true,
+        "finalUrl": "https://www.lohaggo.com/dashboard"
+      },
+      {
+        "step": "tab-Resumen",
+        "ok": false,
+        "clicked": null
+      },
+      {
+        "step": "tab-Mis Reservas",
+        "ok": false,
+        "clicked": null
+      },
+      {
+        "step": "tab-Mis Solicitudes",
+        "ok": false,
+        "clicked": null
+      },
+      {
+        "step": "tab-Mis Favoritos",
+        "ok": false,
+        "clicked": null
+      },
+      {
+        "step": "/dashboard",
+        "ok": true,
+        "h1": "Resumen General",
+        "ms": 841,
+        "finalUrl": "https://www.lohaggo.com/dashboard"
+      },
+      {
+        "step": "/profile",
+        "ok": true,
+        "h1": "Mi Perfil",
+        "ms": 865,
+        "finalUrl": "https://www.lohaggo.com/profile"
+      },
+      {
+        "step": "/dashboard/addresses",
+        "ok": true,
+        "h1": "Mis Direcciones",
+        "ms": 917,
+        "finalUrl": "https://www.lohaggo.com/dashboard/addresses"
+      },
+      {
+        "step": "/dashboard/payment-methods",
+        "ok": true,
+        "h1": "Métodos de Pago",
+        "ms": 935,
+        "finalUrl": "https://www.lohaggo.com/dashboard/payment-methods"
+      },
+      {
+        "step": "/notifications",
+        "ok": true,
+        "h1": "Notificaciones",
+        "ms": 854,
+        "finalUrl": "https://www.lohaggo.com/notifications"
+      },
+      {
+        "step": "/my-ratings",
+        "ok": true,
+        "h1": "Mis Calificaciones",
+        "ms": 854,
+        "finalUrl": "https://www.lohaggo.com/my-ratings"
+      }
+    ],
+    "networkErrors": [
+      {
+        "url": "https://www.lohaggo.com/dashboard",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/api/chat/unread-count?proposalId=cmhp2gm8c0001wanwc4qes60r",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/api/chat/unread-count?proposalId=cmhjpy63z000714fn6f1abocr",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/api/chat/unread-count?proposalId=cmhjcspy5000dkviizl0gxl27",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/api/chat/unread-count?proposalId=cmhapy58u000jrze1tezrhyog",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/api/chat/unread-count?proposalId=cmhp317be0001gr2ba7b5ko0t",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/api/chat/unread-count?proposalId=cmikmrqbi0001qmgykbi48yi1",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/api/chat/unread-count?proposalId=cmhp824pk0007lw5kp5tqltys",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/api/chat/unread-count?proposalId=cmhpan3ey0001ms0s0d6n1b9t",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/api/chat/unread-count?proposalId=cmhqc1btt00017vgskbis3j6u",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/api/chat/unread-count?proposalId=cmhp7o2zi0001gotsrfj0kpb5",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/api/chat/unread-count?proposalId=cmhtjyog30007i5kam7iro653",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/api/chat/unread-count?proposalId=cmhp7futy00016y5ccew6a5kp",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/api/chat/unread-count?proposalId=cmirnlqme00011325fw4ftawg",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/api/chat/unread-count?proposalId=cmh3mkels000d1119efyj259a",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/api/chat/unread-count?proposalId=cmirnlqme00011325fw4ftawg",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://res.cloudinary.com/dvby4cpma/image/upload/v1761587855/service-requests/xf76te09yxfjj2hnmpor.jpg",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/?_rsc=cfcua",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/?_rsc=v1zz8",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/?_rsc=1kwae",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "consoleErrors": [],
+    "pageErrors": []
+  },
+  {
+    "scenario": "partner-mobile",
+    "checks": [
+      {
+        "step": "api-login",
+        "ok": true
+      },
+      {
+        "step": "home",
+        "ok": true,
+        "finalUrl": "https://www.lohaggo.com/partner"
+      },
+      {
+        "step": "tab-Resumen",
+        "ok": false,
+        "clicked": null
+      },
+      {
+        "step": "tab-Mis Reservas",
+        "ok": false,
+        "clicked": null
+      },
+      {
+        "step": "tab-Para Mí",
+        "ok": false,
+        "clicked": null
+      },
+      {
+        "step": "/partner",
+        "ok": true,
+        "h1": "Resumen General",
+        "ms": 851,
+        "finalUrl": "https://www.lohaggo.com/partner"
+      },
+      {
+        "step": "/partner/services",
+        "ok": true,
+        "h1": "Gestión de Servicios",
+        "ms": 897,
+        "finalUrl": "https://www.lohaggo.com/partner/services"
+      },
+      {
+        "step": "/partner/verification",
+        "ok": true,
+        "h1": "Verificación de Documentos",
+        "ms": 844,
+        "finalUrl": "https://www.lohaggo.com/partner/verification"
+      },
+      {
+        "step": "/partner/notifications",
+        "ok": true,
+        "h1": "Notificaciones",
+        "ms": 853,
+        "finalUrl": "https://www.lohaggo.com/partner/notifications"
+      },
+      {
+        "step": "/profile",
+        "ok": true,
+        "h1": "Mi Perfil",
+        "ms": 836,
+        "finalUrl": "https://www.lohaggo.com/profile"
+      }
+    ],
+    "networkErrors": [
+      {
+        "url": "https://www.lohaggo.com/?_rsc=1ho9n",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/partner",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://res.cloudinary.com/dvby4cpma/image/upload/v1766003109/lohaggo/service-requests/hgiennnt67jymfnmtqv9.jpg",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/?_rsc=138kj",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/?_rsc=12cge",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/?_rsc=ki9cy",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      },
+      {
+        "url": "https://www.lohaggo.com/?_rsc=cfcua",
+        "method": "GET",
+        "error": "net::ERR_ABORTED"
+      }
+    ],
+    "consoleErrors": [],
+    "pageErrors": []
+  }
+]

@@ -630,6 +630,7 @@ function PartnerDashboardContent() {
 
                   <button
                     onClick={() => router.push('/partner/services')}
+                    data-testid="partner-cta-services"
                     className="bg-white rounded-2xl p-5 flex items-center gap-4 border-2 border-gray-200 hover:border-primary-500 hover:shadow-lg transition-all group"
                   >
                     <div className="bg-gray-100 rounded-xl p-3 group-hover:bg-primary-100 transition-colors">

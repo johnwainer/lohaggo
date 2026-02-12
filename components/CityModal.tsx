@@ -34,8 +34,17 @@ export default function CityModal() {
   const comingSoonCities = cities.filter(c => c.status === 'COMING_SOON')
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 max-h-[90vh] overflow-hidden">
+    <div
+      className="fixed inset-0 z-[100] flex items-end md:items-center justify-center bg-black/50 backdrop-blur-sm p-4 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-4"
+      onClick={() => setShowCityModal(false)}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Selector de ciudad"
+    >
+      <div
+        className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[85dvh] md:max-h-[90vh] overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="bg-gradient-to-r from-primary-500 to-secondary-500 p-6 relative">
           <button
             onClick={() => setShowCityModal(false)}
@@ -54,7 +63,7 @@ export default function CityModal() {
           </div>
         </div>
 
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+        <div className="p-6 overflow-y-auto overscroll-contain max-h-[calc(85dvh-140px)] md:max-h-[calc(90vh-140px)] pb-[calc(1rem+env(safe-area-inset-bottom))]">
           <button
             onClick={geolocateCity}
             disabled={isGeolocating}

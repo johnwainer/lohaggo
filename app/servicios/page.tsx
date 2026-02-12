@@ -4,9 +4,14 @@ import { useEffect, useState, Suspense, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { Search, Filter, X, Star, Lightbulb, Clock, Trash2, Heart } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
-import ServicesTour from '@/components/ServicesTour'
+
+const ServicesTour = dynamic(() => import('@/components/ServicesTour'), {
+  ssr: false,
+  loading: () => null,
+})
 
 interface Service {
   id: string
@@ -63,6 +68,7 @@ function ServiciosContent() {
   const [favoriteServices, setFavoriteServices] = useState<Set<string>>(new Set())
   const [loadingFavorite, setLoadingFavorite] = useState<string | null>(null)
   const [favoriteServicesList, setFavoriteServicesList] = useState<Service[]>([])
+  const [showSlowLoadingHint, setShowSlowLoadingHint] = useState(false)
 
   const fetchCategories = async () => {
     try {
@@ -125,6 +131,7 @@ function ServiciosContent() {
 
   const fetchServices = async () => {
     setLoading(true)
+    setShowSlowLoadingHint(false)
     setSuggestions(null)
     setRelatedServices([])
     setTopMatch(null)
@@ -163,6 +170,7 @@ function ServiciosContent() {
     } catch (error) {
     } finally {
       setLoading(false)
+      setShowSlowLoadingHint(false)
     }
   }
 
@@ -303,6 +311,19 @@ function ServiciosContent() {
       setShowAutocomplete(false)
     }
   }, [searchTerm, loading, fetchAutocomplete])
+
+  useEffect(() => {
+    if (!loading) {
+      setShowSlowLoadingHint(false)
+      return
+    }
+
+    const slowLoadingTimer = setTimeout(() => {
+      setShowSlowLoadingHint(true)
+    }, 4000)
+
+    return () => clearTimeout(slowLoadingTimer)
+  }, [loading])
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -486,9 +507,36 @@ function ServiciosContent() {
         </div>
 
         {loading ? (
-          <div className="text-center py-12 md:py-16">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 md:h-16 md:w-16 border-4 border-primary-500 border-t-transparent"></div>
-            <p className="mt-4 md:mt-6 text-gray-600 text-base md:text-lg font-medium">Buscando servicios...</p>
+          <div className="py-8 md:py-12">
+            <div className="flex items-center justify-center gap-3 mb-6">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-primary-500 border-t-transparent"></div>
+              <p className="text-gray-600 text-sm md:text-base font-semibold">Buscando servicios...</p>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-6" aria-hidden="true">
+              {Array.from({ length: 6 }).map((_, idx) => (
+                <div key={idx} className="bg-white rounded-xl md:rounded-2xl shadow-md border-2 border-gray-100 p-4 md:p-6 animate-pulse">
+                  <div className="h-10 w-10 md:h-12 md:w-12 bg-gray-200 rounded-lg mb-3"></div>
+                  <div className="h-4 md:h-5 bg-gray-200 rounded mb-2"></div>
+                  <div className="h-3 bg-gray-200 rounded w-4/5 mb-4"></div>
+                  <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                </div>
+              ))}
+            </div>
+
+            {showSlowLoadingHint && (
+              <div className="mt-6 bg-white border border-primary-200 rounded-xl p-4 text-center">
+                <p className="text-sm text-gray-700">
+                  Esto está tardando más de lo normal. Verifica tu conexión o intenta de nuevo.
+                </p>
+                <button
+                  onClick={fetchServices}
+                  className="mt-3 inline-flex items-center justify-center px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 transition"
+                >
+                  Reintentar búsqueda
+                </button>
+              </div>
+            )}
           </div>
         ) : services.length === 0 ? (
           <div className="space-y-6">
