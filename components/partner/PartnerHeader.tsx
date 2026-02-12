@@ -38,13 +38,13 @@ export default function PartnerHeader({
     {
       id: 'overview',
       label: 'Resumen',
-      icon: <Home size={24} className="sm:w-[22px] sm:h-[22px]" />,
+      icon: <Home className="w-7 h-7 sm:w-6 sm:h-6" />,
       onClick: () => onTabChange?.('overview'),
     },
     {
       id: 'bookings',
       label: 'Mis Reservas',
-      icon: <Package size={24} className="sm:w-[22px] sm:h-[22px]" />,
+      icon: <Package className="w-7 h-7 sm:w-6 sm:h-6" />,
       badge: bookingsCount,
       badgeColor: 'bg-primary-600',
       onClick: () => onTabChange?.('bookings'),
@@ -52,7 +52,7 @@ export default function PartnerHeader({
     {
       id: 'my-requests',
       label: 'Para Mí',
-      icon: <MessageSquare size={24} className="sm:w-[22px] sm:h-[22px]" />,
+      icon: <MessageSquare className="w-7 h-7 sm:w-6 sm:h-6" />,
       badge: requestsCount,
       badgeColor: 'bg-primary-500',
       onClick: () => onTabChange?.('my-requests'),
@@ -87,10 +87,10 @@ export default function PartnerHeader({
       {showNavigation && (
         <div className="border-t border-gray-200 bg-gray-50">
           <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
-            <nav className="flex gap-0.5 sm:gap-1 overflow-x-auto scrollbar-hide">
+            <nav className="flex gap-1 overflow-x-auto scrollbar-hide snap-x snap-mandatory">
               {navItems.map((item) => {
                 const isActive = activeTab === item.id
-                const itemClasses = `flex items-center gap-2 sm:gap-2 px-4 sm:px-4 py-3 sm:py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${
+                const itemClasses = `snap-start flex items-center gap-2 px-4 py-3.5 text-sm font-medium border-b-2 transition whitespace-nowrap ${
                   isActive
                     ? 'border-primary-600 text-primary-600'
                     : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
@@ -106,7 +106,7 @@ export default function PartnerHeader({
                     <span className="hidden sm:inline">{item.label}</span>
                     {item.badge && item.badge > 0 && (
                       <span
-                        className={`${item.badgeColor} text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full`}
+                        className={`${item.badgeColor} inline-flex items-center justify-center min-w-6 h-6 px-1.5 text-white text-[10px] sm:text-xs rounded-full`}
                       >
                         {item.badge}
                       </span>
