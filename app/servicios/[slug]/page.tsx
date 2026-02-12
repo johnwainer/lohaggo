@@ -240,7 +240,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     const currentCity = getCityBySlug(citySlug)
 
     if (currentCity?.partnerRegistry) {
-      window.location.href = 'https://www.lohaggo.com/register?role=partner'
+      router.push('/registro-socios')
       return
     }
 
@@ -266,7 +266,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     const currentCity = getCityBySlug(citySlug)
 
     if (currentCity?.partnerRegistry) {
-      window.location.href = 'https://www.lohaggo.com/register?role=partner'
+      router.push('/registro-socios')
       return
     }
 
@@ -293,7 +293,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     const currentCity = getCityBySlug(citySlug)
 
     if (currentCity?.partnerRegistry) {
-      window.location.href = 'https://www.lohaggo.com/register?role=partner'
+      router.push('/registro-socios')
       return
     }
 
@@ -866,7 +866,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                           if (session) {
                             await signOut({ redirect: false })
                           }
-                          window.location.href = 'https://www.lohaggo.com/register?role=partner'
+                          router.push('/registro-socios')
                         }}
                         className="w-full bg-gradient-to-r from-primary-500 to-secondary-500 text-white font-semibold py-3 px-4 rounded-lg hover:from-primary-600 hover:to-secondary-600 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 group"
                       >
