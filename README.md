@@ -545,6 +545,7 @@ enum AdPlacement {
 ## 🔒 Mejores Prácticas de Seguridad
 
 - Nunca hacer commit de archivos `.env`
+- Ejecutar `npm run pre-deploy` antes de cada `git push` a `main`
 - Rotar credenciales regularmente
 - Usar contraseñas fuertes para producción
 - Habilitar 2FA en todas las cuentas de servicio
