@@ -12,7 +12,7 @@ export default function HomeClientWrapper({ children }: HomeClientWrapperProps) 
 
   return (
     <>
-      {!session && <OnboardingTour />}
+      <OnboardingTour />
       {children}
     </>
   )
