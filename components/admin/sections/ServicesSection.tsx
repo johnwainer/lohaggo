@@ -36,9 +36,20 @@ export default function ServicesSection() {
     try {
       const res = await fetch('/api/services')
       const data = await res.json()
-      setServices(data)
+
+      // /api/services returns an object shape for public search:
+      // { services, relatedByCategory, topMatch, suggestions }.
+      // Keep backward compatibility in case an array is returned.
+      const normalizedServices = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.services)
+        ? data.services
+        : []
+
+      setServices(normalizedServices)
     } catch (error) {
       console.error('Error fetching services:', error)
+      setServices([])
     } finally {
       setLoading(false)
     }
@@ -124,10 +135,12 @@ export default function ServicesSection() {
     )
   }
 
-  const totalBookings = services.reduce((sum, s) => sum + s._count.bookings, 0)
-  const totalPartners = services.reduce((sum, s) => sum + s._count.partners, 0)
+  const totalBookings = services.reduce((sum, s) => sum + (s._count?.bookings || 0), 0)
+  const totalPartners = services.reduce((sum, s) => sum + (s._count?.partners || 0), 0)
   const popularServices = services.filter(s => s.popular).length
-  const avgPrice = services.reduce((sum, s) => sum + s.basePrice, 0) / services.length
+  const avgPrice = services.length > 0
+    ? services.reduce((sum, s) => sum + s.basePrice, 0) / services.length
+    : 0
 
   return (
     <div className="p-8">

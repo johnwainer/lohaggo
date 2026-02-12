@@ -30,7 +30,7 @@ export async function GET(request: Request) {
       include: {
         category: true,
         _count: {
-          select: { partners: true }
+          select: { partners: true, bookings: true }
         }
       },
       orderBy: [
@@ -47,7 +47,7 @@ export async function GET(request: Request) {
           include: {
             category: true,
             _count: {
-              select: { partners: true }
+              select: { partners: true, bookings: true }
             }
           },
           orderBy: [
