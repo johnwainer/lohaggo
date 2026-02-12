@@ -32,16 +32,23 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
 
   const menuGroups: MenuGroup[] = [
     {
-      label: 'General',
+      label: 'Panel General',
       items: [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-        { id: 'bookings', label: 'Reservas', icon: Calendar },
-        { id: 'analytics', label: 'Analíticas', icon: BarChart3 },
         { id: 'monitoring', label: 'Monitoreo', icon: Activity, isLink: true, href: '/admin/monitoring' },
+        { id: 'analytics', label: 'Analíticas', icon: BarChart3 },
       ]
     },
     {
-      label: 'Usuarios y Socios',
+      label: 'Operación Diaria',
+      items: [
+        { id: 'bookings', label: 'Reservas', icon: Calendar },
+        { id: 'payments', label: 'Pagos', icon: DollarSign },
+        { id: 'payouts', label: 'Pagos a Socios', icon: Wallet },
+      ]
+    },
+    {
+      label: 'Usuarios y Verificación',
       items: [
         { id: 'users', label: 'Usuarios', icon: Users },
         { id: 'partners', label: 'Socios', icon: UserCheck },
@@ -63,16 +70,9 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
       ]
     },
     {
-      label: 'Finanzas',
-      items: [
-        { id: 'payments', label: 'Pagos', icon: DollarSign },
-        { id: 'commissions', label: 'Comisiones', icon: Percent },
-        { id: 'payouts', label: 'Pagos a Socios', icon: Wallet },
-      ]
-    },
-    {
       label: 'Configuración',
       items: [
+        { id: 'commissions', label: 'Comisiones', icon: Percent },
         { id: 'payment-config', label: 'Config. Pagos', icon: CreditCard, isLink: true, href: '/admin/payment-config' },
         { id: 'notifications', label: 'Notificaciones', icon: Bell },
         { id: 'settings', label: 'Configuración', icon: Settings },
@@ -80,15 +80,18 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
     }
   ]
 
+  const getGroupKey = (label: string) => label.toLowerCase().replace(/\s+/g, '-')
+
   useEffect(() => {
     const groupsToExpand: string[] = []
     menuGroups.forEach((group) => {
       const hasActiveItem = group.items.some(item => item.id === activeSection)
       if (hasActiveItem) {
-        groupsToExpand.push(group.label.toLowerCase().replace(/\s+/g, '-'))
+        groupsToExpand.push(getGroupKey(group.label))
       }
     })
-    setExpandedGroups(groupsToExpand.length > 0 ? groupsToExpand : ['general'])
+    const firstGroupKey = menuGroups[0] ? getGroupKey(menuGroups[0].label) : ''
+    setExpandedGroups(groupsToExpand.length > 0 ? groupsToExpand : firstGroupKey ? [firstGroupKey] : [])
   }, [activeSection])
 
   const handleSectionChange = (section: string) => {
@@ -139,7 +142,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
 
         <nav className="flex-1 overflow-y-auto py-4 sm:py-6 px-2 sm:px-3">
           {menuGroups.map((group) => {
-            const groupKey = group.label.toLowerCase().replace(/\s+/g, '-')
+            const groupKey = getGroupKey(group.label)
             const isExpanded = expandedGroups.includes(groupKey)
 
             return (
