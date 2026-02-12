@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { User, Mail, Camera, Save, AlertCircle, CheckCircle, Home, Package, MessageSquare, Activity, Star, MapPin, Shield, Briefcase, ChevronRight, CreditCard, GraduationCap, Heart } from 'lucide-react'
+import { User, Mail, Camera, Save, AlertCircle, CheckCircle, Home, Package, MessageSquare, Activity, Star, MapPin, Shield, Briefcase, ChevronRight, CreditCard, GraduationCap, Heart, Phone } from 'lucide-react'
 import ClientDashboardNav from '@/components/ClientDashboardNav'
 import PartnerDashboardNav from '@/components/PartnerDashboardNav'
 
@@ -12,6 +12,7 @@ export default function ProfilePage() {
   const router = useRouter()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const [image, setImage] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
@@ -90,6 +91,7 @@ export default function ProfilePage() {
     if (session?.user) {
       setName(session.user.name || '')
       setEmail(session.user.email || '')
+      setPhone(session.user.phone || '')
       setImage(session.user.image || null)
       fetchCounts()
 
@@ -139,7 +141,7 @@ export default function ProfilePage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ name, image: imageUrl }),
+        body: JSON.stringify({ name, phone, image: imageUrl }),
       })
 
       const data = await response.json()
@@ -169,7 +171,7 @@ export default function ProfilePage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, phone }),
       })
 
       const data = await response.json()
@@ -178,7 +180,7 @@ export default function ProfilePage() {
         throw new Error(data.error || 'Error al actualizar el perfil')
       }
 
-      await update({ name: data.name, image: data.image })
+      await update({ name: data.name, phone: data.phone, image: data.image })
       setMessage({ type: 'success', text: 'Perfil actualizado exitosamente' })
 
       setTimeout(() => {
@@ -301,6 +303,24 @@ export default function ProfilePage() {
                         required
                       />
                     </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+                      Teléfono
+                    </label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                      <input
+                        type="tel"
+                        id="phone"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder="+57 300 123 4567"
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-secondary-500 focus:border-transparent"
+                      />
+                    </div>
+                    <p className="mt-2 text-sm text-gray-500">Formato: +57 seguido del número (ej: +57 300 123 4567)</p>
                   </div>
 
                   <div>

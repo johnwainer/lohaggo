@@ -7,6 +7,7 @@ declare module "next-auth" {
       role: string
       partnerId?: string
       image?: string | null
+      phone?: string | null
       clientRating?: number
       clientTotalReviews?: number
       isActive?: boolean
@@ -17,6 +18,7 @@ declare module "next-auth" {
     role: string
     partnerId?: string
     image?: string | null
+    phone?: string | null
     clientRating?: number
     clientTotalReviews?: number
     isActive?: boolean
@@ -28,6 +30,7 @@ declare module "next-auth/jwt" {
     role: string
     partnerId?: string
     image?: string | null
+    phone?: string | null
     clientRating?: number
     clientTotalReviews?: number
     isActive?: boolean

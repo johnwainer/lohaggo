@@ -41,6 +41,7 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           name: user.name,
           image: user.image,
+          phone: user.phone,
           role: user.role,
           partnerId: user.partnerProfile?.id,
           clientRating: user.clientRating,
@@ -56,6 +57,7 @@ export const authOptions: NextAuthOptions = {
         token.role = user.role
         token.partnerId = user.partnerId
         token.image = user.image
+        token.phone = user.phone
         token.clientRating = user.clientRating
         token.clientTotalReviews = user.clientTotalReviews
         token.isActive = user.isActive
@@ -66,6 +68,9 @@ export const authOptions: NextAuthOptions = {
       if (trigger === 'update' && session?.image !== undefined) {
         token.image = session.image
       }
+      if (trigger === 'update' && session?.phone !== undefined) {
+        token.phone = session.phone
+      }
       return token
     },
     async session({ session, token }) {
@@ -75,6 +80,7 @@ export const authOptions: NextAuthOptions = {
         session.user.partnerId = token.partnerId as string | undefined
         session.user.name = token.name as string
         session.user.image = token.image as string | null | undefined
+        session.user.phone = token.phone as string | null | undefined
         session.user.clientRating = token.clientRating as number | undefined
         session.user.clientTotalReviews = token.clientTotalReviews as number | undefined
         session.user.isActive = token.isActive as boolean | undefined
