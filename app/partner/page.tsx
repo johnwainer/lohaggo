@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import {
   Calendar, Clock, MapPin, DollarSign, Package, User, CheckCircle, XCircle,
   Send, AlertCircle, TrendingUp, Activity, Filter, Search, Menu, X,
@@ -14,12 +15,16 @@ import Modal from '@/components/Modal'
 import ConfirmModal from '@/components/ConfirmModal'
 import ImageGalleryModal from '@/components/ImageGalleryModal'
 import RatingModal from '@/components/RatingModal'
-import ChatModal from '@/components/ChatModal'
 import PartnerHeader from '@/components/partner/PartnerHeader'
 import StatCard from '@/components/shared/StatCard'
 import LoadingSpinner from '@/components/shared/LoadingSpinner'
 import EmptyState from '@/components/shared/EmptyState'
 import PlatformTrustBanner from '@/components/PlatformTrustBanner'
+
+const ChatModal = dynamic(() => import('@/components/ChatModal'), {
+  ssr: false,
+  loading: () => null
+})
 
 interface Booking {
   id: string

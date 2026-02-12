@@ -218,6 +218,30 @@ function RegisterForm() {
     return ''
   }
 
+  type ValidatableField = keyof typeof fieldErrors
+
+  const validateField = (field: ValidatableField, nextFormData = formData) => {
+    switch (field) {
+      case 'name':
+        return validateName(nextFormData.name)
+      case 'email':
+        return validateEmail(nextFormData.email)
+      case 'password':
+        return validatePassword(nextFormData.password)
+      case 'confirmPassword':
+        return validateConfirmPassword(nextFormData.confirmPassword, nextFormData.password)
+      case 'phone':
+        return validatePhone(nextFormData.phone)
+      default:
+        return ''
+    }
+  }
+
+  const hasFieldValue = (field: ValidatableField) => formData[field].trim().length > 0
+
+  const isFieldValid = (field: ValidatableField) =>
+    touched[field] && hasFieldValue(field) && !fieldErrors[field]
+
   const formatPhoneNumber = (value: string) => {
     const cleaned = value.replace(/\D/g, '')
     const limited = cleaned.slice(0, 10)
@@ -238,69 +262,37 @@ function RegisterForm() {
       processedValue = formatPhoneNumber(value)
     }
 
-    setFormData({ ...formData, [field]: processedValue })
+    setFormData((prev) => ({ ...prev, [field]: processedValue }))
 
     if (field === 'password') {
       const strength = calculatePasswordStrength(value)
       setPasswordStrength(strength)
-
-      if (touched.confirmPassword && formData.confirmPassword) {
-        const confirmError = validateConfirmPassword(formData.confirmPassword, value)
-        setFieldErrors({ ...fieldErrors, password: '', confirmPassword: confirmError })
-        return
-      }
-    }
-
-    if (field === 'confirmPassword') {
-      if (touched.confirmPassword) {
-        const error = validateConfirmPassword(value, formData.password)
-        setFieldErrors({ ...fieldErrors, confirmPassword: error })
-      }
-      return
-    }
-
-    if (touched[field as keyof typeof touched]) {
-      let error = ''
-      switch (field) {
-        case 'name':
-          error = validateName(processedValue)
-          break
-        case 'email':
-          error = validateEmail(processedValue)
-          break
-        case 'password':
-          error = validatePassword(processedValue)
-          break
-        case 'phone':
-          error = validatePhone(processedValue)
-          break
-      }
-      setFieldErrors({ ...fieldErrors, [field]: error })
     }
   }
 
   const handleFieldBlur = (field: string) => {
-    setTouched({ ...touched, [field]: true })
-    let error = ''
-    switch (field) {
-      case 'name':
-        error = validateName(formData.name)
-        break
-      case 'email':
-        error = validateEmail(formData.email)
-        break
-      case 'password':
-        error = validatePassword(formData.password)
-        break
-      case 'confirmPassword':
-        error = validateConfirmPassword(formData.confirmPassword, formData.password)
-        break
-      case 'phone':
-        error = validatePhone(formData.phone)
-        break
-    }
-    setFieldErrors({ ...fieldErrors, [field]: error })
+    const validatableField = field as ValidatableField
+    setTouched((prev) => ({ ...prev, [validatableField]: true }))
+    setFieldErrors((prev) => ({ ...prev, [validatableField]: validateField(validatableField) }))
   }
+
+  useEffect(() => {
+    setFieldErrors((prev) => {
+      let hasChanges = false
+      const next = { ...prev }
+
+      ;(Object.keys(touched) as ValidatableField[]).forEach((field) => {
+        if (!touched[field]) return
+        const nextError = validateField(field)
+        if (next[field] !== nextError) {
+          next[field] = nextError
+          hasChanges = true
+        }
+      })
+
+      return hasChanges ? next : prev
+    })
+  }, [formData, touched])
 
   const toggleService = (slug: string) => {
     setFormData((prev) => {
@@ -586,7 +578,11 @@ function RegisterForm() {
                 </label>
                 <div className="relative group">
                   <User className={`absolute left-4 top-1/2 transform -translate-y-1/2 transition-colors ${
-                    fieldErrors.name && touched.name ? 'text-red-500' : 'text-gray-400 group-focus-within:text-primary-600'
+                    fieldErrors.name && touched.name
+                      ? 'text-red-500'
+                      : isFieldValid('name')
+                      ? 'text-green-600'
+                      : 'text-gray-400 group-focus-within:text-primary-600'
                   }`} size={20} />
                   <input
                     type="text"
@@ -596,10 +592,17 @@ function RegisterForm() {
                     className={`w-full pl-12 pr-4 py-3 border-2 rounded-xl focus:ring-2 outline-none transition-all ${
                       fieldErrors.name && touched.name
                         ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500'
+                        : isFieldValid('name')
+                        ? 'border-green-500 focus:ring-green-500/20 focus:border-green-500'
                         : 'border-gray-200 focus:ring-primary-500/20 focus:border-primary-500 hover:border-gray-300'
                     }`}
                     placeholder="Juan Pérez"
                   />
+                  {isFieldValid('name') && (
+                    <div className="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
+                      <Check className="w-3.5 h-3.5 text-white" />
+                    </div>
+                  )}
                 </div>
                 {fieldErrors.name && touched.name && (
                   <p className="text-sm text-red-600 flex items-center gap-1 animate-fade-in">
@@ -615,7 +618,11 @@ function RegisterForm() {
                 </label>
                 <div className="relative group">
                   <Mail className={`absolute left-4 top-1/2 transform -translate-y-1/2 transition-colors ${
-                    fieldErrors.email && touched.email ? 'text-red-500' : 'text-gray-400 group-focus-within:text-primary-600'
+                    fieldErrors.email && touched.email
+                      ? 'text-red-500'
+                      : isFieldValid('email')
+                      ? 'text-green-600'
+                      : 'text-gray-400 group-focus-within:text-primary-600'
                   }`} size={20} />
                   <input
                     type="email"
@@ -625,10 +632,17 @@ function RegisterForm() {
                     className={`w-full pl-12 pr-4 py-3 border-2 rounded-xl focus:ring-2 outline-none transition-all ${
                       fieldErrors.email && touched.email
                         ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500'
+                        : isFieldValid('email')
+                        ? 'border-green-500 focus:ring-green-500/20 focus:border-green-500'
                         : 'border-gray-200 focus:ring-primary-500/20 focus:border-primary-500 hover:border-gray-300'
                     }`}
                     placeholder="tu@email.com"
                   />
+                  {isFieldValid('email') && (
+                    <div className="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
+                      <Check className="w-3.5 h-3.5 text-white" />
+                    </div>
+                  )}
                 </div>
                 {fieldErrors.email && touched.email && (
                   <p className="text-sm text-red-600 flex items-center gap-1 animate-fade-in">
@@ -644,7 +658,11 @@ function RegisterForm() {
                 </label>
                 <div className="relative group">
                   <Phone className={`absolute left-4 top-1/2 transform -translate-y-1/2 transition-colors ${
-                    fieldErrors.phone && touched.phone ? 'text-red-500' : 'text-gray-400 group-focus-within:text-primary-600'
+                    fieldErrors.phone && touched.phone
+                      ? 'text-red-500'
+                      : isFieldValid('phone')
+                      ? 'text-green-600'
+                      : 'text-gray-400 group-focus-within:text-primary-600'
                   }`} size={20} />
                   <input
                     type="tel"
@@ -657,10 +675,17 @@ function RegisterForm() {
                     className={`w-full pl-12 pr-4 py-3 border-2 rounded-xl focus:ring-2 outline-none transition-all ${
                       fieldErrors.phone && touched.phone
                         ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500'
+                        : isFieldValid('phone')
+                        ? 'border-green-500 focus:ring-green-500/20 focus:border-green-500'
                         : 'border-gray-200 focus:ring-primary-500/20 focus:border-primary-500 hover:border-gray-300'
                     }`}
                     placeholder="300 123 4567"
                   />
+                  {isFieldValid('phone') && (
+                    <div className="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
+                      <Check className="w-3.5 h-3.5 text-white" />
+                    </div>
+                  )}
                 </div>
                 {fieldErrors.phone && touched.phone && (
                   <p className="text-sm text-red-600 flex items-center gap-1 animate-fade-in">
@@ -676,20 +701,31 @@ function RegisterForm() {
                 </label>
                 <div className="relative group">
                   <Lock className={`absolute left-4 top-1/2 transform -translate-y-1/2 transition-colors ${
-                    fieldErrors.password && touched.password ? 'text-red-500' : 'text-gray-400 group-focus-within:text-primary-600'
+                    fieldErrors.password && touched.password
+                      ? 'text-red-500'
+                      : isFieldValid('password')
+                      ? 'text-green-600'
+                      : 'text-gray-400 group-focus-within:text-primary-600'
                   }`} size={20} />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={formData.password}
                     onChange={(e) => handleFieldChange('password', e.target.value)}
                     onBlur={() => handleFieldBlur('password')}
-                    className={`w-full pl-12 pr-12 py-3.5 border-2 rounded-xl focus:ring-2 outline-none transition-all ${
+                    className={`w-full pl-12 pr-20 py-3.5 border-2 rounded-xl focus:ring-2 outline-none transition-all ${
                       fieldErrors.password && touched.password
                         ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500'
+                        : isFieldValid('password')
+                        ? 'border-green-500 focus:ring-green-500/20 focus:border-green-500'
                         : 'border-gray-200 focus:ring-primary-500/20 focus:border-primary-500'
                     }`}
                     placeholder="••••••••"
                   />
+                  {isFieldValid('password') && (
+                    <div className="absolute right-12 top-1/2 transform -translate-y-1/2 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
+                      <Check className="w-3.5 h-3.5 text-white" />
+                    </div>
+                  )}
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
@@ -757,20 +793,31 @@ function RegisterForm() {
                 </label>
                 <div className="relative group">
                   <Lock className={`absolute left-4 top-1/2 transform -translate-y-1/2 transition-colors ${
-                    fieldErrors.confirmPassword && touched.confirmPassword ? 'text-red-500' : 'text-gray-400 group-focus-within:text-primary-600'
+                    fieldErrors.confirmPassword && touched.confirmPassword
+                      ? 'text-red-500'
+                      : isFieldValid('confirmPassword')
+                      ? 'text-green-600'
+                      : 'text-gray-400 group-focus-within:text-primary-600'
                   }`} size={20} />
                   <input
                     type={showConfirmPassword ? 'text' : 'password'}
                     value={formData.confirmPassword}
                     onChange={(e) => handleFieldChange('confirmPassword', e.target.value)}
                     onBlur={() => handleFieldBlur('confirmPassword')}
-                    className={`w-full pl-12 pr-12 py-3.5 border-2 rounded-xl focus:ring-2 outline-none transition-all ${
+                    className={`w-full pl-12 pr-20 py-3.5 border-2 rounded-xl focus:ring-2 outline-none transition-all ${
                       fieldErrors.confirmPassword && touched.confirmPassword
                         ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500'
+                        : isFieldValid('confirmPassword')
+                        ? 'border-green-500 focus:ring-green-500/20 focus:border-green-500'
                         : 'border-gray-200 focus:ring-primary-500/20 focus:border-primary-500'
                     }`}
                     placeholder="••••••••"
                   />
+                  {isFieldValid('confirmPassword') && (
+                    <div className="absolute right-12 top-1/2 transform -translate-y-1/2 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
+                      <Check className="w-3.5 h-3.5 text-white" />
+                    </div>
+                  )}
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
