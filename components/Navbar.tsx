@@ -17,6 +17,8 @@ export function Navbar() {
   const [mobileCityDropdownOpen, setMobileCityDropdownOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
+  const mobileMenuRef = useRef<HTMLDivElement>(null)
+  const mobileMenuButtonRef = useRef<HTMLButtonElement>(null)
 
   const { selectedCity, setSelectedCity, setShowCityModal, cities, isGeolocating, getActiveCities } = useCity()
   const currentCity = cities.find((city) => city.slug === selectedCity)
@@ -49,6 +51,31 @@ export function Navbar() {
       document.removeEventListener('mousedown', handler)
     }
   }, [userMenuOpen])
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node
+      if (
+        mobileMenuRef.current &&
+        !mobileMenuRef.current.contains(target) &&
+        mobileMenuButtonRef.current &&
+        !mobileMenuButtonRef.current.contains(target)
+      ) {
+        setMobileMenuOpen(false)
+        setMobileCityDropdownOpen(false)
+      }
+    }
+
+    if (mobileMenuOpen) {
+      document.addEventListener('mousedown', handleOutsideClick)
+      document.addEventListener('touchstart', handleOutsideClick)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick)
+      document.removeEventListener('touchstart', handleOutsideClick)
+    }
+  }, [mobileMenuOpen])
 
   function CitySelector() {
     const [open, setOpen] = useState(false)
@@ -362,6 +389,7 @@ export function Navbar() {
           {/* Mobile menu button */}
           <div className="md:hidden flex items-center">
             <button
+              ref={mobileMenuButtonRef}
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="text-gray-700 hover:text-primary-600 p-2 rounded-lg hover:bg-primary-500/5 transition-all"
             >
@@ -373,7 +401,7 @@ export function Navbar() {
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-white border-t border-gray-200 animate-slide-down shadow-lg">
+        <div ref={mobileMenuRef} className="md:hidden bg-white border-t border-gray-200 animate-slide-down shadow-lg">
           <div className="px-4 pt-2 pb-4 space-y-2">
             {/* City Selector - Mobile */}
             <div className="mb-2">
