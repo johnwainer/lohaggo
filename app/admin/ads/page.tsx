@@ -64,13 +64,24 @@ export default function AdsAdminPage() {
     fetchCities()
   }, [])
 
+  const toArray = <T,>(payload: unknown, key?: string): T[] => {
+    if (Array.isArray(payload)) return payload as T[]
+    if (payload && typeof payload === 'object' && key) {
+      const nested = (payload as Record<string, unknown>)[key]
+      if (Array.isArray(nested)) return nested as T[]
+    }
+    return []
+  }
+
   const fetchCities = async () => {
     try {
       const response = await fetch('/api/cities')
       const data = await response.json()
-      setCities(data.filter((city: City) => city.status === 'ACTIVE'))
+      const cityList = toArray<City>(data, 'cities')
+      setCities(cityList.filter((city) => city.status === 'ACTIVE'))
     } catch (error) {
       console.error('Error fetching cities:', error)
+      setCities([])
     }
   }
 
@@ -78,9 +89,10 @@ export default function AdsAdminPage() {
     try {
       const response = await fetch('/api/services')
       const data = await response.json()
-      setServices(data)
+      setServices(toArray<Service>(data, 'services'))
     } catch (error) {
       console.error('Error fetching services:', error)
+      setServices([])
     }
   }
 
@@ -88,9 +100,10 @@ export default function AdsAdminPage() {
     try {
       const response = await fetch('/api/ads?admin=true')
       const data = await response.json()
-      setAds(data)
+      setAds(toArray<Advertisement>(data, 'ads'))
     } catch (error) {
       console.error('Error fetching ads:', error)
+      setAds([])
     } finally {
       setLoading(false)
     }
