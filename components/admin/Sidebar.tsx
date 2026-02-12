@@ -13,6 +13,7 @@ interface SidebarProps {
 
 interface MenuGroup {
   label: string
+  hint: string
   items: MenuItem[]
 }
 
@@ -26,13 +27,14 @@ interface MenuItem {
 
 export default function Sidebar({ activeSection, onSectionChange }: SidebarProps) {
   const [isOpen, setIsOpen] = useState(false)
-  const [expandedGroups, setExpandedGroups] = useState<string[]>([])
+  const [expandedGroup, setExpandedGroup] = useState<string | null>(null)
   const router = useRouter()
   const pathname = usePathname()
 
   const menuGroups: MenuGroup[] = [
     {
       label: 'Panel General',
+      hint: 'Vista global y salud del sistema',
       items: [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { id: 'monitoring', label: 'Monitoreo', icon: Activity, isLink: true, href: '/admin/monitoring' },
@@ -41,6 +43,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
     },
     {
       label: 'Operación Diaria',
+      hint: 'Seguimiento de reservas y pagos',
       items: [
         { id: 'bookings', label: 'Reservas', icon: Calendar },
         { id: 'payments', label: 'Pagos', icon: DollarSign },
@@ -49,6 +52,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
     },
     {
       label: 'Usuarios y Verificación',
+      hint: 'Gestión de cuentas y validaciones',
       items: [
         { id: 'users', label: 'Usuarios', icon: Users },
         { id: 'partners', label: 'Socios', icon: UserCheck },
@@ -57,6 +61,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
     },
     {
       label: 'Servicios y Ubicaciones',
+      hint: 'Catálogo y cobertura geográfica',
       items: [
         { id: 'services', label: 'Servicios', icon: Package },
         { id: 'cities', label: 'Ciudades', icon: MapPin },
@@ -64,6 +69,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
     },
     {
       label: 'Marketing',
+      hint: 'Adquisición y comportamiento de búsqueda',
       items: [
         { id: 'ads', label: 'Publicidad', icon: Megaphone, isLink: true, href: '/admin/ads' },
         { id: 'search-analytics', label: 'Búsquedas', icon: BarChart3, isLink: true, href: '/admin/search-analytics' },
@@ -71,6 +77,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
     },
     {
       label: 'Configuración',
+      hint: 'Ajustes de plataforma y comisiones',
       items: [
         { id: 'commissions', label: 'Comisiones', icon: Percent },
         { id: 'payment-config', label: 'Config. Pagos', icon: CreditCard, isLink: true, href: '/admin/payment-config' },
@@ -83,15 +90,11 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
   const getGroupKey = (label: string) => label.toLowerCase().replace(/\s+/g, '-')
 
   useEffect(() => {
-    const groupsToExpand: string[] = []
-    menuGroups.forEach((group) => {
-      const hasActiveItem = group.items.some(item => item.id === activeSection)
-      if (hasActiveItem) {
-        groupsToExpand.push(getGroupKey(group.label))
-      }
-    })
+    const activeGroup = menuGroups.find((group) =>
+      group.items.some((item) => item.id === activeSection)
+    )
     const firstGroupKey = menuGroups[0] ? getGroupKey(menuGroups[0].label) : ''
-    setExpandedGroups(groupsToExpand.length > 0 ? groupsToExpand : firstGroupKey ? [firstGroupKey] : [])
+    setExpandedGroup(activeGroup ? getGroupKey(activeGroup.label) : firstGroupKey || null)
   }, [activeSection])
 
   const handleSectionChange = (section: string) => {
@@ -105,12 +108,8 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
     setIsOpen(false)
   }
 
-  const toggleGroup = (groupLabel: string) => {
-    setExpandedGroups(prev =>
-      prev.includes(groupLabel)
-        ? prev.filter(g => g !== groupLabel)
-        : [...prev, groupLabel]
-    )
+  const toggleGroup = (groupKey: string) => {
+    setExpandedGroup((prev) => (prev === groupKey ? null : groupKey))
   }
 
   return (
@@ -143,20 +142,46 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
         <nav className="flex-1 overflow-y-auto py-4 sm:py-6 px-2 sm:px-3">
           {menuGroups.map((group) => {
             const groupKey = getGroupKey(group.label)
-            const isExpanded = expandedGroups.includes(groupKey)
+            const isExpanded = expandedGroup === groupKey
+            const hasActiveItem = group.items.some((item) => item.id === activeSection)
 
             return (
-              <div key={group.label} className="mb-4">
+              <div
+                key={group.label}
+                className={`mb-3 rounded-xl border transition-all ${
+                  hasActiveItem
+                    ? 'border-white/35 bg-white/10'
+                    : 'border-transparent bg-white/5 hover:bg-white/10'
+                }`}
+              >
                 <button
                   onClick={() => toggleGroup(groupKey)}
-                  className="w-full flex items-center justify-between px-3 sm:px-4 py-2 text-white/60 hover:text-white/90 transition-colors text-xs sm:text-sm font-bold uppercase tracking-wider"
+                  aria-expanded={isExpanded}
+                  aria-controls={`admin-group-${groupKey}`}
+                  className={`w-full flex items-center justify-between px-3 sm:px-4 py-3 transition-colors ${
+                    hasActiveItem ? 'text-white' : 'text-white/80 hover:text-white'
+                  }`}
                 >
-                  <span>{group.label}</span>
-                  {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                  <div className="min-w-0 text-left">
+                    <p className="text-xs sm:text-sm font-bold uppercase tracking-wider">{group.label}</p>
+                    <p className="text-[11px] text-white/70 truncate">{group.hint}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white">
+                      {group.items.length}
+                    </span>
+                    {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                  </div>
                 </button>
 
-                {isExpanded && (
-                  <div className="mt-1">
+                <div
+                  id={`admin-group-${groupKey}`}
+                  className={`grid transition-all duration-200 ${
+                    isExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-75'
+                  }`}
+                >
+                  <div className="overflow-hidden">
+                    <div className="mt-1 px-2 pb-2">
                     {group.items.map((item) => {
                       const Icon = item.icon
                       const isActive = activeSection === item.id
@@ -170,7 +195,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
                             className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 sm:py-3.5 rounded-lg sm:rounded-xl mb-1.5 sm:mb-2 transition-all font-semibold text-sm sm:text-base ${
                               isActive
                                 ? 'bg-white text-primary-600 shadow-lg scale-105'
-                                : 'text-white/90 hover:bg-white/10 hover:text-white'
+                                : 'text-white/90 hover:bg-white/15 hover:text-white'
                             }`}
                           >
                             <Icon size={18} className="sm:w-5 sm:h-5 flex-shrink-0" />
@@ -186,7 +211,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
                           className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 sm:py-3.5 rounded-lg sm:rounded-xl mb-1.5 sm:mb-2 transition-all font-semibold text-sm sm:text-base ${
                             isActive
                               ? 'bg-white text-primary-600 shadow-lg scale-105'
-                              : 'text-white/90 hover:bg-white/10 hover:text-white'
+                              : 'text-white/90 hover:bg-white/15 hover:text-white'
                           }`}
                         >
                           <Icon size={18} className="sm:w-5 sm:h-5 flex-shrink-0" />
@@ -194,8 +219,9 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
                         </button>
                       )
                     })}
+                    </div>
                   </div>
-                )}
+                </div>
               </div>
             )
           })}
