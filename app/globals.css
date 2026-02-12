@@ -263,3 +263,13 @@ textarea .emoji {
     padding-right: env(safe-area-inset-right);
   }
 }
+
+/* Touch-friendly form fields for mobile/coarse pointers */
+@media (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='file']),
+  select,
+  textarea {
+    padding-top: 16px !important;
+    padding-bottom: 16px !important;
+  }
+}

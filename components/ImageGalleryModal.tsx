@@ -1,7 +1,7 @@
 'use client'
 
 import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 interface Photo {
   id: string
@@ -18,6 +18,9 @@ interface ImageGalleryModalProps {
 export default function ImageGalleryModal({ photos, initialIndex, onClose }: ImageGalleryModalProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex)
   const [zoom, setZoom] = useState(1)
+  const gestureStartX = useRef<number | null>(null)
+  const gestureDeltaX = useRef(0)
+  const isGestureActive = useRef(false)
 
   useEffect(() => {
     // Reset zoom when changing images
@@ -55,6 +58,35 @@ export default function ImageGalleryModal({ photos, initialIndex, onClose }: Ima
 
   const handleZoomOut = () => {
     setZoom((prev) => Math.max(prev - 0.25, 0.5))
+  }
+
+  const handleGestureStart = (clientX: number) => {
+    if (zoom !== 1 || photos.length <= 1) return
+    gestureStartX.current = clientX
+    gestureDeltaX.current = 0
+    isGestureActive.current = true
+  }
+
+  const handleGestureMove = (clientX: number) => {
+    if (!isGestureActive.current || gestureStartX.current === null) return
+    gestureDeltaX.current = clientX - gestureStartX.current
+  }
+
+  const handleGestureEnd = () => {
+    if (!isGestureActive.current) return
+
+    const SWIPE_THRESHOLD = 50
+    if (Math.abs(gestureDeltaX.current) >= SWIPE_THRESHOLD) {
+      if (gestureDeltaX.current > 0) {
+        goToPrevious()
+      } else {
+        goToNext()
+      }
+    }
+
+    isGestureActive.current = false
+    gestureStartX.current = null
+    gestureDeltaX.current = 0
   }
 
   const sortedPhotos = [...photos].sort((a, b) => a.order - b.order)
@@ -106,13 +138,22 @@ export default function ImageGalleryModal({ photos, initialIndex, onClose }: Ima
 
       {/* Image container */}
       <div
-        className="relative w-full h-full flex items-center justify-center overflow-hidden"
+        className="relative w-full h-full flex items-center justify-center overflow-hidden cursor-grab active:cursor-grabbing"
         onClick={(e) => e.stopPropagation()}
+        onTouchStart={(e) => handleGestureStart(e.touches[0].clientX)}
+        onTouchMove={(e) => handleGestureMove(e.touches[0].clientX)}
+        onTouchEnd={handleGestureEnd}
+        onMouseDown={(e) => handleGestureStart(e.clientX)}
+        onMouseMove={(e) => handleGestureMove(e.clientX)}
+        onMouseUp={handleGestureEnd}
+        onMouseLeave={handleGestureEnd}
+        style={{ touchAction: zoom === 1 ? 'pan-y' : 'none' }}
       >
         <img
           src={sortedPhotos[currentIndex]?.url}
           alt={`Foto ${currentIndex + 1}`}
-          className="max-w-full max-h-full object-contain transition-transform duration-200"
+          className="max-w-full max-h-full object-contain transition-transform duration-200 select-none"
+          draggable={false}
           style={{ transform: `scale(${zoom})` }}
           onError={(e) => {
             console.error('Error loading image:', sortedPhotos[currentIndex]?.url)
