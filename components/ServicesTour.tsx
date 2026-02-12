@@ -12,22 +12,28 @@ interface TourStep {
 
 const tourSteps: TourStep[] = [
   {
+    target: 'welcome-services',
+    title: '👋 Catálogo de Servicios',
+    description: 'Aquí encontrarás todos los servicios disponibles en tu ciudad. Te mostramos cómo navegar en 4 pasos.',
+    position: 'center'
+  },
+  {
     target: 'services-search',
     title: '🔍 Busca servicios',
-    description: 'Escribe lo que necesitas y encuentra el servicio perfecto al instante.',
-    position: 'bottom'
+    description: 'Escribe lo que necesitas: plomero, electricista, limpieza... y encuentra el servicio perfecto al instante.',
+    position: 'center'
   },
   {
     target: 'services-categories',
     title: '📂 Filtra por categorías',
-    description: 'Selecciona una categoría para ver solo los servicios que te interesan.',
-    position: 'bottom'
+    description: 'Selecciona una categoría para ver solo los servicios que te interesan. Puedes cambiar de categoría en cualquier momento.',
+    position: 'center'
   },
   {
     target: 'services-grid',
     title: '📋 Explora servicios',
-    description: 'Toca cualquier servicio para ver detalles, precios y profesionales disponibles.',
-    position: 'top'
+    description: 'Toca cualquier servicio para ver detalles completos, precios, profesionales disponibles y sus calificaciones.',
+    position: 'center'
   }
 ]
 
@@ -35,22 +41,26 @@ const tourTranslations = {
   en: {
     steps: [
       {
+        title: '👋 Services Catalog',
+        description: 'Here you will find all available services in your city. We will show you how to navigate in 4 steps.'
+      },
+      {
         title: '🔍 Search services',
-        description: 'Type what you need and find the perfect service instantly.'
+        description: 'Type what you need: plumber, electrician, cleaning... and find the perfect service instantly.'
       },
       {
         title: '📂 Filter by categories',
-        description: 'Select a category to see only the services you are interested in.'
+        description: 'Select a category to see only the services you are interested in. You can change categories at any time.'
       },
       {
         title: '📋 Explore services',
-        description: 'Tap any service to see details, prices and available professionals.'
+        description: 'Tap any service to see full details, prices, available professionals and their ratings.'
       }
     ],
     ui: {
       previous: 'Previous',
       next: 'Next',
-      finish: 'Finish',
+      finish: 'Start exploring',
       dontShowAgain: 'Do not show again',
       viewTutorial: 'View tutorial',
       showTutorial: 'Show tutorial',
@@ -60,22 +70,26 @@ const tourTranslations = {
   es: {
     steps: [
       {
+        title: '👋 Catálogo de Servicios',
+        description: 'Aquí encontrarás todos los servicios disponibles en tu ciudad. Te mostramos cómo navegar en 4 pasos.'
+      },
+      {
         title: '🔍 Busca servicios',
-        description: 'Escribe lo que necesitas y encuentra el servicio perfecto al instante.'
+        description: 'Escribe lo que necesitas: plomero, electricista, limpieza... y encuentra el servicio perfecto al instante.'
       },
       {
         title: '📂 Filtra por categorías',
-        description: 'Selecciona una categoría para ver solo los servicios que te interesan.'
+        description: 'Selecciona una categoría para ver solo los servicios que te interesan. Puedes cambiar de categoría en cualquier momento.'
       },
       {
         title: '📋 Explora servicios',
-        description: 'Toca cualquier servicio para ver detalles, precios y profesionales disponibles.'
+        description: 'Toca cualquier servicio para ver detalles completos, precios, profesionales disponibles y sus calificaciones.'
       }
     ],
     ui: {
       previous: 'Anterior',
       next: 'Siguiente',
-      finish: 'Finalizar',
+      finish: 'Comenzar a explorar',
       dontShowAgain: 'No volver a mostrar',
       viewTutorial: 'Ver tutorial',
       showTutorial: 'Mostrar tutorial',
@@ -125,25 +139,28 @@ export default function ServicesTour() {
   useEffect(() => {
     if (isOpen) {
       const step = tourSteps[currentStep]
-      const element = getTargetElement(step.target)
 
-      if (element) {
-        const rect = element.getBoundingClientRect()
-        const windowHeight = window.innerHeight
-        const windowWidth = window.innerWidth
+      if (step.target !== 'welcome-services') {
+        const element = getTargetElement(step.target)
 
-        const isElementVisible =
-          rect.top >= 0 &&
-          rect.left >= 0 &&
-          rect.bottom <= windowHeight &&
-          rect.right <= windowWidth
+        if (element) {
+          const rect = element.getBoundingClientRect()
+          const windowHeight = window.innerHeight
+          const windowWidth = window.innerWidth
 
-        if (!isElementVisible) {
-          element.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center',
-            inline: 'center'
-          })
+          const isElementVisible =
+            rect.top >= 0 &&
+            rect.left >= 0 &&
+            rect.bottom <= windowHeight &&
+            rect.right <= windowWidth
+
+          if (!isElementVisible) {
+            element.scrollIntoView({
+              behavior: 'smooth',
+              block: 'center',
+              inline: 'center'
+            })
+          }
         }
       }
     }
@@ -187,16 +204,22 @@ export default function ServicesTour() {
 
   const getHighlightStyle = () => {
     const step = tourSteps[currentStep]
+
+    if (step.target === 'welcome-services') {
+      return { display: 'none' }
+    }
+
     const element = getTargetElement(step.target)
-    
-    if (!element) return {}
-    
+
+    if (!element) return { display: 'none' }
+
     const rect = element.getBoundingClientRect()
     return {
       top: rect.top - 8,
       left: rect.left - 8,
       width: rect.width + 16,
-      height: rect.height + 16
+      height: rect.height + 16,
+      display: 'block'
     }
   }
 
@@ -212,11 +235,11 @@ export default function ServicesTour() {
     return (
       <button
         onClick={handleRestart}
-        className="fixed bottom-24 md:bottom-6 right-4 z-50 w-12 h-12 md:w-14 md:h-14 bg-gradient-to-r from-primary-500 to-secondary-500 text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center group"
+        className="fixed bottom-24 md:bottom-6 right-4 z-50 w-12 h-12 md:w-14 md:h-14 bg-gradient-to-r from-primary-500 to-secondary-500 text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center group hover:scale-110"
         aria-label={translations.ui.showTutorial}
       >
         <HelpCircle size={24} className="md:w-7 md:h-7" />
-        <span className="absolute right-14 md:right-16 bg-gray-900 text-white text-xs md:text-sm px-3 py-1.5 md:px-4 md:py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+        <span className="absolute right-14 md:right-16 bg-gray-900 text-white text-xs md:text-sm px-3 py-1.5 md:px-4 md:py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
           {translations.ui.viewTutorial}
         </span>
       </button>
@@ -226,57 +249,63 @@ export default function ServicesTour() {
   if (!isOpen) return null
 
   const step = tourSteps[currentStep]
+  const translatedStep = translations.steps[currentStep]
   const highlightStyle = getHighlightStyle()
   const tooltipStyle = getTooltipStyle()
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/70 z-[100] animate-fadeIn" onClick={handleComplete} />
-      
+      <div className="fixed inset-0 bg-black/80 z-[100] animate-fadeIn pointer-events-none" />
+
+      {step.target !== 'welcome-services' && (
+        <div
+          className="fixed z-[101] border-4 border-primary-500 rounded-xl pointer-events-none transition-all duration-500 shadow-2xl"
+          style={highlightStyle}
+        />
+      )}
+
       <div
-        className="fixed z-[101] border-4 border-primary-500 rounded-xl pointer-events-none transition-all duration-300"
-        style={highlightStyle}
-      />
-      
-      <div
-        className="fixed z-[102] bg-white rounded-2xl shadow-2xl p-6 w-[calc(100vw-2rem)] md:w-80 animate-fadeIn"
+        className="fixed z-[102] bg-white rounded-2xl shadow-2xl p-6 md:p-8 w-[calc(100vw-2rem)] max-w-md animate-fadeIn pointer-events-auto"
         style={tooltipStyle}
       >
         <button
           onClick={handleComplete}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition"
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+          aria-label="Cerrar tutorial"
         >
           <X size={20} />
         </button>
 
-        <div className="mb-4">
-          <h3 className="text-xl font-bold text-gray-900 mb-2">{step.title}</h3>
-          <p className="text-sm text-gray-600">{step.description}</p>
+        <div className="mb-6">
+          <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-3">{translatedStep.title}</h3>
+          <p className="text-sm md:text-base text-gray-600 leading-relaxed">{translatedStep.description}</p>
         </div>
 
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-6">
           <div className="flex gap-1.5">
             {tourSteps.map((_, index) => (
               <div
                 key={index}
-                className={`h-2 rounded-full transition-all ${
+                className={`h-2 rounded-full transition-all duration-300 ${
                   index === currentStep
                     ? 'w-8 bg-primary-500'
+                    : index < currentStep
+                    ? 'w-2 bg-primary-300'
                     : 'w-2 bg-gray-300'
                 }`}
               />
             ))}
           </div>
-          <span className="text-xs text-gray-500 font-medium">
+          <span className="text-xs md:text-sm text-gray-500 font-medium">
             {currentStep + 1} {translations.ui.stepCounter} {tourSteps.length}
           </span>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex gap-3">
           {currentStep > 0 && (
             <button
               onClick={handlePrevious}
-              className="flex-1 px-4 py-2.5 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition font-semibold flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-3 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all font-semibold flex items-center justify-center gap-2 hover:border-gray-400"
             >
               <ChevronLeft size={18} />
               {translations.ui.previous}
@@ -284,7 +313,7 @@ export default function ServicesTour() {
           )}
           <button
             onClick={handleNext}
-            className="flex-1 px-4 py-2.5 bg-gradient-to-r from-primary-500 to-secondary-500 text-white rounded-xl hover:from-primary-600 hover:to-secondary-600 transition font-semibold flex items-center justify-center gap-2"
+            className="flex-1 px-4 py-3 bg-gradient-to-r from-primary-500 to-secondary-500 text-white rounded-xl hover:from-primary-600 hover:to-secondary-600 transition-all font-semibold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
           >
             {currentStep === tourSteps.length - 1 ? translations.ui.finish : translations.ui.next}
             {currentStep < tourSteps.length - 1 && <ChevronRight size={18} />}
@@ -294,7 +323,7 @@ export default function ServicesTour() {
         {currentStep === 0 && (
           <button
             onClick={handleDontShowAgain}
-            className="w-full mt-3 text-xs text-gray-500 hover:text-gray-700 transition"
+            className="w-full mt-4 text-xs md:text-sm text-gray-500 hover:text-gray-700 transition-colors"
           >
             {translations.ui.dontShowAgain}
           </button>

@@ -12,28 +12,34 @@ interface TourStep {
 
 const tourSteps: TourStep[] = [
   {
+    target: 'welcome',
+    title: '👋 ¡Bienvenido a LoHaggo!',
+    description: 'Te mostraremos cómo funciona la plataforma en solo 5 pasos. Puedes saltar este tutorial en cualquier momento.',
+    position: 'center'
+  },
+  {
     target: 'search-bar',
-    title: '🔍 Search any service',
-    description: 'Type what you need: babysitter, plumber, cleaning... and find experts instantly.',
-    position: 'bottom'
-  },
-  {
-    target: 'navbar',
-    title: '🎯 Navigation bar',
-    description: 'Here you can select your city, browse sections (Home, Services, FAQ), and access your profile or sign in.',
-    position: 'bottom'
-  },
-  {
-    target: 'bottom-nav',
-    title: '🧭 Quick navigation',
-    description: 'Use these buttons to navigate: Home, Services, and your Profile.',
-    position: 'top'
+    title: '🔍 Busca cualquier servicio',
+    description: 'Escribe lo que necesitas: plomero, electricista, limpieza, niñera... Encuentra expertos verificados al instante.',
+    position: 'center'
   },
   {
     target: 'service-categories',
-    title: '📂 Explore by categories',
-    description: 'Browse categories to discover all available services.',
-    position: 'top'
+    title: '📂 Explora por categorías',
+    description: 'Navega por categorías para descubrir todos los servicios disponibles en tu ciudad.',
+    position: 'center'
+  },
+  {
+    target: 'navbar',
+    title: '🎯 Barra de navegación',
+    description: 'Selecciona tu ciudad, explora servicios, consulta preguntas frecuentes y accede a tu perfil desde aquí.',
+    position: 'center'
+  },
+  {
+    target: 'bottom-nav',
+    title: '🧭 Navegación rápida (móvil)',
+    description: 'En móvil, usa estos botones para navegar rápidamente: Inicio, Servicios y tu Perfil.',
+    position: 'center'
   }
 ]
 
@@ -42,26 +48,30 @@ const tourTranslations = {
   en: {
     steps: [
       {
+        title: '👋 Welcome to LoHaggo!',
+        description: 'We will show you how the platform works in just 5 steps. You can skip this tutorial at any time.'
+      },
+      {
         title: '🔍 Search any service',
-        description: 'Type what you need: babysitter, plumber, cleaning... and find experts instantly.'
-      },
-      {
-        title: '🎯 Navigation bar',
-        description: 'Here you can select your city, browse sections (Home, Services, FAQ), and access your profile or sign in.'
-      },
-      {
-        title: '🧭 Quick navigation',
-        description: 'Use these buttons to navigate: Home, Services, and your Profile.'
+        description: 'Type what you need: plumber, electrician, cleaning, babysitter... Find verified experts instantly.'
       },
       {
         title: '📂 Explore by categories',
-        description: 'Browse categories to discover all available services.'
+        description: 'Browse categories to discover all available services in your city.'
+      },
+      {
+        title: '🎯 Navigation bar',
+        description: 'Select your city, explore services, check FAQs and access your profile from here.'
+      },
+      {
+        title: '🧭 Quick navigation (mobile)',
+        description: 'On mobile, use these buttons to navigate quickly: Home, Services and your Profile.'
       }
     ],
     ui: {
       previous: 'Previous',
       next: 'Next',
-      finish: 'Finish',
+      finish: 'Start using LoHaggo',
       dontShowAgain: 'Do not show again',
       viewTutorial: 'View tutorial',
       showTutorial: 'Show tutorial',
@@ -71,26 +81,30 @@ const tourTranslations = {
   es: {
     steps: [
       {
+        title: '👋 ¡Bienvenido a LoHaggo!',
+        description: 'Te mostraremos cómo funciona la plataforma en solo 5 pasos. Puedes saltar este tutorial en cualquier momento.'
+      },
+      {
         title: '🔍 Busca cualquier servicio',
-        description: 'Escribe lo que necesitas: niñera, plomero, limpieza... y encuentra expertos al instante.'
-      },
-      {
-        title: '🎯 Barra de navegación',
-        description: 'Aquí puedes seleccionar tu ciudad, navegar por las secciones (Inicio, Servicios, FAQ), y acceder a tu perfil o iniciar sesión.'
-      },
-      {
-        title: '🧭 Navegación rápida',
-        description: 'Usa estos botones para navegar: Inicio, Servicios y tu Perfil.'
+        description: 'Escribe lo que necesitas: plomero, electricista, limpieza, niñera... Encuentra expertos verificados al instante.'
       },
       {
         title: '📂 Explora por categorías',
-        description: 'Navega por categorías para descubrir todos los servicios disponibles.'
+        description: 'Navega por categorías para descubrir todos los servicios disponibles en tu ciudad.'
+      },
+      {
+        title: '🎯 Barra de navegación',
+        description: 'Selecciona tu ciudad, explora servicios, consulta preguntas frecuentes y accede a tu perfil desde aquí.'
+      },
+      {
+        title: '🧭 Navegación rápida (móvil)',
+        description: 'En móvil, usa estos botones para navegar rápidamente: Inicio, Servicios y tu Perfil.'
       }
     ],
     ui: {
       previous: 'Anterior',
       next: 'Siguiente',
-      finish: 'Finalizar',
+      finish: 'Comenzar a usar LoHaggo',
       dontShowAgain: 'No volver a mostrar',
       viewTutorial: 'Ver tutorial',
       showTutorial: 'Mostrar tutorial',
@@ -141,25 +155,28 @@ export default function OnboardingTour() {
   useEffect(() => {
     if (isOpen) {
       const step = tourSteps[currentStep]
-      const element = getTargetElement(step.target)
 
-      if (element) {
-        const rect = element.getBoundingClientRect()
-        const windowHeight = window.innerHeight
-        const windowWidth = window.innerWidth
+      if (step.target !== 'welcome') {
+        const element = getTargetElement(step.target)
 
-        const isElementVisible =
-          rect.top >= 0 &&
-          rect.left >= 0 &&
-          rect.bottom <= windowHeight &&
-          rect.right <= windowWidth
+        if (element) {
+          const rect = element.getBoundingClientRect()
+          const windowHeight = window.innerHeight
+          const windowWidth = window.innerWidth
 
-        if (!isElementVisible) {
-          element.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center',
-            inline: 'center'
-          })
+          const isElementVisible =
+            rect.top >= 0 &&
+            rect.left >= 0 &&
+            rect.bottom <= windowHeight &&
+            rect.right <= windowWidth
+
+          if (!isElementVisible) {
+            element.scrollIntoView({
+              behavior: 'smooth',
+              block: 'center',
+              inline: 'center'
+            })
+          }
         }
       }
     }
@@ -203,16 +220,22 @@ export default function OnboardingTour() {
 
   const getHighlightStyle = () => {
     const step = tourSteps[currentStep]
+
+    if (step.target === 'welcome') {
+      return { display: 'none' }
+    }
+
     const element = getTargetElement(step.target)
-    
-    if (!element) return {}
-    
+
+    if (!element) return { display: 'none' }
+
     const rect = element.getBoundingClientRect()
     return {
       top: rect.top - 8,
       left: rect.left - 8,
       width: rect.width + 16,
-      height: rect.height + 16
+      height: rect.height + 16,
+      display: 'block'
     }
   }
 
@@ -231,11 +254,11 @@ export default function OnboardingTour() {
     return (
       <button
         onClick={handleRestart}
-        className="fixed bottom-24 md:bottom-6 right-4 z-50 w-12 h-12 md:w-14 md:h-14 bg-gradient-to-r from-primary-500 to-secondary-500 text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center group"
+        className="fixed bottom-24 md:bottom-6 right-4 z-50 w-12 h-12 md:w-14 md:h-14 bg-gradient-to-r from-primary-500 to-secondary-500 text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center group hover:scale-110"
         aria-label={translations.ui.showTutorial}
       >
         <HelpCircle size={24} className="md:w-7 md:h-7" />
-        <span className="absolute right-14 md:right-16 bg-gray-900 text-white text-xs md:text-sm px-3 py-1.5 md:px-4 md:py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+        <span className="absolute right-14 md:right-16 bg-gray-900 text-white text-xs md:text-sm px-3 py-1.5 md:px-4 md:py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
           {translations.ui.viewTutorial}
         </span>
       </button>
@@ -251,52 +274,57 @@ export default function OnboardingTour() {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/70 z-[100] animate-fadeIn pointer-events-none" />
+      <div className="fixed inset-0 bg-black/80 z-[100] animate-fadeIn pointer-events-none" />
+
+      {step.target !== 'welcome' && (
+        <div
+          className="fixed z-[101] border-4 border-primary-500 rounded-xl pointer-events-none transition-all duration-500 shadow-2xl"
+          style={highlightStyle}
+        />
+      )}
 
       <div
-        className="fixed z-[101] border-4 border-primary-500 rounded-xl pointer-events-none transition-all duration-300"
-        style={highlightStyle}
-      />
-
-      <div
-        className="fixed z-[102] bg-white rounded-2xl shadow-2xl p-6 w-[calc(100vw-2rem)] md:w-80 animate-fadeIn pointer-events-auto"
+        className="fixed z-[102] bg-white rounded-2xl shadow-2xl p-6 md:p-8 w-[calc(100vw-2rem)] max-w-md animate-fadeIn pointer-events-auto"
         style={tooltipStyle}
       >
         <button
           onClick={handleComplete}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition"
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+          aria-label="Cerrar tutorial"
         >
           <X size={20} />
         </button>
 
-        <div className="mb-4">
-          <h3 className="text-xl font-bold text-gray-900 mb-2">{translatedStep.title}</h3>
-          <p className="text-sm text-gray-600">{translatedStep.description}</p>
+        <div className="mb-6">
+          <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-3">{translatedStep.title}</h3>
+          <p className="text-sm md:text-base text-gray-600 leading-relaxed">{translatedStep.description}</p>
         </div>
 
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-6">
           <div className="flex gap-1.5">
             {tourSteps.map((_, index) => (
               <div
                 key={index}
-                className={`h-2 rounded-full transition-all ${
+                className={`h-2 rounded-full transition-all duration-300 ${
                   index === currentStep
                     ? 'w-8 bg-primary-500'
+                    : index < currentStep
+                    ? 'w-2 bg-primary-300'
                     : 'w-2 bg-gray-300'
                 }`}
               />
             ))}
           </div>
-          <span className="text-xs text-gray-500 font-medium">
+          <span className="text-xs md:text-sm text-gray-500 font-medium">
             {currentStep + 1} {translations.ui.stepCounter} {tourSteps.length}
           </span>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex gap-3">
           {currentStep > 0 && (
             <button
               onClick={handlePrevious}
-              className="flex-1 px-4 py-2.5 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition font-semibold flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-3 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all font-semibold flex items-center justify-center gap-2 hover:border-gray-400"
             >
               <ChevronLeft size={18} />
               {translations.ui.previous}
@@ -304,7 +332,7 @@ export default function OnboardingTour() {
           )}
           <button
             onClick={handleNext}
-            className="flex-1 px-4 py-2.5 bg-gradient-to-r from-primary-500 to-secondary-500 text-white rounded-xl hover:from-primary-600 hover:to-secondary-600 transition font-semibold flex items-center justify-center gap-2"
+            className="flex-1 px-4 py-3 bg-gradient-to-r from-primary-500 to-secondary-500 text-white rounded-xl hover:from-primary-600 hover:to-secondary-600 transition-all font-semibold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
           >
             {currentStep === tourSteps.length - 1 ? translations.ui.finish : translations.ui.next}
             {currentStep < tourSteps.length - 1 && <ChevronRight size={18} />}
@@ -314,7 +342,7 @@ export default function OnboardingTour() {
         {currentStep === 0 && (
           <button
             onClick={handleDontShowAgain}
-            className="w-full mt-3 text-xs text-gray-500 hover:text-gray-700 transition"
+            className="w-full mt-4 text-xs md:text-sm text-gray-500 hover:text-gray-700 transition-colors"
           >
             {translations.ui.dontShowAgain}
           </button>
