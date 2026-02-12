@@ -128,6 +128,8 @@ export default function AdBanner({ placement, serviceId, className = '' }: AdBan
           <img
             src={currentAd.imageUrl}
             alt={currentAd.title}
+            loading="lazy"
+            decoding="async"
             className="w-full h-full object-cover"
           />
           

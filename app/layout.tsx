@@ -327,7 +327,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
           <TestModeBanner />
           <InactiveAccountBanner />
           <Navbar />
-          <main className="min-h-screen md:pb-0 pb-16">
+          <main className="min-h-screen pb-24 md:pb-0">
             {children}
           </main>
           <AppDownloadBanner />

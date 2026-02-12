@@ -648,6 +648,9 @@ function RegisterForm() {
                   }`} size={20} />
                   <input
                     type="tel"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    autoComplete="tel-national"
                     value={formData.phone}
                     onChange={(e) => handleFieldChange('phone', e.target.value)}
                     onBlur={() => handleFieldBlur('phone')}
