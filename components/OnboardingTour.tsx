@@ -229,17 +229,15 @@ export default function OnboardingTour() {
     }
   }
 
-  if (!isMobile) return null
-
   if (!isOpen && showFloatingButton) {
     return (
       <button
         onClick={handleRestart}
-        className="fixed bottom-24 right-4 z-50 w-12 h-12 bg-gradient-to-r from-primary-500 to-secondary-500 text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center group"
+        className="fixed bottom-24 md:bottom-6 right-4 z-50 w-12 h-12 md:w-14 md:h-14 bg-gradient-to-r from-primary-500 to-secondary-500 text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center group"
         aria-label={translations.ui.showTutorial}
       >
-        <HelpCircle size={24} />
-        <span className="absolute right-14 bg-gray-900 text-white text-xs px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+        <HelpCircle size={24} className="md:w-7 md:h-7" />
+        <span className="absolute right-14 md:right-16 bg-gray-900 text-white text-xs md:text-sm px-3 py-1.5 md:px-4 md:py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
           {translations.ui.viewTutorial}
         </span>
       </button>

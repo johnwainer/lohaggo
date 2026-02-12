@@ -79,12 +79,16 @@
 - **Interfaz Intuitiva**: Navegación clara y simple
 - **Retroalimentación Visual**: Estados de carga, confirmaciones y errores claros
 - **PWA Ready**: Capacidades de Progressive Web App
-- **Tours Interactivos**: Guías paso a paso para nuevos usuarios en mobile
-  - **Tour de Inicio**: Introducción a búsqueda, navegación y categorías
-  - **Tour de Servicios**: Guía de búsqueda, filtros y exploración de servicios
-  - **Botón de Ayuda Flotante**: Acceso rápido para reactivar tours
+- **Tours Interactivos**: Guías paso a paso para nuevos usuarios (mobile y desktop)
+  - **Tour de Inicio**: Introducción a búsqueda, navegación y categorías en la página principal
+  - **Tour de Servicios**: Guía de búsqueda, filtros y exploración del catálogo de servicios
+  - **Tour de Detalle de Servicio**: Explicación de cómo solicitar servicios y ver profesionales
+  - **Botón de Ayuda Flotante**: Botón circular visible en mobile y desktop para reactivar tours
+  - **Responsive**: Botones y tooltips adaptados para mobile (bottom-24) y desktop (bottom-6)
   - **Persistencia**: Tours se muestran solo una vez, con opción "No volver a mostrar"
   - **Auto-scroll**: Elementos destacados siempre visibles durante el tour
+  - **Multiidioma**: Soporte completo en español e inglés
+  - **Accesibilidad**: Etiquetas ARIA y navegación por teclado
 
 ## 🛠️ Tecnologías
 
@@ -245,7 +249,17 @@ Vercel desplegará automáticamente.
 - `/servicios/[slug]` - Detalle de servicio con formulario de solicitud y lista de socios
 - `/ciudad/[slug]` - Servicios e información específica de la ciudad
 - `/login` - Inicio de sesión
-- `/register` - Registro de nuevos usuarios
+- `/register` - Registro de nuevos usuarios (clientes)
+- `/registro-socios` - Registro de socios/proveedores de servicios
+- `/about` - Información sobre la plataforma
+- `/how-it-works` - Explicación del funcionamiento de la plataforma
+- `/faq` - Preguntas frecuentes
+- `/contact` - Formulario de contacto
+- `/download/android` - Instrucciones para instalar PWA en Android
+- `/download/ios` - Instrucciones para instalar PWA en iOS
+- `/terms` - Términos y condiciones
+- `/privacy` - Política de privacidad
+- `/cookies` - Política de cookies
 
 ### Dashboards Privados
 
@@ -451,6 +465,82 @@ enum AdPlacement {
   - `POST /api/ads/track` - Rastrear impresiones y clics
 - **Almacenamiento de Imágenes**: Cloudinary con optimización automática
 - **Clases Responsive**: Tailwind CSS con h-full para escalado apropiado
+
+## 📱 Progressive Web App (PWA)
+
+### Características
+- **Instalable**: Los usuarios pueden instalar la aplicación en sus dispositivos móviles y escritorio
+- **Service Worker**: Funcionalidad offline y actualizaciones automáticas
+- **Manifest.json**: Configuración completa con iconos, colores y atajos
+- **Atajos de Aplicación**:
+  - Acceso rápido a Servicios
+  - Acceso rápido a Perfil
+- **Prompt de Instalación**: Banner inteligente que sugiere instalar la PWA
+- **Actualizaciones Automáticas**: Notificación cuando hay nueva versión disponible
+- **Páginas de Descarga**:
+  - `/download/android` - Guía paso a paso para Android
+  - `/download/ios` - Guía paso a paso para iOS (Safari)
+- **Iconos Adaptativos**: Múltiples tamaños (192x192, 512x512) para diferentes dispositivos
+- **Splash Screens**: Pantallas de carga personalizadas
+- **Modo Standalone**: Experiencia de aplicación nativa sin barra del navegador
+
+### Implementación Técnica
+- **Service Worker**: `/public/sw.js` con estrategias de caché
+- **Manifest**: `/public/manifest.json` con configuración completa
+- **Componentes**:
+  - `PWARegister.tsx` - Registro automático del service worker
+  - `PWAInstallPrompt.tsx` - Banner de instalación inteligente
+- **Hooks**: `usePushNotifications.ts` integrado con service worker
+- **Script de Verificación**: `npm run check-pwa` para validar configuración
+
+### Capacitor (Aplicaciones Nativas)
+- **Android**: Configuración completa en `/android`
+- **iOS**: Configuración completa en `/ios`
+- **Build Nativo**: Posibilidad de generar APK/IPA para tiendas de aplicaciones
+- **Plugins Nativos**: Acceso a funcionalidades nativas del dispositivo
+
+## 🎓 Sistema de Tours Interactivos
+
+### Características
+- **3 Tours Disponibles**:
+  - **OnboardingTour**: Tour de bienvenida en la página principal
+  - **ServicesTour**: Tour del catálogo de servicios
+  - **ServiceDetailTour**: Tour de la página de detalle de servicio
+- **Responsive**: Funciona perfectamente en mobile y desktop
+- **Botón Flotante**: Botón de ayuda circular siempre visible
+  - Mobile: Posición `bottom-24 right-4` (sobre navegación inferior)
+  - Desktop: Posición `bottom-6 right-4`
+  - Tamaño adaptativo: 48px (mobile) / 56px (desktop)
+- **Tooltip con Hover**: Texto explicativo al pasar el mouse
+- **Multiidioma**: Soporte completo en español e inglés
+- **Persistencia Inteligente**:
+  - Tours se muestran automáticamente la primera vez
+  - Opción "No volver a mostrar" para usuarios experimentados
+  - Almacenamiento en localStorage por tour
+- **Navegación**:
+  - Botones Anterior/Siguiente
+  - Indicadores de progreso (puntos)
+  - Contador de pasos (ej: "2 de 5")
+  - Botón de cerrar (X)
+- **Destacado Visual**:
+  - Overlay oscuro (bg-black/70)
+  - Borde de resaltado en elemento objetivo
+  - Auto-scroll para mantener elemento visible
+  - Animaciones suaves (fadeIn)
+- **Accesibilidad**:
+  - Etiquetas ARIA completas
+  - Navegación por teclado
+  - Contraste adecuado
+
+### Implementación Técnica
+- **Componentes**:
+  - `components/OnboardingTour.tsx`
+  - `components/ServicesTour.tsx`
+  - `components/ServiceDetailTour.tsx`
+- **Atributos data-tour**: Elementos marcados con `data-tour="nombre"` para targeting
+- **Iconos**: Lucide React (HelpCircle, ChevronRight, ChevronLeft, X)
+- **Estilos**: Tailwind CSS con clases responsive
+- **Estado**: React hooks (useState, useEffect) para gestión de estado
 
 ## 🔒 Mejores Prácticas de Seguridad
 
