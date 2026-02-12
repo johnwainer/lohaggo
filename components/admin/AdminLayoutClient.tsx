@@ -33,12 +33,16 @@ export default function AdminLayoutClient({
     }
     if (pathname === '/admin') return 'dashboard'
     if (pathname.startsWith('/admin/monitoring')) return 'monitoring'
+    if (pathname.startsWith('/admin/operations')) return 'operations'
+    if (pathname.startsWith('/admin/workflow')) return 'workflow'
     if (pathname.startsWith('/admin/ads')) return 'ads'
     if (pathname.startsWith('/admin/search-analytics')) return 'search-analytics'
+    if (pathname.startsWith('/admin/platform-control')) return 'platform-control'
     if (pathname.startsWith('/admin/payment-config')) return 'payment-config'
     if (pathname.startsWith('/admin/commissions')) return 'commissions'
     if (pathname.startsWith('/admin/payouts')) return 'payouts'
     if (pathname.startsWith('/admin/documents')) return 'documents'
+    if (pathname.startsWith('/admin/risk-control')) return 'risk-control'
     return 'dashboard'
   }
 

@@ -38,6 +38,8 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
       items: [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { id: 'monitoring', label: 'Monitoreo', icon: Activity, isLink: true, href: '/admin/monitoring' },
+        { id: 'operations', label: 'Centro Ops', icon: Activity, isLink: true, href: '/admin/operations' },
+        { id: 'workflow', label: 'Workflow', icon: Calendar, isLink: true, href: '/admin/workflow' },
         { id: 'analytics', label: 'Analíticas', icon: BarChart3 },
       ]
     },
@@ -73,6 +75,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
       items: [
         { id: 'ads', label: 'Publicidad', icon: Megaphone, isLink: true, href: '/admin/ads' },
         { id: 'search-analytics', label: 'Búsquedas', icon: BarChart3, isLink: true, href: '/admin/search-analytics' },
+        { id: 'platform-control', label: 'Control Plataforma', icon: Settings, isLink: true, href: '/admin/platform-control' },
       ]
     },
     {
@@ -83,6 +86,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
         { id: 'payment-config', label: 'Config. Pagos', icon: CreditCard, isLink: true, href: '/admin/payment-config' },
         { id: 'notifications', label: 'Notificaciones', icon: Bell },
         { id: 'settings', label: 'Configuración', icon: Settings },
+        { id: 'risk-control', label: 'Riesgo y Cohortes', icon: Shield, isLink: true, href: '/admin/risk-control' },
       ]
     }
   ]
