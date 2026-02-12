@@ -141,6 +141,13 @@ export default function DashboardSection() {
     ]
   }
 
+  const hasRevenueSeries = analytics.bookingsByMonth.revenue.some(v => v > 0)
+  const hasBookingsSeries = analytics.bookingsByMonth.bookings.some(v => v > 0)
+  const hasUsersSeries = analytics.usersByMonth.users.some(v => v > 0)
+  const hasStatusData = analytics.bookingsByStatus.some(item => item._count > 0)
+  const hasTopServices = analytics.topServices.length > 0
+  const hasRevenueByCity = analytics.revenueByCity.length > 0
+
   return (
     <div className="p-8">
       <div className="mb-8">
@@ -215,64 +222,100 @@ export default function DashboardSection() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <ChartCard
-          title="Ingresos Mensuales"
-          type="line"
-          data={revenueChartData}
-        />
-        <ChartCard
-          title="Reservas por Mes"
-          type="bar"
-          data={bookingsChartData}
-        />
+        {hasRevenueSeries ? (
+          <ChartCard
+            title="Ingresos Mensuales"
+            type="line"
+            data={revenueChartData}
+          />
+        ) : (
+          <div className="bg-white rounded-xl shadow-md p-6 flex items-center justify-center h-[360px] text-gray-500">
+            Sin datos de ingresos para este período.
+          </div>
+        )}
+        {hasBookingsSeries ? (
+          <ChartCard
+            title="Reservas por Mes"
+            type="bar"
+            data={bookingsChartData}
+          />
+        ) : (
+          <div className="bg-white rounded-xl shadow-md p-6 flex items-center justify-center h-[360px] text-gray-500">
+            Sin datos de reservas por mes.
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <ChartCard
-          title="Nuevos Usuarios por Mes"
-          type="line"
-          data={usersChartData}
-        />
-        <ChartCard
-          title="Reservas por Estado"
-          type="doughnut"
-          data={statusChartData}
-        />
+        {hasUsersSeries ? (
+          <ChartCard
+            title="Nuevos Usuarios por Mes"
+            type="line"
+            data={usersChartData}
+          />
+        ) : (
+          <div className="bg-white rounded-xl shadow-md p-6 flex items-center justify-center h-[360px] text-gray-500">
+            Sin datos de nuevos usuarios por mes.
+          </div>
+        )}
+        {hasStatusData ? (
+          <ChartCard
+            title="Reservas por Estado"
+            type="doughnut"
+            data={statusChartData}
+          />
+        ) : (
+          <div className="bg-white rounded-xl shadow-md p-6 flex items-center justify-center h-[360px] text-gray-500">
+            Sin datos de estado de reservas.
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl shadow-md p-6">
           <h3 className="text-lg font-semibold mb-4 text-gray-800">Servicios Más Solicitados</h3>
-          <div className="space-y-3">
-            {analytics.topServices.slice(0, 5).map((service, idx) => (
-              <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">{service.service.icon}</span>
-                  <span className="font-medium text-gray-700">{service.service.name}</span>
+          {hasTopServices ? (
+            <div className="space-y-3">
+              {analytics.topServices.slice(0, 5).map((service, idx) => (
+                <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">{service.service.icon}</span>
+                    <span className="font-medium text-gray-700">{service.service.name}</span>
+                  </div>
+                  <span className="bg-primary-100 text-primary-800 px-3 py-1 rounded-full text-sm font-semibold">
+                    {service._count} reservas
+                  </span>
                 </div>
-                <span className="bg-primary-100 text-primary-800 px-3 py-1 rounded-full text-sm font-semibold">
-                  {service._count} reservas
-                </span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed p-4 text-sm text-gray-500">
+              Aún no hay suficientes datos para listar servicios más solicitados.
+            </div>
+          )}
         </div>
 
         <div className="bg-white rounded-xl shadow-md p-6">
           <h3 className="text-lg font-semibold mb-4 text-gray-800">Ingresos por Ciudad</h3>
-          <div className="space-y-3">
-            {analytics.revenueByCity.map((city, idx) => (
-              <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <span className="font-medium text-gray-700">{city.city}</span>
-                  <p className="text-sm text-gray-500">{city._count} reservas</p>
+          {hasRevenueByCity ? (
+            <div className="space-y-3">
+              {analytics.revenueByCity.map((city, idx) => (
+                <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <span className="font-medium text-gray-700">{city.city}</span>
+                    <p className="text-sm text-gray-500">{city._count} reservas</p>
+                  </div>
+                  <span className="text-green-600 font-bold">
+                    {formatCurrency(city._sum.totalPrice || 0)}
+                  </span>
                 </div>
-                <span className="text-green-600 font-bold">
-                  {formatCurrency(city._sum.totalPrice || 0)}
-                </span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed p-4 text-sm text-gray-500">
+              No hay ingresos por ciudad para el período seleccionado.
+            </div>
+          )}
         </div>
       </div>
     </div>

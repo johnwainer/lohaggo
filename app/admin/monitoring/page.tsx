@@ -67,6 +67,7 @@ export default function AdminMonitoringPage() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null)
 
   const fetchData = async (isManualRefresh = false) => {
     try {
@@ -89,6 +90,7 @@ export default function AdminMonitoringPage() {
       const [authData, opsData] = await Promise.all([authRes.json(), opsRes.json()])
       setAuthSession(authData)
       setOperational(opsData)
+      setLastUpdatedAt(new Date().toISOString())
     } catch (err: any) {
       setError(err?.message || 'Error inesperado al cargar monitoreo.')
     } finally {
@@ -112,6 +114,7 @@ export default function AdminMonitoringPage() {
     return (authSession.totals.success / authSession.totals.total) * 100
   }, [authSession])
 
+  const hasTrafficData = (authSession?.totals.total || 0) > 0
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
@@ -142,9 +145,21 @@ export default function AdminMonitoringPage() {
         </button>
       </div>
 
+      {lastUpdatedAt && (
+        <p className="text-xs text-gray-500">
+          Última actualización: {new Date(lastUpdatedAt).toLocaleString('es-CO')}
+        </p>
+      )}
+
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           {error}
+        </div>
+      )}
+
+      {!error && !hasTrafficData && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+          Aún no hay tráfico suficiente para generar métricas de sesión. Esto es normal en entornos nuevos o de bajo uso.
         </div>
       )}
 
@@ -236,30 +251,36 @@ export default function AdminMonitoringPage() {
             <CardDescription>Totales, éxitos, 429 y errores de `/api/auth/session`</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="max-h-[420px] overflow-auto rounded-md border">
-              <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-gray-50">
-                  <tr className="border-b">
-                    <th className="p-2 text-left font-semibold">Hora</th>
-                    <th className="p-2 text-right font-semibold">Total</th>
-                    <th className="p-2 text-right font-semibold">OK</th>
-                    <th className="p-2 text-right font-semibold">429</th>
-                    <th className="p-2 text-right font-semibold">Errores</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(authSession?.byHour || []).slice().reverse().map((item) => (
-                    <tr key={item.hour} className="border-b">
-                      <td className="p-2">{formatHourLabel(item.hour)}</td>
-                      <td className="p-2 text-right">{item.total}</td>
-                      <td className="p-2 text-right text-emerald-700">{item.success}</td>
-                      <td className="p-2 text-right text-amber-700">{item.rateLimited}</td>
-                      <td className="p-2 text-right text-red-700">{item.errors}</td>
+            {(authSession?.byHour?.length || 0) === 0 ? (
+              <div className="rounded-md border border-dashed p-4 text-sm text-gray-600">
+                Sin eventos por hora para `/api/auth/session` todavía.
+              </div>
+            ) : (
+              <div className="max-h-[420px] overflow-auto rounded-md border">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-gray-50">
+                    <tr className="border-b">
+                      <th className="p-2 text-left font-semibold">Hora</th>
+                      <th className="p-2 text-right font-semibold">Total</th>
+                      <th className="p-2 text-right font-semibold">OK</th>
+                      <th className="p-2 text-right font-semibold">429</th>
+                      <th className="p-2 text-right font-semibold">Errores</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {(authSession?.byHour || []).slice().reverse().map((item) => (
+                      <tr key={item.hour} className="border-b">
+                        <td className="p-2">{formatHourLabel(item.hour)}</td>
+                        <td className="p-2 text-right">{item.total}</td>
+                        <td className="p-2 text-right text-emerald-700">{item.success}</td>
+                        <td className="p-2 text-right text-amber-700">{item.rateLimited}</td>
+                        <td className="p-2 text-right text-red-700">{item.errors}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -272,30 +293,36 @@ export default function AdminMonitoringPage() {
             <CardDescription>Fallos login, 429 de sesión y errores de API</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="max-h-[420px] overflow-auto rounded-md border">
-              <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-gray-50">
-                  <tr className="border-b">
-                    <th className="p-2 text-left font-semibold">Hora</th>
-                    <th className="p-2 text-right font-semibold">429 sesión</th>
-                    <th className="p-2 text-right font-semibold">Errores sesión</th>
-                    <th className="p-2 text-right font-semibold">Login fail</th>
-                    <th className="p-2 text-right font-semibold">API error</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(operational?.byHour || []).slice().reverse().map((item) => (
-                    <tr key={item.hour} className="border-b">
-                      <td className="p-2">{formatHourLabel(item.hour)}</td>
-                      <td className="p-2 text-right text-amber-700">{item.authSession429}</td>
-                      <td className="p-2 text-right text-red-700">{item.authSessionErrors}</td>
-                      <td className="p-2 text-right">{item.loginFailures}</td>
-                      <td className="p-2 text-right">{item.apiErrors}</td>
+            {(operational?.byHour?.length || 0) === 0 ? (
+              <div className="rounded-md border border-dashed p-4 text-sm text-gray-600">
+                Sin datos operativos por hora todavía.
+              </div>
+            ) : (
+              <div className="max-h-[420px] overflow-auto rounded-md border">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-gray-50">
+                    <tr className="border-b">
+                      <th className="p-2 text-left font-semibold">Hora</th>
+                      <th className="p-2 text-right font-semibold">429 sesión</th>
+                      <th className="p-2 text-right font-semibold">Errores sesión</th>
+                      <th className="p-2 text-right font-semibold">Login fail</th>
+                      <th className="p-2 text-right font-semibold">API error</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {(operational?.byHour || []).slice().reverse().map((item) => (
+                      <tr key={item.hour} className="border-b">
+                        <td className="p-2">{formatHourLabel(item.hour)}</td>
+                        <td className="p-2 text-right text-amber-700">{item.authSession429}</td>
+                        <td className="p-2 text-right text-red-700">{item.authSessionErrors}</td>
+                        <td className="p-2 text-right">{item.loginFailures}</td>
+                        <td className="p-2 text-right">{item.apiErrors}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

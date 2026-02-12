@@ -8,7 +8,7 @@ import { useState, useEffect } from 'react'
 
 interface SidebarProps {
   activeSection: string
-  onSectionChange: (section: string) => void
+  onSectionChange?: (section: string) => void
 }
 
 interface MenuGroup {
@@ -56,7 +56,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
       items: [
         { id: 'users', label: 'Usuarios', icon: Users },
         { id: 'partners', label: 'Socios', icon: UserCheck },
-        { id: 'documents', label: 'Verificación', icon: Shield },
+        { id: 'documents', label: 'Verificación', icon: Shield, isLink: true, href: '/admin/documents' },
       ]
     },
     {
@@ -87,7 +87,13 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
     }
   ]
 
-  const getGroupKey = (label: string) => label.toLowerCase().replace(/\s+/g, '-')
+  const getGroupKey = (label: string) =>
+    label
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, '-')
+  const getItemTestId = (id: string) => `admin-nav-${id}`
 
   useEffect(() => {
     const activeGroup = menuGroups.find((group) =>
@@ -98,11 +104,12 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
   }, [activeSection])
 
   const handleSectionChange = (section: string) => {
-    // If we're on the main admin page, use the callback
+    onSectionChange?.(section)
+
+    // Use a single navigation model for all internal admin sections.
     if (pathname === '/admin') {
-      onSectionChange(section)
+      router.replace(`/admin?section=${section}`, { scroll: false })
     } else {
-      // If we're on a subpage, navigate directly to the requested admin section.
       router.push(`/admin?section=${section}`)
     }
     setIsOpen(false)
@@ -158,6 +165,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
                   onClick={() => toggleGroup(groupKey)}
                   aria-expanded={isExpanded}
                   aria-controls={`admin-group-${groupKey}`}
+                  data-testid={`admin-group-${groupKey}`}
                   className={`w-full flex items-center justify-between px-3 sm:px-4 py-3 transition-colors ${
                     hasActiveItem ? 'text-white' : 'text-white/80 hover:text-white'
                   }`}
@@ -176,8 +184,9 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
 
                 <div
                   id={`admin-group-${groupKey}`}
+                  aria-hidden={!isExpanded}
                   className={`grid transition-all duration-200 ${
-                    isExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-75'
+                    isExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'
                   }`}
                 >
                   <div className="overflow-hidden">
@@ -192,6 +201,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
                             key={item.id}
                             href={item.href}
                             onClick={() => setIsOpen(false)}
+                            data-testid={getItemTestId(item.id)}
                             className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 sm:py-3.5 rounded-lg sm:rounded-xl mb-1.5 sm:mb-2 transition-all font-semibold text-sm sm:text-base ${
                               isActive
                                 ? 'bg-white text-primary-600 shadow-lg scale-105'
@@ -208,6 +218,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
                         <button
                           key={item.id}
                           onClick={() => handleSectionChange(item.id)}
+                          data-testid={getItemTestId(item.id)}
                           className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 sm:py-3.5 rounded-lg sm:rounded-xl mb-1.5 sm:mb-2 transition-all font-semibold text-sm sm:text-base ${
                             isActive
                               ? 'bg-white text-primary-600 shadow-lg scale-105'

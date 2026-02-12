@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import Sidebar from '@/components/admin/Sidebar'
 import DashboardSection from '@/components/admin/sections/DashboardSection'
 import BookingsSection from '@/components/admin/sections/BookingsSection'
 import UsersSection from '@/components/admin/sections/UsersSection'
@@ -12,7 +11,6 @@ import ServicesSection from '@/components/admin/sections/ServicesSection'
 import AnalyticsSection from '@/components/admin/sections/AnalyticsSection'
 import NotificationsSection from '@/components/admin/sections/NotificationsSection'
 import SettingsSection from '@/components/admin/sections/SettingsSection'
-import DocumentsSection from '@/components/admin/sections/DocumentsSection'
 import CommissionsSection from '@/components/admin/sections/CommissionsSection'
 import PayoutsSection from '@/components/admin/sections/PayoutsSection'
 import PaymentsSection from '@/components/admin/sections/PaymentsSection'
@@ -23,7 +21,6 @@ const VALID_SECTIONS = new Set([
   'bookings',
   'users',
   'partners',
-  'documents',
   'services',
   'cities',
   'payments',
@@ -88,8 +85,6 @@ export default function AdminDashboard() {
         return <UsersSection />
       case 'partners':
         return <PartnersSection />
-      case 'documents':
-        return <DocumentsSection />
       case 'services':
         return <ServicesSection />
       case 'cities':
@@ -111,19 +106,9 @@ export default function AdminDashboard() {
     }
   }
 
-  const handleSectionChange = (section: string) => {
-    setActiveSection(section)
-    router.replace(`/admin?section=${section}`, { scroll: false })
-  }
-
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <Sidebar activeSection={activeSection} onSectionChange={handleSectionChange} />
-      <main className="flex-1 overflow-auto ml-0 lg:ml-8">
-        <div className="p-3 sm:p-6 lg:p-8">
-          {renderSection()}
-        </div>
-      </main>
+    <div className="min-h-screen bg-gray-50">
+      {renderSection()}
     </div>
   )
 }

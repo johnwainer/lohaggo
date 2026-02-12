@@ -13,7 +13,8 @@
     "validate-env": "tsx scripts/validate-deployment.ts",
     "pre-deploy": "npm run validate-env && npm audit && npm run lint",
     "security-check": "npm audit && npm outdated",
-    "qa:protected-nav": "node scripts/qa/protected-navigation-check.mjs"
+    "qa:protected-nav": "node scripts/qa/protected-navigation-check.mjs",
+    "qa:admin-sidebar": "node scripts/qa/admin-sidebar-smoke.mjs"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
