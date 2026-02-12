@@ -1,6 +1,6 @@
 'use client'
 
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import Sidebar from '@/components/admin/Sidebar'
 
 export default function AdminLayoutClient({
@@ -9,8 +9,28 @@ export default function AdminLayoutClient({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
 
   const getActiveSectionFromPath = () => {
+    const sectionFromQuery = searchParams.get('section')
+    const querySections = new Set([
+      'dashboard',
+      'analytics',
+      'bookings',
+      'users',
+      'partners',
+      'services',
+      'cities',
+      'payments',
+      'notifications',
+      'settings',
+      'commissions',
+      'payouts',
+    ])
+
+    if (pathname === '/admin' && sectionFromQuery && querySections.has(sectionFromQuery)) {
+      return sectionFromQuery
+    }
     if (pathname === '/admin') return 'dashboard'
     if (pathname.startsWith('/admin/monitoring')) return 'monitoring'
     if (pathname.startsWith('/admin/ads')) return 'ads'
