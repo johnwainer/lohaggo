@@ -102,8 +102,8 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
     if (pathname === '/admin') {
       onSectionChange(section)
     } else {
-      // If we're on a subpage, navigate to /admin first
-      router.push('/admin')
+      // If we're on a subpage, navigate directly to the requested admin section.
+      router.push(`/admin?section=${section}`)
     }
     setIsOpen(false)
   }

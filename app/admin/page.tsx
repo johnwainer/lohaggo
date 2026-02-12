@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Sidebar from '@/components/admin/Sidebar'
 import DashboardSection from '@/components/admin/sections/DashboardSection'
 import BookingsSection from '@/components/admin/sections/BookingsSection'
@@ -18,10 +18,39 @@ import PayoutsSection from '@/components/admin/sections/PayoutsSection'
 import PaymentsSection from '@/components/admin/sections/PaymentsSection'
 import CitiesSection from '@/components/admin/sections/CitiesSection'
 
+const VALID_SECTIONS = new Set([
+  'dashboard',
+  'bookings',
+  'users',
+  'partners',
+  'documents',
+  'services',
+  'cities',
+  'payments',
+  'analytics',
+  'notifications',
+  'settings',
+  'commissions',
+  'payouts',
+])
+
 export default function AdminDashboard() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [activeSection, setActiveSection] = useState('dashboard')
+
+  useEffect(() => {
+    const sectionFromQuery = searchParams.get('section')
+    if (sectionFromQuery && VALID_SECTIONS.has(sectionFromQuery)) {
+      setActiveSection(sectionFromQuery)
+      return
+    }
+
+    if (!sectionFromQuery) {
+      setActiveSection('dashboard')
+    }
+  }, [searchParams])
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -82,9 +111,14 @@ export default function AdminDashboard() {
     }
   }
 
+  const handleSectionChange = (section: string) => {
+    setActiveSection(section)
+    router.replace(`/admin?section=${section}`, { scroll: false })
+  }
+
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <Sidebar activeSection={activeSection} onSectionChange={setActiveSection} />
+      <Sidebar activeSection={activeSection} onSectionChange={handleSectionChange} />
       <main className="flex-1 overflow-auto ml-0 lg:ml-8">
         <div className="p-3 sm:p-6 lg:p-8">
           {renderSection()}
