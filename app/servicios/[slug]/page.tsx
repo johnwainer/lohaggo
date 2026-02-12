@@ -58,7 +58,7 @@ interface Address {
 
 export default function ServiceDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params)
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const router = useRouter()
   const { getCityBySlug } = useCity()
   const [service, setService] = useState<Service | null>(null)
@@ -133,6 +133,9 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
   }
 
   const toggleFavorite = async (partnerId: string) => {
+    if (status === 'loading') {
+      return
+    }
     if (!session) {
       router.push('/login?redirect=/servicios/' + slug)
       return
@@ -188,6 +191,9 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
   }
 
   const toggleFavoriteService = async () => {
+    if (status === 'loading') {
+      return
+    }
     if (!session) {
       router.push('/login?redirect=/servicios/' + slug)
       return
@@ -224,6 +230,9 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
   }
 
   const handleBooking = async () => {
+    if (status === 'loading') {
+      return
+    }
     if (!session) {
       router.push('/login?redirect=/servicios/' + slug)
       return
@@ -253,6 +262,9 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
 
   // New function name for handling requests (kept for clarity/compatibility)
   const handleRequest = async () => {
+    if (status === 'loading') {
+      return
+    }
     if (!session) {
       router.push('/login?redirect=/servicios/' + slug)
       return
@@ -283,6 +295,9 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
   }
 
   const handleRequestToPartner = async (partnerId: string) => {
+    if (status === 'loading') {
+      return
+    }
     if (!session) {
       router.push('/login?redirect=/servicios/' + slug)
       return
