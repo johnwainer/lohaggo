@@ -24,7 +24,7 @@ export default function SearchBar() {
           <Search className="w-5 h-5 md:w-6 md:h-6 text-gray-400 ml-3 md:ml-4 flex-shrink-0" />
           <input
             type="text"
-            placeholder="¿Qué servicio buscas?"
+            placeholder="¿Qué servicio necesitas hoy?"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="flex-1 px-2 md:px-4 py-3 md:py-5 text-gray-800 placeholder-gray-400 focus:outline-none text-base md:text-lg font-medium min-w-0"

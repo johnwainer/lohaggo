@@ -344,7 +344,7 @@ function ServiciosContent() {
               <Search className="absolute left-3 md:left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
               <input
                 type="text"
-                placeholder="Servicios de búsqueda... (por ejemplo, fontanero, electricista, limpieza)"
+                placeholder="¿Qué servicio necesitas? Ej: plomero"
                 value={searchTerm}
                 onChange={(e) => {
                   const value = e.target.value
