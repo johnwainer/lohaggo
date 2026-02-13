@@ -13,8 +13,8 @@ const BASE = process.env.QA_BASE_URL || 'https://www.lohaggo.com'
 const OUT = process.env.QA_OUT || 'docs/qa/admin-sidebar-smoke.json'
 
 const creds = {
-  email: process.env.QA_ADMIN_EMAIL || 'admin@servicios.com',
-  password: process.env.QA_ADMIN_PASSWORD || 'password123',
+  email: process.env.QA_ADMIN_EMAIL,
+  password: process.env.QA_ADMIN_PASSWORD,
 }
 
 const targets = [
@@ -46,6 +46,12 @@ async function dismissOverlays(page) {
 }
 
 async function run() {
+  const required = ['QA_ADMIN_EMAIL', 'QA_ADMIN_PASSWORD']
+  const missing = required.filter((key) => !process.env[key])
+  if (missing.length > 0) {
+    throw new Error(`Missing QA env vars: ${missing.join(', ')}`)
+  }
+
   const browser = await chromium.launch({ headless: true })
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } })
   const page = await context.newPage()

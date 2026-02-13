@@ -18,14 +18,14 @@ const OUT = 'docs/qa/protected-navigation-report.json'
 
 const users = {
   client: {
-    email: process.env.QA_CLIENT_EMAIL || 'johnwainer@gmail.com',
-    password: process.env.QA_CLIENT_PASSWORD || '123456',
+    email: process.env.QA_CLIENT_EMAIL,
+    password: process.env.QA_CLIENT_PASSWORD,
     home: '/dashboard',
     routes: ['/dashboard', '/profile', '/dashboard/addresses', '/dashboard/payment-methods', '/notifications', '/my-ratings'],
   },
   partner: {
-    email: process.env.QA_PARTNER_EMAIL || 'jvalencia@pasosalexito.com',
-    password: process.env.QA_PARTNER_PASSWORD || '123456',
+    email: process.env.QA_PARTNER_EMAIL,
+    password: process.env.QA_PARTNER_PASSWORD,
     home: '/partner',
     routes: ['/partner', '/partner/services', '/partner/verification', '/partner/notifications', '/profile'],
   },
@@ -51,6 +51,17 @@ async function loginByApi(context, user) {
 }
 
 async function run() {
+  const required = [
+    'QA_CLIENT_EMAIL',
+    'QA_CLIENT_PASSWORD',
+    'QA_PARTNER_EMAIL',
+    'QA_PARTNER_PASSWORD',
+  ]
+  const missing = required.filter((key) => !process.env[key])
+  if (missing.length > 0) {
+    throw new Error(`Missing QA env vars: ${missing.join(', ')}`)
+  }
+
   const report = {
     generatedAt: new Date().toISOString(),
     baseUrl: BASE,
