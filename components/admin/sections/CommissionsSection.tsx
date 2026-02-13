@@ -69,13 +69,11 @@ export default function CommissionsSection() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Configuración de Comisiones</h2>
-          <p className="text-gray-600 mt-1">
-            Define los porcentajes de comisión para clientes y socios
-          </p>
-        </div>
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Configuración de Comisiones</h1>
+        <p className="text-gray-600 mt-1">
+          Define los porcentajes de comisión para clientes y socios
+        </p>
       </div>
 
       {message && (
