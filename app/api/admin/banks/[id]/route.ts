@@ -25,12 +25,17 @@ async function ensureAdmin() {
   return session
 }
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+type RouteContext = {
+  params: Promise<{ id: string }>
+}
+
+export async function PUT(request: NextRequest, context: RouteContext) {
   try {
     const session = await ensureAdmin()
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    const { id } = await context.params
 
     const body = await request.json()
     const parsed = bankUpdateSchema.safeParse(body)
@@ -38,7 +43,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: 'Validation error', details: parsed.error.errors }, { status: 400 })
     }
 
-    const existing = await prisma.bankCatalog.findUnique({ where: { id: params.id } })
+    const existing = await prisma.bankCatalog.findUnique({ where: { id } })
     if (!existing) {
       return NextResponse.json({ error: 'Bank not found' }, { status: 404 })
     }
@@ -50,7 +55,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
 
     const bank = await prisma.bankCatalog.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         ...(parsed.data.code ? { code: parsed.data.code.toUpperCase().trim() } : {}),
         ...(parsed.data.name ? { name: parsed.data.name.trim() } : {}),
@@ -75,19 +80,20 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_: NextRequest, context: RouteContext) {
   try {
     const session = await ensureAdmin()
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    const { id } = await context.params
 
-    const bank = await prisma.bankCatalog.findUnique({ where: { id: params.id } })
+    const bank = await prisma.bankCatalog.findUnique({ where: { id } })
     if (!bank) {
       return NextResponse.json({ error: 'Bank not found' }, { status: 404 })
     }
 
-    await prisma.bankCatalog.delete({ where: { id: params.id } })
+    await prisma.bankCatalog.delete({ where: { id } })
     return NextResponse.json({ success: true })
   } catch (error) {
     logger.error('Error deleting bank catalog entry', error || undefined)
