@@ -15,7 +15,7 @@ export function Navbar() {
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [mobileCityDropdownOpen, setMobileCityDropdownOpen] = useState(false)
-  const [mobileAccountOpen, setMobileAccountOpen] = useState(true)
+  const [mobileAccountOpen, setMobileAccountOpen] = useState(false)
   const [mobileRoleToolsOpen, setMobileRoleToolsOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
@@ -56,7 +56,7 @@ export function Navbar() {
     if (!mobileMenuOpen) {
       setMobileCityDropdownOpen(false)
       setMobileRoleToolsOpen(false)
-      setMobileAccountOpen(true)
+      setMobileAccountOpen(false)
     }
   }, [mobileMenuOpen])
 
