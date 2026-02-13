@@ -24,15 +24,11 @@ export async function GET(request: NextRequest) {
     const days = parseInt(searchParams.get('days') || '30')
     const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
 
-    console.log('Fetching search analytics for period:', { days, startDate })
-
     const totalSearches = await prisma.searchHistory.count({
       where: {
         createdAt: { gte: startDate }
       }
     })
-
-    console.log('Total searches found:', totalSearches)
 
     const uniqueUsers = await prisma.searchHistory.findMany({
       where: {
@@ -145,8 +141,6 @@ export async function GET(request: NextRequest) {
         createdAt: item.createdAt
       }))
     }
-
-    console.log('Analytics response:', JSON.stringify(response, null, 2))
 
     return NextResponse.json(response)
   } catch (error) {

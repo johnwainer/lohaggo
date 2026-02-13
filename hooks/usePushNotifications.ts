@@ -101,12 +101,6 @@ export function usePushNotifications() {
 
       const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
 
-      console.log('VAPID Key check:', {
-        exists: !!vapidPublicKey,
-        length: vapidPublicKey?.length,
-        firstChars: vapidPublicKey?.substring(0, 10)
-      })
-
       if (!vapidPublicKey) {
         throw new Error('VAPID public key not configured. Please check your .env.local file.')
       }

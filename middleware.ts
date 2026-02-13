@@ -29,23 +29,9 @@ function getOriginRoute(request: NextRequest): string {
 }
 
 function logAuthSessionTelemetry(request: NextRequest, status: number, rateLimitHit: boolean) {
-  const payload = {
-    type: 'auth_session_telemetry',
-    ts: new Date().toISOString(),
-    status,
-    path: request.nextUrl.pathname,
-    method: request.method,
-    originRoute: getOriginRoute(request),
-    userAgent: request.headers.get('user-agent') || 'unknown',
-    rateLimitHit,
-    ip: getClientIp(request),
-  }
-
-  if (status >= 400 || rateLimitHit) {
-    console.warn(JSON.stringify(payload))
-  } else {
-    console.info(JSON.stringify(payload))
-  }
+  // Telemetría persistida por recordAuthSessionMetric/recordOperationalMetric.
+  // Evitamos console output en runtime productivo.
+  return
 }
 
 function checkRateLimit(key: string, limit: number, windowMs: number): boolean {

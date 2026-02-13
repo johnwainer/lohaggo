@@ -241,6 +241,17 @@ git push origin main
 
 Vercel desplegará automáticamente.
 
+### 7. SQL obligatorio para producción (Supabase)
+
+Antes del primer deploy productivo, ejecutar en este orden en SQL Editor de Supabase:
+
+1. `docs/sql/admin_control_plane.sql`
+2. `docs/sql/bank_catalog_seed.sql`
+
+Notas:
+- El catálogo de bancos se administra desde `/admin/banks`.
+- Si agregas nuevos bancos manualmente en DB, usa códigos únicos (`code`) y valida rangos de cuenta.
+
 ## 📱 Estructura de la Aplicación
 
 ### Páginas Públicas
@@ -545,7 +556,9 @@ enum AdPlacement {
 ## 🔒 Mejores Prácticas de Seguridad
 
 - Nunca hacer commit de archivos `.env`
+- Mantener solo archivos de ejemplo versionados (`.env.example`, `.env.production.example`)
 - Ejecutar `npm run pre-deploy` antes de cada `git push` a `main`
+- Verificar que no existan `console.log/info/debug/warn` en runtime antes de release
 - Rotar credenciales regularmente
 - Usar contraseñas fuertes para producción
 - Habilitar 2FA en todas las cuentas de servicio

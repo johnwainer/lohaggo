@@ -283,7 +283,6 @@ function ServiciosContent() {
   }, [searchParams])
 
   useEffect(() => {
-    console.log('Session status:', session?.user ? 'Logged in' : 'Not logged in', session)
     if (session?.user) {
       fetchSearchHistory()
       fetchFavoriteServices()
