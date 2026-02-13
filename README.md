@@ -161,6 +161,10 @@ NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY="tu-public-key"
 # Generar con: npx web-push generate-vapid-keys
 NEXT_PUBLIC_VAPID_PUBLIC_KEY="tu-vapid-public-key"
 VAPID_PRIVATE_KEY="tu-vapid-private-key"
+
+# Anti-bot (Cloudflare Turnstile)
+NEXT_PUBLIC_TURNSTILE_SITE_KEY="tu-turnstile-site-key"
+TURNSTILE_SECRET_KEY="tu-turnstile-secret-key"
 ```
 
 3. **Configurar la base de datos**
@@ -229,6 +233,8 @@ MERCADOPAGO_ACCESS_TOKEN=tu-access-token
 NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY=tu-public-key
 NEXT_PUBLIC_VAPID_PUBLIC_KEY=tu-vapid-public-key
 VAPID_PRIVATE_KEY=tu-vapid-private-key
+NEXT_PUBLIC_TURNSTILE_SITE_KEY=tu-turnstile-site-key
+TURNSTILE_SECRET_KEY=tu-turnstile-secret-key
 ```
 
 **Importante**: Marcar las 3 opciones (Production, Preview, Development) para cada variable.

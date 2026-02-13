@@ -5,6 +5,7 @@ import { signIn, useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Mail, Lock, ArrowRight, Sparkles, Shield, Zap, Eye, EyeOff } from 'lucide-react'
+import TurnstileWidget from '@/components/security/TurnstileWidget'
 
 function LoginForm() {
   const router = useRouter()
@@ -20,6 +21,9 @@ function LoginForm() {
   const [loading, setLoading] = useState(false)
   const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [captchaToken, setCaptchaToken] = useState('')
+  const [honeypot, setHoneypot] = useState('')
+  const [formStartedAt] = useState(() => Date.now().toString())
   const [fieldErrors, setFieldErrors] = useState({
     email: '',
     password: ''
@@ -28,6 +32,8 @@ function LoginForm() {
     email: false,
     password: false
   })
+  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ''
+  const isBotProtectionEnabled = Boolean(turnstileSiteKey)
 
   useEffect(() => {
     if (status === 'authenticated' && session?.user) {
@@ -117,12 +123,30 @@ function LoginForm() {
       return
     }
 
+    if (honeypot.trim()) {
+      setError('No fue posible validar el acceso. Intenta nuevamente.')
+      return
+    }
+
+    if (Date.now() - Number(formStartedAt) < 1200) {
+      setError('Espera un momento e intenta nuevamente.')
+      return
+    }
+
+    if (isBotProtectionEnabled && !captchaToken) {
+      setError('Completa la verificación anti-bot para continuar.')
+      return
+    }
+
     setLoading(true)
 
     try {
       const result = await signIn('credentials', {
         email: formData.email,
         password: formData.password,
+        captchaToken,
+        honeypot,
+        formStartedAt,
         redirect: false
       })
 
@@ -286,6 +310,16 @@ function LoginForm() {
                 </div>
 
                 <div className="pt-2">
+                  <input
+                    type="text"
+                    tabIndex={-1}
+                    autoComplete="off"
+                    className="hidden"
+                    aria-hidden="true"
+                    name="website"
+                    value={honeypot}
+                    onChange={(e) => setHoneypot(e.target.value)}
+                  />
                   <label className="flex items-start gap-3 cursor-pointer group">
                     <div className="relative flex items-center justify-center mt-0.5">
                       <input
@@ -325,9 +359,19 @@ function LoginForm() {
                   </label>
                 </div>
 
+                {isBotProtectionEnabled && (
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                    <TurnstileWidget
+                      siteKey={turnstileSiteKey}
+                      action="login"
+                      onTokenChange={setCaptchaToken}
+                    />
+                  </div>
+                )}
+
                 <button
                   type="submit"
-                  disabled={loading || !acceptedTerms}
+                  disabled={loading || !acceptedTerms || (isBotProtectionEnabled && !captchaToken)}
                   className="w-full bg-gradient-to-r from-primary-500 via-secondary-500 to-secondary-500 text-white py-4 rounded-xl hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 group"
                 >
                   {loading ? (

@@ -38,6 +38,8 @@ const envSchema = z.object({
 
   NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
   ALLOWED_ORIGIN: z.string().optional(),
+  NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().optional(),
+  TURNSTILE_SECRET_KEY: z.string().optional(),
 })
 
 type Env = z.infer<typeof envSchema>
@@ -68,6 +70,8 @@ function validateEnv(): Env {
       UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
       NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
       ALLOWED_ORIGIN: process.env.ALLOWED_ORIGIN,
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+      TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY,
     }
   }
 
@@ -78,6 +82,8 @@ function validateEnv(): Env {
       NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY: process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY || process.env.MERCADOPAGO_PUBLIC_KEY,
       NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || process.env.VERCEL_URL,
       MERCADOPAGO_PAYOUTS_API_URL: process.env.MERCADOPAGO_PAYOUTS_API_URL,
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
+      TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY,
     }
 
     const parsed = envSchema.parse(envWithFallbacks)

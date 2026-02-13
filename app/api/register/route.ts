@@ -6,6 +6,11 @@ import { createLogger } from '@/lib/logger'
 import { registerRateLimiter } from '@/lib/rate-limit'
 import { validateRequest } from '@/lib/validation'
 import { registerSchema } from '@/lib/validation/auth-schemas'
+import {
+  getClientIpFromHeaders,
+  isLikelyBotSubmission,
+  verifyTurnstileToken,
+} from '@/lib/security/bot-protection'
 
 const logger = createLogger('register')
 
@@ -29,7 +34,45 @@ async function handlePOST(request: NextRequest) {
       return validation.error
     }
 
-    const { email, password, name, phone, role, city: citySlug, services } = validation.data
+    const {
+      email,
+      password,
+      name,
+      phone,
+      role,
+      city: citySlug,
+      services,
+      captchaToken,
+      honeypot,
+      formStartedAt,
+    } = validation.data
+
+    if (!formStartedAt) {
+      return NextResponse.json(
+        { error: 'No fue posible validar el registro. Intenta nuevamente.' },
+        { status: 400 }
+      )
+    }
+
+    if (isLikelyBotSubmission({ honeypot, formStartedAt })) {
+      return NextResponse.json(
+        { error: 'No fue posible validar el registro. Intenta nuevamente.' },
+        { status: 400 }
+      )
+    }
+
+    const isCaptchaValid = await verifyTurnstileToken({
+      token: captchaToken,
+      remoteIp: getClientIpFromHeaders(request.headers),
+      expectedAction: 'register',
+    })
+
+    if (!isCaptchaValid) {
+      return NextResponse.json(
+        { error: 'Verificación anti-bot inválida. Intenta de nuevo.' },
+        { status: 400 }
+      )
+    }
 
     // Verificar si el usuario ya existe
     const existingUser = await prisma.user.findUnique({

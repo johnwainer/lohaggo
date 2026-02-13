@@ -5,6 +5,30 @@ import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
 import { env } from "@/lib/env"
 import { recordOperationalMetric } from "@/lib/monitoring-metrics"
+import {
+  getClientIpFromHeaders,
+  isLikelyBotSubmission,
+  verifyTurnstileToken,
+} from "@/lib/security/bot-protection"
+
+const LOGIN_LIMIT_WINDOW_MS = 15 * 60 * 1000
+const LOGIN_LIMIT_MAX_ATTEMPTS = 8
+const loginAttemptMap = new Map<string, { count: number; resetAt: number }>()
+
+function isLoginLimited(key: string): boolean {
+  const now = Date.now()
+  const existing = loginAttemptMap.get(key)
+  if (!existing || now > existing.resetAt) {
+    loginAttemptMap.set(key, { count: 1, resetAt: now + LOGIN_LIMIT_WINDOW_MS })
+    return false
+  }
+  existing.count += 1
+  return existing.count > LOGIN_LIMIT_MAX_ATTEMPTS
+}
+
+function resetLoginLimit(key: string) {
+  loginAttemptMap.delete(key)
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -12,16 +36,55 @@ export const authOptions: NextAuthOptions = {
       name: "Credentials",
       credentials: {
         email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" }
+        password: { label: "Password", type: "password" },
+        captchaToken: { label: "Captcha Token", type: "text" },
+        honeypot: { label: "Honeypot", type: "text" },
+        formStartedAt: { label: "Form Started At", type: "text" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) {
           recordOperationalMetric('login_failure')
           throw new Error("Email y contraseña requeridos")
         }
 
+        const normalizedEmail = credentials.email.toLowerCase().trim()
+        const clientIp = getClientIpFromHeaders(req?.headers)
+        const loginLimitKey = `${normalizedEmail}:${clientIp}`
+
+        if (isLoginLimited(loginLimitKey)) {
+          recordOperationalMetric('login_failure')
+          throw new Error("Demasiados intentos. Intenta nuevamente en unos minutos.")
+        }
+
+        const hasBotSignals = Boolean(
+          credentials.honeypot || credentials.formStartedAt || credentials.captchaToken
+        )
+
+        if (hasBotSignals) {
+          if (
+            isLikelyBotSubmission({
+              honeypot: credentials.honeypot,
+              formStartedAt: credentials.formStartedAt,
+            })
+          ) {
+            recordOperationalMetric('login_failure')
+            throw new Error("No fue posible validar el acceso. Intenta nuevamente.")
+          }
+
+          const isCaptchaValid = await verifyTurnstileToken({
+            token: credentials.captchaToken,
+            remoteIp: clientIp,
+            expectedAction: 'login',
+          })
+
+          if (!isCaptchaValid) {
+            recordOperationalMetric('login_failure')
+            throw new Error("Verificación anti-bot inválida.")
+          }
+        }
+
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+          where: { email: normalizedEmail },
           include: { partnerProfile: true }
         })
 
@@ -39,6 +102,8 @@ export const authOptions: NextAuthOptions = {
           recordOperationalMetric('login_failure')
           throw new Error("Contraseña incorrecta")
         }
+
+        resetLoginLimit(loginLimitKey)
 
         return {
           id: user.id,
