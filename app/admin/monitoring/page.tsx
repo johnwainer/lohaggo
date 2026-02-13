@@ -127,7 +127,7 @@ export default function AdminMonitoringPage() {
   }
 
   return (
-    <div className="container mx-auto space-y-6 p-3 sm:p-6">
+    <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Monitoreo Operativo</h1>

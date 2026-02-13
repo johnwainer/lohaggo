@@ -8,7 +8,6 @@ import {
   Filter, Search, CreditCard, GraduationCap, Shield, Upload
 } from 'lucide-react'
 import Modal from '@/components/Modal'
-import Sidebar from '@/components/admin/Sidebar'
 
 
 interface Document {
@@ -225,36 +224,20 @@ export default function AdminDocumentsPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen bg-gray-50">
-        <Sidebar activeSection="documents" onSectionChange={(section) => {
-          if (section !== 'documents') {
-            router.push('/admin')
-          }
-        }} />
-        <main className="flex-1 overflow-auto ml-0 lg:ml-8">
-          <div className="p-3 sm:p-6 lg:p-8 flex items-center justify-center min-h-screen">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          </div>
-        </main>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     )
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <Sidebar activeSection="documents" onSectionChange={(section) => {
-        if (section !== 'documents') {
-          router.push('/admin')
-        }
-      }} />
-      <main className="flex-1 overflow-auto ml-0 lg:ml-8">
-        <div className="p-3 sm:p-6 lg:p-8">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Gestión de Documentos</h1>
-            <p className="text-gray-600">
-              Revisa y aprueba los documentos de verificación de los socios
-            </p>
-          </div>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Gestión de Documentos</h1>
+        <p className="text-gray-600">
+          Revisa y aprueba los documentos de verificación de los socios
+        </p>
+      </div>
 
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -557,8 +540,6 @@ export default function AdminDocumentsPage() {
           </div>
         </Modal>
       )}
-        </div>
-      </main>
     </div>
   )
 }

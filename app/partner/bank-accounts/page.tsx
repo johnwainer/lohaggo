@@ -120,6 +120,22 @@ export default function PartnerBankAccountsPage() {
         </select>
         <input className="border rounded-lg px-3 py-2" placeholder="Documento" value={form.holderDocumentNumber} onChange={(e) => setForm({ ...form, holderDocumentNumber: e.target.value })} required />
         <input className="border rounded-lg px-3 py-2 md:col-span-2" placeholder="Mercado Pago recipient_id (requerido para live)" value={form.mercadoPagoRecipientId} onChange={(e) => setForm({ ...form, mercadoPagoRecipientId: e.target.value })} />
+        <div className="md:col-span-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+          <p className="font-semibold">¿Dónde saco mi `recipient_id` de Mercado Pago?</p>
+          <ol className="list-decimal pl-5 mt-1 space-y-1 text-blue-800">
+            <li>Entra al panel de desarrolladores de Mercado Pago con tu cuenta.</li>
+            <li>Configura la cuenta receptora para transferencias/payouts.</li>
+            <li>Copia el identificador del receptor (`recipient_id`) y pégalo aquí.</li>
+          </ol>
+          <a
+            href="https://www.mercadopago.com.co/developers/es/docs"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block mt-2 font-semibold text-blue-700 underline"
+          >
+            Ver documentación oficial de Mercado Pago
+          </a>
+        </div>
         <button disabled={saving} className="md:col-span-2 rounded-lg bg-primary-600 text-white px-4 py-2 disabled:opacity-50">{saving ? 'Guardando...' : 'Guardar cuenta'}</button>
       </form>
 

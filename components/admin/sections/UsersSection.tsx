@@ -255,7 +255,7 @@ export default function UsersSection() {
   }
 
   return (
-    <div className="p-8">
+    <div className="space-y-6">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Gestión de Usuarios</h1>
         <p className="text-gray-600">Administra todos los usuarios de la plataforma</p>

@@ -74,7 +74,7 @@ export default function DashboardSection() {
   }
 
   if (!stats || !analytics) {
-    return <div className="p-8">Error al cargar datos</div>
+    return <div className="rounded-xl border bg-white p-6">Error al cargar datos</div>
   }
 
   const revenueChartData = {
@@ -149,7 +149,7 @@ export default function DashboardSection() {
   const hasRevenueByCity = analytics.revenueByCity.length > 0
 
   return (
-    <div className="p-8">
+    <div className="space-y-6">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
         <p className="text-gray-600">Vista general de la plataforma LoHaggo</p>

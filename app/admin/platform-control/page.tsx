@@ -127,7 +127,7 @@ export default function AdminPlatformControlPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Semana 3: CMS + Reglas + Feature Flags</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Control de Plataforma</h1>
         <p className="text-gray-600 mt-1">Control de plataforma sin necesidad de despliegue.</p>
       </div>
 

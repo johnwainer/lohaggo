@@ -136,9 +136,8 @@ export default function PaymentConfigPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto">
-        <div className="mb-8">
+    <div className="space-y-6 max-w-5xl">
+      <div>
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
             <CreditCard className="w-8 h-8 text-primary-600" />
             Configuración de Pagos
@@ -156,26 +155,26 @@ export default function PaymentConfigPage() {
               <span>{config.activeEnvironmentReady ? 'Conectado y validado' : 'Credenciales inválidas o incompletas'}</span>
             </div>
           )}
-        </div>
+      </div>
 
-        {message && (
-          <div
-            className={`mb-6 p-4 rounded-lg flex items-center gap-3 ${
+      {message && (
+        <div
+          className={`p-4 rounded-lg flex items-center gap-3 ${
               message.type === 'success'
                 ? 'bg-green-50 text-green-800 border border-green-200'
                 : 'bg-red-50 text-red-800 border border-red-200'
             }`}
-          >
-            {message.type === 'success' ? (
-              <CheckCircle className="w-5 h-5" />
-            ) : (
-              <AlertCircle className="w-5 h-5" />
-            )}
-            <span>{message.text}</span>
-          </div>
-        )}
+        >
+          {message.type === 'success' ? (
+            <CheckCircle className="w-5 h-5" />
+          ) : (
+            <AlertCircle className="w-5 h-5" />
+          )}
+          <span>{message.text}</span>
+        </div>
+      )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Ambiente Activo</h2>
             <div className="space-y-4">
@@ -404,8 +403,7 @@ export default function PaymentConfigPage() {
               Volver
             </button>
           </div>
-        </form>
-      </div>
+      </form>
     </div>
   )
 }

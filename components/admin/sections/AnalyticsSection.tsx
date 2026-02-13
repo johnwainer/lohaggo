@@ -47,7 +47,7 @@ export default function AnalyticsSection() {
   }
 
   if (!analytics) {
-    return <div className="p-8">Error al cargar analíticas</div>
+    return <div className="rounded-xl border bg-white p-6">Error al cargar analíticas</div>
   }
 
   const revenueChartData = {
@@ -148,7 +148,7 @@ export default function AnalyticsSection() {
   }
 
   return (
-    <div className="p-8">
+    <div className="space-y-6">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Analíticas Avanzadas</h1>
         <p className="text-gray-600">Análisis detallado del rendimiento de la plataforma</p>

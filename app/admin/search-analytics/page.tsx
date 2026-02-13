@@ -68,7 +68,7 @@ export default function SearchAnalyticsPage() {
 
   if (!analytics) {
     return (
-      <div className="container mx-auto p-6">
+      <div className="rounded-xl border bg-white p-6">
         <div className="text-center text-muted-foreground">
           No hay datos de análisis disponibles
         </div>
@@ -77,7 +77,7 @@ export default function SearchAnalyticsPage() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Análisis de Búsquedas</h1>

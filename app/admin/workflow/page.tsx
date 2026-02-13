@@ -57,7 +57,7 @@ export default function AdminWorkflowPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Semana 2: Workflow + Reportes Embudo/Calidad</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Workflow de Reservas</h1>
         <p className="text-gray-600 mt-1">Gestión operativa de reservas y visibilidad de conversión.</p>
       </div>
 

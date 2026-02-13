@@ -143,7 +143,7 @@ export default function ServicesSection() {
     : 0
 
   return (
-    <div className="p-8">
+    <div className="space-y-6">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Gestión de Servicios</h1>
         <p className="text-gray-600">Administra todos los servicios disponibles en la plataforma</p>

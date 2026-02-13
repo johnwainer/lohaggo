@@ -4,7 +4,7 @@ import { Bell } from 'lucide-react'
 
 export default function NotificationsSection() {
   return (
-    <div className="p-8">
+    <div className="space-y-6">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Notificaciones</h1>
         <p className="text-gray-600">Gestiona las notificaciones del sistema</p>

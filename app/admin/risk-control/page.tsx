@@ -71,7 +71,7 @@ export default function AdminRiskControlPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Semana 4: Riesgo, Cohortes y Alertas</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Riesgo y Cohortes</h1>
           <p className="text-gray-600 mt-1">Prevención de fraude y control de salud de cohortes.</p>
         </div>
         <button onClick={runAutomation} className="rounded-lg bg-primary-600 text-white px-4 py-2">Ejecutar automatización de alertas</button>

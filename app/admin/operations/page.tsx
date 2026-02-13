@@ -98,7 +98,7 @@ export default function AdminOperationsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Semana 1: Incidentes, Bitácora y Soporte</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Centro de Operaciones</h1>
         <p className="text-gray-600 mt-1">Centro operativo unificado para monitorear y resolver incidencias.</p>
       </div>
 

@@ -53,7 +53,9 @@ export default function AdminLayoutClient({
       <Sidebar activeSection={activeSection} />
       <main className="flex-1 overflow-auto ml-0 lg:ml-64">
         <div className="p-3 sm:p-6 lg:p-8">
-          {children}
+          <div className="mx-auto w-full max-w-7xl">
+            {children}
+          </div>
         </div>
       </main>
     </div>
