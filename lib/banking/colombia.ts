@@ -39,6 +39,8 @@ export const COLOMBIA_BANKS: ColombiaBankOption[] = [
   { id: 'itau', name: 'ITAU CORPBANCA COLOMBIA', accountNumberMinLength: 8, accountNumberMaxLength: 20 },
   { id: 'jpmorgan', name: 'JPMORGAN CHASE BANK COLOMBIA', accountNumberMinLength: 8, accountNumberMaxLength: 20 },
   { id: 'lulobank', name: 'LULO BANK', accountNumberMinLength: 8, accountNumberMaxLength: 20 },
+  { id: 'nequi', name: 'NEQUI', accountNumberMinLength: 8, accountNumberMaxLength: 20 },
+  { id: 'daviplata', name: 'DAVIPLATA', accountNumberMinLength: 8, accountNumberMaxLength: 20 },
 ]
 
 export function normalizeBankName(value: string) {

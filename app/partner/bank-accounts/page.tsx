@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import PartnerDashboardNav from '@/components/PartnerDashboardNav'
-import { COLOMBIA_BANKS, getColombianBankByName } from '@/lib/banking/colombia'
+import { COLOMBIA_BANKS } from '@/lib/banking/colombia'
 
 type BankAccount = {
   id: string
@@ -19,10 +19,24 @@ type BankAccount = {
   mercadoPagoRecipientId?: string | null
 }
 
+type BankOption = {
+  id: string
+  code: string
+  name: string
+  country: string
+  isActive: boolean
+  sortOrder: number
+  accountNumberMinLength: number
+  accountNumberMaxLength: number
+  supportsSavings: boolean
+  supportsChecking: boolean
+}
+
 export default function PartnerBankAccountsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [accounts, setAccounts] = useState<BankAccount[]>([])
+  const [bankOptions, setBankOptions] = useState<BankOption[]>([])
   const [bookingsCount, setBookingsCount] = useState(0)
   const [requestsCount, setRequestsCount] = useState(0)
   const [form, setForm] = useState({
@@ -35,12 +49,38 @@ export default function PartnerBankAccountsPage() {
     mercadoPagoRecipientId: '',
   })
   const [saving, setSaving] = useState(false)
-  const selectedBank = getColombianBankByName(form.bankName)
+  const selectedBank = bankOptions.find((bank) => bank.name === form.bankName) || null
+
+  useEffect(() => {
+    if (!selectedBank) return
+    if (form.accountType === 'SAVINGS' && !selectedBank.supportsSavings && selectedBank.supportsChecking) {
+      setForm((prev) => ({ ...prev, accountType: 'CHECKING' }))
+    }
+    if (form.accountType === 'CHECKING' && !selectedBank.supportsChecking && selectedBank.supportsSavings) {
+      setForm((prev) => ({ ...prev, accountType: 'SAVINGS' }))
+    }
+  }, [selectedBank, form.accountType])
 
   const load = async () => {
     const res = await fetch('/api/partner/bank-accounts')
     const data = await res.json()
     setAccounts(data.accounts || [])
+    setBankOptions(
+      Array.isArray(data.bankOptions) && data.bankOptions.length > 0
+        ? data.bankOptions
+        : COLOMBIA_BANKS.map((bank, index) => ({
+            id: bank.id,
+            code: bank.id.toUpperCase(),
+            name: bank.name,
+            country: 'CO',
+            isActive: true,
+            sortOrder: index + 1,
+            accountNumberMinLength: bank.accountNumberMinLength,
+            accountNumberMaxLength: bank.accountNumberMaxLength,
+            supportsSavings: true,
+            supportsChecking: true,
+          }))
+    )
   }
 
   const loadCounts = async () => {
@@ -165,20 +205,20 @@ export default function PartnerBankAccountsPage() {
               required
             >
               <option value="">Selecciona tu banco</option>
-              {COLOMBIA_BANKS.map((bank) => (
+              {bankOptions.map((bank) => (
                 <option key={bank.id} value={bank.name}>
                   {bank.name}
                 </option>
               ))}
             </select>
             <p className="mt-1 text-xs text-gray-500">
-              Catálogo Colombia ({COLOMBIA_BANKS.length} bancos). Si tu banco no aparece, contacta soporte.
+              Catálogo Colombia ({bankOptions.length} bancos). Si tu banco no aparece, contacta soporte.
             </p>
           </div>
 
           <select className="border rounded-lg px-3 py-2" value={form.accountType} onChange={(e) => setForm({ ...form, accountType: e.target.value as 'SAVINGS' | 'CHECKING' })}>
-            <option value="SAVINGS">Ahorros</option>
-            <option value="CHECKING">Corriente</option>
+            {(selectedBank?.supportsSavings ?? true) && <option value="SAVINGS">Ahorros</option>}
+            {(selectedBank?.supportsChecking ?? true) && <option value="CHECKING">Corriente</option>}
           </select>
           <input
             className="border rounded-lg px-3 py-2"

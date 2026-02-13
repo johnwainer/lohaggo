@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
-import { getColombianBankByName } from '@/lib/banking/colombia'
+import { findColombiaBankByName, getColombiaBankCatalog } from '@/lib/banking/catalog'
 
 const logger = createLogger('partner-bank-accounts')
 
@@ -11,7 +11,7 @@ function normalizeAccountNumber(value: string) {
   return value.replace(/\D/g, '')
 }
 
-function validateColombianBankAccount(input: {
+async function validateColombianBankAccount(input: {
   bankName: string
   accountType: string
   accountNumber: string
@@ -22,7 +22,7 @@ function validateColombianBankAccount(input: {
   const accountNumber = normalizeAccountNumber(input.accountNumber)
   const rawDocNumber = String(input.holderDocumentNumber || '').trim()
   const docNumber = normalizeAccountNumber(rawDocNumber)
-  const bank = getColombianBankByName(input.bankName || '')
+  const bank = await findColombiaBankByName(input.bankName || '')
 
   if (!input.bankName?.trim()) return 'Banco requerido'
   if (!bank) return 'Selecciona un banco colombiano válido'
@@ -38,7 +38,7 @@ function validateColombianBankAccount(input: {
     return 'Número de documento inválido'
   }
 
-  return null
+  return null as string | null
 }
 
 export async function GET() {
@@ -62,7 +62,8 @@ export async function GET() {
       orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
     })
 
-    return NextResponse.json({ accounts })
+    const bankOptions = await getColombiaBankCatalog()
+    return NextResponse.json({ accounts, bankOptions })
   } catch (error) {
     logger.error('Error fetching partner bank accounts', error || undefined)
     return NextResponse.json({ error: 'Error al consultar cuentas bancarias' }, { status: 500 })
@@ -86,7 +87,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const validationError = validateColombianBankAccount(body)
+    const validationError = await validateColombianBankAccount(body)
     if (validationError) {
       return NextResponse.json({ error: validationError }, { status: 400 })
     }

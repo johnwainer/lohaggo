@@ -1,6 +1,6 @@
 'use client'
 
-import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, LogOut, Menu, X, Shield, DollarSign, Wallet, MapPin, CreditCard, ChevronDown, ChevronRight, Percent, Megaphone, Activity } from 'lucide-react'
+import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, LogOut, Menu, X, Shield, DollarSign, Wallet, MapPin, CreditCard, ChevronDown, ChevronRight, Percent, Megaphone, Activity, Building2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
@@ -84,6 +84,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
       items: [
         { id: 'commissions', label: 'Comisiones', icon: Percent },
         { id: 'payment-config', label: 'Config. Pagos', icon: CreditCard, isLink: true, href: '/admin/payment-config' },
+        { id: 'banks', label: 'Bancos', icon: Building2, isLink: true, href: '/admin/banks' },
         { id: 'notifications', label: 'Notificaciones', icon: Bell },
         { id: 'settings', label: 'Configuración', icon: Settings },
         { id: 'risk-control', label: 'Riesgo y Cohortes', icon: Shield, isLink: true, href: '/admin/risk-control' },

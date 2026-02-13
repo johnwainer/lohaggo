@@ -646,6 +646,24 @@ model PartnerBankAccount {
   @@index([mercadoPagoRecipientId])
 }
 
+model BankCatalog {
+  id                     String   @id @default(cuid())
+  code                   String   @unique
+  name                   String
+  country                String   @default("CO")
+  isActive               Boolean  @default(true)
+  sortOrder              Int      @default(0)
+  accountNumberMinLength Int      @default(8)
+  accountNumberMaxLength Int      @default(20)
+  supportsSavings        Boolean  @default(true)
+  supportsChecking       Boolean  @default(true)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@unique([country, name])
+  @@index([country, isActive, sortOrder])
+}
+
 model AdminAuditLog {
   id         String   @id @default(cuid())
   actorId    String?

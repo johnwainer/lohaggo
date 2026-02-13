@@ -39,6 +39,7 @@ export default function AdminLayoutClient({
     if (pathname.startsWith('/admin/search-analytics')) return 'search-analytics'
     if (pathname.startsWith('/admin/platform-control')) return 'platform-control'
     if (pathname.startsWith('/admin/payment-config')) return 'payment-config'
+    if (pathname.startsWith('/admin/banks')) return 'banks'
     if (pathname.startsWith('/admin/commissions')) return 'commissions'
     if (pathname.startsWith('/admin/payouts')) return 'payouts'
     if (pathname.startsWith('/admin/documents')) return 'documents'
