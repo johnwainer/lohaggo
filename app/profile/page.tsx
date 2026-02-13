@@ -179,10 +179,9 @@ export default function ProfilePage() {
 
       await update({ name: data.name, phone: data.phone, image: data.image })
       setMessage({ type: 'success', text: 'Perfil actualizado exitosamente' })
-
-      setTimeout(() => {
-        window.location.reload()
-      }, 1000)
+      setName(data.name || name)
+      setPhone(data.phone || phone)
+      setImage(data.image ?? image)
     } catch (error: any) {
       setMessage({ type: 'error', text: error.message })
     } finally {

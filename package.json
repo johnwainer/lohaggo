@@ -50,6 +50,7 @@
     "@types/react-dom": "^18",
     "@types/web-push": "^3.6.4",
     "autoprefixer": "^10.0.1",
+    "playwright": "^1.58.2",
     "postcss": "^8",
     "prisma": "^5.22.0",
     "sharp": "^0.33.5",

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Building2, Plus, Save, Trash2, X } from 'lucide-react'
+import ConfirmModal from '@/components/ConfirmModal'
 
 type BankRow = {
   id: string
@@ -37,6 +38,7 @@ export default function AdminBanksPage() {
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
   const [error, setError] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<BankRow | null>(null)
 
   const activeCount = useMemo(() => banks.filter((bank) => bank.isActive).length, [banks])
 
@@ -102,7 +104,6 @@ export default function AdminBanksPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('¿Eliminar banco del catálogo?')) return
     setSaving(true)
     setError(null)
     try {
@@ -114,6 +115,7 @@ export default function AdminBanksPage() {
       setError(err.message || 'No se pudo eliminar')
     } finally {
       setSaving(false)
+      setDeleteTarget(null)
     }
   }
 
@@ -127,6 +129,20 @@ export default function AdminBanksPage() {
 
   return (
     <div className="space-y-6">
+      <ConfirmModal
+        isOpen={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (deleteTarget) {
+            void handleDelete(deleteTarget.id)
+          }
+        }}
+        title="Eliminar banco"
+        message={deleteTarget ? `¿Eliminar "${deleteTarget.name}" del catálogo? Esta acción no se puede deshacer.` : ''}
+        type="danger"
+        confirmText="Eliminar"
+      />
+
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
@@ -252,7 +268,7 @@ export default function AdminBanksPage() {
                     ) : (
                       <div className="flex items-center gap-2">
                         <button onClick={() => { setEditingId(bank.id); setEditing({}) }} className="text-sm px-2 py-1 border rounded">Editar</button>
-                        <button onClick={() => handleDelete(bank.id)} className="inline-flex items-center gap-1 text-sm px-2 py-1 border border-red-200 text-red-600 rounded">
+                        <button onClick={() => setDeleteTarget(bank)} className="inline-flex items-center gap-1 text-sm px-2 py-1 border border-red-200 text-red-600 rounded">
                           <Trash2 size={14} /> Eliminar
                         </button>
                       </div>

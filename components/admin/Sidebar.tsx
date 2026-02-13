@@ -2,7 +2,7 @@
 
 import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, LogOut, Menu, X, Shield, DollarSign, Wallet, MapPin, CreditCard, ChevronDown, ChevronRight, Percent, Megaphone, Activity, Building2 } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter, usePathname } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import { useState, useEffect } from 'react'
 
@@ -28,7 +28,6 @@ interface MenuItem {
 export default function Sidebar({ activeSection, onSectionChange }: SidebarProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null)
-  const router = useRouter()
   const pathname = usePathname()
 
   const menuGroups: MenuGroup[] = [
@@ -99,6 +98,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/\s+/g, '-')
   const getItemTestId = (id: string) => `admin-nav-${id}`
+  const getItemHref = (item: MenuItem) => item.href ?? `/admin?section=${item.id}`
 
   useEffect(() => {
     const activeGroup = menuGroups.find((group) =>
@@ -107,18 +107,6 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
     const firstGroupKey = menuGroups[0] ? getGroupKey(menuGroups[0].label) : ''
     setExpandedGroup(activeGroup ? getGroupKey(activeGroup.label) : firstGroupKey || null)
   }, [activeSection])
-
-  const handleSectionChange = (section: string) => {
-    onSectionChange?.(section)
-
-    // Use a single navigation model for all internal admin sections.
-    if (pathname === '/admin') {
-      router.replace(`/admin?section=${section}`, { scroll: false })
-    } else {
-      router.push(`/admin?section=${section}`)
-    }
-    setIsOpen(false)
-  }
 
   const toggleGroup = (groupKey: string) => {
     setExpandedGroup((prev) => (prev === groupKey ? null : groupKey))
@@ -190,39 +178,22 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
                 <div
                   id={`admin-group-${groupKey}`}
                   aria-hidden={!isExpanded}
-                  className={`grid transition-all duration-200 ${
-                    isExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'
-                  }`}
+                  className={isExpanded ? 'block' : 'hidden lg:block'}
                 >
-                  <div className="overflow-hidden">
-                    <div className="mt-1 px-2 pb-2">
+                  <div className="mt-1 px-2 pb-2">
                     {group.items.map((item) => {
                       const Icon = item.icon
                       const isActive = activeSection === item.id
 
-                      if (item.isLink && item.href) {
-                        return (
-                          <Link
-                            key={item.id}
-                            href={item.href}
-                            onClick={() => setIsOpen(false)}
-                            data-testid={getItemTestId(item.id)}
-                            className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 sm:py-3.5 rounded-lg sm:rounded-xl mb-1.5 sm:mb-2 transition-all font-semibold text-sm sm:text-base ${
-                              isActive
-                                ? 'bg-white text-primary-600 shadow-lg scale-105'
-                                : 'text-white/90 hover:bg-white/15 hover:text-white'
-                            }`}
-                          >
-                            <Icon size={18} className="sm:w-5 sm:h-5 flex-shrink-0" />
-                            <span>{item.label}</span>
-                          </Link>
-                        )
-                      }
-
                       return (
-                        <button
+                        <Link
                           key={item.id}
-                          onClick={() => handleSectionChange(item.id)}
+                          href={getItemHref(item)}
+                          replace={!item.isLink && pathname === '/admin'}
+                          onClick={() => {
+                            onSectionChange?.(item.id)
+                            setIsOpen(false)
+                          }}
                           data-testid={getItemTestId(item.id)}
                           className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 sm:py-3.5 rounded-lg sm:rounded-xl mb-1.5 sm:mb-2 transition-all font-semibold text-sm sm:text-base ${
                             isActive
@@ -232,10 +203,9 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
                         >
                           <Icon size={18} className="sm:w-5 sm:h-5 flex-shrink-0" />
                           <span>{item.label}</span>
-                        </button>
+                        </Link>
                       )
                     })}
-                    </div>
                   </div>
                 </div>
               </div>

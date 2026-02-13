@@ -1,0 +1,163 @@
+{
+  "baseUrl": "http://localhost:4000",
+  "generatedAt": "2026-02-13T20:15:58.248Z",
+  "loginStatus": 200,
+  "pass": 8,
+  "fail": 9,
+  "results": [
+    {
+      "id": "dashboard",
+      "clicked": true,
+      "ok": true,
+      "expected": [
+        "/admin",
+        "/admin?section=dashboard"
+      ],
+      "url": "http://localhost:4000/admin"
+    },
+    {
+      "id": "monitoring",
+      "clicked": true,
+      "ok": true,
+      "expected": [
+        "/admin/monitoring"
+      ],
+      "url": "http://localhost:4000/admin/monitoring"
+    },
+    {
+      "id": "analytics",
+      "clicked": true,
+      "ok": true,
+      "expected": [
+        "/admin?section=analytics"
+      ],
+      "url": "http://localhost:4000/admin?section=analytics"
+    },
+    {
+      "id": "bookings",
+      "clicked": true,
+      "ok": true,
+      "expected": [
+        "/admin?section=bookings"
+      ],
+      "url": "http://localhost:4000/admin?section=bookings"
+    },
+    {
+      "id": "payments",
+      "clicked": true,
+      "ok": true,
+      "expected": [
+        "/admin?section=payments"
+      ],
+      "url": "http://localhost:4000/admin?section=payments"
+    },
+    {
+      "id": "payouts",
+      "clicked": true,
+      "ok": true,
+      "expected": [
+        "/admin?section=payouts"
+      ],
+      "url": "http://localhost:4000/admin?section=payouts"
+    },
+    {
+      "id": "users",
+      "clicked": true,
+      "ok": true,
+      "expected": [
+        "/admin?section=users"
+      ],
+      "url": "http://localhost:4000/admin?section=users"
+    },
+    {
+      "id": "partners",
+      "clicked": true,
+      "ok": true,
+      "expected": [
+        "/admin?section=partners"
+      ],
+      "url": "http://localhost:4000/admin?section=partners"
+    },
+    {
+      "id": "documents",
+      "clicked": false,
+      "ok": false,
+      "expected": [
+        "/admin/documents"
+      ],
+      "url": "http://localhost:4000/admin?section=partners"
+    },
+    {
+      "id": "services",
+      "clicked": false,
+      "ok": false,
+      "expected": [
+        "/admin?section=services"
+      ],
+      "url": "http://localhost:4000/admin?section=partners"
+    },
+    {
+      "id": "cities",
+      "clicked": false,
+      "ok": false,
+      "expected": [
+        "/admin?section=cities"
+      ],
+      "url": "http://localhost:4000/admin?section=partners"
+    },
+    {
+      "id": "ads",
+      "clicked": false,
+      "ok": false,
+      "expected": [
+        "/admin/ads"
+      ],
+      "url": "http://localhost:4000/admin?section=partners"
+    },
+    {
+      "id": "search-analytics",
+      "clicked": false,
+      "ok": false,
+      "expected": [
+        "/admin/search-analytics"
+      ],
+      "url": "http://localhost:4000/admin?section=partners"
+    },
+    {
+      "id": "commissions",
+      "clicked": false,
+      "ok": false,
+      "expected": [
+        "/admin?section=commissions"
+      ],
+      "url": "http://localhost:4000/admin?section=partners"
+    },
+    {
+      "id": "payment-config",
+      "clicked": false,
+      "ok": false,
+      "expected": [
+        "/admin/payment-config"
+      ],
+      "url": "http://localhost:4000/admin?section=partners"
+    },
+    {
+      "id": "notifications",
+      "clicked": false,
+      "ok": false,
+      "expected": [
+        "/admin?section=notifications"
+      ],
+      "url": "http://localhost:4000/admin?section=partners"
+    },
+    {
+      "id": "settings",
+      "clicked": false,
+      "ok": false,
+      "expected": [
+        "/admin?section=settings"
+      ],
+      "url": "http://localhost:4000/admin?section=partners"
+    }
+  ]
+}

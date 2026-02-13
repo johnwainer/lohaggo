@@ -49,6 +49,8 @@ export default function PartnerBankAccountsPage() {
     mercadoPagoRecipientId: '',
   })
   const [saving, setSaving] = useState(false)
+  const [processingActionId, setProcessingActionId] = useState<string | null>(null)
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const selectedBank = bankOptions.find((bank) => bank.name === form.bankName) || null
 
   useEffect(() => {
@@ -123,6 +125,7 @@ export default function PartnerBankAccountsPage() {
   const createAccount = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
+    setFeedback(null)
     try {
       const res = await fetch('/api/partner/bank-accounts', {
         method: 'POST',
@@ -131,7 +134,7 @@ export default function PartnerBankAccountsPage() {
       })
       const data = await res.json()
       if (!res.ok) {
-        alert(data.error || 'No se pudo registrar la cuenta')
+        setFeedback({ type: 'error', text: data.error || 'No se pudo registrar la cuenta' })
       } else {
         setForm({
           bankName: '',
@@ -143,34 +146,71 @@ export default function PartnerBankAccountsPage() {
           mercadoPagoRecipientId: '',
         })
         await load()
+        setFeedback({ type: 'success', text: 'Cuenta bancaria registrada correctamente.' })
       }
     } catch (error) {
       console.error('Error creating bank account:', error)
-      alert('No se pudo registrar la cuenta bancaria')
+      setFeedback({ type: 'error', text: 'No se pudo registrar la cuenta bancaria' })
     } finally {
       setSaving(false)
     }
   }
 
   const setDefault = async (id: string) => {
-    await fetch('/api/partner/bank-accounts', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, setDefault: true }),
-    })
-    await load()
+    setProcessingActionId(id)
+    setFeedback(null)
+    try {
+      const res = await fetch('/api/partner/bank-accounts', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, setDefault: true }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || 'No se pudo actualizar la cuenta')
+      }
+      await load()
+      setFeedback({ type: 'success', text: 'Cuenta marcada como predeterminada.' })
+    } catch (error: any) {
+      setFeedback({ type: 'error', text: error?.message || 'No se pudo actualizar la cuenta' })
+    } finally {
+      setProcessingActionId(null)
+    }
   }
 
   const deactivate = async (id: string) => {
-    await fetch('/api/partner/bank-accounts', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, isActive: false }),
-    })
-    await load()
+    setProcessingActionId(id)
+    setFeedback(null)
+    try {
+      const res = await fetch('/api/partner/bank-accounts', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, isActive: false }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || 'No se pudo desactivar la cuenta')
+      }
+      await load()
+      setFeedback({ type: 'success', text: 'Cuenta desactivada correctamente.' })
+    } catch (error: any) {
+      setFeedback({ type: 'error', text: error?.message || 'No se pudo desactivar la cuenta' })
+    } finally {
+      setProcessingActionId(null)
+    }
   }
 
-  if (status === 'loading') return null
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+        <div className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 space-y-4">
+          <div className="h-8 w-48 rounded bg-gray-200 animate-pulse" />
+          <div className="h-56 rounded-xl bg-white border border-gray-200 animate-pulse" />
+          <div className="h-48 rounded-xl bg-white border border-gray-200 animate-pulse" />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -195,6 +235,18 @@ export default function PartnerBankAccountsPage() {
       </header>
 
       <main className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+        {feedback && (
+          <div
+            className={`rounded-lg border p-3 text-sm ${
+              feedback.type === 'success'
+                ? 'border-green-200 bg-green-50 text-green-700'
+                : 'border-red-200 bg-red-50 text-red-700'
+            }`}
+          >
+            {feedback.text}
+          </div>
+        )}
+
         <form onSubmit={createAccount} className="grid md:grid-cols-2 gap-3 rounded-xl border bg-white p-4">
           <div className="md:col-span-2">
             <label className="block text-sm font-semibold text-gray-700 mb-1">Banco en Colombia</label>
@@ -291,8 +343,24 @@ export default function PartnerBankAccountsPage() {
                 <p className="text-xs text-gray-500">{acc.isDefault ? 'Predeterminada' : 'Secundaria'} · {acc.isActive ? 'Activa' : 'Inactiva'}</p>
               </div>
               <div className="flex gap-2">
-                {!acc.isDefault && acc.isActive && <button onClick={() => setDefault(acc.id)} className="px-3 py-1 border rounded text-sm">Predeterminar</button>}
-                {acc.isActive && <button onClick={() => deactivate(acc.id)} className="px-3 py-1 border rounded text-sm text-red-600 border-red-200">Desactivar</button>}
+                {!acc.isDefault && acc.isActive && (
+                  <button
+                    onClick={() => setDefault(acc.id)}
+                    disabled={processingActionId === acc.id}
+                    className="px-3 py-1 border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {processingActionId === acc.id ? 'Actualizando...' : 'Predeterminar'}
+                  </button>
+                )}
+                {acc.isActive && (
+                  <button
+                    onClick={() => deactivate(acc.id)}
+                    disabled={processingActionId === acc.id}
+                    className="px-3 py-1 border rounded text-sm text-red-600 border-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {processingActionId === acc.id ? 'Actualizando...' : 'Desactivar'}
+                  </button>
+                )}
               </div>
             </div>
           ))}

@@ -1,7 +1,6 @@
 'use client'
 
 import { usePathname, useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { Home, Search, Calendar, User } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 
@@ -11,7 +10,6 @@ export function BottomNav() {
   const { data: session } = useSession()
 
   const isPartner = session?.user?.role === 'PARTNER'
-  const isClient = session?.user?.role === 'CLIENT'
 
   const handleNavigation = (href: string, requiresAuth: boolean) => {
     if (requiresAuth && !session) {
@@ -22,37 +20,46 @@ export function BottomNav() {
   }
 
   const loggedOutTabs = [
-    { href: '/', icon: Home, label: 'Inicio', requiresAuth: false },
-    { href: '/servicios', icon: Search, label: 'Servicios', requiresAuth: false },
-    { href: '/profile', icon: User, label: 'Perfil', requiresAuth: true },
+    { id: 'home', href: '/', icon: Home, label: 'Inicio', requiresAuth: false },
+    { id: 'services', href: '/servicios', icon: Search, label: 'Servicios', requiresAuth: false },
+    { id: 'profile', href: '/profile', icon: User, label: 'Perfil', requiresAuth: true },
   ]
 
   const clientTabs = [
-    { href: '/', icon: Home, label: 'Inicio', requiresAuth: false },
-    { href: '/servicios', icon: Search, label: 'Servicios', requiresAuth: false },
-    { href: '/dashboard', icon: Calendar, label: 'Reservas', requiresAuth: true },
-    { href: '/profile', icon: User, label: 'Perfil', requiresAuth: true },
+    { id: 'home', href: '/', icon: Home, label: 'Inicio', requiresAuth: false },
+    { id: 'services', href: '/servicios', icon: Search, label: 'Servicios', requiresAuth: false },
+    { id: 'bookings', href: '/dashboard', icon: Calendar, label: 'Reservas', requiresAuth: true },
+    { id: 'profile', href: '/profile', icon: User, label: 'Perfil', requiresAuth: true },
   ]
 
   const partnerTabs = [
-    { href: '/partner', icon: Home, label: 'Inicio', requiresAuth: false },
-    { href: '/partner/services', icon: Search, label: 'Servicios', requiresAuth: true },
-    { href: '/partner', icon: Calendar, label: 'Reservas', requiresAuth: true },
-    { href: '/profile', icon: User, label: 'Perfil', requiresAuth: true },
+    { id: 'home', href: '/partner', icon: Home, label: 'Inicio', requiresAuth: false },
+    { id: 'services', href: '/partner/services', icon: Search, label: 'Servicios', requiresAuth: true },
+    { id: 'bookings', href: '/partner/requests', icon: Calendar, label: 'Reservas', requiresAuth: true },
+    { id: 'profile', href: '/profile', icon: User, label: 'Perfil', requiresAuth: true },
   ]
 
   const tabs = !session ? loggedOutTabs : isPartner ? partnerTabs : clientTabs
+
+  const isTabActive = (tab: { id: string; href: string }) => {
+    if (tab.id === 'bookings' && isPartner) return pathname.startsWith('/partner/requests')
+    if (tab.id === 'home' && isPartner) return pathname === '/partner'
+    if (tab.href === '/servicios') return pathname.startsWith('/servicios')
+    if (tab.href === '/partner/services') return pathname.startsWith('/partner/services')
+    if (tab.href === '/dashboard') return pathname.startsWith('/dashboard')
+    return pathname === tab.href
+  }
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 safe-area-bottom md:hidden" data-tour="bottom-nav">
       <div className="flex items-center justify-around h-16">
         {tabs.map((tab) => {
-          const isActive = pathname === tab.href
+          const isActive = isTabActive(tab)
           const Icon = tab.icon
 
           return (
             <button
-              key={tab.href}
+              key={tab.id}
               onClick={() => handleNavigation(tab.href, tab.requiresAuth)}
               className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 transition-colors ${
                 isActive
