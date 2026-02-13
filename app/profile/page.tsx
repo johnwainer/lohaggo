@@ -212,24 +212,18 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <div className="border-t border-gray-200 bg-gray-50">
-          <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
-            <nav className="flex gap-0.5 sm:gap-1 overflow-x-auto scrollbar-hide">
-              {isPartner ? (
-                <PartnerDashboardNav
-                  bookingsCount={bookingsCount}
-                  requestsCount={requestsCount}
-                />
-              ) : (
-                <ClientDashboardNav
-                  bookingsCount={bookingsCount}
-                  requestsCount={requestsCount}
-                  favoritesCount={favoritesCount}
-                />
-              )}
-            </nav>
-          </div>
-        </div>
+        {isPartner ? (
+          <PartnerDashboardNav
+            bookingsCount={bookingsCount}
+            requestsCount={requestsCount}
+          />
+        ) : (
+          <ClientDashboardNav
+            bookingsCount={bookingsCount}
+            requestsCount={requestsCount}
+            favoritesCount={favoritesCount}
+          />
+        )}
       </header>
 
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
