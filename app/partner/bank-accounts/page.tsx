@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import PartnerDashboardNav from '@/components/PartnerDashboardNav'
+import { COLOMBIA_BANKS, getColombianBankByName } from '@/lib/banking/colombia'
 
 type BankAccount = {
   id: string
@@ -26,14 +27,15 @@ export default function PartnerBankAccountsPage() {
   const [requestsCount, setRequestsCount] = useState(0)
   const [form, setForm] = useState({
     bankName: '',
-    accountType: 'SAVINGS',
+    accountType: 'SAVINGS' as 'SAVINGS' | 'CHECKING',
     accountNumber: '',
     accountHolderName: '',
-    holderDocumentType: 'CC',
+    holderDocumentType: 'CC' as 'CC' | 'CE' | 'NIT' | 'PASSPORT',
     holderDocumentNumber: '',
     mercadoPagoRecipientId: '',
   })
   const [saving, setSaving] = useState(false)
+  const selectedBank = getColombianBankByName(form.bankName)
 
   const load = async () => {
     const res = await fetch('/api/partner/bank-accounts')
@@ -102,6 +104,9 @@ export default function PartnerBankAccountsPage() {
         })
         await load()
       }
+    } catch (error) {
+      console.error('Error creating bank account:', error)
+      alert('No se pudo registrar la cuenta bancaria')
     } finally {
       setSaving(false)
     }
@@ -151,12 +156,40 @@ export default function PartnerBankAccountsPage() {
 
       <main className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
         <form onSubmit={createAccount} className="grid md:grid-cols-2 gap-3 rounded-xl border bg-white p-4">
-          <input className="border rounded-lg px-3 py-2" placeholder="Banco" value={form.bankName} onChange={(e) => setForm({ ...form, bankName: e.target.value })} required />
+          <div className="md:col-span-2">
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Banco en Colombia</label>
+            <select
+              className="w-full border rounded-lg px-3 py-2 bg-white"
+              value={form.bankName}
+              onChange={(e) => setForm({ ...form, bankName: e.target.value })}
+              required
+            >
+              <option value="">Selecciona tu banco</option>
+              {COLOMBIA_BANKS.map((bank) => (
+                <option key={bank.id} value={bank.name}>
+                  {bank.name}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-gray-500">
+              Catálogo Colombia ({COLOMBIA_BANKS.length} bancos). Si tu banco no aparece, contacta soporte.
+            </p>
+          </div>
+
           <select className="border rounded-lg px-3 py-2" value={form.accountType} onChange={(e) => setForm({ ...form, accountType: e.target.value as 'SAVINGS' | 'CHECKING' })}>
             <option value="SAVINGS">Ahorros</option>
             <option value="CHECKING">Corriente</option>
           </select>
-          <input className="border rounded-lg px-3 py-2" placeholder="Número de cuenta" value={form.accountNumber} onChange={(e) => setForm({ ...form, accountNumber: e.target.value })} required />
+          <input
+            className="border rounded-lg px-3 py-2"
+            placeholder={selectedBank ? `Cuenta (${selectedBank.accountNumberMinLength}-${selectedBank.accountNumberMaxLength} dígitos)` : 'Número de cuenta'}
+            value={form.accountNumber}
+            inputMode="numeric"
+            pattern="[0-9]*"
+            maxLength={selectedBank?.accountNumberMaxLength || 20}
+            onChange={(e) => setForm({ ...form, accountNumber: e.target.value.replace(/\D/g, '') })}
+            required
+          />
           <input className="border rounded-lg px-3 py-2" placeholder="Titular" value={form.accountHolderName} onChange={(e) => setForm({ ...form, accountHolderName: e.target.value })} required />
           <select className="border rounded-lg px-3 py-2" value={form.holderDocumentType} onChange={(e) => setForm({ ...form, holderDocumentType: e.target.value as 'CC' | 'CE' | 'NIT' | 'PASSPORT' })}>
             <option value="CC">CC</option>
@@ -164,8 +197,30 @@ export default function PartnerBankAccountsPage() {
             <option value="NIT">NIT</option>
             <option value="PASSPORT">PASSPORT</option>
           </select>
-          <input className="border rounded-lg px-3 py-2" placeholder="Documento" value={form.holderDocumentNumber} onChange={(e) => setForm({ ...form, holderDocumentNumber: e.target.value })} required />
+          <input
+            className="border rounded-lg px-3 py-2"
+            placeholder={form.holderDocumentType === 'PASSPORT' ? 'Pasaporte (letras y números)' : 'Documento'}
+            value={form.holderDocumentNumber}
+            inputMode={form.holderDocumentType === 'PASSPORT' ? 'text' : 'numeric'}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                holderDocumentNumber: form.holderDocumentType === 'PASSPORT'
+                  ? e.target.value.toUpperCase()
+                  : e.target.value.replace(/\D/g, ''),
+              })
+            }
+            required
+          />
           <input className="border rounded-lg px-3 py-2 md:col-span-2" placeholder="Mercado Pago recipient_id (requerido para live)" value={form.mercadoPagoRecipientId} onChange={(e) => setForm({ ...form, mercadoPagoRecipientId: e.target.value })} />
+          <div className="md:col-span-2 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">
+            <p className="font-semibold mb-1">Formato esperado</p>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>Número de cuenta: solo números ({selectedBank ? `${selectedBank.accountNumberMinLength}-${selectedBank.accountNumberMaxLength}` : '8-20'} dígitos).</li>
+              <li>Tipo de cuenta: ahorros o corriente.</li>
+              <li>Documento: CC/CE/NIT numérico o pasaporte alfanumérico.</li>
+            </ul>
+          </div>
           <div className="md:col-span-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
             <p className="font-semibold">¿Dónde saco mi `recipient_id` de Mercado Pago?</p>
             <ol className="list-decimal pl-5 mt-1 space-y-1 text-blue-800">
@@ -191,7 +246,7 @@ export default function PartnerBankAccountsPage() {
           ) : accounts.map((acc) => (
             <div key={acc.id} className="border rounded-lg p-3 flex items-center justify-between gap-3">
               <div>
-                <p className="font-medium">{acc.bankName} · {acc.accountType}</p>
+                <p className="font-medium">{acc.bankName} · {acc.accountType === 'SAVINGS' ? 'Ahorros' : 'Corriente'}</p>
                 <p className="text-sm text-gray-600">****{acc.accountNumber.slice(-4)} · {acc.holderDocumentType} {acc.holderDocumentNumber}</p>
                 <p className="text-xs text-gray-500">{acc.isDefault ? 'Predeterminada' : 'Secundaria'} · {acc.isActive ? 'Activa' : 'Inactiva'}</p>
               </div>

@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
+import { getColombianBankByName } from '@/lib/banking/colombia'
 
 const logger = createLogger('partner-bank-accounts')
 
@@ -19,14 +20,23 @@ function validateColombianBankAccount(input: {
   holderDocumentNumber: string
 }) {
   const accountNumber = normalizeAccountNumber(input.accountNumber)
-  const docNumber = normalizeAccountNumber(input.holderDocumentNumber)
+  const rawDocNumber = String(input.holderDocumentNumber || '').trim()
+  const docNumber = normalizeAccountNumber(rawDocNumber)
+  const bank = getColombianBankByName(input.bankName || '')
 
   if (!input.bankName?.trim()) return 'Banco requerido'
+  if (!bank) return 'Selecciona un banco colombiano válido'
   if (!['SAVINGS', 'CHECKING'].includes(input.accountType)) return 'Tipo de cuenta inválido'
-  if (accountNumber.length < 8 || accountNumber.length > 20) return 'Número de cuenta inválido'
+  if (accountNumber.length < bank.accountNumberMinLength || accountNumber.length > bank.accountNumberMaxLength) {
+    return `El número de cuenta debe tener entre ${bank.accountNumberMinLength} y ${bank.accountNumberMaxLength} dígitos`
+  }
   if (!input.accountHolderName?.trim()) return 'Titular requerido'
   if (!['CC', 'CE', 'NIT', 'PASSPORT'].includes(input.holderDocumentType)) return 'Tipo de documento inválido'
-  if (docNumber.length < 5 || docNumber.length > 15) return 'Número de documento inválido'
+  if (input.holderDocumentType === 'PASSPORT') {
+    if (!/^[A-Z0-9]{5,20}$/i.test(rawDocNumber)) return 'Pasaporte inválido'
+  } else if (docNumber.length < 5 || docNumber.length > 15) {
+    return 'Número de documento inválido'
+  }
 
   return null
 }
@@ -82,7 +92,9 @@ export async function POST(req: NextRequest) {
     }
 
     const accountNumber = normalizeAccountNumber(body.accountNumber)
-    const holderDocumentNumber = normalizeAccountNumber(body.holderDocumentNumber)
+    const holderDocumentNumber = body.holderDocumentType === 'PASSPORT'
+      ? String(body.holderDocumentNumber || '').trim().toUpperCase()
+      : normalizeAccountNumber(body.holderDocumentNumber)
 
     const existing = await prisma.partnerBankAccount.findFirst({
       where: {
