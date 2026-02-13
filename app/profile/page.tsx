@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { User, Mail, Camera, Save, AlertCircle, CheckCircle, Home, Package, MessageSquare, Activity, Star, MapPin, Shield, Briefcase, ChevronRight, CreditCard, GraduationCap, Heart, Phone } from 'lucide-react'
+import { User, Mail, Camera, Save, AlertCircle, CheckCircle, Home, Package, MessageSquare, Activity, Star, MapPin, Shield, Briefcase, ChevronRight, CreditCard, GraduationCap, Heart, Phone, Landmark } from 'lucide-react'
 import ClientDashboardNav from '@/components/ClientDashboardNav'
 import PartnerDashboardNav from '@/components/PartnerDashboardNav'
 
@@ -375,6 +375,23 @@ export default function ProfilePage() {
                     {partnerData?.services?.length || 0}
                   </p>
                   <p className="text-sm text-gray-600">Servicios activos</p>
+                </button>
+
+                <button
+                  onClick={() => router.push('/partner/bank-accounts')}
+                  className="w-full bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 text-left group"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="p-3 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl">
+                      <Landmark className="text-white" size={24} />
+                    </div>
+                    <ChevronRight className="text-gray-400 group-hover:text-secondary-600 transition-colors" size={20} />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">Datos Bancarios</h3>
+                  <p className="text-sm text-gray-600 mb-3">Registra y administra tus cuentas para recibir pagos.</p>
+                  <div className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200">
+                    Configurar ahora
+                  </div>
                 </button>
 
                 <button

@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { Home, Package, MessageSquare } from 'lucide-react'
+import { Home, Package, MessageSquare, Landmark } from 'lucide-react'
 
 interface NavItem {
   id: string
@@ -56,6 +56,12 @@ export default function PartnerHeader({
       badge: requestsCount,
       badgeColor: 'bg-primary-500',
       onClick: () => onTabChange?.('my-requests'),
+    },
+    {
+      id: 'bank-accounts',
+      label: 'Datos Bancarios',
+      icon: <Landmark className="w-7 h-7 sm:w-6 sm:h-6" />,
+      path: '/partner/bank-accounts',
     },
   ]
 
