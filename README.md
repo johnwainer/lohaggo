@@ -72,6 +72,9 @@
 - **Protección de Credenciales**: Gestión segura de claves de Cloudinary y VAPID
 - **Rate Limiting**: Protección contra abuso de API
 - **Protección CSRF**: Tokens de seguridad en formularios críticos
+- **Detección de Amenazas**: Detección de escaneo, inyección en query y user-agents maliciosos
+- **Bloqueo de IPs**: Bloqueo/desbloqueo manual y automático con auditoría en DB
+- **Panel de Seguridad Admin**: Gestión en `/admin/security` con eventos y estado de bloqueos
 
 ### Diseño y UX
 - **Diseño Moderno** inspirado en Uber y Rappi
@@ -235,6 +238,7 @@ NEXT_PUBLIC_VAPID_PUBLIC_KEY=tu-vapid-public-key
 VAPID_PRIVATE_KEY=tu-vapid-private-key
 NEXT_PUBLIC_TURNSTILE_SITE_KEY=tu-turnstile-site-key
 TURNSTILE_SECRET_KEY=tu-turnstile-secret-key
+SECURITY_INTERNAL_TOKEN=token-interno-largo-y-aleatorio
 ```
 
 **Importante**: Marcar las 3 opciones (Production, Preview, Development) para cada variable.

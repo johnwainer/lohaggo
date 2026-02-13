@@ -33,6 +33,7 @@ const targets = [
   { id: 'search-analytics', group: 'marketing', expected: ['/admin/search-analytics'] },
   { id: 'commissions', group: 'configuracion', expected: ['/admin?section=commissions'] },
   { id: 'payment-config', group: 'configuracion', expected: ['/admin/payment-config'] },
+  { id: 'security', group: 'configuracion', expected: ['/admin/security'] },
   { id: 'notifications', group: 'configuracion', expected: ['/admin?section=notifications'] },
   { id: 'settings', group: 'configuracion', expected: ['/admin?section=settings'] },
 ]

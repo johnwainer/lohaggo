@@ -40,6 +40,7 @@ const envSchema = z.object({
   ALLOWED_ORIGIN: z.string().optional(),
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().optional(),
   TURNSTILE_SECRET_KEY: z.string().optional(),
+  SECURITY_INTERNAL_TOKEN: z.string().optional(),
 })
 
 type Env = z.infer<typeof envSchema>
@@ -72,6 +73,7 @@ function validateEnv(): Env {
       ALLOWED_ORIGIN: process.env.ALLOWED_ORIGIN,
       NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
       TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY,
+      SECURITY_INTERNAL_TOKEN: process.env.SECURITY_INTERNAL_TOKEN,
     }
   }
 
@@ -84,6 +86,7 @@ function validateEnv(): Env {
       MERCADOPAGO_PAYOUTS_API_URL: process.env.MERCADOPAGO_PAYOUTS_API_URL,
       NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
       TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY,
+      SECURITY_INTERNAL_TOKEN: process.env.SECURITY_INTERNAL_TOKEN,
     }
 
     const parsed = envSchema.parse(envWithFallbacks)

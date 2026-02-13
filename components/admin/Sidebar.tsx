@@ -4,7 +4,7 @@ import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 interface SidebarProps {
   activeSection: string
@@ -27,6 +27,7 @@ interface MenuItem {
 
 export default function Sidebar({ activeSection, onSectionChange }: SidebarProps) {
   const [isOpen, setIsOpen] = useState(false)
+  const [expandedGroup, setExpandedGroup] = useState<string | null>(null)
   const pathname = usePathname()
 
   const menuGroups: MenuGroup[] = [
@@ -83,6 +84,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
         { id: 'commissions', label: 'Comisiones', icon: Percent },
         { id: 'payment-config', label: 'Config. Pagos', icon: CreditCard, isLink: true, href: '/admin/payment-config' },
         { id: 'banks', label: 'Bancos', icon: Building2, isLink: true, href: '/admin/banks' },
+        { id: 'security', label: 'Seguridad', icon: Shield, isLink: true, href: '/admin/security' },
         { id: 'notifications', label: 'Notificaciones', icon: Bell },
         { id: 'settings', label: 'Configuración', icon: Settings },
         { id: 'risk-control', label: 'Riesgo y Cohortes', icon: Shield, isLink: true, href: '/admin/risk-control' },
@@ -98,6 +100,17 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
       .replace(/\s+/g, '-')
   const getItemTestId = (id: string) => `admin-nav-${id}`
   const getItemHref = (item: MenuItem) => item.href ?? `/admin?section=${item.id}`
+
+  useEffect(() => {
+    const activeGroup = menuGroups.find((group) =>
+      group.items.some((item) => item.id === activeSection)
+    )
+    setExpandedGroup(activeGroup ? getGroupKey(activeGroup.label) : null)
+  }, [activeSection])
+
+  const toggleGroup = (groupKey: string) => {
+    setExpandedGroup((prev) => (prev === groupKey ? null : groupKey))
+  }
 
   return (
     <>
@@ -130,7 +143,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
           {menuGroups.map((group) => {
             const groupKey = getGroupKey(group.label)
             const hasActiveItem = group.items.some((item) => item.id === activeSection)
-            const isExpanded = hasActiveItem
+            const isExpanded = expandedGroup === groupKey
 
             return (
               <div
@@ -142,10 +155,11 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
                 }`}
               >
                 <button
+                  onClick={() => toggleGroup(groupKey)}
                   aria-expanded={isExpanded}
                   aria-controls={`admin-group-${groupKey}`}
                   data-testid={`admin-group-${groupKey}`}
-                  className={`w-full flex items-center justify-between px-3 sm:px-4 py-3 transition-colors cursor-default ${
+                  className={`w-full flex items-center justify-between px-3 sm:px-4 py-3 transition-colors ${
                     hasActiveItem ? 'text-white' : 'text-white/80 hover:text-white'
                   }`}
                 >
