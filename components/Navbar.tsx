@@ -270,6 +270,16 @@ export function Navbar() {
                             <User size={16} />
                             <span>Mi Perfil</span>
                           </Link>
+                          {session.user.role === 'PARTNER' && (
+                            <Link
+                              href="/partner/bank-accounts"
+                              className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold"
+                              onClick={() => setUserMenuOpen(false)}
+                            >
+                              <Landmark size={16} />
+                              <span>Datos Bancarios</span>
+                            </Link>
+                          )}
                           <Link
                             href="/my-ratings"
                             className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold"
@@ -297,14 +307,6 @@ export function Navbar() {
                           >
                             <Shield size={16} />
                             <span>Verificación</span>
-                          </Link>
-                          <Link
-                            href="/partner/bank-accounts"
-                            className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold"
-                            onClick={() => setUserMenuOpen(false)}
-                          >
-                            <Landmark size={16} />
-                            <span>Datos Bancarios</span>
                           </Link>
                         </>
                       )}
@@ -566,6 +568,24 @@ export function Navbar() {
                   {session.user.role !== 'ADMIN' && (
                     <>
                       <Link
+                        href="/profile"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <User size={18} />
+                        <span>Mi Perfil</span>
+                      </Link>
+                      {session.user.role === 'PARTNER' && (
+                        <Link
+                          href="/partner/bank-accounts"
+                          className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                          onClick={() => setMobileMenuOpen(false)}
+                        >
+                          <Landmark size={18} />
+                          <span>Datos Bancarios</span>
+                        </Link>
+                      )}
+                      <Link
                         href="/my-ratings"
                         className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
                         onClick={() => setMobileMenuOpen(false)}
@@ -592,14 +612,6 @@ export function Navbar() {
                       >
                         <Shield size={18} />
                         <span>Verificación</span>
-                      </Link>
-                      <Link
-                        href="/partner/bank-accounts"
-                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        <Landmark size={18} />
-                        <span>Datos Bancarios</span>
                       </Link>
                     </>
                   )}

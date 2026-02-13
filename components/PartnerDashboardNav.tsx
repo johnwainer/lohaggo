@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { Home, Package, MessageSquare, Landmark } from 'lucide-react'
+import { Home, Package, MessageSquare } from 'lucide-react'
 
 interface PartnerDashboardNavProps {
   bookingsCount?: number
@@ -69,18 +69,6 @@ export default function PartnerDashboardNav({
             )}
           </button>
 
-          <button
-            onClick={() => router.push('/partner/bank-accounts')}
-            data-testid="partner-tab-bank-accounts"
-            className={`flex items-center gap-2 sm:gap-2 px-4 sm:px-4 py-3 sm:py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${
-              activeTab === 'bank-accounts'
-                ? 'border-primary-600 text-primary-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
-            }`}
-          >
-            <Landmark size={24} className="sm:w-[22px] sm:h-[22px]" />
-            <span className="hidden sm:inline">Datos Bancarios</span>
-          </button>
         </nav>
       </div>
     </div>
