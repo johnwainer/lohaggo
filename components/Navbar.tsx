@@ -15,6 +15,8 @@ export function Navbar() {
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [mobileCityDropdownOpen, setMobileCityDropdownOpen] = useState(false)
+  const [mobileAccountOpen, setMobileAccountOpen] = useState(true)
+  const [mobileRoleToolsOpen, setMobileRoleToolsOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
 
@@ -49,6 +51,14 @@ export function Navbar() {
       document.removeEventListener('mousedown', handler)
     }
   }, [userMenuOpen])
+
+  useEffect(() => {
+    if (!mobileMenuOpen) {
+      setMobileCityDropdownOpen(false)
+      setMobileRoleToolsOpen(false)
+      setMobileAccountOpen(true)
+    }
+  }, [mobileMenuOpen])
 
   function CitySelector() {
     const [open, setOpen] = useState(false)
@@ -393,7 +403,7 @@ export function Navbar() {
               setMobileCityDropdownOpen(false)
             }}
           />
-          <div className="md:hidden relative z-50 bg-white border-t border-gray-200 animate-slide-down shadow-lg">
+          <div className="md:hidden relative z-50 bg-white border-t border-gray-200 animate-slide-down shadow-lg max-h-[calc(100vh-5rem)] overflow-y-auto">
             <div className="px-4 pt-2 pb-4 space-y-2">
             {/* City Selector - Mobile */}
             <div className="mb-2">
@@ -567,83 +577,113 @@ export function Navbar() {
                   </div>
                   {session.user.role !== 'ADMIN' && (
                     <>
-                      <Link
-                        href="/profile"
-                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
-                        onClick={() => setMobileMenuOpen(false)}
+                      <button
+                        onClick={() => setMobileAccountOpen((prev) => !prev)}
+                        className="w-full flex items-center justify-between text-gray-800 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
                       >
-                        <User size={18} />
-                        <span>Mi Perfil</span>
-                      </Link>
-                      {session.user.role === 'PARTNER' && (
-                        <Link
-                          href="/partner/bank-accounts"
-                          className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
-                          onClick={() => setMobileMenuOpen(false)}
-                        >
-                          <Landmark size={18} />
-                          <span>Datos Bancarios</span>
-                        </Link>
+                        <span className="flex items-center gap-2">
+                          <User size={18} />
+                          Cuenta
+                        </span>
+                        <ChevronDown size={16} className={`transition-transform ${mobileAccountOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                      {mobileAccountOpen && (
+                        <div className="pl-4 pr-1 space-y-1">
+                          <Link
+                            href="/profile"
+                            className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                            onClick={() => setMobileMenuOpen(false)}
+                          >
+                            <User size={18} />
+                            <span>Mi Perfil</span>
+                          </Link>
+                          {session.user.role === 'PARTNER' && (
+                            <Link
+                              href="/partner/bank-accounts"
+                              className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                              onClick={() => setMobileMenuOpen(false)}
+                            >
+                              <Landmark size={18} />
+                              <span>Datos Bancarios</span>
+                            </Link>
+                          )}
+                          <Link
+                            href="/my-ratings"
+                            className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                            onClick={() => setMobileMenuOpen(false)}
+                          >
+                            <Star size={18} />
+                            <span>Mis Calificaciones</span>
+                          </Link>
+                          <Link
+                            href={session.user.role === 'PARTNER' ? '/partner/notifications' : '/notifications'}
+                            className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                            onClick={() => setMobileMenuOpen(false)}
+                          >
+                            <Bell size={18} />
+                            <span>Notificaciones</span>
+                          </Link>
+                        </div>
                       )}
-                      <Link
-                        href="/my-ratings"
-                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        <Star size={18} />
-                        <span>Mis Calificaciones</span>
-                      </Link>
                     </>
                   )}
-                  {session.user.role === 'PARTNER' && (
+                  {(session.user.role === 'PARTNER' || session.user.role === 'CLIENT') && (
                     <>
-                      <Link
-                        href="/partner/services"
-                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
-                        onClick={() => setMobileMenuOpen(false)}
+                      <button
+                        onClick={() => setMobileRoleToolsOpen((prev) => !prev)}
+                        className="w-full flex items-center justify-between text-gray-800 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
                       >
-                        <Settings size={18} />
-                        <span>Mis Servicios</span>
-                      </Link>
-                      <Link
-                        href="/partner/verification"
-                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        <Shield size={18} />
-                        <span>Verificación</span>
-                      </Link>
+                        <span className="flex items-center gap-2">
+                          <Settings size={18} />
+                          {session.user.role === 'PARTNER' ? 'Herramientas Socio' : 'Herramientas Cliente'}
+                        </span>
+                        <ChevronDown size={16} className={`transition-transform ${mobileRoleToolsOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                      {mobileRoleToolsOpen && (
+                        <div className="pl-4 pr-1 space-y-1">
+                          {session.user.role === 'PARTNER' && (
+                            <>
+                              <Link
+                                href="/partner/services"
+                                className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                                onClick={() => setMobileMenuOpen(false)}
+                              >
+                                <Settings size={18} />
+                                <span>Mis Servicios</span>
+                              </Link>
+                              <Link
+                                href="/partner/verification"
+                                className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                                onClick={() => setMobileMenuOpen(false)}
+                              >
+                                <Shield size={18} />
+                                <span>Verificación</span>
+                              </Link>
+                            </>
+                          )}
+                          {session.user.role === 'CLIENT' && (
+                            <>
+                              <Link
+                                href="/dashboard/addresses"
+                                className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                                onClick={() => setMobileMenuOpen(false)}
+                              >
+                                <MapPin size={18} />
+                                <span>Mis Direcciones</span>
+                              </Link>
+                              <Link
+                                href="/dashboard/payment-methods"
+                                className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                                onClick={() => setMobileMenuOpen(false)}
+                              >
+                                <CreditCard size={18} />
+                                <span>Mis Métodos de Pago</span>
+                              </Link>
+                            </>
+                          )}
+                        </div>
+                      )}
                     </>
-                  )}
-                  {session.user.role === 'CLIENT' && (
-                    <>
-                      <Link
-                        href="/dashboard/addresses"
-                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        <MapPin size={18} />
-                        <span>Mis Direcciones</span>
-                      </Link>
-                      <Link
-                        href="/dashboard/payment-methods"
-                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        <CreditCard size={18} />
-                        <span>Mis Métodos de Pago</span>
-                      </Link>
-                    </>
-                  )}
-                  {session.user.role !== 'ADMIN' && (
-                    <Link
-                      href={session.user.role === 'PARTNER' ? '/partner/notifications' : '/notifications'}
-                      className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      <Bell size={18} />
-                      <span>Notificaciones</span>
-                    </Link>
                   )}
                   <button
                     onClick={() => signOut({ callbackUrl: '/' })}
