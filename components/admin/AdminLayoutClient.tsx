@@ -34,6 +34,7 @@ export default function AdminLayoutClient({
     if (pathname === '/admin') return 'dashboard'
     if (pathname.startsWith('/admin/monitoring')) return 'monitoring'
     if (pathname.startsWith('/admin/operations')) return 'operations'
+    if (pathname.startsWith('/admin/training')) return 'training'
     if (pathname.startsWith('/admin/workflow')) return 'workflow'
     if (pathname.startsWith('/admin/ads')) return 'ads'
     if (pathname.startsWith('/admin/search-analytics')) return 'search-analytics'

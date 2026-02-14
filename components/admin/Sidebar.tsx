@@ -1,6 +1,6 @@
 'use client'
 
-import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, LogOut, Menu, X, Shield, DollarSign, Wallet, MapPin, CreditCard, ChevronDown, ChevronRight, Percent, Megaphone, Activity, Building2 } from 'lucide-react'
+import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, LogOut, Menu, X, Shield, DollarSign, Wallet, MapPin, CreditCard, ChevronDown, ChevronRight, Percent, Megaphone, Activity, Building2, BookOpen } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import { useEffect, useState } from 'react'
@@ -36,6 +36,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
       hint: 'Vista global y salud del sistema',
       items: [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+        { id: 'training', label: 'Entrenamiento', icon: BookOpen, isLink: true, href: '/admin/training' },
         { id: 'monitoring', label: 'Monitoreo', icon: Activity, isLink: true, href: '/admin/monitoring' },
         { id: 'operations', label: 'Centro Ops', icon: Activity, isLink: true, href: '/admin/operations' },
         { id: 'workflow', label: 'Workflow', icon: Calendar, isLink: true, href: '/admin/workflow' },

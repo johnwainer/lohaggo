@@ -19,6 +19,7 @@ const creds = {
 
 const targets = [
   { id: 'dashboard', group: 'panel-general', expected: ['/admin', '/admin?section=dashboard'] },
+  { id: 'training', group: 'panel-general', expected: ['/admin/training'] },
   { id: 'monitoring', group: 'panel-general', expected: ['/admin/monitoring'] },
   { id: 'analytics', group: 'panel-general', expected: ['/admin?section=analytics'] },
   { id: 'bookings', group: 'operacion-diaria', expected: ['/admin?section=bookings'] },
