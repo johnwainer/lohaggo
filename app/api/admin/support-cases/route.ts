@@ -38,6 +38,8 @@ export async function POST(request: NextRequest) {
       role: body.role || null,
       bookingId: body.bookingId || null,
       requestId: body.requestId || null,
+      queue: body.queue || 'GENERAL',
+      slaDueAt: body.slaDueAt ? new Date(body.slaDueAt) : null,
       assignedTo: body.assignedTo || admin.email,
     },
   })
@@ -69,6 +71,24 @@ export async function PATCH(request: NextRequest) {
       status: body.status,
       priority: body.priority,
       assignedTo: body.assignedTo,
+      queue: body.queue,
+      slaDueAt: body.slaDueAt ? new Date(body.slaDueAt) : body.slaDueAt === null ? null : undefined,
+      firstResponseAt: body.firstResponseAt
+        ? new Date(body.firstResponseAt)
+        : body.markFirstResponse
+          ? new Date()
+          : undefined,
+      resolvedAt:
+        body.status === 'RESOLVED'
+          ? new Date()
+          : body.resolvedAt
+            ? new Date(body.resolvedAt)
+            : body.status === 'OPEN' || body.status === 'IN_PROGRESS'
+              ? null
+              : undefined,
+      closedAt: body.status === 'CLOSED' ? new Date() : undefined,
+      escalationLevel: body.escalationLevel,
+      lastEscalatedAt: body.escalationLevel !== undefined ? new Date() : undefined,
       resolutionNote: body.resolutionNote,
     },
   })

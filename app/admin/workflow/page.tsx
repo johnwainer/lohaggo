@@ -26,19 +26,35 @@ type Report = {
   }
 }
 
+type RealtimeBusiness = {
+  funnel24h: {
+    searches: number
+    requests: number
+    proposals: number
+    bookings: number
+    approvedPayments: number
+    conversionSearchToRequest: number
+    conversionRequestToBooking: number
+    conversionBookingToPayment: number
+  }
+}
+
 export default function AdminWorkflowPage() {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [report, setReport] = useState<Report | null>(null)
+  const [realtime, setRealtime] = useState<RealtimeBusiness | null>(null)
 
   const load = async () => {
-    const [bRes, rRes] = await Promise.all([
+    const [bRes, rRes, rtRes] = await Promise.all([
       fetch('/api/admin/workflow/bookings'),
       fetch('/api/admin/reports/funnel-quality'),
+      fetch('/api/admin/reports/realtime-business'),
     ])
 
-    const [bData, rData] = await Promise.all([bRes.json(), rRes.json()])
+    const [bData, rData, rtData] = await Promise.all([bRes.json(), rRes.json(), rtRes.json()])
     setBookings(bData.bookings || [])
     setReport(rData)
+    setRealtime(rtData)
   }
 
   useEffect(() => {
@@ -84,6 +100,23 @@ export default function AdminWorkflowPage() {
           <div className="rounded-xl border bg-white p-4">
             <p className="text-sm text-gray-500">Tasa de cancelación</p>
             <p className="text-2xl font-bold">{report.quality.cancellationRate}%</p>
+          </div>
+        </div>
+      )}
+
+      {realtime && (
+        <div className="grid md:grid-cols-3 gap-3">
+          <div className="rounded-xl border bg-white p-4">
+            <p className="text-sm text-gray-500">Conv. búsqueda → solicitud (24h)</p>
+            <p className="text-2xl font-bold">{realtime.funnel24h.conversionSearchToRequest}%</p>
+          </div>
+          <div className="rounded-xl border bg-white p-4">
+            <p className="text-sm text-gray-500">Conv. solicitud → reserva (24h)</p>
+            <p className="text-2xl font-bold">{realtime.funnel24h.conversionRequestToBooking}%</p>
+          </div>
+          <div className="rounded-xl border bg-white p-4">
+            <p className="text-sm text-gray-500">Conv. reserva → pago (24h)</p>
+            <p className="text-2xl font-bold">{realtime.funnel24h.conversionBookingToPayment}%</p>
           </div>
         </div>
       )}

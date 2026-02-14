@@ -49,6 +49,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
         { id: 'bookings', label: 'Reservas', icon: Calendar },
         { id: 'payments', label: 'Pagos', icon: DollarSign },
         { id: 'payouts', label: 'Pagos a Socios', icon: Wallet },
+        { id: 'finance-ops', label: 'Finanzas Ops', icon: CreditCard, isLink: true, href: '/admin/finance-ops' },
       ]
     },
     {
@@ -57,6 +58,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
       items: [
         { id: 'users', label: 'Usuarios', icon: Users },
         { id: 'partners', label: 'Socios', icon: UserCheck },
+        { id: 'compliance', label: 'KYC/KYB', icon: Shield, isLink: true, href: '/admin/compliance' },
         { id: 'documents', label: 'Verificación', icon: Shield, isLink: true, href: '/admin/documents' },
       ]
     },

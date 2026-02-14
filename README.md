@@ -257,6 +257,16 @@ Antes del primer deploy productivo, ejecutar en este orden en SQL Editor de Supa
 
 1. `docs/sql/admin_control_plane.sql`
 2. `docs/sql/bank_catalog_seed.sql`
+3. `docs/sql/security_monitoring.sql`
+4. `docs/sql/launch_blockers_ops.sql`
+
+### 8. QA de regresión crítica (recomendado antes de cada release)
+
+```bash
+node scripts/qa/critical-regression-flow.mjs
+```
+
+Genera reporte en `docs/qa/critical-regression-flow.json` para validar login y rutas críticas de cliente, socio y admin en mobile.
 
 Notas:
 - El catálogo de bancos se administra desde `/admin/banks`.

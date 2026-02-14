@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth"
 import { notifyBookingStatusChange } from "@/lib/notifications/notificationService"
 import { createLogger } from '@/lib/logger'
+import { computeRefundPolicy, calculateSlaDueAt } from '@/lib/launch-ops'
 
 export const dynamic = 'force-dynamic'
 
@@ -141,6 +142,85 @@ export async function DELETE(
       where: { id },
       data: { status: 'CANCELLED' }
     })
+
+    const payment = await prisma.payment.findUnique({
+      where: { bookingId: id },
+      select: {
+        id: true,
+        status: true,
+        totalAmount: true,
+      },
+    })
+
+    if (payment && payment.status === 'APPROVED') {
+      const policy = computeRefundPolicy({
+        bookingStatus: booking.status,
+        totalAmount: Number(payment.totalAmount),
+        scheduledDate: booking.scheduledDate,
+      })
+
+      const refundCase = await prisma.refundCase.create({
+        data: {
+          bookingId: booking.id,
+          paymentId: payment.id,
+          userId: booking.userId,
+          partnerId: booking.partnerId || null,
+          reason: 'Cancelación de reserva',
+          policyCode: policy.policyCode,
+          status: policy.requiresManualReview ? 'UNDER_REVIEW' : 'APPROVED',
+          requestedAmount: Number(payment.totalAmount),
+          approvedAmount: policy.requiresManualReview ? null : policy.refundableAmount,
+          requestedBy: user.email,
+          reviewNotes: policy.reason,
+          metadata: JSON.stringify({
+            source: 'booking-cancel',
+            cancelledByRole: user.role,
+            refundableAmount: policy.refundableAmount,
+          }),
+        },
+      })
+
+      const incident = await prisma.paymentIncident.create({
+        data: {
+          paymentId: payment.id,
+          bookingId: booking.id,
+          userId: booking.userId,
+          partnerId: booking.partnerId || null,
+          incidentType: 'REFUND_DISPUTE',
+          status: policy.requiresManualReview ? 'ACTION_REQUIRED' : 'RESOLVED',
+          severity: policy.requiresManualReview ? 'HIGH' : 'MEDIUM',
+          source: 'booking-cancel',
+          title: 'Caso de reembolso por cancelación',
+          description: policy.reason,
+          assignedTo: 'ops@lohaggo.com',
+          slaDueAt: calculateSlaDueAt(policy.requiresManualReview ? 'HIGH' : 'MEDIUM'),
+          metadata: JSON.stringify({ refundCaseId: refundCase.id }),
+        },
+      })
+
+      await prisma.paymentIncidentEvent.create({
+        data: {
+          incidentId: incident.id,
+          actorEmail: user.email,
+          action: 'REFUND_CASE_CREATED',
+          note: `Caso ${refundCase.id} creado por cancelación`,
+        },
+      })
+
+      await prisma.adminSupportCase.create({
+        data: {
+          userId: booking.userId,
+          bookingId: booking.id,
+          priority: policy.requiresManualReview ? 'HIGH' : 'MEDIUM',
+          status: 'OPEN',
+          queue: 'REFUNDS',
+          subject: `Reembolso por cancelación #${booking.id}`,
+          description: `${policy.reason}. Monto solicitado: ${payment.totalAmount}`,
+          assignedTo: 'ops@lohaggo.com',
+          slaDueAt: calculateSlaDueAt(policy.requiresManualReview ? 'HIGH' : 'MEDIUM'),
+        },
+      })
+    }
 
     // Notify partner/client about cancellation
     await notifyBookingStatusChange(id, 'CANCELLED')

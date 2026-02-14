@@ -37,6 +37,10 @@ model User {
   searchHistory         SearchHistory[]
   supportCases          AdminSupportCase[]
   fraudSignals          FraudSignal[]
+  paymentIncidents      PaymentIncident[]
+  refundCases           RefundCase[]
+  taxDocuments          TaxDocument[]
+  complianceEvaluations ComplianceEvaluation[]
 }
 
 model PartnerProfile {
@@ -64,6 +68,9 @@ model PartnerProfile {
   favoritedBy  FavoritePartner[]
   fraudSignals FraudSignal[]
   bankAccounts PartnerBankAccount[]
+  paymentIncidents PaymentIncident[]
+  refundCases      RefundCase[]
+  complianceEvaluations ComplianceEvaluation[]
 }
 
 model Category {
@@ -148,6 +155,8 @@ model Booking {
   review                Review?
   supportCases          AdminSupportCase[]
   fraudSignals          FraudSignal[]
+  paymentIncidents      PaymentIncident[]
+  refundCases           RefundCase[]
 }
 
 model Review {
@@ -344,6 +353,9 @@ model Payment {
   paymentMethod        PaymentMethod? @relation(fields: [paymentMethodId], references: [id])
   user                 User           @relation(fields: [userId], references: [id])
   payout               Payout?
+  incidents            PaymentIncident[]
+  refundCases          RefundCase[]
+  taxDocuments         TaxDocument[]
 
   @@index([userId])
   @@index([status])
@@ -757,6 +769,13 @@ model AdminSupportCase {
   subject        String
   description    String
   assignedTo     String?
+  queue          SupportQueue       @default(GENERAL)
+  slaDueAt       DateTime?
+  firstResponseAt DateTime?
+  resolvedAt     DateTime?
+  closedAt       DateTime?
+  escalationLevel Int               @default(0)
+  lastEscalatedAt DateTime?
   resolutionNote String?
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
@@ -766,6 +785,150 @@ model AdminSupportCase {
 
   @@index([status, priority])
   @@index([userId])
+  @@index([queue, status, slaDueAt])
+}
+
+model PaymentIncident {
+  id              String                @id @default(cuid())
+  paymentId       String?
+  bookingId       String?
+  userId          String?
+  partnerId       String?
+  incidentType    PaymentIncidentType
+  status          PaymentIncidentStatus @default(OPEN)
+  severity        AdminSeverity         @default(MEDIUM)
+  source          String                @default("system")
+  title           String
+  description     String
+  rootCause       String?
+  assignedTo      String?
+  slaDueAt        DateTime?
+  acknowledgedAt  DateTime?
+  resolvedAt      DateTime?
+  closedAt        DateTime?
+  metadata        String?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  payment         Payment?              @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  booking         Booking?              @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  user            User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
+  partner         PartnerProfile?       @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  events          PaymentIncidentEvent[]
+
+  @@index([status, severity, createdAt])
+  @@index([incidentType, status])
+  @@index([paymentId])
+  @@index([bookingId])
+}
+
+model PaymentIncidentEvent {
+  id          String          @id @default(cuid())
+  incidentId  String
+  actorEmail  String?
+  action      String
+  note        String?
+  metadata    String?
+  createdAt   DateTime        @default(now())
+  incident    PaymentIncident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@index([incidentId, createdAt])
+}
+
+model RefundCase {
+  id                String       @id @default(cuid())
+  bookingId         String?
+  paymentId         String?
+  userId            String?
+  partnerId         String?
+  reason            String
+  policyCode        String?
+  status            RefundStatus @default(REQUESTED)
+  requestedAmount   Float
+  approvedAmount    Float?
+  currency          String       @default("COP")
+  requestedBy       String?
+  reviewedBy        String?
+  reviewNotes       String?
+  processedAt       DateTime?
+  externalRefundId  String?
+  metadata          String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  booking           Booking?     @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  payment           Payment?     @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  user              User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  partner           PartnerProfile? @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([bookingId])
+  @@index([paymentId])
+}
+
+model ComplianceRule {
+  id                 String              @id @default(cuid())
+  key                String              @unique
+  name               String
+  description        String
+  ruleType           ComplianceRuleType
+  enabled            Boolean             @default(true)
+  country            String              @default("CO")
+  city               City?
+  serviceSlug        String?
+  partnerRole        UserRole?           @default(PARTNER)
+  riskThreshold      Int?
+  requiredDocuments  String?
+  metadata           String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  evaluations        ComplianceEvaluation[]
+
+  @@index([enabled, country, city])
+}
+
+model ComplianceEvaluation {
+  id              String                     @id @default(cuid())
+  partnerId       String
+  userId          String?
+  ruleId          String?
+  status          ComplianceEvaluationStatus
+  score           Int                        @default(0)
+  findings        String
+  evaluatedBy     String                     @default("system")
+  evaluatedAt     DateTime                   @default(now())
+  expiresAt       DateTime?
+  metadata        String?
+  partner         PartnerProfile             @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  user            User?                      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  rule            ComplianceRule?            @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+
+  @@index([partnerId, evaluatedAt])
+  @@index([status, evaluatedAt])
+}
+
+model TaxDocument {
+  id               String            @id @default(cuid())
+  documentNumber   String            @unique
+  type             TaxDocumentType
+  status           TaxDocumentStatus @default(PENDING)
+  paymentId        String?
+  userId           String?
+  subtotalAmount   Float
+  taxAmount        Float             @default(0)
+  withholdingAmount Float            @default(0)
+  totalAmount      Float
+  currency         String            @default("COP")
+  issueDate        DateTime?
+  dueDate          DateTime?
+  sentAt           DateTime?
+  generatedBy      String?
+  metadata         String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  payment          Payment?          @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  user             User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([type, status, createdAt])
+  @@index([paymentId])
 }
 
 model FeatureFlag {
@@ -858,6 +1021,65 @@ enum AdminCaseStatus {
   IN_PROGRESS
   RESOLVED
   CLOSED
+}
+
+enum SupportQueue {
+  GENERAL
+  PAYMENTS
+  REFUNDS
+  RISK
+  KYC
+}
+
+enum PaymentIncidentType {
+  PAYMENT_FAILURE
+  CHARGEBACK
+  REFUND_DISPUTE
+  PAYOUT_FAILURE
+}
+
+enum PaymentIncidentStatus {
+  OPEN
+  INVESTIGATING
+  ACTION_REQUIRED
+  RESOLVED
+  CLOSED
+}
+
+enum RefundStatus {
+  REQUESTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  PROCESSED
+  FAILED
+}
+
+enum ComplianceRuleType {
+  DOCUMENT_REQUIRED
+  RISK_SCORE_THRESHOLD
+  CITY_RESTRICTION
+  SERVICE_RESTRICTION
+}
+
+enum ComplianceEvaluationStatus {
+  PASS
+  WARNING
+  FAIL
+}
+
+enum TaxDocumentType {
+  INVOICE
+  CREDIT_NOTE
+  WITHHOLDING_CERTIFICATE
+}
+
+enum TaxDocumentStatus {
+  PENDING
+  GENERATED
+  SENT
+  CANCELLED
+  ERROR
 }
 
 enum CmsStatus {
