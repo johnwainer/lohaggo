@@ -41,6 +41,12 @@ const envSchema = z.object({
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().optional(),
   TURNSTILE_SECRET_KEY: z.string().optional(),
   SECURITY_INTERNAL_TOKEN: z.string().optional(),
+  TWILIO_ACCOUNT_SID: z.string().optional(),
+  TWILIO_AUTH_TOKEN: z.string().optional(),
+  TWILIO_SMS_FROM: z.string().optional(),
+  TWILIO_WHATSAPP_FROM: z.string().optional(),
+  SENDGRID_API_KEY: z.string().optional(),
+  SENDGRID_FROM_EMAIL: z.string().email().optional(),
 })
 
 type Env = z.infer<typeof envSchema>
@@ -74,6 +80,12 @@ function validateEnv(): Env {
       NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
       TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY,
       SECURITY_INTERNAL_TOKEN: process.env.SECURITY_INTERNAL_TOKEN,
+      TWILIO_ACCOUNT_SID: process.env.TWILIO_ACCOUNT_SID,
+      TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN,
+      TWILIO_SMS_FROM: process.env.TWILIO_SMS_FROM,
+      TWILIO_WHATSAPP_FROM: process.env.TWILIO_WHATSAPP_FROM,
+      SENDGRID_API_KEY: process.env.SENDGRID_API_KEY,
+      SENDGRID_FROM_EMAIL: process.env.SENDGRID_FROM_EMAIL,
     }
   }
 
@@ -87,6 +99,12 @@ function validateEnv(): Env {
       NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
       TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY,
       SECURITY_INTERNAL_TOKEN: process.env.SECURITY_INTERNAL_TOKEN,
+      TWILIO_ACCOUNT_SID: process.env.TWILIO_ACCOUNT_SID,
+      TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN,
+      TWILIO_SMS_FROM: process.env.TWILIO_SMS_FROM,
+      TWILIO_WHATSAPP_FROM: process.env.TWILIO_WHATSAPP_FROM,
+      SENDGRID_API_KEY: process.env.SENDGRID_API_KEY,
+      SENDGRID_FROM_EMAIL: process.env.SENDGRID_FROM_EMAIL,
     }
 
     const parsed = envSchema.parse(envWithFallbacks)

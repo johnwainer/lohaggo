@@ -1,0 +1,179 @@
+import type { MessagingCampaign, MessagingCampaignStatus, MessagingChannel, UserRole } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
+import { renderTextTemplate } from '@/lib/messaging/template'
+import { sendMessageViaProvider } from '@/lib/messaging/providers'
+
+function resolveDestination(channel: MessagingChannel, user: { email: string; phone: string | null }) {
+  if (channel === 'EMAIL') return user.email
+  return user.phone
+}
+
+function resolveRecipientRole(targetRole: UserRole | null) {
+  if (!targetRole) return { in: ['CLIENT', 'PARTNER'] as UserRole[] }
+  return targetRole
+}
+
+export async function processCampaign(campaignId: string) {
+  const campaign = await prisma.messagingCampaign.findUnique({
+    where: { id: campaignId },
+    include: { template: true },
+  })
+
+  if (!campaign) {
+    throw new Error('Campaign not found')
+  }
+
+  if (campaign.status === 'SENT') return campaign
+
+  await prisma.messagingCampaign.update({
+    where: { id: campaign.id },
+    data: { status: 'PROCESSING', startedAt: new Date() },
+  })
+
+  const users = await prisma.user.findMany({
+    where: {
+      role: resolveRecipientRole(campaign.targetRole),
+      isActive: true,
+      ...(campaign.targetCity
+        ? {
+            OR: [
+              { role: 'CLIENT', addresses: { some: { city: campaign.targetCity, isActive: true } } },
+              { role: 'PARTNER', partnerProfile: { city: campaign.targetCity } },
+            ],
+          }
+        : {}),
+    },
+    select: { id: true, name: true, email: true, phone: true },
+    take: 2000,
+  })
+
+  let sent = 0
+  let failed = 0
+
+  const abConfig = campaign.abTestEnabled && campaign.abTestConfig
+    ? (JSON.parse(campaign.abTestConfig) as {
+        variants?: Array<{
+          key: string
+          subject?: string
+          body: string
+          allocation: number
+        }>
+      })
+    : null
+
+  function pickAbVariant(seed: string) {
+    const variants = abConfig?.variants || []
+    if (!variants.length) return null
+    const total = variants.reduce((sum, variant) => sum + Math.max(0, Number(variant.allocation || 0)), 0)
+    if (total <= 0) return variants[0]
+    let hash = 0
+    for (let i = 0; i < seed.length; i += 1) hash = (hash * 31 + seed.charCodeAt(i)) % 100000
+    let roll = hash % total
+    for (const variant of variants) {
+      const weight = Math.max(0, Number(variant.allocation || 0))
+      if (roll < weight) return variant
+      roll -= weight
+    }
+    return variants[0]
+  }
+
+  for (const user of users) {
+    const destination = resolveDestination(campaign.channel, user)
+    if (!destination) {
+      failed += 1
+      await prisma.messagingDelivery.create({
+        data: {
+          campaignId: campaign.id,
+          userId: user.id,
+          channel: campaign.channel,
+          destination: '',
+          status: 'FAILED',
+          provider: 'internal',
+          errorCode: 'MISSING_DESTINATION',
+          errorMessage: 'User does not have destination configured for this channel',
+        },
+      })
+      continue
+    }
+
+    const optedOut = await prisma.messagingOptOut.findFirst({
+      where: {
+        channel: campaign.channel,
+        destination,
+        isActive: true,
+      },
+    })
+
+    if (optedOut) {
+      await prisma.messagingDelivery.create({
+        data: {
+          campaignId: campaign.id,
+          userId: user.id,
+          channel: campaign.channel,
+          destination,
+          status: 'UNSUBSCRIBED',
+          provider: 'internal',
+          errorCode: 'OPTOUT',
+          errorMessage: 'Recipient opted out',
+        },
+      })
+      continue
+    }
+
+    const variant = pickAbVariant(`${campaign.id}:${user.id}`)
+    const bodyTemplate = variant?.body || campaign.template?.body || campaign.customBody
+    const subjectTemplate = variant?.subject || campaign.template?.subject || campaign.customSubject
+    const body = renderTextTemplate(bodyTemplate, {
+      user_name: user.name,
+      user_email: user.email,
+    })
+    const subject = subjectTemplate
+      ? renderTextTemplate(subjectTemplate, { user_name: user.name, user_email: user.email })
+      : null
+
+    const result = await sendMessageViaProvider({
+      channel: campaign.channel,
+      to: destination,
+      subject,
+      body,
+    })
+
+    await prisma.messagingDelivery.create({
+      data: {
+        campaignId: campaign.id,
+        userId: user.id,
+        channel: campaign.channel,
+        destination,
+        status: result.ok ? 'SENT' : 'FAILED',
+        provider: result.provider,
+        providerMessageId: result.providerMessageId || null,
+        errorCode: result.errorCode || null,
+        errorMessage: result.errorMessage || null,
+        sentAt: result.ok ? new Date() : null,
+        abVariant: variant?.key || null,
+        metadata: JSON.stringify({
+          ...(variant ? { abVariant: variant.key } : {}),
+        }),
+      },
+    })
+
+    if (result.ok) sent += 1
+    else failed += 1
+  }
+
+  const finalStatus: MessagingCampaignStatus =
+    failed === 0 ? 'SENT' : sent === 0 ? 'FAILED' : 'PARTIAL'
+
+  return prisma.messagingCampaign.update({
+    where: { id: campaign.id },
+    data: {
+      status: finalStatus,
+      totalRecipients: users.length,
+      totalSent: sent,
+      totalFailed: failed,
+      completedAt: new Date(),
+    },
+  })
+}
+
+export type CampaignWithTemplate = MessagingCampaign & { template: { id: string } | null }

@@ -1,0 +1,127 @@
+import type { MessagingChannel } from '@prisma/client'
+import { env } from '@/lib/env'
+
+type SendParams = {
+  channel: MessagingChannel
+  to: string
+  subject?: string | null
+  body: string
+}
+
+type SendResult = {
+  ok: boolean
+  provider: string
+  providerMessageId?: string
+  errorCode?: string
+  errorMessage?: string
+}
+
+function normalizePhone(phone: string) {
+  const clean = phone.replace(/[^\d+]/g, '')
+  if (clean.startsWith('+')) return clean
+  if (clean.startsWith('57')) return `+${clean}`
+  return `+57${clean}`
+}
+
+async function sendByTwilioSms(to: string, body: string): Promise<SendResult> {
+  if (!env.TWILIO_ACCOUNT_SID || !env.TWILIO_AUTH_TOKEN || !env.TWILIO_SMS_FROM) {
+    return { ok: false, provider: 'twilio-sms', errorCode: 'CONFIG', errorMessage: 'Twilio SMS not configured' }
+  }
+
+  const endpoint = `https://api.twilio.com/2010-04-01/Accounts/${env.TWILIO_ACCOUNT_SID}/Messages.json`
+  const payload = new URLSearchParams({
+    To: normalizePhone(to),
+    From: env.TWILIO_SMS_FROM,
+    Body: body,
+  })
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${Buffer.from(`${env.TWILIO_ACCOUNT_SID}:${env.TWILIO_AUTH_TOKEN}`).toString('base64')}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: payload.toString(),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    return {
+      ok: false,
+      provider: 'twilio-sms',
+      errorCode: String(data?.code || response.status),
+      errorMessage: String(data?.message || 'Twilio SMS error'),
+    }
+  }
+
+  return { ok: true, provider: 'twilio-sms', providerMessageId: data?.sid }
+}
+
+async function sendByTwilioWhatsApp(to: string, body: string): Promise<SendResult> {
+  if (!env.TWILIO_ACCOUNT_SID || !env.TWILIO_AUTH_TOKEN || !env.TWILIO_WHATSAPP_FROM) {
+    return { ok: false, provider: 'twilio-whatsapp', errorCode: 'CONFIG', errorMessage: 'Twilio WhatsApp not configured' }
+  }
+
+  const endpoint = `https://api.twilio.com/2010-04-01/Accounts/${env.TWILIO_ACCOUNT_SID}/Messages.json`
+  const payload = new URLSearchParams({
+    To: `whatsapp:${normalizePhone(to)}`,
+    From: env.TWILIO_WHATSAPP_FROM.startsWith('whatsapp:')
+      ? env.TWILIO_WHATSAPP_FROM
+      : `whatsapp:${env.TWILIO_WHATSAPP_FROM}`,
+    Body: body,
+  })
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${Buffer.from(`${env.TWILIO_ACCOUNT_SID}:${env.TWILIO_AUTH_TOKEN}`).toString('base64')}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: payload.toString(),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    return {
+      ok: false,
+      provider: 'twilio-whatsapp',
+      errorCode: String(data?.code || response.status),
+      errorMessage: String(data?.message || 'Twilio WhatsApp error'),
+    }
+  }
+
+  return { ok: true, provider: 'twilio-whatsapp', providerMessageId: data?.sid }
+}
+
+async function sendBySendgridEmail(to: string, subject: string | null | undefined, body: string): Promise<SendResult> {
+  if (!env.SENDGRID_API_KEY || !env.SENDGRID_FROM_EMAIL) {
+    return { ok: false, provider: 'sendgrid-email', errorCode: 'CONFIG', errorMessage: 'SendGrid not configured' }
+  }
+
+  const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${env.SENDGRID_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      personalizations: [{ to: [{ email: to }] }],
+      from: { email: env.SENDGRID_FROM_EMAIL },
+      subject: subject || 'LoHaggo',
+      content: [{ type: 'text/html', value: body.replace(/\n/g, '<br/>') }],
+    }),
+  })
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    return { ok: false, provider: 'sendgrid-email', errorCode: String(response.status), errorMessage: text || 'SendGrid error' }
+  }
+
+  return { ok: true, provider: 'sendgrid-email', providerMessageId: response.headers.get('x-message-id') || undefined }
+}
+
+export async function sendMessageViaProvider(params: SendParams): Promise<SendResult> {
+  if (params.channel === 'SMS') return sendByTwilioSms(params.to, params.body)
+  if (params.channel === 'WHATSAPP') return sendByTwilioWhatsApp(params.to, params.body)
+  return sendBySendgridEmail(params.to, params.subject, params.body)
+}

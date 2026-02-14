@@ -168,6 +168,14 @@ VAPID_PRIVATE_KEY="tu-vapid-private-key"
 # Anti-bot (Cloudflare Turnstile)
 NEXT_PUBLIC_TURNSTILE_SITE_KEY="tu-turnstile-site-key"
 TURNSTILE_SECRET_KEY="tu-turnstile-secret-key"
+
+# Mensajería omnicanal (Admin)
+TWILIO_ACCOUNT_SID="tu-twilio-account-sid"
+TWILIO_AUTH_TOKEN="tu-twilio-auth-token"
+TWILIO_SMS_FROM="+1xxxxxxxxxx"
+TWILIO_WHATSAPP_FROM="whatsapp:+14155238886"
+SENDGRID_API_KEY="tu-sendgrid-api-key"
+SENDGRID_FROM_EMAIL="no-reply@lohaggo.com"
 ```
 
 3. **Configurar la base de datos**
@@ -239,6 +247,12 @@ VAPID_PRIVATE_KEY=tu-vapid-private-key
 NEXT_PUBLIC_TURNSTILE_SITE_KEY=tu-turnstile-site-key
 TURNSTILE_SECRET_KEY=tu-turnstile-secret-key
 SECURITY_INTERNAL_TOKEN=token-interno-largo-y-aleatorio
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxx
+TWILIO_AUTH_TOKEN=xxxxxxxxxxxxxxxxxxxx
+TWILIO_SMS_FROM=+1xxxxxxxxxx
+TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
+SENDGRID_API_KEY=SG.xxxxxxxxxxxxxxxxxxxx
+SENDGRID_FROM_EMAIL=no-reply@lohaggo.com
 ```
 
 **Importante**: Marcar las 3 opciones (Production, Preview, Development) para cada variable.
@@ -259,6 +273,33 @@ Antes del primer deploy productivo, ejecutar en este orden en SQL Editor de Supa
 2. `docs/sql/bank_catalog_seed.sql`
 3. `docs/sql/security_monitoring.sql`
 4. `docs/sql/launch_blockers_ops.sql`
+5. `docs/sql/admin_messaging.sql`
+
+### 8. Proveedores recomendados para comunicaciones
+
+- `SMS y WhatsApp`: Twilio Messaging API (rápido de integrar y con webhooks de estado).
+- `Email`: SendGrid (tracking de entregas/open/click y buena reputación de envío).
+- `Alternativa WhatsApp enterprise`: Meta WhatsApp Cloud API (si luego quieres migrar desde Twilio).
+
+### 9. Configuración de webhooks de mensajería
+
+- Twilio Status Callback URL:
+  - `https://tu-dominio.com/api/messaging/webhook/twilio?token=${SECURITY_INTERNAL_TOKEN}`
+- SendGrid Event Webhook URL:
+  - `https://tu-dominio.com/api/messaging/webhook/sendgrid?token=${SECURITY_INTERNAL_TOKEN}`
+
+Ambos endpoints actualizan métricas de entrega/apertura/click/fallo en campañas admin.
+
+### 10. Envío programado (cron) y A/B testing
+
+- Endpoint cron interno:
+  - `POST /api/messaging/cron/run-scheduled?token=${SECURITY_INTERNAL_TOKEN}`
+- Recomendación Vercel Cron:
+  - cada 5 minutos, llamar ese endpoint
+- A/B testing:
+  - Crear campaña con `Activar A/B test`
+  - Definir variante A/B, contenido y split (%A / %B)
+  - Métricas por variante en `Admin > Comunicaciones > Métricas`
 
 ### 8. QA de regresión crítica (recomendado antes de cada release)
 

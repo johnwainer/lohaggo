@@ -33,6 +33,7 @@ const targets = [
   { id: 'services', group: 'servicios-y-ubicaciones', expected: ['/admin?section=services'] },
   { id: 'cities', group: 'servicios-y-ubicaciones', expected: ['/admin?section=cities'] },
   { id: 'ads', group: 'marketing', expected: ['/admin/ads'] },
+  { id: 'communications', group: 'marketing', expected: ['/admin/communications'] },
   { id: 'search-analytics', group: 'marketing', expected: ['/admin/search-analytics'] },
   { id: 'platform-control', group: 'marketing', expected: ['/admin/platform-control'] },
   { id: 'commissions', group: 'configuracion', expected: ['/admin?section=commissions'] },

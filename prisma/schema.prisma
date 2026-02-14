@@ -27,6 +27,9 @@ model User {
   addresses             Address[]
   bookings              Booking[]
   notifications         Notification[]
+  messagingCampaigns    MessagingCampaign[]      @relation("MessagingCampaignCreator")
+  messagingDeliveries   MessagingDelivery[]
+  messagingOptOuts      MessagingOptOut[]
   partnerProfile        PartnerProfile?
   payments              Payment[]
   paymentMethods        PaymentMethod[]
@@ -230,6 +233,95 @@ model Notification {
 
   @@index([userId, read])
   @@index([createdAt])
+}
+
+model MessagingTemplate {
+  id          String           @id @default(cuid())
+  key         String           @unique
+  name        String
+  channel     MessagingChannel
+  subject     String?
+  body        String
+  isActive    Boolean          @default(true)
+  metadata    String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  campaigns   MessagingCampaign[]
+
+  @@index([channel, isActive])
+}
+
+model MessagingCampaign {
+  id              String                 @id @default(cuid())
+  name            String
+  channel         MessagingChannel
+  status          MessagingCampaignStatus @default(DRAFT)
+  templateId      String?
+  targetRole      UserRole?
+  targetCity      City?
+  customSubject   String?
+  customBody      String
+  scheduledAt     DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  totalRecipients Int                    @default(0)
+  totalSent       Int                    @default(0)
+  totalFailed     Int                    @default(0)
+  createdById     String?
+  metadata        String?
+  abTestEnabled   Boolean                @default(false)
+  abTestConfig    String?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  template        MessagingTemplate?     @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  createdBy       User?                  @relation("MessagingCampaignCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  deliveries      MessagingDelivery[]
+
+  @@index([status, channel, createdAt])
+  @@index([targetRole, targetCity])
+}
+
+model MessagingDelivery {
+  id                String                @id @default(cuid())
+  campaignId        String
+  userId            String
+  channel           MessagingChannel
+  destination       String
+  status            MessagingDeliveryStatus @default(PENDING)
+  provider          String
+  providerMessageId String?
+  errorCode         String?
+  errorMessage      String?
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  openedAt          DateTime?
+  clickedAt         DateTime?
+  metadata          String?
+  abVariant         String?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  campaign          MessagingCampaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  user              User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId, status])
+  @@index([providerMessageId])
+  @@index([userId, channel, createdAt])
+}
+
+model MessagingOptOut {
+  id          String           @id @default(cuid())
+  userId      String?
+  channel     MessagingChannel
+  destination String
+  reason      String?
+  source      String           @default("user")
+  isActive    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  user        User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([channel, destination])
+  @@index([userId, channel, isActive])
 }
 
 model Address {
@@ -1085,4 +1177,30 @@ enum TaxDocumentStatus {
 enum CmsStatus {
   DRAFT
   PUBLISHED
+}
+
+enum MessagingChannel {
+  SMS
+  WHATSAPP
+  EMAIL
+}
+
+enum MessagingCampaignStatus {
+  DRAFT
+  SCHEDULED
+  PROCESSING
+  SENT
+  PARTIAL
+  FAILED
+  CANCELLED
+}
+
+enum MessagingDeliveryStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+  OPENED
+  CLICKED
+  UNSUBSCRIBED
 }
