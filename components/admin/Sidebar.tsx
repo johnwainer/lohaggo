@@ -1,8 +1,7 @@
 'use client'
 
 import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, LogOut, Menu, X, Shield, DollarSign, Wallet, MapPin, CreditCard, ChevronDown, ChevronRight, Percent, Megaphone, Activity, Building2 } from 'lucide-react'
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import { useEffect, useState } from 'react'
 
@@ -29,6 +28,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
   const [isOpen, setIsOpen] = useState(false)
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null)
   const pathname = usePathname()
+  const router = useRouter()
 
   const menuGroups: MenuGroup[] = [
     {
@@ -112,6 +112,19 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
     setExpandedGroup((prev) => (prev === groupKey ? null : groupKey))
   }
 
+  const handleItemNavigation = (item: MenuItem) => {
+    onSectionChange?.(item.id)
+    const href = getItemHref(item)
+
+    if (!item.isLink && pathname === '/admin') {
+      router.replace(href, { scroll: false })
+    } else {
+      router.push(href)
+    }
+
+    setIsOpen(false)
+  }
+
   return (
     <>
       {/* Mobile Menu Button */}
@@ -186,16 +199,11 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
                       const isActive = activeSection === item.id
 
                       return (
-                        <Link
+                        <button
                           key={item.id}
-                          href={getItemHref(item)}
-                          replace={!item.isLink && pathname === '/admin'}
-                          onClick={() => {
-                            onSectionChange?.(item.id)
-                            setIsOpen(false)
-                          }}
+                          onClick={() => handleItemNavigation(item)}
                           data-testid={getItemTestId(item.id)}
-                          className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 sm:py-3.5 rounded-lg sm:rounded-xl mb-1.5 sm:mb-2 transition-all font-semibold text-sm sm:text-base ${
+                          className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 sm:py-3.5 rounded-lg sm:rounded-xl mb-1.5 sm:mb-2 transition-all font-semibold text-sm sm:text-base text-left ${
                             isActive
                               ? 'bg-white text-primary-600 shadow-lg scale-105'
                               : 'text-white/90 hover:bg-white/15 hover:text-white'
@@ -203,7 +211,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
                         >
                           <Icon size={18} className="sm:w-5 sm:h-5 flex-shrink-0" />
                           <span>{item.label}</span>
-                        </Link>
+                        </button>
                       )
                     })}
                   </div>
