@@ -5,6 +5,7 @@ import { Bell, X, CheckCircle, AlertCircle } from 'lucide-react'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
 import { trackPwaEvent } from '@/lib/pwa/telemetry-client'
 import { PWA_EVENTS } from '@/lib/pwa/events'
+import { useSession } from 'next-auth/react'
 
 interface NotificationPermissionPromptProps {
   onClose?: () => void
@@ -15,6 +16,7 @@ export default function NotificationPermissionPrompt({
   onClose,
   autoShow = true
 }: NotificationPermissionPromptProps) {
+  const { data: session } = useSession()
   const [isVisible, setIsVisible] = useState(false)
   const [hasInteracted, setHasInteracted] = useState(false)
   const {
@@ -72,7 +74,7 @@ export default function NotificationPermissionPrompt({
     onClose?.()
   }
 
-  if (!isVisible || !isSupported || isSubscribed || permission === 'denied') {
+  if (session?.user?.id || !isVisible || !isSupported || isSubscribed || permission === 'denied') {
     return null
   }
 

@@ -3,12 +3,24 @@
 import { useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { Bell, Download, Smartphone, X } from 'lucide-react'
+import { Bell, Smartphone, X } from 'lucide-react'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
 import { PWA_EVENTS } from '@/lib/pwa/events'
 import { trackPwaEvent } from '@/lib/pwa/telemetry-client'
 
-const REMINDER_INTERVAL_MS = 24 * 60 * 60 * 1000
+type PromptStage = 'INSTALL' | 'PUSH'
+type PromptFormat = 'BANNER' | 'CARD'
+
+type PromptPayload = {
+  shouldShow: boolean
+  stage?: PromptStage
+  format?: PromptFormat
+  variant?: 'A' | 'B'
+  title?: string
+  description?: string
+  cta?: string
+  context?: string
+}
 
 function isStandalone() {
   if (typeof window === 'undefined') return false
@@ -17,8 +29,7 @@ function isStandalone() {
 
 function isIos() {
   if (typeof window === 'undefined') return false
-  const ua = navigator.userAgent.toLowerCase()
-  return /iphone|ipad|ipod/.test(ua)
+  return /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase())
 }
 
 export default function PWAOnboardingPrompt() {
@@ -28,49 +39,17 @@ export default function PWAOnboardingPrompt() {
 
   const [visible, setVisible] = useState(false)
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
-  const [installed, setInstalled] = useState(false)
+  const [payload, setPayload] = useState<PromptPayload | null>(null)
 
   const { isSupported, isSubscribed, permission, subscribeToPush, isLoading: pushLoading } = usePushNotifications()
 
   const userRole = session?.user?.role
   const isAdmin = userRole === 'ADMIN'
+
   const shouldSkipPath = useMemo(
     () => ['/login', '/register', '/admin', '/download/android', '/download/ios'].some((path) => pathname.startsWith(path)),
     [pathname]
   )
-
-  useEffect(() => {
-    if (isAdmin || shouldSkipPath || !session?.user?.id) {
-      setVisible(false)
-      return
-    }
-
-    const currentInstalled = isStandalone()
-    setInstalled(currentInstalled)
-
-    if (currentInstalled && (isSubscribed || permission === 'granted')) {
-      setVisible(false)
-      return
-    }
-
-    const key = `pwa-onboarding-last-dismissed-${session.user.id}`
-    const forced = localStorage.getItem('pwa-onboarding-force') === '1'
-    const lastDismissed = Number(localStorage.getItem(key) || '0')
-    const hasCooldown = Date.now() - lastDismissed < REMINDER_INTERVAL_MS
-
-    if (!hasCooldown || forced) {
-      const timer = setTimeout(() => {
-        setVisible(true)
-        localStorage.removeItem('pwa-onboarding-force')
-        trackPwaEvent({
-          eventName: PWA_EVENTS.INSTALL_PROMPT_SHOWN,
-          source: 'post_auth_onboarding',
-          role: userRole as 'CLIENT' | 'PARTNER' | 'ADMIN',
-        })
-      }, 1200)
-      return () => clearTimeout(timer)
-    }
-  }, [isAdmin, shouldSkipPath, session?.user?.id, isSubscribed, permission, installed, userRole])
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (event: Event) => {
@@ -82,29 +61,100 @@ export default function PWAOnboardingPrompt() {
     return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
   }, [])
 
-  const closePrompt = () => {
-    if (session?.user?.id) {
-      localStorage.setItem(`pwa-onboarding-last-dismissed-${session.user.id}`, Date.now().toString())
+  useEffect(() => {
+    let mounted = true
+
+    async function loadPrompt() {
+      if (!session?.user?.id || isAdmin || shouldSkipPath) {
+        setVisible(false)
+        return
+      }
+
+      const standalone = isStandalone()
+      if (standalone && (isSubscribed || permission === 'granted')) {
+        setVisible(false)
+        return
+      }
+
+      const res = await fetch('/api/pwa/adoption/next-prompt', { cache: 'no-store' }).catch(() => null)
+      if (!res?.ok || !mounted) return
+
+      const data: PromptPayload = await res.json()
+      if (!data.shouldShow || !data.stage) {
+        setVisible(false)
+        return
+      }
+
+      if (data.stage === 'INSTALL' && standalone) {
+        return
+      }
+
+      if (data.stage === 'PUSH' && (permission === 'granted' || isSubscribed)) {
+        return
+      }
+
+      setPayload(data)
+      setVisible(true)
+
+      await fetch('/api/pwa/adoption/interaction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'shown', stage: data.stage }),
+      }).catch(() => undefined)
+
+      trackPwaEvent({
+        eventName: PWA_EVENTS.INSTALL_PROMPT_SHOWN,
+        source: `adoption_${data.stage.toLowerCase()}_${(data.format || 'banner').toLowerCase()}`,
+        role: userRole as 'CLIENT' | 'PARTNER' | 'ADMIN',
+        metadata: { variant: data.variant, context: data.context },
+      })
     }
+
+    loadPrompt().catch(() => undefined)
+    return () => {
+      mounted = false
+    }
+  }, [session?.user?.id, isAdmin, shouldSkipPath, isSubscribed, permission, userRole])
+
+  const dismissPrompt = async () => {
+    if (!payload?.stage) return
     setVisible(false)
+
+    await fetch('/api/pwa/adoption/interaction', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'dismissed', stage: payload.stage }),
+    }).catch(() => undefined)
+
     trackPwaEvent({
       eventName: PWA_EVENTS.INSTALL_PROMPT_DISMISSED,
-      source: 'post_auth_onboarding',
+      source: `adoption_${payload.stage.toLowerCase()}_dismissed`,
       role: userRole as 'CLIENT' | 'PARTNER' | 'ADMIN',
+      metadata: { variant: payload.variant, context: payload.context },
     })
   }
 
   const handleInstall = async () => {
+    if (!payload?.stage) return
+
+    await fetch('/api/pwa/adoption/interaction', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'install_clicked', stage: payload.stage }),
+    }).catch(() => undefined)
+
     trackPwaEvent({
       eventName: PWA_EVENTS.INSTALL_CLICKED,
-      source: 'post_auth_onboarding',
+      source: `adoption_${payload.stage.toLowerCase()}_cta`,
       role: userRole as 'CLIENT' | 'PARTNER' | 'ADMIN',
+      metadata: { variant: payload.variant, context: payload.context },
     })
 
     if (deferredPrompt) {
       deferredPrompt.prompt()
       await deferredPrompt.userChoice
       setDeferredPrompt(null)
+      setVisible(false)
       return
     }
 
@@ -116,63 +166,51 @@ export default function PWAOnboardingPrompt() {
     router.push('/download/android')
   }
 
-  const handleEnablePush = async () => {
-    await subscribeToPush()
+  const handlePush = async () => {
+    if (!payload?.stage) return
+
+    await fetch('/api/pwa/adoption/interaction', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'push_clicked', stage: payload.stage }),
+    }).catch(() => undefined)
+
+    const ok = await subscribeToPush()
+    if (ok) setVisible(false)
   }
 
-  if (!visible || isAdmin || shouldSkipPath) {
-    return null
-  }
+  if (!visible || !payload?.stage || isAdmin || shouldSkipPath) return null
+
+  const icon = payload.stage === 'INSTALL' ? <Smartphone size={16} /> : <Bell size={16} />
+  const action = payload.stage === 'INSTALL' ? handleInstall : handlePush
+  const cta = payload.cta || (payload.stage === 'INSTALL' ? 'Instalar app' : 'Activar notificaciones')
+  const isCard = payload.format === 'CARD'
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 p-4 flex items-end sm:items-center sm:justify-center">
-      <div className="w-full sm:max-w-md bg-white rounded-2xl border shadow-2xl overflow-hidden">
-        <div className="bg-gradient-to-r from-primary-600 to-secondary-500 px-4 py-4 text-white">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="text-xs uppercase tracking-wide text-white/80">Onboarding LoHaggo</p>
-              <h3 className="text-lg font-bold">Activa tu experiencia completa</h3>
+    <div className="fixed bottom-20 left-3 right-3 z-40 md:left-auto md:right-4 md:bottom-6 md:w-[380px]">
+      <div className={`rounded-2xl border bg-white shadow-lg ${isCard ? 'p-4' : 'p-3'}`}>
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-start gap-2 min-w-0">
+            <div className="mt-0.5 text-primary-600">{icon}</div>
+            <div className="min-w-0">
+              <p className={`text-gray-900 ${isCard ? 'text-sm font-bold' : 'text-sm font-semibold'}`}>{payload.title}</p>
+              <p className="text-xs text-gray-600 mt-1">{payload.description}</p>
             </div>
-            <button onClick={closePrompt} aria-label="Cerrar" className="text-white/80 hover:text-white">
-              <X size={18} />
-            </button>
           </div>
+          <button onClick={dismissPrompt} className="text-gray-400 hover:text-gray-600" aria-label="Cerrar">
+            <X size={16} />
+          </button>
         </div>
 
-        <div className="p-4 space-y-3">
-          <div className="rounded-xl border p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <Smartphone size={16} className="text-primary-600" />
-              <p className="font-semibold text-sm">1. Instala la PWA</p>
-            </div>
-            <p className="text-xs text-gray-600 mb-3">Abre LoHaggo como app y mejora la velocidad de uso.</p>
-            <button
-              onClick={handleInstall}
-              disabled={installed}
-              className="w-full rounded-lg bg-primary-600 text-white px-3 py-2 text-sm font-semibold disabled:bg-gray-200 disabled:text-gray-500"
-            >
-              {installed ? 'App instalada' : 'Instalar app'}
-            </button>
-          </div>
-
-          <div className="rounded-xl border p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <Bell size={16} className="text-secondary-600" />
-              <p className="font-semibold text-sm">2. Activa notificaciones</p>
-            </div>
-            <p className="text-xs text-gray-600 mb-3">Recibe alertas de solicitudes, reservas, pagos y campañas en tiempo real.</p>
-            <button
-              onClick={handleEnablePush}
-              disabled={!isSupported || isSubscribed || permission === 'granted' || pushLoading}
-              className="w-full rounded-lg bg-secondary-600 text-white px-3 py-2 text-sm font-semibold disabled:bg-gray-200 disabled:text-gray-500"
-            >
-              {permission === 'granted' || isSubscribed ? 'Notificaciones activas' : pushLoading ? 'Activando...' : 'Activar notificaciones'}
-            </button>
-          </div>
-
-          <button onClick={closePrompt} className="w-full rounded-lg border px-3 py-2 text-sm font-medium text-gray-700">
-            Recordarmelo luego
+        <div className="mt-3 flex items-center gap-2">
+          <button
+            onClick={action}
+            disabled={payload.stage === 'PUSH' && (!isSupported || isSubscribed || permission === 'granted' || pushLoading)}
+            className="rounded-lg bg-primary-600 text-white px-3 py-2 text-xs font-semibold disabled:bg-gray-200 disabled:text-gray-500"
+          >
+            {payload.stage === 'PUSH' && pushLoading ? 'Activando...' : cta}
           </button>
+          <button onClick={dismissPrompt} className="rounded-lg border px-3 py-2 text-xs text-gray-600">Luego</button>
         </div>
       </div>
     </div>

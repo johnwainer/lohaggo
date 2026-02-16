@@ -9,72 +9,73 @@ datasource db {
 }
 
 model User {
-  id                    String           @id @default(cuid())
-  email                 String           @unique
-  name                  String
-  password              String
-  phone                 String?
-  image                 String?
-  role                  UserRole         @default(CLIENT)
-  isActive              Boolean          @default(true)
-  pushSubscription      String?
-  clientRating          Float            @default(0)
-  clientTotalReviews    Int              @default(0)
-  completedServicesCount Int             @default(0)
-  createdAt             DateTime         @default(now())
-  updatedAt             DateTime         @updatedAt
-  mercadopagoCustomerId String?          @unique
-  addresses             Address[]
-  bookings              Booking[]
-  notifications         Notification[]
-  messagingCampaigns    MessagingCampaign[]      @relation("MessagingCampaignCreator")
-  messagingDeliveries   MessagingDelivery[]
-  messagingOptOuts      MessagingOptOut[]
-  partnerProfile        PartnerProfile?
-  payments              Payment[]
-  paymentMethods        PaymentMethod[]
-  serviceRequests       ServiceRequest[]
-  clientChats           Chat[]           @relation("ClientChats")
-  favoritePartners      FavoritePartner[]
-  favoriteServices      FavoriteService[]
-  searchHistory         SearchHistory[]
-  supportCases          AdminSupportCase[]
-  fraudSignals          FraudSignal[]
-  paymentIncidents      PaymentIncident[]
-  refundCases           RefundCase[]
-  taxDocuments          TaxDocument[]
-  complianceEvaluations ComplianceEvaluation[]
-  pwaTelemetryEvents    PwaTelemetryEvent[]
+  id                     String                 @id @default(cuid())
+  email                  String                 @unique
+  name                   String
+  password               String
+  phone                  String?
+  image                  String?
+  role                   UserRole               @default(CLIENT)
+  isActive               Boolean                @default(true)
+  pushSubscription       String?
+  clientRating           Float                  @default(0)
+  clientTotalReviews     Int                    @default(0)
+  completedServicesCount Int                    @default(0)
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+  mercadopagoCustomerId  String?                @unique
+  addresses              Address[]
+  bookings               Booking[]
+  notifications          Notification[]
+  messagingCampaigns     MessagingCampaign[]    @relation("MessagingCampaignCreator")
+  messagingDeliveries    MessagingDelivery[]
+  messagingOptOuts       MessagingOptOut[]
+  partnerProfile         PartnerProfile?
+  payments               Payment[]
+  paymentMethods         PaymentMethod[]
+  serviceRequests        ServiceRequest[]
+  clientChats            Chat[]                 @relation("ClientChats")
+  favoritePartners       FavoritePartner[]
+  favoriteServices       FavoriteService[]
+  searchHistory          SearchHistory[]
+  supportCases           AdminSupportCase[]
+  fraudSignals           FraudSignal[]
+  paymentIncidents       PaymentIncident[]
+  refundCases            RefundCase[]
+  taxDocuments           TaxDocument[]
+  complianceEvaluations  ComplianceEvaluation[]
+  pwaTelemetryEvents     PwaTelemetryEvent[]
+  pwaAdoptionProfile     PwaAdoptionProfile?
 }
 
 model PartnerProfile {
-  id           String                 @id @default(cuid())
-  userId       String                 @unique
-  bio          String?
-  rating       Float                  @default(0)
-  totalReviews Int                    @default(0)
-  completedServicesCount Int          @default(0)
-  isActive     Boolean                @default(true)
-  verified     Boolean                @default(false)
-  city         City                   @default(MEDELLIN)
-  createdAt    DateTime               @default(now())
-  updatedAt    DateTime               @updatedAt
-  availability Availability[]
-  bookings     Booking[]
-  achievements PartnerAchievement[]
-  user         User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  services     PartnerService[]
-  payouts      Payout[]
-  proposals    Proposal[]
-  documents    VerificationDocument[]
-  partnerChats Chat[]                 @relation("PartnerChats")
-  directRequests ServiceRequest[]     @relation("DirectRequests")
-  favoritedBy  FavoritePartner[]
-  fraudSignals FraudSignal[]
-  bankAccounts PartnerBankAccount[]
-  paymentIncidents PaymentIncident[]
-  refundCases      RefundCase[]
-  complianceEvaluations ComplianceEvaluation[]
+  id                     String                 @id @default(cuid())
+  userId                 String                 @unique
+  bio                    String?
+  rating                 Float                  @default(0)
+  totalReviews           Int                    @default(0)
+  completedServicesCount Int                    @default(0)
+  isActive               Boolean                @default(true)
+  verified               Boolean                @default(false)
+  city                   City                   @default(MEDELLIN)
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+  availability           Availability[]
+  bookings               Booking[]
+  achievements           PartnerAchievement[]
+  user                   User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  services               PartnerService[]
+  payouts                Payout[]
+  proposals              Proposal[]
+  documents              VerificationDocument[]
+  partnerChats           Chat[]                 @relation("PartnerChats")
+  directRequests         ServiceRequest[]       @relation("DirectRequests")
+  favoritedBy            FavoritePartner[]
+  fraudSignals           FraudSignal[]
+  bankAccounts           PartnerBankAccount[]
+  paymentIncidents       PaymentIncident[]
+  refundCases            RefundCase[]
+  complianceEvaluations  ComplianceEvaluation[]
 }
 
 model Category {
@@ -88,20 +89,20 @@ model Category {
 }
 
 model Service {
-  id              String           @id @default(cuid())
+  id              String            @id @default(cuid())
   name            String
-  slug            String           @unique
+  slug            String            @unique
   description     String
   icon            String
   categoryId      String
   basePrice       Float
   duration        Int
-  popular         Boolean          @default(false)
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  popular         Boolean           @default(false)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
   bookings        Booking[]
   partners        PartnerService[]
-  category        Category         @relation(fields: [categoryId], references: [id])
+  category        Category          @relation(fields: [categoryId], references: [id])
   serviceRequests ServiceRequest[]
   advertisements  Advertisement[]
   favoritedBy     FavoriteService[]
@@ -135,7 +136,7 @@ model Availability {
 }
 
 model Booking {
-  id                    String          @id @default(cuid())
+  id                    String             @id @default(cuid())
   userId                String
   serviceId             String
   partnerId             String?
@@ -144,17 +145,17 @@ model Booking {
   scheduledTime         String
   address               String
   notes                 String?
-  city                  City            @default(MEDELLIN)
-  status                BookingStatus   @default(PENDING)
+  city                  City               @default(MEDELLIN)
+  status                BookingStatus      @default(PENDING)
   totalPrice            Float
   clientCommissionRate  Float?
   partnerCommissionRate Float?
-  createdAt             DateTime        @default(now())
-  updatedAt             DateTime        @updatedAt
-  partner               PartnerProfile? @relation(fields: [partnerId], references: [id])
-  proposal              Proposal?       @relation(fields: [proposalId], references: [id])
-  service               Service         @relation(fields: [serviceId], references: [id])
-  user                  User            @relation(fields: [userId], references: [id])
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  partner               PartnerProfile?    @relation(fields: [partnerId], references: [id])
+  proposal              Proposal?          @relation(fields: [proposalId], references: [id])
+  service               Service            @relation(fields: [serviceId], references: [id])
+  user                  User               @relation(fields: [userId], references: [id])
   payment               Payment?
   review                Review?
   supportCases          AdminSupportCase[]
@@ -237,23 +238,23 @@ model Notification {
 }
 
 model MessagingTemplate {
-  id          String           @id @default(cuid())
-  key         String           @unique
-  name        String
-  channel     MessagingChannel
-  subject     String?
-  body        String
-  isActive    Boolean          @default(true)
-  metadata    String?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  campaigns   MessagingCampaign[]
+  id        String              @id @default(cuid())
+  key       String              @unique
+  name      String
+  channel   MessagingChannel
+  subject   String?
+  body      String
+  isActive  Boolean             @default(true)
+  metadata  String?
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+  campaigns MessagingCampaign[]
 
   @@index([channel, isActive])
 }
 
 model MessagingCampaign {
-  id              String                 @id @default(cuid())
+  id              String                  @id @default(cuid())
   name            String
   channel         MessagingChannel
   status          MessagingCampaignStatus @default(DRAFT)
@@ -265,17 +266,17 @@ model MessagingCampaign {
   scheduledAt     DateTime?
   startedAt       DateTime?
   completedAt     DateTime?
-  totalRecipients Int                    @default(0)
-  totalSent       Int                    @default(0)
-  totalFailed     Int                    @default(0)
+  totalRecipients Int                     @default(0)
+  totalSent       Int                     @default(0)
+  totalFailed     Int                     @default(0)
   createdById     String?
   metadata        String?
-  abTestEnabled   Boolean                @default(false)
+  abTestEnabled   Boolean                 @default(false)
   abTestConfig    String?
-  createdAt       DateTime               @default(now())
-  updatedAt       DateTime               @updatedAt
-  template        MessagingTemplate?     @relation(fields: [templateId], references: [id], onDelete: SetNull)
-  createdBy       User?                  @relation("MessagingCampaignCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  template        MessagingTemplate?      @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  createdBy       User?                   @relation("MessagingCampaignCreator", fields: [createdById], references: [id], onDelete: SetNull)
   deliveries      MessagingDelivery[]
 
   @@index([status, channel, createdAt])
@@ -283,7 +284,7 @@ model MessagingCampaign {
 }
 
 model MessagingDelivery {
-  id                String                @id @default(cuid())
+  id                String                  @id @default(cuid())
   campaignId        String
   userId            String
   channel           MessagingChannel
@@ -299,10 +300,10 @@ model MessagingDelivery {
   clickedAt         DateTime?
   metadata          String?
   abVariant         String?
-  createdAt         DateTime              @default(now())
-  updatedAt         DateTime              @updatedAt
-  campaign          MessagingCampaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  user              User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  campaign          MessagingCampaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  user              User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([campaignId, status])
   @@index([providerMessageId])
@@ -336,7 +337,7 @@ model MessagingProviderConfig {
 }
 
 model PwaTelemetryEvent {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String?
   sessionId String?
   eventName String
@@ -346,13 +347,37 @@ model PwaTelemetryEvent {
   browser   String?
   source    String?
   metadata  String?
-  createdAt DateTime @default(now())
-  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt DateTime  @default(now())
+  user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([eventName, createdAt])
   @@index([userId, createdAt])
   @@index([role, createdAt])
   @@index([city, createdAt])
+}
+
+model PwaAdoptionProfile {
+  id                   String    @id @default(cuid())
+  userId               String    @unique
+  abVariant            String    @default("A")
+  promptWindowStartAt  DateTime?
+  promptAttemptsWindow Int       @default(0)
+  consecutiveDismisses Int       @default(0)
+  lastPromptAt         DateTime?
+  nextEligibleAt       DateTime?
+  deprioritizedUntil   DateTime?
+  installedAt          DateTime?
+  pushEnabledAt        DateTime?
+  lastContext          String?
+  lastContextAt        DateTime?
+  lastStageShown       String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([nextEligibleAt, deprioritizedUntil])
+  @@index([lastContextAt])
+  @@index([abVariant])
 }
 
 model Address {
@@ -451,18 +476,18 @@ model PaymentMethod {
 }
 
 model Payment {
-  id                   String         @id @default(cuid())
-  bookingId            String         @unique
+  id                   String            @id @default(cuid())
+  bookingId            String            @unique
   userId               String
   paymentMethodId      String?
-  mercadopagoId        String?        @unique
+  mercadopagoId        String?           @unique
   preferenceId         String?
   amount               Float
   serviceAmount        Float
   clientCommission     Float
   clientCommissionRate Float
   totalAmount          Float
-  status               PaymentStatus  @default(PENDING)
+  status               PaymentStatus     @default(PENDING)
   paymentMethodType    String?
   paymentType          String?
   transactionAmount    Float?
@@ -470,11 +495,11 @@ model Payment {
   mercadopagoFee       Float?
   metadata             String?
   paidAt               DateTime?
-  createdAt            DateTime       @default(now())
-  updatedAt            DateTime       @updatedAt
-  booking              Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  paymentMethod        PaymentMethod? @relation(fields: [paymentMethodId], references: [id])
-  user                 User           @relation(fields: [userId], references: [id])
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  booking              Booking           @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  paymentMethod        PaymentMethod?    @relation(fields: [paymentMethodId], references: [id])
+  user                 User              @relation(fields: [userId], references: [id])
   payout               Payout?
   incidents            PaymentIncident[]
   refundCases          RefundCase[]
@@ -487,25 +512,25 @@ model Payment {
 }
 
 model Payout {
-  id                    String         @id @default(cuid())
-  paymentId             String         @unique
+  id                    String              @id @default(cuid())
+  paymentId             String              @unique
   partnerId             String
   bankAccountId         String?
   amount                Float
   partnerCommission     Float
   partnerCommissionRate Float
   netAmount             Float
-  status                PayoutStatus   @default(PENDING)
+  status                PayoutStatus        @default(PENDING)
   externalTransferId    String?
   processorStatus       String?
   processorMessage      String?
   processedBy           String?
   processedAt           DateTime?
   notes                 String?
-  createdAt             DateTime       @default(now())
-  updatedAt             DateTime       @updatedAt
-  partner               PartnerProfile @relation(fields: [partnerId], references: [id])
-  payment               Payment        @relation(fields: [paymentId], references: [id])
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  partner               PartnerProfile      @relation(fields: [partnerId], references: [id])
+  payment               Payment             @relation(fields: [paymentId], references: [id])
   bankAccount           PartnerBankAccount? @relation(fields: [bankAccountId], references: [id], onDelete: SetNull)
 
   @@index([partnerId])
@@ -557,19 +582,19 @@ enum ProposalStatus {
 }
 
 model CityConfig {
-  id               String          @id @default(cuid())
-  name             String          @unique
-  slug             String          @unique
-  status           CityStatus      @default(ACTIVE)
-  order            Int             @default(0)
-  latitude         Float?
-  longitude        Float?
-  isLaunched       Boolean         @default(false)
-  launchDate       DateTime?
-  partnerRegistry  Boolean         @default(false)
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  advertisements   Advertisement[]
+  id              String          @id @default(cuid())
+  name            String          @unique
+  slug            String          @unique
+  status          CityStatus      @default(ACTIVE)
+  order           Int             @default(0)
+  latitude        Float?
+  longitude       Float?
+  isLaunched      Boolean         @default(false)
+  launchDate      DateTime?
+  partnerRegistry Boolean         @default(false)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  advertisements  Advertisement[]
 }
 
 enum CityStatus {
@@ -649,18 +674,18 @@ enum PayoutStatus {
 }
 
 model Chat {
-  id               String          @id @default(cuid())
+  id               String         @id @default(cuid())
   serviceRequestId String
-  proposalId       String          @unique
+  proposalId       String         @unique
   clientId         String
   partnerId        String
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
   messages         ChatMessage[]
-  serviceRequest   ServiceRequest  @relation(fields: [serviceRequestId], references: [id])
-  proposal         Proposal        @relation(fields: [proposalId], references: [id])
-  client           User            @relation("ClientChats", fields: [clientId], references: [id])
-  partner          PartnerProfile  @relation("PartnerChats", fields: [partnerId], references: [id])
+  serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id])
+  proposal         Proposal       @relation(fields: [proposalId], references: [id])
+  client           User           @relation("ClientChats", fields: [clientId], references: [id])
+  partner          PartnerProfile @relation("PartnerChats", fields: [partnerId], references: [id])
 
   @@unique([serviceRequestId, clientId, partnerId])
   @@index([clientId])
@@ -682,18 +707,18 @@ model ChatMessage {
 }
 
 model PaymentConfig {
-  id                        String              @id @default(cuid())
-  environment               PaymentEnvironment  @default(TEST)
-  testAccessToken           String?
-  testPublicKey             String?
-  testClientId              String?
-  testClientSecret          String?
-  productionAccessToken     String?
-  productionPublicKey       String?
-  productionClientId        String?
-  productionClientSecret    String?
-  createdAt                 DateTime            @default(now())
-  updatedAt                 DateTime            @updatedAt
+  id                     String             @id @default(cuid())
+  environment            PaymentEnvironment @default(TEST)
+  testAccessToken        String?
+  testPublicKey          String?
+  testClientId           String?
+  testClientSecret       String?
+  productionAccessToken  String?
+  productionPublicKey    String?
+  productionClientId     String?
+  productionClientSecret String?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
 }
 
 model FavoritePartner {
@@ -723,23 +748,23 @@ model FavoriteService {
 }
 
 model Advertisement {
-  id          String            @id @default(cuid())
+  id          String      @id @default(cuid())
   title       String
   imageUrl    String
   linkUrl     String?
   placement   AdPlacement
   serviceId   String?
   cityId      String
-  active      Boolean           @default(true)
-  startDate   DateTime          @default(now())
+  active      Boolean     @default(true)
+  startDate   DateTime    @default(now())
   endDate     DateTime?
-  priority    Int               @default(0)
-  impressions Int               @default(0)
-  clicks      Int               @default(0)
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  service     Service?          @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  city        CityConfig        @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  priority    Int         @default(0)
+  impressions Int         @default(0)
+  clicks      Int         @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  service     Service?    @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  city        CityConfig  @relation(fields: [cityId], references: [id], onDelete: Cascade)
 
   @@index([placement, active, startDate, endDate])
   @@index([serviceId])
@@ -758,24 +783,24 @@ model SearchHistory {
 }
 
 model PartnerBankAccount {
-  id                    String         @id @default(cuid())
-  partnerId             String
-  bankName              String
-  accountType           String
-  accountNumber         String
-  accountHolderName     String
-  holderDocumentType    String
-  holderDocumentNumber  String
-  city                  String?
-  branchCode            String?
-  isDefault             Boolean        @default(false)
-  isActive              Boolean        @default(true)
-  verifiedAt            DateTime?
+  id                     String         @id @default(cuid())
+  partnerId              String
+  bankName               String
+  accountType            String
+  accountNumber          String
+  accountHolderName      String
+  holderDocumentType     String
+  holderDocumentNumber   String
+  city                   String?
+  branchCode             String?
+  isDefault              Boolean        @default(false)
+  isActive               Boolean        @default(true)
+  verifiedAt             DateTime?
   mercadoPagoRecipientId String?
-  createdAt             DateTime       @default(now())
-  updatedAt             DateTime       @updatedAt
-  partner               PartnerProfile @relation(fields: [partnerId], references: [id], onDelete: Cascade)
-  payouts               Payout[]
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+  partner                PartnerProfile @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  payouts                Payout[]
 
   @@index([partnerId, isDefault, isActive])
   @@index([mercadoPagoRecipientId])
@@ -862,49 +887,49 @@ model SecurityEvent {
 }
 
 model BlockedIp {
-  id           String   @id @default(cuid())
-  ipAddress    String   @unique
-  reason       String
-  blockSource  String   @default("manual")
-  isActive     Boolean  @default(true)
-  blockedBy    String?
-  blockedAt    DateTime @default(now())
-  expiresAt    DateTime?
-  unblockedBy  String?
-  unblockedAt  DateTime?
+  id            String    @id @default(cuid())
+  ipAddress     String    @unique
+  reason        String
+  blockSource   String    @default("manual")
+  isActive      Boolean   @default(true)
+  blockedBy     String?
+  blockedAt     DateTime  @default(now())
+  expiresAt     DateTime?
+  unblockedBy   String?
+  unblockedAt   DateTime?
   unblockReason String?
-  lastSeenAt   DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  lastSeenAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@index([isActive, expiresAt])
   @@index([updatedAt])
 }
 
 model AdminSupportCase {
-  id             String             @id @default(cuid())
-  userId         String?
-  role           UserRole?
-  bookingId      String?
-  requestId      String?
-  priority       AdminSeverity      @default(MEDIUM)
-  status         AdminCaseStatus    @default(OPEN)
-  subject        String
-  description    String
-  assignedTo     String?
-  queue          SupportQueue       @default(GENERAL)
-  slaDueAt       DateTime?
+  id              String          @id @default(cuid())
+  userId          String?
+  role            UserRole?
+  bookingId       String?
+  requestId       String?
+  priority        AdminSeverity   @default(MEDIUM)
+  status          AdminCaseStatus @default(OPEN)
+  subject         String
+  description     String
+  assignedTo      String?
+  queue           SupportQueue    @default(GENERAL)
+  slaDueAt        DateTime?
   firstResponseAt DateTime?
-  resolvedAt     DateTime?
-  closedAt       DateTime?
-  escalationLevel Int               @default(0)
+  resolvedAt      DateTime?
+  closedAt        DateTime?
+  escalationLevel Int             @default(0)
   lastEscalatedAt DateTime?
-  resolutionNote String?
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
-  user           User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
-  booking        Booking?           @relation(fields: [bookingId], references: [id], onDelete: SetNull)
-  serviceRequest ServiceRequest?    @relation(fields: [requestId], references: [id], onDelete: SetNull)
+  resolutionNote  String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  user            User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  booking         Booking?        @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  serviceRequest  ServiceRequest? @relation(fields: [requestId], references: [id], onDelete: SetNull)
 
   @@index([status, priority])
   @@index([userId])
@@ -912,31 +937,31 @@ model AdminSupportCase {
 }
 
 model PaymentIncident {
-  id              String                @id @default(cuid())
-  paymentId       String?
-  bookingId       String?
-  userId          String?
-  partnerId       String?
-  incidentType    PaymentIncidentType
-  status          PaymentIncidentStatus @default(OPEN)
-  severity        AdminSeverity         @default(MEDIUM)
-  source          String                @default("system")
-  title           String
-  description     String
-  rootCause       String?
-  assignedTo      String?
-  slaDueAt        DateTime?
-  acknowledgedAt  DateTime?
-  resolvedAt      DateTime?
-  closedAt        DateTime?
-  metadata        String?
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
-  payment         Payment?              @relation(fields: [paymentId], references: [id], onDelete: SetNull)
-  booking         Booking?              @relation(fields: [bookingId], references: [id], onDelete: SetNull)
-  user            User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
-  partner         PartnerProfile?       @relation(fields: [partnerId], references: [id], onDelete: SetNull)
-  events          PaymentIncidentEvent[]
+  id             String                 @id @default(cuid())
+  paymentId      String?
+  bookingId      String?
+  userId         String?
+  partnerId      String?
+  incidentType   PaymentIncidentType
+  status         PaymentIncidentStatus  @default(OPEN)
+  severity       AdminSeverity          @default(MEDIUM)
+  source         String                 @default("system")
+  title          String
+  description    String
+  rootCause      String?
+  assignedTo     String?
+  slaDueAt       DateTime?
+  acknowledgedAt DateTime?
+  resolvedAt     DateTime?
+  closedAt       DateTime?
+  metadata       String?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  payment        Payment?               @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  booking        Booking?               @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  user           User?                  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  partner        PartnerProfile?        @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  events         PaymentIncidentEvent[]
 
   @@index([status, severity, createdAt])
   @@index([incidentType, status])
@@ -945,42 +970,42 @@ model PaymentIncident {
 }
 
 model PaymentIncidentEvent {
-  id          String          @id @default(cuid())
-  incidentId  String
-  actorEmail  String?
-  action      String
-  note        String?
-  metadata    String?
-  createdAt   DateTime        @default(now())
-  incident    PaymentIncident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  id         String          @id @default(cuid())
+  incidentId String
+  actorEmail String?
+  action     String
+  note       String?
+  metadata   String?
+  createdAt  DateTime        @default(now())
+  incident   PaymentIncident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
 
   @@index([incidentId, createdAt])
 }
 
 model RefundCase {
-  id                String       @id @default(cuid())
-  bookingId         String?
-  paymentId         String?
-  userId            String?
-  partnerId         String?
-  reason            String
-  policyCode        String?
-  status            RefundStatus @default(REQUESTED)
-  requestedAmount   Float
-  approvedAmount    Float?
-  currency          String       @default("COP")
-  requestedBy       String?
-  reviewedBy        String?
-  reviewNotes       String?
-  processedAt       DateTime?
-  externalRefundId  String?
-  metadata          String?
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
-  booking           Booking?     @relation(fields: [bookingId], references: [id], onDelete: SetNull)
-  payment           Payment?     @relation(fields: [paymentId], references: [id], onDelete: SetNull)
-  user              User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
-  partner           PartnerProfile? @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  id               String          @id @default(cuid())
+  bookingId        String?
+  paymentId        String?
+  userId           String?
+  partnerId        String?
+  reason           String
+  policyCode       String?
+  status           RefundStatus    @default(REQUESTED)
+  requestedAmount  Float
+  approvedAmount   Float?
+  currency         String          @default("COP")
+  requestedBy      String?
+  reviewedBy       String?
+  reviewNotes      String?
+  processedAt      DateTime?
+  externalRefundId String?
+  metadata         String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  booking          Booking?        @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  payment          Payment?        @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  user             User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  partner          PartnerProfile? @relation(fields: [partnerId], references: [id], onDelete: SetNull)
 
   @@index([status, createdAt])
   @@index([bookingId])
@@ -988,84 +1013,84 @@ model RefundCase {
 }
 
 model ComplianceRule {
-  id                 String              @id @default(cuid())
-  key                String              @unique
-  name               String
-  description        String
-  ruleType           ComplianceRuleType
-  enabled            Boolean             @default(true)
-  country            String              @default("CO")
-  city               City?
-  serviceSlug        String?
-  partnerRole        UserRole?           @default(PARTNER)
-  riskThreshold      Int?
-  requiredDocuments  String?
-  metadata           String?
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  evaluations        ComplianceEvaluation[]
+  id                String                 @id @default(cuid())
+  key               String                 @unique
+  name              String
+  description       String
+  ruleType          ComplianceRuleType
+  enabled           Boolean                @default(true)
+  country           String                 @default("CO")
+  city              City?
+  serviceSlug       String?
+  partnerRole       UserRole?              @default(PARTNER)
+  riskThreshold     Int?
+  requiredDocuments String?
+  metadata          String?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  evaluations       ComplianceEvaluation[]
 
   @@index([enabled, country, city])
 }
 
 model ComplianceEvaluation {
-  id              String                     @id @default(cuid())
-  partnerId       String
-  userId          String?
-  ruleId          String?
-  status          ComplianceEvaluationStatus
-  score           Int                        @default(0)
-  findings        String
-  evaluatedBy     String                     @default("system")
-  evaluatedAt     DateTime                   @default(now())
-  expiresAt       DateTime?
-  metadata        String?
-  partner         PartnerProfile             @relation(fields: [partnerId], references: [id], onDelete: Cascade)
-  user            User?                      @relation(fields: [userId], references: [id], onDelete: SetNull)
-  rule            ComplianceRule?            @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+  id          String                     @id @default(cuid())
+  partnerId   String
+  userId      String?
+  ruleId      String?
+  status      ComplianceEvaluationStatus
+  score       Int                        @default(0)
+  findings    String
+  evaluatedBy String                     @default("system")
+  evaluatedAt DateTime                   @default(now())
+  expiresAt   DateTime?
+  metadata    String?
+  partner     PartnerProfile             @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  user        User?                      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  rule        ComplianceRule?            @relation(fields: [ruleId], references: [id], onDelete: SetNull)
 
   @@index([partnerId, evaluatedAt])
   @@index([status, evaluatedAt])
 }
 
 model TaxDocument {
-  id               String            @id @default(cuid())
-  documentNumber   String            @unique
-  type             TaxDocumentType
-  status           TaxDocumentStatus @default(PENDING)
-  paymentId        String?
-  userId           String?
-  subtotalAmount   Float
-  taxAmount        Float             @default(0)
-  withholdingAmount Float            @default(0)
-  totalAmount      Float
-  currency         String            @default("COP")
-  issueDate        DateTime?
-  dueDate          DateTime?
-  sentAt           DateTime?
-  generatedBy      String?
-  metadata         String?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  payment          Payment?          @relation(fields: [paymentId], references: [id], onDelete: SetNull)
-  user             User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  id                String            @id @default(cuid())
+  documentNumber    String            @unique
+  type              TaxDocumentType
+  status            TaxDocumentStatus @default(PENDING)
+  paymentId         String?
+  userId            String?
+  subtotalAmount    Float
+  taxAmount         Float             @default(0)
+  withholdingAmount Float             @default(0)
+  totalAmount       Float
+  currency          String            @default("COP")
+  issueDate         DateTime?
+  dueDate           DateTime?
+  sentAt            DateTime?
+  generatedBy       String?
+  metadata          String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  payment           Payment?          @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  user              User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([type, status, createdAt])
   @@index([paymentId])
 }
 
 model FeatureFlag {
-  id                String   @id @default(cuid())
-  key               String   @unique
+  id                String    @id @default(cuid())
+  key               String    @unique
   name              String
   description       String?
-  enabled           Boolean  @default(false)
-  rolloutPercentage Int      @default(100)
+  enabled           Boolean   @default(false)
+  rolloutPercentage Int       @default(100)
   targetRole        UserRole?
   targetCity        City?
   metadata          String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 }
 
 model CmsEntry {

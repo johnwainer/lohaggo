@@ -4,8 +4,10 @@ import { useEffect, useState } from 'react';
 import { X, Download, RefreshCw } from 'lucide-react';
 import { trackPwaEvent } from '@/lib/pwa/telemetry-client';
 import { PWA_EVENTS } from '@/lib/pwa/events';
+import { useSession } from 'next-auth/react';
 
 export default function PWAInstallPrompt() {
+  const { data: session } = useSession();
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [showUpdatePrompt, setShowUpdatePrompt] = useState(false);
@@ -67,7 +69,7 @@ export default function PWAInstallPrompt() {
     setShowUpdatePrompt(false);
   };
 
-  if (isStandalone || (!showInstallPrompt && !showUpdatePrompt)) {
+  if (session?.user?.id || isStandalone || (!showInstallPrompt && !showUpdatePrompt)) {
     return null;
   }
 

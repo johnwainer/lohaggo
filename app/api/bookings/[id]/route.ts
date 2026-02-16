@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth"
 import { notifyBookingStatusChange } from "@/lib/notifications/notificationService"
 import { createLogger } from '@/lib/logger'
 import { computeRefundPolicy, calculateSlaDueAt } from '@/lib/launch-ops'
+import { recordPromptContext } from '@/lib/pwa/adoption-strategy'
 
 export const dynamic = 'force-dynamic'
 
@@ -77,6 +78,13 @@ export async function PATCH(
     })
 
     await notifyBookingStatusChange(id, status)
+
+    if (user.role === 'PARTNER') {
+      await recordPromptContext(user.id, 'PARTNER_BOOKING_STATUS_CHANGED', {
+        bookingId: id,
+        status,
+      }).catch(() => undefined)
+    }
 
     return NextResponse.json(updatedBooking)
   } catch (error) {

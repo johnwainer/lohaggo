@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { City, UserRole } from '@prisma/client'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { syncProfileFromPwaEvent } from '@/lib/pwa/adoption-strategy'
 
 const ALLOWED_EVENTS = new Set([
   'signup_completed',
@@ -11,6 +12,10 @@ const ALLOWED_EVENTS = new Set([
   'install_prompt_dismissed',
   'install_clicked',
   'pwa_installed',
+  'context_client_request_created',
+  'context_client_proposal_received',
+  'context_partner_lead_received',
+  'context_partner_booking_status_changed',
   'push_prompt_shown',
   'push_permission_granted',
   'push_permission_denied',
@@ -68,6 +73,10 @@ export async function POST(request: NextRequest) {
         metadata,
       },
     })
+
+    if (session?.user?.id) {
+      await syncProfileFromPwaEvent(session.user.id, eventName)
+    }
 
     return NextResponse.json({ ok: true })
   } catch {

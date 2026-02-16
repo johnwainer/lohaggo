@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
+import { recordPromptContext } from '@/lib/pwa/adoption-strategy'
 
 export const dynamic = 'force-dynamic'
 
@@ -89,6 +90,17 @@ export async function GET(req: NextRequest) {
         createdAt: 'desc'
       }
     })
+
+    const hasRecentLead = serviceRequests.some((item) => {
+      const createdAt = new Date(item.createdAt)
+      return createdAt.getTime() >= Date.now() - 2 * 60 * 60 * 1000
+    })
+
+    if (hasRecentLead) {
+      await recordPromptContext(session.user.id, 'PARTNER_LEAD_RECEIVED', {
+        recentLeads: serviceRequests.length,
+      }).catch(() => undefined)
+    }
 
     return NextResponse.json(serviceRequests)
   } catch (error) {

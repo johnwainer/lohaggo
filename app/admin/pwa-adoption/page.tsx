@@ -11,10 +11,21 @@ type SummaryResponse = {
     pushOptInUsers: number
     installRate: number
     pushOptInRate: number
+    installRateD0: number
+    installRateD7: number
+    signupsD0: number
+    signupsD7Eligible: number
+    outreachCandidates: number
+    outreachCandidatesClient: number
+    outreachCandidatesPartner: number
   }
   byRole: {
     CLIENT: { signups: number; installs: number; pushOptIns: number }
     PARTNER: { signups: number; installs: number; pushOptIns: number }
+  }
+  byVariant: {
+    A: { signups: number; installs: number; pushOptIns: number; installRate: number; pushOptInRate: number }
+    B: { signups: number; installs: number; pushOptIns: number; installRate: number; pushOptInRate: number }
   }
   daily: Array<{ date: string; signups: number; installs: number; pushOptIns: number }>
 }
@@ -87,6 +98,29 @@ export default function AdminPwaAdoptionPage() {
             <div><p className="text-xs text-gray-500">Push Opt-in Rate</p><p className="text-2xl font-bold">{data.summary.pushOptInRate}%</p></div>
           </section>
 
+          <section className="rounded-xl border bg-white p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="border rounded p-3">
+              <p className="text-sm font-semibold">Install Rate D0</p>
+              <p className="text-2xl font-bold">{data.summary.installRateD0}%</p>
+              <p className="text-xs text-gray-500">Cohorte: {data.summary.signupsD0} registros últimas 24h</p>
+            </div>
+            <div className="border rounded p-3">
+              <p className="text-sm font-semibold">Install Rate D7</p>
+              <p className="text-2xl font-bold">{data.summary.installRateD7}%</p>
+              <p className="text-xs text-gray-500">Cohorte: {data.summary.signupsD7Eligible} registros con 7+ días</p>
+            </div>
+          </section>
+
+          <section className="rounded-xl border bg-white p-4">
+            <h2 className="text-lg font-semibold mb-2">Outreach no invasivo (Email/WhatsApp)</h2>
+            <p className="text-sm text-gray-600">
+              Usuarios con 2+ recordatorios in-app, 3+ días de registro y sin instalación: <span className="font-semibold text-gray-900">{data.summary.outreachCandidates}</span>
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              Clientes: {data.summary.outreachCandidatesClient} · Socios: {data.summary.outreachCandidatesPartner}
+            </p>
+          </section>
+
           <section className="rounded-xl border bg-white p-4 space-y-3">
             <h2 className="text-lg font-semibold">Rendimiento por rol</h2>
             <div className="grid md:grid-cols-2 gap-3">
@@ -118,6 +152,24 @@ export default function AdminPwaAdoptionPage() {
                     <div className="h-2 bg-gray-100 rounded overflow-hidden">
                       <div className="h-full bg-primary-600" style={{ width: `${width}%` }} />
                     </div>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+
+          <section className="rounded-xl border bg-white p-4 space-y-3">
+            <h2 className="text-lg font-semibold">A/B Testing</h2>
+            <div className="grid md:grid-cols-2 gap-3">
+              {(['A', 'B'] as const).map((variant) => {
+                const row = data.byVariant[variant]
+                return (
+                  <div key={variant} className="border rounded p-3">
+                    <p className="text-sm font-semibold">Variante {variant}</p>
+                    <p className="text-xs text-gray-500">Signups: {row.signups}</p>
+                    <p className="text-xs text-gray-500">Install Rate: {row.installRate}%</p>
+                    <p className="text-xs text-gray-500">Push Opt-in Rate: {row.pushOptInRate}%</p>
+                    <p className="text-xs text-gray-500">Instalados: {row.installs} · Push: {row.pushOptIns}</p>
                   </div>
                 )
               })}

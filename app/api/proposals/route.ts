@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { notifyNewProposal } from '@/lib/notifications/notificationService'
 import { createLogger } from '@/lib/logger'
 import { proposalSchema, validateRequest } from '@/lib/validation'
+import { recordPromptContext } from '@/lib/pwa/adoption-strategy'
 
 export const dynamic = 'force-dynamic'
 
@@ -141,6 +142,13 @@ export async function POST(req: NextRequest) {
     })
 
     await notifyNewProposal(proposal.id)
+
+    if (serviceRequest.userId) {
+      await recordPromptContext(serviceRequest.userId, 'CLIENT_PROPOSAL_RECEIVED', {
+        proposalId: proposal.id,
+        serviceRequestId: serviceRequest.id,
+      }).catch(() => undefined)
+    }
 
     return NextResponse.json(proposal)
   } catch (error) {

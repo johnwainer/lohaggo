@@ -7,6 +7,7 @@ import { createLogger } from '@/lib/logger'
 import { serviceRequestSchema, validateRequest } from '@/lib/validation'
 import { City } from '@prisma/client'
 import { handleApiError } from '@/lib/errors'
+import { recordPromptContext } from '@/lib/pwa/adoption-strategy'
 
 export const dynamic = 'force-dynamic'
 
@@ -123,6 +124,12 @@ export async function POST(req: NextRequest) {
     })
 
     await notifyNewServiceRequest(serviceRequest.id)
+
+    await recordPromptContext(session.user.id, 'CLIENT_REQUEST_CREATED', {
+      serviceRequestId: serviceRequest.id,
+      city: serviceRequest.city,
+      isUrgent: serviceRequest.isUrgent,
+    }).catch(() => undefined)
 
     return NextResponse.json(serviceRequest, { status: 201 })
   } catch (error) {

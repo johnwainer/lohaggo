@@ -6,6 +6,12 @@ function dayKey(value: Date) {
   return value.toISOString().slice(0, 10)
 }
 
+type VariantStats = {
+  signups: number
+  installs: number
+  pushOptIns: number
+}
+
 export async function GET() {
   const admin = await requireAdmin()
   if (!admin) {
@@ -15,7 +21,7 @@ export async function GET() {
   const now = new Date()
   const from30d = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
 
-  const [users30d, events30d] = await Promise.all([
+  const [users30d, events30d, profiles30d, outreachCandidates] = await Promise.all([
     prisma.user.findMany({
       where: { createdAt: { gte: from30d }, role: { in: ['CLIENT', 'PARTNER'] } },
       select: { id: true, role: true, createdAt: true },
@@ -24,6 +30,32 @@ export async function GET() {
       where: { createdAt: { gte: from30d } },
       select: { userId: true, eventName: true, role: true, createdAt: true },
       orderBy: { createdAt: 'asc' },
+    }),
+    prisma.pwaAdoptionProfile.findMany({
+      where: {
+        user: {
+          createdAt: { gte: from30d },
+          role: { in: ['CLIENT', 'PARTNER'] },
+        },
+      },
+      select: {
+        userId: true,
+        abVariant: true,
+        installedAt: true,
+        pushEnabledAt: true,
+      },
+    }),
+    prisma.user.findMany({
+      where: {
+        role: { in: ['CLIENT', 'PARTNER'] },
+        createdAt: { lte: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000) },
+        pwaAdoptionProfile: {
+          installedAt: null,
+          promptAttemptsWindow: { gte: 2 },
+        },
+      },
+      select: { id: true, role: true },
+      take: 500,
     }),
   ])
 
@@ -74,6 +106,42 @@ export async function GET() {
   const clientSignups = users30d.filter((user) => user.role === 'CLIENT').length
   const partnerSignups = users30d.filter((user) => user.role === 'PARTNER').length
 
+  const nowMs = now.getTime()
+  const usersWithProfile = users30d
+    .map((user) => {
+      const profile = profiles30d.find((item) => item.userId === user.id)
+      return { user, profile }
+    })
+    .filter((item) => Boolean(item.profile))
+
+  const signupsD0 = usersWithProfile.filter((item) => nowMs - item.user.createdAt.getTime() <= 24 * 60 * 60 * 1000).length
+  const installedD0 = usersWithProfile.filter(
+    (item) =>
+      nowMs - item.user.createdAt.getTime() <= 24 * 60 * 60 * 1000 &&
+      item.profile?.installedAt &&
+      item.profile.installedAt.getTime() - item.user.createdAt.getTime() <= 24 * 60 * 60 * 1000
+  ).length
+
+  const signupsD7Eligible = usersWithProfile.filter((item) => nowMs - item.user.createdAt.getTime() >= 7 * 24 * 60 * 60 * 1000).length
+  const installedD7 = usersWithProfile.filter(
+    (item) =>
+      nowMs - item.user.createdAt.getTime() >= 7 * 24 * 60 * 60 * 1000 &&
+      item.profile?.installedAt &&
+      item.profile.installedAt.getTime() - item.user.createdAt.getTime() <= 7 * 24 * 60 * 60 * 1000
+  ).length
+
+  const variantStats: Record<string, VariantStats> = {
+    A: { signups: 0, installs: 0, pushOptIns: 0 },
+    B: { signups: 0, installs: 0, pushOptIns: 0 },
+  }
+
+  for (const item of usersWithProfile) {
+    const variant = item.profile?.abVariant === 'B' ? 'B' : 'A'
+    variantStats[variant].signups += 1
+    if (item.profile?.installedAt) variantStats[variant].installs += 1
+    if (item.profile?.pushEnabledAt) variantStats[variant].pushOptIns += 1
+  }
+
   return NextResponse.json({
     generatedAt: now.toISOString(),
     rangeDays: 30,
@@ -83,6 +151,13 @@ export async function GET() {
       pushOptInUsers: pushOptInUsers.size,
       installRate,
       pushOptInRate,
+      installRateD0: signupsD0 === 0 ? 0 : Number(((installedD0 / signupsD0) * 100).toFixed(2)),
+      installRateD7: signupsD7Eligible === 0 ? 0 : Number(((installedD7 / signupsD7Eligible) * 100).toFixed(2)),
+      signupsD0,
+      signupsD7Eligible,
+      outreachCandidates: outreachCandidates.length,
+      outreachCandidatesClient: outreachCandidates.filter((item) => item.role === 'CLIENT').length,
+      outreachCandidatesPartner: outreachCandidates.filter((item) => item.role === 'PARTNER').length,
     },
     byRole: {
       CLIENT: {
@@ -94,6 +169,18 @@ export async function GET() {
         signups: partnerSignups,
         installs: installsByRole.PARTNER,
         pushOptIns: pushByRole.PARTNER,
+      },
+    },
+    byVariant: {
+      A: {
+        ...variantStats.A,
+        installRate: variantStats.A.signups === 0 ? 0 : Number(((variantStats.A.installs / variantStats.A.signups) * 100).toFixed(2)),
+        pushOptInRate: variantStats.A.signups === 0 ? 0 : Number(((variantStats.A.pushOptIns / variantStats.A.signups) * 100).toFixed(2)),
+      },
+      B: {
+        ...variantStats.B,
+        installRate: variantStats.B.signups === 0 ? 0 : Number(((variantStats.B.installs / variantStats.B.signups) * 100).toFixed(2)),
+        pushOptInRate: variantStats.B.signups === 0 ? 0 : Number(((variantStats.B.pushOptIns / variantStats.B.signups) * 100).toFixed(2)),
       },
     },
     daily: Array.from(dailyMap.values()),
