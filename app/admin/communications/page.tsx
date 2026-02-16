@@ -26,6 +26,29 @@ type Campaign = {
   abTestEnabled?: boolean
 }
 
+type RecipientPreview = {
+  id: string
+  name: string
+  email: string
+  phone: string | null
+  role: 'CLIENT' | 'PARTNER' | 'ADMIN'
+  source: 'SEGMENT' | 'MANUAL'
+  destination: string | null
+  eligible: boolean
+  reason: string | null
+}
+
+type RecipientSummary = {
+  total: number
+  eligible: number
+  ineligible: number
+  segmentCount: number
+  manualIncludedCount: number
+  excludedCount: number
+  includeUserIds: string[]
+  excludeUserIds: string[]
+}
+
 type CampaignMetrics = {
   metrics: {
     byStatus: Record<string, number>
@@ -64,9 +87,9 @@ type Panel = 'OVERVIEW' | 'CONFIG' | 'CAMPAIGNS' | 'CREATE' | 'ANALYTICS'
 
 const PANEL_OPTIONS: Array<{ id: Panel; label: string }> = [
   { id: 'OVERVIEW', label: 'Resumen' },
-  { id: 'CONFIG', label: 'Configuracion' },
-  { id: 'CAMPAIGNS', label: 'Campanas' },
-  { id: 'CREATE', label: 'Crear campana' },
+  { id: 'CONFIG', label: 'Configuración' },
+  { id: 'CAMPAIGNS', label: 'Campañas' },
+  { id: 'CREATE', label: 'Crear campaña' },
   { id: 'ANALYTICS', label: 'Analytics' },
 ]
 
@@ -130,6 +153,17 @@ export default function AdminCommunicationsPage() {
     fromEmail: '',
     apiKey: '',
   })
+  const [recipientSearch, setRecipientSearch] = useState('')
+  const [recipientIncludeIds, setRecipientIncludeIds] = useState<string[]>([])
+  const [recipientExcludeIds, setRecipientExcludeIds] = useState<string[]>([])
+  const [recipientPreview, setRecipientPreview] = useState<RecipientPreview[]>([])
+  const [recipientSummary, setRecipientSummary] = useState<RecipientSummary | null>(null)
+  const [campaignRecipientPreview, setCampaignRecipientPreview] = useState<{
+    campaignId: string
+    recipients: RecipientPreview[]
+    summary: RecipientSummary | null
+  } | null>(null)
+  const [loadingRecipients, setLoadingRecipients] = useState(false)
 
   const selectedCampaign = useMemo(
     () => campaigns.find((item) => item.id === selectedCampaignId) || null,
@@ -172,6 +206,40 @@ export default function AdminCommunicationsPage() {
     }
   }
 
+  const loadRecipientPreview = async (options?: { forCampaignId?: string; channel?: Campaign['channel'] }) => {
+    setLoadingRecipients(true)
+    try {
+      const params = new URLSearchParams()
+      params.set('channel', options?.channel || campForm.channel)
+      params.set('search', recipientSearch)
+      if (options?.forCampaignId) {
+        params.set('campaignId', options.forCampaignId)
+      } else {
+        if (campForm.targetRole) params.set('targetRole', campForm.targetRole)
+        if (campForm.targetCity) params.set('targetCity', campForm.targetCity)
+        if (recipientIncludeIds.length) params.set('includeUserIds', recipientIncludeIds.join(','))
+        if (recipientExcludeIds.length) params.set('excludeUserIds', recipientExcludeIds.join(','))
+      }
+
+      const response = await fetch(`/api/admin/messaging/recipients?${params.toString()}`, { cache: 'no-store' })
+      const data = await response.json()
+      if (!response.ok) return
+
+      if (options?.forCampaignId) {
+        setCampaignRecipientPreview({
+          campaignId: options.forCampaignId,
+          recipients: data.recipients || [],
+          summary: data.summary || null,
+        })
+      } else {
+        setRecipientPreview(data.recipients || [])
+        setRecipientSummary(data.summary || null)
+      }
+    } finally {
+      setLoadingRecipients(false)
+    }
+  }
+
   useEffect(() => {
     load()
   }, [])
@@ -191,6 +259,12 @@ export default function AdminCommunicationsPage() {
       fromEmail: providers.sendgrid.fromEmail || '',
     }))
   }, [providers])
+
+  useEffect(() => {
+    if (activePanel !== 'CREATE') return
+    void loadRecipientPreview()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePanel, campForm.channel, campForm.targetRole, campForm.targetCity, recipientIncludeIds, recipientExcludeIds])
 
   const createTemplate = async () => {
     if (!tplForm.key || !tplForm.name || !tplForm.body) return
@@ -242,6 +316,8 @@ export default function AdminCommunicationsPage() {
               ],
             }
           : null,
+        includeUserIds: recipientIncludeIds,
+        excludeUserIds: recipientExcludeIds,
       }),
     })
     setCampForm({
@@ -262,6 +338,11 @@ export default function AdminCommunicationsPage() {
       abVariantBSubject: '',
       abSplitA: '50',
     })
+    setRecipientSearch('')
+    setRecipientIncludeIds([])
+    setRecipientExcludeIds([])
+    setRecipientPreview([])
+    setRecipientSummary(null)
     await load()
     setActivePanel('CAMPAIGNS')
   }
@@ -275,6 +356,16 @@ export default function AdminCommunicationsPage() {
   const runScheduled = async () => {
     await fetch('/api/admin/messaging/run-scheduled', { method: 'POST' })
     await load()
+  }
+
+  const toggleIncludeRecipient = (userId: string) => {
+    setRecipientExcludeIds((prev) => prev.filter((id) => id !== userId))
+    setRecipientIncludeIds((prev) => (prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]))
+  }
+
+  const toggleExcludeRecipient = (userId: string) => {
+    setRecipientIncludeIds((prev) => prev.filter((id) => id !== userId))
+    setRecipientExcludeIds((prev) => (prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]))
   }
 
   const saveTwilio = async () => {
@@ -314,7 +405,7 @@ export default function AdminCommunicationsPage() {
       <div className="space-y-2">
         <h1 className="text-3xl font-bold text-gray-900">Comunicaciones Omnicanal</h1>
         <p className="text-gray-600 mt-1">
-          Pilar de comunicacion del admin: credenciales, campanas, ejecucion y analitica operativa por SMS, WhatsApp, Email y PUSH.
+          Pilar de comunicacion del admin: credenciales, campañas, ejecucion y analítica operativa por SMS, WhatsApp, Email y PUSH.
         </p>
       </div>
 
@@ -343,7 +434,7 @@ export default function AdminCommunicationsPage() {
               {overview && (
                 <div className="rounded-xl border bg-white p-4 grid grid-cols-2 md:grid-cols-5 gap-3">
                   <div>
-                    <p className="text-xs text-gray-500">Campanas</p>
+                    <p className="text-xs text-gray-500">Campañas</p>
                     <p className="text-2xl font-bold">{overview.totals.campaigns}</p>
                   </div>
                   <div>
@@ -367,7 +458,7 @@ export default function AdminCommunicationsPage() {
 
               <div className="rounded-xl border bg-white p-4 space-y-3">
                 <div className="flex items-center justify-between gap-2">
-                  <h2 className="text-lg font-semibold">Ultimas campanas</h2>
+                  <h2 className="text-lg font-semibold">Últimas campañas</h2>
                   <button className="border rounded px-3 py-2 text-sm" onClick={() => setActivePanel('CAMPAIGNS')}>
                     Ver todas
                   </button>
@@ -376,7 +467,7 @@ export default function AdminCommunicationsPage() {
                   <table className="min-w-full text-sm">
                     <thead className="bg-gray-50 text-gray-600">
                       <tr>
-                        <th className="px-3 py-2 text-left font-medium">Campana</th>
+                        <th className="px-3 py-2 text-left font-medium">Campaña</th>
                         <th className="px-3 py-2 text-left font-medium">Canal</th>
                         <th className="px-3 py-2 text-left font-medium">Estado</th>
                         <th className="px-3 py-2 text-left font-medium">Enviados</th>
@@ -398,7 +489,7 @@ export default function AdminCommunicationsPage() {
                       {recentCampaigns.length === 0 && (
                         <tr>
                           <td className="px-3 py-4 text-gray-500" colSpan={6}>
-                            Sin campanas registradas.
+                            Sin campañas registradas.
                           </td>
                         </tr>
                       )}
@@ -412,7 +503,7 @@ export default function AdminCommunicationsPage() {
           {activePanel === 'CONFIG' && (
             <section className="rounded-xl border bg-white p-4 space-y-4">
               <div>
-                <h2 className="text-lg font-semibold">Configuracion de proveedores</h2>
+                <h2 className="text-lg font-semibold">Configuración de proveedores</h2>
                 <p className="text-sm text-gray-600">Gestion centralizada y cifrada de credenciales operativas.</p>
               </div>
               <div className="grid lg:grid-cols-2 gap-4">
@@ -461,15 +552,15 @@ export default function AdminCommunicationsPage() {
             <section className="rounded-xl border bg-white p-4 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <h2 className="text-lg font-semibold">Tabla de campanas</h2>
-                  <p className="text-sm text-gray-600">Operacion, ejecucion y acceso rapido a metricas.</p>
+                  <h2 className="text-lg font-semibold">Tabla de campañas</h2>
+                  <p className="text-sm text-gray-600">Operación, ejecucion y acceso rapido a metricas.</p>
                 </div>
                 <div className="flex gap-2">
                   <button className="border rounded px-3 py-2 text-sm" onClick={runScheduled}>
                     Ejecutar programadas
                   </button>
                   <button className="bg-primary-600 text-white rounded px-3 py-2 text-sm" onClick={() => setActivePanel('CREATE')}>
-                    Nueva campana
+                    Nueva campaña
                   </button>
                 </div>
               </div>
@@ -501,8 +592,14 @@ export default function AdminCommunicationsPage() {
                         <td className="px-3 py-2">{formatDate(campaign.createdAt)}</td>
                         <td className="px-3 py-2">
                           <div className="flex justify-end gap-2">
+                            <button
+                              className="border rounded px-2 py-1 text-xs"
+                              onClick={() => void loadRecipientPreview({ forCampaignId: campaign.id, channel: campaign.channel })}
+                            >
+                              Destinatarios
+                            </button>
                             <button className="border rounded px-2 py-1 text-xs" onClick={() => loadMetrics(campaign.id, true)}>
-                              Metricas
+                              Métricas
                             </button>
                             <button className="bg-primary-600 text-white rounded px-2 py-1 text-xs" onClick={() => sendCampaign(campaign.id)}>
                               Enviar
@@ -514,13 +611,73 @@ export default function AdminCommunicationsPage() {
                     {orderedCampaigns.length === 0 && (
                       <tr>
                         <td className="px-3 py-4 text-gray-500" colSpan={9}>
-                          Sin campanas registradas.
+                          Sin campañas registradas.
                         </td>
                       </tr>
                     )}
                   </tbody>
                 </table>
               </div>
+
+              {campaignRecipientPreview && (
+                <div className="rounded-lg border bg-gray-50 p-3 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="font-semibold text-gray-900">Vista de destinatarios de campaña</h3>
+                    <button
+                      className="border rounded px-2 py-1 text-xs"
+                      onClick={() => setCampaignRecipientPreview(null)}
+                    >
+                      Cerrar
+                    </button>
+                  </div>
+                  {campaignRecipientPreview.summary && (
+                    <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-xs">
+                      <div className="rounded border bg-white px-2 py-1">Total: <b>{campaignRecipientPreview.summary.total}</b></div>
+                      <div className="rounded border bg-white px-2 py-1">Elegibles: <b>{campaignRecipientPreview.summary.eligible}</b></div>
+                      <div className="rounded border bg-white px-2 py-1">Sin destino: <b>{campaignRecipientPreview.summary.ineligible}</b></div>
+                      <div className="rounded border bg-white px-2 py-1">Segmento: <b>{campaignRecipientPreview.summary.segmentCount}</b></div>
+                      <div className="rounded border bg-white px-2 py-1">Agregados: <b>{campaignRecipientPreview.summary.manualIncludedCount}</b></div>
+                      <div className="rounded border bg-white px-2 py-1">Excluidos: <b>{campaignRecipientPreview.summary.excludedCount}</b></div>
+                    </div>
+                  )}
+                  <div className="max-h-72 overflow-auto rounded border bg-white">
+                    <table className="min-w-full text-xs">
+                      <thead className="bg-gray-100 text-gray-600">
+                        <tr>
+                          <th className="px-2 py-2 text-left font-medium">Usuario</th>
+                          <th className="px-2 py-2 text-left font-medium">Rol</th>
+                          <th className="px-2 py-2 text-left font-medium">Origen</th>
+                          <th className="px-2 py-2 text-left font-medium">Destino</th>
+                          <th className="px-2 py-2 text-left font-medium">Estado</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {campaignRecipientPreview.recipients.map((recipient) => (
+                          <tr key={recipient.id} className="border-t">
+                            <td className="px-2 py-2">
+                              <p className="font-medium text-gray-900">{recipient.name}</p>
+                              <p className="text-gray-500">{recipient.email}</p>
+                            </td>
+                            <td className="px-2 py-2">{recipient.role}</td>
+                            <td className="px-2 py-2">{recipient.source === 'MANUAL' ? 'MANUAL' : 'SEGMENTO'}</td>
+                            <td className="px-2 py-2">{recipient.destination || '-'}</td>
+                            <td className={`px-2 py-2 ${recipient.eligible ? 'text-emerald-700' : 'text-rose-700'}`}>
+                              {recipient.eligible ? 'OK' : recipient.reason || 'No elegible'}
+                            </td>
+                          </tr>
+                        ))}
+                        {campaignRecipientPreview.recipients.length === 0 && (
+                          <tr>
+                            <td className="px-2 py-3 text-gray-500" colSpan={5}>
+                              No hay destinatarios para esta configuración.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </section>
           )}
 
@@ -546,9 +703,9 @@ export default function AdminCommunicationsPage() {
               </div>
 
               <div className="rounded-xl border bg-white p-4 space-y-3">
-                <h2 className="text-lg font-semibold">Crear campana</h2>
+                <h2 className="text-lg font-semibold">Crear campaña</h2>
                 <div className="grid md:grid-cols-3 gap-2">
-                  <input className="border rounded px-2 py-2 text-sm" placeholder="nombre campana" value={campForm.name} onChange={(e) => setCampForm((p) => ({ ...p, name: e.target.value }))} />
+                  <input className="border rounded px-2 py-2 text-sm" placeholder="nombre campaña" value={campForm.name} onChange={(e) => setCampForm((p) => ({ ...p, name: e.target.value }))} />
                   <select className="border rounded px-2 py-2 text-sm" value={campForm.channel} onChange={(e) => setCampForm((p) => ({ ...p, channel: e.target.value }))}>
                     <option value="SMS">SMS</option>
                     <option value="WHATSAPP">WHATSAPP</option>
@@ -605,13 +762,101 @@ export default function AdminCommunicationsPage() {
                     </div>
                   </div>
                 )}
-                <textarea className="w-full border rounded px-2 py-2 text-sm min-h-[90px]" placeholder="mensaje campana" value={campForm.customBody} onChange={(e) => setCampForm((p) => ({ ...p, customBody: e.target.value }))} />
+                <div className="rounded-lg border p-3 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="font-semibold text-gray-900">Destinatarios de la campaña</h3>
+                    <button
+                      className="border rounded px-2 py-1 text-xs"
+                      onClick={() => void loadRecipientPreview()}
+                    >
+                      Actualizar vista previa
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <input
+                      className="border rounded px-2 py-2 text-sm flex-1 min-w-[220px]"
+                      placeholder="Buscar por nombre, email o teléfono"
+                      value={recipientSearch}
+                      onChange={(e) => setRecipientSearch(e.target.value)}
+                    />
+                    <button
+                      className="border rounded px-3 py-2 text-sm"
+                      onClick={() => void loadRecipientPreview()}
+                    >
+                      Buscar
+                    </button>
+                  </div>
+                  {recipientSummary && (
+                    <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-xs">
+                      <div className="rounded border bg-gray-50 px-2 py-1">Total: <b>{recipientSummary.total}</b></div>
+                      <div className="rounded border bg-gray-50 px-2 py-1">Elegibles: <b>{recipientSummary.eligible}</b></div>
+                      <div className="rounded border bg-gray-50 px-2 py-1">Sin destino: <b>{recipientSummary.ineligible}</b></div>
+                      <div className="rounded border bg-gray-50 px-2 py-1">Segmento: <b>{recipientSummary.segmentCount}</b></div>
+                      <div className="rounded border bg-gray-50 px-2 py-1">Agregados: <b>{recipientSummary.manualIncludedCount}</b></div>
+                      <div className="rounded border bg-gray-50 px-2 py-1">Excluidos: <b>{recipientSummary.excludedCount}</b></div>
+                    </div>
+                  )}
+                  <div className="max-h-72 overflow-auto rounded border">
+                    <table className="min-w-full text-xs">
+                      <thead className="bg-gray-50 text-gray-600">
+                        <tr>
+                          <th className="px-2 py-2 text-left font-medium">Usuario</th>
+                          <th className="px-2 py-2 text-left font-medium">Rol</th>
+                          <th className="px-2 py-2 text-left font-medium">Destino</th>
+                          <th className="px-2 py-2 text-left font-medium">Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {recipientPreview.map((recipient) => {
+                          const included = recipientIncludeIds.includes(recipient.id)
+                          const excluded = recipientExcludeIds.includes(recipient.id)
+                          return (
+                            <tr key={recipient.id} className="border-t">
+                              <td className="px-2 py-2">
+                                <p className="font-medium text-gray-900">{recipient.name}</p>
+                                <p className="text-gray-500">{recipient.email}</p>
+                              </td>
+                              <td className="px-2 py-2">{recipient.role}</td>
+                              <td className={`px-2 py-2 ${recipient.eligible ? 'text-emerald-700' : 'text-rose-700'}`}>
+                                {recipient.destination || recipient.reason || 'Sin destino'}
+                              </td>
+                              <td className="px-2 py-2">
+                                <div className="flex flex-wrap gap-1">
+                                  <button
+                                    className={`rounded px-2 py-1 ${included ? 'bg-emerald-600 text-white' : 'border'}`}
+                                    onClick={() => toggleIncludeRecipient(recipient.id)}
+                                  >
+                                    {included ? 'Incluido' : 'Incluir'}
+                                  </button>
+                                  <button
+                                    className={`rounded px-2 py-1 ${excluded ? 'bg-rose-600 text-white' : 'border'}`}
+                                    onClick={() => toggleExcludeRecipient(recipient.id)}
+                                  >
+                                    {excluded ? 'Excluido' : 'Excluir'}
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                        {!loadingRecipients && recipientPreview.length === 0 && (
+                          <tr>
+                            <td className="px-2 py-3 text-gray-500" colSpan={4}>
+                              No hay destinatarios para este segmento.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <textarea className="w-full border rounded px-2 py-2 text-sm min-h-[90px]" placeholder="mensaje campaña" value={campForm.customBody} onChange={(e) => setCampForm((p) => ({ ...p, customBody: e.target.value }))} />
                 <div className="flex gap-2">
                   <button className="bg-primary-600 text-white rounded px-3 py-2 text-sm" onClick={createCampaign}>
-                    Guardar campana
+                    Guardar campaña
                   </button>
                   <button className="border rounded px-3 py-2 text-sm" onClick={() => setActivePanel('CAMPAIGNS')}>
-                    Ir a campanas
+                    Ir a campañas
                   </button>
                 </div>
               </div>
@@ -622,7 +867,7 @@ export default function AdminCommunicationsPage() {
             <section className="space-y-4">
               <div className="rounded-xl border bg-white p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h2 className="text-lg font-semibold">Analisis de campanas</h2>
+                  <h2 className="text-lg font-semibold">Análisis de campañas</h2>
                   <select
                     className="border rounded px-2 py-2 text-sm"
                     value={selectedCampaignId || ''}
@@ -632,7 +877,7 @@ export default function AdminCommunicationsPage() {
                       }
                     }}
                   >
-                    <option value="">Selecciona una campana</option>
+                    <option value="">Selecciona una campaña</option>
                     {orderedCampaigns.map((campaign) => (
                       <option key={campaign.id} value={campaign.id}>
                         {campaign.name} ({campaign.channel})
@@ -645,7 +890,7 @@ export default function AdminCommunicationsPage() {
                   <div className="space-y-4">
                     <div className="grid md:grid-cols-4 gap-3">
                       <div className="border rounded-lg p-3">
-                        <p className="text-xs text-gray-500">Campana</p>
+                        <p className="text-xs text-gray-500">Campaña</p>
                         <p className="font-semibold text-gray-900">{selectedCampaign.name}</p>
                       </div>
                       <div className="border rounded-lg p-3">
@@ -700,7 +945,7 @@ export default function AdminCommunicationsPage() {
                             )
                           })
                         ) : (
-                          <p className="text-sm text-gray-500">Esta campana no tiene variantes registradas.</p>
+                          <p className="text-sm text-gray-500">Esta campaña no tiene variantes registradas.</p>
                         )}
                       </div>
                     </div>
@@ -727,7 +972,7 @@ export default function AdminCommunicationsPage() {
                   </div>
                 ) : (
                   <div className="rounded-lg border border-dashed p-4 text-sm text-gray-500">
-                    Selecciona una campana para ver analitica detallada.
+                    Selecciona una campaña para ver analítica detallada.
                   </div>
                 )}
               </div>

@@ -3,17 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { renderTextTemplate } from '@/lib/messaging/template'
 import { sendMessageViaProvider } from '@/lib/messaging/providers'
 import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
-
-function resolveDestination(channel: MessagingChannel, user: { id: string; email: string; phone: string | null }) {
-  if (channel === 'PUSH') return `user:${user.id}`
-  if (channel === 'EMAIL') return user.email
-  return user.phone
-}
-
-function resolveRecipientRole(targetRole: UserRole | null) {
-  if (!targetRole) return { in: ['CLIENT', 'PARTNER'] as UserRole[] }
-  return targetRole
-}
+import { resolveCampaignRecipients, resolveDestination } from '@/lib/messaging/campaign-recipients'
 
 export async function processCampaign(campaignId: string) {
   const campaign = await prisma.messagingCampaign.findUnique({
@@ -32,20 +22,10 @@ export async function processCampaign(campaignId: string) {
     data: { status: 'PROCESSING', startedAt: new Date() },
   })
 
-  const users = await prisma.user.findMany({
-    where: {
-      role: resolveRecipientRole(campaign.targetRole),
-      isActive: true,
-      ...(campaign.targetCity
-        ? {
-            OR: [
-              { role: 'CLIENT', addresses: { some: { city: campaign.targetCity, isActive: true } } },
-              { role: 'PARTNER', partnerProfile: { city: campaign.targetCity } },
-            ],
-          }
-        : {}),
-    },
-    select: { id: true, name: true, email: true, phone: true },
+  const { users } = await resolveCampaignRecipients({
+    targetRole: campaign.targetRole,
+    targetCity: campaign.targetCity,
+    metadata: campaign.metadata,
     take: 2000,
   })
   const runtimeConfig = await getMessagingProviderRuntimeConfig()

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import type { City, MessagingCampaignStatus, MessagingChannel, UserRole } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { auditAdminAction, requireAdmin } from '@/lib/admin-utils'
+import { mergeRecipientControlMetadata, parseRecipientControl } from '@/lib/messaging/campaign-recipients'
 
 export async function GET(request: NextRequest) {
   const admin = await requireAdmin()
@@ -35,6 +36,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'name, channel y customBody requeridos' }, { status: 400 })
   }
 
+  const metadata = mergeRecipientControlMetadata(
+    body.metadata ? JSON.stringify(body.metadata) : null,
+    {
+      includeUserIds: Array.isArray(body.includeUserIds) ? body.includeUserIds : [],
+      excludeUserIds: Array.isArray(body.excludeUserIds) ? body.excludeUserIds : [],
+    }
+  )
+
   const campaign = await prisma.messagingCampaign.create({
     data: {
       name: String(body.name),
@@ -49,7 +58,7 @@ export async function POST(request: NextRequest) {
       abTestConfig: body.abTestConfig ? JSON.stringify(body.abTestConfig) : null,
       scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : null,
       createdById: admin.id,
-      metadata: body.metadata ? JSON.stringify(body.metadata) : null,
+      metadata,
     },
   })
 
@@ -73,6 +82,29 @@ export async function PATCH(request: NextRequest) {
   const body = await request.json()
   if (!body?.id) return NextResponse.json({ error: 'id requerido' }, { status: 400 })
 
+  const current = await prisma.messagingCampaign.findUnique({
+    where: { id: body.id },
+    select: { id: true, metadata: true },
+  })
+  if (!current) return NextResponse.json({ error: 'campaign no encontrada' }, { status: 404 })
+
+  const metadata =
+    body.metadata !== undefined ||
+    body.includeUserIds !== undefined ||
+    body.excludeUserIds !== undefined
+      ? mergeRecipientControlMetadata(
+          body.metadata ? JSON.stringify(body.metadata) : current.metadata,
+          {
+            includeUserIds: Array.isArray(body.includeUserIds)
+              ? body.includeUserIds
+              : parseRecipientControl(current.metadata).includeUserIds,
+            excludeUserIds: Array.isArray(body.excludeUserIds)
+              ? body.excludeUserIds
+              : parseRecipientControl(current.metadata).excludeUserIds,
+          }
+        )
+      : undefined
+
   const campaign = await prisma.messagingCampaign.update({
     where: { id: body.id },
     data: {
@@ -86,7 +118,7 @@ export async function PATCH(request: NextRequest) {
       ...(body.abTestEnabled !== undefined ? { abTestEnabled: Boolean(body.abTestEnabled) } : {}),
       ...(body.abTestConfig !== undefined ? { abTestConfig: body.abTestConfig ? JSON.stringify(body.abTestConfig) : null } : {}),
       ...(body.scheduledAt !== undefined ? { scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : null } : {}),
-      ...(body.metadata !== undefined ? { metadata: body.metadata ? JSON.stringify(body.metadata) : null } : {}),
+      ...(metadata !== undefined ? { metadata } : {}),
     },
   })
 
