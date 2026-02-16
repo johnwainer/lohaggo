@@ -200,12 +200,18 @@ self.addEventListener('notificationclick', (event) => {
   let targetUrl = urlToOpen;
 
   if (notificationData) {
-    if (notificationData.type === 'NEW_PROPOSAL' || notificationData.type === 'PROPOSAL_ACCEPTED') {
+    if (notificationData.targetUrl) {
+      targetUrl = new URL(notificationData.targetUrl, self.location.origin).href;
+    } else if (notificationData.type === 'NEW_PROPOSAL' || notificationData.type === 'PROPOSAL_ACCEPTED') {
       targetUrl = new URL('/dashboard', self.location.origin).href;
     } else if (notificationData.type === 'NEW_SERVICE_REQUEST') {
       targetUrl = new URL('/partner', self.location.origin).href;
-    } else if (notificationData.type === 'BOOKING_CONFIRMED' || notificationData.type === 'BOOKING_IN_PROGRESS' || notificationData.type === 'BOOKING_COMPLETED') {
+    } else if (notificationData.type === 'BOOKING_CONFIRMED' || notificationData.type === 'BOOKING_IN_PROGRESS' || notificationData.type === 'BOOKING_COMPLETED' || notificationData.type === 'BOOKING_CANCELLED') {
       targetUrl = new URL('/dashboard', self.location.origin).href;
+    } else if (notificationData.type === 'NEW_MESSAGE') {
+      targetUrl = new URL('/notifications', self.location.origin).href;
+    } else if (notificationData.type === 'CAMPAIGN_PUSH') {
+      targetUrl = new URL('/notifications', self.location.origin).href;
     } else if (notificationData.proposalId) {
       targetUrl = new URL('/dashboard', self.location.origin).href;
     }

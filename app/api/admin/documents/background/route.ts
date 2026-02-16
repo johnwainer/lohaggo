@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
 import { cloudinaryService } from '@/lib/cloudinary'
 import { handleApiError } from '@/lib/errors'
+import { createNotification } from '@/lib/notifications/notificationService'
 
 const logger = createLogger('admin-documents-background')
 
@@ -51,14 +52,11 @@ export async function POST(req: NextRequest) {
       }
     })
 
-    await prisma.notification.create({
-      data: {
-        userId: partnerProfile.userId,
-        type: 'DOCUMENT_APPROVED',
-        title: 'Antecedentes aprobados',
-        message: 'Tus antecedentes han sido verificados y aprobados',
-        read: false
-      }
+    await createNotification({
+      userId: partnerProfile.userId,
+      type: 'DOCUMENT_APPROVED',
+      title: 'Antecedentes aprobados',
+      message: 'Tus antecedentes han sido verificados y aprobados'
     })
 
     const backgroundAchievement = await prisma.achievement.findUnique({
@@ -83,14 +81,11 @@ export async function POST(req: NextRequest) {
           }
         })
 
-        await prisma.notification.create({
-          data: {
-            userId: partnerProfile.userId,
-            type: 'ACHIEVEMENT_UNLOCKED',
-            title: '¡Logro desbloqueado!',
-            message: `Has desbloqueado: ${backgroundAchievement.name}`,
-            read: false
-          }
+        await createNotification({
+          userId: partnerProfile.userId,
+          type: 'ACHIEVEMENT_UNLOCKED',
+          title: '¡Logro desbloqueado!',
+          message: `Has desbloqueado: ${backgroundAchievement.name}`
         })
       }
     }

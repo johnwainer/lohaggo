@@ -1239,6 +1239,7 @@ enum MessagingChannel {
   SMS
   WHATSAPP
   EMAIL
+  PUSH
 }
 
 enum MessagingCampaignStatus {

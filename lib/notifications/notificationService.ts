@@ -3,6 +3,7 @@ import webpush from "web-push"
 import { createLogger } from '@/lib/logger'
 import { validateVapidKeys, parsePushSubscription } from './pushValidation'
 import { env } from '@/lib/env'
+import type { NotificationType as PrismaNotificationType } from '@prisma/client'
 
 const logger = createLogger('notification-service')
 
@@ -24,15 +25,7 @@ if (vapidValidation.valid) {
   logger.warn('VAPID keys not configured or invalid', { error: vapidValidation.error })
 }
 
-export type NotificationType =
-  | "NEW_SERVICE_REQUEST"
-  | "NEW_PROPOSAL"
-  | "PROPOSAL_ACCEPTED"
-  | "PROPOSAL_REJECTED"
-  | "BOOKING_CONFIRMED"
-  | "BOOKING_CANCELLED"
-  | "BOOKING_IN_PROGRESS"
-  | "BOOKING_COMPLETED"
+export type NotificationType = PrismaNotificationType
 
 interface CreateNotificationParams {
   userId: string
@@ -86,7 +79,7 @@ interface PushPayload {
 async function sendPushNotification(userId: string, payload: PushPayload) {
   if (!vapidValidation.valid) {
     logger.debug('Push notifications disabled - VAPID keys not configured')
-    return
+    return { ok: false, errorCode: 'VAPID_NOT_CONFIGURED', errorMessage: 'Push VAPID keys missing' }
   }
 
   try {
@@ -95,7 +88,7 @@ async function sendPushNotification(userId: string, payload: PushPayload) {
     })
 
     if (!user?.pushSubscription) {
-      return
+      return { ok: false, errorCode: 'NO_SUBSCRIPTION', errorMessage: 'User without push subscription' }
     }
 
     const subscription = parsePushSubscription(user.pushSubscription)
@@ -106,7 +99,7 @@ async function sendPushNotification(userId: string, payload: PushPayload) {
         where: { id: userId },
         data: { pushSubscription: null }
       })
-      return
+      return { ok: false, errorCode: 'INVALID_SUBSCRIPTION', errorMessage: 'Invalid push subscription payload' }
     }
 
     await webpush.sendNotification(
@@ -115,6 +108,7 @@ async function sendPushNotification(userId: string, payload: PushPayload) {
     )
 
     logger.debug('Push notification sent successfully', { userId })
+    return { ok: true }
   } catch (error) {
     logger.error("Error sending push notification:", error)
 
@@ -126,9 +120,15 @@ async function sendPushNotification(userId: string, payload: PushPayload) {
           where: { id: userId },
           data: { pushSubscription: null }
         })
+        return { ok: false, errorCode: String(statusCode), errorMessage: 'Push subscription expired/invalid' }
       }
     }
+    return { ok: false, errorCode: 'SEND_ERROR', errorMessage: error instanceof Error ? error.message : 'Push send failed' }
   }
+}
+
+export async function sendDirectPushToUser(userId: string, payload: PushPayload) {
+  return sendPushNotification(userId, payload)
 }
 
 export async function notifyNewServiceRequest(serviceRequestId: string) {

@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
 import { cloudinaryService } from '@/lib/cloudinary'
 import { handleApiError } from '@/lib/errors'
+import { createNotification } from '@/lib/notifications/notificationService'
 
 const logger = createLogger('partner-documents')
 
@@ -73,14 +74,11 @@ export async function POST(req: NextRequest) {
       }
     })
 
-    await prisma.notification.create({
-      data: {
-        userId: session.user.id,
-        type: 'DOCUMENT_APPROVED',
-        title: 'Documento subido',
-        message: `Tu documento ${type} ha sido subido y está en revisión`,
-        read: false
-      }
+    await createNotification({
+      userId: session.user.id,
+      type: 'DOCUMENT_APPROVED',
+      title: 'Documento subido',
+      message: `Tu documento ${type} ha sido subido y está en revisión`
     })
 
     return NextResponse.json(document)

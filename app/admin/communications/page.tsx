@@ -6,7 +6,7 @@ type Template = {
   id: string
   key: string
   name: string
-  channel: 'SMS' | 'WHATSAPP' | 'EMAIL'
+  channel: 'SMS' | 'WHATSAPP' | 'EMAIL' | 'PUSH'
   subject: string | null
   body: string
   isActive: boolean
@@ -15,7 +15,7 @@ type Template = {
 type Campaign = {
   id: string
   name: string
-  channel: 'SMS' | 'WHATSAPP' | 'EMAIL'
+  channel: 'SMS' | 'WHATSAPP' | 'EMAIL' | 'PUSH'
   status: 'DRAFT' | 'SCHEDULED' | 'PROCESSING' | 'SENT' | 'PARTIAL' | 'FAILED' | 'CANCELLED'
   totalRecipients: number
   totalSent: number
@@ -314,7 +314,7 @@ export default function AdminCommunicationsPage() {
       <div className="space-y-2">
         <h1 className="text-3xl font-bold text-gray-900">Comunicaciones Omnicanal</h1>
         <p className="text-gray-600 mt-1">
-          Pilar de comunicacion del admin: credenciales, campanas, ejecucion y analitica operativa por SMS, WhatsApp y Email.
+          Pilar de comunicacion del admin: credenciales, campanas, ejecucion y analitica operativa por SMS, WhatsApp, Email y PUSH.
         </p>
       </div>
 
@@ -535,6 +535,7 @@ export default function AdminCommunicationsPage() {
                     <option value="SMS">SMS</option>
                     <option value="WHATSAPP">WHATSAPP</option>
                     <option value="EMAIL">EMAIL</option>
+                    <option value="PUSH">PUSH</option>
                   </select>
                   <input className="border rounded px-2 py-2 text-sm" placeholder="subject (email)" value={tplForm.subject} onChange={(e) => setTplForm((p) => ({ ...p, subject: e.target.value }))} />
                   <button className="bg-primary-600 text-white rounded px-3 py-2 text-sm" onClick={createTemplate}>
@@ -552,6 +553,7 @@ export default function AdminCommunicationsPage() {
                     <option value="SMS">SMS</option>
                     <option value="WHATSAPP">WHATSAPP</option>
                     <option value="EMAIL">EMAIL</option>
+                    <option value="PUSH">PUSH</option>
                   </select>
                   <select className="border rounded px-2 py-2 text-sm" value={campForm.targetRole} onChange={(e) => setCampForm((p) => ({ ...p, targetRole: e.target.value }))}>
                     <option value="CLIENT">CLIENTES</option>

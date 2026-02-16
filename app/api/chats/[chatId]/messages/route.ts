@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
 import { chatMessageSchema, validateRequest } from '@/lib/validation'
+import { createNotification } from '@/lib/notifications/notificationService'
 
 function detectContactInfo(message: string): { isValid: boolean; reason?: string } {
   const lowerMessage = message.toLowerCase()
@@ -226,14 +227,15 @@ export async function POST(
       }
 
       if (recipientUserId) {
-        await prisma.notification.create({
+        await createNotification({
+          userId: recipientUserId,
+          type: 'NEW_MESSAGE',
+          title: 'Alerta de seguridad',
+          message: 'Se bloqueó un intento de compartir información de contacto en el chat',
           data: {
-            userId: recipientUserId,
-            type: 'NEW_MESSAGE',
-            title: 'Alerta de seguridad',
-            message: `Se bloqueó un intento de compartir información de contacto en el chat`,
-            data: JSON.stringify({ chatId: chatId })
-          }
+            chatId,
+            targetUrl: session.user.role === 'PARTNER' ? '/dashboard' : '/partner',
+          },
         })
       }
 
@@ -307,14 +309,15 @@ export async function POST(
     }
 
     if (recipientUserId) {
-      await prisma.notification.create({
+      await createNotification({
+        userId: recipientUserId,
+        type: 'NEW_MESSAGE',
+        title: 'Nuevo mensaje',
+        message: `${session.user.name} te ha enviado un mensaje`,
         data: {
-          userId: recipientUserId,
-          type: 'NEW_MESSAGE',
-          title: 'Nuevo mensaje',
-          message: `${session.user.name} te ha enviado un mensaje`,
-          data: JSON.stringify({ chatId: chatId })
-        }
+          chatId,
+          targetUrl: session.user.role === 'PARTNER' ? '/dashboard' : '/partner',
+        },
       })
     }
 

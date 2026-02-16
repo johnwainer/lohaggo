@@ -1,9 +1,11 @@
 import type { MessagingChannel } from '@prisma/client'
 import type { MessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
+import { sendDirectPushToUser } from '@/lib/notifications/notificationService'
 
 type SendParams = {
   channel: MessagingChannel
   to: string
+  userId?: string
   subject?: string | null
   body: string
 }
@@ -134,5 +136,24 @@ export async function sendMessageViaProvider(
 ): Promise<SendResult> {
   if (params.channel === 'SMS') return sendByTwilioSms(params.to, params.body, runtimeConfig.twilio)
   if (params.channel === 'WHATSAPP') return sendByTwilioWhatsApp(params.to, params.body, runtimeConfig.twilio)
+  if (params.channel === 'PUSH') {
+    if (!params.userId) {
+      return { ok: false, provider: 'webpush', errorCode: 'MISSING_USER', errorMessage: 'PUSH channel requires userId' }
+    }
+    const result = await sendDirectPushToUser(params.userId, {
+      title: params.subject || 'LoHaggo',
+      body: params.body,
+      data: {
+        type: 'CAMPAIGN_PUSH',
+        campaignChannel: 'PUSH',
+      },
+    })
+    return {
+      ok: result.ok,
+      provider: 'webpush',
+      errorCode: result.ok ? undefined : result.errorCode,
+      errorMessage: result.ok ? undefined : result.errorMessage,
+    }
+  }
   return sendBySendgridEmail(params.to, params.subject, params.body, runtimeConfig.sendgrid)
 }

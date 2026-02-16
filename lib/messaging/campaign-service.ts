@@ -4,7 +4,8 @@ import { renderTextTemplate } from '@/lib/messaging/template'
 import { sendMessageViaProvider } from '@/lib/messaging/providers'
 import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
 
-function resolveDestination(channel: MessagingChannel, user: { email: string; phone: string | null }) {
+function resolveDestination(channel: MessagingChannel, user: { id: string; email: string; phone: string | null }) {
+  if (channel === 'PUSH') return `user:${user.id}`
   if (channel === 'EMAIL') return user.email
   return user.phone
 }
@@ -101,8 +102,8 @@ export async function processCampaign(campaignId: string) {
     const optedOut = await prisma.messagingOptOut.findFirst({
       where: {
         channel: campaign.channel,
-        destination,
         isActive: true,
+        OR: [{ destination }, { userId: user.id }],
       },
     })
 
@@ -137,6 +138,7 @@ export async function processCampaign(campaignId: string) {
       {
         channel: campaign.channel,
         to: destination,
+        userId: user.id,
         subject,
         body,
       },

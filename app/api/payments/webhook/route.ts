@@ -7,6 +7,7 @@ import { webhookRateLimiter } from '@/lib/rate-limit';
 import crypto from 'crypto';
 import { handleApiError } from '@/lib/errors';
 import { env } from '@/lib/env';
+import { createNotification } from '@/lib/notifications/notificationService';
 
 const logger = createLogger('payments-webhook');
 
@@ -159,23 +160,19 @@ async function handlePOST(req: NextRequest) {
           },
         });
 
-        await prisma.notification.create({
-          data: {
-            userId: booking.userId,
-            type: 'BOOKING_CONFIRMED',
-            title: 'Pago recibido',
-            message: `Tu pago de $${payment.totalAmount?.toLocaleString('es-CO') ?? payment.totalAmount} COP ha sido confirmado.`,
-          },
+        await createNotification({
+          userId: booking.userId,
+          type: 'BOOKING_CONFIRMED',
+          title: 'Pago recibido',
+          message: `Tu pago de $${payment.totalAmount?.toLocaleString('es-CO') ?? payment.totalAmount} COP ha sido confirmado.`,
         });
 
         if (booking.partner?.user?.pushSubscription) {
-          await prisma.notification.create({
-            data: {
-              userId: booking.partner.user.id,
-              type: 'BOOKING_CONFIRMED',
-              title: 'Nueva reserva confirmada',
-              message: `${booking.user?.name ?? 'Un cliente'} ha confirmado el pago. La reserva está lista.`,
-            },
+          await createNotification({
+            userId: booking.partner.user.id,
+            type: 'BOOKING_CONFIRMED',
+            title: 'Nueva reserva confirmada',
+            message: `${booking.user?.name ?? 'Un cliente'} ha confirmado el pago. La reserva está lista.`,
           });
         }
 

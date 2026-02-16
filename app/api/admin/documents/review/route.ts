@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
+import { createNotification } from '@/lib/notifications/notificationService'
 
 async function checkAndUnlockAchievements(partnerId: string) {
   const documents = await prisma.verificationDocument.findMany({
@@ -65,14 +66,12 @@ async function checkAndUnlockAchievements(partnerId: string) {
         })
 
         if (partner) {
-          await prisma.notification.create({
-            data: {
-              userId: partner.userId,
-              type: 'ACHIEVEMENT_UNLOCKED',
-              title: '¡Nuevo logro desbloqueado!',
-              message: `Has desbloqueado: ${achievement.name}`,
-              data: JSON.stringify({ achievementId: achievement.id })
-            }
+          await createNotification({
+            userId: partner.userId,
+            type: 'ACHIEVEMENT_UNLOCKED',
+            title: '¡Nuevo logro desbloqueado!',
+            message: `Has desbloqueado: ${achievement.name}`,
+            data: { achievementId: achievement.id }
           })
         }
       }
@@ -120,16 +119,14 @@ export async function POST(req: NextRequest) {
       }
     })
 
-    await prisma.notification.create({
-      data: {
-        userId: document.partner.userId,
-        type: status === 'APPROVED' ? 'DOCUMENT_APPROVED' : 'DOCUMENT_REJECTED',
-        title: status === 'APPROVED' ? 'Documento aprobado' : 'Documento rechazado',
-        message: status === 'APPROVED' 
-          ? 'Tu documento ha sido aprobado exitosamente'
-          : `Tu documento ha sido rechazado. Razón: ${rejectionReason}`,
-        data: JSON.stringify({ documentId })
-      }
+    await createNotification({
+      userId: document.partner.userId,
+      type: status === 'APPROVED' ? 'DOCUMENT_APPROVED' : 'DOCUMENT_REJECTED',
+      title: status === 'APPROVED' ? 'Documento aprobado' : 'Documento rechazado',
+      message: status === 'APPROVED'
+        ? 'Tu documento ha sido aprobado exitosamente'
+        : `Tu documento ha sido rechazado. Razón: ${rejectionReason}`,
+      data: { documentId }
     })
 
     if (status === 'APPROVED') {

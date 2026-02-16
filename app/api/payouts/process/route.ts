@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
 import { processPayoutWithMercadoPago } from '@/lib/payout-processor'
+import { createNotification } from '@/lib/notifications/notificationService'
 
 const logger = createLogger('payouts-process')
 
@@ -87,13 +88,11 @@ async function processSinglePayout(payoutId: string, actorEmail: string) {
   })
 
   if (providerResult.success) {
-    await prisma.notification.create({
-      data: {
-        userId: payout.partner.user?.id ?? payout.partner.userId,
-        type: 'BOOKING_CONFIRMED',
-        title: 'Pago procesado',
-        message: `Se ha procesado tu pago de $${payout.netAmount.toLocaleString('es-CO')} COP`,
-      },
+    await createNotification({
+      userId: payout.partner.user?.id ?? payout.partner.userId,
+      type: 'BOOKING_CONFIRMED',
+      title: 'Pago procesado',
+      message: `Se ha procesado tu pago de $${payout.netAmount.toLocaleString('es-CO')} COP`,
     })
   }
 
