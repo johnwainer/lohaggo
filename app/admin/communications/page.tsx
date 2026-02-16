@@ -122,6 +122,8 @@ export default function AdminCommunicationsPage() {
     subject: '',
     body: '',
   })
+  const [templateEditingId, setTemplateEditingId] = useState<string | null>(null)
+  const [templateFeedback, setTemplateFeedback] = useState<{ type: 'ok' | 'error'; message: string } | null>(null)
 
   const [campForm, setCampForm] = useState({
     name: '',
@@ -268,16 +270,53 @@ export default function AdminCommunicationsPage() {
 
   const createTemplate = async () => {
     if (!tplForm.key || !tplForm.name || !tplForm.body) return
-    await fetch('/api/admin/messaging/templates', {
-      method: 'POST',
+    setTemplateFeedback(null)
+    const response = await fetch('/api/admin/messaging/templates', {
+      method: templateEditingId ? 'PATCH' : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        ...(templateEditingId ? { id: templateEditingId } : {}),
         ...tplForm,
         channel: tplForm.channel,
         subject: tplForm.subject || null,
       }),
     })
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      setTemplateFeedback({ type: 'error', message: data.error || 'No se pudo guardar la plantilla' })
+      return
+    }
+    setTemplateFeedback({ type: 'ok', message: templateEditingId ? 'Plantilla actualizada' : 'Plantilla creada' })
+    setTemplateEditingId(null)
     setTplForm({ key: '', name: '', channel: 'SMS', subject: '', body: '' })
+    await load()
+  }
+
+  const editTemplate = (template: Template) => {
+    setTemplateEditingId(template.id)
+    setTplForm({
+      key: template.key,
+      name: template.name,
+      channel: template.channel,
+      subject: template.subject || '',
+      body: template.body,
+    })
+    setTemplateFeedback(null)
+  }
+
+  const deleteTemplate = async (id: string) => {
+    setTemplateFeedback(null)
+    const response = await fetch(`/api/admin/messaging/templates?id=${id}`, { method: 'DELETE' })
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      setTemplateFeedback({ type: 'error', message: data.error || 'No se pudo eliminar la plantilla' })
+      return
+    }
+    if (templateEditingId === id) {
+      setTemplateEditingId(null)
+      setTplForm({ key: '', name: '', channel: 'SMS', subject: '', body: '' })
+    }
+    setTemplateFeedback({ type: 'ok', message: 'Plantilla eliminada' })
     await load()
   }
 
@@ -684,7 +723,21 @@ export default function AdminCommunicationsPage() {
           {activePanel === 'CREATE' && (
             <section className="space-y-4">
               <div className="rounded-xl border bg-white p-4 space-y-3">
-                <h2 className="text-lg font-semibold">Crear plantilla</h2>
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="text-lg font-semibold">{templateEditingId ? 'Editar plantilla' : 'Crear plantilla'}</h2>
+                  {templateEditingId && (
+                    <button
+                      className="border rounded px-3 py-2 text-sm"
+                      onClick={() => {
+                        setTemplateEditingId(null)
+                        setTplForm({ key: '', name: '', channel: 'SMS', subject: '', body: '' })
+                        setTemplateFeedback(null)
+                      }}
+                    >
+                      Cancelar edición
+                    </button>
+                  )}
+                </div>
                 <div className="grid md:grid-cols-5 gap-2">
                   <input className="border rounded px-2 py-2 text-sm" placeholder="key" value={tplForm.key} onChange={(e) => setTplForm((p) => ({ ...p, key: e.target.value }))} />
                   <input className="border rounded px-2 py-2 text-sm" placeholder="nombre" value={tplForm.name} onChange={(e) => setTplForm((p) => ({ ...p, name: e.target.value }))} />
@@ -696,10 +749,61 @@ export default function AdminCommunicationsPage() {
                   </select>
                   <input className="border rounded px-2 py-2 text-sm" placeholder="subject (email)" value={tplForm.subject} onChange={(e) => setTplForm((p) => ({ ...p, subject: e.target.value }))} />
                   <button className="bg-primary-600 text-white rounded px-3 py-2 text-sm" onClick={createTemplate}>
-                    Crear plantilla
+                    {templateEditingId ? 'Guardar cambios' : 'Crear plantilla'}
                   </button>
                 </div>
                 <textarea className="w-full border rounded px-2 py-2 text-sm min-h-[90px]" placeholder="body con variables: {{user_name}}" value={tplForm.body} onChange={(e) => setTplForm((p) => ({ ...p, body: e.target.value }))} />
+                {templateFeedback && (
+                  <p className={`text-sm ${templateFeedback.type === 'ok' ? 'text-emerald-700' : 'text-rose-700'}`}>
+                    {templateFeedback.message}
+                  </p>
+                )}
+                <div className="overflow-x-auto rounded border">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-gray-50 text-gray-600">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium">Nombre</th>
+                        <th className="px-3 py-2 text-left font-medium">Key</th>
+                        <th className="px-3 py-2 text-left font-medium">Canal</th>
+                        <th className="px-3 py-2 text-left font-medium">Estado</th>
+                        <th className="px-3 py-2 text-right font-medium">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {templates.map((template) => (
+                        <tr key={template.id} className="border-t">
+                          <td className="px-3 py-2 font-medium text-gray-900">{template.name}</td>
+                          <td className="px-3 py-2">{template.key}</td>
+                          <td className="px-3 py-2">{template.channel}</td>
+                          <td className="px-3 py-2">{template.isActive ? 'ACTIVA' : 'INACTIVA'}</td>
+                          <td className="px-3 py-2">
+                            <div className="flex justify-end gap-2">
+                              <button
+                                className="border rounded px-2 py-1 text-xs"
+                                onClick={() => editTemplate(template)}
+                              >
+                                Editar
+                              </button>
+                              <button
+                                className="border border-rose-200 text-rose-700 rounded px-2 py-1 text-xs"
+                                onClick={() => deleteTemplate(template.id)}
+                              >
+                                Eliminar
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {templates.length === 0 && (
+                        <tr>
+                          <td className="px-3 py-4 text-gray-500" colSpan={5}>
+                            No hay plantillas registradas.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
               <div className="rounded-xl border bg-white p-4 space-y-3">
