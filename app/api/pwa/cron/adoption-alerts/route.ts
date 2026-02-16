@@ -3,10 +3,10 @@ import { env } from '@/lib/env'
 import { runPwaAdoptionAlerts } from '@/lib/pwa/adoption-alerts'
 
 function isAuthorized(request: NextRequest) {
-  const authHeader = request.headers.get('authorization')
-  if (env.CRON_SECRET && authHeader === `Bearer ${env.CRON_SECRET}`) {
-    return true
-  }
+  const authHeader = request.headers.get('authorization') || ''
+  const bearerToken = authHeader.replace(/^Bearer\s+/i, '').trim()
+  const cronSecret = (env.CRON_SECRET || '').trim()
+  if (cronSecret && bearerToken && bearerToken === cronSecret) return true
 
   const headerToken = request.headers.get('x-internal-token')
   const queryToken = request.nextUrl.searchParams.get('token')
