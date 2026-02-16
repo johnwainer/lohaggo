@@ -1,0 +1,133 @@
+{
+  "generatedAt": "2026-02-16T19:15:58.101Z",
+  "baseUrl": "https://www.lohaggo.com",
+  "scenarios": [
+    {
+      "role": "client",
+      "loginOk": true,
+      "checks": [
+        {
+          "id": "login",
+          "path": "/dashboard",
+          "ok": true,
+          "url": "https://www.lohaggo.com/dashboard",
+          "expect": [
+            "/dashboard"
+          ]
+        },
+        {
+          "id": "service-request",
+          "path": "/solicitar",
+          "ok": true,
+          "url": "https://www.lohaggo.com/solicitar",
+          "expect": [
+            "/solicitar",
+            "/servicios"
+          ]
+        },
+        {
+          "id": "payment-methods",
+          "path": "/dashboard/payment-methods",
+          "ok": true,
+          "url": "https://www.lohaggo.com/dashboard/payment-methods",
+          "expect": [
+            "/dashboard/payment-methods"
+          ]
+        },
+        {
+          "id": "booking-cancel",
+          "path": "/my-bookings",
+          "ok": true,
+          "url": "https://www.lohaggo.com/my-bookings",
+          "expect": [
+            "/my-bookings"
+          ]
+        }
+      ]
+    },
+    {
+      "role": "partner",
+      "loginOk": true,
+      "checks": [
+        {
+          "id": "login",
+          "path": "/partner",
+          "ok": true,
+          "url": "https://www.lohaggo.com/partner",
+          "expect": [
+            "/partner"
+          ]
+        },
+        {
+          "id": "proposals",
+          "path": "/partner",
+          "ok": true,
+          "url": "https://www.lohaggo.com/partner",
+          "expect": [
+            "/partner"
+          ]
+        },
+        {
+          "id": "payouts-bank",
+          "path": "/partner/bank-accounts",
+          "ok": true,
+          "url": "https://www.lohaggo.com/partner/bank-accounts",
+          "expect": [
+            "/partner/bank-accounts"
+          ]
+        },
+        {
+          "id": "profile",
+          "path": "/profile",
+          "ok": true,
+          "url": "https://www.lohaggo.com/profile",
+          "expect": [
+            "/profile"
+          ]
+        }
+      ]
+    },
+    {
+      "role": "admin",
+      "loginOk": true,
+      "checks": [
+        {
+          "id": "dashboard",
+          "path": "/admin",
+          "ok": true,
+          "url": "https://www.lohaggo.com/admin",
+          "expect": [
+            "/admin"
+          ]
+        },
+        {
+          "id": "finance-ops",
+          "path": "/admin/finance-ops",
+          "ok": true,
+          "url": "https://www.lohaggo.com/admin/finance-ops",
+          "expect": [
+            "/admin/finance-ops"
+          ]
+        },
+        {
+          "id": "compliance",
+          "path": "/admin/compliance",
+          "ok": true,
+          "url": "https://www.lohaggo.com/admin/compliance",
+          "expect": [
+            "/admin/compliance"
+          ]
+        },
+        {
+          "id": "security",
+          "path": "/admin/security",
+          "ok": true,
+          "url": "https://www.lohaggo.com/admin/security",
+          "expect": [
+            "/admin/security"
+          ]
+        }
+      ]
+    }
+  ]
+}

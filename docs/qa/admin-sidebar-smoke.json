@@ -1,9 +1,9 @@
 {
-  "baseUrl": "http://localhost:4000",
-  "generatedAt": "2026-02-13T20:15:58.248Z",
+  "baseUrl": "https://www.lohaggo.com",
+  "generatedAt": "2026-02-16T19:17:07.040Z",
   "loginStatus": 200,
-  "pass": 8,
-  "fail": 9,
+  "pass": 23,
+  "fail": 0,
   "results": [
     {
       "id": "dashboard",
@@ -13,7 +13,16 @@
         "/admin",
         "/admin?section=dashboard"
       ],
-      "url": "http://localhost:4000/admin"
+      "url": "https://www.lohaggo.com/admin?section=dashboard"
+    },
+    {
+      "id": "training",
+      "clicked": true,
+      "ok": true,
+      "expected": [
+        "/admin/training"
+      ],
+      "url": "https://www.lohaggo.com/admin/training"
     },
     {
       "id": "monitoring",
@@ -22,7 +31,7 @@
       "expected": [
         "/admin/monitoring"
       ],
-      "url": "http://localhost:4000/admin/monitoring"
+      "url": "https://www.lohaggo.com/admin/monitoring"
     },
     {
       "id": "analytics",
@@ -31,7 +40,7 @@
       "expected": [
         "/admin?section=analytics"
       ],
-      "url": "http://localhost:4000/admin?section=analytics"
+      "url": "https://www.lohaggo.com/admin?section=analytics"
     },
     {
       "id": "bookings",
@@ -40,7 +49,7 @@
       "expected": [
         "/admin?section=bookings"
       ],
-      "url": "http://localhost:4000/admin?section=bookings"
+      "url": "https://www.lohaggo.com/admin?section=bookings"
     },
     {
       "id": "payments",
@@ -49,7 +58,7 @@
       "expected": [
         "/admin?section=payments"
       ],
-      "url": "http://localhost:4000/admin?section=payments"
+      "url": "https://www.lohaggo.com/admin?section=payments"
     },
     {
       "id": "payouts",
@@ -58,7 +67,16 @@
       "expected": [
         "/admin?section=payouts"
       ],
-      "url": "http://localhost:4000/admin?section=payouts"
+      "url": "https://www.lohaggo.com/admin?section=payouts"
+    },
+    {
+      "id": "finance-ops",
+      "clicked": true,
+      "ok": true,
+      "expected": [
+        "/admin/finance-ops"
+      ],
+      "url": "https://www.lohaggo.com/admin/finance-ops"
     },
     {
       "id": "users",
@@ -67,7 +85,7 @@
       "expected": [
         "/admin?section=users"
       ],
-      "url": "http://localhost:4000/admin?section=users"
+      "url": "https://www.lohaggo.com/admin?section=users"
     },
     {
       "id": "partners",
@@ -76,88 +94,124 @@
       "expected": [
         "/admin?section=partners"
       ],
-      "url": "http://localhost:4000/admin?section=partners"
+      "url": "https://www.lohaggo.com/admin?section=partners"
+    },
+    {
+      "id": "compliance",
+      "clicked": true,
+      "ok": true,
+      "expected": [
+        "/admin/compliance"
+      ],
+      "url": "https://www.lohaggo.com/admin/compliance"
     },
     {
       "id": "documents",
-      "clicked": false,
-      "ok": false,
+      "clicked": true,
+      "ok": true,
       "expected": [
         "/admin/documents"
       ],
-      "url": "http://localhost:4000/admin?section=partners"
+      "url": "https://www.lohaggo.com/admin/documents"
     },
     {
       "id": "services",
-      "clicked": false,
-      "ok": false,
+      "clicked": true,
+      "ok": true,
       "expected": [
         "/admin?section=services"
       ],
-      "url": "http://localhost:4000/admin?section=partners"
+      "url": "https://www.lohaggo.com/admin?section=services"
     },
     {
       "id": "cities",
-      "clicked": false,
-      "ok": false,
+      "clicked": true,
+      "ok": true,
       "expected": [
         "/admin?section=cities"
       ],
-      "url": "http://localhost:4000/admin?section=partners"
+      "url": "https://www.lohaggo.com/admin?section=cities"
     },
     {
       "id": "ads",
-      "clicked": false,
-      "ok": false,
+      "clicked": true,
+      "ok": true,
       "expected": [
         "/admin/ads"
       ],
-      "url": "http://localhost:4000/admin?section=partners"
+      "url": "https://www.lohaggo.com/admin/ads"
+    },
+    {
+      "id": "communications",
+      "clicked": true,
+      "ok": true,
+      "expected": [
+        "/admin/communications"
+      ],
+      "url": "https://www.lohaggo.com/admin/communications"
     },
     {
       "id": "search-analytics",
-      "clicked": false,
-      "ok": false,
+      "clicked": true,
+      "ok": true,
       "expected": [
         "/admin/search-analytics"
       ],
-      "url": "http://localhost:4000/admin?section=partners"
+      "url": "https://www.lohaggo.com/admin/search-analytics"
+    },
+    {
+      "id": "platform-control",
+      "clicked": true,
+      "ok": true,
+      "expected": [
+        "/admin/platform-control"
+      ],
+      "url": "https://www.lohaggo.com/admin/platform-control"
     },
     {
       "id": "commissions",
-      "clicked": false,
-      "ok": false,
+      "clicked": true,
+      "ok": true,
       "expected": [
         "/admin?section=commissions"
       ],
-      "url": "http://localhost:4000/admin?section=partners"
+      "url": "https://www.lohaggo.com/admin?section=commissions"
     },
     {
       "id": "payment-config",
-      "clicked": false,
-      "ok": false,
+      "clicked": true,
+      "ok": true,
       "expected": [
         "/admin/payment-config"
       ],
-      "url": "http://localhost:4000/admin?section=partners"
+      "url": "https://www.lohaggo.com/admin/payment-config"
+    },
+    {
+      "id": "security",
+      "clicked": true,
+      "ok": true,
+      "expected": [
+        "/admin/security"
+      ],
+      "url": "https://www.lohaggo.com/admin/security"
     },
     {
       "id": "notifications",
-      "clicked": false,
-      "ok": false,
+      "clicked": true,
+      "ok": true,
       "expected": [
         "/admin?section=notifications"
       ],
-      "url": "http://localhost:4000/admin?section=partners"
+      "url": "https://www.lohaggo.com/admin?section=notifications"
     },
     {
       "id": "settings",
-      "clicked": false,
-      "ok": false,
+      "clicked": true,
+      "ok": true,
       "expected": [
         "/admin?section=settings"
       ],
-      "url": "http://localhost:4000/admin?section=partners"
+      "url": "https://www.lohaggo.com/admin?section=settings"
     }
   ]
 }
