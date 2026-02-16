@@ -169,13 +169,8 @@ VAPID_PRIVATE_KEY="tu-vapid-private-key"
 NEXT_PUBLIC_TURNSTILE_SITE_KEY="tu-turnstile-site-key"
 TURNSTILE_SECRET_KEY="tu-turnstile-secret-key"
 
-# Mensajería omnicanal (Admin)
-TWILIO_ACCOUNT_SID="tu-twilio-account-sid"
-TWILIO_AUTH_TOKEN="tu-twilio-auth-token"
-TWILIO_SMS_FROM="+1xxxxxxxxxx"
-TWILIO_WHATSAPP_FROM="whatsapp:+14155238886"
-SENDGRID_API_KEY="tu-sendgrid-api-key"
-SENDGRID_FROM_EMAIL="no-reply@lohaggo.com"
+# Mensajería omnicanal (solo token interno para webhooks/cron)
+SECURITY_INTERNAL_TOKEN="token-interno-largo-y-aleatorio"
 ```
 
 3. **Configurar la base de datos**
@@ -247,12 +242,7 @@ VAPID_PRIVATE_KEY=tu-vapid-private-key
 NEXT_PUBLIC_TURNSTILE_SITE_KEY=tu-turnstile-site-key
 TURNSTILE_SECRET_KEY=tu-turnstile-secret-key
 SECURITY_INTERNAL_TOKEN=token-interno-largo-y-aleatorio
-TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxx
-TWILIO_AUTH_TOKEN=xxxxxxxxxxxxxxxxxxxx
-TWILIO_SMS_FROM=+1xxxxxxxxxx
-TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
-SENDGRID_API_KEY=SG.xxxxxxxxxxxxxxxxxxxx
-SENDGRID_FROM_EMAIL=no-reply@lohaggo.com
+SECURITY_INTERNAL_TOKEN=token-interno-largo-y-aleatorio
 ```
 
 **Importante**: Marcar las 3 opciones (Production, Preview, Development) para cada variable.
@@ -280,6 +270,8 @@ Antes del primer deploy productivo, ejecutar en este orden en SQL Editor de Supa
 - `SMS y WhatsApp`: Twilio Messaging API (rápido de integrar y con webhooks de estado).
 - `Email`: SendGrid (tracking de entregas/open/click y buena reputación de envío).
 - `Alternativa WhatsApp enterprise`: Meta WhatsApp Cloud API (si luego quieres migrar desde Twilio).
+
+Credenciales/API keys de Twilio y SendGrid se administran desde `Admin > Comunicaciones` y se almacenan cifradas en base de datos.
 
 ### 9. Configuración de webhooks de mensajería
 

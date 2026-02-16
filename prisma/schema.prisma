@@ -324,6 +324,16 @@ model MessagingOptOut {
   @@index([userId, channel, isActive])
 }
 
+model MessagingProviderConfig {
+  id              String            @id @default(cuid())
+  provider        MessagingProvider @unique
+  isActive        Boolean           @default(true)
+  configEncrypted String
+  updatedByEmail  String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+}
+
 model Address {
   id           String   @id @default(cuid())
   userId       String
@@ -1203,4 +1213,9 @@ enum MessagingDeliveryStatus {
   OPENED
   CLICKED
   UNSUBSCRIBED
+}
+
+enum MessagingProvider {
+  TWILIO
+  SENDGRID
 }

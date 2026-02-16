@@ -44,12 +44,29 @@ type Overview = {
   }
 }
 
+type ProviderState = {
+  twilio: {
+    active: boolean
+    accountSid: string
+    smsFrom: string
+    whatsappFrom: string
+    hasAuthToken?: boolean
+  }
+  sendgrid: {
+    active: boolean
+    fromEmail: string
+    apiKey: string
+    hasApiKey?: boolean
+  }
+}
+
 export default function AdminCommunicationsPage() {
   const [templates, setTemplates] = useState<Template[]>([])
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null)
   const [selectedMetrics, setSelectedMetrics] = useState<CampaignMetrics | null>(null)
   const [overview, setOverview] = useState<Overview | null>(null)
+  const [providers, setProviders] = useState<ProviderState | null>(null)
   const [loading, setLoading] = useState(true)
 
   const [tplForm, setTplForm] = useState({
@@ -78,6 +95,18 @@ export default function AdminCommunicationsPage() {
     abVariantBSubject: '',
     abSplitA: '50',
   })
+  const [twilioForm, setTwilioForm] = useState({
+    isActive: true,
+    accountSid: '',
+    authToken: '',
+    smsFrom: '',
+    whatsappFrom: '',
+  })
+  const [sendgridForm, setSendgridForm] = useState({
+    isActive: true,
+    fromEmail: '',
+    apiKey: '',
+  })
 
   const selectedCampaign = useMemo(
     () => campaigns.find((item) => item.id === selectedCampaignId) || null,
@@ -87,15 +116,17 @@ export default function AdminCommunicationsPage() {
   const load = async () => {
     setLoading(true)
     try {
-      const [tplRes, campRes, ovRes] = await Promise.all([
+      const [tplRes, campRes, ovRes, pvRes] = await Promise.all([
         fetch('/api/admin/messaging/templates', { cache: 'no-store' }),
         fetch('/api/admin/messaging/campaigns', { cache: 'no-store' }),
         fetch('/api/admin/messaging/overview', { cache: 'no-store' }),
+        fetch('/api/admin/messaging/providers', { cache: 'no-store' }),
       ])
-      const [tplData, campData, ovData] = await Promise.all([tplRes.json(), campRes.json(), ovRes.json()])
+      const [tplData, campData, ovData, pvData] = await Promise.all([tplRes.json(), campRes.json(), ovRes.json(), pvRes.json()])
       setTemplates(tplData.templates || [])
       setCampaigns(campData.campaigns || [])
       setOverview(ovData)
+      setProviders(pvData.providers || null)
     } finally {
       setLoading(false)
     }
@@ -111,6 +142,22 @@ export default function AdminCommunicationsPage() {
   useEffect(() => {
     load()
   }, [])
+
+  useEffect(() => {
+    if (!providers) return
+    setTwilioForm((prev) => ({
+      ...prev,
+      isActive: providers.twilio.active,
+      accountSid: '',
+      smsFrom: providers.twilio.smsFrom || '',
+      whatsappFrom: providers.twilio.whatsappFrom || '',
+    }))
+    setSendgridForm((prev) => ({
+      ...prev,
+      isActive: providers.sendgrid.active,
+      fromEmail: providers.sendgrid.fromEmail || '',
+    }))
+  }, [providers])
 
   const createTemplate = async () => {
     if (!tplForm.key || !tplForm.name || !tplForm.body) return
@@ -196,6 +243,38 @@ export default function AdminCommunicationsPage() {
     await load()
   }
 
+  const saveTwilio = async () => {
+    await fetch('/api/admin/messaging/providers', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        provider: 'TWILIO',
+        isActive: twilioForm.isActive,
+        accountSid: twilioForm.accountSid,
+        authToken: twilioForm.authToken,
+        smsFrom: twilioForm.smsFrom || null,
+        whatsappFrom: twilioForm.whatsappFrom || null,
+      }),
+    })
+    setTwilioForm((prev) => ({ ...prev, authToken: '' }))
+    await load()
+  }
+
+  const saveSendgrid = async () => {
+    await fetch('/api/admin/messaging/providers', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        provider: 'SENDGRID',
+        isActive: sendgridForm.isActive,
+        fromEmail: sendgridForm.fromEmail,
+        apiKey: sendgridForm.apiKey,
+      }),
+    })
+    setSendgridForm((prev) => ({ ...prev, apiKey: '' }))
+    await load()
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -216,6 +295,41 @@ export default function AdminCommunicationsPage() {
               <div><p className="text-xs text-gray-500">Deliverability</p><p className="text-2xl font-bold">{overview.totals.deliverabilityRate}%</p></div>
             </section>
           )}
+
+          <section className="rounded-xl border bg-white p-4 space-y-3">
+            <h2 className="text-lg font-semibold">Credenciales de Proveedores (Admin Managed)</h2>
+            <div className="grid md:grid-cols-2 gap-3">
+              <div className="border rounded p-3 space-y-2">
+                <h3 className="font-medium">Twilio (SMS/WhatsApp)</h3>
+                <p className="text-xs text-gray-500">
+                  Estado actual: {providers?.twilio?.active ? 'ACTIVO' : 'INACTIVO'} · SID {providers?.twilio?.accountSid || 'n/a'}
+                </p>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={twilioForm.isActive} onChange={(e) => setTwilioForm((p) => ({ ...p, isActive: e.target.checked }))} />
+                  Activar Twilio
+                </label>
+                <input className="border rounded px-2 py-2 text-sm w-full" placeholder="Account SID" value={twilioForm.accountSid} onChange={(e) => setTwilioForm((p) => ({ ...p, accountSid: e.target.value }))} />
+                <input className="border rounded px-2 py-2 text-sm w-full" placeholder="Auth Token" type="password" value={twilioForm.authToken} onChange={(e) => setTwilioForm((p) => ({ ...p, authToken: e.target.value }))} />
+                <input className="border rounded px-2 py-2 text-sm w-full" placeholder="SMS From" value={twilioForm.smsFrom} onChange={(e) => setTwilioForm((p) => ({ ...p, smsFrom: e.target.value }))} />
+                <input className="border rounded px-2 py-2 text-sm w-full" placeholder="WhatsApp From" value={twilioForm.whatsappFrom} onChange={(e) => setTwilioForm((p) => ({ ...p, whatsappFrom: e.target.value }))} />
+                <button className="bg-primary-600 text-white rounded px-3 py-2 text-sm" onClick={saveTwilio}>Guardar Twilio</button>
+              </div>
+
+              <div className="border rounded p-3 space-y-2">
+                <h3 className="font-medium">SendGrid (Email)</h3>
+                <p className="text-xs text-gray-500">
+                  Estado actual: {providers?.sendgrid?.active ? 'ACTIVO' : 'INACTIVO'} · From {providers?.sendgrid?.fromEmail || 'n/a'}
+                </p>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={sendgridForm.isActive} onChange={(e) => setSendgridForm((p) => ({ ...p, isActive: e.target.checked }))} />
+                  Activar SendGrid
+                </label>
+                <input className="border rounded px-2 py-2 text-sm w-full" placeholder="From Email" value={sendgridForm.fromEmail} onChange={(e) => setSendgridForm((p) => ({ ...p, fromEmail: e.target.value }))} />
+                <input className="border rounded px-2 py-2 text-sm w-full" placeholder="API Key" type="password" value={sendgridForm.apiKey} onChange={(e) => setSendgridForm((p) => ({ ...p, apiKey: e.target.value }))} />
+                <button className="bg-primary-600 text-white rounded px-3 py-2 text-sm" onClick={saveSendgrid}>Guardar SendGrid</button>
+              </div>
+            </div>
+          </section>
 
           <section className="rounded-xl border bg-white p-4 space-y-3">
             <h2 className="text-lg font-semibold">Crear plantilla</h2>

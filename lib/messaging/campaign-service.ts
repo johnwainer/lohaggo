@@ -2,6 +2,7 @@ import type { MessagingCampaign, MessagingCampaignStatus, MessagingChannel, User
 import { prisma } from '@/lib/prisma'
 import { renderTextTemplate } from '@/lib/messaging/template'
 import { sendMessageViaProvider } from '@/lib/messaging/providers'
+import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
 
 function resolveDestination(channel: MessagingChannel, user: { email: string; phone: string | null }) {
   if (channel === 'EMAIL') return user.email
@@ -46,6 +47,7 @@ export async function processCampaign(campaignId: string) {
     select: { id: true, name: true, email: true, phone: true },
     take: 2000,
   })
+  const runtimeConfig = await getMessagingProviderRuntimeConfig()
 
   let sent = 0
   let failed = 0
@@ -131,12 +133,15 @@ export async function processCampaign(campaignId: string) {
       ? renderTextTemplate(subjectTemplate, { user_name: user.name, user_email: user.email })
       : null
 
-    const result = await sendMessageViaProvider({
-      channel: campaign.channel,
-      to: destination,
-      subject,
-      body,
-    })
+    const result = await sendMessageViaProvider(
+      {
+        channel: campaign.channel,
+        to: destination,
+        subject,
+        body,
+      },
+      runtimeConfig
+    )
 
     await prisma.messagingDelivery.create({
       data: {
