@@ -40,13 +40,16 @@ export function validateVapidKeys(publicKey: string, privateKey: string): {
     return { valid: false, error: 'VAPID keys are not configured' }
   }
 
-  const vapidKeyRegex = /^[A-Za-z0-9_-]{87}$/
-  
-  if (!vapidKeyRegex.test(publicKey)) {
+  // web-push generateVAPIDKeys() returns:
+  // - publicKey: base64url (commonly length 87)
+  // - privateKey: base64url (commonly length 43)
+  const base64UrlRegex = /^[A-Za-z0-9_-]+$/
+
+  if (!base64UrlRegex.test(publicKey) || publicKey.length < 80) {
     return { valid: false, error: 'Invalid VAPID public key format' }
   }
 
-  if (!vapidKeyRegex.test(privateKey)) {
+  if (!base64UrlRegex.test(privateKey) || privateKey.length < 40) {
     return { valid: false, error: 'Invalid VAPID private key format' }
   }
 
