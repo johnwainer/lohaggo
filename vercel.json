@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/pwa/cron/adoption-alerts",
+      "schedule": "0 * * * *"
+    }
+  ]
+}

@@ -3,10 +3,18 @@ import { env } from '@/lib/env'
 import { runPwaAdoptionAlerts } from '@/lib/pwa/adoption-alerts'
 
 function isAuthorized(request: NextRequest) {
+  const authHeader = request.headers.get('authorization')
+  if (env.CRON_SECRET && authHeader === `Bearer ${env.CRON_SECRET}`) {
+    return true
+  }
+
   const headerToken = request.headers.get('x-internal-token')
   const queryToken = request.nextUrl.searchParams.get('token')
-  if (!env.SECURITY_INTERNAL_TOKEN) return false
-  return headerToken === env.SECURITY_INTERNAL_TOKEN || queryToken === env.SECURITY_INTERNAL_TOKEN
+  if (env.SECURITY_INTERNAL_TOKEN && (headerToken === env.SECURITY_INTERNAL_TOKEN || queryToken === env.SECURITY_INTERNAL_TOKEN)) {
+    return true
+  }
+
+  return false
 }
 
 export async function POST(request: NextRequest) {
