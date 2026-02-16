@@ -96,9 +96,9 @@
 ## 🛠️ Tecnologías
 
 ### Core
-- **Next.js 14** (App Router)
+- **Next.js 16** (App Router)
 - **TypeScript**
-- **React 18**
+- **React 19**
 
 ### Base de Datos
 - **Prisma** (ORM)
@@ -242,7 +242,6 @@ VAPID_PRIVATE_KEY=tu-vapid-private-key
 NEXT_PUBLIC_TURNSTILE_SITE_KEY=tu-turnstile-site-key
 TURNSTILE_SECRET_KEY=tu-turnstile-secret-key
 SECURITY_INTERNAL_TOKEN=token-interno-largo-y-aleatorio
-SECURITY_INTERNAL_TOKEN=token-interno-largo-y-aleatorio
 ```
 
 **Importante**: Marcar las 3 opciones (Production, Preview, Development) para cada variable.
@@ -264,6 +263,7 @@ Antes del primer deploy productivo, ejecutar en este orden en SQL Editor de Supa
 3. `docs/sql/security_monitoring.sql`
 4. `docs/sql/launch_blockers_ops.sql`
 5. `docs/sql/admin_messaging.sql`
+6. `docs/sql/pwa_adoption.sql`
 
 ### 8. Proveedores recomendados para comunicaciones
 
@@ -555,7 +555,7 @@ enum AdPlacement {
   - `PWARegister.tsx` - Registro automático del service worker
   - `PWAInstallPrompt.tsx` - Banner de instalación inteligente
 - **Hooks**: `usePushNotifications.ts` integrado con service worker
-- **Script de Verificación**: `npm run check-pwa` para validar configuración
+- **Validación local recomendada**: `npm run lint` (TypeScript) y `npm run build`
 
 ### Capacitor (Aplicaciones Nativas)
 - **Android**: Configuración completa en `/android`
