@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Smartphone, Download, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Share2, Plus, ArrowLeft, Sparkles, Rocket, Shield, Apple } from 'lucide-react'
+import { trackPwaEvent } from '@/lib/pwa/telemetry-client'
+import { PWA_EVENTS } from '@/lib/pwa/events'
 
 export default function IOSDownloadPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null)
@@ -31,6 +33,7 @@ export default function IOSDownloadPage() {
   }, [])
 
   const handleInstall = async () => {
+    trackPwaEvent({ eventName: PWA_EVENTS.INSTALL_CLICKED, source: 'download_ios' })
     if (!deferredPrompt) {
       alert('Para instalar en iOS, sigue las instrucciones a continuación usando el botón de compartir de Safari')
       return

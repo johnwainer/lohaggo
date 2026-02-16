@@ -6,6 +6,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Mail, Lock, ArrowRight, Sparkles, Shield, Zap, Eye, EyeOff } from 'lucide-react'
 import TurnstileWidget from '@/components/security/TurnstileWidget'
+import { trackPwaEvent } from '@/lib/pwa/telemetry-client'
+import { PWA_EVENTS } from '@/lib/pwa/events'
 
 function LoginForm() {
   const router = useRouter()
@@ -156,6 +158,12 @@ function LoginForm() {
       } else if (result?.ok) {
         const response = await fetch('/api/auth/session')
         const sessionData = await response.json()
+        localStorage.setItem('pwa-onboarding-force', '1')
+        trackPwaEvent({
+          eventName: PWA_EVENTS.LOGIN_COMPLETED,
+          role: (sessionData?.user?.role || 'CLIENT') as 'CLIENT' | 'PARTNER' | 'ADMIN',
+          source: 'login_success',
+        })
 
         if (sessionData?.user?.role === 'ADMIN') {
           window.location.href = searchParams.get('redirect') || '/admin'

@@ -1,4 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
+import { registerPwaServiceWorker } from '@/lib/pwa/register-service-worker'
+import { PWA_EVENTS } from '@/lib/pwa/events'
+import { trackPwaEvent } from '@/lib/pwa/telemetry-client'
 
 type PermissionState = 'default' | 'granted' | 'denied'
 
@@ -24,12 +27,10 @@ export function usePushNotifications() {
 
   const registerServiceWorker = useCallback(async () => {
     try {
-      const registration = await navigator.serviceWorker.register('/sw.js', {
-        scope: '/',
-        updateViaCache: 'none'
-      })
-
-      await navigator.serviceWorker.ready
+      const registration = await registerPwaServiceWorker()
+      if (!registration) {
+        throw new Error('No se pudo registrar service worker')
+      }
 
       registration.addEventListener('updatefound', () => {
         const newWorker = registration.installing
@@ -58,14 +59,19 @@ export function usePushNotifications() {
     }
 
     try {
+      trackPwaEvent({ eventName: PWA_EVENTS.PUSH_PROMPT_SHOWN, source: 'push_permission_request' })
       const result = await Notification.requestPermission()
       setPermission(result as PermissionState)
 
       if (result === 'denied') {
+        trackPwaEvent({ eventName: PWA_EVENTS.PUSH_PERMISSION_DENIED, source: 'browser_permission' })
         setError('Permisos de notificación denegados. Por favor, habilítalos en la configuración del navegador.')
         return false
       }
 
+      if (result === 'granted') {
+        trackPwaEvent({ eventName: PWA_EVENTS.PUSH_PERMISSION_GRANTED, source: 'browser_permission' })
+      }
       return result === 'granted'
     } catch (error) {
       console.error('Error requesting permission:', error)
@@ -125,6 +131,7 @@ export function usePushNotifications() {
 
       setSubscription(sub)
       setIsSubscribed(true)
+      trackPwaEvent({ eventName: PWA_EVENTS.PUSH_SUBSCRIPTION_CREATED, source: 'web_push_subscribe' })
       setIsLoading(false)
       return true
     } catch (error) {
@@ -152,6 +159,7 @@ export function usePushNotifications() {
 
         setSubscription(null)
         setIsSubscribed(false)
+        trackPwaEvent({ eventName: PWA_EVENTS.PUSH_SUBSCRIPTION_REMOVED, source: 'web_push_unsubscribe' })
       }
       setIsLoading(false)
       return true

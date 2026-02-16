@@ -10,6 +10,7 @@ import { BottomNav } from '@/components/mobile/BottomNav'
 import NotificationPermissionPrompt from '@/components/NotificationPermissionPrompt'
 import PWAInstallPrompt from '@/components/PWAInstallPrompt'
 import PWARegister from '@/components/PWARegister'
+import PWAOnboardingPrompt from '@/components/PWAOnboardingPrompt'
 import TermsBanner from '@/components/TermsBanner'
 import TestModeBanner from '@/components/TestModeBanner'
 import InactiveAccountBanner from '@/components/InactiveAccountBanner'
@@ -334,6 +335,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
           <BottomNav />
           <NotificationPermissionPrompt />
           <PWAInstallPrompt />
+          <PWAOnboardingPrompt />
           <TermsBanner />
         </Providers>
       </body>

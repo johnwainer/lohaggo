@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { X, Download, RefreshCw } from 'lucide-react';
+import { trackPwaEvent } from '@/lib/pwa/telemetry-client';
+import { PWA_EVENTS } from '@/lib/pwa/events';
 
 export default function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -24,38 +26,14 @@ export default function PWAInstallPrompt() {
       if (!installDismissed || daysSinceDismissed > 7) {
         e.preventDefault();
         setDeferredPrompt(e);
-        setTimeout(() => setShowInstallPrompt(true), 3000);
+        setTimeout(() => {
+          setShowInstallPrompt(true);
+          trackPwaEvent({ eventName: PWA_EVENTS.INSTALL_PROMPT_SHOWN, source: 'global_install_prompt' });
+        }, 3000);
       }
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').then((registration) => {
-        registration.addEventListener('updatefound', () => {
-          const newWorker = registration.installing;
-          if (newWorker) {
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                setShowUpdatePrompt(true);
-              }
-            });
-          }
-        });
-
-        registration.update();
-      }).catch((error) => {
-        console.error('Service Worker registration failed:', error);
-      });
-
-      let refreshing = false;
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (!refreshing) {
-          refreshing = true;
-          window.location.reload();
-        }
-      });
-    }
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -65,6 +43,7 @@ export default function PWAInstallPrompt() {
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
 
+    trackPwaEvent({ eventName: PWA_EVENTS.INSTALL_CLICKED, source: 'global_install_prompt' });
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
 
@@ -78,6 +57,7 @@ export default function PWAInstallPrompt() {
   const handleDismissInstall = () => {
     setShowInstallPrompt(false);
     localStorage.setItem('pwa-install-dismissed', Date.now().toString());
+    trackPwaEvent({ eventName: PWA_EVENTS.INSTALL_PROMPT_DISMISSED, source: 'global_install_prompt' });
   };
 
   const handleUpdateClick = () => {

@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Smartphone, Download, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Menu, ArrowLeft, Zap, Sparkles, Rocket, Shield } from 'lucide-react'
+import { trackPwaEvent } from '@/lib/pwa/telemetry-client'
+import { PWA_EVENTS } from '@/lib/pwa/events'
 
 export default function AndroidDownloadPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null)
@@ -31,6 +33,7 @@ export default function AndroidDownloadPage() {
   }, [])
 
   const handleInstall = async () => {
+    trackPwaEvent({ eventName: PWA_EVENTS.INSTALL_CLICKED, source: 'download_android' })
     if (!deferredPrompt) {
       alert('Para instalar la app, usa el menú de tu navegador (⋮) y selecciona "Agregar a pantalla de inicio" o "Instalar app"')
       return

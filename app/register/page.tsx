@@ -8,6 +8,8 @@ import { Mail, Lock, User, Phone, MapPin, Check, ArrowRight, Sparkles, Shield, Z
 import { useCity } from '@/lib/city-context'
 import { formatCurrency } from '@/lib/utils'
 import TurnstileWidget from '@/components/security/TurnstileWidget'
+import { trackPwaEvent } from '@/lib/pwa/telemetry-client'
+import { PWA_EVENTS } from '@/lib/pwa/events'
 
 function RegisterForm() {
   const router = useRouter()
@@ -408,6 +410,12 @@ function RegisterForm() {
       if (result?.error) {
         setError('Registro exitoso pero error al iniciar sesión')
       } else {
+        localStorage.setItem('pwa-onboarding-force', '1')
+        trackPwaEvent({
+          eventName: PWA_EVENTS.SIGNUP_COMPLETED,
+          role: formData.role as 'CLIENT' | 'PARTNER' | 'ADMIN',
+          source: 'register_success',
+        })
         if (formData.role === 'PARTNER') {
           const selectedCity = cities.find(c => c.slug === formData.city)
           if (selectedCity?.status === 'COMING_SOON') {

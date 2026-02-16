@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { Bell, X, CheckCircle, AlertCircle } from 'lucide-react'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
+import { trackPwaEvent } from '@/lib/pwa/telemetry-client'
+import { PWA_EVENTS } from '@/lib/pwa/events'
 
 interface NotificationPermissionPromptProps {
   onClose?: () => void
@@ -42,6 +44,7 @@ export default function NotificationPermissionPrompt({
     if (autoShow && isSupported && !isSubscribed && permission === 'default') {
       const timer = setTimeout(() => {
         setIsVisible(true)
+        trackPwaEvent({ eventName: PWA_EVENTS.PUSH_PROMPT_SHOWN, source: 'global_notification_prompt' })
       }, 5000)
       return () => clearTimeout(timer)
     }

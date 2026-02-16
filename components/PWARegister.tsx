@@ -1,6 +1,9 @@
 'use client'
 
 import { useEffect } from 'react'
+import { registerPwaServiceWorker } from '@/lib/pwa/register-service-worker'
+import { trackPwaEvent } from '@/lib/pwa/telemetry-client'
+import { PWA_EVENTS } from '@/lib/pwa/events'
 
 export default function PWARegister() {
   useEffect(() => {
@@ -9,9 +12,9 @@ export default function PWARegister() {
       'serviceWorker' in navigator &&
       process.env.NODE_ENV === 'production'
     ) {
-      navigator.serviceWorker
-        .register('/sw.js', { scope: '/' })
+      registerPwaServiceWorker()
         .then((registration) => {
+          if (!registration) return
           // Check for updates every hour
           setInterval(() => {
             registration.update()
@@ -33,8 +36,7 @@ export default function PWARegister() {
             }
           })
         })
-        .catch((error) => {
-        })
+        .catch(() => undefined)
 
       // Handle service worker controller change
       navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -54,6 +56,7 @@ export default function PWARegister() {
 
       window.addEventListener('appinstalled', () => {
         localStorage.removeItem('pwa-prompt-available')
+        trackPwaEvent({ eventName: PWA_EVENTS.PWA_INSTALLED, source: 'browser_appinstalled' })
         deferredPrompt = null
       })
     }

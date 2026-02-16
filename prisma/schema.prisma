@@ -44,6 +44,7 @@ model User {
   refundCases           RefundCase[]
   taxDocuments          TaxDocument[]
   complianceEvaluations ComplianceEvaluation[]
+  pwaTelemetryEvents    PwaTelemetryEvent[]
 }
 
 model PartnerProfile {
@@ -332,6 +333,26 @@ model MessagingProviderConfig {
   updatedByEmail  String?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
+}
+
+model PwaTelemetryEvent {
+  id        String   @id @default(cuid())
+  userId    String?
+  sessionId String?
+  eventName String
+  role      UserRole?
+  city      City?
+  platform  String?
+  browser   String?
+  source    String?
+  metadata  String?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([eventName, createdAt])
+  @@index([userId, createdAt])
+  @@index([role, createdAt])
+  @@index([city, createdAt])
 }
 
 model Address {
