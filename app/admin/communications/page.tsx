@@ -903,80 +903,132 @@ export default function AdminCommunicationsPage() {
                     : `Proveedor incompleto para ${campForm.channel}. Completa la configuración en la pestaña "Configuración".`}
                 </div>
                 <div className="grid md:grid-cols-3 gap-2">
-                  <input className="border rounded px-2 py-2 text-sm" placeholder="nombre campaña" value={campForm.name} onChange={(e) => setCampForm((p) => ({ ...p, name: e.target.value }))} />
-                  <select className="border rounded px-2 py-2 text-sm" value={campForm.channel} onChange={(e) => setCampForm((p) => ({ ...p, channel: e.target.value }))}>
-                    <option value="SMS">SMS</option>
-                    <option value="WHATSAPP">WHATSAPP</option>
-                    <option value="EMAIL">EMAIL</option>
-                    <option value="PUSH">PUSH</option>
-                  </select>
-                  <select className="border rounded px-2 py-2 text-sm" value={campForm.targetRole} onChange={(e) => setCampForm((p) => ({ ...p, targetRole: e.target.value }))}>
-                    <option value="CLIENT">CLIENTES</option>
-                    <option value="PARTNER">SOCIOS</option>
-                  </select>
+                  <label className="text-xs text-gray-700 space-y-1">
+                    <span className="font-medium">Nombre de la campaña</span>
+                    <input className="border rounded px-2 py-2 text-sm w-full" placeholder="Ej: Reactivación clientes Medellín" value={campForm.name} onChange={(e) => setCampForm((p) => ({ ...p, name: e.target.value }))} />
+                  </label>
+                  <label className="text-xs text-gray-700 space-y-1">
+                    <span className="font-medium">Canal de envío</span>
+                    <select className="border rounded px-2 py-2 text-sm w-full" value={campForm.channel} onChange={(e) => setCampForm((p) => ({ ...p, channel: e.target.value }))}>
+                      <option value="SMS">SMS</option>
+                      <option value="WHATSAPP">WHATSAPP</option>
+                      <option value="EMAIL">EMAIL</option>
+                      <option value="PUSH">PUSH</option>
+                    </select>
+                  </label>
+                  <label className="text-xs text-gray-700 space-y-1">
+                    <span className="font-medium">Audiencia por rol</span>
+                    <select className="border rounded px-2 py-2 text-sm w-full" value={campForm.targetRole} onChange={(e) => setCampForm((p) => ({ ...p, targetRole: e.target.value }))}>
+                      <option value="CLIENT">CLIENTES</option>
+                      <option value="PARTNER">SOCIOS</option>
+                    </select>
+                  </label>
                 </div>
                 <div className="grid md:grid-cols-3 gap-2">
-                  <select
-                    className="border rounded px-2 py-2 text-sm"
-                    value={campForm.contentMode}
-                    onChange={(e) => setCampForm((p) => ({ ...p, contentMode: e.target.value }))}
-                  >
-                    <option value="TEMPLATE">Contenido desde plantilla</option>
-                    <option value="CUSTOM">Mensaje libre</option>
-                  </select>
-                  <select className="border rounded px-2 py-2 text-sm" value={campForm.targetCity} onChange={(e) => setCampForm((p) => ({ ...p, targetCity: e.target.value }))}>
-                    <option value="">Todas las ciudades</option>
-                    {CITY_OPTIONS.map((city) => (
-                      <option key={city} value={city}>
-                        {city}
-                      </option>
-                    ))}
-                  </select>
-                  <input className="border rounded px-2 py-2 text-sm" placeholder="subject (email)" value={campForm.customSubject} onChange={(e) => setCampForm((p) => ({ ...p, customSubject: e.target.value }))} />
-                </div>
-                {campForm.contentMode === 'TEMPLATE' ? (
-                  <div className="space-y-2">
-                    <select className="border rounded px-2 py-2 text-sm w-full" value={campForm.templateId} onChange={(e) => setCampForm((p) => ({ ...p, templateId: e.target.value }))}>
-                      <option value="">Selecciona una plantilla</option>
-                      {channelTemplates.map((tpl) => (
-                        <option key={tpl.id} value={tpl.id}>
-                          {tpl.name}
+                  <label className="text-xs text-gray-700 space-y-1">
+                    <span className="font-medium">Fuente de contenido</span>
+                    <select
+                      className="border rounded px-2 py-2 text-sm w-full"
+                      value={campForm.contentMode}
+                      onChange={(e) => setCampForm((p) => ({ ...p, contentMode: e.target.value }))}
+                    >
+                      <option value="TEMPLATE">Contenido desde plantilla</option>
+                      <option value="CUSTOM">Mensaje libre</option>
+                    </select>
+                  </label>
+                  <label className="text-xs text-gray-700 space-y-1">
+                    <span className="font-medium">Ciudad objetivo</span>
+                    <select className="border rounded px-2 py-2 text-sm w-full" value={campForm.targetCity} onChange={(e) => setCampForm((p) => ({ ...p, targetCity: e.target.value }))}>
+                      <option value="">Todas las ciudades</option>
+                      {CITY_OPTIONS.map((city) => (
+                        <option key={city} value={city}>
+                          {city}
                         </option>
                       ))}
                     </select>
+                  </label>
+                  <label className="text-xs text-gray-700 space-y-1">
+                    <span className="font-medium">Asunto (solo Email)</span>
+                    <input className="border rounded px-2 py-2 text-sm w-full" placeholder="Ej: Oferta exclusiva hoy" value={campForm.customSubject} onChange={(e) => setCampForm((p) => ({ ...p, customSubject: e.target.value }))} />
+                  </label>
+                </div>
+                {campForm.contentMode === 'TEMPLATE' ? (
+                  <div className="space-y-2">
+                    <label className="text-xs text-gray-700 space-y-1 block">
+                      <span className="font-medium">Plantilla a usar</span>
+                      <select className="border rounded px-2 py-2 text-sm w-full" value={campForm.templateId} onChange={(e) => setCampForm((p) => ({ ...p, templateId: e.target.value }))}>
+                        <option value="">Selecciona una plantilla</option>
+                        {channelTemplates.map((tpl) => (
+                          <option key={tpl.id} value={tpl.id}>
+                            {tpl.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <p className="text-xs font-medium text-gray-700">Vista previa del contenido</p>
                     <div className="rounded border bg-gray-50 p-2 text-xs text-gray-700 whitespace-pre-wrap min-h-[70px]">
                       {selectedTemplate ? selectedTemplate.body : 'Selecciona una plantilla para ver su contenido.'}
                     </div>
                   </div>
                 ) : (
-                  <textarea
-                    className="w-full border rounded px-2 py-2 text-sm min-h-[90px]"
-                    placeholder="mensaje campaña"
-                    value={campForm.customBody}
-                    onChange={(e) => setCampForm((p) => ({ ...p, customBody: e.target.value }))}
-                  />
+                  <label className="text-xs text-gray-700 space-y-1 block">
+                    <span className="font-medium">Mensaje de la campaña</span>
+                    <textarea
+                      className="w-full border rounded px-2 py-2 text-sm min-h-[90px]"
+                      placeholder="Escribe aquí el mensaje final..."
+                      value={campForm.customBody}
+                      onChange={(e) => setCampForm((p) => ({ ...p, customBody: e.target.value }))}
+                    />
+                  </label>
                 )}
                 <div className="grid md:grid-cols-3 gap-2">
-                  <input className="border rounded px-2 py-2 text-sm" type="datetime-local" value={campForm.scheduledAt} onChange={(e) => setCampForm((p) => ({ ...p, scheduledAt: e.target.value }))} />
-                  <label className="flex items-center gap-2 text-sm border rounded px-2 py-2">
-                    <input type="checkbox" checked={campForm.abTestEnabled} onChange={(e) => setCampForm((p) => ({ ...p, abTestEnabled: e.target.checked }))} />
-                    Activar A/B test
+                  <label className="text-xs text-gray-700 space-y-1">
+                    <span className="font-medium">Programación (opcional)</span>
+                    <input className="border rounded px-2 py-2 text-sm w-full" type="datetime-local" value={campForm.scheduledAt} onChange={(e) => setCampForm((p) => ({ ...p, scheduledAt: e.target.value }))} />
                   </label>
-                  <input className="border rounded px-2 py-2 text-sm" type="number" min={1} max={99} placeholder="% variante A" value={campForm.abSplitA} onChange={(e) => setCampForm((p) => ({ ...p, abSplitA: e.target.value }))} />
+                  <label className="text-xs text-gray-700 space-y-1">
+                    <span className="font-medium">Prueba A/B</span>
+                    <span className="flex items-center gap-2 text-sm border rounded px-2 py-2 w-full">
+                      <input type="checkbox" checked={campForm.abTestEnabled} onChange={(e) => setCampForm((p) => ({ ...p, abTestEnabled: e.target.checked }))} />
+                      Activar A/B test
+                    </span>
+                  </label>
+                  <label className="text-xs text-gray-700 space-y-1">
+                    <span className="font-medium">% variante A</span>
+                    <input className="border rounded px-2 py-2 text-sm w-full" type="number" min={1} max={99} placeholder="50" value={campForm.abSplitA} onChange={(e) => setCampForm((p) => ({ ...p, abSplitA: e.target.value }))} />
+                  </label>
                 </div>
                 {campForm.abTestEnabled && (
                   <div className="grid md:grid-cols-2 gap-2">
                     <div className="border rounded p-2 space-y-2">
                       <p className="text-sm font-semibold">Variante A</p>
-                      <input className="border rounded px-2 py-2 text-sm w-full" placeholder="Key A" value={campForm.abVariantAKey} onChange={(e) => setCampForm((p) => ({ ...p, abVariantAKey: e.target.value }))} />
-                      <input className="border rounded px-2 py-2 text-sm w-full" placeholder="Subject A" value={campForm.abVariantASubject} onChange={(e) => setCampForm((p) => ({ ...p, abVariantASubject: e.target.value }))} />
-                      <textarea className="border rounded px-2 py-2 text-sm w-full min-h-[70px]" placeholder="Body A" value={campForm.abVariantABody} onChange={(e) => setCampForm((p) => ({ ...p, abVariantABody: e.target.value }))} />
+                      <label className="text-xs text-gray-700 space-y-1 block">
+                        <span className="font-medium">Identificador</span>
+                        <input className="border rounded px-2 py-2 text-sm w-full" placeholder="A" value={campForm.abVariantAKey} onChange={(e) => setCampForm((p) => ({ ...p, abVariantAKey: e.target.value }))} />
+                      </label>
+                      <label className="text-xs text-gray-700 space-y-1 block">
+                        <span className="font-medium">Asunto A (Email)</span>
+                        <input className="border rounded px-2 py-2 text-sm w-full" placeholder="Asunto variante A" value={campForm.abVariantASubject} onChange={(e) => setCampForm((p) => ({ ...p, abVariantASubject: e.target.value }))} />
+                      </label>
+                      <label className="text-xs text-gray-700 space-y-1 block">
+                        <span className="font-medium">Mensaje A</span>
+                        <textarea className="border rounded px-2 py-2 text-sm w-full min-h-[70px]" placeholder="Contenido de la variante A" value={campForm.abVariantABody} onChange={(e) => setCampForm((p) => ({ ...p, abVariantABody: e.target.value }))} />
+                      </label>
                     </div>
                     <div className="border rounded p-2 space-y-2">
                       <p className="text-sm font-semibold">Variante B</p>
-                      <input className="border rounded px-2 py-2 text-sm w-full" placeholder="Key B" value={campForm.abVariantBKey} onChange={(e) => setCampForm((p) => ({ ...p, abVariantBKey: e.target.value }))} />
-                      <input className="border rounded px-2 py-2 text-sm w-full" placeholder="Subject B" value={campForm.abVariantBSubject} onChange={(e) => setCampForm((p) => ({ ...p, abVariantBSubject: e.target.value }))} />
-                      <textarea className="border rounded px-2 py-2 text-sm w-full min-h-[70px]" placeholder="Body B" value={campForm.abVariantBBody} onChange={(e) => setCampForm((p) => ({ ...p, abVariantBBody: e.target.value }))} />
+                      <label className="text-xs text-gray-700 space-y-1 block">
+                        <span className="font-medium">Identificador</span>
+                        <input className="border rounded px-2 py-2 text-sm w-full" placeholder="B" value={campForm.abVariantBKey} onChange={(e) => setCampForm((p) => ({ ...p, abVariantBKey: e.target.value }))} />
+                      </label>
+                      <label className="text-xs text-gray-700 space-y-1 block">
+                        <span className="font-medium">Asunto B (Email)</span>
+                        <input className="border rounded px-2 py-2 text-sm w-full" placeholder="Asunto variante B" value={campForm.abVariantBSubject} onChange={(e) => setCampForm((p) => ({ ...p, abVariantBSubject: e.target.value }))} />
+                      </label>
+                      <label className="text-xs text-gray-700 space-y-1 block">
+                        <span className="font-medium">Mensaje B</span>
+                        <textarea className="border rounded px-2 py-2 text-sm w-full min-h-[70px]" placeholder="Contenido de la variante B" value={campForm.abVariantBBody} onChange={(e) => setCampForm((p) => ({ ...p, abVariantBBody: e.target.value }))} />
+                      </label>
                     </div>
                   </div>
                 )}
@@ -991,14 +1043,17 @@ export default function AdminCommunicationsPage() {
                     </button>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <input
-                      className="border rounded px-2 py-2 text-sm flex-1 min-w-[220px]"
-                      placeholder="Buscar por nombre, email o teléfono"
-                      value={recipientSearch}
-                      onChange={(e) => setRecipientSearch(e.target.value)}
-                    />
+                    <label className="text-xs text-gray-700 space-y-1 flex-1 min-w-[220px]">
+                      <span className="font-medium">Buscar destinatarios</span>
+                      <input
+                        className="border rounded px-2 py-2 text-sm w-full"
+                        placeholder="Nombre, email o teléfono"
+                        value={recipientSearch}
+                        onChange={(e) => setRecipientSearch(e.target.value)}
+                      />
+                    </label>
                     <button
-                      className="border rounded px-3 py-2 text-sm"
+                      className="border rounded px-3 py-2 text-sm self-end"
                       onClick={() => void loadRecipientPreview()}
                     >
                       Buscar
