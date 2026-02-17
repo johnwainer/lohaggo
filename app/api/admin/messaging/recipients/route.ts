@@ -3,9 +3,11 @@ import type { City, MessagingChannel, UserRole } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/admin-utils'
 import {
+  parseCampaignAudience,
   resolveCampaignRecipients,
   resolveDestination,
   type RecipientControl,
+  type CampaignAudienceFilter,
 } from '@/lib/messaging/campaign-recipients'
 
 function parseIds(value: string | null) {
@@ -20,6 +22,12 @@ function parseControlFromRequest(request: NextRequest): RecipientControl {
   }
 }
 
+function parseAudienceFromRequest(request: NextRequest): CampaignAudienceFilter {
+  return {
+    partnerServiceIds: parseIds(request.nextUrl.searchParams.get('partnerServiceIds')),
+  }
+}
+
 export async function GET(request: NextRequest) {
   const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -30,10 +38,13 @@ export async function GET(request: NextRequest) {
 
   const controlOverride = parseControlFromRequest(request)
   const hasOverride = controlOverride.includeUserIds.length > 0 || controlOverride.excludeUserIds.length > 0
+  const audienceOverride = parseAudienceFromRequest(request)
+  const hasAudienceOverride = audienceOverride.partnerServiceIds.length > 0
 
   let targetRole = request.nextUrl.searchParams.get('targetRole') as UserRole | null
   let targetCity = request.nextUrl.searchParams.get('targetCity') as City | null
   let metadata: string | null = null
+  let campaignAudience: CampaignAudienceFilter | null = null
 
   if (campaignId) {
     const campaign = await prisma.messagingCampaign.findUnique({
@@ -45,6 +56,7 @@ export async function GET(request: NextRequest) {
     targetRole = campaign.targetRole
     targetCity = campaign.targetCity
     metadata = campaign.metadata
+    campaignAudience = parseCampaignAudience(campaign.metadata)
   }
 
   const recipients = await resolveCampaignRecipients({
@@ -52,6 +64,7 @@ export async function GET(request: NextRequest) {
     targetCity: targetCity || null,
     metadata,
     controlOverride: hasOverride ? controlOverride : undefined,
+    audienceOverride: hasAudienceOverride ? audienceOverride : campaignAudience || undefined,
     take: 2500,
   })
 
@@ -89,6 +102,7 @@ export async function GET(request: NextRequest) {
       segmentCount: recipients.segmentCount,
       manualIncludedCount: recipients.manualIncludedCount,
       excludedCount: recipients.excludeUserIds.length,
+      partnerServiceIds: recipients.partnerServiceIds,
       includeUserIds: recipients.includeUserIds,
       excludeUserIds: recipients.excludeUserIds,
     },

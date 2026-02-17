@@ -26,6 +26,13 @@ type Campaign = {
   abTestEnabled?: boolean
 }
 
+type ServiceOption = {
+  id: string
+  name: string
+  slug: string
+  categoryName: string
+}
+
 type RecipientPreview = {
   id: string
   name: string
@@ -45,6 +52,7 @@ type RecipientSummary = {
   segmentCount: number
   manualIncludedCount: number
   excludedCount: number
+  partnerServiceIds?: string[]
   includeUserIds: string[]
   excludeUserIds: string[]
 }
@@ -109,6 +117,7 @@ export default function AdminCommunicationsPage() {
 
   const [templates, setTemplates] = useState<Template[]>([])
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
+  const [serviceOptions, setServiceOptions] = useState<ServiceOption[]>([])
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null)
   const [selectedMetrics, setSelectedMetrics] = useState<CampaignMetrics | null>(null)
   const [overview, setOverview] = useState<Overview | null>(null)
@@ -131,6 +140,7 @@ export default function AdminCommunicationsPage() {
     contentMode: 'TEMPLATE',
     targetRole: 'CLIENT',
     targetCity: '',
+    partnerServiceIds: [] as string[],
     customSubject: '',
     customBody: '',
     templateId: '',
@@ -205,11 +215,19 @@ export default function AdminCommunicationsPage() {
         fetch('/api/admin/messaging/overview', { cache: 'no-store' }),
         fetch('/api/admin/messaging/providers', { cache: 'no-store' }),
       ])
-      const [tplData, campData, ovData, pvData] = await Promise.all([tplRes.json(), campRes.json(), ovRes.json(), pvRes.json()])
+      const svcRes = await fetch('/api/admin/messaging/services', { cache: 'no-store' })
+      const [tplData, campData, ovData, pvData, svcData] = await Promise.all([
+        tplRes.json(),
+        campRes.json(),
+        ovRes.json(),
+        pvRes.json(),
+        svcRes.json(),
+      ])
       setTemplates(tplData.templates || [])
       setCampaigns(campData.campaigns || [])
       setOverview(ovData)
       setProviders(pvData.providers || null)
+      setServiceOptions(svcData.services || [])
     } finally {
       setLoading(false)
     }
@@ -236,6 +254,9 @@ export default function AdminCommunicationsPage() {
       } else {
         if (campForm.targetRole) params.set('targetRole', campForm.targetRole)
         if (campForm.targetCity) params.set('targetCity', campForm.targetCity)
+        if (campForm.targetRole === 'PARTNER' && campForm.partnerServiceIds.length) {
+          params.set('partnerServiceIds', campForm.partnerServiceIds.join(','))
+        }
         if (recipientIncludeIds.length) params.set('includeUserIds', recipientIncludeIds.join(','))
         if (recipientExcludeIds.length) params.set('excludeUserIds', recipientExcludeIds.join(','))
       }
@@ -283,7 +304,13 @@ export default function AdminCommunicationsPage() {
     if (activePanel !== 'CREATE') return
     void loadRecipientPreview()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activePanel, campForm.channel, campForm.targetRole, campForm.targetCity, recipientIncludeIds, recipientExcludeIds])
+  }, [activePanel, campForm.channel, campForm.targetRole, campForm.targetCity, campForm.partnerServiceIds, recipientIncludeIds, recipientExcludeIds])
+
+  useEffect(() => {
+    if (campForm.targetRole === 'PARTNER') return
+    if (!campForm.partnerServiceIds.length) return
+    setCampForm((prev) => ({ ...prev, partnerServiceIds: [] }))
+  }, [campForm.targetRole, campForm.partnerServiceIds.length])
 
   useEffect(() => {
     if (campForm.contentMode !== 'TEMPLATE') return
@@ -381,6 +408,7 @@ export default function AdminCommunicationsPage() {
         channel: campForm.channel,
         targetRole: campForm.targetRole || null,
         targetCity: campForm.targetCity || null,
+        partnerServiceIds: campForm.targetRole === 'PARTNER' ? campForm.partnerServiceIds : [],
         customSubject: campForm.customSubject || null,
         templateId: campForm.templateId || null,
         status: campForm.scheduledAt ? 'SCHEDULED' : 'DRAFT',
@@ -423,6 +451,7 @@ export default function AdminCommunicationsPage() {
       contentMode: 'TEMPLATE',
       targetRole: 'CLIENT',
       targetCity: '',
+      partnerServiceIds: [],
       customSubject: '',
       customBody: '',
       templateId: '',
@@ -465,6 +494,15 @@ export default function AdminCommunicationsPage() {
   const toggleExcludeRecipient = (userId: string) => {
     setRecipientIncludeIds((prev) => prev.filter((id) => id !== userId))
     setRecipientExcludeIds((prev) => (prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]))
+  }
+
+  const togglePartnerServiceId = (serviceId: string) => {
+    setCampForm((prev) => ({
+      ...prev,
+      partnerServiceIds: prev.partnerServiceIds.includes(serviceId)
+        ? prev.partnerServiceIds.filter((id) => id !== serviceId)
+        : [...prev.partnerServiceIds, serviceId],
+    }))
   }
 
   const saveTwilio = async () => {
@@ -765,6 +803,11 @@ export default function AdminCommunicationsPage() {
                       <div className="rounded border bg-white px-2 py-1">Excluidos: <b>{campaignRecipientPreview.summary.excludedCount}</b></div>
                     </div>
                   )}
+                  {campaignRecipientPreview.summary?.partnerServiceIds && campaignRecipientPreview.summary.partnerServiceIds.length > 0 && (
+                    <p className="text-xs text-gray-600">
+                      Filtro de oficios aplicado: <b>{campaignRecipientPreview.summary.partnerServiceIds.length}</b>
+                    </p>
+                  )}
                   <div className="max-h-72 overflow-auto rounded border bg-white">
                     <table className="min-w-full text-xs">
                       <thead className="bg-gray-100 text-gray-600">
@@ -952,6 +995,46 @@ export default function AdminCommunicationsPage() {
                     <input className="border rounded px-2 py-2 text-sm w-full" placeholder="Ej: Oferta exclusiva hoy" value={campForm.customSubject} onChange={(e) => setCampForm((p) => ({ ...p, customSubject: e.target.value }))} />
                   </label>
                 </div>
+                {campForm.targetRole === 'PARTNER' && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-medium text-gray-700">Oficios de socios (opcional)</p>
+                      <button
+                        className="border rounded px-2 py-1 text-xs"
+                        onClick={() => setCampForm((prev) => ({ ...prev, partnerServiceIds: [] }))}
+                        type="button"
+                      >
+                        Limpiar selección
+                      </button>
+                    </div>
+                    <div className="max-h-44 overflow-auto rounded border p-2">
+                      <div className="grid md:grid-cols-2 gap-2">
+                        {serviceOptions.map((service) => {
+                          const checked = campForm.partnerServiceIds.includes(service.id)
+                          return (
+                            <label key={service.id} className="flex items-start gap-2 text-xs cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => togglePartnerServiceId(service.id)}
+                              />
+                              <span>
+                                <b>{service.name}</b>
+                                <span className="text-gray-500"> · {service.categoryName}</span>
+                              </span>
+                            </label>
+                          )
+                        })}
+                        {serviceOptions.length === 0 && (
+                          <p className="text-xs text-gray-500">No se pudieron cargar los oficios.</p>
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Si no seleccionas oficios, la campaña se enviará a todos los socios del segmento actual.
+                    </p>
+                  </div>
+                )}
                 {campForm.contentMode === 'TEMPLATE' ? (
                   <div className="space-y-2">
                     <label className="text-xs text-gray-700 space-y-1 block">
@@ -1068,6 +1151,11 @@ export default function AdminCommunicationsPage() {
                       <div className="rounded border bg-gray-50 px-2 py-1">Agregados: <b>{recipientSummary.manualIncludedCount}</b></div>
                       <div className="rounded border bg-gray-50 px-2 py-1">Excluidos: <b>{recipientSummary.excludedCount}</b></div>
                     </div>
+                  )}
+                  {campForm.targetRole === 'PARTNER' && (
+                    <p className="text-xs text-gray-500">
+                      Filtro de oficios activo: <b>{campForm.partnerServiceIds.length || 0}</b>
+                    </p>
                   )}
                   <div className="max-h-72 overflow-auto rounded border">
                     <table className="min-w-full text-xs">

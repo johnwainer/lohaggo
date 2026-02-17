@@ -14,6 +14,10 @@ export type RecipientControl = {
   excludeUserIds: string[]
 }
 
+export type CampaignAudienceFilter = {
+  partnerServiceIds: string[]
+}
+
 export type CampaignRecipient = BasicUser & {
   source: 'SEGMENT' | 'MANUAL'
 }
@@ -28,18 +32,28 @@ function sanitizeIds(raw: unknown): string[] {
   return Array.from(new Set(raw.map((item) => String(item || '').trim()).filter(Boolean)))
 }
 
-export function parseRecipientControl(metadata: string | null | undefined): RecipientControl {
-  if (!metadata) return { includeUserIds: [], excludeUserIds: [] }
-
+function parseMetadataObject(metadata: string | null | undefined): Record<string, unknown> {
+  if (!metadata) return {}
   try {
-    const parsed = JSON.parse(metadata) as { recipientControl?: { includeUserIds?: unknown; excludeUserIds?: unknown } }
-    const control = parsed?.recipientControl
-    return {
-      includeUserIds: sanitizeIds(control?.includeUserIds),
-      excludeUserIds: sanitizeIds(control?.excludeUserIds),
-    }
+    return JSON.parse(metadata) as Record<string, unknown>
   } catch {
-    return { includeUserIds: [], excludeUserIds: [] }
+    return {}
+  }
+}
+
+export function parseRecipientControl(metadata: string | null | undefined): RecipientControl {
+  const parsed = parseMetadataObject(metadata) as { recipientControl?: { includeUserIds?: unknown; excludeUserIds?: unknown } }
+  const control = parsed?.recipientControl
+  return {
+    includeUserIds: sanitizeIds(control?.includeUserIds),
+    excludeUserIds: sanitizeIds(control?.excludeUserIds),
+  }
+}
+
+export function parseCampaignAudience(metadata: string | null | undefined): CampaignAudienceFilter {
+  const parsed = parseMetadataObject(metadata) as { audience?: { partnerServiceIds?: unknown } }
+  return {
+    partnerServiceIds: sanitizeIds(parsed?.audience?.partnerServiceIds),
   }
 }
 
@@ -47,18 +61,24 @@ export function mergeRecipientControlMetadata(
   metadata: string | null | undefined,
   control: RecipientControl
 ) {
-  let parsed: Record<string, unknown> = {}
-  if (metadata) {
-    try {
-      parsed = JSON.parse(metadata) as Record<string, unknown>
-    } catch {
-      parsed = {}
-    }
-  }
+  const parsed = parseMetadataObject(metadata)
 
   parsed.recipientControl = {
     includeUserIds: sanitizeIds(control.includeUserIds),
     excludeUserIds: sanitizeIds(control.excludeUserIds),
+  }
+
+  return JSON.stringify(parsed)
+}
+
+export function mergeCampaignAudienceMetadata(
+  metadata: string | null | undefined,
+  audience: CampaignAudienceFilter
+) {
+  const parsed = parseMetadataObject(metadata)
+
+  parsed.audience = {
+    partnerServiceIds: sanitizeIds(audience.partnerServiceIds),
   }
 
   return JSON.stringify(parsed)
@@ -75,17 +95,34 @@ export async function resolveCampaignRecipients(params: {
   targetCity: City | null
   metadata?: string | null
   controlOverride?: RecipientControl
+  audienceOverride?: CampaignAudienceFilter
   take?: number
 }) {
   const take = Math.min(params.take || 2000, 10000)
   const control = params.controlOverride || parseRecipientControl(params.metadata)
+  const audience = params.audienceOverride || parseCampaignAudience(params.metadata)
+  const partnerServiceIds = sanitizeIds(audience.partnerServiceIds)
   const includeSet = new Set(control.includeUserIds)
   const excludeSet = new Set(control.excludeUserIds)
 
+  const roleFilter = partnerServiceIds.length ? 'PARTNER' : resolveRecipientRole(params.targetRole)
+
   const segmentUsers = await prisma.user.findMany({
     where: {
-      role: resolveRecipientRole(params.targetRole),
+      role: roleFilter,
       isActive: true,
+      ...(partnerServiceIds.length
+        ? {
+            partnerProfile: {
+              services: {
+                some: {
+                  active: true,
+                  serviceId: { in: partnerServiceIds },
+                },
+              },
+            },
+          }
+        : {}),
       ...(params.targetCity
         ? {
             OR: [
@@ -132,6 +169,7 @@ export async function resolveCampaignRecipients(params: {
     users,
     includeUserIds: Array.from(includeSet),
     excludeUserIds: Array.from(excludeSet),
+    partnerServiceIds,
     segmentCount: segmentUsers.length,
     manualIncludedCount: manualUsers.filter((user) => !segmentUsers.find((segment) => segment.id === user.id)).length,
   }

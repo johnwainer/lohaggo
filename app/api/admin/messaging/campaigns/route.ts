@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import type { City, MessagingCampaignStatus, MessagingChannel, UserRole } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { auditAdminAction, requireAdmin } from '@/lib/admin-utils'
-import { mergeRecipientControlMetadata, parseRecipientControl } from '@/lib/messaging/campaign-recipients'
+import {
+  mergeCampaignAudienceMetadata,
+  mergeRecipientControlMetadata,
+  parseCampaignAudience,
+  parseRecipientControl,
+} from '@/lib/messaging/campaign-recipients'
 
 export async function GET(request: NextRequest) {
   const admin = await requireAdmin()
@@ -62,13 +67,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'El contenido del mensaje es requerido' }, { status: 400 })
   }
 
-  const metadata = mergeRecipientControlMetadata(
+  const metadataWithControl = mergeRecipientControlMetadata(
     body.metadata ? JSON.stringify(body.metadata) : null,
     {
       includeUserIds: Array.isArray(body.includeUserIds) ? body.includeUserIds : [],
       excludeUserIds: Array.isArray(body.excludeUserIds) ? body.excludeUserIds : [],
     }
   )
+  const metadata = mergeCampaignAudienceMetadata(metadataWithControl, {
+    partnerServiceIds: Array.isArray(body.partnerServiceIds) ? body.partnerServiceIds : [],
+  })
 
   const campaign = await prisma.messagingCampaign.create({
     data: {
@@ -117,8 +125,10 @@ export async function PATCH(request: NextRequest) {
   const metadata =
     body.metadata !== undefined ||
     body.includeUserIds !== undefined ||
-    body.excludeUserIds !== undefined
-      ? mergeRecipientControlMetadata(
+    body.excludeUserIds !== undefined ||
+    body.partnerServiceIds !== undefined
+      ? mergeCampaignAudienceMetadata(
+          mergeRecipientControlMetadata(
           body.metadata ? JSON.stringify(body.metadata) : current.metadata,
           {
             includeUserIds: Array.isArray(body.includeUserIds)
@@ -127,7 +137,12 @@ export async function PATCH(request: NextRequest) {
             excludeUserIds: Array.isArray(body.excludeUserIds)
               ? body.excludeUserIds
               : parseRecipientControl(current.metadata).excludeUserIds,
-          }
+          }),
+          {
+            partnerServiceIds: Array.isArray(body.partnerServiceIds)
+              ? body.partnerServiceIds
+              : parseCampaignAudience(current.metadata).partnerServiceIds,
+          },
         )
       : undefined
 
