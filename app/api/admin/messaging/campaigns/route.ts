@@ -32,8 +32,34 @@ export async function POST(request: NextRequest) {
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const body = await request.json()
 
-  if (!body?.name || !body?.channel || !body?.customBody) {
-    return NextResponse.json({ error: 'name, channel y customBody requeridos' }, { status: 400 })
+  if (!body?.name || !body?.channel) {
+    return NextResponse.json({ error: 'name y channel requeridos' }, { status: 400 })
+  }
+
+  const contentMode = body.contentMode === 'CUSTOM' ? 'CUSTOM' : 'TEMPLATE'
+  let finalBody = body.customBody ? String(body.customBody).trim() : ''
+  let finalSubject = body.customSubject ? String(body.customSubject) : null
+
+  if (contentMode === 'TEMPLATE') {
+    if (!body.templateId) {
+      return NextResponse.json({ error: 'templateId es requerido cuando usas modo plantilla' }, { status: 400 })
+    }
+    const template = await prisma.messagingTemplate.findUnique({
+      where: { id: body.templateId },
+      select: { id: true, channel: true, body: true, subject: true, isActive: true },
+    })
+    if (!template || !template.isActive) {
+      return NextResponse.json({ error: 'Plantilla no encontrada o inactiva' }, { status: 400 })
+    }
+    if (template.channel !== body.channel) {
+      return NextResponse.json({ error: 'La plantilla no corresponde al canal seleccionado' }, { status: 400 })
+    }
+    if (!finalBody) finalBody = template.body
+    if (!finalSubject && template.subject) finalSubject = template.subject
+  }
+
+  if (!finalBody) {
+    return NextResponse.json({ error: 'El contenido del mensaje es requerido' }, { status: 400 })
   }
 
   const metadata = mergeRecipientControlMetadata(
@@ -52,8 +78,8 @@ export async function POST(request: NextRequest) {
       templateId: body.templateId || null,
       targetRole: body.targetRole ? (body.targetRole as UserRole) : null,
       targetCity: body.targetCity ? (body.targetCity as City) : null,
-      customSubject: body.customSubject || null,
-      customBody: String(body.customBody),
+      customSubject: finalSubject,
+      customBody: finalBody,
       abTestEnabled: Boolean(body.abTestEnabled),
       abTestConfig: body.abTestConfig ? JSON.stringify(body.abTestConfig) : null,
       scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : null,

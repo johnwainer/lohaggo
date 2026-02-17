@@ -128,6 +128,7 @@ export default function AdminCommunicationsPage() {
   const [campForm, setCampForm] = useState({
     name: '',
     channel: 'SMS',
+    contentMode: 'TEMPLATE',
     targetRole: 'CLIENT',
     targetCity: '',
     customSubject: '',
@@ -166,6 +167,7 @@ export default function AdminCommunicationsPage() {
     summary: RecipientSummary | null
   } | null>(null)
   const [loadingRecipients, setLoadingRecipients] = useState(false)
+  const [campaignFeedback, setCampaignFeedback] = useState<{ type: 'ok' | 'error'; message: string } | null>(null)
 
   const selectedCampaign = useMemo(
     () => campaigns.find((item) => item.id === selectedCampaignId) || null,
@@ -178,6 +180,21 @@ export default function AdminCommunicationsPage() {
   )
 
   const recentCampaigns = orderedCampaigns.slice(0, 5)
+  const channelTemplates = useMemo(
+    () => templates.filter((template) => template.channel === campForm.channel),
+    [templates, campForm.channel]
+  )
+  const selectedTemplate = useMemo(
+    () => channelTemplates.find((template) => template.id === campForm.templateId) || null,
+    [channelTemplates, campForm.templateId]
+  )
+  const channelProviderReady = useMemo(() => {
+    if (!providers) return false
+    if (campForm.channel === 'EMAIL') return Boolean(providers.sendgrid.active && providers.sendgrid.hasApiKey && providers.sendgrid.fromEmail)
+    if (campForm.channel === 'SMS') return Boolean(providers.twilio.active && providers.twilio.hasAuthToken && providers.twilio.smsFrom)
+    if (campForm.channel === 'WHATSAPP') return Boolean(providers.twilio.active && providers.twilio.hasAuthToken && providers.twilio.whatsappFrom)
+    return true
+  }, [providers, campForm.channel])
 
   const load = async () => {
     setLoading(true)
@@ -268,6 +285,26 @@ export default function AdminCommunicationsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePanel, campForm.channel, campForm.targetRole, campForm.targetCity, recipientIncludeIds, recipientExcludeIds])
 
+  useEffect(() => {
+    if (campForm.contentMode !== 'TEMPLATE') return
+    if (!campForm.templateId && channelTemplates.length > 0) {
+      setCampForm((prev) => ({ ...prev, templateId: channelTemplates[0].id }))
+      return
+    }
+    if (campForm.templateId && !channelTemplates.find((template) => template.id === campForm.templateId)) {
+      setCampForm((prev) => ({ ...prev, templateId: channelTemplates[0]?.id || '' }))
+    }
+  }, [campForm.contentMode, campForm.templateId, channelTemplates])
+
+  useEffect(() => {
+    if (campForm.contentMode !== 'TEMPLATE' || !selectedTemplate) return
+    setCampForm((prev) => ({
+      ...prev,
+      customSubject: selectedTemplate.subject || prev.customSubject,
+      customBody: selectedTemplate.body,
+    }))
+  }, [campForm.contentMode, selectedTemplate])
+
   const createTemplate = async () => {
     if (!tplForm.key || !tplForm.name || !tplForm.body) return
     setTemplateFeedback(null)
@@ -321,10 +358,22 @@ export default function AdminCommunicationsPage() {
   }
 
   const createCampaign = async () => {
-    if (!campForm.name || !campForm.customBody) return
+    setCampaignFeedback(null)
+    if (!campForm.name.trim()) {
+      setCampaignFeedback({ type: 'error', message: 'El nombre de campaña es requerido' })
+      return
+    }
+    if (campForm.contentMode === 'TEMPLATE' && !campForm.templateId) {
+      setCampaignFeedback({ type: 'error', message: 'Selecciona una plantilla para continuar' })
+      return
+    }
+    if (campForm.contentMode === 'CUSTOM' && !campForm.customBody.trim()) {
+      setCampaignFeedback({ type: 'error', message: 'Escribe el mensaje de la campaña' })
+      return
+    }
     const splitA = Math.min(99, Math.max(1, Number(campForm.abSplitA) || 50))
     const splitB = 100 - splitA
-    await fetch('/api/admin/messaging/campaigns', {
+    const response = await fetch('/api/admin/messaging/campaigns', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -357,11 +406,21 @@ export default function AdminCommunicationsPage() {
           : null,
         includeUserIds: recipientIncludeIds,
         excludeUserIds: recipientExcludeIds,
+        metadata: {
+          contentMode: campForm.contentMode,
+          source: campForm.contentMode === 'TEMPLATE' ? 'template' : 'custom',
+        },
       }),
     })
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      setCampaignFeedback({ type: 'error', message: data.error || 'No se pudo guardar la campaña' })
+      return
+    }
     setCampForm({
       name: '',
       channel: 'SMS',
+      contentMode: 'TEMPLATE',
       targetRole: 'CLIENT',
       targetCity: '',
       customSubject: '',
@@ -377,6 +436,7 @@ export default function AdminCommunicationsPage() {
       abVariantBSubject: '',
       abSplitA: '50',
     })
+    setCampaignFeedback({ type: 'ok', message: 'Campaña guardada correctamente' })
     setRecipientSearch('')
     setRecipientIncludeIds([])
     setRecipientExcludeIds([])
@@ -408,32 +468,36 @@ export default function AdminCommunicationsPage() {
   }
 
   const saveTwilio = async () => {
+    const payload: Record<string, unknown> = {
+      provider: 'TWILIO',
+      isActive: twilioForm.isActive,
+      smsFrom: twilioForm.smsFrom || null,
+      whatsappFrom: twilioForm.whatsappFrom || null,
+    }
+    if (twilioForm.accountSid.trim()) payload.accountSid = twilioForm.accountSid.trim()
+    if (twilioForm.authToken.trim()) payload.authToken = twilioForm.authToken.trim()
+
     await fetch('/api/admin/messaging/providers', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        provider: 'TWILIO',
-        isActive: twilioForm.isActive,
-        accountSid: twilioForm.accountSid,
-        authToken: twilioForm.authToken,
-        smsFrom: twilioForm.smsFrom || null,
-        whatsappFrom: twilioForm.whatsappFrom || null,
-      }),
+      body: JSON.stringify(payload),
     })
     setTwilioForm((prev) => ({ ...prev, authToken: '' }))
     await load()
   }
 
   const saveSendgrid = async () => {
+    const payload: Record<string, unknown> = {
+      provider: 'SENDGRID',
+      isActive: sendgridForm.isActive,
+      fromEmail: sendgridForm.fromEmail,
+    }
+    if (sendgridForm.apiKey.trim()) payload.apiKey = sendgridForm.apiKey.trim()
+
     await fetch('/api/admin/messaging/providers', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        provider: 'SENDGRID',
-        isActive: sendgridForm.isActive,
-        fromEmail: sendgridForm.fromEmail,
-        apiKey: sendgridForm.apiKey,
-      }),
+      body: JSON.stringify(payload),
     })
     setSendgridForm((prev) => ({ ...prev, apiKey: '' }))
     await load()
@@ -543,22 +607,33 @@ export default function AdminCommunicationsPage() {
             <section className="rounded-xl border bg-white p-4 space-y-4">
               <div>
                 <h2 className="text-lg font-semibold">Configuración de proveedores</h2>
-                <p className="text-sm text-gray-600">Gestion centralizada y cifrada de credenciales operativas.</p>
+                <p className="text-sm text-gray-600">Gestión centralizada y cifrada de credenciales operativas.</p>
               </div>
               <div className="grid lg:grid-cols-2 gap-4">
                 <div className="border rounded-lg p-4 space-y-2">
-                  <div>
-                    <h3 className="font-semibold">Twilio (SMS/WhatsApp)</h3>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold">Twilio (SMS/WhatsApp)</h3>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                          providers?.twilio?.active && providers?.twilio?.hasAuthToken
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : 'bg-amber-100 text-amber-700'
+                        }`}
+                      >
+                        {providers?.twilio?.active && providers?.twilio?.hasAuthToken ? 'Configurado' : 'Incompleto'}
+                      </span>
+                    </div>
                     <p className="text-xs text-gray-500">
-                      Estado: {providers?.twilio?.active ? 'ACTIVO' : 'INACTIVO'} · SID {providers?.twilio?.accountSid || 'n/a'}
+                      SID: {providers?.twilio?.accountSid || 'n/a'} · SMS: {providers?.twilio?.smsFrom || 'n/a'} · WA: {providers?.twilio?.whatsappFrom || 'n/a'}
                     </p>
                   </div>
                   <label className="flex items-center gap-2 text-sm">
                     <input type="checkbox" checked={twilioForm.isActive} onChange={(e) => setTwilioForm((p) => ({ ...p, isActive: e.target.checked }))} />
                     Activar Twilio
                   </label>
-                  <input className="border rounded px-2 py-2 text-sm w-full" placeholder="Account SID" value={twilioForm.accountSid} onChange={(e) => setTwilioForm((p) => ({ ...p, accountSid: e.target.value }))} />
-                  <input className="border rounded px-2 py-2 text-sm w-full" placeholder="Auth Token" type="password" value={twilioForm.authToken} onChange={(e) => setTwilioForm((p) => ({ ...p, authToken: e.target.value }))} />
+                  <input className="border rounded px-2 py-2 text-sm w-full" placeholder="Account SID (opcional para editar otros campos)" value={twilioForm.accountSid} onChange={(e) => setTwilioForm((p) => ({ ...p, accountSid: e.target.value }))} />
+                  <input className="border rounded px-2 py-2 text-sm w-full" placeholder="Auth Token (déjalo vacío para mantener el actual)" type="password" value={twilioForm.authToken} onChange={(e) => setTwilioForm((p) => ({ ...p, authToken: e.target.value }))} />
                   <input className="border rounded px-2 py-2 text-sm w-full" placeholder="SMS From" value={twilioForm.smsFrom} onChange={(e) => setTwilioForm((p) => ({ ...p, smsFrom: e.target.value }))} />
                   <input className="border rounded px-2 py-2 text-sm w-full" placeholder="WhatsApp From" value={twilioForm.whatsappFrom} onChange={(e) => setTwilioForm((p) => ({ ...p, whatsappFrom: e.target.value }))} />
                   <button className="bg-primary-600 text-white rounded px-3 py-2 text-sm" onClick={saveTwilio}>
@@ -567,10 +642,21 @@ export default function AdminCommunicationsPage() {
                 </div>
 
                 <div className="border rounded-lg p-4 space-y-2">
-                  <div>
-                    <h3 className="font-semibold">SendGrid (Email)</h3>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold">SendGrid (Email)</h3>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                          providers?.sendgrid?.active && providers?.sendgrid?.hasApiKey
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : 'bg-amber-100 text-amber-700'
+                        }`}
+                      >
+                        {providers?.sendgrid?.active && providers?.sendgrid?.hasApiKey ? 'Configurado' : 'Incompleto'}
+                      </span>
+                    </div>
                     <p className="text-xs text-gray-500">
-                      Estado: {providers?.sendgrid?.active ? 'ACTIVO' : 'INACTIVO'} · From {providers?.sendgrid?.fromEmail || 'n/a'}
+                      From: {providers?.sendgrid?.fromEmail || 'n/a'} · API Key: {providers?.sendgrid?.apiKey || 'n/a'}
                     </p>
                   </div>
                   <label className="flex items-center gap-2 text-sm">
@@ -578,7 +664,7 @@ export default function AdminCommunicationsPage() {
                     Activar SendGrid
                   </label>
                   <input className="border rounded px-2 py-2 text-sm w-full" placeholder="From Email" value={sendgridForm.fromEmail} onChange={(e) => setSendgridForm((p) => ({ ...p, fromEmail: e.target.value }))} />
-                  <input className="border rounded px-2 py-2 text-sm w-full" placeholder="API Key" type="password" value={sendgridForm.apiKey} onChange={(e) => setSendgridForm((p) => ({ ...p, apiKey: e.target.value }))} />
+                  <input className="border rounded px-2 py-2 text-sm w-full" placeholder="API Key (déjala vacía para mantener la actual)" type="password" value={sendgridForm.apiKey} onChange={(e) => setSendgridForm((p) => ({ ...p, apiKey: e.target.value }))} />
                   <button className="bg-primary-600 text-white rounded px-3 py-2 text-sm" onClick={saveSendgrid}>
                     Guardar SendGrid
                   </button>
@@ -808,6 +894,14 @@ export default function AdminCommunicationsPage() {
 
               <div className="rounded-xl border bg-white p-4 space-y-3">
                 <h2 className="text-lg font-semibold">Crear campaña</h2>
+                <div className="rounded border bg-blue-50 px-3 py-2 text-sm text-blue-900">
+                  Flujo recomendado: 1) elige canal, 2) define contenido (plantilla o mensaje libre), 3) valida destinatarios, 4) guarda y envía.
+                </div>
+                <div className={`rounded border px-3 py-2 text-sm ${channelProviderReady ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-amber-50 text-amber-800 border-amber-200'}`}>
+                  {channelProviderReady
+                    ? `Proveedor listo para ${campForm.channel}.`
+                    : `Proveedor incompleto para ${campForm.channel}. Completa la configuración en la pestaña "Configuración".`}
+                </div>
                 <div className="grid md:grid-cols-3 gap-2">
                   <input className="border rounded px-2 py-2 text-sm" placeholder="nombre campaña" value={campForm.name} onChange={(e) => setCampForm((p) => ({ ...p, name: e.target.value }))} />
                   <select className="border rounded px-2 py-2 text-sm" value={campForm.channel} onChange={(e) => setCampForm((p) => ({ ...p, channel: e.target.value }))}>
@@ -822,15 +916,13 @@ export default function AdminCommunicationsPage() {
                   </select>
                 </div>
                 <div className="grid md:grid-cols-3 gap-2">
-                  <select className="border rounded px-2 py-2 text-sm" value={campForm.templateId} onChange={(e) => setCampForm((p) => ({ ...p, templateId: e.target.value }))}>
-                    <option value="">Sin plantilla</option>
-                    {templates
-                      .filter((t) => t.channel === campForm.channel)
-                      .map((tpl) => (
-                        <option key={tpl.id} value={tpl.id}>
-                          {tpl.name}
-                        </option>
-                      ))}
+                  <select
+                    className="border rounded px-2 py-2 text-sm"
+                    value={campForm.contentMode}
+                    onChange={(e) => setCampForm((p) => ({ ...p, contentMode: e.target.value }))}
+                  >
+                    <option value="TEMPLATE">Contenido desde plantilla</option>
+                    <option value="CUSTOM">Mensaje libre</option>
                   </select>
                   <select className="border rounded px-2 py-2 text-sm" value={campForm.targetCity} onChange={(e) => setCampForm((p) => ({ ...p, targetCity: e.target.value }))}>
                     <option value="">Todas las ciudades</option>
@@ -842,6 +934,28 @@ export default function AdminCommunicationsPage() {
                   </select>
                   <input className="border rounded px-2 py-2 text-sm" placeholder="subject (email)" value={campForm.customSubject} onChange={(e) => setCampForm((p) => ({ ...p, customSubject: e.target.value }))} />
                 </div>
+                {campForm.contentMode === 'TEMPLATE' ? (
+                  <div className="space-y-2">
+                    <select className="border rounded px-2 py-2 text-sm w-full" value={campForm.templateId} onChange={(e) => setCampForm((p) => ({ ...p, templateId: e.target.value }))}>
+                      <option value="">Selecciona una plantilla</option>
+                      {channelTemplates.map((tpl) => (
+                        <option key={tpl.id} value={tpl.id}>
+                          {tpl.name}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="rounded border bg-gray-50 p-2 text-xs text-gray-700 whitespace-pre-wrap min-h-[70px]">
+                      {selectedTemplate ? selectedTemplate.body : 'Selecciona una plantilla para ver su contenido.'}
+                    </div>
+                  </div>
+                ) : (
+                  <textarea
+                    className="w-full border rounded px-2 py-2 text-sm min-h-[90px]"
+                    placeholder="mensaje campaña"
+                    value={campForm.customBody}
+                    onChange={(e) => setCampForm((p) => ({ ...p, customBody: e.target.value }))}
+                  />
+                )}
                 <div className="grid md:grid-cols-3 gap-2">
                   <input className="border rounded px-2 py-2 text-sm" type="datetime-local" value={campForm.scheduledAt} onChange={(e) => setCampForm((p) => ({ ...p, scheduledAt: e.target.value }))} />
                   <label className="flex items-center gap-2 text-sm border rounded px-2 py-2">
@@ -954,7 +1068,19 @@ export default function AdminCommunicationsPage() {
                     </table>
                   </div>
                 </div>
-                <textarea className="w-full border rounded px-2 py-2 text-sm min-h-[90px]" placeholder="mensaje campaña" value={campForm.customBody} onChange={(e) => setCampForm((p) => ({ ...p, customBody: e.target.value }))} />
+                {campForm.contentMode === 'TEMPLATE' && (
+                  <textarea
+                    className="w-full border rounded px-2 py-2 text-sm min-h-[90px]"
+                    placeholder="(Opcional) ajusta el texto final para esta campaña"
+                    value={campForm.customBody}
+                    onChange={(e) => setCampForm((p) => ({ ...p, customBody: e.target.value }))}
+                  />
+                )}
+                {campaignFeedback && (
+                  <p className={`text-sm ${campaignFeedback.type === 'ok' ? 'text-emerald-700' : 'text-rose-700'}`}>
+                    {campaignFeedback.message}
+                  </p>
+                )}
                 <div className="flex gap-2">
                   <button className="bg-primary-600 text-white rounded px-3 py-2 text-sm" onClick={createCampaign}>
                     Guardar campaña

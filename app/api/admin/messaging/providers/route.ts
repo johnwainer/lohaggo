@@ -36,33 +36,41 @@ export async function PATCH(request: NextRequest) {
   const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const body = await request.json()
+  const current = await getMessagingProviderRuntimeConfig()
 
   if (body.provider === 'TWILIO') {
-    if (!body.accountSid || !body.authToken) {
+    const merged = {
+      accountSid: body.accountSid ? String(body.accountSid) : current.twilio.config?.accountSid,
+      authToken: body.authToken ? String(body.authToken) : current.twilio.config?.authToken,
+      smsFrom: body.smsFrom !== undefined ? (body.smsFrom ? String(body.smsFrom) : undefined) : current.twilio.config?.smsFrom,
+      whatsappFrom:
+        body.whatsappFrom !== undefined
+          ? body.whatsappFrom
+            ? String(body.whatsappFrom)
+            : undefined
+          : current.twilio.config?.whatsappFrom,
+    }
+    if (!merged.accountSid || !merged.authToken) {
       return NextResponse.json({ error: 'accountSid y authToken son requeridos para Twilio' }, { status: 400 })
     }
     await upsertProviderConfig({
       provider: 'TWILIO',
       isActive: body.isActive ?? true,
-      config: {
-        accountSid: String(body.accountSid),
-        authToken: String(body.authToken),
-        smsFrom: body.smsFrom ? String(body.smsFrom) : undefined,
-        whatsappFrom: body.whatsappFrom ? String(body.whatsappFrom) : undefined,
-      },
+      config: merged,
       updatedByEmail: admin.email,
     })
   } else if (body.provider === 'SENDGRID') {
-    if (!body.apiKey || !body.fromEmail) {
+    const merged = {
+      apiKey: body.apiKey ? String(body.apiKey) : current.sendgrid.config?.apiKey,
+      fromEmail: body.fromEmail ? String(body.fromEmail) : current.sendgrid.config?.fromEmail,
+    }
+    if (!merged.apiKey || !merged.fromEmail) {
       return NextResponse.json({ error: 'apiKey y fromEmail son requeridos para SendGrid' }, { status: 400 })
     }
     await upsertProviderConfig({
       provider: 'SENDGRID',
       isActive: body.isActive ?? true,
-      config: {
-        apiKey: String(body.apiKey),
-        fromEmail: String(body.fromEmail),
-      },
+      config: merged,
       updatedByEmail: admin.email,
     })
   } else {
