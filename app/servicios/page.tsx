@@ -28,6 +28,10 @@ interface Service {
   _count: {
     partners: number
   }
+  partnerStats?: {
+    availableCount: number
+    avgRating: number
+  }
 }
 
 interface Category {
@@ -136,7 +140,11 @@ function ServiciosContent() {
     setRelatedServices([])
     setTopMatch(null)
     try {
+      const citySlug = typeof window !== 'undefined'
+        ? (localStorage.getItem('selectedCity') || 'medellin')
+        : 'medellin'
       let url = '/api/services?'
+      url += `city=${encodeURIComponent(citySlug)}&`
       if (selectedCategory) url += `category=${selectedCategory}&`
       if (searchTerm) url += `search=${searchTerm}&`
 
@@ -182,7 +190,10 @@ function ServiciosContent() {
     }
 
     try {
-      let url = `/api/services?search=${term}`
+      const citySlug = typeof window !== 'undefined'
+        ? (localStorage.getItem('selectedCity') || 'medellin')
+        : 'medellin'
+      let url = `/api/services?city=${encodeURIComponent(citySlug)}&search=${term}`
       if (selectedCategory) url += `&category=${selectedCategory}`
 
       const res = await fetch(url)
@@ -686,10 +697,12 @@ function ServiciosContent() {
                       <div className="text-right">
                         <div className="flex items-center gap-1 mb-1">
                           <Star className="w-3.5 h-3.5 md:w-4 md:h-4 text-yellow-500 fill-yellow-500" />
-                          <span className="text-xs md:text-sm font-bold text-gray-900">4.8</span>
+                          <span className="text-xs md:text-sm font-bold text-gray-900">
+                            {(service.partnerStats?.avgRating ?? 0).toFixed(1)}
+                          </span>
                         </div>
                         <p className="text-gray-500 text-xs font-medium">
-                          {service._count.partners} disponibles
+                          {service.partnerStats?.availableCount ?? service._count.partners} disponibles
                         </p>
                       </div>
                     </div>
@@ -760,10 +773,12 @@ function ServiciosContent() {
                             <div className="text-right">
                               <div className="flex items-center gap-1 mb-1">
                                 <Star className="w-3 h-3 md:w-3.5 md:h-3.5 text-yellow-500 fill-yellow-500" />
-                                <span className="text-xs font-bold text-gray-900">4.8</span>
+                                <span className="text-xs font-bold text-gray-900">
+                                  {(service.partnerStats?.avgRating ?? 0).toFixed(1)}
+                                </span>
                               </div>
                               <p className="text-gray-500 text-xs">
-                                {service._count.partners} disponibles
+                                {service.partnerStats?.availableCount ?? service._count.partners} disponibles
                               </p>
                             </div>
                           </div>
