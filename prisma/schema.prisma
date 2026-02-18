@@ -106,6 +106,33 @@ model Service {
   serviceRequests ServiceRequest[]
   advertisements  Advertisement[]
   favoritedBy     FavoriteService[]
+  useCategories   ServiceUseCategoryAssignment[]
+}
+
+model ServiceUseCategory {
+  id          String                         @id @default(cuid())
+  name        String
+  slug        String                         @unique
+  icon        String                         @default("🏷️")
+  description String?
+  order       Int                            @default(0)
+  isActive    Boolean                        @default(true)
+  createdAt   DateTime                       @default(now())
+  updatedAt   DateTime                       @updatedAt
+  services    ServiceUseCategoryAssignment[]
+
+  @@index([isActive, order])
+}
+
+model ServiceUseCategoryAssignment {
+  serviceId     String
+  useCategoryId String
+  createdAt     DateTime           @default(now())
+  service       Service            @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  useCategory   ServiceUseCategory @relation(fields: [useCategoryId], references: [id], onDelete: Cascade)
+
+  @@id([serviceId, useCategoryId])
+  @@index([useCategoryId])
 }
 
 model PartnerService {
