@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, Suspense, useCallback } from 'react'
+import { useEffect, useState, Suspense, useCallback, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
@@ -53,6 +53,31 @@ interface SearchHistoryItem {
   createdAt: string
 }
 
+type ScopeFilter = 'ALL' | 'CASA' | 'OFICINA' | 'VEHICULO' | 'MASCOTAS'
+type SortBy =
+  | 'RELEVANCE'
+  | 'ALPHA_ASC'
+  | 'ALPHA_DESC'
+  | 'RATING_DESC'
+  | 'PARTNERS_DESC'
+  | 'PRICE_ASC'
+  | 'PRICE_DESC'
+
+const SERVICE_SCOPE_KEYWORDS: Record<Exclude<ScopeFilter, 'ALL'>, string[]> = {
+  CASA: ['hogar', 'casa', 'residencial', 'apartamento'],
+  OFICINA: ['oficina', 'empres', 'negocio', 'comercial', 'corporativ'],
+  VEHICULO: ['vehiculo', 'vehículo', 'carro', 'auto', 'moto'],
+  MASCOTAS: ['mascota', 'veterin', 'perro', 'gato', 'pet'],
+}
+
+const getServiceScope = (service: Service): ScopeFilter => {
+  const source = `${service.name} ${service.description} ${service.category.name}`.toLowerCase()
+  const found = (Object.entries(SERVICE_SCOPE_KEYWORDS) as Array<[ScopeFilter, string[]]>).find(([, keywords]) =>
+    keywords.some((keyword) => source.includes(keyword))
+  )
+  return found?.[0] ?? 'CASA'
+}
+
 function ServiciosContent() {
   const searchParams = useSearchParams()
   const { data: session } = useSession()
@@ -73,6 +98,62 @@ function ServiciosContent() {
   const [loadingFavorite, setLoadingFavorite] = useState<string | null>(null)
   const [favoriteServicesList, setFavoriteServicesList] = useState<Service[]>([])
   const [showSlowLoadingHint, setShowSlowLoadingHint] = useState(false)
+  const [quickMinRating, setQuickMinRating] = useState<number>(0)
+  const [quickScope, setQuickScope] = useState<ScopeFilter>('ALL')
+  const [quickOnlyWithPartners, setQuickOnlyWithPartners] = useState<boolean>(true)
+  const [sortBy, setSortBy] = useState<SortBy>('RELEVANCE')
+
+  const applyQuickFiltersAndSort = useCallback(
+    (items: Service[]) => {
+      const filtered = items.filter((service) => {
+        const availablePartners = service.partnerStats?.availableCount ?? service._count.partners
+        const rating = service.partnerStats?.avgRating ?? 0
+
+        if (quickOnlyWithPartners && availablePartners <= 0) return false
+        if (quickMinRating > 0 && rating < quickMinRating) return false
+        if (quickScope !== 'ALL' && getServiceScope(service) !== quickScope) return false
+        return true
+      })
+
+      const sorted = [...filtered]
+      switch (sortBy) {
+        case 'ALPHA_ASC':
+          sorted.sort((a, b) => a.name.localeCompare(b.name, 'es'))
+          break
+        case 'ALPHA_DESC':
+          sorted.sort((a, b) => b.name.localeCompare(a.name, 'es'))
+          break
+        case 'RATING_DESC':
+          sorted.sort((a, b) => (b.partnerStats?.avgRating ?? 0) - (a.partnerStats?.avgRating ?? 0))
+          break
+        case 'PARTNERS_DESC':
+          sorted.sort(
+            (a, b) =>
+              (b.partnerStats?.availableCount ?? b._count.partners) -
+              (a.partnerStats?.availableCount ?? a._count.partners)
+          )
+          break
+        case 'PRICE_ASC':
+          sorted.sort((a, b) => a.basePrice - b.basePrice)
+          break
+        case 'PRICE_DESC':
+          sorted.sort((a, b) => b.basePrice - a.basePrice)
+          break
+      }
+      return sorted
+    },
+    [quickMinRating, quickScope, quickOnlyWithPartners, sortBy]
+  )
+
+  const filteredServices = useMemo(
+    () => applyQuickFiltersAndSort(services),
+    [services, applyQuickFiltersAndSort]
+  )
+
+  const filteredRelatedServices = useMemo(
+    () => applyQuickFiltersAndSort(relatedServices),
+    [relatedServices, applyQuickFiltersAndSort]
+  )
 
   const fetchCategories = async () => {
     try {
@@ -638,7 +719,7 @@ function ServiciosContent() {
               {searchTerm ? (
                 <div className="bg-white rounded-xl md:rounded-2xl shadow-lg p-3 md:p-4 border-l-4 border-primary-500">
                   <p className="text-gray-700 font-bold text-base md:text-lg">
-                    {services.length} {services.length === 1 ? 'resultado encontrado' : 'resultados encontrados'} para
+                    {filteredServices.length} {filteredServices.length === 1 ? 'resultado encontrado' : 'resultados encontrados'} para
                     <span className="text-primary-600"> "{searchTerm}"</span>
                   </p>
                   <p className="text-gray-600 text-xs md:text-sm mt-1">
@@ -647,12 +728,90 @@ function ServiciosContent() {
                 </div>
               ) : (
                 <p className="text-gray-700 font-bold text-base md:text-lg">
-                  {services.length} {services.length === 1 ? 'servicio disponible' : 'servicios disponibles'}
+                  {filteredServices.length} {filteredServices.length === 1 ? 'servicio disponible' : 'servicios disponibles'}
                 </p>
               )}
             </div>
+
+            <div className="mb-4 md:mb-6 rounded-xl md:rounded-2xl border border-gray-200 bg-white p-3 md:p-4">
+              <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                <button
+                  type="button"
+                  onClick={() => setQuickOnlyWithPartners((prev) => !prev)}
+                  className={`px-3 py-1.5 text-xs md:text-sm rounded-full font-semibold transition ${
+                    quickOnlyWithPartners ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-700'
+                  }`}
+                >
+                  Solo con socios disponibles
+                </button>
+                {[0, 4, 4.5].map((rating) => (
+                  <button
+                    key={rating}
+                    type="button"
+                    onClick={() => setQuickMinRating(rating)}
+                    className={`px-3 py-1.5 text-xs md:text-sm rounded-full font-semibold transition ${
+                      quickMinRating === rating ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-700'
+                    }`}
+                  >
+                    {rating === 0 ? 'Todas las calificaciones' : `${rating}+ estrellas`}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3">
+                <label className="text-xs text-gray-600">
+                  Contexto del servicio
+                  <select
+                    value={quickScope}
+                    onChange={(e) => setQuickScope(e.target.value as ScopeFilter)}
+                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-800"
+                  >
+                    <option value="ALL">Todos</option>
+                    <option value="CASA">Casa</option>
+                    <option value="OFICINA">Oficina</option>
+                    <option value="VEHICULO">Vehiculo</option>
+                    <option value="MASCOTAS">Mascotas</option>
+                  </select>
+                </label>
+                <label className="text-xs text-gray-600">
+                  Ordenar por
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as SortBy)}
+                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-800"
+                  >
+                    <option value="RELEVANCE">Relevancia</option>
+                    <option value="ALPHA_ASC">Alfabetico A-Z</option>
+                    <option value="ALPHA_DESC">Alfabetico Z-A</option>
+                    <option value="RATING_DESC">Mejor calificacion</option>
+                    <option value="PARTNERS_DESC">Mas socios disponibles</option>
+                    <option value="PRICE_ASC">Menor precio</option>
+                    <option value="PRICE_DESC">Mayor precio</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            {filteredServices.length === 0 ? (
+              <div className="bg-white rounded-xl md:rounded-2xl border border-gray-200 p-6 text-center">
+                <p className="text-sm md:text-base text-gray-700 font-semibold">
+                  Los filtros aplicados no tienen resultados.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuickMinRating(0)
+                    setQuickScope('ALL')
+                    setQuickOnlyWithPartners(true)
+                    setSortBy('RELEVANCE')
+                  }}
+                  className="mt-3 inline-flex items-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 transition"
+                >
+                  Limpiar filtros rapidos
+                </button>
+              </div>
+            ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6" data-tour="services-grid">
-              {services.map((service) => (
+              {filteredServices.map((service) => (
                 <Link
                   key={service.id}
                   href={`/servicios/${service.slug}`}
@@ -710,8 +869,9 @@ function ServiciosContent() {
                 </Link>
               ))}
             </div>
+            )}
 
-            {relatedServices.length > 0 && (
+            {filteredRelatedServices.length > 0 && (
               <div className="mt-8 md:mt-12">
                 <div className="bg-gradient-to-r from-primary-50 to-secondary-50 rounded-2xl md:rounded-3xl p-6 md:p-8 border-2 border-primary-100">
                   <div className="flex items-center gap-3 mb-6">
@@ -728,7 +888,7 @@ function ServiciosContent() {
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                    {relatedServices.map((service) => (
+                    {filteredRelatedServices.map((service) => (
                       <Link
                         key={service.id}
                         href={`/servicios/${service.slug}`}
