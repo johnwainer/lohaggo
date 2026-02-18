@@ -182,9 +182,14 @@ export default function AdminFinanceOpsPage() {
     incidentType: 'PAYMENT_FAILURE' as IncidentType,
     severity: 'MEDIUM' as IncidentSeverity,
     assignedTo: '',
+    paymentId: '',
+    bookingId: '',
+    userId: '',
+    partnerId: '',
   })
 
   const [newRefund, setNewRefund] = useState({
+    paymentId: '',
     reason: '',
     requestedAmount: '',
     approvedAmount: '',
@@ -193,6 +198,8 @@ export default function AdminFinanceOpsPage() {
 
   const [newTaxDoc, setNewTaxDoc] = useState({
     type: 'INVOICE' as TaxDocumentType,
+    paymentId: '',
+    userId: '',
     subtotalAmount: '',
     taxAmount: '',
     withholdingAmount: '',
@@ -372,6 +379,10 @@ export default function AdminFinanceOpsPage() {
         body: JSON.stringify({
           ...newIncident,
           assignedTo: newIncident.assignedTo.trim() || undefined,
+          paymentId: newIncident.paymentId.trim() || undefined,
+          bookingId: newIncident.bookingId.trim() || undefined,
+          userId: newIncident.userId.trim() || undefined,
+          partnerId: newIncident.partnerId.trim() || undefined,
         }),
       })
       if (!res.ok) throw new Error('No se pudo crear incidente')
@@ -382,6 +393,10 @@ export default function AdminFinanceOpsPage() {
         incidentType: 'PAYMENT_FAILURE',
         severity: 'MEDIUM',
         assignedTo: '',
+        paymentId: '',
+        bookingId: '',
+        userId: '',
+        partnerId: '',
       })
       await load()
       setActiveTab('incidents')
@@ -412,8 +427,8 @@ export default function AdminFinanceOpsPage() {
   }
 
   const createRefund = async () => {
-    if (!newRefund.reason.trim() || !newRefund.requestedAmount.trim()) {
-      setError('Ingresa razón y monto solicitado')
+    if (!newRefund.paymentId.trim() || !newRefund.reason.trim() || !newRefund.requestedAmount.trim()) {
+      setError('Ingresa paymentId, razón y monto solicitado')
       return
     }
 
@@ -423,6 +438,7 @@ export default function AdminFinanceOpsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          paymentId: newRefund.paymentId.trim(),
           reason: newRefund.reason.trim(),
           requestedAmount: Number(newRefund.requestedAmount),
           approvedAmount: newRefund.approvedAmount ? Number(newRefund.approvedAmount) : undefined,
@@ -432,7 +448,7 @@ export default function AdminFinanceOpsPage() {
 
       if (!res.ok) throw new Error('No se pudo crear caso de reembolso')
 
-      setNewRefund({ reason: '', requestedAmount: '', approvedAmount: '', reviewNotes: '' })
+      setNewRefund({ paymentId: '', reason: '', requestedAmount: '', approvedAmount: '', reviewNotes: '' })
       await load()
       setActiveTab('refunds')
     } catch (createError) {
@@ -449,6 +465,11 @@ export default function AdminFinanceOpsPage() {
       return
     }
 
+    if ((newTaxDoc.type === 'INVOICE' || newTaxDoc.type === 'CREDIT_NOTE') && !newTaxDoc.paymentId.trim()) {
+      setError('paymentId es obligatorio para factura o nota crédito')
+      return
+    }
+
     setSaving(true)
     try {
       const res = await fetch('/api/admin/tax-documents', {
@@ -456,6 +477,8 @@ export default function AdminFinanceOpsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: newTaxDoc.type,
+          paymentId: newTaxDoc.paymentId.trim() || undefined,
+          userId: newTaxDoc.userId.trim() || undefined,
           subtotalAmount: Number(newTaxDoc.subtotalAmount),
           taxAmount: newTaxDoc.taxAmount ? Number(newTaxDoc.taxAmount) : 0,
           withholdingAmount: newTaxDoc.withholdingAmount ? Number(newTaxDoc.withholdingAmount) : 0,
@@ -467,6 +490,8 @@ export default function AdminFinanceOpsPage() {
 
       setNewTaxDoc({
         type: 'INVOICE',
+        paymentId: '',
+        userId: '',
         subtotalAmount: '',
         taxAmount: '',
         withholdingAmount: '',
@@ -621,6 +646,7 @@ export default function AdminFinanceOpsPage() {
             </CardHeader>
             <CardContent className="grid gap-3 md:grid-cols-2">
               <Field label="Título" value={newIncident.title} onChange={(value) => setNewIncident((prev) => ({ ...prev, title: value }))} />
+              <Field label="Payment ID (recomendado)" value={newIncident.paymentId} onChange={(value) => setNewIncident((prev) => ({ ...prev, paymentId: value }))} placeholder="pay_xxx" />
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-600">Tipo</label>
                 <select
@@ -646,6 +672,9 @@ export default function AdminFinanceOpsPage() {
                 </select>
               </div>
               <Field label="Asignado a (email)" value={newIncident.assignedTo} onChange={(value) => setNewIncident((prev) => ({ ...prev, assignedTo: value }))} />
+              <Field label="Booking ID (opcional)" value={newIncident.bookingId} onChange={(value) => setNewIncident((prev) => ({ ...prev, bookingId: value }))} placeholder="book_xxx" />
+              <Field label="User ID (opcional)" value={newIncident.userId} onChange={(value) => setNewIncident((prev) => ({ ...prev, userId: value }))} placeholder="usr_xxx" />
+              <Field label="Partner ID (opcional)" value={newIncident.partnerId} onChange={(value) => setNewIncident((prev) => ({ ...prev, partnerId: value }))} placeholder="partner_xxx" />
               <div className="md:col-span-2">
                 <label className="mb-1 block text-xs font-medium text-gray-600">Descripción</label>
                 <textarea
@@ -791,6 +820,7 @@ export default function AdminFinanceOpsPage() {
               <CardDescription>Registra casos manuales de devolución y su trazabilidad.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3 md:grid-cols-2">
+              <Field label="Payment ID (obligatorio)" value={newRefund.paymentId} onChange={(value) => setNewRefund((prev) => ({ ...prev, paymentId: value }))} placeholder="pay_xxx" />
               <Field label="Razón" value={newRefund.reason} onChange={(value) => setNewRefund((prev) => ({ ...prev, reason: value }))} />
               <Field label="Monto solicitado" value={newRefund.requestedAmount} onChange={(value) => setNewRefund((prev) => ({ ...prev, requestedAmount: value }))} type="number" />
               <Field label="Monto aprobado (opcional)" value={newRefund.approvedAmount} onChange={(value) => setNewRefund((prev) => ({ ...prev, approvedAmount: value }))} type="number" />
@@ -918,6 +948,8 @@ export default function AdminFinanceOpsPage() {
                   ))}
                 </select>
               </div>
+              <Field label="Payment ID" value={newTaxDoc.paymentId} onChange={(value) => setNewTaxDoc((prev) => ({ ...prev, paymentId: value }))} placeholder="pay_xxx" />
+              <Field label="User ID (si no hay pago)" value={newTaxDoc.userId} onChange={(value) => setNewTaxDoc((prev) => ({ ...prev, userId: value }))} placeholder="usr_xxx" />
               <Field label="Subtotal" value={newTaxDoc.subtotalAmount} onChange={(value) => setNewTaxDoc((prev) => ({ ...prev, subtotalAmount: value }))} type="number" />
               <Field label="Impuesto" value={newTaxDoc.taxAmount} onChange={(value) => setNewTaxDoc((prev) => ({ ...prev, taxAmount: value }))} type="number" />
               <Field label="Retención" value={newTaxDoc.withholdingAmount} onChange={(value) => setNewTaxDoc((prev) => ({ ...prev, withholdingAmount: value }))} type="number" />

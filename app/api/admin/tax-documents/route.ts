@@ -9,6 +9,48 @@ function buildDocumentNumber(prefix: string) {
   return `${prefix}-${stamp}-${random}`
 }
 
+async function resolveTaxDocumentRelations(input: {
+  type: TaxDocumentType
+  paymentId?: string | null
+  userId?: string | null
+  totalAmount: number
+}) {
+  let paymentId = input.paymentId || null
+  let userId = input.userId || null
+  const { type, totalAmount } = input
+
+  const paymentRequired = type === 'INVOICE' || type === 'CREDIT_NOTE'
+  if (paymentRequired && !paymentId) {
+    throw new Error('paymentId es obligatorio para factura o nota crédito')
+  }
+  if (!paymentId && !userId) {
+    throw new Error('Debes relacionar el documento a un pago o usuario')
+  }
+
+  if (paymentId) {
+    const payment = await prisma.payment.findUnique({
+      where: { id: paymentId },
+      select: { id: true, userId: true, totalAmount: true },
+    })
+    if (!payment) throw new Error('paymentId inválido')
+    if (userId && userId !== payment.userId) {
+      throw new Error('userId no coincide con paymentId')
+    }
+    userId = payment.userId
+
+    if (type === 'CREDIT_NOTE' && totalAmount > payment.totalAmount) {
+      throw new Error('Una nota crédito no puede superar el total del pago')
+    }
+  }
+
+  if (userId) {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } })
+    if (!user) throw new Error('userId inválido')
+  }
+
+  return { paymentId, userId }
+}
+
 export async function GET(request: NextRequest) {
   const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -51,6 +93,39 @@ export async function POST(request: NextRequest) {
   }
 
   const type = body.type as TaxDocumentType
+  const subtotalAmount = Number(body.subtotalAmount)
+  const taxAmount = body.taxAmount !== undefined ? Number(body.taxAmount) : 0
+  const withholdingAmount = body.withholdingAmount !== undefined ? Number(body.withholdingAmount) : 0
+  const totalAmount = Number(body.totalAmount)
+
+  if (![subtotalAmount, taxAmount, withholdingAmount, totalAmount].every(Number.isFinite)) {
+    return NextResponse.json({ error: 'Montos inválidos' }, { status: 400 })
+  }
+  if (subtotalAmount < 0 || taxAmount < 0 || withholdingAmount < 0 || totalAmount < 0) {
+    return NextResponse.json({ error: 'Los montos no pueden ser negativos' }, { status: 400 })
+  }
+
+  const computedTotal = Number((subtotalAmount + taxAmount - withholdingAmount).toFixed(2))
+  const payloadTotal = Number(totalAmount.toFixed(2))
+  if (Math.abs(computedTotal - payloadTotal) > 1) {
+    return NextResponse.json(
+      { error: 'totalAmount debe ser consistente con subtotal + impuesto - retención' },
+      { status: 400 }
+    )
+  }
+
+  let relationData: { paymentId: string | null; userId: string | null }
+  try {
+    relationData = await resolveTaxDocumentRelations({
+      type,
+      paymentId: body.paymentId,
+      userId: body.userId,
+      totalAmount,
+    })
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Relaciones inválidas' }, { status: 400 })
+  }
+
   const prefix = type === 'WITHHOLDING_CERTIFICATE' ? 'RET' : type === 'CREDIT_NOTE' ? 'NC' : 'FAC'
   const documentNumber = body.documentNumber || buildDocumentNumber(prefix)
 
@@ -59,12 +134,11 @@ export async function POST(request: NextRequest) {
       documentNumber,
       type,
       status: (body.status as TaxDocumentStatus) || 'PENDING',
-      paymentId: body.paymentId || null,
-      userId: body.userId || null,
-      subtotalAmount: Number(body.subtotalAmount),
-      taxAmount: body.taxAmount !== undefined ? Number(body.taxAmount) : 0,
-      withholdingAmount: body.withholdingAmount !== undefined ? Number(body.withholdingAmount) : 0,
-      totalAmount: Number(body.totalAmount),
+      ...relationData,
+      subtotalAmount,
+      taxAmount,
+      withholdingAmount,
+      totalAmount,
       currency: body.currency || 'COP',
       issueDate: body.issueDate ? new Date(body.issueDate) : null,
       dueDate: body.dueDate ? new Date(body.dueDate) : null,
@@ -94,6 +168,29 @@ export async function PATCH(request: NextRequest) {
 
   const body = await request.json()
   if (!body?.id) return NextResponse.json({ error: 'id es requerido' }, { status: 400 })
+
+  if (body.status) {
+    const current = await prisma.taxDocument.findUnique({
+      where: { id: body.id },
+      select: { status: true },
+    })
+    if (!current) return NextResponse.json({ error: 'Documento no encontrado' }, { status: 404 })
+
+    const nextStatus = body.status as TaxDocumentStatus
+    const allowedTransitions: Record<TaxDocumentStatus, TaxDocumentStatus[]> = {
+      PENDING: ['GENERATED', 'CANCELLED', 'ERROR'],
+      GENERATED: ['SENT', 'ERROR', 'CANCELLED'],
+      SENT: ['CANCELLED'],
+      CANCELLED: [],
+      ERROR: ['PENDING', 'GENERATED', 'CANCELLED'],
+    }
+    if (!allowedTransitions[current.status].includes(nextStatus) && current.status !== nextStatus) {
+      return NextResponse.json(
+        { error: `Transición inválida de ${current.status} a ${nextStatus}` },
+        { status: 400 }
+      )
+    }
+  }
 
   const document = await prisma.taxDocument.update({
     where: { id: body.id },
