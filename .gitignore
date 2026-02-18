@@ -59,3 +59,14 @@ prisma/migrations
 .idea/
 *.swp
 *.swo
+
+# mobile generated artifacts (do not commit)
+android/.gradle/
+android/**/build/
+android/app/src/main/assets/public/
+ios/App/App/public/
+
+# SQL artifacts and manual DB scripts (do not commit)
+*.sql
+docs/sql/
+sql-migrations/
