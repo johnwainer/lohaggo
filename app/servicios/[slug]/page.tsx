@@ -79,6 +79,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     isUrgent: false
   })
   const [submitting, setSubmitting] = useState(false)
+  const [requestActionLoading, setRequestActionLoading] = useState<'ALL' | string | null>(null)
   const [validationModal, setValidationModal] = useState({
     isOpen: false,
     message: ''
@@ -229,8 +230,12 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     }
   }
 
-  const handleBooking = async () => {
+  const openRequestFlow = async (partnerId: string | null) => {
     if (status === 'loading') {
+      setValidationModal({
+        isOpen: true,
+        message: 'Estamos validando tu sesión. Intenta nuevamente en unos segundos.'
+      })
       return
     }
     if (!session) {
@@ -253,69 +258,36 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
       return
     }
 
-    fetchAddresses()
+    await fetchAddresses()
+    setCurrentStep(1)
+    setSelectedPartnerId(partnerId || '')
     setShowRequestModal(true)
   }
 
-  // New function name for handling requests (kept for clarity/compatibility)
-  const handleRequest = async () => {
-    if (status === 'loading') {
-      return
+  const handleBooking = async (event?: React.MouseEvent<HTMLButtonElement>) => {
+    event?.preventDefault()
+    event?.stopPropagation()
+    setRequestActionLoading('ALL')
+    try {
+      await openRequestFlow(null)
+    } finally {
+      setRequestActionLoading(null)
     }
-    if (!session) {
-      router.push('/login?redirect=/servicios/' + slug)
-      return
-    }
-    if (session.user?.isActive === false) {
-      setValidationModal({
-        isOpen: true,
-        message: 'Tu cuenta está inactiva. No puedes solicitar servicios. Contacta al administrador.'
-      })
-      return
-    }
-
-    const citySlug = localStorage.getItem('selectedCity') || 'medellin'
-    const currentCity = getCityBySlug(citySlug)
-
-    if (currentCity?.partnerRegistry) {
-      router.push('/registro-socios')
-      return
-    }
-
-    fetchAddresses()
-    setCurrentStep(1)
-    setSelectedPartnerId('')
-    setShowRequestModal(true)
   }
 
-  const handleRequestToPartner = async (partnerId: string) => {
-    if (status === 'loading') {
-      return
-    }
-    if (!session) {
-      router.push('/login?redirect=/servicios/' + slug)
-      return
-    }
-    if (session.user?.isActive === false) {
-      setValidationModal({
-        isOpen: true,
-        message: 'Tu cuenta está inactiva. No puedes solicitar servicios. Contacta al administrador.'
-      })
-      return
-    }
+  const handleRequest = async (event?: React.MouseEvent<HTMLButtonElement>) => {
+    await handleBooking(event)
+  }
 
-    const citySlug = localStorage.getItem('selectedCity') || 'medellin'
-    const currentCity = getCityBySlug(citySlug)
-
-    if (currentCity?.partnerRegistry) {
-      router.push('/registro-socios')
-      return
+  const handleRequestToPartner = async (partnerId: string, event?: React.MouseEvent<HTMLButtonElement>) => {
+    event?.preventDefault()
+    event?.stopPropagation()
+    setRequestActionLoading(partnerId)
+    try {
+      await openRequestFlow(partnerId)
+    } finally {
+      setRequestActionLoading(null)
     }
-
-    fetchAddresses()
-    setCurrentStep(1)
-    setSelectedPartnerId(partnerId)
-    setShowRequestModal(true)
   }
 
   const fetchAddresses = async () => {
@@ -681,16 +653,27 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
               </div>
 
               <button
-                onClick={handleRequest}
+                type="button"
+                onClick={(event) => void handleRequest(event)}
+                disabled={requestActionLoading !== null}
                 className="w-full sm:w-auto bg-gradient-to-r from-primary-500 via-secondary-500 to-accent-500 text-white px-8 md:px-10 py-4 rounded-xl hover:from-primary-600 hover:via-secondary-600 hover:to-accent-600 transition-all duration-300 font-bold text-base md:text-lg shadow-lg hover:shadow-2xl hover:scale-105 flex items-center justify-center gap-3 group/btn"
               >
-                <svg className="w-5 h-5 group-hover/btn:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                </svg>
-                <span>Solicitar a todos los socios</span>
-                <svg className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
+                {requestActionLoading === 'ALL' ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white/70 border-t-white" />
+                    <span>Abriendo formulario...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5 group-hover/btn:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                    <span>Solicitar a todos los socios</span>
+                    <svg className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -820,16 +803,27 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                       </div>
 
                       <button
-                        onClick={() => handleRequestToPartner(partnerService.partner.id)}
+                        type="button"
+                        onClick={(event) => void handleRequestToPartner(partnerService.partner.id, event)}
+                        disabled={requestActionLoading !== null}
                         className={`w-full font-bold py-3.5 px-4 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2 group/btn ${
                           fullyVerified
                             ? 'bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white'
                             : 'bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-[#E02850] hover:to-[#E65F00] text-white'
                         }`}
                       >
-                        <UserPlus size={18} />
-                        <span>Solicitar servicio</span>
-                        <ChevronRight size={18} className="group-hover/btn:translate-x-1 transition-transform" />
+                        {requestActionLoading === partnerService.partner.id ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/70 border-t-white" />
+                            <span>Abriendo...</span>
+                          </>
+                        ) : (
+                          <>
+                            <UserPlus size={18} />
+                            <span>Solicitar servicio</span>
+                            <ChevronRight size={18} className="group-hover/btn:translate-x-1 transition-transform" />
+                          </>
+                        )}
                       </button>
                     </div>
                   )
