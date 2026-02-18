@@ -25,11 +25,6 @@ export async function GET() {
     prisma.service.findMany({
       include: {
         category: { select: { id: true, name: true, icon: true, slug: true } },
-        useCategories: {
-          include: {
-            useCategory: { select: { id: true, name: true, slug: true, icon: true } },
-          },
-        },
         _count: {
           select: {
             partners: true,
@@ -46,10 +41,7 @@ export async function GET() {
   ])
 
   return NextResponse.json({
-    services: services.map((service) => ({
-      ...service,
-      useCategories: service.useCategories.map((entry) => entry.useCategory),
-    })),
+    services,
     categories,
   })
 }

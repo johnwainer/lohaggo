@@ -20,7 +20,6 @@ interface Service {
     name: string
     icon: string
   }
-  useCategories?: ServiceUseCategory[]
   _count: {
     bookings: number
     partners: number
@@ -34,43 +33,10 @@ interface ServiceCategory {
   icon: string
 }
 
-interface ServiceUseCategory {
-  id: string
-  name: string
-  slug: string
-  icon: string
-  description?: string | null
-  order?: number
-  isActive?: boolean
-  _count?: {
-    services: number
-  }
-}
-
-interface AssignableService {
-  id: string
-  name: string
-  slug: string
-  icon: string
-  category: {
-    name: string
-  }
-  useCategories: ServiceUseCategory[]
-}
-
 export default function ServicesSection() {
   const [services, setServices] = useState<Service[]>([])
   const [loading, setLoading] = useState(true)
-  const [useCategories, setUseCategories] = useState<ServiceUseCategory[]>([])
-  const [assignableServices, setAssignableServices] = useState<AssignableService[]>([])
-  const [selectedServiceId, setSelectedServiceId] = useState('')
-  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
-  const [newCategoryName, setNewCategoryName] = useState('')
-  const [newCategorySlug, setNewCategorySlug] = useState('')
-  const [newCategoryIcon, setNewCategoryIcon] = useState('🏷️')
-  const [newCategoryDescription, setNewCategoryDescription] = useState('')
   const [saving, setSaving] = useState(false)
-  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null)
   const [serviceCategories, setServiceCategories] = useState<ServiceCategory[]>([])
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null)
   const [serviceForm, setServiceForm] = useState({
@@ -85,7 +51,7 @@ export default function ServicesSection() {
   })
 
   useEffect(() => {
-    Promise.all([fetchServices(), fetchUseCategoriesAndAssignments()])
+    void fetchServices()
   }, [])
 
   useEffect(() => {
@@ -109,141 +75,6 @@ export default function ServicesSection() {
       setServiceCategories([])
     } finally {
       setLoading(false)
-    }
-  }
-
-  const fetchUseCategoriesAndAssignments = async () => {
-    try {
-      const [categoriesRes, assignmentsRes] = await Promise.all([
-        fetch('/api/admin/service-use-categories'),
-        fetch('/api/admin/service-use-categories/assignments'),
-      ])
-
-      const [categoriesData, assignmentsData] = await Promise.all([categoriesRes.json(), assignmentsRes.json()])
-
-      setUseCategories(categoriesData.categories || [])
-      setAssignableServices(assignmentsData.services || [])
-
-      const availableServices: AssignableService[] = assignmentsData.services || []
-      if (availableServices.length > 0) {
-        const serviceToUse =
-          availableServices.find((service) => service.id === selectedServiceId) || availableServices[0]
-        setSelectedServiceId(serviceToUse.id)
-        setSelectedCategoryIds((serviceToUse.useCategories || []).map((c: ServiceUseCategory) => c.id))
-      }
-    } catch (error) {
-      console.error('Error loading use categories data:', error)
-      setUseCategories([])
-      setAssignableServices([])
-    }
-  }
-
-  const resetCategoryForm = () => {
-    setNewCategoryName('')
-    setNewCategorySlug('')
-    setNewCategoryIcon('🏷️')
-    setNewCategoryDescription('')
-    setEditingCategoryId(null)
-  }
-
-  const saveUseCategory = async () => {
-    if (!newCategoryName.trim() || !newCategorySlug.trim()) return
-    setSaving(true)
-    try {
-      const payload = {
-        name: newCategoryName.trim(),
-        slug: newCategorySlug.trim(),
-        icon: newCategoryIcon.trim() || '🏷️',
-        description: newCategoryDescription.trim() || null,
-      }
-
-      const endpoint = editingCategoryId
-        ? `/api/admin/service-use-categories/${editingCategoryId}`
-        : '/api/admin/service-use-categories'
-      const method = editingCategoryId ? 'PUT' : 'POST'
-
-      const res = await fetch(endpoint, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        alert(data.error || 'No se pudo guardar la categoría de uso')
-        return
-      }
-      resetCategoryForm()
-      await fetchUseCategoriesAndAssignments()
-    } catch (error) {
-      console.error('Error saving use category:', error)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const startEditCategory = (category: ServiceUseCategory) => {
-    setEditingCategoryId(category.id)
-    setNewCategoryName(category.name)
-    setNewCategorySlug(category.slug)
-    setNewCategoryIcon(category.icon || '🏷️')
-    setNewCategoryDescription(category.description || '')
-  }
-
-  const deleteUseCategory = async (categoryId: string) => {
-    const confirmed = window.confirm('¿Eliminar esta categoría de uso?')
-    if (!confirmed) return
-    setSaving(true)
-    try {
-      const res = await fetch(`/api/admin/service-use-categories/${categoryId}`, {
-        method: 'DELETE',
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        alert(data.error || 'No se pudo eliminar la categoría')
-        return
-      }
-      await fetchUseCategoriesAndAssignments()
-    } catch (error) {
-      console.error('Error deleting use category:', error)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const onChangeSelectedService = (serviceId: string) => {
-    setSelectedServiceId(serviceId)
-    const current = assignableServices.find((service) => service.id === serviceId)
-    setSelectedCategoryIds((current?.useCategories || []).map((category) => category.id))
-  }
-
-  const toggleCategoryForService = (categoryId: string) => {
-    setSelectedCategoryIds((prev) =>
-      prev.includes(categoryId) ? prev.filter((id) => id !== categoryId) : [...prev, categoryId]
-    )
-  }
-
-  const saveServiceAssignments = async () => {
-    if (!selectedServiceId || selectedCategoryIds.length === 0) {
-      alert('Selecciona un servicio y al menos una categoría de uso.')
-      return
-    }
-    setSaving(true)
-    try {
-      const res = await fetch('/api/admin/service-use-categories/assignments', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ serviceId: selectedServiceId, categoryIds: selectedCategoryIds }),
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        alert(data.error || 'No se pudieron guardar las categorías del servicio')
-        return
-      }
-      await fetchUseCategoriesAndAssignments()
-    } catch (error) {
-      console.error('Error saving service assignments:', error)
-    } finally {
-      setSaving(false)
     }
   }
 
@@ -312,7 +143,7 @@ export default function ServicesSection() {
         return
       }
 
-      await Promise.all([fetchServices(), fetchUseCategoriesAndAssignments()])
+      await fetchServices()
       resetServiceForm()
     } catch (error) {
       console.error('Error saving service:', error)
@@ -334,7 +165,7 @@ export default function ServicesSection() {
         return
       }
 
-      await Promise.all([fetchServices(), fetchUseCategoriesAndAssignments()])
+      await fetchServices()
       if (editingServiceId === service.id) resetServiceForm()
     } catch (error) {
       console.error('Error deleting service:', error)
@@ -368,33 +199,6 @@ export default function ServicesSection() {
       )
     },
     {
-      key: 'useCategories',
-      label: 'Categorías rápidas',
-      render: (_value: unknown, row: Service) => {
-        const categories = row.useCategories || []
-        if (categories.length === 0) {
-          return <span className="text-xs text-gray-400">Sin asignar</span>
-        }
-        return (
-          <div className="flex flex-wrap gap-1 max-w-xs">
-            {categories.slice(0, 3).map((category) => (
-              <span
-                key={`${row.id}-${category.id}`}
-                className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 text-xs font-semibold"
-              >
-                {category.icon} {category.name}
-              </span>
-            ))}
-            {categories.length > 3 && (
-              <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 text-xs font-semibold">
-                +{categories.length - 3}
-              </span>
-            )}
-          </div>
-        )
-      },
-    },
-    {
       key: 'basePrice',
       label: 'Precio Base',
       sortable: true,
@@ -419,7 +223,7 @@ export default function ServicesSection() {
     {
       key: '_count',
       label: 'Estadísticas',
-      render: (value: any) => (
+      render: (value: { bookings: number; partners: number }) => (
         <div className="text-sm">
           <div className="text-gray-700">{value.bookings} reservas</div>
           <div className="text-gray-500">{value.partners} socios</div>
@@ -473,7 +277,6 @@ export default function ServicesSection() {
   }
 
   const totalBookings = services.reduce((sum, s) => sum + (s._count?.bookings || 0), 0)
-  const totalPartners = services.reduce((sum, s) => sum + (s._count?.partners || 0), 0)
   const popularServices = services.filter(s => s.popular).length
   const avgPrice = services.length > 0
     ? services.reduce((sum, s) => sum + s.basePrice, 0) / services.length
@@ -626,141 +429,6 @@ export default function ServicesSection() {
               Cancelar edición
             </button>
           )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl shadow-md p-6 space-y-4">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">Categorías rápidas para usuarios</h2>
-            <p className="text-sm text-gray-600">
-              Máximo 10. Se usan en el filtro “¿Dónde necesitas el servicio?” de la app.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <input
-              value={newCategoryName}
-              onChange={(e) => setNewCategoryName(e.target.value)}
-              placeholder="Nombre (ej. Casa)"
-              className="border rounded-lg px-3 py-2 text-sm"
-            />
-            <input
-              value={newCategorySlug}
-              onChange={(e) => setNewCategorySlug(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
-              placeholder="slug (ej. casa)"
-              className="border rounded-lg px-3 py-2 text-sm"
-            />
-            <input
-              value={newCategoryIcon}
-              onChange={(e) => setNewCategoryIcon(e.target.value)}
-              placeholder="Icono"
-              className="border rounded-lg px-3 py-2 text-sm"
-            />
-            <input
-              value={newCategoryDescription}
-              onChange={(e) => setNewCategoryDescription(e.target.value)}
-              placeholder="Descripción corta"
-              className="border rounded-lg px-3 py-2 text-sm"
-            />
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={saveUseCategory}
-              disabled={saving}
-              className="rounded-lg bg-primary-600 text-white text-sm px-4 py-2 disabled:opacity-50"
-            >
-              {editingCategoryId ? 'Guardar cambios' : 'Crear categoría'}
-            </button>
-            {editingCategoryId && (
-              <button
-                onClick={resetCategoryForm}
-                className="rounded-lg border border-gray-300 text-sm px-4 py-2 text-gray-700"
-              >
-                Cancelar edición
-              </button>
-            )}
-          </div>
-
-          <div className="space-y-2 max-h-80 overflow-auto pr-1">
-            {useCategories.map((category) => (
-              <div key={category.id} className="border rounded-lg p-3 flex items-center justify-between gap-2">
-                <div>
-                  <p className="font-medium text-gray-900">
-                    {category.icon} {category.name}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {category.slug} · {category._count?.services || 0} servicios
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => startEditCategory(category)}
-                    className="p-2 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    title="Editar categoría"
-                  >
-                    <Edit size={14} />
-                  </button>
-                  <button
-                    onClick={() => deleteUseCategory(category.id)}
-                    className="p-2 rounded-md bg-red-50 text-red-600 hover:bg-red-100"
-                    title="Eliminar categoría"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-md p-6 space-y-4">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">Asignación por servicio</h2>
-            <p className="text-sm text-gray-600">
-              Cada servicio debe tener al menos una categoría rápida.
-            </p>
-          </div>
-
-          <select
-            value={selectedServiceId}
-            onChange={(e) => onChangeSelectedService(e.target.value)}
-            className="w-full border rounded-lg px-3 py-2 text-sm"
-          >
-            <option value="">Selecciona un servicio</option>
-            {assignableServices.map((service) => (
-              <option key={service.id} value={service.id}>
-                {service.icon} {service.name}
-              </option>
-            ))}
-          </select>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-72 overflow-auto pr-1">
-            {useCategories.map((category) => (
-              <label
-                key={category.id}
-                className="flex items-center gap-2 border rounded-lg px-3 py-2 text-sm cursor-pointer hover:bg-gray-50"
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedCategoryIds.includes(category.id)}
-                  onChange={() => toggleCategoryForService(category.id)}
-                />
-                <span>
-                  {category.icon} {category.name}
-                </span>
-              </label>
-            ))}
-          </div>
-
-          <button
-            onClick={saveServiceAssignments}
-            disabled={saving || !selectedServiceId}
-            className="rounded-lg bg-primary-600 text-white text-sm px-4 py-2 disabled:opacity-50"
-          >
-            Guardar categorías del servicio
-          </button>
         </div>
       </div>
     </div>

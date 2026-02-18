@@ -32,12 +32,6 @@ interface Service {
     availableCount: number
     avgRating: number
   }
-  useCategories?: Array<{
-    id: string
-    name: string
-    slug: string
-    icon: string
-  }>
 }
 
 interface Category {
@@ -57,14 +51,6 @@ interface SearchHistoryItem {
   id: string
   query: string
   createdAt: string
-}
-
-interface ServiceUseCategory {
-  id: string
-  name: string
-  slug: string
-  icon: string
-  description?: string
 }
 
 type SortBy =
@@ -96,9 +82,7 @@ function ServiciosContent() {
   const [loadingFavorite, setLoadingFavorite] = useState<string | null>(null)
   const [favoriteServicesList, setFavoriteServicesList] = useState<Service[]>([])
   const [showSlowLoadingHint, setShowSlowLoadingHint] = useState(false)
-  const [useCategories, setUseCategories] = useState<ServiceUseCategory[]>([])
   const [quickMinRating, setQuickMinRating] = useState<number>(0)
-  const [quickUseCategory, setQuickUseCategory] = useState<string>('ALL')
   const [quickOnlyWithPartners, setQuickOnlyWithPartners] = useState<boolean>(true)
   const [sortBy, setSortBy] = useState<SortBy>('RELEVANCE')
 
@@ -110,12 +94,6 @@ function ServiciosContent() {
 
         if (quickOnlyWithPartners && availablePartners <= 0) return false
         if (quickMinRating > 0 && rating < quickMinRating) return false
-        if (
-          quickUseCategory !== 'ALL' &&
-          !(service.useCategories || []).some((category) => category.slug === quickUseCategory)
-        ) {
-          return false
-        }
         return true
       })
 
@@ -146,7 +124,7 @@ function ServiciosContent() {
       }
       return sorted
     },
-    [quickMinRating, quickUseCategory, quickOnlyWithPartners, sortBy]
+    [quickMinRating, quickOnlyWithPartners, sortBy]
   )
 
   const filteredServices = useMemo(
@@ -165,16 +143,6 @@ function ServiciosContent() {
       const data = await res.json()
       setCategories(data)
     } catch (error) {
-    }
-  }
-
-  const fetchUseCategories = async () => {
-    try {
-      const res = await fetch('/api/service-use-categories')
-      const data = await res.json()
-      setUseCategories(Array.isArray(data?.categories) ? data.categories : [])
-    } catch (error) {
-      setUseCategories([])
     }
   }
 
@@ -369,7 +337,7 @@ function ServiciosContent() {
 
   useEffect(() => {
     const init = async () => {
-      await Promise.all([fetchCategories(), fetchUseCategories()])
+      await fetchCategories()
       await fetchSearchHistory()
 
       const urlSearch = searchParams.get('search')
@@ -773,21 +741,6 @@ function ServiciosContent() {
               </div>
               <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3">
                 <label className="text-xs text-gray-600">
-                  ¿Dónde necesitas el servicio?
-                  <select
-                    value={quickUseCategory}
-                    onChange={(e) => setQuickUseCategory(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-800"
-                  >
-                    <option value="ALL">Todos</option>
-                    {useCategories.map((category) => (
-                      <option key={category.id} value={category.slug}>
-                        {category.icon} {category.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="text-xs text-gray-600">
                   Ordenar por
                   <select
                     value={sortBy}
@@ -815,7 +768,6 @@ function ServiciosContent() {
                   type="button"
                   onClick={() => {
                     setQuickMinRating(0)
-                    setQuickUseCategory('ALL')
                     setQuickOnlyWithPartners(true)
                     setSortBy('RELEVANCE')
                   }}
@@ -861,18 +813,6 @@ function ServiciosContent() {
                     <p className="text-gray-600 text-xs md:text-sm mb-3 md:mb-4 line-clamp-2 font-medium">
                       {service.description}
                     </p>
-                    {(service.useCategories?.length ?? 0) > 0 && (
-                      <div className="mb-3 flex flex-wrap gap-1.5">
-                        {service.useCategories!.slice(0, 2).map((usage) => (
-                          <span
-                            key={`${service.id}-${usage.id}`}
-                            className="rounded-full bg-gray-100 px-2 py-1 text-[10px] font-semibold text-gray-700"
-                          >
-                            {usage.icon} {usage.name}
-                          </span>
-                        ))}
-                      </div>
-                    )}
                     <div className="flex items-center justify-between pt-3 md:pt-4 border-t-2 border-gray-100">
                       <div className="text-left">
                         <p className="text-gray-500 text-xs font-medium mb-1">Desde</p>
@@ -950,18 +890,6 @@ function ServiciosContent() {
                           <p className="text-gray-600 text-xs md:text-sm mb-3 line-clamp-2">
                             {service.description}
                           </p>
-                          {(service.useCategories?.length ?? 0) > 0 && (
-                            <div className="mb-3 flex flex-wrap gap-1.5">
-                              {service.useCategories!.slice(0, 2).map((usage) => (
-                                <span
-                                  key={`${service.id}-${usage.id}`}
-                                  className="rounded-full bg-gray-100 px-2 py-1 text-[10px] font-semibold text-gray-700"
-                                >
-                                  {usage.icon} {usage.name}
-                                </span>
-                              ))}
-                            </div>
-                          )}
                           <div className="flex items-center justify-between pt-3 border-t border-gray-100">
                             <div className="text-left">
                               <p className="text-gray-500 text-xs mb-1">Desde</p>

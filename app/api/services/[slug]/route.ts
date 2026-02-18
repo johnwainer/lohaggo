@@ -39,23 +39,6 @@ export async function GET(
       where: { slug },
       include: {
         category: true,
-        useCategories: {
-          where: {
-            useCategory: {
-              isActive: true,
-            },
-          },
-          select: {
-            useCategory: {
-              select: {
-                id: true,
-                name: true,
-                slug: true,
-                icon: true,
-              },
-            },
-          },
-        },
         partners: {
           where: {
             active: true,
@@ -111,7 +94,6 @@ export async function GET(
 
     return NextResponse.json({
       ...service,
-      useCategories: service.useCategories.map((entry) => entry.useCategory),
       partners: filteredPartners
     })
   } catch (error) {

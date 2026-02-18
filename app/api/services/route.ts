@@ -46,7 +46,6 @@ function enrichPartnerStats<T extends {
 
     return {
       ...service,
-      useCategories: ((service as any).useCategories || []).map((entry: any) => entry.useCategory),
       partnerStats: {
         availableCount,
         avgRating,
@@ -63,7 +62,6 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const category = searchParams.get("category")
-    const useCategory = searchParams.get("useCategory")
     const popular = searchParams.get("popular")
     const search = searchParams.get("search")
     const citySlug = searchParams.get('city') || 'medellin'
@@ -72,17 +70,6 @@ export async function GET(request: Request) {
 
     if (category) {
       where.category = { slug: category }
-    }
-
-    if (useCategory) {
-      where.useCategories = {
-        some: {
-          useCategory: {
-            slug: useCategory,
-            isActive: true,
-          },
-        },
-      }
     }
 
     if (popular === "true") {
@@ -124,23 +111,6 @@ export async function GET(request: Request) {
                 where: { status: 'APPROVED' },
                 select: { type: true, status: true },
               },
-            },
-          },
-        },
-      },
-      useCategories: {
-        where: {
-          useCategory: {
-            isActive: true,
-          },
-        },
-        select: {
-          useCategory: {
-            select: {
-              id: true,
-              name: true,
-              slug: true,
-              icon: true,
             },
           },
         },
