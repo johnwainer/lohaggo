@@ -18,6 +18,10 @@ import {
 import {
   Activity,
   AlertTriangle,
+  BarChart3,
+  Clock3,
+  Layers3,
+  ListFilter,
   Search,
   Users,
 } from 'lucide-react'
@@ -216,11 +220,35 @@ export default function SearchAnalyticsPage() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="w-full justify-start overflow-x-auto">
-          <TabsTrigger value="overview">Resumen</TabsTrigger>
-          <TabsTrigger value="queries">Términos</TabsTrigger>
-          <TabsTrigger value="segments">Segmentos</TabsTrigger>
-          <TabsTrigger value="activity">Actividad</TabsTrigger>
+        <TabsList className="h-auto w-full justify-start gap-2 overflow-x-auto rounded-xl border bg-gradient-to-r from-slate-100 via-slate-100 to-slate-50 p-1.5">
+          <TabsTrigger
+            value="overview"
+            className="min-w-[130px] rounded-lg border border-transparent px-3 py-2 text-xs font-semibold text-slate-700 data-[state=active]:border-sky-200 data-[state=active]:bg-white data-[state=active]:text-sky-700 data-[state=active]:shadow"
+          >
+            <BarChart3 className="mr-1.5 h-4 w-4" />
+            Resumen
+          </TabsTrigger>
+          <TabsTrigger
+            value="queries"
+            className="min-w-[130px] rounded-lg border border-transparent px-3 py-2 text-xs font-semibold text-slate-700 data-[state=active]:border-sky-200 data-[state=active]:bg-white data-[state=active]:text-sky-700 data-[state=active]:shadow"
+          >
+            <ListFilter className="mr-1.5 h-4 w-4" />
+            Términos
+          </TabsTrigger>
+          <TabsTrigger
+            value="segments"
+            className="min-w-[130px] rounded-lg border border-transparent px-3 py-2 text-xs font-semibold text-slate-700 data-[state=active]:border-sky-200 data-[state=active]:bg-white data-[state=active]:text-sky-700 data-[state=active]:shadow"
+          >
+            <Layers3 className="mr-1.5 h-4 w-4" />
+            Segmentos
+          </TabsTrigger>
+          <TabsTrigger
+            value="activity"
+            className="min-w-[130px] rounded-lg border border-transparent px-3 py-2 text-xs font-semibold text-slate-700 data-[state=active]:border-sky-200 data-[state=active]:bg-white data-[state=active]:text-sky-700 data-[state=active]:shadow"
+          >
+            <Clock3 className="mr-1.5 h-4 w-4" />
+            Actividad
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
