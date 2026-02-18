@@ -15,6 +15,8 @@ interface Service {
   duration: number
   popular: boolean
   category: {
+    id?: string
+    slug?: string
     name: string
     icon: string
   }
@@ -23,6 +25,13 @@ interface Service {
     bookings: number
     partners: number
   }
+}
+
+interface ServiceCategory {
+  id: string
+  name: string
+  slug: string
+  icon: string
 }
 
 interface ServiceUseCategory {
@@ -62,29 +71,42 @@ export default function ServicesSection() {
   const [newCategoryDescription, setNewCategoryDescription] = useState('')
   const [saving, setSaving] = useState(false)
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null)
+  const [serviceCategories, setServiceCategories] = useState<ServiceCategory[]>([])
+  const [editingServiceId, setEditingServiceId] = useState<string | null>(null)
+  const [serviceForm, setServiceForm] = useState({
+    name: '',
+    slug: '',
+    description: '',
+    icon: '🛠️',
+    categoryId: '',
+    basePrice: '0',
+    duration: '60',
+    popular: false,
+  })
 
   useEffect(() => {
     Promise.all([fetchServices(), fetchUseCategoriesAndAssignments()])
   }, [])
 
+  useEffect(() => {
+    if (!serviceForm.categoryId && serviceCategories.length > 0) {
+      setServiceForm((prev) => ({ ...prev, categoryId: serviceCategories[0].id }))
+    }
+  }, [serviceCategories, serviceForm.categoryId])
+
   const fetchServices = async () => {
     try {
-      const res = await fetch('/api/services')
+      const res = await fetch('/api/admin/services')
       const data = await res.json()
-
-      // /api/services returns an object shape for public search:
-      // { services, relatedByCategory, topMatch, suggestions }.
-      // Keep backward compatibility in case an array is returned.
-      const normalizedServices = Array.isArray(data)
-        ? data
-        : Array.isArray(data?.services)
-        ? data.services
-        : []
+      const normalizedServices = Array.isArray(data?.services) ? data.services : []
+      const normalizedCategories = Array.isArray(data?.categories) ? data.categories : []
 
       setServices(normalizedServices)
+      setServiceCategories(normalizedCategories)
     } catch (error) {
       console.error('Error fetching services:', error)
       setServices([])
+      setServiceCategories([])
     } finally {
       setLoading(false)
     }
@@ -225,6 +247,102 @@ export default function ServicesSection() {
     }
   }
 
+  const resetServiceForm = () => {
+    setEditingServiceId(null)
+    setServiceForm({
+      name: '',
+      slug: '',
+      description: '',
+      icon: '🛠️',
+      categoryId: serviceCategories[0]?.id || '',
+      basePrice: '0',
+      duration: '60',
+      popular: false,
+    })
+  }
+
+  const startEditService = (service: Service) => {
+    setEditingServiceId(service.id)
+    setServiceForm({
+      name: service.name,
+      slug: service.slug,
+      description: service.description,
+      icon: service.icon,
+      categoryId: service.category.id || '',
+      basePrice: String(service.basePrice),
+      duration: String(service.duration),
+      popular: Boolean(service.popular),
+    })
+  }
+
+  const saveService = async () => {
+    if (!serviceForm.name.trim() || !serviceForm.slug.trim() || !serviceForm.categoryId) {
+      alert('Completa nombre, slug y categoría.')
+      return
+    }
+
+    const payload = {
+      name: serviceForm.name.trim(),
+      slug: serviceForm.slug.trim().toLowerCase().replace(/\s+/g, '-'),
+      description: serviceForm.description.trim(),
+      icon: serviceForm.icon.trim() || '🛠️',
+      categoryId: serviceForm.categoryId,
+      basePrice: Number(serviceForm.basePrice),
+      duration: Number(serviceForm.duration),
+      popular: Boolean(serviceForm.popular),
+    }
+
+    if (!payload.description || Number.isNaN(payload.basePrice) || Number.isNaN(payload.duration)) {
+      alert('Revisa descripción, precio y duración.')
+      return
+    }
+
+    setSaving(true)
+    try {
+      const endpoint = editingServiceId ? `/api/admin/services/${editingServiceId}` : '/api/admin/services'
+      const method = editingServiceId ? 'PUT' : 'POST'
+      const res = await fetch(endpoint, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        alert(data.error || 'No se pudo guardar el servicio')
+        return
+      }
+
+      await Promise.all([fetchServices(), fetchUseCategoriesAndAssignments()])
+      resetServiceForm()
+    } catch (error) {
+      console.error('Error saving service:', error)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const deleteService = async (service: Service) => {
+    const confirmed = window.confirm(`¿Eliminar el servicio "${service.name}"?`)
+    if (!confirmed) return
+
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/admin/services/${service.id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        alert(data.error || 'No se pudo eliminar el servicio')
+        return
+      }
+
+      await Promise.all([fetchServices(), fetchUseCategoriesAndAssignments()])
+      if (editingServiceId === service.id) resetServiceForm()
+    } catch (error) {
+      console.error('Error deleting service:', error)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const columns = [
     {
       key: 'name',
@@ -321,6 +439,28 @@ export default function ServicesSection() {
           <span className="text-gray-400 text-xs">-</span>
         )
       )
+    },
+    {
+      key: 'id',
+      label: 'Acciones',
+      render: (_value: string, row: Service) => (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => startEditService(row)}
+            className="rounded-md bg-gray-100 p-2 text-gray-700 hover:bg-gray-200"
+            title="Editar servicio"
+          >
+            <Edit size={14} />
+          </button>
+          <button
+            onClick={() => deleteService(row)}
+            className="rounded-md bg-red-50 p-2 text-red-600 hover:bg-red-100"
+            title="Eliminar servicio"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+      ),
     }
   ]
 
@@ -395,6 +535,99 @@ export default function ServicesSection() {
         exportable
         itemsPerPage={15}
       />
+
+      <div className="bg-white rounded-xl shadow-md p-6 space-y-4">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">
+            {editingServiceId ? 'Editar servicio' : 'Crear servicio'}
+          </h2>
+          <p className="text-sm text-gray-600">Gestiona todos los atributos del servicio desde admin.</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <input
+            value={serviceForm.name}
+            onChange={(e) => setServiceForm((prev) => ({ ...prev, name: e.target.value }))}
+            placeholder="Nombre"
+            className="border rounded-lg px-3 py-2 text-sm"
+          />
+          <input
+            value={serviceForm.slug}
+            onChange={(e) => setServiceForm((prev) => ({ ...prev, slug: e.target.value.toLowerCase().replace(/\s+/g, '-') }))}
+            placeholder="slug"
+            className="border rounded-lg px-3 py-2 text-sm"
+          />
+          <input
+            value={serviceForm.icon}
+            onChange={(e) => setServiceForm((prev) => ({ ...prev, icon: e.target.value }))}
+            placeholder="Icono"
+            className="border rounded-lg px-3 py-2 text-sm"
+          />
+          <select
+            value={serviceForm.categoryId}
+            onChange={(e) => setServiceForm((prev) => ({ ...prev, categoryId: e.target.value }))}
+            className="border rounded-lg px-3 py-2 text-sm"
+          >
+            <option value="">Selecciona categoría</option>
+            {serviceCategories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.icon} {category.name}
+              </option>
+            ))}
+          </select>
+          <input
+            type="number"
+            min={0}
+            value={serviceForm.basePrice}
+            onChange={(e) => setServiceForm((prev) => ({ ...prev, basePrice: e.target.value }))}
+            placeholder="Precio base"
+            className="border rounded-lg px-3 py-2 text-sm"
+          />
+          <input
+            type="number"
+            min={1}
+            value={serviceForm.duration}
+            onChange={(e) => setServiceForm((prev) => ({ ...prev, duration: e.target.value }))}
+            placeholder="Duración (minutos)"
+            className="border rounded-lg px-3 py-2 text-sm"
+          />
+        </div>
+
+        <textarea
+          value={serviceForm.description}
+          onChange={(e) => setServiceForm((prev) => ({ ...prev, description: e.target.value }))}
+          placeholder="Descripción del servicio"
+          rows={3}
+          className="w-full border rounded-lg px-3 py-2 text-sm"
+        />
+
+        <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+          <input
+            type="checkbox"
+            checked={serviceForm.popular}
+            onChange={(e) => setServiceForm((prev) => ({ ...prev, popular: e.target.checked }))}
+          />
+          Marcar como popular
+        </label>
+
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={saveService}
+            disabled={saving}
+            className="rounded-lg bg-primary-600 text-white text-sm px-4 py-2 disabled:opacity-50"
+          >
+            {editingServiceId ? 'Guardar cambios' : 'Crear servicio'}
+          </button>
+          {editingServiceId && (
+            <button
+              onClick={resetServiceForm}
+              className="rounded-lg border border-gray-300 text-sm px-4 py-2 text-gray-700"
+            >
+              Cancelar edición
+            </button>
+          )}
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl shadow-md p-6 space-y-4">
