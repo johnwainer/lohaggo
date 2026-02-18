@@ -4,6 +4,20 @@ import { useEffect, useMemo, useState } from 'react'
 
 type AutomationTarget = 'GLOBAL' | 'CLIENT' | 'PARTNER' | 'ADMIN'
 type Channel = 'PUSH' | 'EMAIL' | 'WHATSAPP' | 'SMS'
+type Role = 'CLIENT' | 'PARTNER' | 'ADMIN'
+type NotificationType =
+  | 'NEW_SERVICE_REQUEST'
+  | 'NEW_PROPOSAL'
+  | 'PROPOSAL_ACCEPTED'
+  | 'PROPOSAL_REJECTED'
+  | 'BOOKING_CONFIRMED'
+  | 'BOOKING_CANCELLED'
+  | 'BOOKING_IN_PROGRESS'
+  | 'BOOKING_COMPLETED'
+  | 'DOCUMENT_APPROVED'
+  | 'DOCUMENT_REJECTED'
+  | 'ACHIEVEMENT_UNLOCKED'
+  | 'NEW_MESSAGE'
 
 type AutomationConfig = {
   target: AutomationTarget
@@ -17,7 +31,7 @@ type AutomationConfig = {
 
 type DeliveryLog = {
   id: string
-  userRole: 'CLIENT' | 'PARTNER' | 'ADMIN'
+  userRole: Role
   channel: Channel
   status: 'PENDING' | 'SENT' | 'DELIVERED' | 'FAILED' | 'OPENED' | 'CLICKED' | 'UNSUBSCRIBED' | 'SKIPPED'
   destination: string | null
@@ -35,12 +49,43 @@ type SummaryItem = {
   count: number
 }
 
+type EmailTemplate = {
+  id: string
+  key: string
+  name: string
+  notificationType: NotificationType
+  channel: Channel
+  role: Role | null
+  subjectTemplate: string | null
+  bodyTemplate: string
+  bodyHtmlTemplate: string | null
+  bodyTextTemplate: string | null
+  isActive: boolean
+  updatedByEmail?: string | null
+  updatedAt?: string | null
+}
+
 const TARGET_LABEL: Record<AutomationTarget, string> = {
   GLOBAL: 'Global',
   CLIENT: 'Clientes',
   PARTNER: 'Socios',
   ADMIN: 'Admins',
 }
+
+const NOTIFICATION_TYPE_OPTIONS: NotificationType[] = [
+  'NEW_SERVICE_REQUEST',
+  'NEW_PROPOSAL',
+  'PROPOSAL_ACCEPTED',
+  'PROPOSAL_REJECTED',
+  'BOOKING_CONFIRMED',
+  'BOOKING_CANCELLED',
+  'BOOKING_IN_PROGRESS',
+  'BOOKING_COMPLETED',
+  'DOCUMENT_APPROVED',
+  'DOCUMENT_REJECTED',
+  'ACHIEVEMENT_UNLOCKED',
+  'NEW_MESSAGE',
+]
 
 function formatDate(value: string | null | undefined) {
   if (!value) return 'n/a'
@@ -51,23 +96,40 @@ export default function NotificationsSection() {
   const [configs, setConfigs] = useState<AutomationConfig[]>([])
   const [logs, setLogs] = useState<DeliveryLog[]>([])
   const [summary7d, setSummary7d] = useState<SummaryItem[]>([])
+  const [templates, setTemplates] = useState<EmailTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [savingTarget, setSavingTarget] = useState<AutomationTarget | null>(null)
-  const [filterRole, setFilterRole] = useState<'ALL' | 'CLIENT' | 'PARTNER' | 'ADMIN'>('ALL')
+  const [filterRole, setFilterRole] = useState<'ALL' | Role>('ALL')
   const [filterChannel, setFilterChannel] = useState<'ALL' | Channel>('ALL')
   const [filterStatus, setFilterStatus] = useState<'ALL' | DeliveryLog['status']>('ALL')
+  const [templateFeedback, setTemplateFeedback] = useState<{ type: 'ok' | 'error'; message: string } | null>(null)
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null)
+  const [tplForm, setTplForm] = useState({
+    key: '',
+    name: '',
+    notificationType: 'BOOKING_CONFIRMED' as NotificationType,
+    channel: 'EMAIL' as Channel,
+    role: '' as '' | Role,
+    subjectTemplate: '',
+    bodyTemplate: '',
+    bodyHtmlTemplate: '',
+    bodyTextTemplate: '',
+    isActive: true,
+  })
 
   const load = async () => {
     setLoading(true)
     try {
-      const [cfgRes, logsRes] = await Promise.all([
+      const [cfgRes, logsRes, tplRes] = await Promise.all([
         fetch('/api/admin/notifications/automation', { cache: 'no-store' }),
         fetch('/api/admin/notifications/delivery-logs?limit=150', { cache: 'no-store' }),
+        fetch('/api/admin/notifications/email-templates', { cache: 'no-store' }),
       ])
-      const [cfgData, logsData] = await Promise.all([cfgRes.json(), logsRes.json()])
+      const [cfgData, logsData, tplData] = await Promise.all([cfgRes.json(), logsRes.json(), tplRes.json()])
       setConfigs(Array.isArray(cfgData?.configs) ? cfgData.configs : [])
       setLogs(Array.isArray(logsData?.logs) ? logsData.logs : [])
       setSummary7d(Array.isArray(logsData?.summary7d) ? logsData.summary7d : [])
+      setTemplates(Array.isArray(tplData?.templates) ? tplData.templates : [])
     } finally {
       setLoading(false)
     }
@@ -126,6 +188,89 @@ export default function NotificationsSection() {
     setSavingTarget(null)
   }
 
+  const startEditTemplate = (template: EmailTemplate) => {
+    setEditingTemplateId(template.id)
+    setTplForm({
+      key: template.key,
+      name: template.name,
+      notificationType: template.notificationType,
+      channel: template.channel,
+      role: (template.role || '') as '' | Role,
+      subjectTemplate: template.subjectTemplate || '',
+      bodyTemplate: template.bodyTemplate,
+      bodyHtmlTemplate: template.bodyHtmlTemplate || '',
+      bodyTextTemplate: template.bodyTextTemplate || '',
+      isActive: template.isActive,
+    })
+    setTemplateFeedback(null)
+  }
+
+  const resetTemplateForm = () => {
+    setEditingTemplateId(null)
+    setTplForm({
+      key: '',
+      name: '',
+      notificationType: 'BOOKING_CONFIRMED',
+      channel: 'EMAIL',
+      role: '',
+      subjectTemplate: '',
+      bodyTemplate: '',
+      bodyHtmlTemplate: '',
+      bodyTextTemplate: '',
+      isActive: true,
+    })
+  }
+
+  const saveTemplate = async () => {
+    setTemplateFeedback(null)
+    const endpoint = '/api/admin/notifications/email-templates'
+    const method = editingTemplateId ? 'PATCH' : 'POST'
+
+    const payload = {
+      ...(editingTemplateId ? { id: editingTemplateId } : {}),
+      key: tplForm.key.trim(),
+      name: tplForm.name.trim(),
+      notificationType: tplForm.notificationType,
+      channel: tplForm.channel,
+      role: tplForm.role || null,
+      subjectTemplate: tplForm.subjectTemplate || null,
+      bodyTemplate: tplForm.bodyTemplate,
+      bodyHtmlTemplate: tplForm.bodyHtmlTemplate,
+      bodyTextTemplate: tplForm.bodyTextTemplate || null,
+      isActive: tplForm.isActive,
+    }
+
+    const response = await fetch(endpoint, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      setTemplateFeedback({ type: 'error', message: data.error || 'No se pudo guardar plantilla' })
+      return
+    }
+
+    setTemplateFeedback({ type: 'ok', message: editingTemplateId ? 'Plantilla actualizada' : 'Plantilla creada' })
+    resetTemplateForm()
+    await load()
+  }
+
+  const deleteTemplate = async (id: string) => {
+    setTemplateFeedback(null)
+    const response = await fetch(`/api/admin/notifications/email-templates?id=${id}`, { method: 'DELETE' })
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      setTemplateFeedback({ type: 'error', message: data.error || 'No se pudo eliminar plantilla' })
+      return
+    }
+
+    if (editingTemplateId === id) resetTemplateForm()
+    setTemplateFeedback({ type: 'ok', message: 'Plantilla eliminada' })
+    await load()
+  }
+
   const rows = ['GLOBAL', 'CLIENT', 'PARTNER', 'ADMIN'] as AutomationTarget[]
 
   return (
@@ -133,7 +278,7 @@ export default function NotificationsSection() {
       <div className="space-y-1">
         <h1 className="text-3xl font-bold text-gray-900">Notificaciones Automáticas</h1>
         <p className="text-gray-600">
-          Controla por qué canal se envían las notificaciones del sistema (push, email, WhatsApp y SMS) por rol.
+          Configura canales por audiencia y administra las plantillas de email para notificaciones automáticas.
         </p>
       </div>
 
@@ -183,40 +328,18 @@ export default function NotificationsSection() {
                       <tr key={target} className="border-t">
                         <td className="px-3 py-2 font-semibold text-gray-900">{TARGET_LABEL[target]}</td>
                         <td className="px-3 py-2">
-                          <input
-                            type="checkbox"
-                            checked={row.pushEnabled}
-                            disabled={savingTarget === target}
-                            onChange={(e) => void updateTarget(target, { pushEnabled: e.target.checked })}
-                          />
+                          <input type="checkbox" checked={row.pushEnabled} disabled={savingTarget === target} onChange={(e) => void updateTarget(target, { pushEnabled: e.target.checked })} />
                         </td>
                         <td className="px-3 py-2">
-                          <input
-                            type="checkbox"
-                            checked={row.emailEnabled}
-                            disabled={savingTarget === target}
-                            onChange={(e) => void updateTarget(target, { emailEnabled: e.target.checked })}
-                          />
+                          <input type="checkbox" checked={row.emailEnabled} disabled={savingTarget === target} onChange={(e) => void updateTarget(target, { emailEnabled: e.target.checked })} />
                         </td>
                         <td className="px-3 py-2">
-                          <input
-                            type="checkbox"
-                            checked={row.whatsappEnabled}
-                            disabled={savingTarget === target}
-                            onChange={(e) => void updateTarget(target, { whatsappEnabled: e.target.checked })}
-                          />
+                          <input type="checkbox" checked={row.whatsappEnabled} disabled={savingTarget === target} onChange={(e) => void updateTarget(target, { whatsappEnabled: e.target.checked })} />
                         </td>
                         <td className="px-3 py-2">
-                          <input
-                            type="checkbox"
-                            checked={row.smsEnabled}
-                            disabled={savingTarget === target}
-                            onChange={(e) => void updateTarget(target, { smsEnabled: e.target.checked })}
-                          />
+                          <input type="checkbox" checked={row.smsEnabled} disabled={savingTarget === target} onChange={(e) => void updateTarget(target, { smsEnabled: e.target.checked })} />
                         </td>
-                        <td className="px-3 py-2 text-xs text-gray-500">
-                          {formatDate(row.updatedAt)} {row.updatedByEmail ? `· ${row.updatedByEmail}` : ''}
-                        </td>
+                        <td className="px-3 py-2 text-xs text-gray-500">{formatDate(row.updatedAt)} {row.updatedByEmail ? `· ${row.updatedByEmail}` : ''}</td>
                       </tr>
                     )
                   })}
@@ -225,12 +348,109 @@ export default function NotificationsSection() {
             </div>
           </section>
 
+          <section className="rounded-xl border bg-white p-4 space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Plantillas por canal (Notificaciones Automáticas)</h2>
+              <p className="text-sm text-gray-600">{'Variables disponibles: {{user_name}}, {{title}}, {{message}}, {{notifications_url}}, {{year}}'}</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+              <input className="border rounded px-2 py-2 text-sm" placeholder="Key" value={tplForm.key} onChange={(e) => setTplForm((p) => ({ ...p, key: e.target.value }))} />
+              <input className="border rounded px-2 py-2 text-sm" placeholder="Nombre" value={tplForm.name} onChange={(e) => setTplForm((p) => ({ ...p, name: e.target.value }))} />
+              <select className="border rounded px-2 py-2 text-sm" value={tplForm.notificationType} onChange={(e) => setTplForm((p) => ({ ...p, notificationType: e.target.value as NotificationType }))}>
+                {NOTIFICATION_TYPE_OPTIONS.map((type) => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+              <select className="border rounded px-2 py-2 text-sm" value={tplForm.channel} onChange={(e) => setTplForm((p) => ({ ...p, channel: e.target.value as Channel }))}>
+                <option value="EMAIL">EMAIL</option>
+                <option value="PUSH">PUSH</option>
+                <option value="WHATSAPP">WHATSAPP</option>
+                <option value="SMS">SMS</option>
+              </select>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              <select className="border rounded px-2 py-2 text-sm" value={tplForm.role} onChange={(e) => setTplForm((p) => ({ ...p, role: e.target.value as '' | Role }))}>
+                <option value="">Todos los roles</option>
+                <option value="CLIENT">CLIENT</option>
+                <option value="PARTNER">PARTNER</option>
+                <option value="ADMIN">ADMIN</option>
+              </select>
+              <label className="flex items-center gap-2 text-sm border rounded px-3 py-2">
+                <input type="checkbox" checked={tplForm.isActive} onChange={(e) => setTplForm((p) => ({ ...p, isActive: e.target.checked }))} />
+                Activa
+              </label>
+              <input className="border rounded px-2 py-2 text-sm" placeholder="Subject template (PUSH/EMAIL)" value={tplForm.subjectTemplate} onChange={(e) => setTplForm((p) => ({ ...p, subjectTemplate: e.target.value }))} />
+            </div>
+
+            <textarea className="w-full border rounded px-2 py-2 text-sm min-h-[90px]" placeholder="Body template (texto base para todos los canales)" value={tplForm.bodyTemplate} onChange={(e) => setTplForm((p) => ({ ...p, bodyTemplate: e.target.value }))} />
+            <textarea className="w-full border rounded px-2 py-2 text-sm min-h-[120px]" placeholder="Body HTML template (opcional para EMAIL)" value={tplForm.bodyHtmlTemplate} onChange={(e) => setTplForm((p) => ({ ...p, bodyHtmlTemplate: e.target.value }))} />
+            <textarea className="w-full border rounded px-2 py-2 text-sm min-h-[70px]" placeholder="Body text template (opcional)" value={tplForm.bodyTextTemplate} onChange={(e) => setTplForm((p) => ({ ...p, bodyTextTemplate: e.target.value }))} />
+
+            <div className="flex flex-wrap gap-2">
+              <button className="bg-primary-600 text-white rounded px-3 py-2 text-sm" onClick={saveTemplate}>
+                {editingTemplateId ? 'Guardar cambios' : 'Crear plantilla'}
+              </button>
+              {editingTemplateId && (
+                <button className="border rounded px-3 py-2 text-sm" onClick={resetTemplateForm}>
+                  Cancelar edición
+                </button>
+              )}
+            </div>
+
+            {templateFeedback && (
+              <p className={`text-sm ${templateFeedback.type === 'ok' ? 'text-emerald-700' : 'text-rose-700'}`}>
+                {templateFeedback.message}
+              </p>
+            )}
+
+            <div className="overflow-x-auto rounded-lg border">
+              <table className="min-w-full text-xs md:text-sm">
+                <thead className="bg-gray-50 text-gray-600">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-medium">Nombre</th>
+                    <th className="px-3 py-2 text-left font-medium">Key</th>
+                    <th className="px-3 py-2 text-left font-medium">Evento</th>
+                    <th className="px-3 py-2 text-left font-medium">Canal</th>
+                    <th className="px-3 py-2 text-left font-medium">Rol</th>
+                    <th className="px-3 py-2 text-left font-medium">Estado</th>
+                    <th className="px-3 py-2 text-left font-medium">Actualizado</th>
+                    <th className="px-3 py-2 text-right font-medium">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {templates.map((template) => (
+                    <tr key={template.id} className="border-t">
+                      <td className="px-3 py-2 font-medium text-gray-900">{template.name}</td>
+                      <td className="px-3 py-2">{template.key}</td>
+                      <td className="px-3 py-2">{template.notificationType}</td>
+                      <td className="px-3 py-2">{template.channel}</td>
+                      <td className="px-3 py-2">{template.role || 'ALL'}</td>
+                      <td className="px-3 py-2">{template.isActive ? 'ACTIVA' : 'INACTIVA'}</td>
+                      <td className="px-3 py-2 text-gray-500">{formatDate(template.updatedAt)}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex justify-end gap-2">
+                          <button className="border rounded px-2 py-1" onClick={() => startEditTemplate(template)}>Editar</button>
+                          <button className="border border-rose-300 text-rose-700 rounded px-2 py-1" onClick={() => void deleteTemplate(template.id)}>Eliminar</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {templates.length === 0 && (
+                    <tr>
+                      <td className="px-3 py-4 text-gray-500" colSpan={8}>No hay plantillas.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
           <section className="rounded-xl border bg-white p-4 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-semibold text-gray-900">Bitácora de envíos automáticos</h2>
-              <button className="border rounded px-3 py-2 text-sm" onClick={() => void load()}>
-                Recargar
-              </button>
+              <button className="border rounded px-3 py-2 text-sm" onClick={() => void load()}>Recargar</button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
@@ -295,9 +515,7 @@ export default function NotificationsSection() {
                   ))}
                   {filteredLogs.length === 0 && (
                     <tr>
-                      <td className="px-3 py-4 text-gray-500" colSpan={7}>
-                        No hay registros para los filtros actuales.
-                      </td>
+                      <td className="px-3 py-4 text-gray-500" colSpan={7}>No hay registros para los filtros actuales.</td>
                     </tr>
                   )}
                 </tbody>

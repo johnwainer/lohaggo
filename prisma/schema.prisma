@@ -47,6 +47,7 @@ model User {
   complianceEvaluations  ComplianceEvaluation[]
   pwaTelemetryEvents     PwaTelemetryEvent[]
   pwaAdoptionProfile     PwaAdoptionProfile?
+  notificationEmailTemplatesUpdated NotificationEmailTemplate[] @relation("NotificationEmailTemplateUpdatedBy")
 }
 
 model PartnerProfile {
@@ -277,6 +278,29 @@ model NotificationDispatchLog {
   @@index([channel, status, createdAt])
   @@index([notificationType, createdAt])
   @@index([providerMessageId])
+}
+
+model NotificationEmailTemplate {
+  id               String           @id @default(cuid())
+  key              String           @unique
+  name             String
+  notificationType NotificationType
+  channel          MessagingChannel
+  role             UserRole?
+  subjectTemplate  String?
+  bodyTemplate     String
+  bodyHtmlTemplate String?
+  bodyTextTemplate String?
+  isActive         Boolean          @default(true)
+  updatedByEmail   String?
+  updatedById      String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  updatedBy        User?            @relation("NotificationEmailTemplateUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@unique([notificationType, channel, role])
+  @@index([notificationType, channel, isActive])
+  @@index([role, isActive])
 }
 
 model MessagingTemplate {

@@ -5,6 +5,8 @@ import { sendPushToUser, type PushPayload } from '@/lib/notifications/push-sende
 import { sendMessageViaProvider } from '@/lib/messaging/providers'
 import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
 import { getNotificationAutomationSnapshot, isNotificationChannelEnabled } from '@/lib/notifications/automation-config'
+import { renderNotificationChannelTemplate, resolveNotificationChannelTemplate } from '@/lib/notifications/email-templates'
+import { env } from '@/lib/env'
 
 const logger = createLogger('notification-service')
 
@@ -38,7 +40,7 @@ export async function createNotification({
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, role: true, email: true, phone: true },
+      select: { id: true, role: true, email: true, phone: true, name: true },
     })
     if (user) {
       await dispatchAutomaticNotificationChannels({
@@ -64,7 +66,7 @@ export async function sendDirectPushToUser(userId: string, payload: PushPayload)
 
 async function dispatchAutomaticNotificationChannels(params: {
   notificationId: string
-  user: { id: string; role: UserRole; email: string; phone: string | null }
+  user: { id: string; role: UserRole; email: string; phone: string | null; name: string }
   type: NotificationType
   title: string
   message: string
@@ -130,17 +132,49 @@ async function dispatchAutomaticNotificationChannels(params: {
       continue
     }
 
+    const baseVars = {
+      user_name: params.user.name || 'Usuario',
+      user_email: params.user.email,
+      title: params.title,
+      message: params.message,
+      notification_type: params.type,
+      notifications_url: `${env.NEXT_PUBLIC_APP_URL || env.NEXTAUTH_URL || ''}/notifications`,
+      app_url: env.NEXT_PUBLIC_APP_URL || env.NEXTAUTH_URL || '',
+      year: new Date().getFullYear(),
+    }
+
+    let subject = params.title
+    let body = params.message
+    let templateKey: string | null = null
+
+    const template = await resolveNotificationChannelTemplate(params.type, params.user.role, channel)
+    if (template) {
+      const rendered = renderNotificationChannelTemplate({
+        subjectTemplate: template.subjectTemplate,
+        bodyTemplate: template.bodyTemplate,
+        bodyHtmlTemplate: template.bodyHtmlTemplate,
+        bodyTextTemplate: template.bodyTextTemplate,
+        vars: baseVars,
+      })
+      subject = rendered.subject || subject
+      body = channel === 'EMAIL' ? rendered.bodyHtml || rendered.body : rendered.body
+      templateKey = template.key
+    } else if (channel === 'EMAIL') {
+      body = `${params.message}<br/><br/><a href=\"${baseVars.notifications_url}\">Ver notificaciones</a>`
+    }
+
     const result = await sendMessageViaProvider(
       {
         channel,
         userId: params.user.id,
         to: destination,
-        subject: params.title,
-        body: params.message,
+        subject,
+        body,
         data: {
           type: params.type,
           notificationId: params.notificationId,
           targetUrl: '/notifications',
+          ...(templateKey ? { templateKey } : {}),
           ...(typeof params.data === 'object' && params.data ? (params.data as Record<string, unknown>) : {}),
         },
       },
@@ -160,7 +194,10 @@ async function dispatchAutomaticNotificationChannels(params: {
         providerMessageId: result.providerMessageId || null,
         errorCode: result.errorCode || null,
         errorMessage: result.errorMessage || null,
-        metadata: params.data ? JSON.stringify(params.data) : null,
+        metadata: JSON.stringify({
+          ...(typeof params.data === 'object' && params.data ? (params.data as Record<string, unknown>) : {}),
+          ...(templateKey ? { templateKey } : {}),
+        }),
         sentAt: result.ok ? new Date() : null,
       },
     })
