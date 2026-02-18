@@ -18,6 +18,7 @@ interface Service {
     name: string
     icon: string
   }
+  useCategories?: ServiceUseCategory[]
   _count: {
     bookings: number
     partners: number
@@ -247,6 +248,33 @@ export default function ServicesSection() {
           {value}
         </div>
       )
+    },
+    {
+      key: 'useCategories',
+      label: 'Categorías rápidas',
+      render: (_value: unknown, row: Service) => {
+        const categories = row.useCategories || []
+        if (categories.length === 0) {
+          return <span className="text-xs text-gray-400">Sin asignar</span>
+        }
+        return (
+          <div className="flex flex-wrap gap-1 max-w-xs">
+            {categories.slice(0, 3).map((category) => (
+              <span
+                key={`${row.id}-${category.id}`}
+                className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 text-xs font-semibold"
+              >
+                {category.icon} {category.name}
+              </span>
+            ))}
+            {categories.length > 3 && (
+              <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 text-xs font-semibold">
+                +{categories.length - 3}
+              </span>
+            )}
+          </div>
+        )
+      },
     },
     {
       key: 'basePrice',
