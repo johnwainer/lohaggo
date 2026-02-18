@@ -1,5 +1,0 @@
-1:"$Sreact.fragment"
-2:I[484,[],"OutletBoundary"]
-3:"$Sreact.suspense"
-0:{"buildId":"efeMDMBj87NxE_VOdyMiI","rsc":["$","$1","c",{"children":[["$","div",null,{"className":"min-h-screen flex items-center justify-center p-4","children":["$","div",null,{"className":"text-center","children":[["$","h1",null,{"className":"text-2xl font-bold mb-4","children":"Coming Soon"}],["$","p",null,{"className":"text-gray-600","children":"This feature is available on the web version."}]]}]}],null,["$","$L2",null,{"children":["$","$3",null,{"name":"Next.MetadataOutlet","children":"$@4"}]}]]}],"loading":null,"isPartial":false}
-4:null
