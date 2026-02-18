@@ -35,6 +35,13 @@ interface Payout {
         name: string
       }
     }
+    refundCases?: Array<{
+      id: string
+      status: string
+      requestedAmount: number
+      approvedAmount: number | null
+      createdAt: string
+    }>
   }
 }
 
@@ -286,6 +293,18 @@ export default function PayoutsSection() {
                         <p className="font-medium text-gray-900">
                           {payout.payment.booking.service.name}
                         </p>
+                        {payout.payment.refundCases && payout.payment.refundCases.length > 0 ? (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {payout.payment.refundCases.slice(0, 2).map((refund) => (
+                              <span
+                                key={refund.id}
+                                className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700"
+                              >
+                                Reembolso {refund.status}
+                              </span>
+                            ))}
+                          </div>
+                        ) : null}
                       </div>
                     </td>
                     <td className="py-4 px-4 text-right">

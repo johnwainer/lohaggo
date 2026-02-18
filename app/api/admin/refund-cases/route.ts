@@ -78,8 +78,31 @@ export async function GET(request: NextRequest) {
         : {}),
     },
     include: {
-      booking: { select: { id: true, status: true, scheduledDate: true, totalPrice: true } },
-      payment: { select: { id: true, status: true, totalAmount: true, mercadopagoId: true } },
+      booking: {
+        select: {
+          id: true,
+          status: true,
+          scheduledDate: true,
+          totalPrice: true,
+          service: { select: { id: true, name: true } },
+        },
+      },
+      payment: {
+        select: {
+          id: true,
+          status: true,
+          totalAmount: true,
+          mercadopagoId: true,
+          payout: {
+            select: {
+              id: true,
+              status: true,
+              netAmount: true,
+              processedAt: true,
+            },
+          },
+        },
+      },
       user: { select: { id: true, name: true, email: true } },
       partner: { select: { id: true, user: { select: { name: true, email: true } } } },
     },
@@ -132,6 +155,30 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'approvedAmount debe estar entre 0 y requestedAmount' }, { status: 400 })
   }
 
+  const existingCases = await prisma.refundCase.findMany({
+    where: { paymentId: relationData.paymentId },
+    select: { id: true, status: true, requestedAmount: true, approvedAmount: true },
+  })
+
+  const blockingCase = existingCases.find((item) => ['REQUESTED', 'UNDER_REVIEW', 'APPROVED'].includes(item.status))
+  if (blockingCase) {
+    return NextResponse.json(
+      { error: `Ya existe un caso activo para este pago (${blockingCase.id} - ${blockingCase.status})` },
+      { status: 400 }
+    )
+  }
+
+  const processedRefundAmount = existingCases
+    .filter((item) => item.status === 'PROCESSED')
+    .reduce((sum, item) => sum + (item.approvedAmount ?? item.requestedAmount), 0)
+  const remainingAmount = Number((relationData.paymentTotalAmount - processedRefundAmount).toFixed(2))
+  if (requestedAmount > remainingAmount) {
+    return NextResponse.json(
+      { error: `El pago solo tiene ${remainingAmount} disponible para reembolsar` },
+      { status: 400 }
+    )
+  }
+
   const refundCase = await prisma.refundCase.create({
     data: {
       paymentId: relationData.paymentId,
@@ -175,7 +222,15 @@ export async function PATCH(request: NextRequest) {
 
   const current = await prisma.refundCase.findUnique({
     where: { id: body.id },
-    select: { status: true, requestedAmount: true, paymentId: true },
+    select: {
+      status: true,
+      requestedAmount: true,
+      approvedAmount: true,
+      paymentId: true,
+      bookingId: true,
+      userId: true,
+      partnerId: true,
+    },
   })
   if (!current) return NextResponse.json({ error: 'Caso de reembolso no encontrado' }, { status: 404 })
 
@@ -212,6 +267,13 @@ export async function PATCH(request: NextRequest) {
     )
   }
 
+  if ((nextStatus === 'APPROVED' || nextStatus === 'PROCESSED') && current.approvedAmount === null && approvedAmount === undefined) {
+    return NextResponse.json(
+      { error: 'Debes definir approvedAmount antes de aprobar o procesar un reembolso' },
+      { status: 400 }
+    )
+  }
+
   const data: {
     status?: RefundStatus
     approvedAmount?: number | null
@@ -240,10 +302,89 @@ export async function PATCH(request: NextRequest) {
   })
 
   if (nextStatus === 'PROCESSED' && refundCase.paymentId) {
-    await prisma.payment.update({
+    const allProcessedCases = await prisma.refundCase.findMany({
+      where: {
+        paymentId: refundCase.paymentId,
+        status: 'PROCESSED',
+      },
+      select: {
+        approvedAmount: true,
+        requestedAmount: true,
+      },
+    })
+
+    const totalProcessedAmount = allProcessedCases.reduce(
+      (sum, item) => sum + (item.approvedAmount ?? item.requestedAmount),
+      0
+    )
+
+    const payment = await prisma.payment.findUnique({
       where: { id: refundCase.paymentId },
-      data: { status: 'REFUNDED' },
-    }).catch(() => null)
+      select: { id: true, totalAmount: true },
+    })
+
+    if (payment && totalProcessedAmount >= Number(payment.totalAmount) - 1) {
+      await prisma.payment.update({
+        where: { id: refundCase.paymentId },
+        data: { status: 'REFUNDED' },
+      }).catch(() => null)
+    }
+
+    const payout = await prisma.payout.findUnique({
+      where: { paymentId: refundCase.paymentId },
+      select: { id: true, status: true, netAmount: true },
+    })
+
+    if (payout) {
+      const refundedAmount = refundCase.approvedAmount ?? refundCase.requestedAmount
+      const isFullRefund = payment ? refundedAmount >= Number(payment.totalAmount) - 1 : false
+
+      if ((payout.status === 'PENDING' || payout.status === 'PROCESSING') && isFullRefund) {
+        await prisma.payout.update({
+          where: { id: payout.id },
+          data: {
+            status: 'CANCELLED',
+            processorStatus: 'CANCELLED_BY_REFUND',
+            processorMessage: `Cancelado por reembolso ${refundCase.id}`,
+            processedBy: admin.email,
+            processedAt: new Date(),
+          },
+        })
+      } else {
+        const incident = await prisma.paymentIncident.create({
+          data: {
+            paymentId: refundCase.paymentId,
+            bookingId: refundCase.bookingId,
+            userId: refundCase.userId,
+            partnerId: refundCase.partnerId,
+            incidentType: 'REFUND_DISPUTE',
+            status: 'ACTION_REQUIRED',
+            severity: 'HIGH',
+            source: 'refund-processor',
+            title: 'Reembolso procesado con ajuste pendiente de payout',
+            description:
+              payout.status === 'COMPLETED'
+                ? `El payout ${payout.id} ya estaba COMPLETED. Se requiere recuperación por ${payout.netAmount}.`
+                : `El payout ${payout.id} está en ${payout.status} y el reembolso fue parcial. Se requiere ajuste manual.`,
+            assignedTo: 'ops@lohaggo.com',
+            metadata: JSON.stringify({
+              refundCaseId: refundCase.id,
+              payoutId: payout.id,
+              payoutStatus: payout.status,
+            }),
+          },
+        })
+
+        await prisma.paymentIncidentEvent.create({
+          data: {
+            incidentId: incident.id,
+            actorEmail: admin.email,
+            action: 'PAYOUT_RECOVERY_REQUIRED',
+            note: `Reembolso ${refundCase.id} procesado; payout ${payout.id} requiere ajuste`,
+          },
+        })
+      }
+    }
   }
 
   await auditAdminAction({

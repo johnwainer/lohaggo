@@ -50,10 +50,44 @@ type RefundCase = {
   reviewedBy: string | null
   processedAt: string | null
   createdAt: string
-  payment?: { id: string; status: string; totalAmount: number } | null
-  booking?: { id: string; status: string; totalPrice: number } | null
+  payment?: {
+    id: string
+    status: string
+    totalAmount: number
+    mercadopagoId: string | null
+    payout?: {
+      id: string
+      status: string
+      netAmount: number
+      processedAt: string | null
+    } | null
+  } | null
+  booking?: { id: string; status: string; totalPrice: number; service?: { id: string; name: string } | null } | null
   user?: { id: string; name: string; email: string } | null
   partner?: { id: string; user?: { name: string; email: string } | null } | null
+}
+
+type PaymentLookup = {
+  id: string
+  totalAmount: number
+  status: string
+  mercadopagoId: string | null
+  booking: {
+    id: string
+    service: { id: string; name: string }
+    user: { id: string; name: string; email: string }
+    partner: { id: string; user: { id: string; name: string; email: string } } | null
+  }
+  payout?: {
+    id: string
+    status: string
+    netAmount: number
+  } | null
+  refundSummary?: {
+    processedRefundAmount: number
+    openRefundExposure: number
+    availableToRefund: number
+  }
 }
 
 type TaxDocument = {
@@ -195,6 +229,13 @@ export default function AdminFinanceOpsPage() {
     approvedAmount: '',
     reviewNotes: '',
   })
+  const [paymentCandidates, setPaymentCandidates] = useState<PaymentLookup[]>([])
+  const [paymentPicker, setPaymentPicker] = useState({
+    q: '',
+    minAmount: '',
+    maxAmount: '',
+  })
+  const [loadingPayments, setLoadingPayments] = useState(false)
 
   const [newTaxDoc, setNewTaxDoc] = useState({
     type: 'INVOICE' as TaxDocumentType,
@@ -252,10 +293,38 @@ export default function AdminFinanceOpsPage() {
     }
   }
 
+  const loadPaymentCandidates = async () => {
+    setLoadingPayments(true)
+    try {
+      const params = new URLSearchParams()
+      params.set('refundableOnly', 'true')
+      if (paymentPicker.q.trim()) params.set('q', paymentPicker.q.trim())
+      if (paymentPicker.minAmount.trim()) params.set('minAmount', paymentPicker.minAmount.trim())
+      if (paymentPicker.maxAmount.trim()) params.set('maxAmount', paymentPicker.maxAmount.trim())
+
+      const response = await fetch(`/api/admin/payments?${params.toString()}`, { cache: 'no-store' })
+      if (!response.ok) throw new Error('No se pudo cargar el selector de pagos')
+      const payments = (await response.json()) as PaymentLookup[]
+      setPaymentCandidates(payments.filter((p) => (p.refundSummary?.availableToRefund ?? 0) > 0))
+    } catch (paymentError) {
+      console.error(paymentError)
+      setError('No se pudo cargar pagos para reembolso')
+    } finally {
+      setLoadingPayments(false)
+    }
+  }
+
   useEffect(() => {
     void load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [incidentFilters.status, incidentFilters.type, incidentFilters.severity, refundFilters.status, taxFilters.status, taxFilters.type])
+
+  useEffect(() => {
+    if (activeTab === 'refunds') {
+      void loadPaymentCandidates()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab])
 
   const overview = useMemo(() => {
     const openIncidents = incidents.filter((i) => i.status !== 'RESOLVED' && i.status !== 'CLOSED').length
@@ -426,6 +495,17 @@ export default function AdminFinanceOpsPage() {
     }
   }
 
+  const selectPaymentForRefund = (payment: PaymentLookup) => {
+    const availableToRefund = payment.refundSummary?.availableToRefund ?? payment.totalAmount
+    setNewRefund((prev) => ({
+      ...prev,
+      paymentId: payment.id,
+      requestedAmount: availableToRefund > 0 ? String(Math.round(availableToRefund)) : '',
+      approvedAmount: '',
+      reason: prev.reason || `Reembolso de ${payment.booking.service.name}`,
+    }))
+  }
+
   const createRefund = async () => {
     if (!newRefund.paymentId.trim() || !newRefund.reason.trim() || !newRefund.requestedAmount.trim()) {
       setError('Ingresa paymentId, razón y monto solicitado')
@@ -446,14 +526,18 @@ export default function AdminFinanceOpsPage() {
         }),
       })
 
-      if (!res.ok) throw new Error('No se pudo crear caso de reembolso')
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}))
+        throw new Error(payload?.error || 'No se pudo crear caso de reembolso')
+      }
 
       setNewRefund({ paymentId: '', reason: '', requestedAmount: '', approvedAmount: '', reviewNotes: '' })
       await load()
+      await loadPaymentCandidates()
       setActiveTab('refunds')
     } catch (createError) {
       console.error(createError)
-      setError('No se pudo crear el caso de reembolso')
+      setError(createError instanceof Error ? createError.message : 'No se pudo crear el caso de reembolso')
     } finally {
       setSaving(false)
     }
@@ -817,9 +901,57 @@ export default function AdminFinanceOpsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Crear caso de reembolso</CardTitle>
-              <CardDescription>Registra casos manuales de devolución y su trazabilidad.</CardDescription>
+              <CardDescription>Selecciona un pago real y crea el caso con monto controlado y trazabilidad.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3 md:grid-cols-2">
+              <div className="md:col-span-2 rounded-lg border bg-gray-50 p-3">
+                <p className="mb-2 text-xs font-semibold text-gray-700">Seleccionar pago</p>
+                <div className="grid gap-2 md:grid-cols-4">
+                  <Field label="Buscar pago/cliente/socio/servicio" value={paymentPicker.q} onChange={(value) => setPaymentPicker((prev) => ({ ...prev, q: value }))} placeholder="ID, nombre, email..." />
+                  <Field label="Monto mínimo" value={paymentPicker.minAmount} onChange={(value) => setPaymentPicker((prev) => ({ ...prev, minAmount: value }))} type="number" />
+                  <Field label="Monto máximo" value={paymentPicker.maxAmount} onChange={(value) => setPaymentPicker((prev) => ({ ...prev, maxAmount: value }))} type="number" />
+                  <div className="flex items-end">
+                    <button
+                      onClick={() => void loadPaymentCandidates()}
+                      className="w-full rounded-lg border px-3 py-2 text-sm font-medium hover:bg-white"
+                      disabled={loadingPayments}
+                    >
+                      {loadingPayments ? 'Buscando...' : 'Buscar pagos'}
+                    </button>
+                  </div>
+                </div>
+                <div className="mt-3 max-h-[210px] overflow-auto rounded-lg border bg-white">
+                  {loadingPayments ? (
+                    <div className="p-3 text-xs text-gray-500">Cargando pagos...</div>
+                  ) : paymentCandidates.length === 0 ? (
+                    <div className="p-3 text-xs text-gray-500">No hay pagos disponibles para reembolso con estos filtros.</div>
+                  ) : (
+                    paymentCandidates.slice(0, 25).map((payment) => (
+                      <div key={payment.id} className="flex flex-col gap-2 border-b p-3 md:flex-row md:items-center md:justify-between">
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-semibold text-gray-900">
+                            {payment.booking.service.name} · {payment.booking.user.name}
+                          </p>
+                          <p className="truncate text-xs text-gray-600">
+                            Pago: {payment.id} · Socio: {payment.booking.partner?.user.name || 'N/A'} · Estado pago: {payment.status}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Disponible a reembolsar: {formatCurrency(payment.refundSummary?.availableToRefund ?? 0)}
+                            {' · '}
+                            Payout: {payment.payout?.status || 'N/A'}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => selectPaymentForRefund(payment)}
+                          className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+                        >
+                          Usar pago
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
               <Field label="Payment ID (obligatorio)" value={newRefund.paymentId} onChange={(value) => setNewRefund((prev) => ({ ...prev, paymentId: value }))} placeholder="pay_xxx" />
               <Field label="Razón" value={newRefund.reason} onChange={(value) => setNewRefund((prev) => ({ ...prev, reason: value }))} />
               <Field label="Monto solicitado" value={newRefund.requestedAmount} onChange={(value) => setNewRefund((prev) => ({ ...prev, requestedAmount: value }))} type="number" />
@@ -872,6 +1004,17 @@ export default function AdminFinanceOpsPage() {
                         <div className="rounded border bg-gray-50 px-2 py-1.5">Solicitado: <span className="font-semibold">{formatCurrency(item.requestedAmount)}</span></div>
                         <div className="rounded border bg-gray-50 px-2 py-1.5">Aprobado: <span className="font-semibold">{item.approvedAmount !== null ? formatCurrency(item.approvedAmount) : '-'}</span></div>
                         <div className="rounded border bg-gray-50 px-2 py-1.5">Procesado: <span className="font-semibold">{formatDate(item.processedAt)}</span></div>
+                      </div>
+                      <div className="mt-2 grid gap-2 text-xs text-gray-600 md:grid-cols-3">
+                        <div className="rounded border bg-gray-50 px-2 py-1.5">
+                          Servicio: <span className="font-semibold">{item.booking?.service?.name || 'N/A'}</span>
+                        </div>
+                        <div className="rounded border bg-gray-50 px-2 py-1.5">
+                          Pago: <span className="font-semibold">{item.payment?.id || 'N/A'}</span>
+                        </div>
+                        <div className="rounded border bg-gray-50 px-2 py-1.5">
+                          Payout: <span className="font-semibold">{item.payment?.payout?.status || 'N/A'}</span>
+                        </div>
                       </div>
 
                       <div className="mt-3 grid gap-2 md:grid-cols-3">

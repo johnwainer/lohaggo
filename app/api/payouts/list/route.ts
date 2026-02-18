@@ -47,6 +47,16 @@ export async function GET(req: NextRequest) {
                 service: true,
               },
             },
+            refundCases: {
+              select: {
+                id: true,
+                status: true,
+                requestedAmount: true,
+                approvedAmount: true,
+                createdAt: true,
+              },
+              orderBy: { createdAt: 'desc' },
+            },
           },
         },
       },
