@@ -1,29 +1,12 @@
 import { prisma } from "@/lib/prisma"
-import webpush from "web-push"
 import { createLogger } from '@/lib/logger'
-import { validateVapidKeys, parsePushSubscription } from './pushValidation'
-import { env } from '@/lib/env'
-import type { NotificationType as PrismaNotificationType } from '@prisma/client'
+import type { NotificationType as PrismaNotificationType, UserRole } from '@prisma/client'
+import { sendPushToUser, type PushPayload } from '@/lib/notifications/push-sender'
+import { sendMessageViaProvider } from '@/lib/messaging/providers'
+import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
+import { getNotificationAutomationSnapshot, isNotificationChannelEnabled } from '@/lib/notifications/automation-config'
 
 const logger = createLogger('notification-service')
-
-const vapidKeys = {
-  publicKey: env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || "",
-  privateKey: env.VAPID_PRIVATE_KEY || ""
-}
-
-const vapidValidation = validateVapidKeys(vapidKeys.publicKey, vapidKeys.privateKey)
-
-if (vapidValidation.valid) {
-  webpush.setVapidDetails(
-    "mailto:admin@lohaggo.com",
-    vapidKeys.publicKey,
-    vapidKeys.privateKey
-  )
-  logger.info('VAPID keys configured successfully')
-} else {
-  logger.warn('VAPID keys not configured or invalid', { error: vapidValidation.error })
-}
 
 export type NotificationType = PrismaNotificationType
 
@@ -53,15 +36,20 @@ export async function createNotification({
       }
     })
 
-    await sendPushNotification(userId, {
-      title,
-      body: message,
-      data: {
-        notificationId: notification.id,
-        type,
-        ...data
-      }
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, role: true, email: true, phone: true },
     })
+    if (user) {
+      await dispatchAutomaticNotificationChannels({
+        notificationId: notification.id,
+        user,
+        type,
+        title,
+        message,
+        data,
+      })
+    }
 
     return notification
   } catch (error) {
@@ -70,65 +58,113 @@ export async function createNotification({
   }
 }
 
-interface PushPayload {
-  title: string
-  body: string
-  data?: any
+export async function sendDirectPushToUser(userId: string, payload: PushPayload) {
+  return sendPushToUser(userId, payload)
 }
 
-async function sendPushNotification(userId: string, payload: PushPayload) {
-  if (!vapidValidation.valid) {
-    logger.debug('Push notifications disabled - VAPID keys not configured')
-    return { ok: false, errorCode: 'VAPID_NOT_CONFIGURED', errorMessage: 'Push VAPID keys missing' }
-  }
+async function dispatchAutomaticNotificationChannels(params: {
+  notificationId: string
+  user: { id: string; role: UserRole; email: string; phone: string | null }
+  type: NotificationType
+  title: string
+  message: string
+  data?: unknown
+}) {
+  const [runtimeConfig, snapshot] = await Promise.all([
+    getMessagingProviderRuntimeConfig(),
+    getNotificationAutomationSnapshot(),
+  ])
 
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: userId }
+  const channels: Array<'PUSH' | 'EMAIL' | 'WHATSAPP' | 'SMS'> = ['PUSH', 'EMAIL', 'WHATSAPP', 'SMS']
+
+  for (const channel of channels) {
+    if (!isNotificationChannelEnabled({ snapshot, role: params.user.role, channel })) {
+      continue
+    }
+
+    const destination = channel === 'PUSH' ? `user:${params.user.id}` : channel === 'EMAIL' ? params.user.email : params.user.phone
+    if (!destination) {
+      await (prisma as any).notificationDispatchLog.create({
+        data: {
+          notificationId: params.notificationId,
+          userId: params.user.id,
+          userRole: params.user.role,
+          notificationType: params.type,
+          channel,
+          destination: null,
+          status: 'SKIPPED',
+          provider: 'internal',
+          errorCode: 'MISSING_DESTINATION',
+          errorMessage: 'User does not have destination configured for this channel',
+          metadata: params.data ? JSON.stringify(params.data) : null,
+        },
+      })
+      continue
+    }
+
+    const optedOut = await prisma.messagingOptOut.findFirst({
+      where: {
+        channel,
+        isActive: true,
+        OR: [{ userId: params.user.id }, { destination }],
+      },
+      select: { id: true },
     })
 
-    if (!user?.pushSubscription) {
-      return { ok: false, errorCode: 'NO_SUBSCRIPTION', errorMessage: 'User without push subscription' }
-    }
-
-    const subscription = parsePushSubscription(user.pushSubscription)
-
-    if (!subscription) {
-      logger.warn('Invalid push subscription format for user', { userId })
-      await prisma.user.update({
-        where: { id: userId },
-        data: { pushSubscription: null }
+    if (optedOut) {
+      await (prisma as any).notificationDispatchLog.create({
+        data: {
+          notificationId: params.notificationId,
+          userId: params.user.id,
+          userRole: params.user.role,
+          notificationType: params.type,
+          channel,
+          destination,
+          status: 'UNSUBSCRIBED',
+          provider: 'internal',
+          errorCode: 'OPTOUT',
+          errorMessage: 'Recipient opted out',
+          metadata: params.data ? JSON.stringify(params.data) : null,
+        },
       })
-      return { ok: false, errorCode: 'INVALID_SUBSCRIPTION', errorMessage: 'Invalid push subscription payload' }
+      continue
     }
 
-    await webpush.sendNotification(
-      subscription,
-      JSON.stringify(payload)
+    const result = await sendMessageViaProvider(
+      {
+        channel,
+        userId: params.user.id,
+        to: destination,
+        subject: params.title,
+        body: params.message,
+        data: {
+          type: params.type,
+          notificationId: params.notificationId,
+          targetUrl: '/notifications',
+          ...(typeof params.data === 'object' && params.data ? (params.data as Record<string, unknown>) : {}),
+        },
+      },
+      runtimeConfig
     )
 
-    logger.debug('Push notification sent successfully', { userId })
-    return { ok: true }
-  } catch (error) {
-    logger.error("Error sending push notification:", error)
-
-    if (error && typeof error === 'object' && 'statusCode' in error) {
-      const statusCode = (error as any).statusCode
-      if (statusCode === 410 || statusCode === 404) {
-        logger.info('Push subscription expired or invalid, removing', { userId })
-        await prisma.user.update({
-          where: { id: userId },
-          data: { pushSubscription: null }
-        })
-        return { ok: false, errorCode: String(statusCode), errorMessage: 'Push subscription expired/invalid' }
-      }
-    }
-    return { ok: false, errorCode: 'SEND_ERROR', errorMessage: error instanceof Error ? error.message : 'Push send failed' }
+    await (prisma as any).notificationDispatchLog.create({
+      data: {
+        notificationId: params.notificationId,
+        userId: params.user.id,
+        userRole: params.user.role,
+        notificationType: params.type,
+        channel,
+        destination,
+        status: result.ok ? 'SENT' : 'FAILED',
+        provider: result.provider,
+        providerMessageId: result.providerMessageId || null,
+        errorCode: result.errorCode || null,
+        errorMessage: result.errorMessage || null,
+        metadata: params.data ? JSON.stringify(params.data) : null,
+        sentAt: result.ok ? new Date() : null,
+      },
+    })
   }
-}
-
-export async function sendDirectPushToUser(userId: string, payload: PushPayload) {
-  return sendPushNotification(userId, payload)
 }
 
 export async function notifyNewServiceRequest(serviceRequestId: string) {

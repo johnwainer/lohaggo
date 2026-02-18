@@ -1,6 +1,6 @@
 import type { MessagingChannel } from '@prisma/client'
 import type { MessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
-import { sendDirectPushToUser } from '@/lib/notifications/notificationService'
+import { sendPushToUser } from '@/lib/notifications/push-sender'
 
 type SendParams = {
   channel: MessagingChannel
@@ -141,7 +141,7 @@ export async function sendMessageViaProvider(
     if (!params.userId) {
       return { ok: false, provider: 'webpush', errorCode: 'MISSING_USER', errorMessage: 'PUSH channel requires userId' }
     }
-    const result = await sendDirectPushToUser(params.userId, {
+    const result = await sendPushToUser(params.userId, {
       title: params.subject || 'LoHaggo',
       body: params.body,
       data: {

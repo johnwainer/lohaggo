@@ -35,6 +35,15 @@ export async function POST(request: NextRequest) {
         clickedAt: mapped === 'CLICKED' ? new Date() : undefined,
       },
     })
+    await (prisma as any).notificationDispatchLog.updateMany({
+      where: { providerMessageId },
+      data: {
+        status: mapped,
+        deliveredAt: mapped === 'DELIVERED' ? new Date() : undefined,
+        openedAt: mapped === 'OPENED' ? new Date() : undefined,
+        clickedAt: mapped === 'CLICKED' ? new Date() : undefined,
+      },
+    })
   }
 
   return NextResponse.json({ ok: true })

@@ -738,14 +738,12 @@ function ServiciosContent() {
                     {rating === 0 ? 'Todas las calificaciones' : `${rating}+ estrellas`}
                   </button>
                 ))}
-              </div>
-              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3">
-                <label className="text-xs text-gray-600">
+                <label className="w-full md:w-auto md:ml-auto text-xs text-gray-600">
                   Ordenar por
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as SortBy)}
-                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-800"
+                    className="mt-1 w-full md:min-w-[220px] rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-800"
                   >
                     <option value="RELEVANCE">Relevancia</option>
                     <option value="ALPHA_ASC">Alfabetico A-Z</option>

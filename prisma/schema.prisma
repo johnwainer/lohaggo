@@ -29,6 +29,7 @@ model User {
   notifications          Notification[]
   messagingCampaigns     MessagingCampaign[]    @relation("MessagingCampaignCreator")
   messagingDeliveries    MessagingDelivery[]
+  notificationDispatches NotificationDispatchLog[]
   messagingOptOuts       MessagingOptOut[]
   partnerProfile         PartnerProfile?
   payments               Payment[]
@@ -232,9 +233,50 @@ model Notification {
   read      Boolean          @default(false)
   createdAt DateTime         @default(now())
   user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dispatches NotificationDispatchLog[]
 
   @@index([userId, read])
   @@index([createdAt])
+}
+
+model NotificationAutomationConfig {
+  id            String                       @id @default(cuid())
+  target        NotificationAutomationTarget @unique
+  pushEnabled   Boolean                      @default(true)
+  emailEnabled  Boolean                      @default(false)
+  whatsappEnabled Boolean                    @default(false)
+  smsEnabled    Boolean                      @default(false)
+  updatedByEmail String?
+  createdAt     DateTime                     @default(now())
+  updatedAt     DateTime                     @updatedAt
+}
+
+model NotificationDispatchLog {
+  id                String                   @id @default(cuid())
+  notificationId    String?
+  userId            String
+  userRole          UserRole
+  notificationType  NotificationType
+  channel           MessagingChannel
+  destination       String?
+  status            NotificationDispatchStatus @default(PENDING)
+  provider          String
+  providerMessageId String?
+  errorCode         String?
+  errorMessage      String?
+  metadata          String?
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  openedAt          DateTime?
+  clickedAt         DateTime?
+  createdAt         DateTime                 @default(now())
+  notification      Notification?            @relation(fields: [notificationId], references: [id], onDelete: SetNull)
+  user              User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([channel, status, createdAt])
+  @@index([notificationType, createdAt])
+  @@index([providerMessageId])
 }
 
 model MessagingTemplate {
@@ -623,6 +665,24 @@ enum NotificationType {
   DOCUMENT_REJECTED
   ACHIEVEMENT_UNLOCKED
   NEW_MESSAGE
+}
+
+enum NotificationAutomationTarget {
+  GLOBAL
+  CLIENT
+  PARTNER
+  ADMIN
+}
+
+enum NotificationDispatchStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+  OPENED
+  CLICKED
+  UNSUBSCRIBED
+  SKIPPED
 }
 
 enum DocumentType {

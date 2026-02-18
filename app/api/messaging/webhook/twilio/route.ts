@@ -34,6 +34,15 @@ export async function POST(request: NextRequest) {
       errorMessage: status === 'FAILED' ? String(formData.get('ErrorMessage') || '') || null : undefined,
     },
   })
+  await (prisma as any).notificationDispatchLog.updateMany({
+    where: { providerMessageId: messageSid },
+    data: {
+      status,
+      deliveredAt: status === 'DELIVERED' ? new Date() : undefined,
+      errorCode: status === 'FAILED' ? String(formData.get('ErrorCode') || '') || null : undefined,
+      errorMessage: status === 'FAILED' ? String(formData.get('ErrorMessage') || '') || null : undefined,
+    },
+  })
 
   return NextResponse.json({ ok: true })
 }
