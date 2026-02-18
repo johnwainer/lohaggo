@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
       name: String(body.name),
       channel: body.channel as MessagingChannel,
       status: (body.status as MessagingCampaignStatus) || 'DRAFT',
-      templateId: body.templateId || null,
+      templateId: contentMode === 'TEMPLATE' ? body.templateId || null : null,
       targetRole: body.targetRole ? (body.targetRole as UserRole) : null,
       targetCity: body.targetCity ? (body.targetCity as City) : null,
       customSubject: finalSubject,

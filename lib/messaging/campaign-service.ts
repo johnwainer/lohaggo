@@ -35,6 +35,16 @@ export async function processCampaign(campaignId: string) {
   let sent = 0
   let failed = 0
 
+  let contentMode: 'CUSTOM' | 'TEMPLATE' = 'TEMPLATE'
+  if (campaign.metadata) {
+    try {
+      const parsed = JSON.parse(campaign.metadata) as { contentMode?: string }
+      if (parsed.contentMode === 'CUSTOM') contentMode = 'CUSTOM'
+    } catch {
+      contentMode = 'TEMPLATE'
+    }
+  }
+
   const abConfig = campaign.abTestEnabled && campaign.abTestConfig
     ? (JSON.parse(campaign.abTestConfig) as {
         variants?: Array<{
@@ -106,8 +116,16 @@ export async function processCampaign(campaignId: string) {
     }
 
     const variant = pickAbVariant(`${campaign.id}:${user.id}`)
-    const bodyTemplate = variant?.body || campaign.template?.body || campaign.customBody
-    const subjectTemplate = variant?.subject || campaign.template?.subject || campaign.customSubject
+    const bodyTemplate =
+      variant?.body ||
+      (contentMode === 'CUSTOM'
+        ? campaign.customBody
+        : campaign.template?.body || campaign.customBody)
+    const subjectTemplate =
+      variant?.subject ||
+      (contentMode === 'CUSTOM'
+        ? campaign.customSubject
+        : campaign.template?.subject || campaign.customSubject)
     const body = renderTextTemplate(bodyTemplate, {
       user_name: user.name,
       user_email: user.email,
