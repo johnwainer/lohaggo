@@ -15,11 +15,20 @@ export async function GET(request: NextRequest) {
 
   const status = request.nextUrl.searchParams.get('status') as TaxDocumentStatus | null
   const type = request.nextUrl.searchParams.get('type') as TaxDocumentType | null
+  const query = request.nextUrl.searchParams.get('q')?.trim()
 
   const documents = await prisma.taxDocument.findMany({
     where: {
       ...(status ? { status } : {}),
       ...(type ? { type } : {}),
+      ...(query
+        ? {
+            OR: [
+              { documentNumber: { contains: query, mode: 'insensitive' } },
+              { generatedBy: { contains: query, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
     },
     include: {
       payment: { select: { id: true, totalAmount: true, status: true, bookingId: true } },

@@ -8,9 +8,21 @@ export async function GET(request: NextRequest) {
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const status = request.nextUrl.searchParams.get('status') as RefundStatus | null
+  const query = request.nextUrl.searchParams.get('q')?.trim()
 
   const refundCases = await prisma.refundCase.findMany({
-    where: status ? { status } : undefined,
+    where: {
+      ...(status ? { status } : {}),
+      ...(query
+        ? {
+            OR: [
+              { reason: { contains: query, mode: 'insensitive' } },
+              { reviewNotes: { contains: query, mode: 'insensitive' } },
+              { requestedBy: { contains: query, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    },
     include: {
       booking: { select: { id: true, status: true, scheduledDate: true, totalPrice: true } },
       payment: { select: { id: true, status: true, totalAmount: true, mercadopagoId: true } },

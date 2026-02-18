@@ -10,11 +10,23 @@ export async function GET(request: NextRequest) {
 
   const status = request.nextUrl.searchParams.get('status') as PaymentIncidentStatus | null
   const type = request.nextUrl.searchParams.get('type') as PaymentIncidentType | null
+  const severity = request.nextUrl.searchParams.get('severity') as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' | null
+  const query = request.nextUrl.searchParams.get('q')?.trim()
 
   const incidents = await prisma.paymentIncident.findMany({
     where: {
       ...(status ? { status } : {}),
       ...(type ? { incidentType: type } : {}),
+      ...(severity ? { severity } : {}),
+      ...(query
+        ? {
+            OR: [
+              { title: { contains: query, mode: 'insensitive' } },
+              { description: { contains: query, mode: 'insensitive' } },
+              { assignedTo: { contains: query, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
     },
     include: {
       payment: { select: { id: true, amount: true, totalAmount: true, status: true, mercadopagoId: true } },
