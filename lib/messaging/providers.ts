@@ -8,6 +8,7 @@ type SendParams = {
   userId?: string
   subject?: string | null
   body: string
+  data?: Record<string, unknown>
 }
 
 type SendResult = {
@@ -146,6 +147,7 @@ export async function sendMessageViaProvider(
       data: {
         type: 'CAMPAIGN_PUSH',
         campaignChannel: 'PUSH',
+        ...(params.data || {}),
       },
     })
     return {

@@ -15,7 +15,9 @@ export async function processCampaign(campaignId: string) {
     throw new Error('Campaign not found')
   }
 
-  if (campaign.status === 'SENT') return campaign
+  if (campaign.status === 'PROCESSING') {
+    throw new Error('Campaign is already processing')
+  }
 
   await prisma.messagingCampaign.update({
     where: { id: campaign.id },
@@ -121,6 +123,12 @@ export async function processCampaign(campaignId: string) {
         userId: user.id,
         subject,
         body,
+        data: {
+          notificationId: `${campaign.id}:${user.id}:${Date.now()}`,
+          campaignId: campaign.id,
+          campaignName: campaign.name,
+          targetUrl: '/notifications',
+        },
       },
       runtimeConfig
     )
@@ -151,13 +159,23 @@ export async function processCampaign(campaignId: string) {
   const finalStatus: MessagingCampaignStatus =
     failed === 0 ? 'SENT' : sent === 0 ? 'FAILED' : 'PARTIAL'
 
+  const totalsByStatus = await prisma.messagingDelivery.groupBy({
+    by: ['status'],
+    where: { campaignId: campaign.id },
+    _count: { _all: true },
+  })
+
+  const totalSent = totalsByStatus.find((row) => row.status === 'SENT')?._count._all || 0
+  const totalFailed = totalsByStatus.find((row) => row.status === 'FAILED')?._count._all || 0
+  const totalRecipients = totalsByStatus.reduce((acc, row) => acc + row._count._all, 0)
+
   return prisma.messagingCampaign.update({
     where: { id: campaign.id },
     data: {
       status: finalStatus,
-      totalRecipients: users.length,
-      totalSent: sent,
-      totalFailed: failed,
+      totalRecipients,
+      totalSent,
+      totalFailed,
       completedAt: new Date(),
     },
   })

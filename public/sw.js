@@ -170,7 +170,10 @@ self.addEventListener('push', (event) => {
     icon: notificationData.icon,
     badge: notificationData.badge,
     vibrate: [200, 100, 200],
-    tag: notificationData.data.notificationId || 'lohaggo-notification',
+    tag:
+      notificationData.data.notificationId ||
+      notificationData.data.campaignId ||
+      `lohaggo-notification-${Date.now()}`,
     requireInteraction: true,
     data: notificationData.data,
     actions: [

@@ -15,7 +15,16 @@ export async function POST(request: NextRequest, context: RouteContext) {
   const campaign = await prisma.messagingCampaign.findUnique({ where: { id } })
   if (!campaign) return NextResponse.json({ error: 'Campaign not found' }, { status: 404 })
 
-  const processed = await processCampaign(id)
+  let processed
+  try {
+    processed = await processCampaign(id)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Campaign processing failed'
+    if (message.includes('already processing')) {
+      return NextResponse.json({ error: message }, { status: 409 })
+    }
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 
   await auditAdminAction({
     actorId: admin.id,
