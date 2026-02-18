@@ -13,9 +13,7 @@
     "pre-deploy": "npm run validate-env && npm audit && npm run lint",
     "security-check": "npm audit && npm outdated",
     "qa:protected-nav": "node scripts/qa/protected-navigation-check.mjs",
-    "qa:admin-sidebar": "node scripts/qa/admin-sidebar-smoke.mjs",
-    "services:categorize:dry": "tsx scripts/assign-service-use-categories.ts --dry-run",
-    "services:categorize": "tsx scripts/assign-service-use-categories.ts --apply"
+    "qa:admin-sidebar": "node scripts/qa/admin-sidebar-smoke.mjs"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
