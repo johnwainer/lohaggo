@@ -618,20 +618,31 @@ function ServiciosContent() {
             <p className="text-sm font-bold text-gray-800 md:text-base">
               {filteredServices.length} {filteredServices.length === 1 ? 'servicio' : 'servicios'}
             </p>
-            {(selectedCategory || activeRefinementCount > 0) && (
+            <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  setSelectedCategory('')
-                  setQuickMinRating(0)
-                  setQuickOnlyWithPartners(true)
-                  setSortBy('RELEVANCE')
-                }}
-                className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:border-primary-200 hover:text-primary-700"
+                onClick={() => setShowRefineSheet(true)}
+                className="hidden md:inline-flex items-center gap-2 rounded-full bg-primary-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-primary-700"
               >
-                Limpiar
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                Filtrar resultados
+                <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-[10px]">{activeRefinementCount}</span>
               </button>
-            )}
+              {(selectedCategory || activeRefinementCount > 0) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedCategory('')
+                    setQuickMinRating(0)
+                    setQuickOnlyWithPartners(true)
+                    setSortBy('RELEVANCE')
+                  }}
+                  className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:border-primary-200 hover:text-primary-700"
+                >
+                  Limpiar
+                </button>
+              )}
+            </div>
           </div>
           {activeFilterChips.length > 0 && (
             <div className="mt-2 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -932,7 +943,7 @@ function ServiciosContent() {
         )}
       </div>
 
-      <div className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] left-0 right-0 z-30 px-4 md:bottom-6 md:left-auto md:right-6 md:px-0">
+      <div className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] left-0 right-0 z-30 px-4 md:hidden">
         <button
           type="button"
           onClick={() => setShowRefineSheet(true)}
