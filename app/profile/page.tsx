@@ -469,8 +469,8 @@ export default function ProfilePage() {
                                 : 'Activa push para recibir alertas en tiempo real.'
                               : 'Tu navegador no soporta notificaciones push.'
                             : pref.enabledByAdmin
-                            ? 'Disponible para tu audiencia.'
-                            : 'Desactivado por el administrador.'
+                            ? 'Canal habilitado para tu tipo de cuenta.'
+                            : 'Canal desactivado por LoHaggo.'
 
                         const disabled = !pref.enabledByAdmin || savingChannel === pref.channel || (isPushChannel && !pushSupported)
 
@@ -497,7 +497,7 @@ export default function ProfilePage() {
                               </button>
                             </div>
                             {!pref.enabledByAdmin && (
-                              <p className="mt-2 text-xs text-amber-700">Este canal está desactivado desde la matriz de canales por audiencia.</p>
+                              <p className="mt-2 text-xs text-amber-700">Este canal no está disponible para tu cuenta por configuración de LoHaggo.</p>
                             )}
                           </div>
                         )
