@@ -956,14 +956,14 @@ function ServiciosContent() {
       </div>
 
       {showRefineSheet && (
-        <div className="fixed inset-0 z-40">
+        <div className="fixed inset-0 z-[80]">
           <button
             type="button"
             onClick={() => setShowRefineSheet(false)}
             className="absolute inset-0 bg-black/45"
             aria-label="Cerrar panel de refinamiento"
           />
-          <div className="absolute inset-x-0 bottom-0 max-h-[80vh] overflow-y-auto rounded-t-3xl bg-white p-4 shadow-2xl md:left-1/2 md:bottom-6 md:w-full md:max-w-lg md:-translate-x-1/2 md:rounded-2xl">
+          <div className="absolute inset-x-0 bottom-0 max-h-[80vh] overflow-y-auto rounded-t-3xl bg-white p-4 pb-[calc(6rem+env(safe-area-inset-bottom))] shadow-2xl md:left-1/2 md:bottom-6 md:w-full md:max-w-lg md:-translate-x-1/2 md:rounded-2xl md:pb-4">
             <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-gray-200 md:hidden" />
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-black text-gray-900">Filtrar resultados</h3>
@@ -1031,7 +1031,7 @@ function ServiciosContent() {
               </div>
             </div>
 
-            <div className="mt-6 grid grid-cols-2 gap-2">
+            <div className="sticky bottom-0 mt-6 grid grid-cols-2 gap-2 border-t border-gray-100 bg-white pt-4">
               <button
                 type="button"
                 onClick={() => {
