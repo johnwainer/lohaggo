@@ -139,7 +139,7 @@ function ServiciosContent() {
   )
 
   const visibleCategories = useMemo(
-    () => (showAllCategories ? categories : categories.slice(0, 8)),
+    () => (showAllCategories ? categories : categories.slice(0, 7)),
     [categories, showAllCategories]
   )
 
@@ -573,7 +573,7 @@ function ServiciosContent() {
               <Filter size={18} className="text-gray-700 md:w-[22px] md:h-[22px]" />
               <span className="font-bold text-gray-900 text-base md:text-lg">Categorías</span>
               </div>
-              {categories.length > 8 && (
+              {categories.length > 7 && (
                 <button
                   type="button"
                   onClick={() => setShowAllCategories((prev) => !prev)}
