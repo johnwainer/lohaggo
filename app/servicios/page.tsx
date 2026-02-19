@@ -715,45 +715,73 @@ function ServiciosContent() {
               )}
             </div>
 
-            <div className="mb-4 md:mb-6 rounded-xl md:rounded-2xl border border-gray-200 bg-white p-3 md:p-4">
-              <div className="flex flex-wrap items-center gap-2 md:gap-3">
-                <button
-                  type="button"
-                  onClick={() => setQuickOnlyWithPartners((prev) => !prev)}
-                  className={`px-3 py-1.5 text-xs md:text-sm rounded-full font-semibold transition ${
-                    quickOnlyWithPartners ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-700'
-                  }`}
-                >
-                  Solo con socios disponibles
-                </button>
-                {[0, 4, 4.5].map((rating) => (
+            <div className="mb-4 md:mb-6 overflow-hidden rounded-2xl border border-sky-100 bg-gradient-to-br from-cyan-50 via-white to-blue-50 shadow-sm">
+              <div className="border-b border-sky-100/80 px-3 py-3 md:px-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-primary-600 text-white">
+                      <Filter className="h-4 w-4" />
+                    </span>
+                    <div>
+                      <p className="text-sm font-extrabold text-gray-900">Filtros rápidos</p>
+                      <p className="text-xs text-gray-600">Refina resultados en segundos</p>
+                    </div>
+                  </div>
+                  <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-bold text-primary-700 ring-1 ring-primary-100">
+                    {filteredServices.length} visibles
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-3 px-3 py-3 md:px-4 md:py-4">
+                <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   <button
-                    key={rating}
                     type="button"
-                    onClick={() => setQuickMinRating(rating)}
-                    className={`px-3 py-1.5 text-xs md:text-sm rounded-full font-semibold transition ${
-                      quickMinRating === rating ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-700'
+                    onClick={() => setQuickOnlyWithPartners((prev) => !prev)}
+                    className={`whitespace-nowrap rounded-full border px-3 py-2 text-xs font-bold transition md:text-sm ${
+                      quickOnlyWithPartners
+                        ? 'border-primary-600 bg-primary-600 text-white shadow-sm'
+                        : 'border-gray-200 bg-white text-gray-700 hover:border-primary-200 hover:text-primary-700'
                     }`}
                   >
-                    {rating === 0 ? 'Todas las calificaciones' : `${rating}+ estrellas`}
+                    Solo con socios disponibles
                   </button>
-                ))}
-                <label className="w-full md:w-auto md:ml-auto text-xs text-gray-600">
-                  Ordenar por
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as SortBy)}
-                    className="mt-1 w-full md:min-w-[220px] rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-800"
-                  >
-                    <option value="RELEVANCE">Relevancia</option>
-                    <option value="ALPHA_ASC">Alfabetico A-Z</option>
-                    <option value="ALPHA_DESC">Alfabetico Z-A</option>
-                    <option value="RATING_DESC">Mejor calificacion</option>
-                    <option value="PARTNERS_DESC">Mas socios disponibles</option>
-                    <option value="PRICE_ASC">Menor precio</option>
-                    <option value="PRICE_DESC">Mayor precio</option>
-                  </select>
-                </label>
+                  {[0, 4, 4.5].map((rating) => (
+                    <button
+                      key={rating}
+                      type="button"
+                      onClick={() => setQuickMinRating(rating)}
+                      className={`whitespace-nowrap rounded-full border px-3 py-2 text-xs font-bold transition md:text-sm ${
+                        quickMinRating === rating
+                          ? 'border-primary-600 bg-primary-600 text-white shadow-sm'
+                          : 'border-gray-200 bg-white text-gray-700 hover:border-primary-200 hover:text-primary-700'
+                      }`}
+                    >
+                      {rating === 0 ? 'Todas las calificaciones' : `${rating}+ estrellas`}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 rounded-xl border border-sky-100 bg-white/80 p-2">
+                  <span className="px-2 text-[11px] font-bold uppercase tracking-wide text-gray-500 md:text-xs">
+                    Ordenar por
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as SortBy)}
+                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-800 outline-none transition focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
+                    >
+                      <option value="RELEVANCE">Relevancia</option>
+                      <option value="ALPHA_ASC">Alfabetico A-Z</option>
+                      <option value="ALPHA_DESC">Alfabetico Z-A</option>
+                      <option value="RATING_DESC">Mejor calificacion</option>
+                      <option value="PARTNERS_DESC">Mas socios disponibles</option>
+                      <option value="PRICE_ASC">Menor precio</option>
+                      <option value="PRICE_DESC">Mayor precio</option>
+                    </select>
+                  </div>
+                </div>
               </div>
             </div>
 
