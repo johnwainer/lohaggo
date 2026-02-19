@@ -622,11 +622,11 @@ function ServiciosContent() {
               <button
                 type="button"
                 onClick={() => setShowRefineSheet(true)}
-                className="hidden md:inline-flex items-center gap-2 rounded-full bg-primary-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-primary-700"
+                className="hidden md:inline-flex items-center gap-2 rounded-full bg-primary-600 px-3.5 py-2 text-sm font-bold text-white shadow-sm hover:bg-primary-700"
               >
                 <SlidersHorizontal className="h-3.5 w-3.5" />
                 Filtrar resultados
-                <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-[10px]">{activeRefinementCount}</span>
+                <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-xs">{activeRefinementCount}</span>
               </button>
               {(selectedCategory || activeRefinementCount > 0) && (
                 <button
