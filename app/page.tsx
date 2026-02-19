@@ -201,7 +201,7 @@ export default async function Home() {
                   <div className="h-full min-h-[88px] sm:min-h-[104px] bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-2 sm:p-2.5 text-center hover:from-primary-50 hover:to-secondary-50 transition-all hover:shadow-md border border-transparent hover:border-primary-200">
                     <div
                       className="flex items-center justify-center mx-auto mb-1 group-hover:scale-105 transition-transform emoji-icon leading-none"
-                      style={{ fontSize: '1.15rem' }}
+                      style={{ fontSize: '1.5rem' }}
                       role="img"
                       aria-label={category.name}
                     >
