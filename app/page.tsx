@@ -190,10 +190,7 @@ export default async function Home() {
               </Link>
             </div>
 
-            <div
-              className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2.5 sm:gap-3"
-              data-tour="service-categories"
-            >
+            <div className="grid grid-cols-4 sm:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-2 sm:gap-2.5" data-tour="service-categories">
               {categories.map((category: any) => (
                 <Link
                   key={category.id}
@@ -201,16 +198,16 @@ export default async function Home() {
                   className="group"
                   aria-label={`Ver servicios de ${category.name}`}
                 >
-                  <div className="h-full min-h-[104px] sm:min-h-[124px] bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg sm:rounded-xl p-2.5 sm:p-3 text-center hover:from-primary-50 hover:to-secondary-50 transition-all hover:shadow-md border border-transparent hover:border-primary-200">
+                  <div className="h-full min-h-[88px] sm:min-h-[104px] bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-2 sm:p-2.5 text-center hover:from-primary-50 hover:to-secondary-50 transition-all hover:shadow-md border border-transparent hover:border-primary-200">
                     <div
-                      className="flex items-center justify-center mx-auto mb-1.5 sm:mb-2 group-hover:scale-105 transition-transform emoji-icon leading-none"
-                      style={{ fontSize: '1.65rem' }}
+                      className="flex items-center justify-center mx-auto mb-1 group-hover:scale-105 transition-transform emoji-icon leading-none"
+                      style={{ fontSize: '1.15rem' }}
                       role="img"
                       aria-label={category.name}
                     >
                       {category.icon}
                     </div>
-                    <div className="font-semibold text-[11px] sm:text-xs text-gray-800 group-hover:text-primary-600 transition leading-tight line-clamp-3">
+                    <div className="font-semibold text-[9px] sm:text-[11px] text-gray-800 group-hover:text-primary-600 transition leading-tight line-clamp-3">
                       {category.name}
                     </div>
                   </div>
