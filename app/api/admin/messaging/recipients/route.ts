@@ -75,35 +75,36 @@ export async function GET(request: NextRequest) {
     take: 2500,
   })
 
-  const filtered = recipients.users
-    .filter((user) => {
-      if (!search) return true
-      const haystack = `${user.name} ${user.email} ${user.phone || ''}`.toLowerCase()
-      return haystack.includes(search)
-    })
-    .map((user) => {
-      const destination = resolveDestination(channel, user)
-      const eligible = Boolean(destination)
-      return {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        role: user.role,
-        source: user.source,
-        destination: destination || null,
-        eligible,
-        reason: eligible ? null : 'Sin destino para este canal',
-      }
-    })
+  const withEligibility = recipients.users.map((user) => {
+    const destination = resolveDestination(channel, user)
+    const eligible = Boolean(destination)
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      source: user.source,
+      destination: destination || null,
+      eligible,
+      reason: eligible ? null : 'Sin destino para este canal',
+    }
+  })
 
-  const eligibleCount = filtered.filter((item) => item.eligible).length
-  const ineligibleCount = filtered.length - eligibleCount
+  const filtered = withEligibility.filter((user) => {
+    if (!search) return true
+    const haystack = `${user.name} ${user.email} ${user.phone || ''}`.toLowerCase()
+    return haystack.includes(search)
+  })
+
+  const eligibleCount = withEligibility.filter((item) => item.eligible).length
+  const ineligibleCount = withEligibility.length - eligibleCount
 
   return NextResponse.json({
     recipients: filtered,
     summary: {
-      total: filtered.length,
+      total: withEligibility.length,
+      filteredTotal: filtered.length,
       eligible: eligibleCount,
       ineligible: ineligibleCount,
       segmentCount: recipients.segmentCount,

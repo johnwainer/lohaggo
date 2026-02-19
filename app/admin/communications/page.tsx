@@ -48,6 +48,7 @@ type RecipientPreview = {
 
 type RecipientSummary = {
   total: number
+  filteredTotal?: number
   eligible: number
   ineligible: number
   segmentCount: number
@@ -253,6 +254,10 @@ export default function AdminCommunicationsPage() {
     if (campForm.channel === 'WHATSAPP') return Boolean(providers.twilio.active && providers.twilio.hasAuthToken && providers.twilio.whatsappFrom)
     return Boolean(providers.push?.configured)
   }, [providers, campForm.channel])
+  const estimatedRecipients = recipientSummary?.total ?? 0
+  const estimatedEligible = recipientSummary?.eligible ?? 0
+  const estimatedIneligible = recipientSummary?.ineligible ?? 0
+  const previewRows = recipientSummary?.filteredTotal ?? recipientSummary?.total ?? 0
 
   const load = async () => {
     setLoading(true)
@@ -1173,6 +1178,21 @@ export default function AdminCommunicationsPage() {
                 <div className="rounded border bg-blue-50 px-3 py-2 text-sm text-blue-900">
                   Flujo recomendado: 1) elige canal, 2) define contenido (plantilla o mensaje libre), 3) valida destinatarios, 4) guarda y envía.
                 </div>
+                <div className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                    <span>
+                      Total estimado a enviar:
+                      {' '}
+                      <b>{loadingRecipients ? 'Calculando...' : estimatedRecipients}</b>
+                    </span>
+                    {!loadingRecipients && (
+                      <>
+                        <span>Elegibles: <b>{estimatedEligible}</b></span>
+                        <span>Sin destino: <b>{estimatedIneligible}</b></span>
+                      </>
+                    )}
+                  </div>
+                </div>
                 <div className={`rounded border px-3 py-2 text-sm ${channelProviderReady ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-amber-50 text-amber-800 border-amber-200'}`}>
                   {channelProviderReady
                     ? `Proveedor listo para ${campForm.channel}.`
@@ -1439,6 +1459,7 @@ export default function AdminCommunicationsPage() {
                   {recipientSummary && (
                     <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-xs">
                       <div className="rounded border bg-gray-50 px-2 py-1">Total: <b>{recipientSummary.total}</b></div>
+                      <div className="rounded border bg-gray-50 px-2 py-1">Mostrando: <b>{previewRows}</b></div>
                       <div className="rounded border bg-gray-50 px-2 py-1">Elegibles: <b>{recipientSummary.eligible}</b></div>
                       <div className="rounded border bg-gray-50 px-2 py-1">Sin destino: <b>{recipientSummary.ineligible}</b></div>
                       <div className="rounded border bg-gray-50 px-2 py-1">Segmento: <b>{recipientSummary.segmentCount}</b></div>
@@ -1528,7 +1549,7 @@ export default function AdminCommunicationsPage() {
                 )}
                 <div className="flex gap-2">
                   <button className="bg-primary-600 text-white rounded px-3 py-2 text-sm" onClick={createCampaign}>
-                    Guardar campaña
+                    Guardar campaña ({loadingRecipients ? '...' : estimatedRecipients})
                   </button>
                   <button className="border rounded px-3 py-2 text-sm" onClick={() => setActivePanel('CAMPAIGNS')}>
                     Ir a campañas
