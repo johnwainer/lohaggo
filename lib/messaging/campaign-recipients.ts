@@ -6,6 +6,7 @@ type BasicUser = {
   name: string
   email: string
   phone: string | null
+  pushSubscription: string | null
   role: UserRole
 }
 
@@ -85,7 +86,7 @@ export function mergeCampaignAudienceMetadata(
 }
 
 export function resolveDestination(channel: MessagingChannel, user: { id: string; email: string; phone: string | null }) {
-  if (channel === 'PUSH') return `user:${user.id}`
+  if (channel === 'PUSH') return (user as { pushSubscription?: string | null }).pushSubscription ? `user:${user.id}` : null
   if (channel === 'EMAIL') return user.email
   return user.phone
 }
@@ -132,7 +133,7 @@ export async function resolveCampaignRecipients(params: {
           }
         : {}),
     },
-    select: { id: true, name: true, email: true, phone: true, role: true },
+    select: { id: true, name: true, email: true, phone: true, pushSubscription: true, role: true },
     take,
   })
 
@@ -142,7 +143,7 @@ export async function resolveCampaignRecipients(params: {
           id: { in: Array.from(includeSet) },
           isActive: true,
         },
-        select: { id: true, name: true, email: true, phone: true, role: true },
+        select: { id: true, name: true, email: true, phone: true, pushSubscription: true, role: true },
         take,
       })
     : []

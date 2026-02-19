@@ -65,6 +65,26 @@ type CampaignMetrics = {
   }
 }
 
+type FailedDelivery = {
+  id: string
+  destination: string | null
+  status: string
+  provider: string
+  providerMessageId: string | null
+  errorCode: string | null
+  errorMessage: string | null
+  sentAt: string | null
+  deliveredAt: string | null
+  createdAt: string
+  user: {
+    id: string
+    name: string | null
+    email: string
+    role: 'CLIENT' | 'PARTNER' | 'ADMIN'
+    phone: string | null
+  }
+}
+
 type Overview = {
   totals: {
     campaigns: number
@@ -88,6 +108,11 @@ type ProviderState = {
     fromEmail: string
     apiKey: string
     hasApiKey?: boolean
+  }
+  push?: {
+    configured: boolean
+    hasVapidPublicKey?: boolean
+    hasVapidPrivateKey?: boolean
   }
 }
 
@@ -178,6 +203,10 @@ export default function AdminCommunicationsPage() {
   } | null>(null)
   const [loadingRecipients, setLoadingRecipients] = useState(false)
   const [campaignFeedback, setCampaignFeedback] = useState<{ type: 'ok' | 'error'; message: string } | null>(null)
+  const [failedDeliveriesCampaign, setFailedDeliveriesCampaign] = useState<Campaign | null>(null)
+  const [failedDeliveries, setFailedDeliveries] = useState<FailedDelivery[]>([])
+  const [loadingFailedDeliveries, setLoadingFailedDeliveries] = useState(false)
+  const [failedDeliveriesError, setFailedDeliveriesError] = useState<string | null>(null)
 
   const selectedCampaign = useMemo(
     () => campaigns.find((item) => item.id === selectedCampaignId) || null,
@@ -203,7 +232,7 @@ export default function AdminCommunicationsPage() {
     if (campForm.channel === 'EMAIL') return Boolean(providers.sendgrid.active && providers.sendgrid.hasApiKey && providers.sendgrid.fromEmail)
     if (campForm.channel === 'SMS') return Boolean(providers.twilio.active && providers.twilio.hasAuthToken && providers.twilio.smsFrom)
     if (campForm.channel === 'WHATSAPP') return Boolean(providers.twilio.active && providers.twilio.hasAuthToken && providers.twilio.whatsappFrom)
-    return true
+    return Boolean(providers.push?.configured)
   }, [providers, campForm.channel])
 
   const load = async () => {
@@ -481,6 +510,29 @@ export default function AdminCommunicationsPage() {
     await loadMetrics(campaignId)
   }
 
+  const loadFailedDeliveries = async (campaign: Campaign) => {
+    setLoadingFailedDeliveries(true)
+    setFailedDeliveriesError(null)
+    setFailedDeliveriesCampaign(campaign)
+    try {
+      const response = await fetch(`/api/admin/messaging/campaigns/${campaign.id}/failed-deliveries?limit=300`, {
+        cache: 'no-store',
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        setFailedDeliveries([])
+        setFailedDeliveriesError(data.error || 'No se pudo cargar el detalle de fallas')
+        return
+      }
+      setFailedDeliveries(data.failedDeliveries || [])
+    } catch {
+      setFailedDeliveries([])
+      setFailedDeliveriesError('No se pudo cargar el detalle de fallas')
+    } finally {
+      setLoadingFailedDeliveries(false)
+    }
+  }
+
   const runScheduled = async () => {
     await fetch('/api/admin/messaging/run-scheduled', { method: 'POST' })
     await load()
@@ -708,6 +760,27 @@ export default function AdminCommunicationsPage() {
                   </button>
                 </div>
               </div>
+              <div className="border rounded-lg p-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold">PUSH (Web Push / PWA)</h3>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                      providers?.push?.configured
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : 'bg-amber-100 text-amber-700'
+                    }`}
+                  >
+                    {providers?.push?.configured ? 'Configurado' : 'Incompleto'}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500">
+                  VAPID public key: {providers?.push?.hasVapidPublicKey ? 'OK' : 'Falta'} ·
+                  VAPID private key: {providers?.push?.hasVapidPrivateKey ? 'OK' : 'Falta'}
+                </p>
+                <p className="text-xs text-gray-600">
+                  Esta configuración se toma de variables de entorno del servidor. Si falta alguna llave VAPID, los envíos PUSH fallarán.
+                </p>
+              </div>
             </section>
           )}
 
@@ -751,7 +824,18 @@ export default function AdminCommunicationsPage() {
                         <td className="px-3 py-2">{campaign.status}</td>
                         <td className="px-3 py-2">{campaign.totalRecipients}</td>
                         <td className="px-3 py-2">{campaign.totalSent}</td>
-                        <td className="px-3 py-2">{campaign.totalFailed}</td>
+                        <td className="px-3 py-2">
+                          {campaign.totalFailed > 0 ? (
+                            <button
+                              className="rounded border border-rose-200 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100"
+                              onClick={() => void loadFailedDeliveries(campaign)}
+                            >
+                              {campaign.totalFailed}
+                            </button>
+                          ) : (
+                            <span>{campaign.totalFailed}</span>
+                          )}
+                        </td>
                         <td className="px-3 py-2">{formatDate(campaign.createdAt)}</td>
                         <td className="px-3 py-2">
                           <div className="flex justify-end gap-2">
@@ -844,6 +928,83 @@ export default function AdminCommunicationsPage() {
                       </tbody>
                     </table>
                   </div>
+                </div>
+              )}
+
+              {failedDeliveriesCampaign && (
+                <div className="rounded-lg border bg-white p-3 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <h3 className="font-semibold text-gray-900">Detalle de envíos fallidos</h3>
+                      <p className="text-xs text-gray-600">
+                        Campaña: <b>{failedDeliveriesCampaign.name}</b> ({failedDeliveriesCampaign.channel})
+                      </p>
+                    </div>
+                    <button
+                      className="border rounded px-2 py-1 text-xs"
+                      onClick={() => {
+                        setFailedDeliveriesCampaign(null)
+                        setFailedDeliveries([])
+                        setFailedDeliveriesError(null)
+                      }}
+                    >
+                      Cerrar
+                    </button>
+                  </div>
+
+                  {loadingFailedDeliveries && (
+                    <p className="text-sm text-gray-600">Cargando detalle de fallas...</p>
+                  )}
+
+                  {failedDeliveriesError && (
+                    <p className="text-sm text-rose-700">{failedDeliveriesError}</p>
+                  )}
+
+                  {!loadingFailedDeliveries && !failedDeliveriesError && (
+                    <div className="max-h-80 overflow-auto rounded border">
+                      <table className="min-w-full text-xs">
+                        <thead className="bg-gray-50 text-gray-600">
+                          <tr>
+                            <th className="px-2 py-2 text-left font-medium">Usuario</th>
+                            <th className="px-2 py-2 text-left font-medium">Destino</th>
+                            <th className="px-2 py-2 text-left font-medium">Proveedor</th>
+                            <th className="px-2 py-2 text-left font-medium">Error</th>
+                            <th className="px-2 py-2 text-left font-medium">Fecha</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {failedDeliveries.map((item) => (
+                            <tr key={item.id} className="border-t align-top">
+                              <td className="px-2 py-2">
+                                <p className="font-medium text-gray-900">{item.user.name || 'Sin nombre'}</p>
+                                <p className="text-gray-500">{item.user.email}</p>
+                                <p className="text-gray-500">{item.user.role}</p>
+                              </td>
+                              <td className="px-2 py-2 text-gray-700">{item.destination || item.user.phone || '-'}</td>
+                              <td className="px-2 py-2 text-gray-700">
+                                <p>{item.provider}</p>
+                                {item.providerMessageId && <p className="text-gray-500 break-all">id: {item.providerMessageId}</p>}
+                              </td>
+                              <td className="px-2 py-2">
+                                <p className="font-medium text-rose-700">{item.errorCode || 'FAILED'}</p>
+                                <p className="text-gray-600 whitespace-pre-wrap break-words">
+                                  {item.errorMessage || 'Sin detalle reportado por el proveedor'}
+                                </p>
+                              </td>
+                              <td className="px-2 py-2 text-gray-600">{formatDate(item.createdAt)}</td>
+                            </tr>
+                          ))}
+                          {failedDeliveries.length === 0 && (
+                            <tr>
+                              <td className="px-2 py-3 text-gray-500" colSpan={5}>
+                                No hay entregas fallidas registradas para esta campaña.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               )}
             </section>

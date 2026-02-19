@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auditAdminAction, requireAdmin } from '@/lib/admin-utils'
 import { getMessagingProviderRuntimeConfig, upsertProviderConfig } from '@/lib/messaging/provider-config'
+import { isPushConfigured } from '@/lib/notifications/push-sender'
+import { env } from '@/lib/env'
 
 function maskSecret(value: string | undefined) {
   if (!value) return ''
@@ -27,6 +29,11 @@ export async function GET() {
         fromEmail: config.sendgrid.config?.fromEmail || '',
         apiKey: maskSecret(config.sendgrid.config?.apiKey),
         hasApiKey: Boolean(config.sendgrid.config?.apiKey),
+      },
+      push: {
+        configured: isPushConfigured(),
+        hasVapidPublicKey: Boolean(env.NEXT_PUBLIC_VAPID_PUBLIC_KEY),
+        hasVapidPrivateKey: Boolean(env.VAPID_PRIVATE_KEY),
       },
     },
   })
