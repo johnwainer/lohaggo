@@ -13,6 +13,7 @@ export async function GET() {
       slug: true,
       category: {
         select: {
+          id: true,
           name: true,
         },
       },
@@ -26,6 +27,7 @@ export async function GET() {
       id: service.id,
       name: service.name,
       slug: service.slug,
+      categoryId: service.category.id,
       categoryName: service.category.name,
     })),
   })

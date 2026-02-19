@@ -16,6 +16,8 @@ export type RecipientControl = {
 }
 
 export type CampaignAudienceFilter = {
+  partnerFilterMode?: 'ALL' | 'CATEGORY' | 'SERVICE'
+  partnerCategoryIds: string[]
   partnerServiceIds: string[]
 }
 
@@ -52,8 +54,15 @@ export function parseRecipientControl(metadata: string | null | undefined): Reci
 }
 
 export function parseCampaignAudience(metadata: string | null | undefined): CampaignAudienceFilter {
-  const parsed = parseMetadataObject(metadata) as { audience?: { partnerServiceIds?: unknown } }
+  const parsed = parseMetadataObject(metadata) as {
+    audience?: { partnerFilterMode?: unknown; partnerCategoryIds?: unknown; partnerServiceIds?: unknown }
+  }
+  const modeRaw = String(parsed?.audience?.partnerFilterMode || 'ALL').toUpperCase()
+  const partnerFilterMode: CampaignAudienceFilter['partnerFilterMode'] =
+    modeRaw === 'CATEGORY' ? 'CATEGORY' : modeRaw === 'SERVICE' ? 'SERVICE' : 'ALL'
   return {
+    partnerFilterMode,
+    partnerCategoryIds: sanitizeIds(parsed?.audience?.partnerCategoryIds),
     partnerServiceIds: sanitizeIds(parsed?.audience?.partnerServiceIds),
   }
 }
@@ -79,6 +88,8 @@ export function mergeCampaignAudienceMetadata(
   const parsed = parseMetadataObject(metadata)
 
   parsed.audience = {
+    partnerFilterMode: audience.partnerFilterMode || 'ALL',
+    partnerCategoryIds: sanitizeIds(audience.partnerCategoryIds),
     partnerServiceIds: sanitizeIds(audience.partnerServiceIds),
   }
 
@@ -102,28 +113,51 @@ export async function resolveCampaignRecipients(params: {
   const take = Math.min(params.take || 2000, 10000)
   const control = params.controlOverride || parseRecipientControl(params.metadata)
   const audience = params.audienceOverride || parseCampaignAudience(params.metadata)
+  const partnerFilterMode = audience.partnerFilterMode || 'ALL'
+  const partnerCategoryIds = sanitizeIds(audience.partnerCategoryIds)
   const partnerServiceIds = sanitizeIds(audience.partnerServiceIds)
   const includeSet = new Set(control.includeUserIds)
   const excludeSet = new Set(control.excludeUserIds)
 
-  const roleFilter = partnerServiceIds.length ? 'PARTNER' : resolveRecipientRole(params.targetRole)
+  const enforcePartnerRole =
+    partnerFilterMode === 'CATEGORY' || partnerFilterMode === 'SERVICE' || partnerCategoryIds.length > 0 || partnerServiceIds.length > 0
+
+  const roleFilter = enforcePartnerRole ? 'PARTNER' : resolveRecipientRole(params.targetRole)
+
+  const partnerServiceWhere =
+    partnerFilterMode === 'SERVICE' && partnerServiceIds.length
+      ? {
+          services: {
+            some: {
+              active: true,
+              serviceId: { in: partnerServiceIds },
+            },
+          },
+        }
+      : undefined
+
+  const partnerCategoryWhere =
+    partnerFilterMode === 'CATEGORY' && partnerCategoryIds.length
+      ? {
+          services: {
+            some: {
+              active: true,
+              service: { categoryId: { in: partnerCategoryIds } },
+            },
+          },
+        }
+      : undefined
 
   const segmentUsers = await prisma.user.findMany({
     where: {
       role: roleFilter,
       isActive: true,
-      ...(partnerServiceIds.length
-        ? {
-            partnerProfile: {
-              services: {
-                some: {
-                  active: true,
-                  serviceId: { in: partnerServiceIds },
-                },
-              },
-            },
-          }
-        : {}),
+      ...((partnerServiceWhere || partnerCategoryWhere) && {
+        partnerProfile: {
+          ...(partnerServiceWhere || {}),
+          ...(partnerCategoryWhere || {}),
+        },
+      }),
       ...(params.targetCity
         ? {
             OR: [
@@ -171,6 +205,8 @@ export async function resolveCampaignRecipients(params: {
     includeUserIds: Array.from(includeSet),
     excludeUserIds: Array.from(excludeSet),
     partnerServiceIds,
+    partnerCategoryIds,
+    partnerFilterMode,
     segmentCount: segmentUsers.length,
     manualIncludedCount: manualUsers.filter((user) => !segmentUsers.find((segment) => segment.id === user.id)).length,
   }

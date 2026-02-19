@@ -23,7 +23,11 @@ function parseControlFromRequest(request: NextRequest): RecipientControl {
 }
 
 function parseAudienceFromRequest(request: NextRequest): CampaignAudienceFilter {
+  const modeRaw = (request.nextUrl.searchParams.get('partnerFilterMode') || 'ALL').toUpperCase()
+  const partnerFilterMode = modeRaw === 'CATEGORY' ? 'CATEGORY' : modeRaw === 'SERVICE' ? 'SERVICE' : 'ALL'
   return {
+    partnerFilterMode,
+    partnerCategoryIds: parseIds(request.nextUrl.searchParams.get('partnerCategoryIds')),
     partnerServiceIds: parseIds(request.nextUrl.searchParams.get('partnerServiceIds')),
   }
 }
@@ -39,7 +43,10 @@ export async function GET(request: NextRequest) {
   const controlOverride = parseControlFromRequest(request)
   const hasOverride = controlOverride.includeUserIds.length > 0 || controlOverride.excludeUserIds.length > 0
   const audienceOverride = parseAudienceFromRequest(request)
-  const hasAudienceOverride = audienceOverride.partnerServiceIds.length > 0
+  const hasAudienceOverride =
+    audienceOverride.partnerFilterMode !== 'ALL' ||
+    audienceOverride.partnerCategoryIds.length > 0 ||
+    audienceOverride.partnerServiceIds.length > 0
 
   let targetRole = request.nextUrl.searchParams.get('targetRole') as UserRole | null
   let targetCity = request.nextUrl.searchParams.get('targetCity') as City | null
@@ -102,6 +109,8 @@ export async function GET(request: NextRequest) {
       segmentCount: recipients.segmentCount,
       manualIncludedCount: recipients.manualIncludedCount,
       excludedCount: recipients.excludeUserIds.length,
+      partnerFilterMode: recipients.partnerFilterMode,
+      partnerCategoryIds: recipients.partnerCategoryIds,
       partnerServiceIds: recipients.partnerServiceIds,
       includeUserIds: recipients.includeUserIds,
       excludeUserIds: recipients.excludeUserIds,

@@ -67,6 +67,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'El contenido del mensaje es requerido' }, { status: 400 })
   }
 
+  const partnerFilterModeRaw = String(body.partnerFilterMode || 'ALL').toUpperCase()
+  const partnerFilterMode = partnerFilterModeRaw === 'CATEGORY' ? 'CATEGORY' : partnerFilterModeRaw === 'SERVICE' ? 'SERVICE' : 'ALL'
+  const partnerCategoryIds = Array.isArray(body.partnerCategoryIds) ? body.partnerCategoryIds : []
+  const partnerServiceIds = Array.isArray(body.partnerServiceIds) ? body.partnerServiceIds : []
+
+  if ((body.targetRole as UserRole | undefined) === 'PARTNER') {
+    if (partnerFilterMode === 'CATEGORY' && partnerCategoryIds.length === 0) {
+      return NextResponse.json({ error: 'Selecciona al menos una categoría para socios.' }, { status: 400 })
+    }
+    if (partnerFilterMode === 'SERVICE' && partnerServiceIds.length === 0) {
+      return NextResponse.json({ error: 'Selecciona al menos un servicio para socios.' }, { status: 400 })
+    }
+  }
+
   const metadataWithControl = mergeRecipientControlMetadata(
     body.metadata ? JSON.stringify(body.metadata) : null,
     {
@@ -75,7 +89,9 @@ export async function POST(request: NextRequest) {
     }
   )
   const metadata = mergeCampaignAudienceMetadata(metadataWithControl, {
-    partnerServiceIds: Array.isArray(body.partnerServiceIds) ? body.partnerServiceIds : [],
+    partnerFilterMode,
+    partnerCategoryIds,
+    partnerServiceIds,
   })
 
   const campaign = await prisma.messagingCampaign.create({
@@ -118,9 +134,37 @@ export async function PATCH(request: NextRequest) {
 
   const current = await prisma.messagingCampaign.findUnique({
     where: { id: body.id },
-    select: { id: true, metadata: true },
+    select: { id: true, metadata: true, targetRole: true },
   })
   if (!current) return NextResponse.json({ error: 'campaign no encontrada' }, { status: 404 })
+
+  const currentAudience = parseCampaignAudience(current.metadata)
+  const nextPartnerFilterMode =
+    body.partnerFilterMode !== undefined
+      ? (String(body.partnerFilterMode).toUpperCase() === 'CATEGORY'
+          ? 'CATEGORY'
+          : String(body.partnerFilterMode).toUpperCase() === 'SERVICE'
+          ? 'SERVICE'
+          : 'ALL')
+      : currentAudience.partnerFilterMode || 'ALL'
+  const nextPartnerCategoryIds = Array.isArray(body.partnerCategoryIds)
+    ? body.partnerCategoryIds
+    : currentAudience.partnerCategoryIds
+  const nextPartnerServiceIds = Array.isArray(body.partnerServiceIds)
+    ? body.partnerServiceIds
+    : currentAudience.partnerServiceIds
+  const nextTargetRole = (body.targetRole !== undefined
+    ? (body.targetRole ? (body.targetRole as UserRole) : null)
+    : current.targetRole) as UserRole | null
+
+  if (nextTargetRole === 'PARTNER') {
+    if (nextPartnerFilterMode === 'CATEGORY' && nextPartnerCategoryIds.length === 0) {
+      return NextResponse.json({ error: 'Selecciona al menos una categoría para socios.' }, { status: 400 })
+    }
+    if (nextPartnerFilterMode === 'SERVICE' && nextPartnerServiceIds.length === 0) {
+      return NextResponse.json({ error: 'Selecciona al menos un servicio para socios.' }, { status: 400 })
+    }
+  }
 
   const metadata =
     body.metadata !== undefined ||
@@ -139,9 +183,14 @@ export async function PATCH(request: NextRequest) {
               : parseRecipientControl(current.metadata).excludeUserIds,
           }),
           {
+            partnerFilterMode:
+              nextPartnerFilterMode,
+            partnerCategoryIds: Array.isArray(body.partnerCategoryIds)
+              ? body.partnerCategoryIds
+              : currentAudience.partnerCategoryIds,
             partnerServiceIds: Array.isArray(body.partnerServiceIds)
               ? body.partnerServiceIds
-              : parseCampaignAudience(current.metadata).partnerServiceIds,
+              : currentAudience.partnerServiceIds,
           },
         )
       : undefined
