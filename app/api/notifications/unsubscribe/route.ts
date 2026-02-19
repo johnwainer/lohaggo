@@ -17,10 +17,11 @@ export async function POST(request: Request) {
       )
     }
 
-    await prisma.user.update({
+    await (prisma as any).user.update({
       where: { id: user.id },
       data: {
-        pushSubscription: null
+        pushSubscription: null,
+        notificationsPushEnabled: false,
       }
     })
 

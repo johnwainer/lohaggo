@@ -6,6 +6,7 @@ import { sendMessageViaProvider } from '@/lib/messaging/providers'
 import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
 import { getNotificationAutomationSnapshot, isNotificationChannelEnabled } from '@/lib/notifications/automation-config'
 import { renderNotificationChannelTemplate, resolveNotificationChannelTemplate } from '@/lib/notifications/email-templates'
+import { mapUserChannelPreference } from '@/lib/notifications/user-preferences'
 import { env } from '@/lib/env'
 
 const logger = createLogger('notification-service')
@@ -38,9 +39,19 @@ export async function createNotification({
       }
     })
 
-    const user = await prisma.user.findUnique({
+    const user = await (prisma as any).user.findUnique({
       where: { id: userId },
-      select: { id: true, role: true, email: true, phone: true, name: true },
+      select: {
+        id: true,
+        role: true,
+        email: true,
+        phone: true,
+        name: true,
+        notificationsPushEnabled: true,
+        notificationsEmailEnabled: true,
+        notificationsWhatsappEnabled: true,
+        notificationsSmsEnabled: true,
+      },
     })
     if (user) {
       await dispatchAutomaticNotificationChannels({
@@ -66,7 +77,17 @@ export async function sendDirectPushToUser(userId: string, payload: PushPayload)
 
 async function dispatchAutomaticNotificationChannels(params: {
   notificationId: string
-  user: { id: string; role: UserRole; email: string; phone: string | null; name: string }
+  user: {
+    id: string
+    role: UserRole
+    email: string
+    phone: string | null
+    name: string
+    notificationsPushEnabled?: boolean | null
+    notificationsEmailEnabled?: boolean | null
+    notificationsWhatsappEnabled?: boolean | null
+    notificationsSmsEnabled?: boolean | null
+  }
   type: NotificationType
   title: string
   message: string
@@ -81,6 +102,25 @@ async function dispatchAutomaticNotificationChannels(params: {
 
   for (const channel of channels) {
     if (!isNotificationChannelEnabled({ snapshot, role: params.user.role, channel })) {
+      continue
+    }
+
+    if (!mapUserChannelPreference(params.user, channel)) {
+      await (prisma as any).notificationDispatchLog.create({
+        data: {
+          notificationId: params.notificationId,
+          userId: params.user.id,
+          userRole: params.user.role,
+          notificationType: params.type,
+          channel,
+          destination: null,
+          status: 'SKIPPED',
+          provider: 'internal',
+          errorCode: 'USER_PREF_DISABLED',
+          errorMessage: 'User disabled this channel in profile preferences',
+          metadata: params.data ? JSON.stringify(params.data) : null,
+        },
+      })
       continue
     }
 

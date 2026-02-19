@@ -40,10 +40,11 @@ export async function POST(request: Request) {
 
     const sanitizedSubscription = sanitizePushSubscription(validation.data)
 
-    await prisma.user.update({
+    await (prisma as any).user.update({
       where: { id: user.id },
       data: {
-        pushSubscription: sanitizedSubscription
+        pushSubscription: sanitizedSubscription,
+        notificationsPushEnabled: true,
       }
     })
 

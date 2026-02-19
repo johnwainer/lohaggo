@@ -117,14 +117,33 @@ export async function syncProfileFromPwaEvent(userId: string, eventName: string)
 
   if (Object.keys(data).length === 0) return
 
-  await prisma.pwaAdoptionProfile.upsert({
-    where: { userId },
-    create: {
-      userId,
-      abVariant: hashVariant(userId),
-      ...data,
-    },
-    update: data,
+  await prisma.$transaction(async (tx) => {
+    await tx.pwaAdoptionProfile.upsert({
+      where: { userId },
+      create: {
+        userId,
+        abVariant: hashVariant(userId),
+        ...data,
+      },
+      update: data,
+    })
+
+    if (eventName === 'pwa_installed') {
+      await (tx as any).user.update({
+        where: { id: userId },
+        data: {
+          notificationsPushEnabled: true,
+          notificationsEmailEnabled: true,
+          notificationsWhatsappEnabled: true,
+          notificationsSmsEnabled: true,
+        },
+      })
+
+      await tx.messagingOptOut.updateMany({
+        where: { userId, isActive: true },
+        data: { isActive: false },
+      })
+    }
   })
 }
 

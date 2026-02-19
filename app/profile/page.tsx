@@ -3,9 +3,17 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { User, Mail, Camera, Save, AlertCircle, CheckCircle, Home, Package, MessageSquare, Activity, Star, MapPin, Shield, Briefcase, ChevronRight, CreditCard, GraduationCap, Heart, Phone, Landmark } from 'lucide-react'
+import { User, Mail, Camera, Save, AlertCircle, CheckCircle, Home, Package, MessageSquare, Activity, Star, MapPin, Shield, Briefcase, ChevronRight, CreditCard, GraduationCap, Heart, Phone, Landmark, Bell } from 'lucide-react'
 import ClientDashboardNav from '@/components/ClientDashboardNav'
 import PartnerDashboardNav from '@/components/PartnerDashboardNav'
+import { usePushNotifications } from '@/hooks/usePushNotifications'
+
+type NotificationPreference = {
+  channel: 'PUSH' | 'EMAIL' | 'WHATSAPP' | 'SMS'
+  enabledByAdmin: boolean
+  enabledByUser: boolean
+  effectiveEnabled: boolean
+}
 
 export default function ProfilePage() {
   const { data: session, status, update } = useSession()
@@ -24,8 +32,18 @@ export default function ProfilePage() {
   const [clientRating, setClientRating] = useState(0)
   const [clientReviews, setClientReviews] = useState(0)
   const [favoritesCount, setFavoritesCount] = useState(0)
+  const [notificationPrefs, setNotificationPrefs] = useState<NotificationPreference[]>([])
+  const [loadingPrefs, setLoadingPrefs] = useState(false)
+  const [savingChannel, setSavingChannel] = useState<NotificationPreference['channel'] | null>(null)
+  const [prefsMessage, setPrefsMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   const isPartner = session?.user?.role === 'PARTNER'
+  const {
+    isSupported: pushSupported,
+    isSubscribed: pushSubscribed,
+    subscribeToPush,
+    unsubscribeFromPush,
+  } = usePushNotifications()
 
   const fetchCounts = async () => {
     try {
@@ -84,6 +102,62 @@ export default function ProfilePage() {
     }
   }
 
+  const fetchNotificationPreferences = async () => {
+    setLoadingPrefs(true)
+    try {
+      const res = await fetch('/api/notifications/preferences', { cache: 'no-store' })
+      if (!res.ok) return
+      const data = await res.json()
+      setNotificationPrefs(Array.isArray(data?.channels) ? data.channels : [])
+    } catch (error) {
+      console.error('Error fetching notification preferences:', error)
+    } finally {
+      setLoadingPrefs(false)
+    }
+  }
+
+  const updateChannelPreference = async (
+    channel: NotificationPreference['channel'],
+    enabled: boolean
+  ) => {
+    setSavingChannel(channel)
+    setPrefsMessage(null)
+
+    try {
+      if (channel === 'PUSH' && enabled) {
+        const subscribed = await subscribeToPush()
+        if (!subscribed) {
+          setPrefsMessage({ type: 'error', text: 'No se pudo activar push. Verifica permisos del navegador.' })
+          return
+        }
+      }
+
+      if (channel === 'PUSH' && !enabled) {
+        await unsubscribeFromPush()
+      }
+
+      const response = await fetch('/api/notifications/preferences', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel, enabled }),
+      })
+
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) {
+        setPrefsMessage({ type: 'error', text: payload?.error || 'No se pudo actualizar este canal.' })
+        return
+      }
+
+      setNotificationPrefs(Array.isArray(payload?.channels) ? payload.channels : [])
+      setPrefsMessage({ type: 'success', text: 'Preferencias actualizadas.' })
+    } catch (error) {
+      console.error('Error updating notification channel preference:', error)
+      setPrefsMessage({ type: 'error', text: 'Error al actualizar preferencias.' })
+    } finally {
+      setSavingChannel(null)
+    }
+  }
+
   useEffect(() => {
     if (session?.user) {
       setName(session.user.name || '')
@@ -91,6 +165,7 @@ export default function ProfilePage() {
       setPhone(session.user.phone || '')
       setImage(session.user.image || null)
       fetchCounts()
+      fetchNotificationPreferences()
 
       if (session.user.role === 'PARTNER') {
         fetchPartnerData()
@@ -346,6 +421,90 @@ export default function ProfilePage() {
                     </button>
                   </div>
                 </form>
+
+                <div className="mt-10 border-t border-gray-100 pt-8">
+                  <div className="flex items-start gap-3 mb-4">
+                    <div className="p-2 rounded-lg bg-blue-50 text-blue-700">
+                      <Bell size={18} />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">Canales de notificación</h3>
+                      <p className="text-sm text-gray-600">
+                        Activa o desactiva cómo quieres recibir avisos. Solo se pueden modificar canales habilitados por administración.
+                      </p>
+                    </div>
+                  </div>
+
+                  {prefsMessage && (
+                    <div
+                      className={`mb-4 rounded-lg border px-3 py-2 text-sm ${
+                        prefsMessage.type === 'success'
+                          ? 'border-green-200 bg-green-50 text-green-700'
+                          : 'border-red-200 bg-red-50 text-red-700'
+                      }`}
+                    >
+                      {prefsMessage.text}
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    {loadingPrefs ? (
+                      <div className="text-sm text-gray-500">Cargando preferencias...</div>
+                    ) : (
+                      notificationPrefs.map((pref) => {
+                        const isPushChannel = pref.channel === 'PUSH'
+                        const channelName =
+                          pref.channel === 'PUSH'
+                            ? 'Push'
+                            : pref.channel === 'EMAIL'
+                            ? 'Email'
+                            : pref.channel === 'WHATSAPP'
+                            ? 'WhatsApp'
+                            : 'SMS'
+                        const helper =
+                          pref.channel === 'PUSH'
+                            ? pushSupported
+                              ? pushSubscribed
+                                ? 'Suscripción push activa en este dispositivo.'
+                                : 'Activa push para recibir alertas en tiempo real.'
+                              : 'Tu navegador no soporta notificaciones push.'
+                            : pref.enabledByAdmin
+                            ? 'Disponible para tu audiencia.'
+                            : 'Desactivado por el administrador.'
+
+                        const disabled = !pref.enabledByAdmin || savingChannel === pref.channel || (isPushChannel && !pushSupported)
+
+                        return (
+                          <div key={pref.channel} className="rounded-xl border border-gray-200 px-4 py-3">
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <p className="font-medium text-gray-900">{channelName}</p>
+                                <p className="text-xs text-gray-500">{helper}</p>
+                              </div>
+                              <button
+                                type="button"
+                                disabled={disabled}
+                                onClick={() => updateChannelPreference(pref.channel, !pref.enabledByUser)}
+                                className={`relative inline-flex h-7 w-12 items-center rounded-full transition ${
+                                  pref.enabledByUser ? 'bg-secondary-500' : 'bg-gray-300'
+                                } ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                              >
+                                <span
+                                  className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${
+                                    pref.enabledByUser ? 'translate-x-6' : 'translate-x-1'
+                                  }`}
+                                />
+                              </button>
+                            </div>
+                            {!pref.enabledByAdmin && (
+                              <p className="mt-2 text-xs text-amber-700">Este canal está desactivado desde la matriz de canales por audiencia.</p>
+                            )}
+                          </div>
+                        )
+                      })
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>

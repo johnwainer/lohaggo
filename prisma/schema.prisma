@@ -18,6 +18,10 @@ model User {
   role                   UserRole               @default(CLIENT)
   isActive               Boolean                @default(true)
   pushSubscription       String?
+  notificationsPushEnabled Boolean              @default(true)
+  notificationsEmailEnabled Boolean             @default(true)
+  notificationsWhatsappEnabled Boolean          @default(true)
+  notificationsSmsEnabled Boolean               @default(true)
   clientRating           Float                  @default(0)
   clientTotalReviews     Int                    @default(0)
   completedServicesCount Int                    @default(0)
