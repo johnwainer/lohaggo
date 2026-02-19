@@ -1,14 +1,32 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getCurrentUser } from "@/lib/auth"
 import { createLogger } from '@/lib/logger'
 import { handleApiError } from '@/lib/errors'
+import { getToken } from 'next-auth/jwt'
+import { env } from '@/lib/env'
 
 const logger = createLogger('notifications-unsubscribe')
 
-export async function POST(request: Request) {
+async function resolveCurrentUser(request: NextRequest) {
+  const current = await getCurrentUser()
+  if (current) return current
+
+  const token = await getToken({
+    req: request,
+    secret: env.NEXTAUTH_SECRET_CURRENT || env.NEXTAUTH_SECRET,
+  })
+
+  if (!token?.sub) return null
+
+  return prisma.user.findUnique({
+    where: { id: token.sub },
+  })
+}
+
+export async function POST(request: NextRequest) {
   try {
-    const user = await getCurrentUser()
+    const user = await resolveCurrentUser(request)
 
     if (!user) {
       return NextResponse.json(

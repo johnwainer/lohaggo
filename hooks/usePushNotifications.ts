@@ -121,6 +121,7 @@ export function usePushNotifications() {
         headers: {
           'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify({ subscription: sub })
       })
 
@@ -154,7 +155,8 @@ export function usePushNotifications() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
-          }
+          },
+          credentials: 'include',
         }).catch(err => console.error('Error notifying server:', err))
 
         setSubscription(null)

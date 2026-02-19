@@ -13,6 +13,7 @@ const envSchema = z.object({
   NEXTAUTH_SECRET: z.string().min(32, 'NEXTAUTH_SECRET must be at least 32 characters'),
   NEXTAUTH_SECRET_CURRENT: z.string().optional(),
   NEXTAUTH_URL: z.string().url('NEXTAUTH_URL must be a valid URL'),
+  NEXTAUTH_COOKIE_DOMAIN: z.string().optional(),
 
   SESSION_MAX_AGE: z.string().regex(/^\d+$/, 'SESSION_MAX_AGE must be a number').default('86400'),
   SESSION_UPDATE_AGE: z.string().regex(/^\d+$/, 'SESSION_UPDATE_AGE must be a number').default('3600'),
@@ -60,6 +61,7 @@ function validateEnv(): Env {
       NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || '',
       NEXTAUTH_SECRET_CURRENT: process.env.NEXTAUTH_SECRET_CURRENT,
       NEXTAUTH_URL: process.env.NEXTAUTH_URL || '',
+      NEXTAUTH_COOKIE_DOMAIN: process.env.NEXTAUTH_COOKIE_DOMAIN,
       SESSION_MAX_AGE: process.env.SESSION_MAX_AGE || '86400',
       SESSION_UPDATE_AGE: process.env.SESSION_UPDATE_AGE || '3600',
       MERCADOPAGO_ACCESS_TOKEN: process.env.MERCADOPAGO_ACCESS_TOKEN,
@@ -95,6 +97,7 @@ function validateEnv(): Env {
       DATABASE_URL: databaseUrl,
       NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY: process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY || process.env.MERCADOPAGO_PUBLIC_KEY,
       NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || process.env.VERCEL_URL,
+      NEXTAUTH_COOKIE_DOMAIN: process.env.NEXTAUTH_COOKIE_DOMAIN,
       MERCADOPAGO_PAYOUTS_API_URL: process.env.MERCADOPAGO_PAYOUTS_API_URL,
       NEXT_PUBLIC_TURNSTILE_SITE_KEY: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY,
       TURNSTILE_SECRET_KEY: process.env.TURNSTILE_SECRET_KEY,
