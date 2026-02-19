@@ -176,18 +176,22 @@ export default async function Home() {
       <section className="py-12 bg-white -mt-20 relative z-10" aria-labelledby="categories-heading">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl p-4 sm:p-6 md:p-8">
-            <div className="flex items-center justify-between gap-3 mb-4 sm:mb-6">
+            <div className="flex items-center justify-between gap-2 mb-3 sm:mb-5">
               <h2 id="categories-heading" className="text-xl sm:text-2xl md:text-3xl font-black text-gray-900">
                 Categorías de Servicios Profesionales
               </h2>
-              <Link href="/servicios" className="text-primary-500 text-sm sm:text-base font-bold flex items-center gap-1 hover:gap-2 transition-all whitespace-nowrap" aria-label="Ver todas las categorías de servicios">
+              <Link
+                href="/servicios"
+                className="inline-flex items-center gap-1 rounded-full border border-primary-100 bg-primary-50 px-2.5 py-1 text-[11px] sm:text-sm font-semibold text-primary-600 hover:bg-primary-100 transition whitespace-nowrap"
+                aria-label="Ver todas las categorías de servicios"
+              >
                 Ver todas
-                <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
+                <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </Link>
             </div>
 
             <div
-              className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4"
+              className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2.5 sm:gap-3"
               data-tour="service-categories"
             >
               {categories.map((category: any) => (
@@ -197,16 +201,16 @@ export default async function Home() {
                   className="group"
                   aria-label={`Ver servicios de ${category.name}`}
                 >
-                  <div className="h-full min-h-[130px] sm:min-h-[146px] bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl sm:rounded-2xl p-3 sm:p-4 text-center hover:from-primary-50 hover:to-secondary-50 transition-all hover:shadow-lg border border-transparent hover:border-primary-200">
+                  <div className="h-full min-h-[104px] sm:min-h-[124px] bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg sm:rounded-xl p-2.5 sm:p-3 text-center hover:from-primary-50 hover:to-secondary-50 transition-all hover:shadow-md border border-transparent hover:border-primary-200">
                     <div
-                      className="flex items-center justify-center mx-auto mb-2 sm:mb-3 group-hover:scale-110 transition-transform emoji-icon leading-none"
-                      style={{ fontSize: '2.1rem' }}
+                      className="flex items-center justify-center mx-auto mb-1.5 sm:mb-2 group-hover:scale-105 transition-transform emoji-icon leading-none"
+                      style={{ fontSize: '1.65rem' }}
                       role="img"
                       aria-label={category.name}
                     >
                       {category.icon}
                     </div>
-                    <div className="font-bold text-xs sm:text-sm text-gray-800 group-hover:text-primary-600 transition leading-tight line-clamp-3">
+                    <div className="font-semibold text-[11px] sm:text-xs text-gray-800 group-hover:text-primary-600 transition leading-tight line-clamp-3">
                       {category.name}
                     </div>
                   </div>
