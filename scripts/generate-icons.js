@@ -6,6 +6,7 @@ const sizes = [
   { size: 16, name: 'favicon-16x16.png' },
   { size: 32, name: 'favicon-32x32.png' },
   { size: 180, name: 'apple-icon.png' },
+  { size: 180, name: 'apple-touch-icon.png' },
   { size: 192, name: 'icon-192.png' },
   { size: 192, name: 'icon-192-maskable.png', maskable: true },
   { size: 512, name: 'icon-512.png' },
@@ -30,20 +31,20 @@ async function generateIcons() {
 
       // For maskable icons, add padding (safe zone)
       if (maskable) {
-        const paddedSize = Math.round(size * 1.2);
+        const safeZoneSize = Math.round(size * 0.8);
+        const padding = Math.round((size - safeZoneSize) / 2);
         pipeline = sharp(svgBuffer)
-          .resize(size, size, {
+          .resize(safeZoneSize, safeZoneSize, {
             fit: 'contain',
-            background: { r: 0, g: 184, b: 148, alpha: 1 } // #00B894
+            background: { r: 0, g: 102, b: 204, alpha: 1 } // #0066CC
           })
           .extend({
-            top: Math.round((paddedSize - size) / 2),
-            bottom: Math.round((paddedSize - size) / 2),
-            left: Math.round((paddedSize - size) / 2),
-            right: Math.round((paddedSize - size) / 2),
-            background: { r: 0, g: 184, b: 148, alpha: 1 }
-          })
-          .resize(size, size);
+            top: padding,
+            bottom: size - safeZoneSize - padding,
+            left: padding,
+            right: size - safeZoneSize - padding,
+            background: { r: 0, g: 102, b: 204, alpha: 1 }
+          });
       }
 
       await pipeline
