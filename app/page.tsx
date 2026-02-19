@@ -172,43 +172,46 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Categories Section - Estilo Rappi con scroll horizontal */}
+      {/* Categories Section - Todas las categorías visibles */}
       <section className="py-12 bg-white -mt-20 relative z-10" aria-labelledby="categories-heading">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-white rounded-3xl shadow-xl p-8">
-            <div className="flex items-center justify-between mb-6">
-              <h2 id="categories-heading" className="text-2xl md:text-3xl font-black text-gray-900">Categorías de Servicios Profesionales</h2>
-              <Link href="/servicios" className="text-primary-500 font-bold flex items-center gap-1 hover:gap-2 transition-all" aria-label="Ver todas las categorías de servicios">
+          <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl p-4 sm:p-6 md:p-8">
+            <div className="flex items-center justify-between gap-3 mb-4 sm:mb-6">
+              <h2 id="categories-heading" className="text-xl sm:text-2xl md:text-3xl font-black text-gray-900">
+                Categorías de Servicios Profesionales
+              </h2>
+              <Link href="/servicios" className="text-primary-500 text-sm sm:text-base font-bold flex items-center gap-1 hover:gap-2 transition-all whitespace-nowrap" aria-label="Ver todas las categorías de servicios">
                 Ver todas
-                <ChevronRight className="w-5 h-5" />
+                <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
               </Link>
             </div>
 
-            <div className="overflow-x-auto scrollbar-hide -mx-4 px-4" data-tour="service-categories">
-              <div className="flex gap-4 pb-4">
-                {categories.map((category: any) => (
-                  <Link
-                    key={category.id}
-                    href={`/servicios?category=${category.slug}`}
-                    className="flex-shrink-0 w-36 md:w-32 group"
-                    aria-label={`Ver servicios de ${category.name}`}
-                  >
-                    <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 text-center hover:from-primary-50 hover:to-secondary-50 transition-all hover:shadow-lg border-2 border-transparent hover:border-primary-200">
-                      <div
-                        className="flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform emoji-icon"
-                        style={{ fontSize: '3em' }}
-                        role="img"
-                        aria-label={category.name}
-                      >
-                        {category.icon}
-                      </div>
-                      <div className="font-bold text-sm text-gray-800 group-hover:text-primary-600 transition line-clamp-2">
-                        {category.name}
-                      </div>
+            <div
+              className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4"
+              data-tour="service-categories"
+            >
+              {categories.map((category: any) => (
+                <Link
+                  key={category.id}
+                  href={`/servicios?category=${category.slug}`}
+                  className="group"
+                  aria-label={`Ver servicios de ${category.name}`}
+                >
+                  <div className="h-full min-h-[130px] sm:min-h-[146px] bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl sm:rounded-2xl p-3 sm:p-4 text-center hover:from-primary-50 hover:to-secondary-50 transition-all hover:shadow-lg border border-transparent hover:border-primary-200">
+                    <div
+                      className="flex items-center justify-center mx-auto mb-2 sm:mb-3 group-hover:scale-110 transition-transform emoji-icon leading-none"
+                      style={{ fontSize: '2.1rem' }}
+                      role="img"
+                      aria-label={category.name}
+                    >
+                      {category.icon}
                     </div>
-                  </Link>
-                ))}
-              </div>
+                    <div className="font-bold text-xs sm:text-sm text-gray-800 group-hover:text-primary-600 transition leading-tight line-clamp-3">
+                      {category.name}
+                    </div>
+                  </div>
+                </Link>
+              ))}
             </div>
           </div>
         </div>
