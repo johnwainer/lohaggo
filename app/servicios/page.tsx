@@ -939,7 +939,7 @@ function ServiciosContent() {
           className="mx-auto flex w-full max-w-sm items-center justify-center gap-2 rounded-full bg-primary-600 px-5 py-3 text-sm font-bold text-white shadow-xl hover:bg-primary-700 md:w-auto"
         >
           <SlidersHorizontal className="h-4 w-4" />
-          Refinar
+          Filtrar resultados
           <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs">{activeRefinementCount}</span>
         </button>
       </div>
@@ -955,7 +955,7 @@ function ServiciosContent() {
           <div className="absolute inset-x-0 bottom-0 max-h-[80vh] overflow-y-auto rounded-t-3xl bg-white p-4 shadow-2xl md:left-1/2 md:bottom-6 md:w-full md:max-w-lg md:-translate-x-1/2 md:rounded-2xl">
             <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-gray-200 md:hidden" />
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-black text-gray-900">Refinar resultados</h3>
+              <h3 className="text-lg font-black text-gray-900">Filtrar resultados</h3>
               <button
                 type="button"
                 onClick={() => setShowRefineSheet(false)}
