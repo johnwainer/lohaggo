@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { X } from 'lucide-react'
+import { useCity } from '@/lib/city-context'
 
 export default function TermsBanner() {
     const [isVisible, setIsVisible] = useState(false)
     const [isAccepted, setIsAccepted] = useState(false)
+    const { showCityModal } = useCity()
 
     useEffect(() => {
         // Check if user has already accepted terms
@@ -29,6 +31,10 @@ export default function TermsBanner() {
     }
 
     if (!isVisible) {
+        return null
+    }
+
+    if (showCityModal) {
         return null
     }
 

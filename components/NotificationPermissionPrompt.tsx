@@ -6,6 +6,7 @@ import { usePushNotifications } from '@/hooks/usePushNotifications'
 import { trackPwaEvent } from '@/lib/pwa/telemetry-client'
 import { PWA_EVENTS } from '@/lib/pwa/events'
 import { useSession } from 'next-auth/react'
+import { useCity } from '@/lib/city-context'
 
 interface NotificationPermissionPromptProps {
   onClose?: () => void
@@ -17,6 +18,7 @@ export default function NotificationPermissionPrompt({
   autoShow = true
 }: NotificationPermissionPromptProps) {
   const { data: session } = useSession()
+  const { showCityModal } = useCity()
   const [isVisible, setIsVisible] = useState(false)
   const [hasInteracted, setHasInteracted] = useState(false)
   const {
@@ -74,7 +76,7 @@ export default function NotificationPermissionPrompt({
     onClose?.()
   }
 
-  if (session?.user?.id || !isVisible || !isSupported || isSubscribed || permission === 'denied') {
+  if (showCityModal || session?.user?.id || !isVisible || !isSupported || isSubscribed || permission === 'denied') {
     return null
   }
 

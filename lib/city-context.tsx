@@ -71,12 +71,15 @@ export function CityProvider({ children }: { children: React.ReactNode }) {
             const cityExists = cityList.find(c => c.slug === savedCity && c.status === 'ACTIVE')
             if (cityExists) {
               setSelectedCityState(savedCity)
+              setShowCityModal(false)
             } else {
               localStorage.removeItem('selectedCity')
-              setShowCityModal(true)
+              selectDefaultCity(cityList)
+              setShowCityModal(false)
             }
           } else {
-            setShowCityModal(true)
+            selectDefaultCity(cityList)
+            setShowCityModal(false)
           }
         } else {
           const firstCity = cityList.find(c => c.status === 'ACTIVE')
@@ -124,13 +127,14 @@ export function CityProvider({ children }: { children: React.ReactNode }) {
         if (typeof window !== 'undefined') {
           localStorage.setItem('selectedCity', nearestCity.slug)
         }
+        setShowCityModal(false)
       } else {
-        setShowCityModal(true)
         selectDefaultCity(cityList)
+        setShowCityModal(false)
       }
     } catch (error) {
-      setShowCityModal(true)
       selectDefaultCity(cityList)
+      setShowCityModal(false)
     } finally {
       setIsGeolocating(false)
     }

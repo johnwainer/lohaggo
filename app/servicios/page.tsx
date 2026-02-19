@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { Search, Filter, X, Star, Lightbulb, Clock, Trash2, Heart } from 'lucide-react'
+import { Search, Filter, X, Star, Lightbulb, Clock, Trash2, Heart, SlidersHorizontal, ChevronDown } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 
 const ServicesTour = dynamic(() => import('@/components/ServicesTour'), {
@@ -80,11 +80,12 @@ function ServiciosContent() {
   const [showHistory, setShowHistory] = useState(false)
   const [favoriteServices, setFavoriteServices] = useState<Set<string>>(new Set())
   const [loadingFavorite, setLoadingFavorite] = useState<string | null>(null)
-  const [favoriteServicesList, setFavoriteServicesList] = useState<Service[]>([])
   const [showSlowLoadingHint, setShowSlowLoadingHint] = useState(false)
   const [quickMinRating, setQuickMinRating] = useState<number>(0)
   const [quickOnlyWithPartners, setQuickOnlyWithPartners] = useState<boolean>(true)
   const [sortBy, setSortBy] = useState<SortBy>('RELEVANCE')
+  const [showRefineSheet, setShowRefineSheet] = useState(false)
+  const [showAllCategories, setShowAllCategories] = useState(false)
 
   const applyQuickFiltersAndSort = useCallback(
     (items: Service[]) => {
@@ -136,6 +137,42 @@ function ServiciosContent() {
     () => applyQuickFiltersAndSort(relatedServices),
     [relatedServices, applyQuickFiltersAndSort]
   )
+
+  const visibleCategories = useMemo(
+    () => (showAllCategories ? categories : categories.slice(0, 8)),
+    [categories, showAllCategories]
+  )
+
+  const activeRefinementCount = useMemo(() => {
+    let count = 0
+    if (quickMinRating > 0) count++
+    if (!quickOnlyWithPartners) count++
+    if (sortBy !== 'RELEVANCE') count++
+    return count
+  }, [quickMinRating, quickOnlyWithPartners, sortBy])
+
+  const activeFilterChips = useMemo(() => {
+    const chips: string[] = []
+    if (selectedCategory) {
+      const categoryName = categories.find((c) => c.slug === selectedCategory)?.name || selectedCategory
+      chips.push(`Categoría: ${categoryName}`)
+    }
+    if (quickMinRating > 0) chips.push(`Calificación: ${quickMinRating}+`)
+    if (!quickOnlyWithPartners) chips.push('Incluye sin socios disponibles')
+    if (sortBy !== 'RELEVANCE') {
+      const sortLabel: Record<SortBy, string> = {
+        RELEVANCE: 'Relevancia',
+        ALPHA_ASC: 'Alfabético A-Z',
+        ALPHA_DESC: 'Alfabético Z-A',
+        RATING_DESC: 'Mejor calificación',
+        PARTNERS_DESC: 'Más socios',
+        PRICE_ASC: 'Menor precio',
+        PRICE_DESC: 'Mayor precio',
+      }
+      chips.push(`Orden: ${sortLabel[sortBy]}`)
+    }
+    return chips
+  }, [selectedCategory, categories, quickMinRating, quickOnlyWithPartners, sortBy])
 
   const fetchCategories = async () => {
     try {
@@ -279,9 +316,6 @@ function ServiciosContent() {
         const data = await res.json()
         const favoriteIds = new Set<string>(data.map((fav: any) => fav.serviceId))
         setFavoriteServices(favoriteIds)
-
-        const servicesData = data.map((fav: any) => fav.service)
-        setFavoriteServicesList(servicesData)
       }
     } catch (error) {
       console.error('Error fetching favorite services:', error)
@@ -398,6 +432,15 @@ function ServiciosContent() {
     return () => clearTimeout(slowLoadingTimer)
   }, [loading])
 
+  useEffect(() => {
+    if (!showRefineSheet) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [showRefineSheet])
+
   return (
     <div className="min-h-screen bg-gray-50">
       <ServicesTour />
@@ -411,7 +454,7 @@ function ServiciosContent() {
           </p>
         </div>
 
-        <div className="bg-white rounded-2xl md:rounded-3xl shadow-xl p-4 md:p-6 mb-6 md:mb-8 border-2 border-transparent hover:border-primary-500/20 transition">
+        <div className="bg-white rounded-2xl md:rounded-3xl shadow-xl p-4 md:p-6 mb-4 md:mb-6 border-2 border-transparent hover:border-primary-500/20 transition">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative" data-tour="services-search">
               <Search className="absolute left-3 md:left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
@@ -517,27 +560,6 @@ function ServiciosContent() {
             </div>
           </div>
 
-          {session?.user && favoriteServicesList.length > 0 && (
-            <div className="mt-4 md:mt-6">
-              <div className="flex items-center gap-2 mb-3 md:mb-4">
-                <Heart size={18} className="text-primary-600 md:w-[22px] md:h-[22px] fill-current" />
-                <span className="font-bold text-gray-900 text-base md:text-lg">Mis Favoritos</span>
-              </div>
-              <div className="flex gap-2 md:gap-3 overflow-x-auto pb-2 scrollbar-hide px-1">
-                {favoriteServicesList.map((service) => (
-                  <Link
-                    key={service.id}
-                    href={`/servicios/${service.slug}`}
-                    className="flex-shrink-0 flex flex-col items-center gap-2 p-3 md:p-4 bg-gradient-to-br from-primary-50 to-amber-50 hover:from-primary-100 hover:to-amber-100 rounded-xl md:rounded-2xl transition-all shadow-md hover:shadow-lg border-2 border-primary-200 min-w-[80px] md:min-w-[100px]"
-                  >
-                    <span className="text-3xl md:text-4xl">{service.icon}</span>
-                    <span className="text-xs md:text-sm font-bold text-gray-900 text-center line-clamp-2">{service.name}</span>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
-
           <div
             className={`mt-4 md:mt-6 transition-all duration-300 ${
               showAutocomplete && autocompleteResults.length > 0
@@ -546,9 +568,21 @@ function ServiciosContent() {
             }`}
             data-tour="services-categories"
           >
-            <div className="flex items-center gap-2 mb-3 md:mb-4">
+            <div className="flex items-center justify-between gap-2 mb-3 md:mb-4">
+              <div className="flex items-center gap-2">
               <Filter size={18} className="text-gray-700 md:w-[22px] md:h-[22px]" />
               <span className="font-bold text-gray-900 text-base md:text-lg">Categorías</span>
+              </div>
+              {categories.length > 8 && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllCategories((prev) => !prev)}
+                  className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:border-primary-200 hover:text-primary-700"
+                >
+                  {showAllCategories ? 'Ver menos' : 'Ver más'}
+                  <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showAllCategories ? 'rotate-180' : ''}`} />
+                </button>
+              )}
             </div>
             <div className="grid grid-cols-4 md:flex md:flex-wrap gap-2 md:gap-3">
               <button
@@ -561,7 +595,7 @@ function ServiciosContent() {
               >
                 Todos
               </button>
-              {categories.map((category) => (
+              {visibleCategories.map((category) => (
                 <button
                   key={category.id}
                   onClick={() => setSelectedCategory(category.slug)}
@@ -577,6 +611,37 @@ function ServiciosContent() {
               ))}
             </div>
           </div>
+        </div>
+
+        <div className="sticky top-20 z-20 mb-4 rounded-xl border border-gray-200 bg-white/95 p-3 shadow-sm backdrop-blur md:top-24">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-bold text-gray-800 md:text-base">
+              {filteredServices.length} {filteredServices.length === 1 ? 'servicio' : 'servicios'}
+            </p>
+            {(selectedCategory || activeRefinementCount > 0) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedCategory('')
+                  setQuickMinRating(0)
+                  setQuickOnlyWithPartners(true)
+                  setSortBy('RELEVANCE')
+                }}
+                className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:border-primary-200 hover:text-primary-700"
+              >
+                Limpiar
+              </button>
+            )}
+          </div>
+          {activeFilterChips.length > 0 && (
+            <div className="mt-2 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {activeFilterChips.map((chip) => (
+                <span key={chip} className="whitespace-nowrap rounded-full bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-700">
+                  {chip}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         {loading ? (
@@ -697,93 +762,14 @@ function ServiciosContent() {
           </div>
         ) : (
           <>
-            <div className="mb-4 md:mb-6">
-              {searchTerm ? (
-                <div className="bg-white rounded-xl md:rounded-2xl shadow-lg p-3 md:p-4 border-l-4 border-primary-500">
-                  <p className="text-gray-700 font-bold text-base md:text-lg">
-                    {filteredServices.length} {filteredServices.length === 1 ? 'resultado encontrado' : 'resultados encontrados'} para
-                    <span className="text-primary-600"> "{searchTerm}"</span>
-                  </p>
-                  <p className="text-gray-600 text-xs md:text-sm mt-1">
-                    Mostrando los resultados más relevantes
-                  </p>
-                </div>
-              ) : (
-                <p className="text-gray-700 font-bold text-base md:text-lg">
-                  {filteredServices.length} {filteredServices.length === 1 ? 'servicio disponible' : 'servicios disponibles'}
+            {searchTerm && (
+              <div className="mb-4 rounded-xl border-l-4 border-primary-500 bg-white p-3 shadow-sm md:mb-6 md:rounded-2xl md:p-4">
+                <p className="text-base font-bold text-gray-700 md:text-lg">
+                  {filteredServices.length} {filteredServices.length === 1 ? 'resultado encontrado' : 'resultados encontrados'} para
+                  <span className="text-primary-600"> "{searchTerm}"</span>
                 </p>
-              )}
-            </div>
-
-            <div className="mb-4 md:mb-6 overflow-hidden rounded-2xl border border-sky-100 bg-gradient-to-br from-cyan-50 via-white to-blue-50 shadow-sm">
-              <div className="border-b border-sky-100/80 px-3 py-3 md:px-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-primary-600 text-white">
-                      <Filter className="h-4 w-4" />
-                    </span>
-                    <div>
-                      <p className="text-sm font-extrabold text-gray-900">Filtros rápidos</p>
-                      <p className="text-xs text-gray-600">Refina resultados en segundos</p>
-                    </div>
-                  </div>
-                  <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-bold text-primary-700 ring-1 ring-primary-100">
-                    {filteredServices.length} visibles
-                  </span>
-                </div>
               </div>
-
-              <div className="space-y-3 px-3 py-3 md:px-4 md:py-4">
-                <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                  <button
-                    type="button"
-                    onClick={() => setQuickOnlyWithPartners((prev) => !prev)}
-                    className={`whitespace-nowrap rounded-full border px-3 py-2 text-xs font-bold transition md:text-sm ${
-                      quickOnlyWithPartners
-                        ? 'border-primary-600 bg-primary-600 text-white shadow-sm'
-                        : 'border-gray-200 bg-white text-gray-700 hover:border-primary-200 hover:text-primary-700'
-                    }`}
-                  >
-                    Solo con socios disponibles
-                  </button>
-                  {[0, 4, 4.5].map((rating) => (
-                    <button
-                      key={rating}
-                      type="button"
-                      onClick={() => setQuickMinRating(rating)}
-                      className={`whitespace-nowrap rounded-full border px-3 py-2 text-xs font-bold transition md:text-sm ${
-                        quickMinRating === rating
-                          ? 'border-primary-600 bg-primary-600 text-white shadow-sm'
-                          : 'border-gray-200 bg-white text-gray-700 hover:border-primary-200 hover:text-primary-700'
-                      }`}
-                    >
-                      {rating === 0 ? 'Todas las calificaciones' : `${rating}+ estrellas`}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 rounded-xl border border-sky-100 bg-white/80 p-2">
-                  <span className="px-2 text-[11px] font-bold uppercase tracking-wide text-gray-500 md:text-xs">
-                    Ordenar por
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <select
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value as SortBy)}
-                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-800 outline-none transition focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
-                    >
-                      <option value="RELEVANCE">Relevancia</option>
-                      <option value="ALPHA_ASC">Alfabetico A-Z</option>
-                      <option value="ALPHA_DESC">Alfabetico Z-A</option>
-                      <option value="RATING_DESC">Mejor calificacion</option>
-                      <option value="PARTNERS_DESC">Mas socios disponibles</option>
-                      <option value="PRICE_ASC">Menor precio</option>
-                      <option value="PRICE_DESC">Mayor precio</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-            </div>
+            )}
 
             {filteredServices.length === 0 ? (
               <div className="bg-white rounded-xl md:rounded-2xl border border-gray-200 p-6 text-center">
@@ -945,6 +931,118 @@ function ServiciosContent() {
           </>
         )}
       </div>
+
+      <div className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] left-0 right-0 z-30 px-4 md:bottom-6 md:left-auto md:right-6 md:px-0">
+        <button
+          type="button"
+          onClick={() => setShowRefineSheet(true)}
+          className="mx-auto flex w-full max-w-sm items-center justify-center gap-2 rounded-full bg-primary-600 px-5 py-3 text-sm font-bold text-white shadow-xl hover:bg-primary-700 md:w-auto"
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+          Refinar
+          <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs">{activeRefinementCount}</span>
+        </button>
+      </div>
+
+      {showRefineSheet && (
+        <div className="fixed inset-0 z-40">
+          <button
+            type="button"
+            onClick={() => setShowRefineSheet(false)}
+            className="absolute inset-0 bg-black/45"
+            aria-label="Cerrar panel de refinamiento"
+          />
+          <div className="absolute inset-x-0 bottom-0 max-h-[80vh] overflow-y-auto rounded-t-3xl bg-white p-4 shadow-2xl md:left-1/2 md:bottom-6 md:w-full md:max-w-lg md:-translate-x-1/2 md:rounded-2xl">
+            <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-gray-200 md:hidden" />
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-black text-gray-900">Refinar resultados</h3>
+              <button
+                type="button"
+                onClick={() => setShowRefineSheet(false)}
+                className="rounded-full p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                aria-label="Cerrar"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-5">
+              <div>
+                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-gray-500">Disponibilidad</p>
+                <button
+                  type="button"
+                  onClick={() => setQuickOnlyWithPartners((prev) => !prev)}
+                  className={`w-full rounded-xl border px-4 py-3 text-left text-sm font-semibold transition ${
+                    quickOnlyWithPartners
+                      ? 'border-primary-600 bg-primary-50 text-primary-700'
+                      : 'border-gray-200 bg-white text-gray-700'
+                  }`}
+                >
+                  Solo con socios disponibles
+                </button>
+              </div>
+
+              <div>
+                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-gray-500">Calificación mínima</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {[0, 4, 4.5].map((rating) => (
+                    <button
+                      key={rating}
+                      type="button"
+                      onClick={() => setQuickMinRating(rating)}
+                      className={`rounded-xl border px-3 py-2.5 text-xs font-bold transition ${
+                        quickMinRating === rating
+                          ? 'border-primary-600 bg-primary-600 text-white'
+                          : 'border-gray-200 bg-white text-gray-700'
+                      }`}
+                    >
+                      {rating === 0 ? 'Todas' : `${rating}+`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-gray-500">Ordenar por</p>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as SortBy)}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm font-semibold text-gray-800 outline-none transition focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
+                >
+                  <option value="RELEVANCE">Relevancia</option>
+                  <option value="ALPHA_ASC">Alfabético A-Z</option>
+                  <option value="ALPHA_DESC">Alfabético Z-A</option>
+                  <option value="RATING_DESC">Mejor calificación</option>
+                  <option value="PARTNERS_DESC">Más socios disponibles</option>
+                  <option value="PRICE_ASC">Menor precio</option>
+                  <option value="PRICE_DESC">Mayor precio</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-6 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setQuickMinRating(0)
+                  setQuickOnlyWithPartners(true)
+                  setSortBy('RELEVANCE')
+                }}
+                className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700"
+              >
+                Limpiar
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowRefineSheet(false)}
+                className="rounded-xl bg-primary-600 px-4 py-3 text-sm font-semibold text-white hover:bg-primary-700"
+              >
+                Ver resultados
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
