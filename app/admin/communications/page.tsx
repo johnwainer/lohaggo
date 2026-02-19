@@ -567,7 +567,14 @@ export default function AdminCommunicationsPage() {
   }
 
   const sendCampaign = async (campaignId: string) => {
-    await fetch(`/api/admin/messaging/campaigns/${campaignId}/send`, { method: 'POST' })
+    setCampaignFeedback(null)
+    const response = await fetch(`/api/admin/messaging/campaigns/${campaignId}/send`, { method: 'POST' })
+    const data = await response.json().catch(() => null)
+    if (!response.ok) {
+      setCampaignFeedback({ type: 'error', message: data?.error || 'No se pudo enviar la campaña' })
+      return
+    }
+    setCampaignFeedback({ type: 'ok', message: 'Campaña enviada correctamente' })
     await load()
     await loadMetrics(campaignId)
   }

@@ -121,7 +121,13 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
     onSectionChange?.(item.id)
     const href = getItemHref(item)
 
-    if (!item.isLink && pathname === '/admin') {
+    if (item.isLink && item.href) {
+      window.location.assign(item.href)
+      setIsOpen(false)
+      return
+    }
+
+    if (pathname === '/admin') {
       router.replace(href, { scroll: false })
     } else {
       router.push(href)
