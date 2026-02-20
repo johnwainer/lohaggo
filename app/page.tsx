@@ -198,9 +198,9 @@ export default async function Home() {
                   className="group"
                   aria-label={`Ver servicios de ${category.name}`}
                 >
-                  <div className="h-full min-h-[88px] sm:min-h-[104px] bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-2 sm:p-2.5 text-center hover:from-primary-50 hover:to-secondary-50 transition-all hover:shadow-md border border-transparent hover:border-primary-200">
+                  <div className="h-full min-h-[88px] sm:min-h-[104px] bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg px-2 py-1.5 sm:px-2.5 sm:py-2 text-center hover:from-primary-50 hover:to-secondary-50 transition-all hover:shadow-md border border-transparent hover:border-primary-200">
                     <div
-                      className="flex items-center justify-center mx-auto mb-1 group-hover:scale-105 transition-transform emoji-icon leading-none"
+                      className="flex items-center justify-center mx-auto mt-0.5 mb-1.5 sm:mb-2 group-hover:scale-105 transition-transform emoji-icon leading-none"
                       style={{ fontSize: '3em' }}
                       role="img"
                       aria-label={category.name}
