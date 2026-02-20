@@ -224,10 +224,7 @@ function PartnerDashboardContent() {
   const fetchBookings = async () => {
     setLoading(true)
     try {
-      let url = '/api/bookings'
-      if (filter) url += `?status=${filter}`
-
-      const res = await fetch(url)
+      const res = await fetch('/api/bookings')
       const data = await res.json()
       setBookings(Array.isArray(data) ? data : [])
     } catch (error) {
@@ -260,7 +257,7 @@ function PartnerDashboardContent() {
         fetchVerificationStatus()
       }
     }
-  }, [status, filter, session, activeTab])
+  }, [status, session, activeTab])
 
   useEffect(() => {
     const tab = searchParams.get('tab')

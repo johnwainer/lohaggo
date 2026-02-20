@@ -240,10 +240,6 @@ export default function DashboardPage() {
   }, [status])
 
   useEffect(() => {
-    fetchBookings()
-  }, [filter])
-
-  useEffect(() => {
     if (status === 'authenticated' && (bookings.length > 0 || serviceRequests.length > 0)) {
       fetchUnreadCounts()
       const interval = setInterval(fetchUnreadCounts, 5000)
@@ -296,10 +292,7 @@ export default function DashboardPage() {
   const fetchBookings = async () => {
     setLoading(true)
     try {
-      let url = '/api/bookings'
-      if (filter) url += `?status=${filter}`
-
-      const res = await fetch(url)
+      const res = await fetch('/api/bookings')
       const data = await res.json()
       setBookings(Array.isArray(data) ? data : [])
     } catch (error) {
