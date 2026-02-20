@@ -79,23 +79,34 @@ function RegisterForm() {
       fetch('/api/services')
         .then((res) => res.json())
         .then((data) => {
+          const sortFeaturedFirst = (items: Array<{ id: string; name: string; slug: string; basePrice?: number }>) =>
+            [...items].sort((a, b) => {
+              if (a.slug === 'lohaggo-ya' && b.slug !== 'lohaggo-ya') return -1
+              if (b.slug === 'lohaggo-ya' && a.slug !== 'lohaggo-ya') return 1
+              return a.name.localeCompare(b.name, 'es')
+            })
+
           if (data.services && Array.isArray(data.services)) {
             setServicesCatalog(
-              data.services.map((service: any) => ({
-                id: service.id,
-                name: service.name,
-                slug: service.slug,
-                basePrice: service.basePrice,
-              }))
+              sortFeaturedFirst(
+                data.services.map((service: any) => ({
+                  id: service.id,
+                  name: service.name,
+                  slug: service.slug,
+                  basePrice: service.basePrice,
+                }))
+              )
             )
           } else if (Array.isArray(data)) {
             setServicesCatalog(
-              data.map((service: any) => ({
-                id: service.id,
-                name: service.name,
-                slug: service.slug,
-                basePrice: service.basePrice,
-              }))
+              sortFeaturedFirst(
+                data.map((service: any) => ({
+                  id: service.id,
+                  name: service.name,
+                  slug: service.slug,
+                  basePrice: service.basePrice,
+                }))
+              )
             )
           } else {
             setServicesCatalog([])
@@ -926,9 +937,15 @@ function RegisterForm() {
                       </div>
                     ) : (
                       (() => {
-                        const filteredServices = servicesCatalog.filter((service) =>
-                          service.name.toLowerCase().includes(searchQuery.toLowerCase())
-                        )
+                        const filteredServices = servicesCatalog
+                          .filter((service) =>
+                            service.name.toLowerCase().includes(searchQuery.toLowerCase())
+                          )
+                          .sort((a, b) => {
+                            if (a.slug === 'lohaggo-ya' && b.slug !== 'lohaggo-ya') return -1
+                            if (b.slug === 'lohaggo-ya' && a.slug !== 'lohaggo-ya') return 1
+                            return 0
+                          })
 
                         if (filteredServices.length === 0) {
                           return (
@@ -941,6 +958,7 @@ function RegisterForm() {
                         return filteredServices.map((service) => {
                           const selected = formData.services.includes(service.slug)
                           const isDisabled = !selected && formData.services.length >= 5
+                          const isFeaturedService = service.slug === 'lohaggo-ya'
                           return (
                             <button
                               key={service.id}
@@ -952,11 +970,20 @@ function RegisterForm() {
                                   ? 'bg-primary-500/5 text-primary-600 font-semibold'
                                   : isDisabled
                                   ? 'bg-gray-50 opacity-50 cursor-not-allowed'
+                                  : isFeaturedService
+                                  ? 'bg-gradient-to-r from-primary-50 to-secondary-50 hover:from-primary-100 hover:to-secondary-100'
                                   : 'hover:bg-gray-50'
                               }`}
                             >
                               <div>
-                                <p className="text-sm font-medium">{service.name}</p>
+                                <div className="flex items-center gap-2">
+                                  <p className="text-sm font-medium">{service.name}</p>
+                                  {isFeaturedService && (
+                                    <span className="rounded-full bg-primary-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                                      Destacado
+                                    </span>
+                                  )}
+                                </div>
                                 {service.basePrice && (
                                   <p className="text-xs text-gray-500">
                                     Desde {formatCurrency(service.basePrice)}
