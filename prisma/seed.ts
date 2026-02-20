@@ -62,6 +62,15 @@ async function main() {
         order: 6,
       },
     }),
+    prisma.category.create({
+      data: {
+        name: 'Favor',
+        slug: 'favor',
+        description: 'Encargos y diligencias rápidas: compra, recogida y entrega',
+        icon: '🛵',
+        order: 0,
+      },
+    }),
   ])
 
   console.log('🔧 Creating services...')
@@ -202,6 +211,18 @@ async function main() {
         basePrice: 100000,
         duration: 240,
         categoryId: categories[5].id,
+      },
+    }),
+    prisma.service.create({
+      data: {
+        name: 'LoHaggo Ya',
+        slug: 'lohaggo-ya',
+        description: 'Te ayudamos con diligencias express: compras, retiros y entregas de forma rápida.',
+        icon: '🛵',
+        basePrice: 25000,
+        duration: 60,
+        popular: true,
+        categoryId: categories[6].id,
       },
     }),
   ])

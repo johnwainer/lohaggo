@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs')
 const prisma = new PrismaClient()
 
 const categories = [
+  { name: "Favor", slug: "favor", icon: "🛵", order: 0 },
   { name: "Hogar", slug: "hogar", icon: "🏠", order: 1 },
   { name: "Limpieza", slug: "limpieza", icon: "🧹", order: 2 },
   { name: "Reparaciones", slug: "reparaciones", icon: "🔧", order: 3 },
@@ -64,6 +65,7 @@ const services = [
   { name: "Paseo de perros", slug: "paseo-perros", description: "Paseo y ejercicio para tu mascota", icon: "🦮", category: "mascotas", basePrice: 30000, duration: 60, popular: true },
   { name: "Entrenamiento canino", slug: "entrenamiento-canino", description: "Adiestramiento profesional de perros", icon: "🎾", category: "mascotas", basePrice: 100000, duration: 60, popular: false },
   { name: "Lavado de autos", slug: "lavado-autos", description: "Lavado y detallado de vehículos", icon: "🚗", category: "transporte", basePrice: 60000, duration: 90, popular: false },
+  { name: "LoHaggo Ya", slug: "lohaggo-ya", description: "Encargos y diligencias express: compra, recogida y entrega en minutos.", icon: "🛵", category: "favor", basePrice: 25000, duration: 60, popular: true },
   { name: "Costura y arreglos", slug: "costura", description: "Arreglos de ropa y confección", icon: "🧵", category: "hogar", basePrice: 40000, duration: 60, popular: false },
   { name: "Asesoría legal", slug: "asesoria-legal", description: "Consultas legales básicas", icon: "⚖️", category: "educacion", basePrice: 160000, duration: 60, popular: false },
 ]

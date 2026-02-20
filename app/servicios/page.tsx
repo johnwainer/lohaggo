@@ -92,8 +92,9 @@ function ServiciosContent() {
       const filtered = items.filter((service) => {
         const availablePartners = service.partnerStats?.availableCount ?? service._count.partners
         const rating = service.partnerStats?.avgRating ?? 0
+        const isFeaturedErrand = service.slug === 'lohaggo-ya'
 
-        if (quickOnlyWithPartners && availablePartners <= 0) return false
+        if (!isFeaturedErrand && quickOnlyWithPartners && availablePartners <= 0) return false
         if (quickMinRating > 0 && rating < quickMinRating) return false
         return true
       })
@@ -137,6 +138,16 @@ function ServiciosContent() {
     () => applyQuickFiltersAndSort(relatedServices),
     [relatedServices, applyQuickFiltersAndSort]
   )
+
+  const featuredLohaggoYa = useMemo(
+    () => filteredServices.find((service) => service.slug === 'lohaggo-ya') ?? null,
+    [filteredServices]
+  )
+
+  const orderedServices = useMemo(() => {
+    if (!featuredLohaggoYa) return filteredServices
+    return [featuredLohaggoYa, ...filteredServices.filter((service) => service.id !== featuredLohaggoYa.id)]
+  }, [filteredServices, featuredLohaggoYa])
 
   const visibleCategories = useMemo(
     () => (showAllCategories ? categories : categories.slice(0, 7)),
@@ -602,7 +613,9 @@ function ServiciosContent() {
                   className={`px-4 md:px-6 py-2 md:py-3 rounded-xl md:rounded-2xl transition-all flex items-center gap-2 font-bold shadow-md text-sm md:text-base ${
                     selectedCategory === category.slug
                       ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white scale-105'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
+                      : category.slug === 'favor'
+                        ? 'bg-gradient-to-r from-primary-50 to-secondary-50 text-primary-700 hover:from-primary-100 hover:to-secondary-100 hover:scale-105 border border-primary-200'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
                   }`}
                 >
                   <span className="emoji-icon" style={{ fontSize: '3em' }}>{category.icon}</span>
@@ -801,11 +814,15 @@ function ServiciosContent() {
               </div>
             ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6" data-tour="services-grid">
-              {filteredServices.map((service) => (
+              {orderedServices.map((service) => (
                 <Link
                   key={service.id}
                   href={`/servicios/${service.slug}`}
-                  className="bg-white rounded-xl md:rounded-2xl shadow-md hover:shadow-2xl transition-all overflow-hidden group border-2 border-gray-100 hover:border-primary-500/30 transform hover:scale-105"
+                  className={`bg-white rounded-xl md:rounded-2xl shadow-md hover:shadow-2xl transition-all overflow-hidden group border-2 transform hover:scale-105 ${
+                    service.slug === 'lohaggo-ya'
+                      ? 'border-primary-300 ring-2 ring-primary-100'
+                      : 'border-gray-100 hover:border-primary-500/30'
+                  }`}
                 >
                   <div className="p-4 md:p-6">
                     <div className="flex items-start justify-between mb-3 md:mb-4">
@@ -813,6 +830,11 @@ function ServiciosContent() {
                         {service.icon}
                       </span>
                       <div className="flex items-center gap-2">
+                        {service.slug === 'lohaggo-ya' && (
+                          <span className="bg-gradient-to-r from-primary-500 to-secondary-500 text-white text-xs font-bold px-3 md:px-4 py-1.5 md:py-2 rounded-full">
+                            Destacado
+                          </span>
+                        )}
                         <span className="bg-gradient-to-r from-primary-500/10 to-secondary-500/10 text-primary-600 text-xs font-bold px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-primary-500/20">
                           {service.category.name}
                         </span>
@@ -833,6 +855,11 @@ function ServiciosContent() {
                     <h3 className="font-bold text-lg md:text-xl mb-2 md:mb-3 group-hover:text-primary-600 transition text-gray-900">
                       {service.name}
                     </h3>
+                    {service.slug === 'lohaggo-ya' && (
+                      <p className="mb-2 inline-flex items-center rounded-full bg-primary-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-primary-700">
+                        Encargos y diligencias express
+                      </p>
+                    )}
                     <p className="text-gray-600 text-xs md:text-sm mb-3 md:mb-4 line-clamp-2 font-medium">
                       {service.description}
                     </p>

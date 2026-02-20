@@ -89,6 +89,16 @@ export default async function Home() {
     take: 12
   })
 
+  const lohaggoYaService = await prisma.service.findUnique({
+    where: { slug: 'lohaggo-ya' },
+    include: {
+      category: true,
+      _count: {
+        select: { partners: true }
+      }
+    }
+  })
+
   const popularServices = await prisma.service.findMany({
     where: { popular: true },
     include: {
@@ -176,6 +186,31 @@ export default async function Home() {
       <section className="py-12 bg-white -mt-20 relative z-10" aria-labelledby="categories-heading">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl p-4 sm:p-6 md:p-8">
+            {lohaggoYaService && (
+              <Link
+                href={`/servicios/${lohaggoYaService.slug}`}
+                className="mb-4 sm:mb-6 block overflow-hidden rounded-2xl border border-primary-200 bg-gradient-to-r from-primary-600 via-secondary-500 to-accent-500 p-4 sm:p-5 text-white transition hover:shadow-xl"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="mb-1 inline-flex items-center rounded-full bg-white/20 px-2.5 py-1 text-xs font-bold uppercase tracking-wide">
+                      Nuevo destacado
+                    </p>
+                    <h3 className="text-xl sm:text-2xl font-black">{lohaggoYaService.name}</h3>
+                    <p className="mt-1 text-sm sm:text-base text-white/90">
+                      Encargos y diligencias en minutos. Compra, recoge y entrega sin complicaciones.
+                    </p>
+                    <p className="mt-2 text-xs sm:text-sm font-semibold text-white/90">
+                      Desde {formatCurrency(lohaggoYaService.basePrice)} · {lohaggoYaService._count.partners} socios disponibles
+                    </p>
+                  </div>
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/20 text-3xl backdrop-blur-sm">
+                    {lohaggoYaService.icon}
+                  </div>
+                </div>
+              </Link>
+            )}
+
             <div className="flex items-center justify-between gap-2 mb-3 sm:mb-5">
               <h2 id="categories-heading" className="text-xl sm:text-2xl md:text-3xl font-black text-gray-900">
                 Categorías de Servicios Profesionales
