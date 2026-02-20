@@ -8,7 +8,7 @@ import dynamic from 'next/dynamic'
 import {
   MessageSquare, Calendar, Clock, MapPin, Package, CheckCircle, DollarSign,
   TrendingUp, Activity, Search, Menu, X, Home, Bell,
-  Settings, LogOut, ChevronRight, Plus, AlertCircle, User, XCircle, Star,
+  Settings, LogOut, ChevronRight, Plus, AlertCircle, User, XCircle, Star, Filter,
   Shield, CreditCard, GraduationCap, ShieldCheck, MessageCircle, Heart
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
@@ -143,6 +143,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string>('')
   const [searchTerm, setSearchTerm] = useState('')
+  const [mobileStatusSheetOpen, setMobileStatusSheetOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<'overview' | 'bookings' | 'requests' | 'favorites'>('overview')
   const [imageGallery, setImageGallery] = useState<{ isOpen: boolean; photos: Array<{ id: string; url: string; order: number }>; initialIndex: number }>({ isOpen: false, photos: [], initialIndex: 0 })
 
@@ -1181,8 +1182,8 @@ export default function DashboardPage() {
 
           {activeTab === 'bookings' && (
             <div className="space-y-4 sm:space-y-6">
-              <div className="sticky top-16 z-20 bg-gradient-to-r from-primary-50 via-white to-primary-50 rounded-2xl sm:rounded-3xl shadow-lg border border-primary-100 p-4 sm:p-6">
-                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+              <div className="sticky top-14 sm:top-16 z-20 bg-gradient-to-r from-primary-50 via-white to-primary-50 rounded-2xl sm:rounded-3xl shadow-lg border border-primary-100 p-3 sm:p-6">
+                <div className="hidden sm:flex sm:flex-row gap-3 sm:gap-4">
                   <div className="flex-1 relative">
                     <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                     <input
@@ -1219,7 +1220,85 @@ export default function DashboardPage() {
                     ))}
                   </div>
                 </div>
+
+                <div className="sm:hidden space-y-2">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input
+                      type="text"
+                      placeholder="Buscar servicio o dirección..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-3 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-500"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-semibold text-gray-600">
+                      {filteredBookings.length} resultados {filter ? `· ${statusLabels[filter]}` : '· Todas'}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setMobileStatusSheetOpen(true)}
+                      className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border border-primary-200 bg-white px-3 text-xs font-semibold text-primary-700"
+                    >
+                      <Filter className="h-4 w-4" />
+                      Estados
+                    </button>
+                  </div>
+                </div>
               </div>
+
+              {mobileStatusSheetOpen && (
+                <div className="fixed inset-0 z-40 sm:hidden">
+                  <button
+                    type="button"
+                    aria-label="Cerrar filtros"
+                    onClick={() => setMobileStatusSheetOpen(false)}
+                    className="absolute inset-0 bg-black/40"
+                  />
+                  <div className="absolute bottom-0 left-0 right-0 rounded-t-2xl bg-white p-4 shadow-2xl">
+                    <div className="mb-3 flex items-center justify-between">
+                      <h4 className="text-sm font-bold text-gray-900">Filtrar por estado</h4>
+                      <button
+                        type="button"
+                        onClick={() => setMobileStatusSheetOpen(false)}
+                        className="rounded-lg px-2 py-1 text-xs font-semibold text-gray-600"
+                      >
+                        Cerrar
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFilter('')
+                          setMobileStatusSheetOpen(false)
+                        }}
+                        className={`rounded-xl px-3 py-2 text-xs font-semibold ${
+                          filter === '' ? 'bg-primary-600 text-white' : 'border border-gray-200 bg-gray-50 text-gray-700'
+                        }`}
+                      >
+                        Todas ({bookings.length})
+                      </button>
+                      {(['PENDING', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'PAID', 'RATED', 'CANCELLED'] as const).map((key) => (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => {
+                            setFilter(key)
+                            setMobileStatusSheetOpen(false)
+                          }}
+                          className={`rounded-xl px-3 py-2 text-xs font-semibold ${
+                            filter === key ? 'bg-primary-600 text-white' : 'border border-gray-200 bg-gray-50 text-gray-700'
+                          }`}
+                        >
+                          {statusLabels[key]} ({bookingFilterCounts[key] || 0})
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {filteredBookings.length === 0 ? (
                 <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg p-12 sm:p-16 text-center border border-gray-100">
