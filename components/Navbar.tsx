@@ -60,6 +60,14 @@ export function Navbar() {
     }
   }, [mobileMenuOpen])
 
+  useEffect(() => {
+    setMobileMenuOpen(false)
+    setMobileCityDropdownOpen(false)
+    setMobileRoleToolsOpen(false)
+    setMobileAccountOpen(false)
+    setUserMenuOpen(false)
+  }, [pathname])
+
   function CitySelector() {
     const [open, setOpen] = useState(false)
     const dropdownRef = useRef<HTMLDivElement>(null)

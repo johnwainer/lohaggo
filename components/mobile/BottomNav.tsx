@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Home, Search, Calendar, User } from 'lucide-react'
 import { useSession } from 'next-auth/react'
@@ -33,8 +34,8 @@ export function BottomNav() {
   ]
 
   const partnerTabs = [
-    { id: 'home', href: '/partner', icon: Home, label: 'Inicio', requiresAuth: false },
-    { id: 'services', href: '/partner/services', icon: Search, label: 'Servicios', requiresAuth: true },
+    { id: 'home', href: '/', icon: Home, label: 'Inicio', requiresAuth: false },
+    { id: 'services', href: '/servicios', icon: Search, label: 'Servicios', requiresAuth: false },
     { id: 'bookings', href: '/partner/requests', icon: Calendar, label: 'Reservas', requiresAuth: true },
     { id: 'profile', href: '/profile', icon: User, label: 'Perfil', requiresAuth: true },
   ]
@@ -43,9 +44,7 @@ export function BottomNav() {
 
   const isTabActive = (tab: { id: string; href: string }) => {
     if (tab.id === 'bookings' && isPartner) return pathname.startsWith('/partner/requests')
-    if (tab.id === 'home' && isPartner) return pathname === '/partner'
     if (tab.href === '/servicios') return pathname.startsWith('/servicios')
-    if (tab.href === '/partner/services') return pathname.startsWith('/partner/services')
     if (tab.href === '/dashboard') return pathname.startsWith('/dashboard')
     return pathname === tab.href
   }
@@ -57,19 +56,32 @@ export function BottomNav() {
           const isActive = isTabActive(tab)
           const Icon = tab.icon
 
+          if (tab.requiresAuth && !session) {
+            return (
+              <button
+                key={tab.id}
+                onClick={() => handleNavigation(tab.href, tab.requiresAuth)}
+                className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 transition-colors ${
+                  isActive ? 'text-primary-600' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <Icon className="w-6 h-6" />
+                <span className="text-xs font-medium">{tab.label}</span>
+              </button>
+            )
+          }
+
           return (
-            <button
+            <Link
               key={tab.id}
-              onClick={() => handleNavigation(tab.href, tab.requiresAuth)}
+              href={tab.href}
               className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 transition-colors ${
-                isActive
-                  ? 'text-primary-600'
-                  : 'text-gray-500 hover:text-gray-700'
+                isActive ? 'text-primary-600' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
               <Icon className="w-6 h-6" />
               <span className="text-xs font-medium">{tab.label}</span>
-            </button>
+            </Link>
           )
         })}
       </div>
