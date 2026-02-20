@@ -313,7 +313,7 @@ export default async function Home() {
       </section>
 
       {/* Popular Services */}
-      <section className="py-16 bg-white" aria-labelledby="popular-services-heading">
+      <section className="pt-8 pb-16 bg-white" aria-labelledby="popular-services-heading">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
             <div>
