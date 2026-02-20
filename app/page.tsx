@@ -207,7 +207,7 @@ export default async function Home() {
                     >
                       {category.icon}
                     </div>
-                    <div className="font-semibold text-[9px] sm:text-[11px] text-gray-800 group-hover:text-primary-600 transition leading-tight line-clamp-3">
+                    <div className="hidden sm:block font-semibold text-[11px] lg:text-sm text-gray-800 group-hover:text-primary-600 transition leading-tight line-clamp-3">
                       {category.name}
                     </div>
                   </div>
