@@ -91,12 +91,11 @@ SELECT
   pp."id",
   s."id",
   s."basePrice",
-  u."city",
+  pp."city",
   true,
   CURRENT_TIMESTAMP
 FROM lohaggo_ya s
 JOIN "PartnerProfile" pp ON true
-JOIN "User" u ON u."id" = pp."userId"
 ON CONFLICT ("partnerId", "serviceId") DO NOTHING;
 
 COMMIT;

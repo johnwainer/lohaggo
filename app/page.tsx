@@ -189,7 +189,7 @@ export default async function Home() {
             {lohaggoYaService && (
               <Link
                 href={`/servicios/${lohaggoYaService.slug}`}
-                className="mb-4 sm:mb-6 block overflow-hidden rounded-2xl border border-primary-200 bg-gradient-to-r from-primary-600 via-secondary-500 to-accent-500 p-4 sm:p-5 text-white transition hover:shadow-xl"
+                className="mb-6 sm:mb-8 block overflow-hidden rounded-2xl border border-primary-200 bg-gradient-to-r from-primary-600 via-secondary-500 to-accent-500 p-4 sm:p-5 text-white transition hover:shadow-xl"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -211,9 +211,9 @@ export default async function Home() {
               </Link>
             )}
 
-            <div className="flex items-center justify-between gap-2 mb-3 sm:mb-5">
+            <div className="flex items-center justify-between gap-2 mb-4 sm:mb-6">
               <h2 id="categories-heading" className="text-xl sm:text-2xl md:text-3xl font-black text-gray-900">
-                Categorías de Servicios Profesionales
+                Categorías
               </h2>
               <Link
                 href="/servicios"
