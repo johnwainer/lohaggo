@@ -1,13 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { X, Star } from 'lucide-react'
+import { Calendar, Star, X } from 'lucide-react'
 
 interface RatingModalProps {
   isOpen: boolean
   onClose: () => void
   bookingId: string
   serviceName: string
+  scheduledAt?: string
   reviewType: 'client' | 'partner'
   targetName: string
   onSuccess: () => void
@@ -18,6 +19,7 @@ export default function RatingModal({
   onClose,
   bookingId,
   serviceName,
+  scheduledAt,
   reviewType,
   targetName,
   onSuccess
@@ -65,23 +67,35 @@ export default function RatingModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl">
-        <div className="flex justify-between items-start mb-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-md rounded-2xl border border-primary-100 bg-white p-6 shadow-xl">
+        <div className="mb-6 flex items-start justify-between">
           <div>
             <h3 className="text-xl font-bold text-gray-900">
               Calificar {reviewType === 'client' ? 'Servicio' : 'Cliente'}
             </h3>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="mt-1 text-sm text-gray-600">
               {serviceName}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
           >
             <X className="w-6 h-6" />
           </button>
+        </div>
+
+        <div className="mb-5 rounded-xl border border-primary-100 bg-primary-50 px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-primary-700">Resumen del servicio</p>
+          <p className="mt-1 text-sm font-semibold text-gray-900">{serviceName}</p>
+          <p className="mt-1 text-xs text-gray-600">{reviewType === 'client' ? `Socio: ${targetName}` : `Cliente: ${targetName}`}</p>
+          {scheduledAt && (
+            <p className="mt-1 inline-flex items-center gap-1 text-xs text-gray-600">
+              <Calendar className="h-3.5 w-3.5" />
+              {scheduledAt}
+            </p>
+          )}
         </div>
 
         <div className="space-y-6">
@@ -129,7 +143,7 @@ export default function RatingModal({
               onChange={(e) => setComment(e.target.value)}
               placeholder="Cuéntanos sobre tu experiencia..."
               rows={4}
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              className="w-full resize-none rounded-xl border border-gray-300 px-4 py-3 focus:border-transparent focus:ring-2 focus:ring-primary-500"
             />
           </div>
 
@@ -137,14 +151,14 @@ export default function RatingModal({
             <button
               onClick={onClose}
               disabled={isSubmitting}
-              className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="flex-1 rounded-xl border border-gray-300 px-4 py-3 text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
             >
               Cancelar
             </button>
             <button
               onClick={handleSubmit}
               disabled={isSubmitting || rating === 0}
-              className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 rounded-xl bg-primary-600 px-4 py-3 text-white transition-colors hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isSubmitting ? 'Enviando...' : 'Enviar Calificación'}
             </button>

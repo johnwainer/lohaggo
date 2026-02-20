@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, Suspense } from 'react'
+import type { ReactNode } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
@@ -15,11 +16,13 @@ import Modal from '@/components/Modal'
 import ConfirmModal from '@/components/ConfirmModal'
 import ImageGalleryModal from '@/components/ImageGalleryModal'
 import RatingModal from '@/components/RatingModal'
+import UnifiedBookingCard from '@/components/shared/UnifiedBookingCard'
 import PartnerHeader from '@/components/partner/PartnerHeader'
 import StatCard from '@/components/shared/StatCard'
 import LoadingSpinner from '@/components/shared/LoadingSpinner'
 import EmptyState from '@/components/shared/EmptyState'
 import PlatformTrustBanner from '@/components/PlatformTrustBanner'
+import { getBookingVisualState, type BookingVisualState } from '@/lib/booking-status'
 
 const ChatModal = dynamic(() => import('@/components/ChatModal'), {
   ssr: false,
@@ -170,11 +173,13 @@ function PartnerDashboardContent() {
     bookingId: string
     serviceName: string
     clientName: string
+    scheduledAt: string
   }>({
     isOpen: false,
     bookingId: '',
     serviceName: '',
-    clientName: ''
+    clientName: '',
+    scheduledAt: ''
   })
 
   const [verificationAlert, setVerificationAlert] = useState<{
@@ -461,11 +466,39 @@ function PartnerDashboardContent() {
   const completedCount = bookings.filter(b => b.status === 'COMPLETED').length
   const inProgressCount = bookings.filter(b => b.status === 'IN_PROGRESS').length
 
-  const filteredBookings = bookings.filter(booking =>
-    booking.service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    booking.user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    booking.address.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredBookings = bookings
+    .filter(booking =>
+      booking.service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      booking.user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      booking.address.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .filter((booking) => {
+      if (!filter) return true
+      const visualState = getBookingVisualState('PARTNER', booking)
+      return visualState === filter
+    })
+    .sort((a, b) => {
+      const rank: Record<BookingVisualState, number> = {
+        PENDING: 1,
+        CONFIRMED: 2,
+        IN_PROGRESS: 3,
+        COMPLETED: 4,
+        PAID: 5,
+        RATED: 6,
+        CANCELLED: 7,
+      }
+      const aState = getBookingVisualState('PARTNER', a)
+      const bState = getBookingVisualState('PARTNER', b)
+      const rankDiff = rank[aState] - rank[bState]
+      if (rankDiff !== 0) return rankDiff
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    })
+
+  const bookingFilterCounts = bookings.reduce<Record<string, number>>((acc, booking) => {
+    const visualState = getBookingVisualState('PARTNER', booking)
+    acc[visualState] = (acc[visualState] || 0) + 1
+    return acc
+  }, {})
 
   const filteredRequests = serviceRequests.filter(request =>
     request.service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -502,9 +535,10 @@ function PartnerDashboardContent() {
 
       <RatingModal
         isOpen={ratingModal.isOpen}
-        onClose={() => setRatingModal({ isOpen: false, bookingId: '', serviceName: '', clientName: '' })}
+        onClose={() => setRatingModal({ isOpen: false, bookingId: '', serviceName: '', clientName: '', scheduledAt: '' })}
         bookingId={ratingModal.bookingId}
         serviceName={ratingModal.serviceName}
+        scheduledAt={ratingModal.scheduledAt}
         reviewType="partner"
         targetName={ratingModal.clientName}
         onSuccess={() => {
@@ -686,7 +720,7 @@ function PartnerDashboardContent() {
           {activeTab === 'bookings' && (
             <div className="space-y-4 sm:space-y-6">
               {/* Search and Filters */}
-              <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg p-4 sm:p-6 border border-gray-100">
+              <div className="sticky top-16 z-20 bg-white rounded-2xl sm:rounded-3xl shadow-lg p-4 sm:p-6 border border-gray-100">
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                   <div className="flex-1 relative">
                     <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
@@ -707,9 +741,9 @@ function PartnerDashboardContent() {
                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                     >
-                      Todas
+                      Todas ({bookings.length})
                     </button>
-                    {Object.entries(DESIGN_SYSTEM.statusLabels).map(([key, label]) => (
+                    {(['PENDING', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'RATED', 'CANCELLED'] as const).map((key) => (
                       <button
                         key={key}
                         onClick={() => setFilter(key)}
@@ -719,7 +753,7 @@ function PartnerDashboardContent() {
                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         }`}
                       >
-                        {label}
+                        {DESIGN_SYSTEM.statusLabels[key]} ({bookingFilterCounts[key] || 0})
                       </button>
                     ))}
                   </div>
@@ -734,181 +768,121 @@ function PartnerDashboardContent() {
                   </div>
                   <p className="text-gray-900 text-xl font-bold mb-2">No hay reservas</p>
                   <p className="text-gray-500 text-base">Las reservas aparecerán aquí cuando los clientes las realicen</p>
+                  <button
+                    type="button"
+                    onClick={() => router.push('/partner/services')}
+                    className="mt-5 inline-flex min-h-[44px] items-center justify-center rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-700"
+                  >
+                    Configurar servicios
+                  </button>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-                  {filteredBookings.map((booking) => (
-                    <div key={booking.id} className="bg-white rounded-2xl sm:rounded-3xl shadow-lg hover:shadow-xl transition-all overflow-hidden border border-gray-200">
-                      <div className="p-5 sm:p-6">
-                        <div className="flex items-start gap-4 mb-5">
-                          <div className="text-4xl sm:text-5xl">{booking.service.icon}</div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex flex-wrap items-center gap-2 mb-2">
-                              <h3 className="font-bold text-lg sm:text-xl text-gray-900">{booking.service.name}</h3>
-                              <span className={`text-xs font-semibold px-3 py-1.5 rounded-full border-2 ${getStatusClasses(booking.status)}`}>
-                                {getStatusLabel(booking.status)}
-                              </span>
-                            </div>
-                            <p className="text-2xl sm:text-3xl font-bold text-primary-600 mt-2">{formatCurrency(booking.totalPrice)}</p>
-                          </div>
-                        </div>
+                  {filteredBookings.map((booking) => {
+                    const visualState = getBookingVisualState('PARTNER', booking)
+                    const priorityBadges: string[] = []
+                    if (booking.status === 'PENDING') priorityBadges.push('ACCION REQUERIDA')
+                    if (booking.status === 'IN_PROGRESS') priorityBadges.push('TIEMPO ESTIMADO')
 
-                        <div className="bg-gray-50 border-2 border-gray-200 rounded-xl p-4 mb-4">
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className="bg-gray-200 rounded-lg p-1.5">
-                              <User size={16} className="text-gray-600" />
-                            </div>
-                            <span className="font-bold text-gray-900">{booking.user.name}</span>
-                          </div>
-                          <p className="text-sm text-gray-600 flex items-center gap-2">📧 {booking.user.email}</p>
-                          {booking.user.phone && (
-                            <p className="text-sm text-gray-600 flex items-center gap-2 mt-1">📱 {booking.user.phone}</p>
-                          )}
-                        </div>
+                    const primaryAction =
+                      booking.status === 'PENDING'
+                        ? {
+                            label: 'Confirmar',
+                            onClick: () => updateBookingStatus(booking.id, 'CONFIRMED', booking.service.name),
+                            icon: <CheckCircle size={18} />,
+                            variant: 'primary' as const,
+                            disabled: session?.user?.isActive === false,
+                          }
+                        : booking.status === 'CONFIRMED'
+                        ? {
+                            label: 'Iniciar servicio',
+                            onClick: () => updateBookingStatus(booking.id, 'IN_PROGRESS', booking.service.name),
+                            icon: <Activity size={18} />,
+                            variant: 'primary' as const,
+                            disabled: session?.user?.isActive === false,
+                          }
+                        : booking.status === 'IN_PROGRESS'
+                        ? {
+                            label: 'Marcar completado',
+                            onClick: () => updateBookingStatus(booking.id, 'COMPLETED', booking.service.name),
+                            icon: <CheckCircle size={18} />,
+                            variant: 'primary' as const,
+                            disabled: session?.user?.isActive === false,
+                          }
+                        : visualState === 'COMPLETED'
+                        ? {
+                            label: 'Calificar cliente',
+                            onClick: () =>
+                              setRatingModal({
+                                isOpen: true,
+                                bookingId: booking.id,
+                                serviceName: booking.service.name,
+                                clientName: booking.user.name,
+                                scheduledAt: `${new Date(booking.scheduledDate).toLocaleDateString('es-ES')} · ${booking.scheduledTime}`,
+                              }),
+                            icon: <Star size={18} />,
+                            variant: 'primary' as const,
+                            disabled: session?.user?.isActive === false,
+                          }
+                        : undefined
 
-                        <div className="space-y-3 mb-4">
-                          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl border-2 border-gray-200">
-                            <div className="bg-gray-200 rounded-lg p-2 flex-shrink-0">
-                              <Calendar size={18} className="text-gray-600" />
-                            </div>
-                            <div>
-                              <p className="text-xs text-gray-500 font-semibold mb-1">Fecha programada</p>
-                              <span className="text-sm font-medium text-gray-900">
-                                {new Date(booking.scheduledDate).toLocaleDateString('es-ES', {
-                                  weekday: 'long',
-                                  day: 'numeric',
-                                  month: 'long'
-                                })}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl border-2 border-gray-200">
-                            <div className="bg-gray-200 rounded-lg p-2 flex-shrink-0">
-                              <Clock size={18} className="text-gray-600" />
-                            </div>
-                            <div>
-                              <p className="text-xs text-gray-500 font-semibold mb-1">Hora</p>
-                              <span className="text-sm font-medium text-gray-900">{booking.scheduledTime}</span>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl border-2 border-gray-200">
-                            <div className="bg-gray-200 rounded-lg p-2 flex-shrink-0">
-                              <MapPin size={18} className="text-gray-600" />
-                            </div>
-                            <div>
-                              <p className="text-xs text-gray-500 font-semibold mb-1">Dirección</p>
-                              <span className="text-sm font-medium text-gray-900">{booking.address}</span>
-                            </div>
-                          </div>
-                        </div>
+                    const secondaryActions: Array<{
+                      label: string
+                      onClick: () => void
+                      icon?: ReactNode
+                      variant?: 'primary' | 'secondary' | 'ghost'
+                      disabled?: boolean
+                      badge?: number
+                    }> = []
 
-                        {booking.notes && (
-                          <div className="bg-gray-50 border-2 border-gray-200 rounded-xl p-4 mb-4">
-                            <p className="text-xs font-semibold text-gray-700 mb-2">Notas del cliente:</p>
-                            <p className="text-sm text-gray-800">{booking.notes}</p>
-                          </div>
-                        )}
+                    if (booking.proposalId && booking.status !== 'CANCELLED') {
+                      secondaryActions.push({
+                        label: 'Chat',
+                        onClick: () =>
+                          setChatModal({
+                            isOpen: true,
+                            proposalId: booking.proposalId!,
+                            partnerName: session?.user?.name || 'Socio',
+                            serviceName: booking.service.name,
+                          }),
+                        icon: <MessageCircle size={16} />,
+                        variant: 'secondary',
+                        disabled: session?.user?.isActive === false,
+                        badge: unreadCounts[booking.proposalId!] || 0,
+                      })
+                    }
 
-                        {booking.status === 'COMPLETED' && !booking.review?.partnerToClientRating && (
-                          <button
-                            onClick={() => setRatingModal({
-                              isOpen: true,
-                              bookingId: booking.id,
-                              serviceName: booking.service.name,
-                              clientName: booking.user.name
-                            })}
-                            className="w-full bg-gradient-to-r from-primary-500 to-primary-600 text-white px-4 py-3.5 rounded-xl hover:from-primary-600 hover:to-primary-700 transition-all font-semibold flex items-center justify-center gap-2 mb-3 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:from-gray-400 disabled:to-gray-500"
-                            disabled={session?.user?.isActive === false}
-                          >
-                            <Star size={20} />
-                            Calificar Cliente
-                          </button>
-                        )}
+                    if (booking.status === 'PENDING') {
+                      secondaryActions.push({
+                        label: 'Rechazar',
+                        onClick: () => updateBookingStatus(booking.id, 'CANCELLED', booking.service.name),
+                        icon: <XCircle size={16} />,
+                        variant: 'secondary',
+                        disabled: session?.user?.isActive === false,
+                      })
+                    }
 
-                        {booking.status === 'COMPLETED' && booking.review?.partnerToClientRating && (
-                          <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl p-4 mb-3">
-                            <div className="flex items-center gap-2 text-emerald-700">
-                              <CheckCircle size={18} />
-                              <span className="text-sm font-semibold">Cliente calificado</span>
-                              <div className="flex ml-auto">
-                                {[...Array(5)].map((_, i) => (
-                                  <Star
-                                    key={i}
-                                    size={16}
-                                    className={i < (booking.review?.partnerToClientRating || 0) ? 'fill-emerald-500 text-emerald-500' : 'text-gray-300'}
-                                  />
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {booking.proposalId && booking.payment?.status !== 'APPROVED' && (
-                          <button
-                            onClick={() => setChatModal({
-                              isOpen: true,
-                              proposalId: booking.proposalId!,
-                              partnerName: session?.user?.name || 'Socio',
-                              serviceName: booking.service.name
-                            })}
-                            className="w-full bg-white text-gray-700 border-2 border-gray-300 px-4 py-3.5 rounded-xl hover:bg-gray-50 transition-all font-semibold flex items-center justify-center gap-2 mb-3 relative shadow-md hover:shadow-lg"
-                            disabled={session?.user?.isActive === false}
-                          >
-                            <MessageCircle size={20} />
-                            Chat con el Cliente
-                            {unreadCounts[booking.proposalId!] > 0 && (
-                              <span className="absolute -top-2 -right-2 bg-gradient-to-r from-primary-500 to-primary-600 text-white text-xs font-bold rounded-full h-7 w-7 flex items-center justify-center animate-pulse shadow-lg">
-                                {unreadCounts[booking.proposalId!]}
-                              </span>
-                            )}
-                          </button>
-                        )}
-
-                        {booking.payment?.status !== 'APPROVED' && booking.status !== 'COMPLETED' && (
-                          <div className="flex gap-2">
-                            {booking.status === 'PENDING' && (
-                              <>
-                                <button
-                                  onClick={() => updateBookingStatus(booking.id, 'CONFIRMED', booking.service.name)}
-                                  className="flex-1 bg-gradient-to-r from-primary-500 to-primary-600 text-white px-4 py-3.5 rounded-xl hover:from-primary-600 hover:to-primary-700 transition-all font-semibold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-                                  disabled={session?.user?.isActive === false}
-                                >
-                                  <CheckCircle size={20} />
-                                  Confirmar
-                                </button>
-                                <button
-                                  onClick={() => updateBookingStatus(booking.id, 'CANCELLED', booking.service.name)}
-                                  className="flex-1 bg-white text-gray-700 border-2 border-gray-400 px-4 py-3.5 rounded-xl hover:bg-gray-50 transition-all font-semibold flex items-center justify-center gap-2 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                                  disabled={session?.user?.isActive === false}
-                                >
-                                  <XCircle size={20} />
-                                  Rechazar
-                                </button>
-                              </>
-                            )}
-                            {booking.status === 'CONFIRMED' && (
-                              <button
-                                onClick={() => updateBookingStatus(booking.id, 'IN_PROGRESS', booking.service.name)}
-                                className="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-3.5 rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-                                disabled={session?.user?.isActive === false}
-                              >
-                                Iniciar Servicio
-                              </button>
-                            )}
-                            {booking.status === 'IN_PROGRESS' && (
-                              <button
-                                onClick={() => updateBookingStatus(booking.id, 'COMPLETED', booking.service.name)}
-                                className="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white px-4 py-3.5 rounded-xl hover:from-emerald-600 hover:to-green-700 transition-all font-semibold shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-                                disabled={session?.user?.isActive === false}
-                              >
-                                Marcar Completado
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                    return (
+                      <UnifiedBookingCard
+                        key={booking.id}
+                        role="PARTNER"
+                        serviceName={booking.service.name}
+                        serviceIcon={booking.service.icon}
+                        counterpartName={booking.user.name}
+                        counterpartLabel="Cliente"
+                        visualState={visualState}
+                        totalPrice={formatCurrency(booking.totalPrice)}
+                        scheduledDate={booking.scheduledDate}
+                        scheduledTime={booking.scheduledTime}
+                        address={booking.address}
+                        notes={booking.notes}
+                        priorityBadges={priorityBadges}
+                        primaryAction={primaryAction}
+                        secondaryActions={secondaryActions}
+                        metadataInline={`${new Date(booking.scheduledDate).toLocaleDateString('es-ES')} · ${booking.scheduledTime} · ${booking.address}`}
+                      />
+                    )
+                  })}
                 </div>
               )}
             </div>

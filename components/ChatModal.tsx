@@ -169,27 +169,27 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-2xl h-[600px] md:h-[700px] flex flex-col shadow-2xl">
-        <div className="bg-gradient-to-r from-primary-500 to-secondary-500 p-4 md:p-6 text-white rounded-t-2xl flex items-center justify-between">
+    <div className="fixed inset-0 z-50 bg-black/50 p-0 sm:flex sm:items-center sm:justify-center sm:p-4">
+      <div className="flex h-full w-full flex-col bg-white shadow-2xl sm:h-[700px] sm:max-w-2xl sm:rounded-2xl">
+        <div className="flex items-center justify-between bg-gradient-to-r from-primary-500 to-secondary-500 px-4 py-3 text-white sm:rounded-t-2xl">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 md:w-12 md:h-12 bg-white/20 rounded-full flex items-center justify-center">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20">
               <MessageCircle size={20} className="md:w-6 md:h-6" />
             </div>
             <div>
-              <h2 className="text-lg md:text-xl font-bold">{partnerName}</h2>
-              <p className="text-xs md:text-sm text-white/80">{serviceName}</p>
+              <h2 className="text-base font-bold sm:text-lg">{partnerName}</h2>
+              <p className="text-xs text-white/80 sm:text-sm">{serviceName}</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-white hover:bg-white/20 rounded-full p-2 transition"
+            className="rounded-full p-2 text-white transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
           >
-            <X size={20} className="md:w-6 md:h-6" />
+            <X size={20} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 bg-gray-50">
+        <div className="flex-1 space-y-4 overflow-y-auto bg-gray-50 p-4 sm:p-6">
           <PlatformTrustBanner
             variant="warning"
             context="chat"
@@ -201,7 +201,7 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
               <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
             </div>
           ) : messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center">
+            <div className="flex h-full flex-col items-center justify-center text-center">
               <MessageCircle size={48} className="text-gray-300 mb-4" />
               <p className="text-gray-500 font-medium">No hay mensajes aún</p>
               <p className="text-gray-400 text-sm mt-2">Envía el primer mensaje para iniciar la conversación</p>
@@ -212,17 +212,17 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
 
               if (isSystem) {
                 return (
-                  <div key={message.id} className="flex justify-center my-4">
-                    <div className="max-w-[90%] md:max-w-[75%] bg-yellow-50 border border-yellow-400 rounded-xl px-4 py-3 shadow-sm">
+                  <div key={message.id} className="my-4 flex justify-center">
+                    <div className="max-w-[92%] rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 shadow-sm sm:max-w-[75%]">
                       <div className="flex items-start gap-2">
-                        <div className="flex-shrink-0 w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center text-sm">
+                        <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-amber-400 text-sm">
                           ⚠️
                         </div>
                         <div className="flex-1">
-                          <p className="text-xs md:text-sm text-gray-800 font-medium whitespace-pre-line leading-relaxed">
+                          <p className="whitespace-pre-line text-xs font-medium leading-relaxed text-gray-800 sm:text-sm">
                             {message.content}
                           </p>
-                          <p className="text-[10px] md:text-xs mt-1.5 text-gray-500">
+                          <p className="mt-1.5 text-[10px] text-gray-500 sm:text-xs">
                             {formatDistanceToNow(new Date(message.createdAt), {
                               addSuffix: true,
                               locale: es
@@ -241,10 +241,10 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
                   className={`flex ${isOwnMessage(message.senderId) ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[75%] md:max-w-[70%] rounded-2xl px-4 py-3 ${
+                    className={`max-w-[80%] rounded-2xl px-4 py-3 sm:max-w-[70%] ${
                       isOwnMessage(message.senderId)
-                        ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white'
-                        : 'bg-white text-gray-800 border border-gray-200'
+                        ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white shadow-md'
+                        : 'border border-gray-200 bg-white text-gray-800'
                     }`}
                   >
                     <p className="text-sm md:text-base break-words">{message.content}</p>
@@ -266,7 +266,10 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
           <div ref={messagesEndRef} />
         </div>
 
-        <form onSubmit={sendMessage} className="p-4 md:p-6 bg-white border-t border-gray-200 rounded-b-2xl">
+        <form
+          onSubmit={sendMessage}
+          className="border-t border-gray-200 bg-white px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:rounded-b-2xl sm:px-6 sm:py-4"
+        >
           <div className="flex gap-2 md:gap-3">
             <input
               ref={inputRef}
@@ -276,12 +279,12 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
               placeholder="Escribe un mensaje..."
               disabled={loading || sending}
               autoFocus
-              className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none text-sm md:text-base disabled:bg-gray-100 disabled:cursor-not-allowed"
+              className="flex-1 rounded-xl border-2 border-gray-200 px-4 py-3 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500 disabled:cursor-not-allowed disabled:bg-gray-100 md:text-base"
             />
             <button
               type="submit"
               disabled={!newMessage.trim() || loading || sending}
-              className="bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-4 md:px-6 py-3 rounded-xl hover:from-primary-600 hover:to-secondary-600 transition-all font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary-500 to-secondary-500 px-4 py-3 font-bold text-white transition-all hover:from-primary-600 hover:to-secondary-600 disabled:cursor-not-allowed disabled:opacity-50 md:px-6"
             >
               {sending ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
