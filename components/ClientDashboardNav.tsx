@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Home, Package, MessageSquare, Heart, Bell } from 'lucide-react'
 import { useNotificationUnreadCount } from '@/hooks/useNotificationUnreadCount'
@@ -10,6 +11,7 @@ interface ClientDashboardNavProps {
   favoritesCount?: number
   notificationsCount?: number
   activeTab?: 'overview' | 'bookings' | 'requests' | 'favorites' | 'notifications' | null
+  onTabChange?: (tab: 'overview' | 'bookings' | 'requests' | 'favorites') => void
 }
 
 export default function ClientDashboardNav({
@@ -17,102 +19,89 @@ export default function ClientDashboardNav({
   requestsCount = 0,
   favoritesCount = 0,
   notificationsCount,
-  activeTab = null
+  activeTab = null,
+  onTabChange
 }: ClientDashboardNavProps) {
   const router = useRouter()
   const liveNotificationsCount = useNotificationUnreadCount(true)
   const unreadNotifications = notificationsCount ?? liveNotificationsCount
 
+  const navItems = useMemo(() => ([
+    { id: 'overview' as const, label: 'Resumen', icon: Home, path: '/dashboard', badge: 0 },
+    { id: 'bookings' as const, label: 'Reservas', icon: Package, path: '/dashboard?tab=bookings', badge: bookingsCount },
+    { id: 'requests' as const, label: 'Solicitudes', icon: MessageSquare, path: '/dashboard?tab=requests', badge: requestsCount },
+    { id: 'favorites' as const, label: 'Favoritos', icon: Heart, path: '/dashboard?tab=favorites', badge: favoritesCount },
+    { id: 'notifications' as const, label: 'Notifs', icon: Bell, path: '/notifications', badge: unreadNotifications },
+  ]), [bookingsCount, requestsCount, favoritesCount, unreadNotifications])
+
+  const handleNav = (item: (typeof navItems)[number]) => {
+    if (onTabChange && item.id !== 'notifications') {
+      onTabChange(item.id)
+      return
+    }
+    router.push(item.path)
+  }
+
   return (
-    <div className="border-t border-gray-200 bg-gray-50">
-      <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
-        <nav className="flex gap-0.5 sm:gap-1 overflow-x-auto scrollbar-hide">
-          <button
-            onClick={() => router.push('/dashboard')}
-            data-testid="dashboard-tab-overview"
-            className={`flex items-center gap-2 sm:gap-2 px-4 sm:px-4 py-3 sm:py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${
-              activeTab === 'overview'
-                ? 'border-primary-600 text-primary-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
-            }`}
-          >
-            <Home size={24} className="sm:w-[22px] sm:h-[22px]" />
-            <span className="hidden sm:inline">Resumen</span>
-          </button>
+    <>
+      <div className="hidden md:block border-t border-gray-200 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
+          <nav className="flex gap-1 overflow-x-auto scrollbar-hide snap-x snap-mandatory">
+            {navItems.map((item) => {
+              const Icon = item.icon
+              const isActive = activeTab === item.id
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => handleNav(item)}
+                  data-testid={`dashboard-tab-${item.id}`}
+                  className={`snap-start flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${
+                    isActive
+                      ? 'border-primary-600 text-primary-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span>{item.label}</span>
+                  {item.badge > 0 && (
+                    <span className="bg-primary-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">
+                      {item.badge > 99 ? '99+' : item.badge}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </nav>
+        </div>
+      </div>
 
-          <button
-            onClick={() => router.push('/dashboard')}
-            data-testid="dashboard-tab-bookings"
-            className={`flex items-center gap-2 sm:gap-2 px-4 sm:px-4 py-3 sm:py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${
-              activeTab === 'bookings'
-                ? 'border-primary-600 text-primary-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
-            }`}
-          >
-            <Package size={24} className="sm:w-[22px] sm:h-[22px]" />
-            <span className="hidden sm:inline">Mis Reservas</span>
-            {bookingsCount > 0 && (
-              <span className="bg-primary-600 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
-                {bookingsCount}
-              </span>
-            )}
-          </button>
-
-          <button
-            onClick={() => router.push('/dashboard')}
-            data-testid="dashboard-tab-requests"
-            className={`flex items-center gap-2 sm:gap-2 px-4 sm:px-4 py-3 sm:py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${
-              activeTab === 'requests'
-                ? 'border-primary-600 text-primary-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
-            }`}
-          >
-            <MessageSquare size={24} className="sm:w-[22px] sm:h-[22px]" />
-            <span className="hidden sm:inline">Mis Solicitudes</span>
-            {requestsCount > 0 && (
-              <span className="bg-primary-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
-                {requestsCount}
-              </span>
-            )}
-          </button>
-
-          <button
-            onClick={() => router.push('/dashboard?tab=favorites')}
-            data-testid="dashboard-tab-favorites"
-            className={`flex items-center gap-2 sm:gap-2 px-4 sm:px-4 py-3 sm:py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${
-              activeTab === 'favorites'
-                ? 'border-primary-600 text-primary-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
-            }`}
-          >
-            <Heart size={24} className="sm:w-[22px] sm:h-[22px]" />
-            <span className="hidden sm:inline">Favoritos</span>
-            {favoritesCount > 0 && (
-              <span className="bg-primary-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
-                {favoritesCount}
-              </span>
-            )}
-          </button>
-
-          <button
-            onClick={() => router.push('/notifications')}
-            data-testid="dashboard-tab-notifications"
-            className={`flex items-center gap-2 sm:gap-2 px-4 sm:px-4 py-3 sm:py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${
-              activeTab === 'notifications'
-                ? 'border-primary-600 text-primary-600'
-                : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
-            }`}
-          >
-            <Bell size={24} className="sm:w-[22px] sm:h-[22px]" />
-            <span className="hidden sm:inline">Notificaciones</span>
-            {unreadNotifications > 0 && (
-              <span className="bg-primary-600 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full">
-                {unreadNotifications > 99 ? '99+' : unreadNotifications}
-              </span>
-            )}
-          </button>
+      <div className="h-[84px] md:hidden" />
+      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white/95 backdrop-blur-md md:hidden">
+        <nav className="mx-auto grid max-w-2xl grid-cols-5 gap-1 px-2 pt-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">
+          {navItems.map((item) => {
+            const Icon = item.icon
+            const isActive = activeTab === item.id
+            return (
+              <button
+                key={item.id}
+                onClick={() => handleNav(item)}
+                data-testid={`dashboard-tab-${item.id}`}
+                className={`relative flex min-h-[56px] flex-col items-center justify-center rounded-xl text-[11px] font-medium transition ${
+                  isActive ? 'bg-primary-50 text-primary-700' : 'text-gray-600 active:scale-95'
+                }`}
+              >
+                <Icon className="h-5 w-5" />
+                <span>{item.label}</span>
+                {item.badge > 0 && (
+                  <span className="absolute right-3 top-1 inline-flex min-w-5 h-5 items-center justify-center rounded-full bg-primary-600 px-1 text-[10px] font-bold text-white">
+                    {item.badge > 99 ? '99+' : item.badge}
+                  </span>
+                )}
+              </button>
+            )
+          })}
         </nav>
       </div>
-    </div>
+    </>
   )
 }

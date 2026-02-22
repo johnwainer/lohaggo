@@ -17,6 +17,7 @@ import ConfirmModal from '@/components/ConfirmModal'
 import ImageGalleryModal from '@/components/ImageGalleryModal'
 import RatingModal from '@/components/RatingModal'
 import UnifiedBookingCard from '@/components/shared/UnifiedBookingCard'
+import ClientDashboardNav from '@/components/ClientDashboardNav'
 import { getBookingVisualState, type BookingVisualState } from '@/lib/booking-status'
 import { useNotificationUnreadCount } from '@/hooks/useNotificationUnreadCount'
 
@@ -822,88 +823,14 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="border-t border-gray-200 bg-gray-50">
-            <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
-              <nav className="flex gap-1 overflow-x-auto scrollbar-hide snap-x snap-mandatory">
-                <button
-                  onClick={() => setActiveTab('overview')}
-                  className={`snap-start flex items-center gap-2 px-4 py-3.5 text-sm font-medium border-b-2 transition whitespace-nowrap ${
-                    activeTab === 'overview'
-                      ? 'border-primary-600 text-primary-600'
-                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
-                  }`}
-                >
-                  <Home className="w-7 h-7 sm:w-6 sm:h-6" />
-                  <span className="hidden sm:inline">Resumen</span>
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('bookings')}
-                  className={`snap-start flex items-center gap-2 px-4 py-3.5 text-sm font-medium border-b-2 transition whitespace-nowrap ${
-                    activeTab === 'bookings'
-                      ? 'border-primary-600 text-primary-600'
-                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
-                  }`}
-                >
-                  <Package className="w-7 h-7 sm:w-6 sm:h-6" />
-                  <span className="hidden sm:inline">Mis Reservas</span>
-                  {bookings.length > 0 && (
-                    <span className="inline-flex items-center justify-center min-w-6 h-6 px-1.5 bg-primary-600 text-white text-[10px] sm:text-xs rounded-full">
-                      {bookings.length}
-                    </span>
-                  )}
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('requests')}
-                  className={`snap-start flex items-center gap-2 px-4 py-3.5 text-sm font-medium border-b-2 transition whitespace-nowrap ${
-                    activeTab === 'requests'
-                      ? 'border-primary-600 text-primary-600'
-                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
-                  }`}
-                >
-                  <MessageSquare className="w-7 h-7 sm:w-6 sm:h-6" />
-                  <span className="hidden sm:inline">Mis Solicitudes</span>
-                  {serviceRequests.length > 0 && (
-                    <span className="inline-flex items-center justify-center min-w-6 h-6 px-1.5 bg-primary-500 text-white text-[10px] sm:text-xs rounded-full">
-                      {serviceRequests.length}
-                    </span>
-                  )}
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('favorites')}
-                  className={`snap-start flex items-center gap-2 px-4 py-3.5 text-sm font-medium border-b-2 transition whitespace-nowrap ${
-                    activeTab === 'favorites'
-                      ? 'border-primary-600 text-primary-600'
-                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
-                  }`}
-                >
-                  <Heart className="w-7 h-7 sm:w-6 sm:h-6" />
-                  <span className="hidden sm:inline">Favoritos</span>
-                  {favoritePartners.length > 0 && (
-                    <span className="inline-flex items-center justify-center min-w-6 h-6 px-1.5 bg-primary-500 text-white text-[10px] sm:text-xs rounded-full">
-                      {favoritePartners.length}
-                    </span>
-                  )}
-                </button>
-
-                <button
-                  onClick={() => router.push('/notifications')}
-                  className="snap-start flex items-center gap-2 px-4 py-3.5 text-sm font-medium border-b-2 transition whitespace-nowrap border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300"
-                >
-                  <Bell className="w-7 h-7 sm:w-6 sm:h-6" />
-                  <span className="hidden sm:inline">Notificaciones</span>
-                  {unreadNotifications > 0 && (
-                    <span className="inline-flex items-center justify-center min-w-6 h-6 px-1.5 bg-primary-600 text-white text-[10px] sm:text-xs rounded-full">
-                      {unreadNotifications > 99 ? '99+' : unreadNotifications}
-                    </span>
-                  )}
-                </button>
-
-              </nav>
-            </div>
-          </div>
+          <ClientDashboardNav
+            bookingsCount={bookings.length}
+            requestsCount={serviceRequests.length}
+            favoritesCount={favoritePartners.length}
+            notificationsCount={unreadNotifications}
+            activeTab={activeTab}
+            onTabChange={(tab) => setActiveTab(tab)}
+          />
         </header>
 
         <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
