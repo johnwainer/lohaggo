@@ -62,9 +62,12 @@ export default function AdminDocumentsPage() {
   const [partners, setPartners] = useState<any[]>([])
 
   useEffect(() => {
+    if (status === 'loading') return
     if (status === 'unauthenticated') {
       router.push('/login')
-    } else if (session?.user?.role !== 'ADMIN') {
+      return
+    }
+    if (status === 'authenticated' && session?.user?.role !== 'ADMIN') {
       router.push('/')
     }
   }, [session, status, router])
