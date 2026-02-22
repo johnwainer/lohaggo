@@ -1,8 +1,10 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { CreditCard, AlertCircle, Home, Package, MessageSquare } from 'lucide-react'
+import { CreditCard, AlertCircle } from 'lucide-react'
+import AccountTopHeader from '@/components/shared/AccountTopHeader'
+import AccountPanel from '@/components/shared/AccountPanel'
 
 export default function AddPaymentMethodPage() {
   const router = useRouter()
@@ -13,15 +15,6 @@ export default function AddPaymentMethodPage() {
   const [expiration, setExpiration] = useState('')
   const [cvv, setCvv] = useState('')
   const [setDefault, toggleDefault] = useState(false)
-
-  const navItems = useMemo(
-    () => [
-      { icon: Home, label: 'Resumen', href: '/dashboard' },
-      { icon: Package, label: 'Mis Reservas', href: '/dashboard?tab=bookings' },
-      { icon: MessageSquare, label: 'Mis Solicitudes', href: '/dashboard?tab=requests' },
-    ],
-    []
-  )
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -92,34 +85,16 @@ export default function AddPaymentMethodPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <header className="bg-white shadow-sm sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between">
-          <div className="min-w-0">
-            <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">Agregar Método de Pago</h1>
-            <p className="text-xs sm:text-sm text-gray-600 truncate hidden sm:block">Agrega una nueva tarjeta para realizar pagos</p>
-          </div>
-        </div>
-        <div className="border-t border-gray-200 bg-gray-50">
-          <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
-            <nav className="flex gap-0.5 sm:gap-1 overflow-x-auto scrollbar-hide">
-              {navItems.map(item => (
-                <button
-                  key={item.label}
-                  onClick={() => router.push(item.href)}
-                  className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 transition whitespace-nowrap"
-                >
-                  <item.icon size={20} className="sm:w-[22px] sm:h-[22px]" />
-                  <span className="hidden sm:inline">{item.label}</span>
-                </button>
-              ))}
-            </nav>
-          </div>
-        </div>
-      </header>
+    <div className="account-shell">
+      <AccountTopHeader
+        role="CLIENT"
+        title="Agregar Método de Pago"
+        subtitle="Agrega una nueva tarjeta para realizar pagos"
+      />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-lg border-2 border-gray-100 p-8">
+      <main className="account-main">
+        <div className="max-w-2xl mx-auto">
+          <AccountPanel>
           <div className="mb-6 text-center space-y-2">
             <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-primary-500 to-secondary-500 flex items-center justify-center">
               <CreditCard size={32} className="text-white" />
@@ -227,6 +202,7 @@ export default function AddPaymentMethodPage() {
               </button>
             </div>
           </form>
+          </AccountPanel>
         </div>
         <div className="mt-6 text-center text-sm text-gray-500">
           ¿Necesitas ayuda?

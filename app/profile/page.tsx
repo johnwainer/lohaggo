@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { User, Mail, Camera, Save, AlertCircle, CheckCircle, Home, Package, MessageSquare, Activity, Star, MapPin, Shield, Briefcase, ChevronRight, CreditCard, GraduationCap, Heart, Phone, Landmark, Bell } from 'lucide-react'
-import ClientDashboardNav from '@/components/ClientDashboardNav'
-import PartnerDashboardNav from '@/components/PartnerDashboardNav'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
+import AccountTopHeader from '@/components/shared/AccountTopHeader'
+import AccountPanel from '@/components/shared/AccountPanel'
 
 type NotificationPreference = {
   channel: 'PUSH' | 'EMAIL' | 'WHATSAPP' | 'SMS'
@@ -274,36 +274,28 @@ export default function ProfilePage() {
 
   return (
     <div className="account-shell">
-      <header className="account-header">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-              <div className="min-w-0 flex-1">
-                <h1 className="panel-title truncate">Mi Perfil</h1>
-                <p className="panel-subtitle truncate hidden sm:block">Administra tu información personal</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {isPartner ? (
-          <PartnerDashboardNav
-            bookingsCount={bookingsCount}
-            requestsCount={requestsCount}
-          />
-        ) : (
-          <ClientDashboardNav
-            bookingsCount={bookingsCount}
-            requestsCount={requestsCount}
-            favoritesCount={favoritesCount}
-          />
-        )}
-      </header>
+      <AccountTopHeader
+        role={isPartner ? 'PARTNER' : 'CLIENT'}
+        title="Mi Perfil"
+        subtitle="Administra tu información personal"
+        counts={
+          isPartner
+            ? {
+                bookings: bookingsCount,
+                requests: requestsCount
+              }
+            : {
+                bookings: bookingsCount,
+                requests: requestsCount,
+                favorites: favoritesCount
+              }
+        }
+      />
 
       <main className="account-main">
         <div className="flex flex-col lg:flex-row gap-6">
           <div className="flex-1">
-            <div className="surface-card overflow-hidden">
+            <AccountPanel noPadding>
               <div className="bg-gradient-to-r from-primary-500 to-secondary-500 px-6 py-8">
                 <h2 className="text-2xl sm:text-3xl font-bold text-white">Información Personal</h2>
                 <p className="text-white/90 mt-2">Actualiza tus datos de perfil</p>
@@ -506,7 +498,7 @@ export default function ProfilePage() {
                   </div>
                 </div>
               </div>
-            </div>
+            </AccountPanel>
           </div>
 
           <aside className="lg:w-80 space-y-4">

@@ -1,9 +1,10 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { CreditCard, Plus, Trash2, Check, AlertCircle, Home, Package, MessageSquare, Heart } from 'lucide-react'
+import { CreditCard, Plus, Trash2, Check, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
-import ClientDashboardNav from '@/components/ClientDashboardNav'
+import AccountTopHeader from '@/components/shared/AccountTopHeader'
+import AccountPanel from '@/components/shared/AccountPanel'
 interface PaymentMethod { id: string; lastFourDigits: string; cardBrand: string; cardholderName: string; expirationMonth: number; expirationYear: number; isDefault: boolean; isActive: boolean; createdAt: string }
 export default function PaymentMethodsPage() {
   const { status } = useSession()
@@ -103,32 +104,27 @@ export default function PaymentMethodsPage() {
   const formatExpiry = (month: number, year: number) => `${String(month).padStart(2, '0')}/${String(year).slice(-2)}`
   return (
     <div className="account-shell">
-      <header className="account-header">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-              <div className="min-w-0 flex-1">
-                <h1 className="panel-title truncate">Métodos de Pago</h1>
-                <p className="panel-subtitle truncate hidden sm:block">Administra tus tarjetas guardadas</p>
-              </div>
-            </div>
-            <Link href="/dashboard/payment-methods/add" className="inline-flex items-center gap-2 rounded-lg bg-primary-500 px-4 py-2 text-sm sm:text-base text-white font-semibold hover:bg-primary-600 transition-colors whitespace-nowrap">
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">Agregar método</span>
-              <span className="sm:hidden">Agregar</span>
-            </Link>
-          </div>
-        </div>
-        <ClientDashboardNav
-          bookingsCount={bookingsCount}
-          requestsCount={requestsCount}
-          favoritesCount={favoritesCount}
-        />
-      </header>
+      <AccountTopHeader
+        role="CLIENT"
+        title="Métodos de Pago"
+        subtitle="Administra tus tarjetas guardadas"
+        counts={{
+          bookings: bookingsCount,
+          requests: requestsCount,
+          favorites: favoritesCount
+        }}
+        action={
+          <Link href="/dashboard/payment-methods/add" className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-2 text-sm text-white font-semibold hover:bg-primary-700 transition-colors whitespace-nowrap">
+            <Plus className="w-4 h-4" />
+            <span className="hidden sm:inline">Agregar método</span>
+            <span className="sm:hidden">Agregar</span>
+          </Link>
+        }
+      />
       <main className="account-main space-y-5">
         {error && <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800"><AlertCircle className="w-5 h-5 mt-0.5" /><div><p className="font-semibold">Hubo un problema</p><p className="text-sm">{error}</p></div></div>}
         {success && <div className="flex items-start gap-3 rounded-lg border border-green-200 bg-green-50 p-4 text-green-800"><Check className="w-5 h-5 mt-0.5" /><p className="font-semibold">{success}</p></div>}
-        {paymentMethods.length === 0 ? <div className="rounded-2xl border-2 border-dashed border-gray-200 bg-white p-10 text-center space-y-3"><CreditCard className="mx-auto h-12 w-12 text-gray-300" /><p className="text-lg font-semibold text-gray-900">Aún no tienes métodos de pago guardados</p><p className="text-sm text-gray-600">Agrega una tarjeta para pagar tus servicios de forma segura.</p><Link href="/dashboard/payment-methods/add" className="inline-flex items-center gap-2 rounded-lg bg-primary-500 px-4 py-2 text-white font-semibold hover:bg-primary-600 transition-colors"><Plus className="w-4 h-4" />Agregar método de pago</Link></div> : <div className="grid gap-4 md:grid-cols-2">{paymentMethods.map(method => (<div key={method.id} className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm space-y-4"><div className="flex items-center justify-between"><div className="flex items-center gap-3"><div className="rounded-xl bg-primary-500/10 p-3 text-primary-600"><CreditCard className="w-6 h-6" /></div><div><p className="text-xs uppercase text-gray-500">{method.cardBrand}</p><p className="text-xl font-semibold tracking-widest">**** **** **** {method.lastFourDigits}</p><p className="text-sm text-gray-600">{method.cardholderName}</p></div></div>{method.isDefault && <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700"><Check className="w-4 h-4" />Predeterminado</span>}</div><div className="flex justify-between text-sm text-gray-600"><span>Vence {formatExpiry(method.expirationMonth, method.expirationYear)}</span><span>{method.isActive ? 'Activa' : 'Inactiva'}</span></div><div className="flex justify-between text-xs text-gray-500">Creada {new Date(method.createdAt).toLocaleDateString('es-CO')}</div><div className="flex flex-wrap gap-3">{!method.isDefault && <button onClick={() => handleSetDefault(method.id)} className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"><Check className="w-4 h-4" />Predeterminar</button>}<button onClick={() => handleDelete(method)} className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors"><Trash2 className="w-4 h-4" />Eliminar</button></div></div>))}</div>}
+        {paymentMethods.length === 0 ? <AccountPanel className="border-dashed border-2 border-gray-200 text-center"><CreditCard className="mx-auto h-12 w-12 text-gray-300" /><p className="text-lg font-semibold text-gray-900 mt-2">Aún no tienes métodos de pago guardados</p><p className="text-sm text-gray-600">Agrega una tarjeta para pagar tus servicios de forma segura.</p><Link href="/dashboard/payment-methods/add" className="mt-3 inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-white font-semibold hover:bg-primary-700 transition-colors"><Plus className="w-4 h-4" />Agregar método de pago</Link></AccountPanel> : <div className="grid gap-4 md:grid-cols-2">{paymentMethods.map(method => (<div key={method.id} className="surface-card p-6 space-y-4"><div className="flex items-center justify-between"><div className="flex items-center gap-3"><div className="rounded-xl bg-primary-500/10 p-3 text-primary-600"><CreditCard className="w-6 h-6" /></div><div><p className="text-xs uppercase text-gray-500">{method.cardBrand}</p><p className="text-xl font-semibold tracking-widest">**** **** **** {method.lastFourDigits}</p><p className="text-sm text-gray-600">{method.cardholderName}</p></div></div>{method.isDefault && <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700"><Check className="w-4 h-4" />Predeterminado</span>}</div><div className="flex justify-between text-sm text-gray-600"><span>Vence {formatExpiry(method.expirationMonth, method.expirationYear)}</span><span>{method.isActive ? 'Activa' : 'Inactiva'}</span></div><div className="flex justify-between text-xs text-gray-500">Creada {new Date(method.createdAt).toLocaleDateString('es-CO')}</div><div className="flex flex-wrap gap-3">{!method.isDefault && <button onClick={() => handleSetDefault(method.id)} className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"><Check className="w-4 h-4" />Predeterminar</button>}<button onClick={() => handleDelete(method)} className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors"><Trash2 className="w-4 h-4" />Eliminar</button></div></div>))}</div>}
       </main>
     </div>
   )

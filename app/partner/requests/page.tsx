@@ -5,6 +5,8 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { MapPin, User, DollarSign, Send, MessageSquare } from 'lucide-react'
 import PlatformTrustBanner from '@/components/PlatformTrustBanner'
+import AccountTopHeader from '@/components/shared/AccountTopHeader'
+import AccountPanel from '@/components/shared/AccountPanel'
 
 interface ServiceRequest {
   id: string
@@ -50,11 +52,33 @@ export default function PartnerRequestsPage() {
   })
   const [submitting, setSubmitting] = useState(false)
   const [verificationRequired, setVerificationRequired] = useState(false)
+  const [bookingsCount, setBookingsCount] = useState(0)
+  const [requestsCount, setRequestsCount] = useState(0)
 
   useEffect(() => {
     if (status !== 'authenticated') return
     fetchActiveRequests()
+    fetchNavCounts()
   }, [status])
+
+  const fetchNavCounts = async () => {
+    try {
+      const [bookingsRes, requestsRes] = await Promise.all([
+        fetch('/api/bookings'),
+        fetch('/api/partner/service-requests')
+      ])
+      if (bookingsRes.ok) {
+        const bookings = await bookingsRes.json()
+        setBookingsCount(Array.isArray(bookings) ? bookings.length : 0)
+      }
+      if (requestsRes.ok) {
+        const requests = await requestsRes.json()
+        setRequestsCount(Array.isArray(requests) ? requests.length : 0)
+      }
+    } catch (error) {
+      console.error('Error fetching partner nav counts:', error)
+    }
+  }
 
   const fetchActiveRequests = async () => {
     try {
@@ -152,8 +176,17 @@ export default function PartnerRequestsPage() {
   if (verificationRequired) {
     return (
       <div className="account-shell">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div className="bg-white rounded-2xl shadow-xl p-8 md:p-12 text-center">
+        <AccountTopHeader
+          role="PARTNER"
+          title="Solicitudes Activas"
+          subtitle="Revisa y responde solicitudes de clientes"
+          counts={{
+            bookings: bookingsCount,
+            requests: requestsCount
+          }}
+        />
+        <div className="account-main-narrow py-10">
+          <AccountPanel className="text-center py-8">
             <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <MessageSquare className="w-10 h-10 text-red-600" />
             </div>
@@ -169,7 +202,7 @@ export default function PartnerRequestsPage() {
             >
               Ir a verificación
             </button>
-          </div>
+          </AccountPanel>
         </div>
       </div>
     )
@@ -177,15 +210,17 @@ export default function PartnerRequestsPage() {
 
   return (
     <div className="account-shell">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <AccountTopHeader
+        role="PARTNER"
+        title="Solicitudes activas"
+        subtitle="Solicitudes de servicio disponibles para enviar propuestas"
+        counts={{
+          bookings: bookingsCount,
+          requests: requestsCount
+        }}
+      />
+      <div className="account-main">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="panel-title mb-2">Solicitudes activas</h1>
-          <p className="panel-subtitle">
-            Solicitudes de servicio disponibles para enviar propuestas
-          </p>
-        </div>
-
         <PlatformTrustBanner
           variant="info"
           context="partner"
@@ -194,7 +229,7 @@ export default function PartnerRequestsPage() {
 
         {/* Requests List */}
         {requests.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-md p-12 text-center">
+          <AccountPanel className="text-center py-8">
             <MessageSquare className="mx-auto h-16 w-16 text-gray-400 mb-4" />
             <h3 className="panel-section-title mb-2">
               No hay solicitudes activas
@@ -202,11 +237,11 @@ export default function PartnerRequestsPage() {
             <p className="panel-body">
               Cuando los clientes soliciten servicios que ofreces, aparecerán aquí para que puedas enviar propuestas.
             </p>
-          </div>
+          </AccountPanel>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {requests.map((request) => (
-              <div key={request.id} className="bg-white rounded-xl shadow-md p-6">
+              <div key={request.id} className="surface-card p-6">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-start gap-4">
                     <div className="text-3xl">{request.service.icon}</div>

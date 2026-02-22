@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation'
 import {
   Award, Trophy, Star, Shield, CheckCircle, Clock, Target, Medal
 } from 'lucide-react'
+import AccountTopHeader from '@/components/shared/AccountTopHeader'
+import AccountPanel from '@/components/shared/AccountPanel'
 
 interface Achievement {
   id: string
@@ -78,17 +80,17 @@ export default function PartnerAchievementsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-6xl mx-auto px-4">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Mis Logros</h1>
-          <p className="text-gray-600">
-            Has desbloqueado {achievements.length} logro{achievements.length !== 1 ? 's' : ''}
-          </p>
-        </div>
+    <div className="account-shell">
+      <AccountTopHeader
+        role="PARTNER"
+        title="Mis Logros"
+        subtitle={`Has desbloqueado ${achievements.length} logro${achievements.length !== 1 ? 's' : ''}`}
+      />
+
+      <main className="account-main">
 
         {achievements.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-md p-12 text-center">
+          <AccountPanel className="text-center py-8">
             <Trophy className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">
               Aún no tienes logros
@@ -96,7 +98,7 @@ export default function PartnerAchievementsPage() {
             <p className="text-gray-600">
               Completa tu perfil y verifica tus documentos para desbloquear logros
             </p>
-          </div>
+          </AccountPanel>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {achievements.map((achievement) => {
@@ -106,7 +108,7 @@ export default function PartnerAchievementsPage() {
               return (
                 <div
                   key={achievement.id}
-                  className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
+                  className="surface-card p-6 hover:shadow-[0_12px_30px_rgba(15,23,42,0.12)] transition-shadow"
                 >
                   <div className={`w-16 h-16 rounded-full ${colorClass} flex items-center justify-center mb-4`}>
                     <Icon className="w-8 h-8" />
@@ -130,7 +132,7 @@ export default function PartnerAchievementsPage() {
             })}
           </div>
         )}
-      </div>
+      </main>
     </div>
   )
 }

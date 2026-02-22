@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { Star, ArrowLeft, Calendar, MessageSquare, User, MapPin, Package, Activity, Bell, Settings, Shield, Home, Heart } from 'lucide-react'
+import { Star, Calendar, MessageSquare } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
-import ClientDashboardNav from '@/components/ClientDashboardNav'
-import PartnerDashboardNav from '@/components/PartnerDashboardNav'
+import AccountTopHeader from '@/components/shared/AccountTopHeader'
+import AccountPanel from '@/components/shared/AccountPanel'
 
 interface Review {
   id: string
@@ -176,55 +176,32 @@ export default function MyRatingsPage() {
 
   return (
     <div className="account-shell">
-      {userRole === 'PARTNER' ? (
-        <>
-          <header className="account-header">
-            <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-                  <div className="min-w-0 flex-1">
-                    <h1 className="panel-title truncate">Mis Calificaciones</h1>
-                    <p className="panel-subtitle truncate hidden sm:block">Calificaciones que has recibido de los clientes</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <PartnerDashboardNav
-              bookingsCount={bookingsCount}
-              requestsCount={requestsCount}
-            />
-          </header>
-        </>
-      ) : (
-        <header className="account-header">
-          <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-                <div className="min-w-0 flex-1">
-                  <h1 className="panel-title truncate">
-                    Mis Calificaciones
-                  </h1>
-                  <p className="panel-subtitle truncate hidden sm:block">
-                    Calificaciones que has recibido de los socios
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <ClientDashboardNav
-            bookingsCount={clientBookings.length}
-            requestsCount={clientServiceRequests.length}
-            favoritesCount={favoritesCount}
-          />
-        </header>
-      )}
+      <AccountTopHeader
+        role={userRole === 'PARTNER' ? 'PARTNER' : 'CLIENT'}
+        title="Mis Calificaciones"
+        subtitle={
+          userRole === 'PARTNER'
+            ? 'Calificaciones que has recibido de los clientes'
+            : 'Calificaciones que has recibido de los socios'
+        }
+        counts={
+          userRole === 'PARTNER'
+            ? {
+                bookings: bookingsCount,
+                requests: requestsCount
+              }
+            : {
+                bookings: clientBookings.length,
+                requests: clientServiceRequests.length,
+                favorites: favoritesCount
+              }
+        }
+      />
 
       <div className="account-main">
         {/* Stats Card */}
         {reviews.filter(r => userRole === 'CLIENT' ? r.partnerToClientRating : r.clientToPartnerRating).length > 0 && (
-          <div className="surface-card p-6 mb-8">
+          <AccountPanel className="mb-8">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <Star size={24} className="fill-yellow-400 text-yellow-400" />
@@ -239,12 +216,12 @@ export default function MyRatingsPage() {
                 </p>
               </div>
             </div>
-          </div>
+          </AccountPanel>
         )}
 
         {/* Reviews List */}
         {reviews.length === 0 ? (
-          <div className="surface-card p-12 text-center">
+          <AccountPanel className="text-center py-8">
             <Star size={64} className="mx-auto text-gray-300 mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
               Aún no tienes calificaciones
@@ -254,7 +231,7 @@ export default function MyRatingsPage() {
                 ? 'Completa servicios para recibir calificaciones de los socios' 
                 : 'Completa servicios para recibir calificaciones de los clientes'}
             </p>
-          </div>
+          </AccountPanel>
         ) : (
           <div className="space-y-4">
             {reviews.map((review) => {

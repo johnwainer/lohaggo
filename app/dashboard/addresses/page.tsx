@@ -3,11 +3,11 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import {
-  MapPin, Plus, Edit2, Trash2, Home, Building, Star, ArrowLeft,
-  Package, MessageSquare, Heart
+  MapPin, Plus, Edit2, Trash2, Home, Building, Star, ArrowLeft
 } from 'lucide-react'
 import { useCity } from '@/lib/city-context'
-import ClientDashboardNav from '@/components/ClientDashboardNav'
+import AccountTopHeader from '@/components/shared/AccountTopHeader'
+import AccountPanel from '@/components/shared/AccountPanel'
 
 interface Address {
   id: string
@@ -218,38 +218,31 @@ export default function AddressesPage() {
 
   return (
     <div className="account-shell">
-      {/* Header with navigation */}
-      <header className="account-header">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-              <div className="min-w-0 flex-1">
-                <h1 className="panel-title truncate">Mis Direcciones</h1>
-                <p className="panel-subtitle truncate hidden sm:block">Administra tus direcciones de servicio</p>
-              </div>
-            </div>
-            <button
-              onClick={() => handleOpenModal()}
-              className="flex items-center gap-1.5 sm:gap-2 bg-primary-500 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-primary-600 transition font-medium text-sm whitespace-nowrap"
-            >
-              <Plus size={16} className="sm:w-[18px] sm:h-[18px]" />
-              <span className="hidden sm:inline">Agregar Dirección</span>
-              <span className="sm:hidden">Agregar</span>
-            </button>
-          </div>
-        </div>
-
-        <ClientDashboardNav
-          bookingsCount={bookingsCount}
-          requestsCount={requestsCount}
-          favoritesCount={favoritesCount}
-        />
-      </header>
+      <AccountTopHeader
+        role="CLIENT"
+        title="Mis Direcciones"
+        subtitle="Administra tus direcciones de servicio"
+        counts={{
+          bookings: bookingsCount,
+          requests: requestsCount,
+          favorites: favoritesCount
+        }}
+        action={
+          <button
+            onClick={() => handleOpenModal()}
+            className="flex items-center gap-1.5 sm:gap-2 rounded-xl bg-primary-600 px-3 sm:px-4 py-2 text-white hover:bg-primary-700 transition font-semibold text-sm whitespace-nowrap"
+          >
+            <Plus size={16} className="sm:w-[18px] sm:h-[18px]" />
+            <span className="hidden sm:inline">Agregar Dirección</span>
+            <span className="sm:hidden">Agregar</span>
+          </button>
+        }
+      />
 
       <main className="account-main">
 
         {addresses.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-sm p-8 sm:p-12 text-center">
+          <AccountPanel className="text-center">
             <MapPin className="mx-auto text-gray-400 mb-3 sm:mb-4" size={48} />
             <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">
               No tienes direcciones guardadas
@@ -265,14 +258,14 @@ export default function AddressesPage() {
               <span className="hidden xs:inline">Agregar Primera Dirección</span>
               <span className="xs:hidden">Agregar</span>
             </button>
-          </div>
+          </AccountPanel>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {addresses.map((address) => (
               <div
                 key={address.id}
-                className={`bg-white rounded-xl shadow-sm p-6 border-2 transition ${
-                  address.isPrimary ? 'border-primary-500' : 'border-transparent'
+                className={`surface-card p-6 border-2 transition ${
+                  address.isPrimary ? 'border-primary-500' : 'border-slate-200'
                 }`}
               >
                 <div className="flex items-start justify-between mb-4">

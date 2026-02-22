@@ -8,7 +8,8 @@ import {
   GraduationCap, CreditCard, AlertCircle, Trash2, Eye
 } from 'lucide-react'
 import Modal from '@/components/Modal'
-import PartnerDashboardNav from '@/components/PartnerDashboardNav'
+import AccountTopHeader from '@/components/shared/AccountTopHeader'
+import AccountPanel from '@/components/shared/AccountPanel'
 
 interface Document {
   id: string
@@ -202,23 +203,15 @@ export default function VerificationPage() {
 
   return (
     <div className="account-shell">
-      <header className="account-header">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-              <div className="min-w-0 flex-1">
-                <h1 className="panel-title truncate">Verificación de Documentos</h1>
-                <p className="panel-subtitle truncate hidden sm:block">Sube tus documentos para verificar tu identidad y educación</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <PartnerDashboardNav
-          bookingsCount={bookingsCount}
-          requestsCount={requestsCount}
-        />
-      </header>
+      <AccountTopHeader
+        role="PARTNER"
+        title="Verificación de Documentos"
+        subtitle="Sube tus documentos para verificar tu identidad y educación"
+        counts={{
+          bookings: bookingsCount,
+          requests: requestsCount
+        }}
+      />
 
       <main className="account-main">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -256,18 +249,15 @@ export default function VerificationPage() {
           </div>
         </div>
 
-        <div className="surface-card p-6 mb-8">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold">Mis Documentos</h2>
-            <button
-              onClick={() => setShowUploadModal(true)}
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Upload className="w-5 h-5" />
-              Subir Documento
-            </button>
-          </div>
-
+        <AccountPanel title="Mis Documentos" className="mb-8" action={
+          <button
+            onClick={() => setShowUploadModal(true)}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Upload className="w-5 h-5" />
+            Subir Documento
+          </button>
+        }>
           {documents.length === 0 ? (
             <div className="text-center py-12">
               <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
@@ -335,7 +325,7 @@ export default function VerificationPage() {
               ))}
             </div>
           )}
-        </div>
+        </AccountPanel>
       </main>
 
       {showUploadModal && (

@@ -10,7 +10,8 @@ import {
   Settings
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
-import PartnerDashboardNav from '@/components/PartnerDashboardNav'
+import AccountTopHeader from '@/components/shared/AccountTopHeader'
+import AccountPanel from '@/components/shared/AccountPanel'
 
 interface Service {
   id: string
@@ -219,23 +220,15 @@ export default function ServicesManagementPage() {
   return (
     <div className="account-shell">
       <div>
-        <header className="account-header">
-          <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-                <div className="min-w-0 flex-1">
-                  <h1 className="panel-title truncate">Gestión de Servicios</h1>
-                  <p className="panel-subtitle truncate hidden sm:block">Administra los servicios que ofreces</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <PartnerDashboardNav
-            bookingsCount={bookingsCount}
-            requestsCount={requestsCount}
-          />
-        </header>
+        <AccountTopHeader
+          role="PARTNER"
+          title="Gestión de Servicios"
+          subtitle="Administra los servicios que ofreces"
+          counts={{
+            bookings: bookingsCount,
+            requests: requestsCount
+          }}
+        />
 
         <main className="account-main">
           <div>
@@ -249,7 +242,7 @@ export default function ServicesManagementPage() {
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-              <div className="bg-white rounded-xl shadow-md p-6">
+              <div className="surface-card p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-600 text-sm">Servicios Activos</p>
@@ -258,7 +251,7 @@ export default function ServicesManagementPage() {
                   <Settings className="text-primary-600" size={40} />
                 </div>
               </div>
-              <div className="bg-white rounded-xl shadow-md p-6">
+              <div className="surface-card p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-600 text-sm">Servicios Disponibles</p>
@@ -282,15 +275,15 @@ export default function ServicesManagementPage() {
             <div className="mb-8">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Mis Servicios</h2>
               {activeServices.length === 0 ? (
-                <div className="bg-white rounded-xl shadow-md p-8 text-center">
+                <AccountPanel className="text-center">
                   <AlertCircle className="mx-auto text-gray-400 mb-4" size={48} />
                   <p className="text-gray-600">No tienes servicios activos</p>
                   <p className="text-sm text-gray-500 mt-2">Agrega servicios para empezar a recibir solicitudes</p>
-                </div>
+                </AccountPanel>
               ) : (
                 <div className="space-y-4">
                   {activeServices.map((service) => (
-                    <div key={service.id} className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition">
+                    <div key={service.id} className="surface-card overflow-hidden hover:shadow-[0_12px_30px_rgba(15,23,42,0.12)] transition">
                       <div className="p-6">
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex items-start gap-4">

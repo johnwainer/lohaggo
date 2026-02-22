@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import PartnerDashboardNav from '@/components/PartnerDashboardNav'
 import { COLOMBIA_BANKS } from '@/lib/banking/colombia'
+import AccountTopHeader from '@/components/shared/AccountTopHeader'
 
 type BankAccount = {
   id: string
@@ -214,25 +214,15 @@ export default function PartnerBankAccountsPage() {
 
   return (
     <div className="account-shell">
-      <header className="account-header">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-              <div className="min-w-0 flex-1">
-                <h1 className="panel-title truncate">Datos Bancarios</h1>
-                <p className="panel-subtitle truncate hidden sm:block">
-                  Registra la cuenta colombiana donde recibirás pagos.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <PartnerDashboardNav
-          bookingsCount={bookingsCount}
-          requestsCount={requestsCount}
-        />
-      </header>
+      <AccountTopHeader
+        role="PARTNER"
+        title="Datos Bancarios"
+        subtitle="Registra la cuenta colombiana donde recibirás pagos."
+        counts={{
+          bookings: bookingsCount,
+          requests: requestsCount
+        }}
+      />
 
       <main className="account-main-narrow space-y-6">
         {feedback && (
