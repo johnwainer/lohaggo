@@ -51,37 +51,27 @@ export function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 safe-area-bottom md:hidden" data-tour="bottom-nav">
-      <div className="flex items-center justify-around h-16">
+      <div
+        className="grid h-16"
+        style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
+      >
         {tabs.map((tab) => {
           const isActive = isTabActive(tab)
           const Icon = tab.icon
 
-          if (tab.requiresAuth && !session) {
-            return (
-              <button
-                key={tab.id}
-                onClick={() => handleNavigation(tab.href, tab.requiresAuth)}
-                className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 transition-colors ${
-                  isActive ? 'text-primary-600' : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <Icon className="w-6 h-6" />
-                <span className="text-xs font-medium">{tab.label}</span>
-              </button>
-            )
-          }
-
           return (
-            <Link
+            <button
               key={tab.id}
-              href={tab.href}
-              className={`flex flex-col items-center justify-center flex-1 h-full space-y-1 transition-colors ${
+              type="button"
+              onClick={() => handleNavigation(tab.href, tab.requiresAuth)}
+              className={`w-full h-full touch-manipulation flex flex-col items-center justify-center gap-1 px-2 py-2 transition-colors active:scale-95 ${
                 isActive ? 'text-primary-600' : 'text-gray-500 hover:text-gray-700'
               }`}
+              aria-label={tab.label}
             >
               <Icon className="w-6 h-6" />
               <span className="text-xs font-medium">{tab.label}</span>
-            </Link>
+            </button>
           )
         })}
       </div>

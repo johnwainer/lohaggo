@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { flushSync } from 'react-dom'
 import { DollarSign, Clock, Star, CheckCircle, MapPin, Plus, Calendar, X, ChevronRight, Camera, Upload, Trash2, Shield, CreditCard, GraduationCap, ShieldCheck, UserPlus, Bell, Briefcase, TrendingUp, Users, Sparkles, Heart } from 'lucide-react'
 import { useSession, signOut } from 'next-auth/react'
 import { formatCurrency } from '@/lib/utils'
@@ -253,7 +254,8 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     const citySlug = localStorage.getItem('selectedCity') || 'medellin'
     const currentCity = getCityBySlug(citySlug)
 
-    if (currentCity?.partnerRegistry) {
+    // Solo redirigir al registro de socios si la ciudad está en ese modo Y no hay socios disponibles
+    if (currentCity?.partnerRegistry && (!service?.partners || service?.partners.length === 0)) {
       router.push('/registro-socios')
       return
     }
@@ -267,7 +269,9 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
   const handleBooking = async (event?: React.MouseEvent<HTMLButtonElement>) => {
     event?.preventDefault()
     event?.stopPropagation()
-    setRequestActionLoading('ALL')
+    flushSync(() => {
+      setRequestActionLoading('ALL')
+    })
     try {
       await openRequestFlow(null)
     } finally {
@@ -282,7 +286,9 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
   const handleRequestToPartner = async (partnerId: string, event?: React.MouseEvent<HTMLButtonElement>) => {
     event?.preventDefault()
     event?.stopPropagation()
-    setRequestActionLoading(partnerId)
+    flushSync(() => {
+      setRequestActionLoading(partnerId)
+    })
     try {
       await openRequestFlow(partnerId)
     } finally {
@@ -592,11 +598,10 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                   <button
                     onClick={toggleFavoriteService}
                     disabled={loadingFavoriteService}
-                    className={`ml-auto sm:ml-2 p-2.5 rounded-xl transition-all shadow-md hover:shadow-lg ${
-                      isFavoriteService
-                        ? 'bg-gradient-to-br from-primary-100 to-amber-100 text-primary-600 hover:from-orange-200 hover:to-amber-200'
-                        : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-                    } ${loadingFavoriteService ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    className={`ml-auto sm:ml-2 p-2.5 rounded-xl transition-all shadow-md hover:shadow-lg ${isFavoriteService
+                      ? 'bg-gradient-to-br from-primary-100 to-amber-100 text-primary-600 hover:from-orange-200 hover:to-amber-200'
+                      : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                      } ${loadingFavoriteService ? 'opacity-50 cursor-not-allowed' : ''}`}
                     title={isFavoriteService ? 'Quitar de favoritos' : 'Agregar a favoritos'}
                   >
                     <Heart size={20} fill={isFavoriteService ? 'currentColor' : 'none'} />
@@ -704,20 +709,18 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                   return (
                     <div
                       key={partnerService.id}
-                      className={`group relative rounded-xl p-5 md:p-6 transition-all duration-300 hover:shadow-xl ${
-                        fullyVerified
-                          ? 'bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 border-2 border-emerald-400 shadow-lg shadow-emerald-100/50 hover:shadow-emerald-200/70 hover:border-emerald-500'
-                          : 'bg-white border-2 border-gray-200 hover:border-gray-300 shadow-md hover:shadow-lg'
-                      }`}
+                      className={`group relative rounded-xl p-5 md:p-6 transition-all duration-300 hover:shadow-xl ${fullyVerified
+                        ? 'bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 border-2 border-emerald-400 shadow-lg shadow-emerald-100/50 hover:shadow-emerald-200/70 hover:border-emerald-500'
+                        : 'bg-white border-2 border-gray-200 hover:border-gray-300 shadow-md hover:shadow-lg'
+                        }`}
                     >
                       <button
                         onClick={() => toggleFavorite(partnerService.partner.id)}
                         disabled={loadingFavorite === partnerService.partner.id}
-                        className={`absolute top-4 right-4 p-2.5 rounded-full transition-all duration-200 z-10 shadow-sm hover:shadow-md ${
-                          favoritePartners.has(partnerService.partner.id)
-                            ? 'bg-red-500 text-white hover:bg-red-600 scale-110'
-                            : 'bg-white text-gray-400 hover:bg-red-50 hover:text-red-500 hover:scale-110'
-                        } ${loadingFavorite === partnerService.partner.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        className={`absolute top-4 right-4 p-2.5 rounded-full transition-all duration-200 z-10 shadow-sm hover:shadow-md ${favoritePartners.has(partnerService.partner.id)
+                          ? 'bg-red-500 text-white hover:bg-red-600 scale-110'
+                          : 'bg-white text-gray-400 hover:bg-red-50 hover:text-red-500 hover:scale-110'
+                          } ${loadingFavorite === partnerService.partner.id ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
                         <Heart
                           size={18}
@@ -739,18 +742,16 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                             <img
                               src={partnerService.partner.user.image}
                               alt={partnerService.partner.user.name}
-                              className={`w-14 h-14 md:w-16 md:h-16 rounded-full object-cover shadow-md ${
-                                fullyVerified
-                                  ? 'ring-2 ring-emerald-500'
-                                  : 'ring-2 ring-gray-300'
-                              }`}
+                              className={`w-14 h-14 md:w-16 md:h-16 rounded-full object-cover shadow-md ${fullyVerified
+                                ? 'ring-2 ring-emerald-500'
+                                : 'ring-2 ring-gray-300'
+                                }`}
                             />
                           ) : (
-                            <div className={`w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center text-white font-bold text-xl md:text-2xl shadow-md ${
-                              fullyVerified
-                                ? 'bg-gradient-to-br from-emerald-500 to-green-600'
-                                : 'bg-gradient-to-br from-gray-400 to-gray-500'
-                            }`}>
+                            <div className={`w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center text-white font-bold text-xl md:text-2xl shadow-md ${fullyVerified
+                              ? 'bg-gradient-to-br from-emerald-500 to-green-600'
+                              : 'bg-gradient-to-br from-gray-400 to-gray-500'
+                              }`}>
                               {partnerService.partner.user.name.charAt(0).toUpperCase()}
                             </div>
                           )}
@@ -794,9 +795,8 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                         </div>
                         <div className="flex items-baseline gap-2">
                           <span className="text-gray-600 text-sm font-medium">Precio:</span>
-                          <p className={`font-bold text-2xl md:text-3xl ${
-                            fullyVerified ? 'text-emerald-600' : 'text-primary-600'
-                          }`}>
+                          <p className={`font-bold text-2xl md:text-3xl ${fullyVerified ? 'text-emerald-600' : 'text-primary-600'
+                            }`}>
                             {formatCurrency(partnerService.price)}
                           </p>
                         </div>
@@ -806,11 +806,10 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                         type="button"
                         onClick={(event) => void handleRequestToPartner(partnerService.partner.id, event)}
                         disabled={requestActionLoading !== null}
-                        className={`w-full font-bold py-3.5 px-4 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2 group/btn ${
-                          fullyVerified
-                            ? 'bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white'
-                            : 'bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-[#E02850] hover:to-[#E65F00] text-white'
-                        }`}
+                        className={`w-full font-bold py-3.5 px-4 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2 group/btn ${fullyVerified
+                          ? 'bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white'
+                          : 'bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-[#E02850] hover:to-[#E65F00] text-white'
+                          }`}
                       >
                         {requestActionLoading === partnerService.partner.id ? (
                           <>

@@ -32,6 +32,23 @@ const suspiciousUserAgentTokens = [
   'wpscan',
 ]
 
+function getRoleHomePath(role?: string | null): string {
+  switch (role) {
+    case 'ADMIN':
+      return '/admin'
+    case 'PARTNER':
+      return '/partner'
+    case 'CLIENT':
+      return '/dashboard'
+    default:
+      return '/'
+  }
+}
+
+function redirectToRoleHome(request: NextRequest, role?: string | null) {
+  return NextResponse.redirect(new URL(getRoleHomePath(role), request.url))
+}
+
 function getRateLimitKey(request: NextRequest): string {
   const ip = getClientIp(request)
   return `${ip}-${request.nextUrl.pathname}`
@@ -336,7 +353,7 @@ export async function middleware(request: NextRequest) {
     }
 
     if (token.role !== 'ADMIN') {
-      return NextResponse.redirect(new URL('/', request.url))
+      return redirectToRoleHome(request, token.role as string | null)
     }
   }
 
@@ -348,7 +365,7 @@ export async function middleware(request: NextRequest) {
     }
 
     if (token.role !== 'PARTNER' && token.role !== 'ADMIN') {
-      return NextResponse.redirect(new URL('/', request.url))
+      return redirectToRoleHome(request, token.role as string | null)
     }
   }
 
@@ -364,9 +381,26 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
 
-    // Partner/admin should use their own panels, not client dashboard routes.
-    if (pathname.startsWith('/dashboard') && token.role !== 'CLIENT' && token.role !== 'ADMIN') {
-      return NextResponse.redirect(new URL('/', request.url))
+    if (token.role === 'ADMIN') {
+      return redirectToRoleHome(request, token.role as string | null)
+    }
+
+    // Partner should use partner notifications endpoint.
+    if (pathname.startsWith('/notifications') && token.role === 'PARTNER') {
+      return NextResponse.redirect(new URL('/partner/notifications', request.url))
+    }
+
+    // Partner should use partner dashboard routes, not client dashboard routes.
+    if (pathname.startsWith('/dashboard') && token.role === 'PARTNER') {
+      return redirectToRoleHome(request, token.role as string | null)
+    }
+
+    if (
+      (pathname.startsWith('/dashboard') || pathname.startsWith('/notifications') || pathname.startsWith('/my-ratings') || pathname.startsWith('/profile')) &&
+      token.role !== 'CLIENT' &&
+      token.role !== 'PARTNER'
+    ) {
+      return redirectToRoleHome(request, token.role as string | null)
     }
   }
 
