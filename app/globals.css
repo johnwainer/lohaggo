@@ -276,27 +276,27 @@ textarea .emoji {
 
 @layer components {
   .account-shell {
-    @apply panel-page min-h-screen bg-gradient-to-br from-gray-50 to-gray-100;
+    @apply panel-page min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100;
   }
 
   .account-header {
-    @apply sticky top-0 z-40 border-b border-gray-100 bg-white/95 backdrop-blur-sm shadow-sm;
+    @apply sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl shadow-[0_6px_22px_rgba(15,23,42,0.06)];
   }
 
   .account-main {
-    @apply max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8;
+    @apply max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-9 pb-24 md:pb-9;
   }
 
   .account-main-narrow {
-    @apply max-w-4xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8;
+    @apply max-w-4xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-9 pb-24 md:pb-9;
   }
 
   .surface-card {
-    @apply bg-white border border-gray-200 rounded-2xl shadow-sm;
+    @apply bg-white border border-slate-200 rounded-2xl md:rounded-3xl shadow-[0_10px_28px_rgba(15,23,42,0.08)];
   }
 
   .surface-card-soft {
-    @apply bg-white border border-gray-100 rounded-2xl shadow-sm;
+    @apply bg-white border border-slate-100 rounded-2xl md:rounded-3xl shadow-[0_6px_18px_rgba(15,23,42,0.05)];
   }
 
   .panel-page {
@@ -304,34 +304,34 @@ textarea .emoji {
   }
 
   .panel-title {
-    @apply text-xl sm:text-2xl font-bold tracking-tight text-gray-900;
+    @apply text-[1.15rem] sm:text-[1.7rem] font-bold tracking-tight text-slate-900 leading-tight;
   }
 
   .panel-subtitle {
-    @apply text-xs sm:text-sm font-medium text-gray-600;
+    @apply text-xs sm:text-sm font-medium text-slate-500;
   }
 
   .panel-section-title {
-    @apply text-base sm:text-lg font-semibold tracking-tight text-gray-900;
+    @apply text-base sm:text-[1.15rem] font-semibold tracking-tight text-slate-900;
   }
 
   .panel-card-title {
-    @apply text-sm sm:text-base font-semibold text-gray-900;
+    @apply text-sm sm:text-base font-semibold text-slate-900;
   }
 
   .panel-body {
-    @apply text-sm text-gray-700;
+    @apply text-sm leading-6 text-slate-700;
   }
 
   .panel-caption {
-    @apply text-xs text-gray-500;
+    @apply text-xs text-slate-500;
   }
 
   .panel-label {
-    @apply text-xs sm:text-sm font-medium text-gray-600;
+    @apply text-xs sm:text-sm font-medium text-slate-600;
   }
 
   .panel-stat {
-    @apply text-2xl sm:text-3xl font-bold tracking-tight text-gray-900;
+    @apply text-[1.55rem] sm:text-[2rem] font-bold tracking-tight text-slate-900;
   }
 }
