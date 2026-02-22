@@ -146,6 +146,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string>('')
   const [searchTerm, setSearchTerm] = useState('')
+  const [requestSearchTerm, setRequestSearchTerm] = useState('')
+  const [requestStatusFilter, setRequestStatusFilter] = useState<string>('ALL')
   const [mobileStatusSheetOpen, setMobileStatusSheetOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<'overview' | 'bookings' | 'requests' | 'favorites'>('overview')
   const [imageGallery, setImageGallery] = useState<{ isOpen: boolean; photos: Array<{ id: string; url: string; order: number }>; initialIndex: number }>({ isOpen: false, photos: [], initialIndex: 0 })
@@ -642,10 +644,23 @@ export default function DashboardPage() {
     return acc
   }, {})
 
-  const filteredRequests = serviceRequests.filter(request =>
-    request.service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    request.address.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const requestStatusCounts = serviceRequests.reduce<Record<string, number>>((acc, request) => {
+    acc[request.status] = (acc[request.status] || 0) + 1
+    return acc
+  }, {})
+
+  const filteredRequests = serviceRequests
+    .filter(request =>
+      request.service.name.toLowerCase().includes(requestSearchTerm.toLowerCase()) ||
+      request.address.toLowerCase().includes(requestSearchTerm.toLowerCase())
+    )
+    .filter(request => requestStatusFilter === 'ALL' || request.status === requestStatusFilter)
+    .sort((a, b) => {
+      const rank: Record<string, number> = { ACTIVE: 1, ACCEPTED: 2, EXPIRED: 3, CANCELLED: 4 }
+      const rankDiff = (rank[a.status] || 99) - (rank[b.status] || 99)
+      if (rankDiff !== 0) return rankDiff
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    })
 
   const getVerificationBadges = (documents?: Array<{ type: string; status: string }>) => {
     if (!documents || documents.length === 0) return null
@@ -685,6 +700,20 @@ export default function DashboardPage() {
         )}
       </div>
     )
+  }
+
+  const getRelativeTime = (isoDate: string) => {
+    const now = Date.now()
+    const target = new Date(isoDate).getTime()
+    const diffMs = now - target
+    const minutes = Math.floor(diffMs / (1000 * 60))
+    const hours = Math.floor(diffMs / (1000 * 60 * 60))
+    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+    if (minutes < 1) return 'Ahora mismo'
+    if (minutes < 60) return `Hace ${minutes} min`
+    if (hours < 24) return `Hace ${hours} h`
+    return `Hace ${days} d`
   }
 
   return (
@@ -1573,347 +1602,295 @@ export default function DashboardPage() {
 
           {activeTab === 'requests' && (
             <div className="space-y-4 sm:space-y-6">
-              <div className="bg-gradient-to-r from-primary-50 via-white to-orange-50 rounded-2xl sm:rounded-3xl shadow-lg border border-primary-100 p-4 sm:p-6">
-                <div className="relative">
-                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              <div className="bg-white rounded-2xl sm:rounded-3xl shadow-sm border border-gray-200 p-3 sm:p-4">
+                <div className="relative mb-3">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                   <input
                     type="text"
-                    placeholder="Buscar solicitudes..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white"
+                    placeholder="Buscar por servicio o dirección..."
+                    value={requestSearchTerm}
+                    onChange={(e) => setRequestSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 text-sm sm:text-base border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-gray-50"
                   />
+                </div>
+                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                  {[
+                    { value: 'ALL', label: 'Todas', count: serviceRequests.length },
+                    { value: 'ACTIVE', label: 'Activas', count: requestStatusCounts.ACTIVE || 0 },
+                    { value: 'ACCEPTED', label: 'Aceptadas', count: requestStatusCounts.ACCEPTED || 0 },
+                    { value: 'EXPIRED', label: 'Expiradas', count: requestStatusCounts.EXPIRED || 0 },
+                    { value: 'CANCELLED', label: 'Canceladas', count: requestStatusCounts.CANCELLED || 0 },
+                  ].map((option) => {
+                    const isActive = requestStatusFilter === option.value
+                    return (
+                      <button
+                        key={option.value}
+                        onClick={() => setRequestStatusFilter(option.value)}
+                        className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs sm:text-sm border transition-all ${
+                          isActive
+                            ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
+                            : 'bg-white text-gray-700 border-gray-200 hover:border-primary-200'
+                        }`}
+                      >
+                        <span>{option.label}</span>
+                        <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${
+                          isActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+                        }`}>
+                          {option.count}
+                        </span>
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
 
               {filteredRequests.length === 0 ? (
-                <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg p-12 sm:p-16 text-center border border-gray-100">
-                  <div className="bg-gradient-to-br from-primary-100 to-orange-200 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6">
-                    <AlertCircle className="text-primary-500 w-12 h-12" />
+                <div className="bg-white rounded-2xl sm:rounded-3xl shadow-sm p-10 sm:p-14 text-center border border-gray-200">
+                  <div className="bg-primary-50 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
+                    <AlertCircle className="text-primary-500 w-10 h-10" />
                   </div>
-                  <p className="text-gray-900 text-xl font-bold mb-2">No hay solicitudes</p>
-                  <p className="text-gray-500 text-base">Crea una solicitud para recibir propuestas de socios</p>
+                  <p className="text-gray-900 text-lg font-bold mb-1">No hay solicitudes para este filtro</p>
+                  <p className="text-gray-500 text-sm sm:text-base">Prueba con otro estado o crea una nueva solicitud.</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-4 sm:gap-6">
-                  {filteredRequests.map((request) => (
-                    <div key={request.id} className="group bg-white rounded-2xl sm:rounded-3xl shadow-lg hover:shadow-2xl transition-all overflow-hidden border border-gray-100 hover:border-primary-200">
-                      <div className={`h-2 ${
-                        request.status === 'ACTIVE' ? 'bg-gradient-to-r from-emerald-500 to-green-600' :
-                        request.status === 'ACCEPTED' ? 'bg-gradient-to-r from-blue-500 to-blue-600' :
-                        'bg-gradient-to-r from-gray-400 to-gray-500'
-                      }`}></div>
-                      <div className="p-5 sm:p-6">
-                        <div className="flex flex-col sm:flex-row items-start gap-4 mb-5">
-                          <div className="text-4xl sm:text-5xl group-hover:scale-110 transition-transform">{request.service.icon}</div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex flex-wrap items-center gap-2 mb-2">
-                              <h3 className="font-bold text-lg sm:text-xl text-gray-900 group-hover:text-primary-600 transition-colors">{request.service.name}</h3>
-                              <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${
-                                request.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700 border-2 border-emerald-200' :
-                                request.status === 'ACCEPTED' ? 'bg-blue-100 text-blue-700 border-2 border-blue-200' :
-                                'bg-gray-100 text-gray-700 border-2 border-gray-200'
-                              }`}>
-                                {requestStatusLabels[request.status]}
+                <div className="grid grid-cols-1 gap-3 sm:gap-4">
+                  {filteredRequests.map((request) => {
+                    const sortedProposals = [...request.proposals].sort((a, b) => {
+                      const IDENTITY_TYPES = ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP']
+                      const EDUCATION_TYPES = ['DIPLOMA_BACHILLERATO', 'DIPLOMA_TECNICO', 'DIPLOMA_TECNOLOGO', 'DIPLOMA_PROFESIONAL', 'DIPLOMA_POSGRADO', 'CERTIFICADO_CURSO']
+
+                      const hasIdentityA = a.partner.documents?.some((d: any) =>
+                        IDENTITY_TYPES.includes(d.type) && d.status === 'APPROVED'
+                      )
+                      const hasEducationA = a.partner.documents?.some((d: any) =>
+                        EDUCATION_TYPES.includes(d.type) && d.status === 'APPROVED'
+                      )
+                      const hasBackgroundA = a.partner.documents?.some((d: any) =>
+                        d.type === 'ANTECEDENTES' && d.status === 'APPROVED'
+                      )
+                      const isFullyVerifiedA = hasIdentityA && hasEducationA && hasBackgroundA
+
+                      const hasIdentityB = b.partner.documents?.some((d: any) =>
+                        IDENTITY_TYPES.includes(d.type) && d.status === 'APPROVED'
+                      )
+                      const hasEducationB = b.partner.documents?.some((d: any) =>
+                        EDUCATION_TYPES.includes(d.type) && d.status === 'APPROVED'
+                      )
+                      const hasBackgroundB = b.partner.documents?.some((d: any) =>
+                        d.type === 'ANTECEDENTES' && d.status === 'APPROVED'
+                      )
+                      const isFullyVerifiedB = hasIdentityB && hasEducationB && hasBackgroundB
+
+                      if (isFullyVerifiedA && !isFullyVerifiedB) return -1
+                      if (!isFullyVerifiedA && isFullyVerifiedB) return 1
+                      return 0
+                    })
+
+                    return (
+                      <div
+                        key={request.id}
+                        className="bg-white rounded-2xl sm:rounded-3xl border border-gray-200 shadow-sm p-4 sm:p-5"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[11px] sm:text-xs font-bold px-2.5 py-1 rounded-full border ${requestStatusColors[request.status] || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
+                              {requestStatusLabels[request.status]}
+                            </span>
+                            {request.isUrgent && (
+                              <span className="text-[11px] sm:text-xs font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+                                Urgente
                               </span>
-                              {request.isUrgent && (
-                                <span className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg animate-pulse">
-                                  ⚡ URGENTE
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-sm text-gray-600 mb-3">{request.service.category.name}</p>
-                            <div className="flex items-center gap-3 flex-wrap">
-                              <div className="bg-gradient-to-r from-primary-50 to-orange-100 rounded-xl px-4 py-2 border border-primary-200">
-                                <p className="text-sm text-gray-600">Propuestas recibidas</p>
-                                <p className="text-2xl font-bold text-primary-600">{request.proposals.length}</p>
-                              </div>
-                              <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl px-4 py-2 border border-gray-200">
-                                <p className="text-sm text-gray-600">Fecha de creación</p>
-                                <p className="text-sm font-semibold text-gray-900">{new Date(request.createdAt).toLocaleDateString('es-ES')}</p>
-                              </div>
-                            </div>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500">{getRelativeTime(request.createdAt)}</p>
+                        </div>
+
+                        <div className="flex items-start gap-3 mb-3">
+                          <div className="w-11 h-11 rounded-xl bg-primary-50 border border-primary-100 flex items-center justify-center text-2xl shrink-0">
+                            {request.service.icon}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-semibold text-gray-900 text-sm sm:text-base truncate">{request.service.name}</p>
+                            <p className="text-xs sm:text-sm text-gray-500">{request.service.category.name}</p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-[11px] text-gray-500">Propuestas</p>
+                            <p className="text-base sm:text-lg font-bold text-primary-600">{request.proposals.length}</p>
                           </div>
                         </div>
 
-                        <div className="space-y-3 mb-5">
-                          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
-                            <div className="bg-green-100 rounded-lg p-2 flex-shrink-0">
-                              <MapPin size={18} className="text-green-600" />
-                            </div>
-                            <div>
-                              <p className="text-xs text-gray-600 font-semibold mb-1">Ubicación</p>
-                              <span className="text-sm font-medium text-gray-900">{request.address}, {request.city}</span>
-                            </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3 text-xs sm:text-sm">
+                          <div className="flex items-center gap-2 rounded-xl bg-gray-50 border border-gray-100 px-3 py-2">
+                            <MapPin size={14} className="text-gray-500 shrink-0" />
+                            <span className="text-gray-700 truncate">{request.address}, {request.city}</span>
                           </div>
-                          {request.preferredDate && (
-                            <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-xl border border-blue-200">
-                              <div className="bg-blue-100 rounded-lg p-2 flex-shrink-0">
-                                <Calendar size={18} className="text-blue-600" />
-                              </div>
-                              <div>
-                                <p className="text-xs text-blue-600 font-semibold mb-1">Fecha preferida</p>
-                                <span className="text-sm font-medium text-blue-700">
-                                  {new Date(request.preferredDate).toLocaleDateString('es-ES', {
-                                    weekday: 'long',
-                                    day: 'numeric',
-                                    month: 'long'
-                                  })}
-                                  {request.preferredTime && ` a las ${request.preferredTime}`}
-                                </span>
-                              </div>
-                            </div>
-                          )}
-                          {request.isUrgent && (
-                            <div className="flex items-start gap-3 p-3 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border-2 border-amber-200">
-                              <div className="bg-amber-100 rounded-lg p-2 flex-shrink-0">
-                                <AlertCircle size={18} className="text-amber-600" />
-                              </div>
-                              <div>
-                                <p className="text-xs text-amber-600 font-semibold mb-1">Urgente</p>
-                                <span className="text-sm font-medium text-amber-700">⚡ Lo más pronto posible</span>
-                              </div>
-                            </div>
-                          )}
-                          {request.budget && (
-                            <div className="flex items-start gap-3 p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-200">
-                              <div className="bg-green-100 rounded-lg p-2 flex-shrink-0">
-                                <DollarSign size={18} className="text-green-600" />
-                              </div>
-                              <div>
-                                <p className="text-xs text-green-600 font-semibold mb-1">Presupuesto del cliente</p>
-                                <span className="text-sm font-medium text-green-700">{formatCurrency(request.budget)}</span>
-                              </div>
-                            </div>
-                          )}
+                          <div className="flex items-center gap-2 rounded-xl bg-gray-50 border border-gray-100 px-3 py-2">
+                            <Calendar size={14} className="text-gray-500 shrink-0" />
+                            <span className="text-gray-700 truncate">
+                              {request.preferredDate
+                                ? `${new Date(request.preferredDate).toLocaleDateString('es-ES')}${request.preferredTime ? ` · ${request.preferredTime}` : ''}`
+                                : 'Sin fecha preferida'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 rounded-xl bg-gray-50 border border-gray-100 px-3 py-2">
+                            <Clock size={14} className="text-gray-500 shrink-0" />
+                            <span className="text-gray-700">Expira: {new Date(request.expiresAt).toLocaleDateString('es-ES')}</span>
+                          </div>
+                          <div className="flex items-center gap-2 rounded-xl bg-gray-50 border border-gray-100 px-3 py-2">
+                            <DollarSign size={14} className="text-gray-500 shrink-0" />
+                            <span className="text-gray-700">
+                              {request.budget ? `Presupuesto: ${formatCurrency(request.budget)}` : 'Sin presupuesto definido'}
+                            </span>
+                          </div>
                         </div>
 
                         {request.notes && (
-                          <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-2 border-gray-200 rounded-xl p-4 mb-5">
-                            <p className="text-xs font-semibold text-gray-700 mb-2">Detalles adicionales:</p>
-                            <p className="text-sm text-gray-800">{request.notes}</p>
+                          <div className="mb-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5">
+                            <p className="text-[11px] uppercase tracking-wide text-gray-500 mb-1">Detalles</p>
+                            <p className="text-sm text-gray-700">{request.notes}</p>
                           </div>
                         )}
 
                         {request.photos && request.photos.length > 0 && (
-                          <div className="mb-5">
-                            <h4 className="font-semibold mb-3 text-sm text-gray-700 flex items-center gap-2">
-                              <span className="bg-primary-100 text-primary-700 px-2 py-1 rounded-lg text-xs">
+                          <div className="mb-3">
+                            <div className="flex items-center justify-between mb-2">
+                              <p className="text-xs sm:text-sm font-medium text-gray-700">Evidencias</p>
+                              <span className="text-[11px] px-2 py-0.5 rounded-full bg-primary-50 text-primary-700 border border-primary-100">
                                 {request.photos.length} fotos
                               </span>
-                              Fotos adjuntas
-                            </h4>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                            </div>
+                            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                               {request.photos.sort((a, b) => a.order - b.order).map((photo, index) => (
-                                <div
+                                <button
                                   key={photo.id}
-                                  className="relative group cursor-pointer"
+                                  type="button"
+                                  className="relative rounded-lg overflow-hidden border border-gray-200"
                                   onClick={() => setImageGallery({ isOpen: true, photos: request.photos || [], initialIndex: index })}
                                 >
                                   <img
                                     src={photo.url}
                                     alt="Foto de la solicitud"
-                                    className="w-full h-32 object-cover rounded-xl border-2 border-gray-200 hover:border-primary-500 transition-all shadow-md hover:shadow-lg"
+                                    className="w-full h-20 sm:h-24 object-cover"
                                   />
-                                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-all rounded-xl flex items-end justify-center pb-3">
-                                    <span className="text-white text-sm font-semibold">
-                                      Ver imagen
-                                    </span>
-                                  </div>
-                                </div>
+                                </button>
                               ))}
                             </div>
                           </div>
                         )}
-                        {request.proposals.length > 0 && (
-                          <div className="border-t-2 border-gray-100 pt-5">
-                            <h4 className="font-bold text-base sm:text-lg mb-4 flex items-center gap-2 text-gray-900">
-                              <MessageSquare className="text-primary-600 w-5 h-5" />
-                              Propuestas Recibidas ({request.proposals.length})
-                            </h4>
-                            <div className="space-y-3">
-                              {request.proposals
-                                .sort((a, b) => {
-                                  const IDENTITY_TYPES = ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP']
-                                  const EDUCATION_TYPES = ['DIPLOMA_BACHILLERATO', 'DIPLOMA_TECNICO', 'DIPLOMA_TECNOLOGO', 'DIPLOMA_PROFESIONAL', 'DIPLOMA_POSGRADO', 'CERTIFICADO_CURSO']
 
-                                  const hasIdentityA = a.partner.documents?.some((d: any) =>
-                                    IDENTITY_TYPES.includes(d.type) && d.status === 'APPROVED'
-                                  )
-                                  const hasEducationA = a.partner.documents?.some((d: any) =>
-                                    EDUCATION_TYPES.includes(d.type) && d.status === 'APPROVED'
-                                  )
-                                  const hasBackgroundA = a.partner.documents?.some((d: any) =>
-                                    d.type === 'ANTECEDENTES' && d.status === 'APPROVED'
-                                  )
-                                  const isFullyVerifiedA = hasIdentityA && hasEducationA && hasBackgroundA
+                        {request.proposals.length > 0 ? (
+                          <div className="border-t border-gray-100 pt-3 space-y-2.5">
+                            <div className="flex items-center justify-between">
+                              <h4 className="font-semibold text-sm sm:text-base text-gray-900">Propuestas</h4>
+                              <span className="text-xs text-gray-500">{request.proposals.length} disponibles</span>
+                            </div>
+                            {sortedProposals.map((proposal) => {
+                              const IDENTITY_TYPES = ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP']
+                              const EDUCATION_TYPES = ['DIPLOMA_BACHILLERATO', 'DIPLOMA_TECNICO', 'DIPLOMA_TECNOLOGO', 'DIPLOMA_PROFESIONAL', 'DIPLOMA_POSGRADO', 'CERTIFICADO_CURSO']
 
-                                  const hasIdentityB = b.partner.documents?.some((d: any) =>
-                                    IDENTITY_TYPES.includes(d.type) && d.status === 'APPROVED'
-                                  )
-                                  const hasEducationB = b.partner.documents?.some((d: any) =>
-                                    EDUCATION_TYPES.includes(d.type) && d.status === 'APPROVED'
-                                  )
-                                  const hasBackgroundB = b.partner.documents?.some((d: any) =>
-                                    d.type === 'ANTECEDENTES' && d.status === 'APPROVED'
-                                  )
-                                  const isFullyVerifiedB = hasIdentityB && hasEducationB && hasBackgroundB
+                              const hasIdentity = proposal.partner.documents?.some((d: any) =>
+                                IDENTITY_TYPES.includes(d.type) && d.status === 'APPROVED'
+                              )
+                              const hasEducation = proposal.partner.documents?.some((d: any) =>
+                                EDUCATION_TYPES.includes(d.type) && d.status === 'APPROVED'
+                              )
+                              const hasBackground = proposal.partner.documents?.some((d: any) =>
+                                d.type === 'ANTECEDENTES' && d.status === 'APPROVED'
+                              )
+                              const isFullyVerified = hasIdentity && hasEducation && hasBackground
+                              const totalAmount = proposal.price * (1 + clientCommissionRate / 100)
+                              const canAccept = request.status === 'ACTIVE' && proposal.status === 'PENDING'
+                              const canChat = proposal.status === 'ACCEPTED' || canAccept
 
-                                  if (isFullyVerifiedA && !isFullyVerifiedB) return -1
-                                  if (!isFullyVerifiedA && isFullyVerifiedB) return 1
-                                  return 0
-                                })
-                                .map((proposal) => {
-                                  const IDENTITY_TYPES = ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP']
-                                  const EDUCATION_TYPES = ['DIPLOMA_BACHILLERATO', 'DIPLOMA_TECNICO', 'DIPLOMA_TECNOLOGO', 'DIPLOMA_PROFESIONAL', 'DIPLOMA_POSGRADO', 'CERTIFICADO_CURSO']
-
-                                  const hasIdentity = proposal.partner.documents?.some((d: any) =>
-                                    IDENTITY_TYPES.includes(d.type) && d.status === 'APPROVED'
-                                  )
-                                  const hasEducation = proposal.partner.documents?.some((d: any) =>
-                                    EDUCATION_TYPES.includes(d.type) && d.status === 'APPROVED'
-                                  )
-                                  const hasBackground = proposal.partner.documents?.some((d: any) =>
-                                    d.type === 'ANTECEDENTES' && d.status === 'APPROVED'
-                                  )
-                                  const isFullyVerified = hasIdentity && hasEducation && hasBackground
-
-                                  return (
-                                    <div
-                                      key={proposal.id}
-                                      className={`rounded-xl sm:rounded-2xl p-4 sm:p-5 border-2 transition-all ${
-                                        isFullyVerified
-                                          ? 'bg-gradient-to-br from-emerald-50 via-green-50 to-emerald-50 border-emerald-300 shadow-md'
-                                          : 'bg-gradient-to-br from-gray-50 to-white border-gray-200 hover:border-gray-300'
-                                      }`}
-                                    >
-                                      <div className="flex flex-col gap-4">
-                                        <div className="flex items-start justify-between gap-3">
-                                          <div className="flex items-center gap-3 flex-wrap flex-1">
-                                            <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-md">
-                                              {proposal.partner.user.name?.charAt(0) || 'P'}
-                                            </div>
-                                            <div>
-                                              <div className="flex items-center gap-2 mb-1">
-                                                <span className="font-bold text-base text-gray-900">{proposal.partner.user.name}</span>
-                                                {isFullyVerified && (
-                                                  <div className="group relative inline-block">
-                                                    <div className="bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full p-1">
-                                                      <Star size={14} className="text-white fill-white" />
-                                                    </div>
-                                                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap pointer-events-none z-50 shadow-lg">
-                                                      Socio 100% Verificado
-                                                    </span>
-                                                  </div>
-                                                )}
-                                                {proposal.partner.verified && (
-                                                  <ShieldCheck size={18} className="text-green-600" />
-                                                )}
-                                              </div>
-                                              <div className="flex items-center gap-2 flex-wrap">
-                                                {getVerificationBadges(proposal.partner.documents)}
-                                                {isFullyVerified && (
-                                                  <span className="bg-gradient-to-r from-emerald-500 to-green-600 text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow-md flex items-center gap-1">
-                                                    <ShieldCheck size={12} />
-                                                    Verificación Completa
-                                                  </span>
-                                                )}
-                                                {proposal.status === 'ACCEPTED' && (
-                                                  <span className="bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow-md">
-                                                    ✓ Aceptada
-                                                  </span>
-                                                )}
-                                              </div>
-                                            </div>
-                                          </div>
-                                        </div>
-
-                                        {isFullyVerified && (
-                                          <div className="bg-white border-2 border-emerald-200 rounded-xl p-3 flex items-start gap-3 shadow-sm">
-                                            <div className="bg-emerald-100 rounded-lg p-2 flex-shrink-0">
-                                              <ShieldCheck size={18} className="text-emerald-600" />
-                                            </div>
-                                            <p className="text-xs text-gray-700 leading-relaxed">
-                                              <span className="font-bold text-emerald-700">Socio completamente verificado:</span> Identidad, educación y antecedentes verificados por nuestro equipo.
-                                            </p>
-                                          </div>
+                              return (
+                                <div
+                                  key={proposal.id}
+                                  className={`rounded-xl border p-3 ${
+                                    isFullyVerified
+                                      ? 'border-emerald-200 bg-emerald-50/40'
+                                      : 'border-gray-200 bg-white'
+                                  }`}
+                                >
+                                  <div className="flex items-start justify-between gap-3 mb-2">
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <p className="font-semibold text-sm sm:text-base text-gray-900 truncate">{proposal.partner.user.name}</p>
+                                        {isFullyVerified && <ShieldCheck size={14} className="text-emerald-600 shrink-0" />}
+                                        {proposal.status === 'ACCEPTED' && (
+                                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200">
+                                            Aceptada
+                                          </span>
                                         )}
-
-                                        <div className="bg-white rounded-xl p-4 border-2 border-primary-200 shadow-sm">
-                                          <div className="space-y-3">
-                                            <div className="flex justify-between items-center">
-                                              <span className="text-sm text-gray-600">Precio del servicio:</span>
-                                              <span className="font-bold text-gray-900">{formatCurrency(proposal.price)}</span>
-                                            </div>
-                                            <div className="flex justify-between items-center">
-                                              <span className="text-sm text-gray-600">Tarifa de servicio ({clientCommissionRate}%):</span>
-                                              <span className="font-bold text-gray-900">{formatCurrency(proposal.price * (clientCommissionRate / 100))}</span>
-                                            </div>
-                                            <div className="border-t-2 border-gray-200 pt-3 flex justify-between items-center">
-                                              <span className="font-bold text-gray-900">Total a pagar:</span>
-                                              <span className="text-2xl sm:text-3xl font-bold text-primary-600">{formatCurrency(proposal.price * (1 + clientCommissionRate / 100))}</span>
-                                            </div>
-                                          </div>
-                                        </div>
-
-                                        {proposal.notes && (
-                                          <div className="bg-white rounded-xl p-4 border-2 border-gray-200 shadow-sm">
-                                            <p className="text-xs font-semibold text-gray-700 mb-2">Notas del socio:</p>
-                                            <p className="text-sm text-gray-800">{proposal.notes}</p>
-                                          </div>
-                                        )}
-
-                                        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-                                          {(proposal.status === 'ACCEPTED' || (request.status === 'ACTIVE' && proposal.status === 'PENDING')) && (
-                                            <button
-                                              onClick={() => setChatModal({
-                                                isOpen: true,
-                                                proposalId: proposal.id,
-                                                partnerName: proposal.partner.user.name,
-                                                serviceName: request.service.name
-                                              })}
-                                              disabled={session?.user?.isActive === false}
-                                              className="w-full bg-white border-2 border-orange-500 text-primary-600 px-4 py-3.5 rounded-xl hover:bg-primary-50 transition-all font-semibold flex items-center justify-center gap-2 relative shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                                            >
-                                              <MessageCircle size={20} />
-                                              Chat con el Socio
-                                              {unreadCounts[proposal.id] > 0 && (
-                                                <span className="absolute -top-2 -right-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xs font-bold rounded-full h-7 w-7 flex items-center justify-center animate-pulse shadow-lg">
-                                                  {unreadCounts[proposal.id]}
-                                                </span>
-                                              )}
-                                            </button>
-                                          )}
-                                          {request.status === 'ACTIVE' && proposal.status === 'PENDING' && (
-                                            <button
-                                              onClick={() => acceptProposal(proposal.id, proposal.partner.user.name, proposal.price)}
-                                              disabled={session?.user?.isActive === false}
-                                              className="w-full bg-gradient-to-r from-secondary-500 to-secondary-600 text-white px-4 py-3.5 rounded-xl hover:from-secondary-600 hover:to-secondary-700 transition-all font-semibold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-                                            >
-                                              <CheckCircle size={20} />
-                                              Aceptar Propuesta
-                                            </button>
-                                          )}
-                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        {getVerificationBadges(proposal.partner.documents)}
                                       </div>
                                     </div>
-                                  )
-                                })}
-                            </div>
+                                    <p className="text-lg font-bold text-primary-600 shrink-0">{formatCurrency(totalAmount)}</p>
+                                  </div>
+
+                                  {proposal.notes && (
+                                    <p className="text-xs sm:text-sm text-gray-600 mb-2">{proposal.notes}</p>
+                                  )}
+
+                                  <div className="grid grid-cols-2 gap-2 text-xs mb-2">
+                                    <div className="rounded-lg bg-gray-50 border border-gray-100 px-2 py-1.5">
+                                      <p className="text-gray-500">Servicio</p>
+                                      <p className="font-semibold text-gray-800">{formatCurrency(proposal.price)}</p>
+                                    </div>
+                                    <div className="rounded-lg bg-gray-50 border border-gray-100 px-2 py-1.5">
+                                      <p className="text-gray-500">Tarifa ({clientCommissionRate}%)</p>
+                                      <p className="font-semibold text-gray-800">{formatCurrency(proposal.price * (clientCommissionRate / 100))}</p>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex flex-col sm:flex-row gap-2">
+                                    {canAccept && (
+                                      <button
+                                        onClick={() => acceptProposal(proposal.id, proposal.partner.user.name, proposal.price)}
+                                        disabled={session?.user?.isActive === false}
+                                        className="w-full sm:flex-1 bg-secondary-500 text-white px-3 py-2.5 rounded-xl hover:bg-secondary-600 transition-all font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                      >
+                                        <CheckCircle size={16} />
+                                        Aceptar propuesta
+                                      </button>
+                                    )}
+                                    {canChat && (
+                                      <button
+                                        onClick={() => setChatModal({
+                                          isOpen: true,
+                                          proposalId: proposal.id,
+                                          partnerName: proposal.partner.user.name,
+                                          serviceName: request.service.name
+                                        })}
+                                        disabled={session?.user?.isActive === false}
+                                        className={`w-full ${canAccept ? 'sm:flex-1' : ''} bg-white border border-primary-300 text-primary-700 px-3 py-2.5 rounded-xl hover:bg-primary-50 transition-all font-medium text-sm flex items-center justify-center gap-2 relative disabled:opacity-50 disabled:cursor-not-allowed`}
+                                      >
+                                        <MessageCircle size={16} />
+                                        Chat
+                                        {unreadCounts[proposal.id] > 0 && (
+                                          <span className="absolute -top-1.5 -right-1.5 bg-primary-600 text-white text-[10px] font-bold rounded-full h-5 min-w-5 px-1 flex items-center justify-center">
+                                            {unreadCounts[proposal.id]}
+                                          </span>
+                                        )}
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              )
+                            })}
                           </div>
-                        )}
-                        {!request.proposals.length && (
-                          <div className="bg-gradient-to-r from-blue-50 to-blue-100 border-2 border-blue-200 rounded-xl sm:rounded-2xl p-6 text-center">
-                            <div className="bg-blue-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-3">
-                              <Clock className="text-blue-600" size={32} />
+                        ) : (
+                          <div className="border-t border-gray-100 pt-3">
+                            <div className="rounded-xl bg-blue-50 border border-blue-100 px-3 py-3 text-center">
+                              <p className="text-sm font-semibold text-blue-900">Esperando propuestas de socios</p>
+                              <p className="text-xs text-blue-700 mt-1">Expira el {new Date(request.expiresAt).toLocaleDateString('es-ES')}</p>
                             </div>
-                            <p className="text-base text-blue-900 font-bold mb-1">Esperando propuestas de socios</p>
-                            <p className="text-sm text-blue-700">Expira: {new Date(request.expiresAt).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
                           </div>
                         )}
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </div>
