@@ -1,7 +1,8 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { Home, Package, MessageSquare } from 'lucide-react'
+import { Home, Package, MessageSquare, Bell } from 'lucide-react'
+import { useNotificationUnreadCount } from '@/hooks/useNotificationUnreadCount'
 
 interface NavItem {
   id: string
@@ -19,6 +20,7 @@ interface PartnerHeaderProps {
   activeTab?: string
   bookingsCount?: number
   requestsCount?: number
+  notificationsCount?: number
   onTabChange?: (tab: string) => void
   showNavigation?: boolean
 }
@@ -29,10 +31,13 @@ export default function PartnerHeader({
   activeTab,
   bookingsCount = 0,
   requestsCount = 0,
+  notificationsCount,
   onTabChange,
   showNavigation = true,
 }: PartnerHeaderProps) {
   const router = useRouter()
+  const liveNotificationsCount = useNotificationUnreadCount(true)
+  const unreadNotifications = notificationsCount ?? liveNotificationsCount
 
   const navItems: NavItem[] = [
     {
@@ -56,6 +61,14 @@ export default function PartnerHeader({
       badge: requestsCount,
       badgeColor: 'bg-primary-500',
       onClick: () => onTabChange?.('my-requests'),
+    },
+    {
+      id: 'notifications',
+      label: 'Notificaciones',
+      icon: <Bell className="w-7 h-7 sm:w-6 sm:h-6" />,
+      badge: unreadNotifications,
+      badgeColor: 'bg-primary-600',
+      path: '/partner/notifications',
     },
   ]
 

@@ -117,9 +117,24 @@ export default function PartnerNotificationsPage() {
       }
     }
 
-    if (parsedData.bookingId || parsedData.serviceRequestId || parsedData.proposalId) {
-      router.push('/partner')
+    const explicitTarget = typeof parsedData.targetUrl === 'string' ? parsedData.targetUrl : null
+
+    if (explicitTarget && explicitTarget.startsWith('/')) {
+      router.push(explicitTarget)
+      return
     }
+
+    if (parsedData.serviceRequestId) {
+      router.push('/partner?tab=my-requests')
+      return
+    }
+
+    if (parsedData.bookingId || parsedData.proposalId || parsedData.paymentId) {
+      router.push('/partner?tab=bookings')
+      return
+    }
+
+    router.push('/partner')
   }
 
   const handleEnablePushNotifications = async () => {
@@ -169,6 +184,8 @@ export default function PartnerNotificationsPage() {
         <PartnerDashboardNav
           bookingsCount={bookingsCount}
           requestsCount={myRequestsCount}
+          notificationsCount={unreadCount}
+          activeTab="notifications"
         />
       </header>
 

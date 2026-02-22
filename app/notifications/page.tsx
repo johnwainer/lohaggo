@@ -115,10 +115,24 @@ export default function NotificationsPage() {
     }
 
     const isPartner = session?.user?.role === 'PARTNER'
+    const explicitTarget = typeof parsedData.targetUrl === 'string' ? parsedData.targetUrl : null
 
-    if (parsedData.bookingId || parsedData.serviceRequestId || parsedData.proposalId) {
-      router.push(isPartner ? '/partner' : '/dashboard')
+    if (explicitTarget && explicitTarget.startsWith('/')) {
+      router.push(explicitTarget)
+      return
     }
+
+    if (parsedData.serviceRequestId) {
+      router.push(isPartner ? '/partner?tab=my-requests' : '/dashboard?tab=requests')
+      return
+    }
+
+    if (parsedData.bookingId || parsedData.proposalId || parsedData.paymentId) {
+      router.push(isPartner ? '/partner?tab=bookings' : '/dashboard?tab=bookings')
+      return
+    }
+
+    router.push(isPartner ? '/partner' : '/dashboard')
   }
 
   const markAllAsRead = async () => {
@@ -185,6 +199,8 @@ export default function NotificationsPage() {
           bookingsCount={bookingsCount}
           requestsCount={requestsCount}
           favoritesCount={favoritesCount}
+          notificationsCount={unreadCount}
+          activeTab="notifications"
         />
       </header>
 

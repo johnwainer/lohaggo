@@ -18,6 +18,7 @@ import ImageGalleryModal from '@/components/ImageGalleryModal'
 import RatingModal from '@/components/RatingModal'
 import UnifiedBookingCard from '@/components/shared/UnifiedBookingCard'
 import { getBookingVisualState, type BookingVisualState } from '@/lib/booking-status'
+import { useNotificationUnreadCount } from '@/hooks/useNotificationUnreadCount'
 
 const ChatModal = dynamic(() => import('@/components/ChatModal'), {
   ssr: false,
@@ -135,6 +136,7 @@ const requestStatusLabels: Record<string, string> = {
 export default function DashboardPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const unreadNotifications = useNotificationUnreadCount(status === 'authenticated')
   const [bookings, setBookings] = useState<Booking[]>([])
   const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([])
   const [favoritePartners, setFavoritePartners] = useState<any[]>([])
@@ -882,6 +884,19 @@ export default function DashboardPage() {
                   {favoritePartners.length > 0 && (
                     <span className="inline-flex items-center justify-center min-w-6 h-6 px-1.5 bg-primary-500 text-white text-[10px] sm:text-xs rounded-full">
                       {favoritePartners.length}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => router.push('/notifications')}
+                  className="snap-start flex items-center gap-2 px-4 py-3.5 text-sm font-medium border-b-2 transition whitespace-nowrap border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300"
+                >
+                  <Bell className="w-7 h-7 sm:w-6 sm:h-6" />
+                  <span className="hidden sm:inline">Notificaciones</span>
+                  {unreadNotifications > 0 && (
+                    <span className="inline-flex items-center justify-center min-w-6 h-6 px-1.5 bg-primary-600 text-white text-[10px] sm:text-xs rounded-full">
+                      {unreadNotifications > 99 ? '99+' : unreadNotifications}
                     </span>
                   )}
                 </button>
