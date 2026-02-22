@@ -217,9 +217,9 @@ export default function AddressesPage() {
   }
 
   return (
-    <div className="panel-page min-h-screen bg-gray-50">
+    <div className="account-shell">
       {/* Header with navigation */}
-      <header className="bg-white shadow-sm sticky top-0 z-40">
+      <header className="account-header">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
@@ -246,7 +246,7 @@ export default function AddressesPage() {
         />
       </header>
 
-      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
+      <main className="account-main">
 
         {addresses.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm p-8 sm:p-12 text-center">

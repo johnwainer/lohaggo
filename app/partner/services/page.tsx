@@ -217,9 +217,9 @@ export default function ServicesManagementPage() {
   }
 
   return (
-    <div className="panel-page min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="account-shell">
       <div>
-        <header className="bg-white shadow-sm sticky top-0 z-40">
+        <header className="account-header">
           <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
@@ -237,7 +237,7 @@ export default function ServicesManagementPage() {
           />
         </header>
 
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <main className="account-main">
           <div>
             {message && (
               <div className={`mb-6 p-4 rounded-lg flex items-center gap-3 ${

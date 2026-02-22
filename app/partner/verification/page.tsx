@@ -201,14 +201,14 @@ export default function VerificationPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <header className="bg-white shadow-sm sticky top-0 z-40">
+    <div className="account-shell">
+      <header className="account-header">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
               <div className="min-w-0 flex-1">
-                <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">Verificación de Documentos</h1>
-                <p className="text-xs sm:text-sm text-gray-600 truncate hidden sm:block">Sube tus documentos para verificar tu identidad y educación</p>
+                <h1 className="panel-title truncate">Verificación de Documentos</h1>
+                <p className="panel-subtitle truncate hidden sm:block">Sube tus documentos para verificar tu identidad y educación</p>
               </div>
             </div>
           </div>
@@ -220,9 +220,9 @@ export default function VerificationPage() {
         />
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-8">
+      <main className="account-main">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className={`bg-white rounded-lg shadow-md p-6 border-2 ${hasIdentityDoc ? 'border-green-500' : 'border-gray-200'}`}>
+          <div className={`surface-card p-6 border-2 ${hasIdentityDoc ? 'border-green-500' : 'border-gray-200'}`}>
             <div className="flex items-center justify-between mb-4">
               <CreditCard className="w-8 h-8 text-blue-600" />
               {hasIdentityDoc && <CheckCircle className="w-6 h-6 text-green-500" />}
@@ -233,7 +233,7 @@ export default function VerificationPage() {
             </p>
           </div>
 
-          <div className={`bg-white rounded-lg shadow-md p-6 border-2 ${hasEducationDoc ? 'border-green-500' : 'border-gray-200'}`}>
+          <div className={`surface-card p-6 border-2 ${hasEducationDoc ? 'border-green-500' : 'border-gray-200'}`}>
             <div className="flex items-center justify-between mb-4">
               <GraduationCap className="w-8 h-8 text-purple-600" />
               {hasEducationDoc && <CheckCircle className="w-6 h-6 text-green-500" />}
@@ -244,7 +244,7 @@ export default function VerificationPage() {
             </p>
           </div>
 
-          <div className={`bg-white rounded-lg shadow-md p-6 border-2 ${hasBackgroundDoc ? 'border-green-500' : 'border-gray-200'}`}>
+          <div className={`surface-card p-6 border-2 ${hasBackgroundDoc ? 'border-green-500' : 'border-gray-200'}`}>
             <div className="flex items-center justify-between mb-4">
               <Shield className="w-8 h-8 text-green-600" />
               {hasBackgroundDoc ? <CheckCircle className="w-6 h-6 text-green-500" /> : <AlertCircle className="w-6 h-6 text-gray-400" />}
@@ -256,7 +256,7 @@ export default function VerificationPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+        <div className="surface-card p-6 mb-8">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-semibold">Mis Documentos</h2>
             <button

@@ -158,8 +158,8 @@ export default function PartnerNotificationsPage() {
   const unreadCount = notifications.filter(n => !n.read).length
 
   return (
-    <div className="panel-page min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <header className="bg-white shadow-sm sticky top-0 z-40">
+    <div className="account-shell">
+      <header className="account-header">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
@@ -189,8 +189,8 @@ export default function PartnerNotificationsPage() {
         />
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+      <main className="account-main">
+        <div className="surface-card overflow-hidden">
           {isSupported && !isSubscribed && permission !== 'denied' && (
             <div className="p-4 sm:p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-200">
               <div className="flex items-start gap-3">

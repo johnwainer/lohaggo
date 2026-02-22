@@ -275,6 +275,30 @@ textarea .emoji {
 }
 
 @layer components {
+  .account-shell {
+    @apply panel-page min-h-screen bg-gradient-to-br from-gray-50 to-gray-100;
+  }
+
+  .account-header {
+    @apply sticky top-0 z-40 border-b border-gray-100 bg-white/95 backdrop-blur-sm shadow-sm;
+  }
+
+  .account-main {
+    @apply max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8;
+  }
+
+  .account-main-narrow {
+    @apply max-w-4xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8;
+  }
+
+  .surface-card {
+    @apply bg-white border border-gray-200 rounded-2xl shadow-sm;
+  }
+
+  .surface-card-soft {
+    @apply bg-white border border-gray-100 rounded-2xl shadow-sm;
+  }
+
   .panel-page {
     @apply antialiased;
   }

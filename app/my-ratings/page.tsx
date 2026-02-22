@@ -175,10 +175,10 @@ export default function MyRatingsPage() {
     : 0
 
   return (
-    <div className="panel-page min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="account-shell">
       {userRole === 'PARTNER' ? (
         <>
-          <header className="bg-white shadow-sm sticky top-0 z-40">
+          <header className="account-header">
             <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
@@ -197,7 +197,7 @@ export default function MyRatingsPage() {
           </header>
         </>
       ) : (
-        <header className="bg-white shadow-sm sticky top-0 z-40">
+        <header className="account-header">
           <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
@@ -221,10 +221,10 @@ export default function MyRatingsPage() {
         </header>
       )}
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="account-main">
         {/* Stats Card */}
         {reviews.filter(r => userRole === 'CLIENT' ? r.partnerToClientRating : r.clientToPartnerRating).length > 0 && (
-          <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
+          <div className="surface-card p-6 mb-8">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <Star size={24} className="fill-yellow-400 text-yellow-400" />
@@ -244,7 +244,7 @@ export default function MyRatingsPage() {
 
         {/* Reviews List */}
         {reviews.length === 0 ? (
-          <div className="bg-white rounded-2xl shadow-lg p-12 text-center">
+          <div className="surface-card p-12 text-center">
             <Star size={64} className="mx-auto text-gray-300 mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
               Aún no tienes calificaciones
@@ -274,7 +274,7 @@ export default function MyRatingsPage() {
               if (!rating) return null
 
               return (
-                <div key={review.id} className="bg-white rounded-2xl shadow-lg p-6">
+                <div key={review.id} className="surface-card p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">

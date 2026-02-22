@@ -273,8 +273,8 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="panel-page min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm sticky top-0 z-40">
+    <div className="account-shell">
+      <header className="account-header">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
@@ -300,10 +300,10 @@ export default function ProfilePage() {
         )}
       </header>
 
-      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
+      <main className="account-main">
         <div className="flex flex-col lg:flex-row gap-6">
           <div className="flex-1">
-            <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+            <div className="surface-card overflow-hidden">
               <div className="bg-gradient-to-r from-primary-500 to-secondary-500 px-6 py-8">
                 <h2 className="text-2xl sm:text-3xl font-bold text-white">Información Personal</h2>
                 <p className="text-white/90 mt-2">Actualiza tus datos de perfil</p>
