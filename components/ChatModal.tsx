@@ -169,8 +169,8 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 p-0 sm:flex sm:items-center sm:justify-center sm:p-4">
-      <div className="flex h-full w-full flex-col bg-white shadow-2xl sm:h-[700px] sm:max-w-2xl sm:rounded-2xl">
+    <div className="fixed inset-0 z-[90] bg-black/50 p-0 sm:flex sm:items-center sm:justify-center sm:p-4">
+      <div className="mt-[8vh] flex h-[92dvh] w-full flex-col rounded-t-2xl bg-white shadow-2xl sm:mt-0 sm:h-[700px] sm:max-w-2xl sm:rounded-2xl">
         <div className="flex items-center justify-between bg-gradient-to-r from-primary-500 to-secondary-500 px-4 py-3 text-white sm:rounded-t-2xl">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20">
@@ -189,7 +189,7 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
           </button>
         </div>
 
-        <div className="flex-1 space-y-4 overflow-y-auto bg-gray-50 p-4 sm:p-6">
+        <div className="flex-1 space-y-4 overflow-y-auto bg-gray-50 p-4 pb-3 sm:p-6">
           <PlatformTrustBanner
             variant="warning"
             context="chat"
@@ -268,7 +268,7 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
 
         <form
           onSubmit={sendMessage}
-          className="border-t border-gray-200 bg-white px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:rounded-b-2xl sm:px-6 sm:py-4"
+          className="border-t border-gray-200 bg-white px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+4.75rem)] sm:rounded-b-2xl sm:px-6 sm:py-4 sm:pb-4"
         >
           <div className="flex gap-2 md:gap-3">
             <input
