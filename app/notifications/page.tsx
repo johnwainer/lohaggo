@@ -22,6 +22,7 @@ export default function NotificationsPage() {
   const router = useRouter()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
   const [filter, setFilter] = useState<'all' | 'unread'>('all')
   const { isSupported, isSubscribed, subscribeToPush, permission, isLoading: pushLoading, error: pushError } = usePushNotifications()
   const [bookingsCount, setBookingsCount] = useState(0)
@@ -84,6 +85,7 @@ export default function NotificationsPage() {
       console.error('Error fetching notifications:', error)
     } finally {
       setLoading(false)
+      setHasLoadedOnce(true)
     }
   }
 
@@ -157,7 +159,7 @@ export default function NotificationsPage() {
 
   const unreadCount = notifications.filter(n => !n.read).length
 
-  if (status === 'loading' || loading) {
+  if (status === 'loading' || (loading && !hasLoadedOnce)) {
     return (
       <div className="panel-page min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100">
         <div className="text-center">

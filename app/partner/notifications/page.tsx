@@ -22,6 +22,7 @@ export default function PartnerNotificationsPage() {
   const router = useRouter()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
   const [filter, setFilter] = useState<'all' | 'unread'>('all')
   const { isSupported, isSubscribed, subscribeToPush, permission, isLoading: pushLoading, error: pushError } = usePushNotifications()
   const [bookingsCount, setBookingsCount] = useState(0)
@@ -36,7 +37,13 @@ export default function PartnerNotificationsPage() {
       fetchNotifications()
       fetchCounts()
     }
-  }, [status, filter, session])
+  }, [status, session, router])
+
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user?.role === 'PARTNER') {
+      fetchNotifications()
+    }
+  }, [filter, status, session?.user?.role])
 
   const fetchCounts = async () => {
     try {
@@ -74,6 +81,7 @@ export default function PartnerNotificationsPage() {
       console.error('Error fetching notifications:', error)
     } finally {
       setLoading(false)
+      setHasLoadedOnce(true)
     }
   }
 
@@ -144,7 +152,7 @@ export default function PartnerNotificationsPage() {
     }
   }
 
-  if (status === 'loading' || loading) {
+  if (status === 'loading' || (loading && !hasLoadedOnce)) {
     return (
       <div className="panel-page min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100">
         <div className="text-center">

@@ -4,11 +4,20 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { X } from 'lucide-react'
 import { useCity } from '@/lib/city-context'
+import { useSession } from 'next-auth/react'
+import { usePathname } from 'next/navigation'
 
 export default function TermsBanner() {
     const [isVisible, setIsVisible] = useState(false)
     const [isAccepted, setIsAccepted] = useState(false)
     const { showCityModal } = useCity()
+    const { data: session } = useSession()
+    const pathname = usePathname()
+
+    const inProtectedArea = Boolean(
+      pathname &&
+      (/^\/(dashboard|partner|profile|notifications|my-ratings|admin)(\/|$)/.test(pathname))
+    )
 
     useEffect(() => {
         // Check if user has already accepted terms
@@ -30,7 +39,7 @@ export default function TermsBanner() {
         setIsVisible(false)
     }
 
-    if (!isVisible) {
+    if (!isVisible || session?.user?.id || inProtectedArea) {
         return null
     }
 
