@@ -82,7 +82,7 @@ export default function PartnerDashboardNav({
                 key={item.id}
                 onClick={() => handleNav(item)}
                 data-testid={`partner-tab-${item.id}`}
-                className={`relative flex min-h-[56px] flex-col items-center justify-center rounded-xl text-[11px] font-medium transition ${
+                className={`relative flex min-h-[56px] flex-col items-center justify-center rounded-xl text-xs font-medium transition ${
                   isActive ? 'bg-primary-50 text-primary-700' : 'text-gray-600 active:scale-95'
                 }`}
               >

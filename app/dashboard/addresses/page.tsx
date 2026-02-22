@@ -210,22 +210,22 @@ export default function AddressesPage() {
 
   if (status === 'loading' || loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="panel-page min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-primary-600"></div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="panel-page min-h-screen bg-gray-50">
       {/* Header with navigation */}
       <header className="bg-white shadow-sm sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
               <div className="min-w-0 flex-1">
-                <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">Mis Direcciones</h1>
-                <p className="text-xs sm:text-sm text-gray-600 truncate hidden sm:block">Administra tus direcciones de servicio</p>
+                <h1 className="panel-title truncate">Mis Direcciones</h1>
+                <p className="panel-subtitle truncate hidden sm:block">Administra tus direcciones de servicio</p>
               </div>
             </div>
             <button

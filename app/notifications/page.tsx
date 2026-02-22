@@ -159,7 +159,7 @@ export default function NotificationsPage() {
 
   if (status === 'loading' || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100">
+      <div className="panel-page min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-primary-600 mx-auto mb-4"></div>
           <p className="text-gray-600 font-medium">Cargando notificaciones...</p>
@@ -169,15 +169,15 @@ export default function NotificationsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="panel-page min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <header className="bg-white shadow-sm sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
               <div className="min-w-0 flex-1">
                 <div className="flex sm:block items-center gap-2">
-                  <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Notificaciones</h1>
-                  <p className="text-xs sm:text-sm text-gray-600">({unreadCount} sin leer)</p>
+                  <h1 className="panel-title">Notificaciones</h1>
+                  <p className="panel-subtitle">({unreadCount} sin leer)</p>
                 </div>
               </div>
             </div>

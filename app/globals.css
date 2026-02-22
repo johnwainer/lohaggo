@@ -273,3 +273,41 @@ textarea .emoji {
     padding-bottom: 16px !important;
   }
 }
+
+@layer components {
+  .panel-page {
+    @apply antialiased;
+  }
+
+  .panel-title {
+    @apply text-xl sm:text-2xl font-bold tracking-tight text-gray-900;
+  }
+
+  .panel-subtitle {
+    @apply text-xs sm:text-sm font-medium text-gray-600;
+  }
+
+  .panel-section-title {
+    @apply text-base sm:text-lg font-semibold tracking-tight text-gray-900;
+  }
+
+  .panel-card-title {
+    @apply text-sm sm:text-base font-semibold text-gray-900;
+  }
+
+  .panel-body {
+    @apply text-sm text-gray-700;
+  }
+
+  .panel-caption {
+    @apply text-xs text-gray-500;
+  }
+
+  .panel-label {
+    @apply text-xs sm:text-sm font-medium text-gray-600;
+  }
+
+  .panel-stat {
+    @apply text-2xl sm:text-3xl font-bold tracking-tight text-gray-900;
+  }
+}

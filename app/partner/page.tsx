@@ -504,7 +504,7 @@ function PartnerDashboardContent() {
   )
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="panel-page min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <Modal
         isOpen={modal.isOpen}
         onClose={() => setModal({ ...modal, isOpen: false })}

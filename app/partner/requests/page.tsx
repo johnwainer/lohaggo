@@ -143,7 +143,7 @@ export default function PartnerRequestsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="panel-page min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
       </div>
     )
@@ -151,7 +151,7 @@ export default function PartnerRequestsPage() {
 
   if (verificationRequired) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="panel-page min-h-screen bg-gray-50">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <div className="bg-white rounded-2xl shadow-xl p-8 md:p-12 text-center">
             <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -176,12 +176,12 @@ export default function PartnerRequestsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="panel-page min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Solicitudes activas</h1>
-          <p className="text-gray-600">
+          <h1 className="panel-title mb-2">Solicitudes activas</h1>
+          <p className="panel-subtitle">
             Solicitudes de servicio disponibles para enviar propuestas
           </p>
         </div>
@@ -196,10 +196,10 @@ export default function PartnerRequestsPage() {
         {requests.length === 0 ? (
           <div className="bg-white rounded-xl shadow-md p-12 text-center">
             <MessageSquare className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            <h3 className="panel-section-title mb-2">
               No hay solicitudes activas
             </h3>
-            <p className="text-gray-600">
+            <p className="panel-body">
               Cuando los clientes soliciten servicios que ofreces, aparecerán aquí para que puedas enviar propuestas.
             </p>
           </div>
@@ -211,12 +211,12 @@ export default function PartnerRequestsPage() {
                   <div className="flex items-start gap-4">
                     <div className="text-3xl">{request.service.icon}</div>
                     <div>
-                      <h3 className="font-semibold text-lg">{request.service.name}</h3>
-                      <p className="text-gray-600 text-sm">{request.service.category.name}</p>
+                      <h3 className="panel-card-title">{request.service.name}</h3>
+                      <p className="panel-caption">{request.service.category.name}</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-sm text-gray-500">
+                    <div className="panel-caption">
                       {getTimeRemaining(request.expiresAt)}
                     </div>
                     <div className="text-xs text-gray-400 mt-1">

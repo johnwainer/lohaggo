@@ -154,7 +154,7 @@ export default function MyRatingsPage() {
 
   if (status === 'loading' || loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+      <div className="panel-page min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Cargando calificaciones...</p>
@@ -175,7 +175,7 @@ export default function MyRatingsPage() {
     : 0
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="panel-page min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {userRole === 'PARTNER' ? (
         <>
           <header className="bg-white shadow-sm sticky top-0 z-40">
@@ -183,8 +183,8 @@ export default function MyRatingsPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
                   <div className="min-w-0 flex-1">
-                    <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">Mis Calificaciones</h1>
-                    <p className="text-xs sm:text-sm text-gray-600 truncate hidden sm:block">Calificaciones que has recibido de los clientes</p>
+                    <h1 className="panel-title truncate">Mis Calificaciones</h1>
+                    <p className="panel-subtitle truncate hidden sm:block">Calificaciones que has recibido de los clientes</p>
                   </div>
                 </div>
               </div>
@@ -202,10 +202,10 @@ export default function MyRatingsPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
                 <div className="min-w-0 flex-1">
-                  <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">
+                  <h1 className="panel-title truncate">
                     Mis Calificaciones
                   </h1>
-                  <p className="text-xs sm:text-sm text-gray-600 truncate hidden sm:block">
+                  <p className="panel-subtitle truncate hidden sm:block">
                     Calificaciones que has recibido de los socios
                   </p>
                 </div>

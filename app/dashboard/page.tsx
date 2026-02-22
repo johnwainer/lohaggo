@@ -613,7 +613,7 @@ export default function DashboardPage() {
 
   if (status === 'loading' || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100">
+      <div className="panel-page min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-primary-600 mx-auto mb-4"></div>
           <p className="text-gray-600 font-medium">Cargando panel...</p>
@@ -812,7 +812,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="panel-page min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <Modal
         isOpen={modal.isOpen}
         onClose={() => setModal({ ...modal, isOpen: false })}
@@ -930,13 +930,13 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
                 <div className="min-w-0 flex-1">
-                  <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">
+                  <h1 className="panel-title truncate">
                     {activeTab === 'overview' && 'Resumen General'}
                     {activeTab === 'bookings' && 'Mis Reservas'}
                     {activeTab === 'requests' && 'Mis Solicitudes'}
                     {activeTab === 'favorites' && 'Mis Favoritos'}
                   </h1>
-                  <p className="text-xs sm:text-sm text-gray-600 truncate hidden sm:block">
+                  <p className="panel-subtitle truncate hidden sm:block">
                     {activeTab === 'overview' && 'Vista general de tu actividad'}
                     {activeTab === 'bookings' && 'Gestiona tus reservas de servicios'}
                     {activeTab === 'requests' && 'Solicitudes y propuestas recibidas'}
