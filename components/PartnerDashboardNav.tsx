@@ -72,9 +72,8 @@ export default function PartnerDashboardNav({
         </div>
       </div>
 
-      <div className="h-[84px] md:hidden" />
-      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white/95 backdrop-blur-md md:hidden">
-        <nav className="mx-auto grid max-w-2xl grid-cols-4 gap-1 px-2 pt-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">
+      <div className="md:hidden border-t border-gray-200 bg-white/95 backdrop-blur-md">
+        <nav className="mx-auto grid max-w-2xl grid-cols-4 gap-1 px-2 py-2">
           {navItems.map((item) => {
             const Icon = item.icon
             const isActive = activeTab === item.id
