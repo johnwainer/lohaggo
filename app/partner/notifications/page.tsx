@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { Bell, Check, CheckCheck } from 'lucide-react'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
 import PartnerDashboardNav from '@/components/PartnerDashboardNav'
+import NotificationsInbox from '@/components/shared/NotificationsInbox'
 
 interface Notification {
   id: string
@@ -54,7 +54,7 @@ export default function PartnerNotificationsPage() {
 
       if (bookingsRes.ok) {
         const bookings = await bookingsRes.json()
-        setBookingsCount(bookings.length)
+        setBookingsCount(Array.isArray(bookings) ? bookings.length : 0)
       }
 
       if (requestsRes.ok) {
@@ -152,207 +152,37 @@ export default function PartnerNotificationsPage() {
     }
   }
 
-  if (status === 'loading' || (loading && !hasLoadedOnce)) {
-    return (
-      <div className="panel-page min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-primary-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Cargando notificaciones...</p>
-        </div>
-      </div>
-    )
-  }
-
-  const unreadCount = notifications.filter(n => !n.read).length
+  const unreadCount = notifications.filter((n) => !n.read).length
 
   return (
-    <div className="account-shell">
-      <header className="account-header">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-              <div className="min-w-0 flex-1">
-                <h1 className="panel-title truncate">Notificaciones</h1>
-                <p className="panel-subtitle truncate hidden sm:block">({unreadCount} sin leer)</p>
-              </div>
-            </div>
-
-            {unreadCount > 0 && (
-              <button
-                onClick={markAllAsRead}
-                className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition"
-              >
-                <CheckCheck size={18} />
-                <span className="hidden sm:inline">Marcar todas como leídas</span>
-              </button>
-            )}
-          </div>
-        </div>
-
+    <NotificationsInbox
+      notifications={notifications}
+      filter={filter}
+      unreadCount={unreadCount}
+      loading={loading}
+      hasLoadedOnce={hasLoadedOnce}
+      push={{
+        isSupported,
+        isSubscribed,
+        permission,
+        isLoading: pushLoading,
+        error: pushError
+      }}
+      headerSubtitle={`Socio: ${unreadCount} sin leer`}
+      emptySubtitle="Aquí verás novedades de reservas, solicitudes y actividad de clientes."
+      nav={(
         <PartnerDashboardNav
           bookingsCount={bookingsCount}
           requestsCount={myRequestsCount}
           notificationsCount={unreadCount}
           activeTab="notifications"
         />
-      </header>
-
-      <main className="account-main">
-        <div className="surface-card overflow-hidden">
-          {isSupported && !isSubscribed && permission !== 'denied' && (
-            <div className="p-4 sm:p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-200">
-              <div className="flex items-start gap-3">
-                <Bell className="text-blue-600 flex-shrink-0 mt-1" size={24} />
-                <div className="flex-1">
-                  <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-1">
-                    Activa las notificaciones push
-                  </h3>
-                  <p className="text-xs sm:text-sm text-gray-700 mb-3">
-                    Recibe alertas en tiempo real sobre nuevas solicitudes, propuestas aceptadas y cambios de estado
-                  </p>
-
-                  {pushError && (
-                    <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-800">
-                      {typeof pushError === 'string' ? pushError : 'Error al activar las notificaciones.'}
-                    </div>
-                  )}
-
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={handleEnablePushNotifications}
-                      disabled={pushLoading}
-                      className="text-xs sm:text-sm bg-blue-600 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-blue-700 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {pushLoading ? 'Activando...' : 'Activar notificaciones push'}
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        // Offer a quick way to show more info or fallback
-                        alert('Las notificaciones push permiten recibir alertas aunque no estés en la pestaña. Si tienes dudas, revisa la configuración del navegador.');
-                      }}
-                      className="text-xs sm:text-sm bg-white border border-gray-200 text-gray-800 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-gray-50 transition font-medium"
-                    >
-                      Más info
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {permission === 'denied' && (
-            <div className="p-4 sm:p-6 bg-yellow-50 border-b border-yellow-200">
-              <div className="flex items-start gap-3">
-                <Bell className="text-yellow-600 flex-shrink-0 mt-1" size={24} />
-                <div className="flex-1">
-                  <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-1">
-                    Notificaciones bloqueadas
-                  </h3>
-                  <p className="text-xs sm:text-sm text-gray-700 mb-3">
-                    Has bloqueado las notificaciones. Para activarlas, ve a la configuración de tu navegador y permite las notificaciones para este sitio.
-                  </p>
-                  <div className="text-xs text-gray-600">
-                    <p className="mb-2">Si necesitas ayuda:</p>
-                    <ul className="list-disc ml-4">
-                      <li>Chrome: Configuración → Privacidad y seguridad → Configuración del sitio → Notificaciones</li>
-                      <li>Firefox: Preferencias → Privacidad y seguridad → Permisos → Notificaciones</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="p-6 border-b">
-            <div className="flex gap-2">
-              <button
-                onClick={() => setFilter('all')}
-                className={`px-4 py-2 rounded-lg transition font-medium ${
-                  filter === 'all'
-                    ? 'bg-primary-600 text-white shadow-lg'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                Todas
-              </button>
-              <button
-                onClick={() => setFilter('unread')}
-                className={`px-4 py-2 rounded-lg transition font-medium ${
-                  filter === 'unread'
-                    ? 'bg-primary-600 text-white shadow-lg'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                No leídas ({unreadCount})
-              </button>
-            </div>
-          </div>
-
-          <div className="divide-y">
-            {notifications.length === 0 ? (
-              <div className="p-12 text-center">
-                <Bell className="mx-auto text-gray-300 mb-4" size={64} />
-                <p className="text-gray-600 text-lg font-medium">
-                  {filter === 'unread'
-                    ? 'No tienes notificaciones sin leer'
-                    : 'No tienes notificaciones'}
-                </p>
-                <p className="text-gray-500 text-sm mt-2">
-                  Aquí aparecerán las actualizaciones de tus reservas y solicitudes
-                </p>
-              </div>
-            ) : (
-              notifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  onClick={() => handleNotificationClick(notification)}
-                  className={`p-6 hover:bg-gray-50 transition cursor-pointer ${
-                    !notification.read ? 'bg-blue-50 border-l-4 border-primary-600' : ''
-                  }`}
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between mb-2">
-                        <h3 className="font-semibold text-lg text-gray-900">
-                          {notification.title}
-                        </h3>
-                        {!notification.read && (
-                          <div className="w-3 h-3 bg-primary-600 rounded-full animate-pulse" />
-                        )}
-                      </div>
-                      <p className="text-gray-700 mb-3">{notification.message}</p>
-                      <p className="text-sm text-gray-500">
-                        {new Date(notification.createdAt).toLocaleString('es-ES', {
-                          weekday: 'long',
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </p>
-                    </div>
-
-                    {!notification.read && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          markAsRead(notification.id)
-                        }}
-                        className="flex items-center gap-2 px-3 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium"
-                      >
-                        <Check size={16} />
-                        <span className="hidden sm:inline">Marcar como leída</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </main>
-    </div>
+      )}
+      onFilterChange={setFilter}
+      onNotificationClick={handleNotificationClick}
+      onMarkAsRead={markAsRead}
+      onMarkAllAsRead={markAllAsRead}
+      onEnablePush={handleEnablePushNotifications}
+    />
   )
 }
