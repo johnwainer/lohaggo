@@ -148,6 +148,9 @@ export default function DashboardPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [requestSearchTerm, setRequestSearchTerm] = useState('')
   const [requestStatusFilter, setRequestStatusFilter] = useState<string>('ALL')
+  const [favoritesView, setFavoritesView] = useState<'partners' | 'services'>('partners')
+  const [favoritesSearch, setFavoritesSearch] = useState('')
+  const [favoritesSort, setFavoritesSort] = useState<'recent' | 'rating' | 'name'>('recent')
   const [mobileStatusSheetOpen, setMobileStatusSheetOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<'overview' | 'bookings' | 'requests' | 'favorites'>('overview')
   const [imageGallery, setImageGallery] = useState<{ isOpen: boolean; photos: Array<{ id: string; url: string; order: number }>; initialIndex: number }>({ isOpen: false, photos: [], initialIndex: 0 })
@@ -662,6 +665,45 @@ export default function DashboardPage() {
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     })
 
+  const filteredFavoritePartners = favoritePartners
+    .filter((favorite) => {
+      const partnerName = favorite.partner?.user?.name?.toLowerCase() || ''
+      const servicesText = (favorite.partner?.services || [])
+        .map((ps: any) => ps.service?.name || '')
+        .join(' ')
+        .toLowerCase()
+      const query = favoritesSearch.toLowerCase()
+      return partnerName.includes(query) || servicesText.includes(query)
+    })
+    .sort((a, b) => {
+      if (favoritesSort === 'rating') {
+        return (b.partner?.rating || 0) - (a.partner?.rating || 0)
+      }
+      if (favoritesSort === 'name') {
+        return (a.partner?.user?.name || '').localeCompare(b.partner?.user?.name || '', 'es')
+      }
+      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+    })
+
+  const filteredFavoriteServices = favoriteServices
+    .filter((favorite) => {
+      const serviceName = favorite.service?.name?.toLowerCase() || ''
+      const categoryName = favorite.service?.category?.name?.toLowerCase() || ''
+      const query = favoritesSearch.toLowerCase()
+      return serviceName.includes(query) || categoryName.includes(query)
+    })
+    .sort((a, b) => {
+      if (favoritesSort === 'name') {
+        return (a.service?.name || '').localeCompare(b.service?.name || '', 'es')
+      }
+      if (favoritesSort === 'rating') {
+        const aPartners = a.partners?.length || 0
+        const bPartners = b.partners?.length || 0
+        return bPartners - aPartners
+      }
+      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+    })
+
   const getVerificationBadges = (documents?: Array<{ type: string; status: string }>) => {
     if (!documents || documents.length === 0) return null
 
@@ -1067,38 +1109,32 @@ export default function DashboardPage() {
                     </div>
                   </div>
 
-                  <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
-                    <div className="bg-gradient-to-r from-gray-50 to-white p-4 sm:p-5 border-b border-gray-100">
+                  <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg border border-gray-100 p-4 sm:p-5">
+                    <div className="flex items-center justify-between mb-4">
                       <h3 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
                         <Heart className="text-primary-500 w-5 h-5" />
-                        <span className="font-semibold text-sm text-gray-700">Favoritos ({favoritePartners.length})</span>
+                        <span>Favoritos</span>
                       </h3>
+                      <button
+                        onClick={() => setActiveTab('favorites')}
+                        className="text-sm text-primary-600 hover:text-primary-700 font-semibold"
+                      >
+                        Ver todo
+                      </button>
                     </div>
-                    <div className="p-4 sm:p-5">
-                      <div className="space-y-2 max-h-48 overflow-y-auto">
-                        {favoritePartners.length === 0 ? (
-                          <p className="text-sm text-gray-500 text-center py-4">No tienes favoritos aún</p>
-                        ) : (
-                          favoritePartners.slice(0, 5).map((fav) => (
-                            <div key={fav.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 hover:bg-primary-50 border border-gray-100 hover:border-primary-200 transition-all cursor-pointer group">
-                              <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-sm text-gray-900 truncate group-hover:text-primary-600 transition-colors">{fav.partner?.user?.name}</p>
-                                <p className="text-xs text-gray-500 truncate">{fav.partner?.services?.[0]?.service?.name}</p>
-                              </div>
-                              <Heart className="w-4 h-4 text-primary-500 fill-orange-500 flex-shrink-0" />
-                            </div>
-                          ))
-                        )}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-3">
+                        <p className="text-xs text-gray-500 mb-1">Socios</p>
+                        <p className="text-xl font-bold text-gray-900">{favoritePartners.length}</p>
                       </div>
-                      {favoritePartners.length > 3 && (
-                        <button
-                          onClick={() => setActiveTab('favorites')}
-                          className="w-full text-center text-sm text-primary-600 hover:text-primary-700 font-semibold py-2"
-                        >
-                          Ver todos ({favoritePartners.length})
-                        </button>
-                      )}
+                      <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-3">
+                        <p className="text-xs text-gray-500 mb-1">Servicios</p>
+                        <p className="text-xl font-bold text-gray-900">{favoriteServices.length}</p>
+                      </div>
                     </div>
+                    <p className="text-xs text-gray-500 mt-3">
+                      Accede a tus favoritos para solicitar más rápido.
+                    </p>
                   </div>
 
                   <div className="bg-gradient-to-br from-primary-500 via-primary-600 to-primary-700 rounded-2xl sm:rounded-3xl shadow-xl p-5 sm:p-6 text-white relative overflow-hidden">
@@ -1386,217 +1422,170 @@ export default function DashboardPage() {
 
           {activeTab === 'favorites' && (
             <div className="space-y-4 sm:space-y-6">
-              {favoritePartners.length === 0 ? (
-                <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg p-12 sm:p-16 text-center border border-gray-100">
-                  <div className="bg-gradient-to-br from-ooangrnge-100 ambermber-100 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6">
-                    <Heart size={48} className="text-ooangrn5e-500" />
+              <div className="bg-white rounded-2xl sm:rounded-3xl shadow-sm border border-gray-200 p-3 sm:p-4">
+                <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between mb-3">
+                  <div className="inline-flex rounded-xl bg-gray-100 p-1 w-fit">
+                    <button
+                      onClick={() => setFavoritesView('partners')}
+                      className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
+                        favoritesView === 'partners'
+                          ? 'bg-white text-primary-700 shadow-sm'
+                          : 'text-gray-600'
+                      }`}
+                    >
+                      Socios ({favoritePartners.length})
+                    </button>
+                    <button
+                      onClick={() => setFavoritesView('services')}
+                      className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
+                        favoritesView === 'services'
+                          ? 'bg-white text-primary-700 shadow-sm'
+                          : 'text-gray-600'
+                      }`}
+                    >
+                      Servicios ({favoriteServices.length})
+                    </button>
                   </div>
-                  <p className="text-gray-900 text-xl font-bold mb-2">No tienes favoritos aún</p>
-                  <p className="text-gray-500 text-base mb-6">Marca como favoritos a los profesionales que más te gusten</p>
-                  <button
-                    onClick={() => router.push('/servicios')}
-                    className="bg-gradient-to-r from-primary-600 to-primary-700 text-white px-8 py-3.5 rounded-xl hover:from-primary-700 hover:to-primary-800 transition-all font-semibold shadow-lg hover:shadow-xl"
-                  >
-                    Explorar Servicios
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-gray-500">Ordenar</label>
+                    <select
+                      value={favoritesSort}
+                      onChange={(e) => setFavoritesSort(e.target.value as 'recent' | 'rating' | 'name')}
+                      className="text-xs sm:text-sm border border-gray-200 rounded-lg px-2 py-1.5 bg-white"
+                    >
+                      <option value="recent">Recientes</option>
+                      <option value="rating">Mejor valorados</option>
+                      <option value="name">Nombre A-Z</option>
+                    </select>
+                  </div>
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                  {favoritePartners.map((favorite) => {
-                    const partner = favorite.partner
-                    const IDENTITY_TYPES = ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP']
-                    const EDUCATION_TYPES = ['DIPLOMA_BACHILLERATO', 'DIPLOMA_TECNICO', 'DIPLOMA_TECNOLOGO', 'DIPLOMA_PROFESIONAL', 'DIPLOMA_POSGRADO', 'CERTIFICADO_CURSO']
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                  <input
+                    type="text"
+                    value={favoritesSearch}
+                    onChange={(e) => setFavoritesSearch(e.target.value)}
+                    placeholder={favoritesView === 'partners' ? 'Buscar socio o servicio...' : 'Buscar servicio o categoría...'}
+                    className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  />
+                </div>
+              </div>
 
-                    const hasIdentity = partner.documents?.some((d: any) => IDENTITY_TYPES.includes(d.type) && d.status === 'APPROVED')
-                    const hasEducation = partner.documents?.some((d: any) => EDUCATION_TYPES.includes(d.type) && d.status === 'APPROVED')
-                    const hasBackground = partner.documents?.some((d: any) => d.type === 'ANTECEDENTES' && d.status === 'APPROVED')
-                    const fullyVerified = hasIdentity && hasEducation && hasBackground
-
-                    return (
-                      <div
-                        key={favorite.id}
-                        className={`group bg-white rounded-2xl sm:rounded-3xl shadow-lg hover:shadow-2xl transition-all overflow-hidden border-2 ${
-                          fullyVerified
-                            ? 'border-emerald-400 bg-gradient-to-br from-emerald-50 via-white to-green-50'
-                            : 'border-gray-200 hover:border-primary-200'
-                        }`}
-                      >
-                        {fullyVerified && (
-                          <div className="bg-gradient-to-r from-emerald-500 to-green-600 text-white px-4 py-2.5 flex items-center justify-center gap-2 text-sm font-bold">
-                            <ShieldCheck size={18} />
-                            <span>SOCIO VERIFICADO PLUS</span>
-                          </div>
-                        )}
-
-                        <div className="p-5 sm:p-6">
-                          <div className="flex items-start justify-between mb-5">
-                            <div className="flex items-start gap-4 flex-1">
-                              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-primary-500 to-primary-700 rounded-2xl flex items-center justify-center text-white font-bold text-2xl sm:text-3xl shadow-lg flex-shrink-0 group-hover:scale-110 transition-transform">
-                                {partner.user.name?.charAt(0) || 'P'}
+              {favoritesView === 'partners' ? (
+                filteredFavoritePartners.length === 0 ? (
+                  <div className="bg-white rounded-2xl sm:rounded-3xl shadow-sm p-10 sm:p-14 text-center border border-gray-200">
+                    <div className="bg-primary-50 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
+                      <Heart size={34} className="text-primary-500" />
+                    </div>
+                    <p className="text-gray-900 text-lg font-bold mb-1">No tienes socios favoritos</p>
+                    <p className="text-gray-500 text-sm sm:text-base mb-5">Guarda profesionales para contratarlos más rápido.</p>
+                    <button
+                      onClick={() => router.push('/servicios')}
+                      className="bg-primary-600 text-white px-6 py-2.5 rounded-xl hover:bg-primary-700 transition-all font-semibold"
+                    >
+                      Explorar servicios
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                    {filteredFavoritePartners.map((favorite) => {
+                      const partner = favorite.partner
+                      const firstService = partner.services?.[0]?.service
+                      return (
+                        <div key={favorite.id} className="bg-white border border-gray-200 rounded-2xl p-3.5 sm:p-4 shadow-sm">
+                          <div className="flex items-start gap-3">
+                            <div className="w-12 h-12 rounded-xl bg-primary-50 border border-primary-100 flex items-center justify-center font-bold text-primary-700 text-lg shrink-0">
+                              {partner.user.name?.charAt(0) || 'P'}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <p className="font-semibold text-sm sm:text-base text-gray-900 truncate">{partner.user.name}</p>
+                                {partner.verified && <ShieldCheck size={14} className="text-emerald-600 shrink-0" />}
                               </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <h3 className="font-bold text-lg sm:text-xl text-gray-900 truncate group-hover:text-primary-600 transition-colors">{partner.user.name}</h3>
-                                  {partner.verified && (
-                                    <ShieldCheck size={20} className="text-green-600 flex-shrink-0" />
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-2 mb-3">
-                                  <div className="flex items-center gap-1 text-yellow-500">
-                                    <Star size={18} fill="currentColor" />
-                                    <span className="font-bold text-lg">{partner.rating.toFixed(1)}</span>
-                                  </div>
-                                  <span className="text-gray-500 text-sm">
-                                    ({partner.totalReviews} reseñas)
-                                  </span>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                  {hasIdentity && (
-                                    <div className="flex items-center gap-1 bg-blue-100 text-blue-700 px-2.5 py-1 rounded-lg text-xs font-semibold border border-blue-200">
-                                      <CreditCard size={14} />
-                                      <span>Identidad</span>
-                                    </div>
-                                  )}
-                                  {hasEducation && (
-                                    <div className="flex items-center gap-1 bg-purple-100 text-purple-700 px-2.5 py-1 rounded-lg text-xs font-semibold border border-purple-200">
-                                      <GraduationCap size={14} />
-                                      <span>Educación</span>
-                                    </div>
-                                  )}
-                                  {hasBackground && (
-                                    <div className="flex items-center gap-1 bg-green-100 text-green-700 px-2.5 py-1 rounded-lg text-xs font-semibold border border-green-200">
-                                      <Shield size={14} />
-                                      <span>Antecedentes</span>
-                                    </div>
-                                  )}
-                                </div>
+                              <div className="flex items-center gap-1.5 text-xs sm:text-sm text-gray-600 mb-2">
+                                <Star size={14} className="text-yellow-500 fill-yellow-500" />
+                                <span>{partner.rating.toFixed(1)}</span>
+                                <span>({partner.totalReviews})</span>
+                              </div>
+                              <p className="text-xs text-gray-500 truncate">
+                                {(partner.services || []).slice(0, 2).map((ps: any) => ps.service.name).join(' · ') || 'Sin servicios visibles'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="mt-3 grid grid-cols-2 gap-2">
+                            <button
+                              onClick={() => firstService && router.push(`/servicios/${firstService.slug}`)}
+                              disabled={!firstService}
+                              className="w-full bg-primary-600 text-white px-3 py-2.5 rounded-xl hover:bg-primary-700 transition-all text-sm font-semibold disabled:opacity-50"
+                            >
+                              Solicitar
+                            </button>
+                            <button
+                              onClick={() => removeFavorite(partner.id)}
+                              className="w-full bg-white border border-gray-300 text-gray-700 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-all text-sm font-medium"
+                            >
+                              Quitar
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              ) : (
+                filteredFavoriteServices.length === 0 ? (
+                  <div className="bg-white rounded-2xl sm:rounded-3xl shadow-sm p-10 sm:p-14 text-center border border-gray-200">
+                    <div className="bg-primary-50 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
+                      <Heart size={34} className="text-primary-500" />
+                    </div>
+                    <p className="text-gray-900 text-lg font-bold mb-1">No tienes servicios favoritos</p>
+                    <p className="text-gray-500 text-sm sm:text-base mb-5">Marca servicios para volver a contratarlos en segundos.</p>
+                    <button
+                      onClick={() => router.push('/servicios')}
+                      className="bg-primary-600 text-white px-6 py-2.5 rounded-xl hover:bg-primary-700 transition-all font-semibold"
+                    >
+                      Explorar servicios
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                    {filteredFavoriteServices.map((favorite) => {
+                      const service = favorite.service
+                      return (
+                        <div key={favorite.id} className="bg-white border border-gray-200 rounded-2xl p-3.5 sm:p-4 shadow-sm">
+                          <div className="flex items-start justify-between gap-3 mb-2">
+                            <div className="flex items-start gap-3 min-w-0">
+                              <div className="w-12 h-12 rounded-xl bg-primary-50 border border-primary-100 text-2xl flex items-center justify-center shrink-0">
+                                {service.icon}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-semibold text-sm sm:text-base text-gray-900 truncate">{service.name}</p>
+                                <p className="text-xs text-gray-500">{service.category.name}</p>
                               </div>
                             </div>
                             <button
-                              onClick={() => removeFavorite(partner.id)}
-                              className="p-3 rounded-xl bg-gradient-to-br from-primary-100 to-amber-100 text-primary-600 hover:from-orange-200 hover:to-amber-200 transition-all shadow-md hover:shadow-lg flex-shrink-0"
+                              onClick={() => removeFavoriteService(service.id)}
+                              className="shrink-0 p-2 rounded-lg bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
+                              title="Quitar de favoritos"
                             >
-                              <Heart size={22} fill="currentColor" />
+                              <Heart size={16} fill="currentColor" />
                             </button>
                           </div>
-
-                          <div className="mb-5">
-                            <p className="text-sm font-semibold text-gray-700 mb-3">Servicios que ofrece:</p>
-                            <div className="flex flex-wrap gap-2">
-                              {partner.services.map((ps: any) => (
-                                <span
-                                  key={ps.service.id}
-                                  className="inline-flex items-center gap-2 bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 px-3 py-2 rounded-xl text-sm font-medium border border-gray-300 hover:from-primary-50 hover:to-primary-100 hover:border-primary-300 transition-all"
-                                >
-                                  <span className="text-lg">{ps.service.icon}</span>
-                                  <span>{ps.service.name}</span>
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div className="space-y-2">
-                            {partner.services.map((ps: any) => (
-                              <button
-                                key={ps.service.id}
-                                onClick={() => router.push(`/servicios/${ps.service.slug}`)}
-                                className="w-full bg-gradient-to-r from-primary-600 to-primary-700 text-white font-semibold py-3.5 px-4 rounded-xl hover:from-primary-700 hover:to-primary-800 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
-                              >
-                                <span>{ps.service.icon}</span>
-                                <span>Solicitar {ps.service.name}</span>
-                                <ChevronRight size={18} />
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Servicios Favoritos */}
-          {favoriteServices.length > 0 && (
-            <div className="mt-8">
-              <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-                <div className="bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl p-2">
-                  <Heart size={24} className="text-white" fill="currentColor" />
-                </div>
-                Servicios Favoritos
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                {favoriteServices.map((favorite) => {
-                  const service = favorite.service
-                  return (
-                    <div
-                      key={favorite.id}
-                      className="group bg-white rounded-2xl sm:rounded-3xl shadow-lg hover:shadow-2xl transition-all overflow-hidden border-2 border-gray-200 hover:border-primary-200"
-                    >
-                      <div className="p-5 sm:p-6">
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex items-start gap-4 flex-1">
-                            <div className="text-4xl sm:text-5xl group-hover:scale-110 transition-transform">
-                              {service.icon}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h4 className="font-bold text-lg sm:text-xl text-gray-900 mb-2 group-hover:text-primary-600 transition-colors">
-                                {service.name}
-                              </h4>
-                              <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
-                                <span className="bg-gradient-to-r from-gray-100 to-gray-200 px-3 py-1 rounded-lg font-medium border border-gray-300">
-                                  {service.category.name}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
+                          <p className="text-xs text-gray-500 mb-3">
+                            {favorite.partners?.length || 0} {(favorite.partners?.length || 0) === 1 ? 'socio disponible' : 'socios disponibles'}
+                          </p>
                           <button
-                            onClick={() => removeFavoriteService(service.id)}
-                            className="p-3 rounded-xl bg-gradient-to-br from-primary-100 to-amber-100 text-primary-600 hover:from-orange-200 hover:to-amber-200 transition-all shadow-md hover:shadow-lg flex-shrink-0"
+                            onClick={() => router.push(`/servicios/${service.slug}`)}
+                            className="w-full bg-primary-600 text-white px-3 py-2.5 rounded-xl hover:bg-primary-700 transition-all text-sm font-semibold"
                           >
-                            <Heart size={22} fill="currentColor" />
+                            Ver servicio
                           </button>
                         </div>
-
-                        {service.description && (
-                          <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                            {service.description}
-                          </p>
-                        )}
-
-                        {favorite.partners && favorite.partners.length > 0 && (
-                          <div className="mb-4">
-                            <p className="text-xs font-semibold text-gray-700 mb-2">
-                              {favorite.partners.length} {favorite.partners.length === 1 ? 'socio disponible' : 'socios disponibles'}
-                            </p>
-                            <div className="flex -space-x-2">
-                              {favorite.partners.slice(0, 3).map((partner: any) => (
-                                <div
-                                  key={partner.id}
-                                  className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg border-2 border-white"
-                                  title={partner.user.name}
-                                >
-                                  {partner.user.name?.charAt(0) || 'P'}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        <button
-                          onClick={() => router.push(`/servicios/${service.slug}`)}
-                          className="w-full bg-gradient-to-r from-primary-600 to-primary-700 text-white font-semibold py-3.5 px-4 rounded-xl hover:from-primary-700 hover:to-primary-800 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
-                        >
-                          <span>{service.icon}</span>
-                          <span>Ver Servicio</span>
-                          <ChevronRight size={18} />
-                        </button>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
+                      )
+                    })}
+                  </div>
+                )
+              )}
             </div>
           )}
 
