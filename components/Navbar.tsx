@@ -348,16 +348,6 @@ export function Navbar() {
                           </Link>
                         </>
                       )}
-                      {session.user.role !== 'ADMIN' && (
-                        <Link
-                          href={session.user.role === 'PARTNER' ? '/partner/notifications' : '/notifications'}
-                          className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold"
-                          onClick={() => setUserMenuOpen(false)}
-                        >
-                          <Bell size={16} />
-                          <span>Notificaciones</span>
-                        </Link>
-                      )}
                       <button
                         onClick={() => signOut({ callbackUrl: '/' })}
                         className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors font-bold"
@@ -622,14 +612,6 @@ export function Navbar() {
                           >
                             <Star size={18} />
                             <span>Mis Calificaciones</span>
-                          </Link>
-                          <Link
-                            href={session.user.role === 'PARTNER' ? '/partner/notifications' : '/notifications'}
-                            className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
-                            onClick={() => setMobileMenuOpen(false)}
-                          >
-                            <Bell size={18} />
-                            <span>Notificaciones</span>
                           </Link>
                         </div>
                       )}
