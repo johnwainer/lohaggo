@@ -219,6 +219,24 @@ export default function DashboardPage() {
     partnerName: '',
     serviceName: ''
   })
+  const [favoriteServicePicker, setFavoriteServicePicker] = useState<{
+    isOpen: boolean
+    partnerId: string
+    partnerName: string
+    services: Array<{
+      id: string
+      name: string
+      slug: string
+      icon: string
+      price?: number
+      city?: string
+    }>
+  }>({
+    isOpen: false,
+    partnerId: '',
+    partnerName: '',
+    services: []
+  })
 
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
 
@@ -756,6 +774,41 @@ export default function DashboardPage() {
     if (minutes < 60) return `Hace ${minutes} min`
     if (hours < 24) return `Hace ${hours} h`
     return `Hace ${days} d`
+  }
+
+  const handleFavoritePartnerRequest = (partner: any) => {
+    const services = (partner.services || [])
+      .filter((ps: any) => ps?.service?.slug)
+      .map((ps: any) => ({
+        id: ps.service.id,
+        name: ps.service.name,
+        slug: ps.service.slug,
+        icon: ps.service.icon,
+        price: ps.price,
+        city: ps.city
+      }))
+
+    if (services.length === 0) {
+      setModal({
+        isOpen: true,
+        title: 'Sin servicios disponibles',
+        message: 'Este socio no tiene servicios activos en este momento.',
+        type: 'warning'
+      })
+      return
+    }
+
+    if (services.length === 1) {
+      router.push(`/servicios/${services[0].slug}?partnerId=${partner.id}`)
+      return
+    }
+
+    setFavoriteServicePicker({
+      isOpen: true,
+      partnerId: partner.id,
+      partnerName: partner.user?.name || 'Socio',
+      services
+    })
   }
 
   return (
@@ -1490,7 +1543,6 @@ export default function DashboardPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                     {filteredFavoritePartners.map((favorite) => {
                       const partner = favorite.partner
-                      const firstService = partner.services?.[0]?.service
                       return (
                         <div key={favorite.id} className="bg-white border border-gray-200 rounded-2xl p-3.5 sm:p-4 shadow-sm">
                           <div className="flex items-start gap-3">
@@ -1514,8 +1566,7 @@ export default function DashboardPage() {
                           </div>
                           <div className="mt-3 grid grid-cols-2 gap-2">
                             <button
-                              onClick={() => firstService && router.push(`/servicios/${firstService.slug}`)}
-                              disabled={!firstService}
+                              onClick={() => handleFavoritePartnerRequest(partner)}
                               className="w-full bg-primary-600 text-white px-3 py-2.5 rounded-xl hover:bg-primary-700 transition-all text-sm font-semibold disabled:opacity-50"
                             >
                               Solicitar
@@ -1910,6 +1961,71 @@ export default function DashboardPage() {
           photos={imageGallery.photos}
           initialIndex={imageGallery.initialIndex}
         />
+      )}
+
+      {favoriteServicePicker.isOpen && (
+        <div
+          className="fixed inset-0 z-[70] bg-black/45 flex items-end sm:items-center justify-center"
+          onClick={() => setFavoriteServicePicker({ isOpen: false, partnerId: '', partnerName: '', services: [] })}
+        >
+          <div
+            className="w-full sm:max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl border border-gray-200 max-h-[82vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-4 sm:px-6 pt-3 pb-4 border-b border-gray-100">
+              <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-3 sm:hidden" />
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-base sm:text-lg font-bold text-gray-900">Elige el servicio</p>
+                  <p className="text-sm text-gray-500">
+                    {favoriteServicePicker.partnerName} presta {favoriteServicePicker.services.length} servicios
+                  </p>
+                </div>
+                <button
+                  onClick={() => setFavoriteServicePicker({ isOpen: false, partnerId: '', partnerName: '', services: [] })}
+                  className="p-2 rounded-lg text-gray-500 hover:bg-gray-100"
+                  aria-label="Cerrar selector"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-3 sm:p-4 overflow-y-auto max-h-[62vh] space-y-2.5">
+              {favoriteServicePicker.services.map((service) => (
+                <button
+                  key={service.id}
+                  type="button"
+                  onClick={() => {
+                    setFavoriteServicePicker({ isOpen: false, partnerId: '', partnerName: '', services: [] })
+                    router.push(`/servicios/${service.slug}?partnerId=${favoriteServicePicker.partnerId}`)
+                  }}
+                  className="w-full rounded-xl border border-gray-200 hover:border-primary-300 hover:bg-primary-50/40 transition-all px-3 py-3 text-left"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-lg bg-primary-50 border border-primary-100 flex items-center justify-center text-xl shrink-0">
+                        {service.icon}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-sm sm:text-base text-gray-900 truncate">{service.name}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {typeof service.price === 'number' && (
+                            <span className="text-xs text-gray-600">{formatCurrency(service.price)}</span>
+                          )}
+                          {service.city && (
+                            <span className="text-xs text-gray-500 truncate">{service.city}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <ChevronRight size={16} className="text-gray-400 shrink-0" />
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
 
       <RatingModal
