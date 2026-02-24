@@ -254,8 +254,8 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     const citySlug = localStorage.getItem('selectedCity') || 'medellin'
     const currentCity = getCityBySlug(citySlug)
 
-    // Solo redirigir al registro de socios si la ciudad está en ese modo Y no hay socios disponibles
-    if (currentCity?.partnerRegistry && (!service?.partners || service?.partners.length === 0)) {
+    // Si la ciudad está en modo registro de socios, siempre redirigir.
+    if (currentCity?.partnerRegistry) {
       router.push('/registro-socios')
       return
     }
