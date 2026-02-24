@@ -269,11 +269,16 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
   const handleBooking = async (event?: React.MouseEvent<HTMLButtonElement>) => {
     event?.preventDefault()
     event?.stopPropagation()
+    const startedAt = Date.now()
     flushSync(() => {
       setRequestActionLoading('ALL')
     })
     try {
       await openRequestFlow(null)
+      const elapsed = Date.now() - startedAt
+      if (elapsed < 350) {
+        await new Promise((resolve) => setTimeout(resolve, 350 - elapsed))
+      }
     } finally {
       setRequestActionLoading(null)
     }
@@ -286,11 +291,16 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
   const handleRequestToPartner = async (partnerId: string, event?: React.MouseEvent<HTMLButtonElement>) => {
     event?.preventDefault()
     event?.stopPropagation()
+    const startedAt = Date.now()
     flushSync(() => {
       setRequestActionLoading(partnerId)
     })
     try {
       await openRequestFlow(partnerId)
+      const elapsed = Date.now() - startedAt
+      if (elapsed < 350) {
+        await new Promise((resolve) => setTimeout(resolve, 350 - elapsed))
+      }
     } finally {
       setRequestActionLoading(null)
     }

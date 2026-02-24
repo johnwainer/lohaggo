@@ -145,17 +145,22 @@ function validateEnv(): Env {
 
     return parsed
   } catch (error) {
+    let message = 'Environment validation failed'
     if (error instanceof z.ZodError) {
       console.error('\n❌ Environment validation failed:\n')
       error.errors.forEach(err => {
         console.error(`  - ${err.path.join('.')}: ${err.message}`)
       })
       console.error('\nPlease check your .env file and ensure all required variables are set.\n')
+      message = `Environment validation failed: ${error.errors
+        .map((err) => `${err.path.join('.')}: ${err.message}`)
+        .join('; ')}`
     } else {
       console.error('\n❌ Unexpected error during environment validation:', error)
+      message = `Unexpected environment validation error: ${String(error)}`
     }
 
-    process.exit(1)
+    throw new Error(message)
   }
 }
 

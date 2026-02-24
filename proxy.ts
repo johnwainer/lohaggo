@@ -206,7 +206,7 @@ function detectRequestThreat(request: NextRequest): { type: string; severity: 'H
   return null
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
   const ip = getClientIp(request)
 
