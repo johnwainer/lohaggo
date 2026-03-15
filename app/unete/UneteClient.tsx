@@ -268,7 +268,7 @@ function SqueezeForm() {
                     </Link>
 
                     <div className="mt-12 space-y-6">
-                        <h1 className="text-3xl leading-snug md:text-5xl font-extrabold md:leading-tight">
+                        <h1 className="text-2xl leading-snug md:text-5xl font-extrabold md:leading-tight">
                             Aumenta tus ingresos arreglando y solucionando lo que sabes.
                         </h1>
                         <p className="text-white/80 text-lg md:text-xl font-medium">
