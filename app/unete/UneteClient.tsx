@@ -97,10 +97,14 @@ function SqueezeForm() {
 
     useEffect(() => {
         if (cities.length > 0 && !formData.city) {
-            const activeCity = cities.find((c) => c.status === 'ACTIVE')
-            const defaultCity = activeCity || cities[0]
+            const medellin = cities.find((c) => c.slug === 'medellin')
+            const defaultCity = medellin || cities.find((c) => c.status === 'ACTIVE') || cities[0]
             setFormData((prev) => ({ ...prev, city: defaultCity.slug }))
         }
+
+        const container = document.getElementById('unete-container')
+        if (container) container.scrollTo(0, 0)
+        window.scrollTo(0, 0)
     }, [cities, formData.city])
 
     useEffect(() => {
@@ -252,9 +256,9 @@ function SqueezeForm() {
     }
 
     return (
-        <div className="min-h-screen bg-slate-50 flex flex-col-reverse md:flex-row absolute inset-0 z-[100] overflow-y-auto">
+        <div id="unete-container" className="min-h-screen bg-slate-50 flex flex-col md:flex-row absolute inset-0 z-[100] overflow-y-auto">
             {/* Columna Izquierda / Hero de la Landing */}
-            <div className="w-full md:w-5/12 bg-gradient-to-br from-primary-600 via-primary-500 to-secondary-500 text-white p-8 md:p-12 flex flex-col justify-between">
+            <div className="w-full md:w-5/12 bg-gradient-to-br from-primary-600 via-primary-500 to-secondary-500 text-white p-8 md:p-12 flex flex-col justify-between order-2 md:order-1">
                 <div>
                     <Link href="/" className="inline-flex items-center space-x-2 group">
                         <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
@@ -305,7 +309,7 @@ function SqueezeForm() {
             </div>
 
             {/* Columna Derecha / Formulario (Diseño Wizard / Funnel) */}
-            <div className="w-full md:w-7/12 flex items-center justify-center p-6 md:p-12">
+            <div className="w-full md:w-7/12 flex items-center justify-center p-6 md:p-12 order-1 md:order-2">
                 <div className="max-w-md w-full animate-fade-in">
                     <div className="mb-8">
                         <div className="flex items-center justify-between mb-4">
@@ -371,13 +375,16 @@ function SqueezeForm() {
                                         <select
                                             value={formData.city}
                                             onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                                            className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition font-bold text-gray-800 bg-white"
+                                            disabled={true}
+                                            className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl outline-none font-bold text-gray-800 bg-gray-100 cursor-not-allowed opacity-90"
                                         >
-                                            {cities.map((city) => (
+                                            {cities.length > 0 ? cities.map((city) => (
                                                 <option key={city.id} value={city.slug} disabled={city.status === 'INACTIVE'}>
                                                     {city.name} {city.status === 'COMING_SOON' && '(próximamente)'}
                                                 </option>
-                                            ))}
+                                            )) : (
+                                                <option value="medellin">Medellín</option>
+                                            )}
                                         </select>
                                     </div>
                                 </div>
