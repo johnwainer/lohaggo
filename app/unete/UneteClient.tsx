@@ -574,8 +574,9 @@ function SqueezeForm() {
                             Tu cuenta se creó correctamente. Recuerda ir a tu perfil y <span className="font-bold text-primary-600 bg-primary-50 px-2 py-0.5 rounded">subir tus documentos</span> para verificarte y activar tu cuenta.
                         </p>
                         <button
+                            type="button"
                             onClick={() => {
-                                router.push('/')
+                                window.location.href = '/'
                             }}
                             className="w-full bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-primary-500/20 flex items-center justify-center gap-2"
                         >
