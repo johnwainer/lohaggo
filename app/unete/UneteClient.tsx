@@ -268,7 +268,7 @@ function SqueezeForm() {
                     </Link>
 
                     <div className="mt-12 space-y-6">
-                        <h1 className="text-4xl md:text-5xl font-extrabold leading-tight">
+                        <h1 className="text-3xl leading-snug md:text-5xl font-extrabold md:leading-tight">
                             Aumenta tus ingresos arreglando y solucionando lo que sabes.
                         </h1>
                         <p className="text-white/80 text-lg md:text-xl font-medium">
@@ -296,9 +296,9 @@ function SqueezeForm() {
                 <div className="mt-12 pt-8 border-t border-white/20">
                     <div className="flex items-center gap-4">
                         <div className="flex -space-x-3">
-                            <img src="https://ui-avatars.com/api/?name=Carlos+R&background=E2E8F0&color=0F172A" alt="Usuario Verificado" className="w-10 h-10 rounded-full border-2 border-primary-500" />
-                            <img src="https://ui-avatars.com/api/?name=Miguel+A&background=CBD5E1&color=0F172A" alt="Usuario Verificado" className="w-10 h-10 rounded-full border-2 border-primary-500" />
-                            <div className="w-10 h-10 rounded-full border-2 border-primary-500 bg-secondary-400 flex items-center justify-center font-bold text-xs text-white">+500</div>
+                            <div className="w-10 h-10 rounded-full border-2 border-primary-500 bg-slate-200 flex items-center justify-center font-bold text-xs text-slate-800 shadow-sm">CR</div>
+                            <div className="w-10 h-10 rounded-full border-2 border-primary-500 bg-slate-300 flex items-center justify-center font-bold text-xs text-slate-800 shadow-sm">MA</div>
+                            <div className="w-10 h-10 rounded-full border-2 border-primary-500 bg-secondary-400 flex items-center justify-center font-bold text-xs text-white shadow-sm">+500</div>
                         </div>
                         <div className="text-sm">
                             <div className="flex text-yellow-300"><Star size={14} fill="currentColor" /><Star size={14} fill="currentColor" /><Star size={14} fill="currentColor" /><Star size={14} fill="currentColor" /><Star size={14} fill="currentColor" /></div>
