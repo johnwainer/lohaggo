@@ -43,6 +43,7 @@ function SqueezeForm() {
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
     const [acceptedTerms, setAcceptedTerms] = useState(false)
+    const [showSuccessModal, setShowSuccessModal] = useState(false)
     const [captchaToken, setCaptchaToken] = useState('')
     const [honeypot, setHoneypot] = useState('')
     const [formStartedAt] = useState(() => Date.now().toString())
@@ -242,12 +243,8 @@ function SqueezeForm() {
                     role: 'PARTNER',
                     source: 'unete_ads_landing',
                 })
-                const selectedCity = cities.find(c => c.slug === formData.city)
-                if (selectedCity?.status === 'COMING_SOON') {
-                    router.push(`/partner/welcome/${formData.city}`)
-                } else {
-                    router.push('/')
-                }
+                setLoading(false)
+                setShowSuccessModal(true)
             }
         } catch (err: any) {
             setError(err.message || 'Error al registrar')
@@ -439,12 +436,12 @@ function SqueezeForm() {
                                                             key={service.id}
                                                             disabled={isDisabled}
                                                             className={`w-full flex items-center justify-between px-4 py-3 text-left transition ${selected
-                                                                    ? (isFeatured ? 'bg-yellow-50 text-yellow-900 border-x-4 border-yellow-400 font-semibold' : 'bg-primary-50/50 text-primary-700 font-semibold border-l-4 border-primary-500')
-                                                                    : isDisabled
-                                                                        ? 'bg-gray-50 opacity-50 cursor-not-allowed'
-                                                                        : isFeatured
-                                                                            ? 'bg-gradient-to-r from-yellow-50 to-orange-50 hover:from-yellow-100 hover:to-orange-100 text-yellow-900'
-                                                                            : 'hover:bg-gray-50 text-gray-700'
+                                                                ? (isFeatured ? 'bg-yellow-50 text-yellow-900 border-x-4 border-yellow-400 font-semibold' : 'bg-primary-50/50 text-primary-700 font-semibold border-l-4 border-primary-500')
+                                                                : isDisabled
+                                                                    ? 'bg-gray-50 opacity-50 cursor-not-allowed'
+                                                                    : isFeatured
+                                                                        ? 'bg-gradient-to-r from-yellow-50 to-orange-50 hover:from-yellow-100 hover:to-orange-100 text-yellow-900'
+                                                                        : 'hover:bg-gray-50 text-gray-700'
                                                                 }`}
                                                             onClick={() => toggleService(service.slug)}
                                                         >
@@ -462,8 +459,8 @@ function SqueezeForm() {
                                                             </div>
                                                             <span
                                                                 className={`inline-flex items-center justify-center w-6 h-6 rounded-full border-2 transition flex-shrink-0 ${selected
-                                                                        ? (isFeatured ? 'border-yellow-500 bg-yellow-500 text-white' : 'border-primary-500 bg-primary-500 text-white')
-                                                                        : 'border-gray-300 text-transparent bg-white shadow-inner'
+                                                                    ? (isFeatured ? 'border-yellow-500 bg-yellow-500 text-white' : 'border-primary-500 bg-primary-500 text-white')
+                                                                    : 'border-gray-300 text-transparent bg-white shadow-inner'
                                                                     }`}
                                                             >
                                                                 {selected && <Check size={14} className="text-white" />}
@@ -563,6 +560,34 @@ function SqueezeForm() {
                     </form>
                 </div>
             </div>
+
+            {/* Modal de Éxito */}
+            {showSuccessModal && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white rounded-3xl w-full max-w-sm p-8 text-center shadow-2xl">
+                        <div className="w-20 h-20 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-6 shadow-inner">
+                            <Check className="text-green-500 w-10 h-10 stroke-[3]" />
+                        </div>
+                        <h3 className="text-2xl font-black text-gray-900 mb-3">¡Registro Exitoso!</h3>
+                        <p className="text-gray-600 mb-8 font-medium leading-relaxed">
+                            Tu cuenta se creó correctamente. Recuerda ir a tu perfil y <span className="font-bold text-primary-600 bg-primary-50 px-2 py-0.5 rounded">subir tus documentos</span> para verificarte y activar tu cuenta.
+                        </p>
+                        <button
+                            onClick={() => {
+                                const selectedCity = cities.find(c => c.slug === formData.city)
+                                if (selectedCity?.status === 'COMING_SOON') {
+                                    router.push(`/partner/welcome/${formData.city}`)
+                                } else {
+                                    router.push('/')
+                                }
+                            }}
+                            className="w-full bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-primary-500/20 flex items-center justify-center gap-2"
+                        >
+                            Entendido, comenzar <ArrowRight size={18} />
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
