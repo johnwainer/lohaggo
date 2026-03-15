@@ -26,6 +26,7 @@ import { formatCurrency } from '@/lib/utils'
 import TurnstileWidget from '@/components/security/TurnstileWidget'
 import { trackPwaEvent } from '@/lib/pwa/telemetry-client'
 import { PWA_EVENTS } from '@/lib/pwa/events'
+import { trackEvent } from '@/components/analytics/MetaPixel'
 
 function SqueezeForm() {
     const router = useRouter()
@@ -244,6 +245,9 @@ function SqueezeForm() {
                     role: 'PARTNER',
                     source: 'unete_ads_landing',
                 })
+                try {
+                    trackEvent('CompleteRegistration', { value: 0, currency: 'COP' })
+                } catch (e) { }
                 setLoading(false)
                 setShowSuccessModal(true)
             }

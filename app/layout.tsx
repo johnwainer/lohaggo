@@ -14,6 +14,7 @@ import PWAOnboardingPrompt from '@/components/PWAOnboardingPrompt'
 import TermsBanner from '@/components/TermsBanner'
 import TestModeBanner from '@/components/TestModeBanner'
 import InactiveAccountBanner from '@/components/InactiveAccountBanner'
+import MetaPixel from '@/components/analytics/MetaPixel'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -338,6 +339,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
           <PWAOnboardingPrompt />
           <TermsBanner />
         </Providers>
+        <MetaPixel />
       </body>
     </html>
   )
