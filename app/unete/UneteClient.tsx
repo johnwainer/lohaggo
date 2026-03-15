@@ -205,14 +205,19 @@ function SqueezeForm() {
         const errorPw = validatePassword(formData.password)
         setFieldErrors({ ...fieldErrors, email: errorE, password: errorPw })
 
-        if (errorE || errorPw) return
+        if (errorE || errorPw) {
+            scrollToTopError()
+            return
+        }
         if (!acceptedTerms) {
             setError('Acepta los Términos para continuar')
+            scrollToTopError()
             return
         }
         if (honeypot.trim()) return
         if (isBotProtectionEnabled && !captchaToken) {
             setError('Completa la verificación anti-bot.')
+            scrollToTopError()
             return
         }
 
@@ -254,7 +259,18 @@ function SqueezeForm() {
         } catch (err: any) {
             setError(err.message || 'Error al registrar')
             setLoading(false)
+            setTimeout(() => {
+                const container = document.getElementById('unete-container')
+                if (container) container.scrollTo({ top: 0, behavior: 'smooth' })
+            }, 10)
         }
+    }
+
+    const scrollToTopError = () => {
+        setTimeout(() => {
+            const container = document.getElementById('unete-container')
+            if (container) container.scrollTo({ top: 0, behavior: 'smooth' })
+        }, 10)
     }
 
     return (
