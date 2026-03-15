@@ -250,8 +250,13 @@ function SqueezeForm() {
                     source: 'unete_ads_landing',
                 })
                 try {
-                    trackEvent('CompleteRegistration', { value: 0, currency: 'COP' })
-                } catch (e) { }
+                    if (typeof window !== 'undefined' && window.fbq) {
+                        window.fbq('track', 'CompleteRegistration', { value: 0, currency: 'COP' })
+                        console.log('Pixel: Disparado CompleteRegistration')
+                    }
+                } catch (e) {
+                    console.error('Error enviando pixel', e)
+                }
                 setLoading(false)
                 setShowSuccessModal(true)
             }
