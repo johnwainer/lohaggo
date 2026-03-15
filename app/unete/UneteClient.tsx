@@ -19,8 +19,7 @@ import {
     DollarSign,
     Clock,
     Shield,
-    Star,
-    Zap
+    Star
 } from 'lucide-react'
 import { useCity } from '@/lib/city-context'
 import { formatCurrency } from '@/lib/utils'
@@ -278,15 +277,15 @@ function SqueezeForm() {
 
                         <div className="mt-8 bg-white/10 p-5 rounded-2xl border border-white/20 backdrop-blur-sm shadow-xl md:mr-8 transition-transform hover:scale-[1.02]">
                             <div className="flex items-start gap-4">
-                                <div className="bg-yellow-400 text-yellow-900 p-3 rounded-full flex-shrink-0 shadow-lg shadow-yellow-400/20">
-                                    <Zap size={24} className="fill-current" />
+                                <div className="bg-yellow-400 text-yellow-900 text-2xl w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 shadow-lg shadow-yellow-400/20 leading-none pb-1">
+                                    🛵
                                 </div>
                                 <div>
                                     <h3 className="text-xl font-black text-white mb-1 flex items-center gap-2">
-                                        LoHaggo Ya! <span className="bg-yellow-400 text-yellow-900 text-[10px] uppercase font-black px-2 py-0.5 rounded-full tracking-wider">Top</span>
+                                        LoHaggo Ya Favor <span className="bg-yellow-400 text-yellow-900 text-[10px] uppercase font-black px-2 py-0.5 rounded-full tracking-wider">Top</span>
                                     </h3>
                                     <p className="text-white/90 text-sm md:text-base leading-relaxed font-medium">
-                                        El servicio de emergencias más demandado. Atiende de forma exprés, cobra tu tarifa premium y asegura flujo de caja al instante.
+                                        Encargos y diligencias express: compra, recogida y entrega en minutos.
                                     </p>
                                 </div>
                             </div>
@@ -440,7 +439,7 @@ function SqueezeForm() {
                                                             onClick={() => toggleService(service.slug)}
                                                         >
                                                             <div className="flex items-center gap-2">
-                                                                {isFeatured && <Zap size={14} className="text-yellow-600 fill-current flex-shrink-0" />}
+                                                                {isFeatured && <span className="text-base flex-shrink-0 leading-none">🛵</span>}
                                                                 <span className={isFeatured ? 'text-sm md:text-base' : ''}>{service.name}</span>
                                                                 {isFeatured && <span className="text-[10px] bg-yellow-400 text-yellow-900 rounded-full px-1.5 py-0.5 font-bold uppercase tracking-wide flex-shrink-0">Destacado</span>}
                                                             </div>
