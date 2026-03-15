@@ -574,12 +574,7 @@ function SqueezeForm() {
                         </p>
                         <button
                             onClick={() => {
-                                const selectedCity = cities.find(c => c.slug === formData.city)
-                                if (selectedCity?.status === 'COMING_SOON') {
-                                    router.push(`/partner/welcome/${formData.city}`)
-                                } else {
-                                    router.push('/')
-                                }
+                                window.location.href = '/'
                             }}
                             className="w-full bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-primary-500/20 flex items-center justify-center gap-2"
                         >
