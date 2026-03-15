@@ -268,7 +268,7 @@ function SqueezeForm() {
                             Aumenta tus ingresos arreglando y solucionando lo que sabes.
                         </h1>
                         <p className="text-white/80 text-lg md:text-xl font-medium">
-                            Conviértete en socio de la plataforma líder y recibe clientes en tu ciudad cada día. Sin jefes, sin horarios pijos.
+                            Conviértete en socio de la plataforma líder y recibe clientes en tu ciudad cada día. Sin jefes, maneja tu propio tiempo y aumenta tus ingresos.
                         </p>
                     </div>
 
@@ -292,9 +292,9 @@ function SqueezeForm() {
                 <div className="mt-12 pt-8 border-t border-white/20">
                     <div className="flex items-center gap-4">
                         <div className="flex -space-x-3">
-                            <img src="/images/testimonials/t1.jpg" alt="User" onError={(e) => { e.currentTarget.src = 'https://ui-avatars.com/api/?name=Carlos+R&background=random' }} className="w-10 h-10 rounded-full border-2 border-primary-500" />
-                            <img src="/images/testimonials/t2.jpg" alt="User" onError={(e) => { e.currentTarget.src = 'https://ui-avatars.com/api/?name=Miguel+A&background=random' }} className="w-10 h-10 rounded-full border-2 border-primary-500" />
-                            <div className="w-10 h-10 rounded-full border-2 border-primary-500 bg-secondary-400 flex items-center justify-center font-bold text-xs">+500</div>
+                            <img src="https://ui-avatars.com/api/?name=Carlos+R&background=E2E8F0&color=0F172A" alt="Usuario Verificado" className="w-10 h-10 rounded-full border-2 border-primary-500" />
+                            <img src="https://ui-avatars.com/api/?name=Miguel+A&background=CBD5E1&color=0F172A" alt="Usuario Verificado" className="w-10 h-10 rounded-full border-2 border-primary-500" />
+                            <div className="w-10 h-10 rounded-full border-2 border-primary-500 bg-secondary-400 flex items-center justify-center font-bold text-xs text-white">+500</div>
                         </div>
                         <div className="text-sm">
                             <div className="flex text-yellow-300"><Star size={14} fill="currentColor" /><Star size={14} fill="currentColor" /><Star size={14} fill="currentColor" /><Star size={14} fill="currentColor" /><Star size={14} fill="currentColor" /></div>
