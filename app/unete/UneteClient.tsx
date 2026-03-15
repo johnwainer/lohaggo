@@ -19,7 +19,8 @@ import {
     DollarSign,
     Clock,
     Shield,
-    Star
+    Star,
+    Zap
 } from 'lucide-react'
 import { useCity } from '@/lib/city-context'
 import { formatCurrency } from '@/lib/utils'
@@ -274,6 +275,22 @@ function SqueezeForm() {
                         <p className="text-white/80 text-lg md:text-xl font-medium">
                             Conviértete en socio de la plataforma líder y recibe clientes en tu ciudad cada día. Sin jefes, maneja tu propio tiempo y aumenta tus ingresos.
                         </p>
+
+                        <div className="mt-8 bg-white/10 p-5 rounded-2xl border border-white/20 backdrop-blur-sm shadow-xl md:mr-8 transition-transform hover:scale-[1.02]">
+                            <div className="flex items-start gap-4">
+                                <div className="bg-yellow-400 text-yellow-900 p-3 rounded-full flex-shrink-0 shadow-lg shadow-yellow-400/20">
+                                    <Zap size={24} className="fill-current" />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-black text-white mb-1 flex items-center gap-2">
+                                        LoHaggo Ya! <span className="bg-yellow-400 text-yellow-900 text-[10px] uppercase font-black px-2 py-0.5 rounded-full tracking-wider">Top</span>
+                                    </h3>
+                                    <p className="text-white/90 text-sm md:text-base leading-relaxed font-medium">
+                                        El servicio de emergencias más demandado. Atiende de forma exprés, cobra tu tarifa premium y asegura flujo de caja al instante.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div className="mt-10 space-y-6 hidden md:block">
@@ -408,17 +425,29 @@ function SqueezeForm() {
                                         <div className="max-h-56 overflow-y-auto divide-y divide-gray-100 p-1">
                                             {servicesCatalog
                                                 .filter((service) => service.name.toLowerCase().includes(searchQuery.toLowerCase()))
-                                                .map(service => (
-                                                    <button
-                                                        type="button"
-                                                        key={service.id}
-                                                        className={`w-full flex items-center justify-between px-3 py-2 text-left rounded-lg transition-colors ${formData.services.includes(service.slug) ? 'bg-primary-50 text-primary-700 font-bold' : 'hover:bg-gray-50 text-gray-700 font-medium'}`}
-                                                        onClick={() => toggleService(service.slug)}
-                                                    >
-                                                        <span>{service.name}</span>
-                                                        {formData.services.includes(service.slug) && <Check size={16} className="text-primary-600" />}
-                                                    </button>
-                                                ))}
+                                                .sort((a, b) => {
+                                                    if (a.slug === 'lohaggo-ya' && b.slug !== 'lohaggo-ya') return -1
+                                                    if (b.slug === 'lohaggo-ya' && a.slug !== 'lohaggo-ya') return 1
+                                                    return 0
+                                                })
+                                                .map(service => {
+                                                    const isFeatured = service.slug === 'lohaggo-ya'
+                                                    return (
+                                                        <button
+                                                            type="button"
+                                                            key={service.id}
+                                                            className={`w-full flex items-center justify-between px-3 py-2 text-left rounded-lg transition-all ${formData.services.includes(service.slug) ? (isFeatured ? 'bg-yellow-100 text-yellow-900 border border-yellow-300 font-bold' : 'bg-primary-50 text-primary-700 font-bold') : isFeatured ? 'bg-gradient-to-r from-yellow-50 to-orange-50 hover:from-yellow-100 hover:to-orange-100 text-yellow-900 font-semibold border border-yellow-200' : 'hover:bg-gray-50 text-gray-700 font-medium'}`}
+                                                            onClick={() => toggleService(service.slug)}
+                                                        >
+                                                            <div className="flex items-center gap-2">
+                                                                {isFeatured && <Zap size={14} className="text-yellow-600 fill-current flex-shrink-0" />}
+                                                                <span className={isFeatured ? 'text-sm md:text-base' : ''}>{service.name}</span>
+                                                                {isFeatured && <span className="text-[10px] bg-yellow-400 text-yellow-900 rounded-full px-1.5 py-0.5 font-bold uppercase tracking-wide flex-shrink-0">Destacado</span>}
+                                                            </div>
+                                                            {formData.services.includes(service.slug) && <Check size={16} className={`flex-shrink-0 ${isFeatured ? 'text-yellow-600' : 'text-primary-600'}`} />}
+                                                        </button>
+                                                    )
+                                                })}
                                         </div>
                                     </div>
                                     {servicesError && <p className="text-xs text-red-600 font-semibold">{servicesError}</p>}
