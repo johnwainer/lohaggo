@@ -1,0 +1,133 @@
+{
+  "generatedAt": "2026-02-19T19:40:06.382Z",
+  "baseUrl": "https://www.lohaggo.com",
+  "checks": [
+    {
+      "name": "admin.providers",
+      "ok": true,
+      "status": 200
+    },
+    {
+      "name": "admin.notifications.automation",
+      "ok": true,
+      "status": 200,
+      "targets": 4
+    },
+    {
+      "name": "admin.messaging.services",
+      "ok": true,
+      "services": 110
+    },
+    {
+      "name": "campaign.create.all",
+      "ok": true,
+      "status": 201
+    },
+    {
+      "name": "campaign.create.category",
+      "ok": true,
+      "status": 201
+    },
+    {
+      "name": "campaign.create.service",
+      "ok": true,
+      "status": 201
+    },
+    {
+      "name": "campaign.preview.audience.modes",
+      "ok": true,
+      "details": {
+        "all": "ALL",
+        "category": "CATEGORY",
+        "service": "SERVICE"
+      }
+    },
+    {
+      "name": "campaign.preview.population",
+      "ok": true,
+      "totals": {
+        "all": 16,
+        "category": 12,
+        "service": 5
+      }
+    },
+    {
+      "name": "campaign.send.service",
+      "ok": true,
+      "status": 200,
+      "campaignStatus": "FAILED"
+    },
+    {
+      "name": "campaign.metrics.and.failed",
+      "ok": true,
+      "totalRecipients": 5,
+      "totalFailed": 5,
+      "failedRows": 5
+    },
+    {
+      "name": "client.preferences.get",
+      "ok": true,
+      "channels": 4
+    },
+    {
+      "name": "partner.preferences.get",
+      "ok": true,
+      "channels": 4
+    },
+    {
+      "name": "client.preferences.patch.off",
+      "ok": true,
+      "status": 200
+    },
+    {
+      "name": "client.preferences.patch.on",
+      "ok": true,
+      "status": 200
+    },
+    {
+      "name": "partner.preferences.patch.off",
+      "ok": true,
+      "status": 200
+    },
+    {
+      "name": "partner.preferences.patch.on",
+      "ok": true,
+      "status": 200
+    },
+    {
+      "name": "client.notifications",
+      "ok": true,
+      "count": 50
+    },
+    {
+      "name": "partner.notifications",
+      "ok": true,
+      "count": 50
+    },
+    {
+      "name": "client.notifications.unread",
+      "ok": true
+    },
+    {
+      "name": "partner.notifications.unread",
+      "ok": true
+    },
+    {
+      "name": "admin.notifications.delivery_logs",
+      "ok": true,
+      "rows": 8,
+      "summaryRows": 5
+    }
+  ],
+  "createdCampaignIds": [
+    "cmltv878s0009tfs10a0lpvia",
+    "cmltv87g2001f8rdz6a4mnl78",
+    "cmltv87lp000hol7h8ijhhp98"
+  ],
+  "errors": [],
+  "summary": {
+    "pass": 21,
+    "fail": 0,
+    "errorCount": 0
+  }
+}
