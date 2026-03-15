@@ -243,7 +243,6 @@ function SqueezeForm() {
             if (result?.error) {
                 throw new Error('Registro exitoso pero error al iniciar sesión')
             } else {
-                router.refresh()
                 localStorage.setItem('pwa-onboarding-force', '1')
                 trackPwaEvent({
                     eventName: PWA_EVENTS.SIGNUP_COMPLETED,
