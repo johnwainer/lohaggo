@@ -242,7 +242,7 @@ function SqueezeForm() {
                 if (selectedCity?.status === 'COMING_SOON') {
                     router.push(`/partner/welcome/${formData.city}`)
                 } else {
-                    router.push('/partner')
+                    router.push('/')
                 }
             }
         } catch (err: any) {
@@ -252,7 +252,7 @@ function SqueezeForm() {
     }
 
     return (
-        <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row absolute inset-0 z-[100] overflow-y-auto">
+        <div className="min-h-screen bg-slate-50 flex flex-col-reverse md:flex-row absolute inset-0 z-[100] overflow-y-auto">
             {/* Columna Izquierda / Hero de la Landing */}
             <div className="w-full md:w-5/12 bg-gradient-to-br from-primary-600 via-primary-500 to-secondary-500 text-white p-8 md:p-12 flex flex-col justify-between">
                 <div>
