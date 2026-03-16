@@ -2,7 +2,7 @@
 
 import Script from 'next/script'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { useEffect, Suspense } from 'react'
+import { useEffect, Suspense, useRef } from 'react'
 
 declare global {
     interface Window {
@@ -27,10 +27,17 @@ export const trackEvent = (name: string, options = {}) => {
 function MetaPixelContent() {
     const pathname = usePathname()
     const searchParams = useSearchParams()
+    const lastTrackedUrl = useRef('')
 
     useEffect(() => {
-        // Cuando el usuario navega, se dispara el pageview manualmente
-        pageview()
+        // Combinamos la ruta con los parámetros para identificar la URL completa exacta
+        const currentUrl = pathname + searchParams.toString()
+
+        // Solo disparamos el evento si la URL es "nueva" respecto a la anterior
+        if (currentUrl !== lastTrackedUrl.current) {
+            lastTrackedUrl.current = currentUrl
+            pageview()
+        }
     }, [pathname, searchParams])
 
     if (!FB_PIXEL_ID) return null
