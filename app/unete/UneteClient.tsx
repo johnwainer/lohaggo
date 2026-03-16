@@ -252,8 +252,14 @@ function SqueezeForm() {
                 try {
                     if (typeof window !== 'undefined' && window.fbq) {
                         window.fbq('track', 'CompleteRegistration', { value: 0, currency: 'COP' })
-                        console.log('Pixel: Disparado CompleteRegistration')
                     }
+                    // Fallback robusto a prueba de bloqueadores de JavaScript
+                    const pixelId = process.env.NEXT_PUBLIC_META_PIXEL_ID || '961436919897711'
+                    if (pixelId) {
+                        const img = new Image()
+                        img.src = `https://www.facebook.com/tr?id=${pixelId}&ev=CompleteRegistration&cd[value]=0&cd[currency]=COP&noscript=1`
+                    }
+                    console.log('Pixel: Disparado CompleteRegistration (Incluye modo imagen)')
                 } catch (e) {
                     console.error('Error enviando pixel', e)
                 }
