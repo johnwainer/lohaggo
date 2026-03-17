@@ -306,8 +306,8 @@ function SqueezeForm() {
                         </p>
 
                         <div className="mt-8 bg-white/10 p-5 rounded-2xl border border-white/20 backdrop-blur-sm shadow-xl md:mr-8">
-                            <h3 className="text-lg font-black text-white mb-4 flex items-center gap-2">
-                                Más de <span className="bg-yellow-400 text-yellow-900 text-sm px-2 py-0.5 rounded-full">100+</span> servicios disponibles:
+                            <h3 className="text-base sm:text-lg font-black text-white mb-4 flex flex-wrap items-center gap-2 leading-tight">
+                                Más de <span className="bg-yellow-400 text-yellow-900 text-xs sm:text-sm px-2 py-0.5 rounded-full inline-block">100+</span> servicios disponibles:
                             </h3>
                             <div className="flex flex-wrap gap-2.5">
                                 <span className="bg-white/20 hover:bg-white/30 transition-colors backdrop-blur-md text-white text-xs sm:text-sm font-bold px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5 shadow-sm">
