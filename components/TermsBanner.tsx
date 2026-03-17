@@ -16,7 +16,7 @@ export default function TermsBanner() {
 
     const inProtectedArea = Boolean(
       pathname &&
-      (/^\/(dashboard|partner|profile|notifications|my-ratings|admin)(\/|$)/.test(pathname))
+      (/^\/(dashboard|partner|profile|notifications|my-ratings|admin|unete)(\/|$)/.test(pathname))
     )
 
     useEffect(() => {
