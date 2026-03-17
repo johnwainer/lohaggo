@@ -311,19 +311,32 @@ function SqueezeForm() {
                             Conviértete en socio de la plataforma líder y recibe clientes en tu ciudad cada día. Sin jefes, maneja tu propio tiempo y aumenta tus ingresos.
                         </p>
 
-                        <div className="mt-8 bg-white/10 p-5 rounded-2xl border border-white/20 backdrop-blur-sm shadow-xl md:mr-8 transition-transform hover:scale-[1.02]">
-                            <div className="flex items-start gap-4">
-                                <div className="bg-yellow-400 text-yellow-900 text-2xl w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 shadow-lg shadow-yellow-400/20 leading-none pb-1">
-                                    🛵
-                                </div>
-                                <div>
-                                    <h3 className="text-xl font-black text-white mb-1 flex items-center gap-2">
-                                        LoHaggo Ya Favor <span className="bg-yellow-400 text-yellow-900 text-[10px] uppercase font-black px-2 py-0.5 rounded-full tracking-wider">Top</span>
-                                    </h3>
-                                    <p className="text-white/90 text-sm md:text-base leading-relaxed font-medium">
-                                        Encargos y diligencias express: compra, recogida y entrega en minutos.
-                                    </p>
-                                </div>
+                        <div className="mt-8 bg-white/10 p-5 rounded-2xl border border-white/20 backdrop-blur-sm shadow-xl md:mr-8">
+                            <h3 className="text-lg font-black text-white mb-4 flex items-center gap-2">
+                                Más de <span className="bg-yellow-400 text-yellow-900 text-sm px-2 py-0.5 rounded-full">100+</span> servicios disponibles:
+                            </h3>
+                            <div className="flex flex-wrap gap-2.5">
+                                <span className="bg-white/20 hover:bg-white/30 transition-colors backdrop-blur-md text-white text-xs sm:text-sm font-bold px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5 shadow-sm">
+                                    🚰 Plomería
+                                </span>
+                                <span className="bg-white/20 hover:bg-white/30 transition-colors backdrop-blur-md text-white text-xs sm:text-sm font-bold px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5 shadow-sm">
+                                    ⚡ Electricistas
+                                </span>
+                                <span className="bg-white/20 hover:bg-white/30 transition-colors backdrop-blur-md text-white text-xs sm:text-sm font-bold px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5 shadow-sm">
+                                    🪚 Carpintería
+                                </span>
+                                <span className="bg-white/20 hover:bg-white/30 transition-colors backdrop-blur-md text-white text-xs sm:text-sm font-bold px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5 shadow-sm">
+                                    🧹 Aseo y Limpieza
+                                </span>
+                                <span className="bg-white/20 hover:bg-white/30 transition-colors backdrop-blur-md text-white text-xs sm:text-sm font-bold px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5 shadow-sm">
+                                    🛵 Mensajeros
+                                </span>
+                                <span className="bg-white/20 hover:bg-white/30 transition-colors backdrop-blur-md text-white text-xs sm:text-sm font-bold px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5 shadow-sm">
+                                    🔧 Reparaciones
+                                </span>
+                                <span className="text-yellow-300 text-xs sm:text-sm font-black px-1 py-1.5 flex items-center drop-shadow-md">
+                                    y decenas más...
+                                </span>
                             </div>
                         </div>
                     </div>
