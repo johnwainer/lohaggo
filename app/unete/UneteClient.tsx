@@ -365,10 +365,10 @@ function SqueezeForm() {
                 <div className="max-w-md w-full animate-fade-in">
                     <div className="mb-6">
                         <div className="flex items-center justify-between mb-2">
-                            <h2 className="text-2xl font-black text-gray-900">Registro rápido</h2>
-                            <span className="text-sm font-bold text-primary-500 bg-primary-50 px-3 py-1 rounded-full">En 1 Minuto</span>
+                            <h2 className="text-2xl font-black text-gray-900">Activa tu perfil profesional</h2>
+                            <span className="text-sm font-bold text-primary-500 bg-primary-50 px-3 py-1 rounded-full">100% Gratis</span>
                         </div>
-                        <p className="text-sm text-gray-600 font-medium">Ingresa tus datos de contacto básicos y crearemos tu cuenta al instante.</p>
+                        <p className="text-sm text-gray-600 font-medium">Déjanos tus datos para conectar con cientos de clientes en tu ciudad que buscan tus servicios.</p>
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-5 relative">
@@ -450,7 +450,7 @@ function SqueezeForm() {
                         </div>
 
                         <button type="submit" disabled={loading} className="mt-8 w-full bg-secondary-500 hover:bg-secondary-600 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">
-                            {loading ? 'Procesando...' : 'Registrarme ahora'} <ArrowRight size={18} />
+                            {loading ? 'Procesando...' : 'Quiero recibir clientes'} <ArrowRight size={18} />
                         </button>
                     </form>
                 </div>
