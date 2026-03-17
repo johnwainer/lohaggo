@@ -9,6 +9,11 @@ export default function PartnerRegistrationButton() {
   const handleClick = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault()
     
+    if (session?.user?.role === 'PARTNER') {
+      window.location.href = '/profile'
+      return
+    }
+    
     if (session) {
       await signOut({ redirect: false })
     }

@@ -76,6 +76,10 @@ export function Footer() {
                   href: '/register?role=partner',
                   onClick: async (e: React.MouseEvent) => {
                     e.preventDefault()
+                    if (session?.user?.role === 'PARTNER') {
+                      window.location.href = '/profile'
+                      return
+                    }
                     if (session) {
                       await signOut({ redirect: false })
                     }
@@ -122,6 +126,10 @@ export function Footer() {
             <div className="mt-6">
               <button
                 onClick={async () => {
+                  if (session?.user?.role === 'PARTNER') {
+                    window.location.href = '/profile'
+                    return
+                  }
                   if (session) {
                     await signOut({ redirect: false })
                   }

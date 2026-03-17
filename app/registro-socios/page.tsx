@@ -17,6 +17,10 @@ export default function RegistroSociosPage() {
 
   const handleRegistroSocio = async () => {
     setIsLoading(true)
+    if (session?.user?.role === 'PARTNER') {
+      router.push('/profile')
+      return
+    }
     if (session) {
       await signOut({ redirect: false })
     }
