@@ -43,7 +43,6 @@ function SqueezeForm() {
     })
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
-    const [acceptedTerms, setAcceptedTerms] = useState(false)
     const [showSuccessModal, setShowSuccessModal] = useState(false)
     const [generatedPassword, setGeneratedPassword] = useState('')
     const [captchaToken, setCaptchaToken] = useState('')
@@ -208,11 +207,6 @@ function SqueezeForm() {
         setFieldErrors({ ...fieldErrors, name: errorN, phone: errorP, email: errorE })
 
         if (errorN || errorP || errorE) {
-            scrollToTopError()
-            return
-        }
-        if (!acceptedTerms) {
-            setError('Acepta los Términos para continuar')
             scrollToTopError()
             return
         }
@@ -437,20 +431,6 @@ function SqueezeForm() {
                                     />
                                 </div>
                                 {fieldErrors.email && touched.email && <p className="text-xs text-red-600 font-semibold">{fieldErrors.email}</p>}
-                            </div>
-
-                            <div className="pt-2">
-                                <label className="flex items-start gap-3 cursor-pointer group">
-                                    <input
-                                        type="checkbox"
-                                        checked={acceptedTerms}
-                                        onChange={(e) => setAcceptedTerms(e.target.checked)}
-                                        className="mt-1 w-5 h-5 border-2 border-gray-300 rounded focus:ring-primary-500 text-primary-600 cursor-pointer"
-                                    />
-                                    <span className="text-xs text-gray-600">
-                                        Acepto los <Link href="/terms" target="_blank" className="font-bold text-primary-600">Términos</Link> y la <Link href="/privacy" target="_blank" className="font-bold text-primary-600">Política de Privacidad</Link>.
-                                    </span>
-                                </label>
                             </div>
 
                             <input type="text" className="hidden" aria-hidden="true" value={honeypot} onChange={(e) => setHoneypot(e.target.value)} />
