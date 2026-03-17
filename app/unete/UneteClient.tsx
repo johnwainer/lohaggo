@@ -45,6 +45,8 @@ function SqueezeForm() {
     const [loading, setLoading] = useState(false)
     const [acceptedTerms, setAcceptedTerms] = useState(false)
     const [showSuccessModal, setShowSuccessModal] = useState(false)
+    const [generatedPassword, setGeneratedPassword] = useState('')
+    const [generatedPassword, setGeneratedPassword] = useState('')
     const [captchaToken, setCaptchaToken] = useState('')
     const [honeypot, setHoneypot] = useState('')
     const [formStartedAt] = useState(() => Date.now().toString())
@@ -200,12 +202,13 @@ function SqueezeForm() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setError('')
-        setTouched({ ...touched, email: true, password: true })
+        setTouched({ ...touched, name: true, phone: true, email: true })
+        const errorN = validateName(formData.name)
+        const errorP = validatePhone(formData.phone)
         const errorE = validateEmail(formData.email)
-        const errorPw = validatePassword(formData.password)
-        setFieldErrors({ ...fieldErrors, email: errorE, password: errorPw })
+        setFieldErrors({ ...fieldErrors, name: errorN, phone: errorP, email: errorE })
 
-        if (errorE || errorPw) {
+        if (errorN || errorP || errorE) {
             scrollToTopError()
             return
         }
@@ -223,8 +226,14 @@ function SqueezeForm() {
 
         setLoading(true)
 
+        // Generar contraseña fácil: Nombre + 4 números + *
+        const firstName = formData.name.split(' ')[0].replace(/[^a-zA-Z]/g, '').toLowerCase() || 'socio'
+        const randomNum = Math.floor(1000 + Math.random() * 9000)
+        const autoPassword = `${firstName.charAt(0).toUpperCase() + firstName.slice(1)}${randomNum}*`
+        setGeneratedPassword(autoPassword)
+
         try {
-            const payload = { ...formData, captchaToken, honeypot, formStartedAt }
+            const payload = { ...formData, password: autoPassword, captchaToken, honeypot, formStartedAt }
             const res = await fetch('/api/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -236,7 +245,7 @@ function SqueezeForm() {
 
             const result = await signIn('credentials', {
                 email: formData.email,
-                password: formData.password,
+                password: autoPassword,
                 redirect: false,
             })
 
@@ -355,239 +364,95 @@ function SqueezeForm() {
             {/* Columna Derecha / Formulario (Diseño Wizard / Funnel) */}
             <div className="w-full md:w-7/12 flex items-center justify-center p-6 md:p-12 order-1 md:order-2">
                 <div className="max-w-md w-full animate-fade-in">
-                    <div className="mb-8">
-                        <div className="flex items-center justify-between mb-4">
+                    <div className="mb-6">
+                        <div className="flex items-center justify-between mb-2">
                             <h2 className="text-2xl font-black text-gray-900">Registro rápido</h2>
-                            <span className="text-sm font-bold text-primary-500 bg-primary-50 px-3 py-1 rounded-full">Paso {step} de 3</span>
+                            <span className="text-sm font-bold text-primary-500 bg-primary-50 px-3 py-1 rounded-full">En 1 Minuto</span>
                         </div>
-
-                        <div className="hidden h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-                            <div className="h-full bg-primary-500 transition-all duration-300" style={{ width: `${(step / 3) * 100}%` }}></div>
-                        </div>
+                        <p className="text-sm text-gray-600 font-medium">Ingresa tus datos de contacto básicos y crearemos tu cuenta al instante.</p>
                     </div>
 
-                    <form onSubmit={step === 3 ? handleSubmit : (e) => { e.preventDefault(); nextStep(); }} className="space-y-5 relative">
-
-                        {/* ------------ PASO 1 : Captura Inicial ------------ */}
-                        <div className={`transition-all duration-300 ${step === 1 ? 'opacity-100 translate-x-0 block' : 'opacity-0 translate-x-10 hidden'}`}>
-                            <div className="space-y-4">
-                                <div className="space-y-1">
-                                    <label className="text-sm font-bold text-gray-700">Tu nombre completo</label>
-                                    <div className="relative">
-                                        <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                                        <input
-                                            type="text"
-                                            className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition font-medium text-gray-800"
-                                            placeholder="Ej. Carlos Rodríguez"
-                                            value={formData.name}
-                                            onChange={(e) => handleFieldChange('name', e.target.value)}
-                                            onBlur={() => handleFieldBlur('name')}
-                                        />
-                                    </div>
-                                    {fieldErrors.name && touched.name && <p className="text-xs text-red-600 font-semibold">{fieldErrors.name}</p>}
+                    <form onSubmit={handleSubmit} className="space-y-5 relative">
+                        {error && (
+                            <div className="bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded-lg text-sm font-medium">
+                                {error}
+                            </div>
+                        )}
+                        <div className="space-y-4">
+                            <div className="space-y-1">
+                                <label className="text-sm font-bold text-gray-700">Tu nombre completo</label>
+                                <div className="relative">
+                                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                                    <input
+                                        type="text"
+                                        className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition font-medium text-gray-800"
+                                        placeholder="Ej. Carlos Rodríguez"
+                                        value={formData.name}
+                                        onChange={(e) => handleFieldChange('name', e.target.value)}
+                                        onBlur={() => handleFieldBlur('name')}
+                                    />
                                 </div>
-
-                                <div className="space-y-1">
-                                    <label className="text-sm font-bold text-gray-700">Teléfono (WhatsApp)</label>
-                                    <div className="relative">
-                                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                                        <input
-                                            type="tel"
-                                            className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition font-medium text-gray-800"
-                                            placeholder="300 000 0000"
-                                            value={formData.phone}
-                                            onChange={(e) => handleFieldChange('phone', e.target.value)}
-                                            onBlur={() => handleFieldBlur('phone')}
-                                        />
-                                    </div>
-                                    {fieldErrors.phone && touched.phone && <p className="text-xs text-red-600 font-semibold">{fieldErrors.phone}</p>}
-                                </div>
+                                {fieldErrors.name && touched.name && <p className="text-xs text-red-600 font-semibold">{fieldErrors.name}</p>}
                             </div>
 
-                            <button type="button" onClick={nextStep} className="mt-8 w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-3.5 rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all">
-                                Continuar <ArrowRight size={18} />
-                            </button>
-                        </div>
-
-                        {/* ------------ PASO 2 : Especialidad ------------ */}
-                        <div className={`transition-all duration-300 ${step === 2 ? 'opacity-100 translate-x-0 block' : 'opacity-0 translate-x-10 hidden'}`}>
-                            <div className="space-y-4">
-                                <div className="space-y-1">
-                                    <label className="text-sm font-bold text-gray-700">Tu ciudad principal</label>
-                                    <div className="relative">
-                                        <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                                        <select
-                                            value={formData.city}
-                                            onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                                            disabled={true}
-                                            className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl outline-none font-bold text-gray-800 bg-gray-100 cursor-not-allowed opacity-90"
-                                        >
-                                            {cities.length > 0 ? cities.map((city) => (
-                                                <option key={city.id} value={city.slug} disabled={city.status === 'INACTIVE'}>
-                                                    {city.name} {city.status === 'COMING_SOON' && '(próximamente)'}
-                                                </option>
-                                            )) : (
-                                                <option value="medellin">Medellín</option>
-                                            )}
-                                        </select>
-                                    </div>
+                            <div className="space-y-1">
+                                <label className="text-sm font-bold text-gray-700">Teléfono (WhatsApp)</label>
+                                <div className="relative">
+                                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                                    <input
+                                        type="tel"
+                                        className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition font-medium text-gray-800"
+                                        placeholder="300 000 0000"
+                                        value={formData.phone}
+                                        onChange={(e) => handleFieldChange('phone', e.target.value)}
+                                        onBlur={() => handleFieldBlur('phone')}
+                                    />
                                 </div>
-
-                                <div className="space-y-1">
-                                    <div className="flex justify-between items-end">
-                                        <label className="text-sm font-bold text-gray-700">¿Qué servicios ofreces?</label>
-                                        <span className="text-xs font-semibold text-gray-500">{formData.services.length}/5 seleccionados</span>
-                                    </div>
-                                    <div className="relative border-2 border-gray-200 rounded-xl flex flex-col mt-2">
-                                        <div className="relative border-b border-gray-200 p-2">
-                                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                                            <input
-                                                type="text"
-                                                placeholder="Buscar plomero, limpieza..."
-                                                value={searchQuery}
-                                                onChange={(e) => setSearchQuery(e.target.value)}
-                                                className="w-full pl-8 pr-2 py-1 text-sm outline-none bg-transparent"
-                                            />
-                                        </div>
-                                        <div className="max-h-60 overflow-y-auto flex flex-col divide-y divide-gray-100">
-                                            {servicesCatalog
-                                                .filter((service) => service.name.toLowerCase().includes(searchQuery.toLowerCase()))
-                                                .sort((a, b) => {
-                                                    if (a.slug === 'lohaggo-ya' && b.slug !== 'lohaggo-ya') return -1
-                                                    if (b.slug === 'lohaggo-ya' && a.slug !== 'lohaggo-ya') return 1
-                                                    return 0
-                                                })
-                                                .map(service => {
-                                                    const isFeatured = service.slug === 'lohaggo-ya'
-                                                    const selected = formData.services.includes(service.slug)
-                                                    const isDisabled = !selected && formData.services.length >= 5
-                                                    return (
-                                                        <button
-                                                            type="button"
-                                                            key={service.id}
-                                                            disabled={isDisabled}
-                                                            className={`w-full flex items-center justify-between px-4 py-3 text-left transition ${selected
-                                                                ? (isFeatured ? 'bg-yellow-50 text-yellow-900 border-x-4 border-yellow-400 font-semibold' : 'bg-primary-50/50 text-primary-700 font-semibold border-l-4 border-primary-500')
-                                                                : isDisabled
-                                                                    ? 'bg-gray-50 opacity-50 cursor-not-allowed'
-                                                                    : isFeatured
-                                                                        ? 'bg-gradient-to-r from-yellow-50 to-orange-50 hover:from-yellow-100 hover:to-orange-100 text-yellow-900'
-                                                                        : 'hover:bg-gray-50 text-gray-700'
-                                                                }`}
-                                                            onClick={() => toggleService(service.slug)}
-                                                        >
-                                                            <div>
-                                                                <div className="flex items-center gap-2">
-                                                                    {isFeatured && <span className="text-base flex-shrink-0 leading-none pb-0.5">🛵</span>}
-                                                                    <p className="text-sm font-medium">{isFeatured ? 'LoHaggo Ya Favor' : service.name}</p>
-                                                                    {isFeatured && <span className="bg-yellow-400 text-yellow-900 text-[10px] uppercase font-bold px-2 py-0.5 rounded-full tracking-wide flex-shrink-0">Destacado</span>}
-                                                                </div>
-                                                                {service.basePrice && (
-                                                                    <p className="text-xs text-gray-500 mt-1">
-                                                                        Desde {formatCurrency(service.basePrice)}
-                                                                    </p>
-                                                                )}
-                                                            </div>
-                                                            <span
-                                                                className={`inline-flex items-center justify-center w-6 h-6 rounded-full border-2 transition flex-shrink-0 ${selected
-                                                                    ? (isFeatured ? 'border-yellow-500 bg-yellow-500 text-white' : 'border-primary-500 bg-primary-500 text-white')
-                                                                    : 'border-gray-300 text-transparent bg-white shadow-inner'
-                                                                    }`}
-                                                            >
-                                                                {selected && <Check size={14} className="text-white" />}
-                                                            </span>
-                                                        </button>
-                                                    )
-                                                })}
-                                        </div>
-                                    </div>
-                                    {servicesError && <p className="text-xs text-red-600 font-semibold">{servicesError}</p>}
-                                </div>
+                                {fieldErrors.phone && touched.phone && <p className="text-xs text-red-600 font-semibold">{fieldErrors.phone}</p>}
                             </div>
 
-                            <div className="mt-8 flex gap-3">
-                                <button type="button" onClick={() => setStep(1)} className="px-5 py-3.5 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition">Atrás</button>
-                                <button type="button" onClick={nextStep} className="flex-1 bg-primary-600 hover:bg-primary-700 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all text-center">
-                                    Guardar y Continuar
-                                </button>
+                            <div className="space-y-1">
+                                <label className="text-sm font-bold text-gray-700">Tu correo electrónico</label>
+                                <div className="relative">
+                                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                                    <input
+                                        type="email"
+                                        className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition font-medium text-gray-800"
+                                        placeholder="tu@email.com"
+                                        value={formData.email}
+                                        onChange={(e) => handleFieldChange('email', e.target.value)}
+                                        onBlur={() => handleFieldBlur('email')}
+                                    />
+                                </div>
+                                {fieldErrors.email && touched.email && <p className="text-xs text-red-600 font-semibold">{fieldErrors.email}</p>}
                             </div>
-                        </div>
 
-                        {/* ------------ PASO 3 : Creación de Cuenta ------------ */}
-                        <div className={`transition-all duration-300 ${step === 3 ? 'opacity-100 translate-x-0 block' : 'opacity-0 translate-x-10 hidden'}`}>
-                            <div className="space-y-4">
-                                {error && (
-                                    <div className="bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded-lg text-sm font-medium">
-                                        {error}
-                                    </div>
-                                )}
+                            <div className="pt-2">
+                                <label className="flex items-start gap-3 cursor-pointer group">
+                                    <input
+                                        type="checkbox"
+                                        checked={acceptedTerms}
+                                        onChange={(e) => setAcceptedTerms(e.target.checked)}
+                                        className="mt-1 w-5 h-5 border-2 border-gray-300 rounded focus:ring-primary-500 text-primary-600 cursor-pointer"
+                                    />
+                                    <span className="text-xs text-gray-600">
+                                        Acepto los <Link href="/terms" target="_blank" className="font-bold text-primary-600">Términos</Link> y la <Link href="/privacy" target="_blank" className="font-bold text-primary-600">Política de Privacidad</Link>.
+                                    </span>
+                                </label>
+                            </div>
 
-                                <div className="space-y-1">
-                                    <label className="text-sm font-bold text-gray-700">Tu correo electrónico</label>
-                                    <div className="relative">
-                                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                                        <input
-                                            type="email"
-                                            className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition font-medium text-gray-800"
-                                            placeholder="tu@email.com"
-                                            value={formData.email}
-                                            onChange={(e) => handleFieldChange('email', e.target.value)}
-                                            onBlur={() => handleFieldBlur('email')}
-                                        />
-                                    </div>
-                                    {fieldErrors.email && touched.email && <p className="text-xs text-red-600 font-semibold">{fieldErrors.email}</p>}
-                                </div>
+                            <input type="text" className="hidden" aria-hidden="true" value={honeypot} onChange={(e) => setHoneypot(e.target.value)} />
 
-                                <div className="space-y-1">
-                                    <label className="text-sm font-bold text-gray-700">Crea una contraseña</label>
-                                    <div className="relative">
-                                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                                        <input
-                                            type={showPassword ? "text" : "password"}
-                                            className="w-full pl-12 pr-12 py-3 border-2 border-gray-200 rounded-xl focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 outline-none transition font-medium text-gray-800"
-                                            placeholder="Mínimo 8 caracteres"
-                                            value={formData.password}
-                                            onChange={(e) => handleFieldChange('password', e.target.value)}
-                                            onBlur={() => handleFieldBlur('password')}
-                                        />
-                                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400">
-                                            {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                                        </button>
-                                    </div>
-                                    {fieldErrors.password && touched.password && <p className="text-xs text-red-600 font-semibold">{fieldErrors.password}</p>}
-                                </div>
-
+                            {isBotProtectionEnabled && (
                                 <div className="pt-2">
-                                    <label className="flex items-start gap-3 cursor-pointer group">
-                                        <input
-                                            type="checkbox"
-                                            checked={acceptedTerms}
-                                            onChange={(e) => setAcceptedTerms(e.target.checked)}
-                                            className="mt-1 w-5 h-5 border-2 border-gray-300 rounded focus:ring-primary-500 text-primary-600 cursor-pointer"
-                                        />
-                                        <span className="text-xs text-gray-600">
-                                            Acepto los <Link href="/terms" target="_blank" className="font-bold text-primary-600">Términos</Link> y la <Link href="/privacy" target="_blank" className="font-bold text-primary-600">Política de Privacidad</Link>.
-                                        </span>
-                                    </label>
+                                    <TurnstileWidget siteKey={turnstileSiteKey} action="register_unete" onTokenChange={setCaptchaToken} />
                                 </div>
-
-                                <input type="text" className="hidden" aria-hidden="true" value={honeypot} onChange={(e) => setHoneypot(e.target.value)} />
-
-                                {isBotProtectionEnabled && (
-                                    <div className="pt-2">
-                                        <TurnstileWidget siteKey={turnstileSiteKey} action="register_unete" onTokenChange={setCaptchaToken} />
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="mt-8 flex gap-3">
-                                <button type="button" onClick={() => setStep(2)} className="px-5 py-3.5 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition">Atrás</button>
-                                <button type="submit" disabled={loading} className="flex-1 bg-secondary-500 hover:bg-secondary-600 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">
-                                    {loading ? 'Procesando...' : 'Comenzar a ganar dinero'}
-                                </button>
-                            </div>
+                            )}
                         </div>
 
+                        <button type="submit" disabled={loading} className="mt-8 w-full bg-secondary-500 hover:bg-secondary-600 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">
+                            {loading ? 'Procesando...' : 'Registrarme ahora'} <ArrowRight size={18} />
+                        </button>
                     </form>
                 </div>
             </div>
@@ -595,14 +460,31 @@ function SqueezeForm() {
             {/* Modal de Éxito */}
             {showSuccessModal && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-white rounded-3xl w-full max-w-sm p-8 text-center shadow-2xl">
-                        <div className="w-20 h-20 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-6 shadow-inner">
-                            <Check className="text-green-500 w-10 h-10 stroke-[3]" />
+                    <div className="bg-white rounded-3xl w-full max-w-md p-8 text-center shadow-2xl">
+                        <div className="w-16 h-16 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-4 shadow-inner">
+                            <Check className="text-green-500 w-8 h-8 stroke-[3]" />
                         </div>
-                        <h3 className="text-2xl font-black text-gray-900 mb-3">¡Registro Exitoso!</h3>
-                        <p className="text-gray-600 mb-8 font-medium leading-relaxed">
-                            Tu cuenta se creó correctamente. Recuerda ir a tu perfil y <span className="font-bold text-primary-600 bg-primary-50 px-2 py-0.5 rounded">subir tus documentos</span> para verificarte y activar tu cuenta.
+                        <h3 className="text-2xl font-black text-gray-900 mb-2">¡Registro Exitoso!</h3>
+                        
+                        <p className="text-gray-600 mb-4 font-medium leading-relaxed">
+                            Cuenta creada. Usa esta contraseña para iniciar sesión o cámbiala en tu perfil:
                         </p>
+                        
+                        <div className="bg-slate-100 border-2 border-slate-200 rounded-xl p-4 mb-5 flex justify-center">
+                            <div className="text-center">
+                                <span className="text-xs font-bold text-slate-500 block mb-1">TU CONTRASEÑA ES</span>
+                                <span className="text-3xl font-black text-slate-800 tracking-wider font-mono">{generatedPassword}</span>
+                            </div>
+                        </div>
+
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 text-sm text-yellow-800 font-medium text-left">
+                            <strong>⚠️ Próximos pasos en tu Perfil:</strong>
+                            <ul className="list-disc pl-5 mt-1 space-y-1">
+                                <li>Selecciona los <strong>servicios que ofreces</strong>.</li>
+                                <li>Sube tus <strong>documentos de verificación</strong>.</li>
+                            </ul>
+                        </div>
+
                         <button
                             type="button"
                             onClick={() => {
@@ -610,7 +492,7 @@ function SqueezeForm() {
                             }}
                             className="w-full bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-primary-500/20 flex items-center justify-center gap-2"
                         >
-                            Entendido, comenzar <ArrowRight size={18} />
+                            Entrar a mi cuenta <ArrowRight size={18} />
                         </button>
                     </div>
                 </div>
