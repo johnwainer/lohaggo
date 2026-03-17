@@ -5,9 +5,11 @@ import { X, Download, RefreshCw } from 'lucide-react';
 import { trackPwaEvent } from '@/lib/pwa/telemetry-client';
 import { PWA_EVENTS } from '@/lib/pwa/events';
 import { useSession } from 'next-auth/react';
+import { usePathname } from 'next/navigation';
 
 export default function PWAInstallPrompt() {
   const { data: session } = useSession();
+  const pathname = usePathname();
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [showUpdatePrompt, setShowUpdatePrompt] = useState(false);
@@ -69,7 +71,7 @@ export default function PWAInstallPrompt() {
     setShowUpdatePrompt(false);
   };
 
-  if (session?.user?.id || isStandalone || (!showInstallPrompt && !showUpdatePrompt)) {
+  if (pathname === '/unete' || session?.user?.id || isStandalone || (!showInstallPrompt && !showUpdatePrompt)) {
     return null;
   }
 

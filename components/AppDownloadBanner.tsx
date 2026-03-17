@@ -7,7 +7,7 @@ import { Smartphone } from 'lucide-react'
 export function AppDownloadBanner() {
   const pathname = usePathname()
 
-  if (pathname?.startsWith('/admin') || pathname?.startsWith('/dashboard') || pathname?.startsWith('/partner')) {
+  if (pathname?.startsWith('/admin') || pathname?.startsWith('/dashboard') || pathname?.startsWith('/partner') || pathname?.startsWith('/unete')) {
     return null
   }
 

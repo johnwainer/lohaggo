@@ -47,7 +47,7 @@ export default function PWAOnboardingPrompt() {
   const isAdmin = userRole === 'ADMIN'
 
   const shouldSkipPath = useMemo(
-    () => ['/login', '/register', '/admin', '/download/android', '/download/ios'].some((path) => pathname.startsWith(path)),
+    () => ['/login', '/register', '/admin', '/download/android', '/download/ios', '/unete'].some((path) => pathname.startsWith(path)),
     [pathname]
   )
 

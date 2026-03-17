@@ -7,6 +7,7 @@ import { trackPwaEvent } from '@/lib/pwa/telemetry-client'
 import { PWA_EVENTS } from '@/lib/pwa/events'
 import { useSession } from 'next-auth/react'
 import { useCity } from '@/lib/city-context'
+import { usePathname } from 'next/navigation'
 
 interface NotificationPermissionPromptProps {
   onClose?: () => void
@@ -18,6 +19,7 @@ export default function NotificationPermissionPrompt({
   autoShow = true
 }: NotificationPermissionPromptProps) {
   const { data: session } = useSession()
+  const pathname = usePathname()
   const { showCityModal } = useCity()
   const [isVisible, setIsVisible] = useState(false)
   const [hasInteracted, setHasInteracted] = useState(false)
@@ -76,7 +78,7 @@ export default function NotificationPermissionPrompt({
     onClose?.()
   }
 
-  if (showCityModal || session?.user?.id || !isVisible || !isSupported || isSubscribed || permission === 'denied') {
+  if (pathname === '/unete' || showCityModal || session?.user?.id || !isVisible || !isSupported || isSubscribed || permission === 'denied') {
     return null
   }
 
