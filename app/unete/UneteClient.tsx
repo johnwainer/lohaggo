@@ -294,7 +294,7 @@ function SqueezeForm() {
                         <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
                             <Sparkles className="w-6 h-6 text-white" />
                         </div>
-                        <span className="text-2xl font-black tracking-tight text-white">LoHaggo Pro</span>
+                        <span className="text-2xl font-black tracking-tight text-white">LoHaggo</span>
                     </Link>
 
                     <div className="mt-12 space-y-6">
