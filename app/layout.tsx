@@ -16,6 +16,7 @@ import TestModeBanner from '@/components/TestModeBanner'
 import InactiveAccountBanner from '@/components/InactiveAccountBanner'
 import MetaPixel from '@/components/analytics/MetaPixel'
 import GoogleAnalytics from '@/components/analytics/GoogleAnalytics'
+import MicrosoftClarity from '@/components/analytics/MicrosoftClarity'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -342,6 +343,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         </Providers>
         <MetaPixel />
         <GoogleAnalytics />
+        <MicrosoftClarity />
       </body>
     </html>
   )
