@@ -315,6 +315,11 @@ function LoginForm() {
                       {fieldErrors.password}
                     </p>
                   )}
+                  <div className="flex justify-end pt-1">
+                    <Link href="/olvide-mi-contrasena" className="text-sm font-bold text-primary-600 hover:text-primary-500 transition-colors">
+                      ¿Olvidaste tu contraseña?
+                    </Link>
+                  </div>
                 </div>
 
                 <div className="pt-2">
