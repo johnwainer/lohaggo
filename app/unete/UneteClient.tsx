@@ -46,7 +46,6 @@ function SqueezeForm() {
     const [acceptedTerms, setAcceptedTerms] = useState(false)
     const [showSuccessModal, setShowSuccessModal] = useState(false)
     const [generatedPassword, setGeneratedPassword] = useState('')
-    const [generatedPassword, setGeneratedPassword] = useState('')
     const [captchaToken, setCaptchaToken] = useState('')
     const [honeypot, setHoneypot] = useState('')
     const [formStartedAt] = useState(() => Date.now().toString())
