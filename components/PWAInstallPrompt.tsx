@@ -71,7 +71,7 @@ export default function PWAInstallPrompt() {
     setShowUpdatePrompt(false);
   };
 
-  if (pathname === '/unete' || session?.user?.id || isStandalone || (!showInstallPrompt && !showUpdatePrompt)) {
+  if (pathname?.startsWith('/unete') || session?.user?.id || isStandalone || (!showInstallPrompt && !showUpdatePrompt)) {
     return null;
   }
 
