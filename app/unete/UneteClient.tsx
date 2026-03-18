@@ -480,11 +480,11 @@ function SqueezeForm() {
                         <button
                             type="button"
                             onClick={() => {
-                                window.location.href = '/'
+                                window.location.href = '/perfil'
                             }}
                             className="w-full bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-primary-500/20 flex items-center justify-center gap-2"
                         >
-                            Entrar a mi cuenta <ArrowRight size={18} />
+                            Completar perfil <ArrowRight size={18} />
                         </button>
                     </div>
                 </div>
