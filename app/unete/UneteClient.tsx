@@ -480,11 +480,11 @@ function SqueezeForm() {
                         <button
                             type="button"
                             onClick={() => {
-                                window.location.href = '/perfil'
+                                window.location.href = '/partner/verification'
                             }}
                             className="w-full bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-primary-500/20 flex items-center justify-center gap-2"
                         >
-                            Completar perfil <ArrowRight size={18} />
+                            Verificar mis documentos <ArrowRight size={18} />
                         </button>
                     </div>
                 </div>
