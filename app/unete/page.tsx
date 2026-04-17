@@ -2,7 +2,7 @@ import { Metadata } from 'next'
 import UneteClient from './UneteClient'
 
 export const metadata: Metadata = {
-    title: 'Únete como profesional y recibe clientes | LoHaggo',
+    title: { absolute: 'Únete como profesional y recibe clientes | LoHaggo' },
     description: 'Regístrate gratis en LoHaggo y empieza a recibir clientes en tu ciudad. Plomeros, electricistas, limpieza y más. Sin jefes, tú controlas tu tiempo.',
     openGraph: {
         title: '¿Eres profesional? Únete a LoHaggo y recibe clientes hoy',
