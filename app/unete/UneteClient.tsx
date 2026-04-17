@@ -6,28 +6,171 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
     Mail,
-    Lock,
-    User,
     Phone,
-    MapPin,
+    User,
     Check,
     ArrowRight,
     Sparkles,
-    Search,
     Eye,
     EyeOff,
     DollarSign,
     Clock,
     Shield,
-    Star
+    Star,
+    ChevronDown,
+    ChevronUp,
 } from 'lucide-react'
 import { useCity } from '@/lib/city-context'
-import { formatCurrency } from '@/lib/utils'
 import TurnstileWidget from '@/components/security/TurnstileWidget'
 import { trackPwaEvent } from '@/lib/pwa/telemetry-client'
 import { PWA_EVENTS } from '@/lib/pwa/events'
-import { trackEvent } from '@/components/analytics/MetaPixel'
 
+// ─── How it works steps ────────────────────────────────────────────────────
+const HOW_IT_WORKS = [
+    { num: '1', icon: '📋', title: 'Deja tus datos', desc: 'Llena el formulario en 30 segundos, es gratis.' },
+    { num: '2', icon: '💬', title: 'Activa tu perfil', desc: 'Un asesor de LoHaggo te contacta por WhatsApp en menos de 24h.' },
+    { num: '3', icon: '📲', title: 'Recibe solicitudes', desc: 'Clientes en tu ciudad te encuentran y solicitan tu servicio.' },
+    { num: '4', icon: '💰', title: 'Cobra seguro', desc: 'Recibes el pago protegido por LoHaggo, sin riesgo de estafa.' },
+]
+
+// ─── Testimonials ────────────────────────────────────────────────────────
+const TESTIMONIALS = [
+    {
+        initials: 'CR',
+        name: 'Carlos R.',
+        trade: 'Electricista',
+        city: 'Medellín',
+        quote: 'Antes buscaba clientes en grupos de Facebook. Con LoHaggo me llegaron 4 trabajos la primera semana.',
+    },
+    {
+        initials: 'MA',
+        name: 'María A.',
+        trade: 'Limpieza',
+        city: 'Medellín',
+        quote: 'Nunca pensé que conseguir trabajo fuera tan fácil. Mi horario es mío y cobro directo.',
+    },
+    {
+        initials: 'JP',
+        name: 'Juan P.',
+        trade: 'Plomero',
+        city: 'Medellín',
+        quote: 'El pago llega seguro, sin preocupaciones. LoHaggo me da confianza para crecer.',
+    },
+]
+
+// ─── FAQ ─────────────────────────────────────────────────────────────────
+const FAQ_ITEMS = [
+    {
+        q: '¿Cuánto cobra LoHaggo por cada trabajo?',
+        a: 'LoHaggo retiene un porcentaje de servicio por cada trabajo completado. Tu asesor te explicará el detalle al activar tu perfil.',
+    },
+    {
+        q: '¿Cuándo y cómo me pagan?',
+        a: 'El pago se procesa de forma segura dentro de la plataforma y se transfiere a tu cuenta una vez el cliente confirma el servicio.',
+    },
+    {
+        q: '¿Necesito experiencia formal o certificados?',
+        a: 'No necesitas título universitario. Solo tener el oficio, ganas de trabajar y pasar nuestra verificación básica de identidad.',
+    },
+    {
+        q: '¿Puedo trabajar en mi tiempo libre o tiene que ser tiempo completo?',
+        a: 'Tú defines tu horario. Puedes recibir trabajos los fines de semana, entre semana o cuando quieras. Sin jefes.',
+    },
+    {
+        q: '¿En qué ciudades opera LoHaggo?',
+        a: 'Actualmente operamos en Medellín y estamos expandiéndonos. Si estás en otra ciudad, déjanos tus datos y te avisamos cuando lleguemos.',
+    },
+]
+
+// ─── Oficio options ─────────────────────────────────────────────────────
+const OFICIOS = ['Plomero', 'Electricista', 'Limpieza', 'Carpintero', 'Pintor', 'Jardinero', 'Mensajero', 'Otro']
+
+// ─── Steps section (reused in both columns) ─────────────────────────────
+function HowItWorksSection({ className = '' }: { className?: string }) {
+    return (
+        <div className={`bg-white py-10 px-6 md:px-10 ${className}`}>
+            <h2 className="text-xl font-black text-gray-900 mb-6 text-center">¿Cómo funciona?</h2>
+            <div className="grid grid-cols-2 md:grid-cols-1 gap-4">
+                {HOW_IT_WORKS.map((step) => (
+                    <div key={step.num} className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-9 h-9 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center font-black text-sm">
+                            {step.num}
+                        </div>
+                        <div>
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                                <span className="text-lg">{step.icon}</span>
+                                <span className="font-bold text-gray-900 text-sm">{step.title}</span>
+                            </div>
+                            <p className="text-xs text-gray-500">{step.desc}</p>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    )
+}
+
+// ─── FAQ accordion ───────────────────────────────────────────────────────
+function FAQSection() {
+    const [openIndex, setOpenIndex] = useState<number | null>(null)
+    return (
+        <div className="bg-gray-50 py-12 px-6 md:px-10">
+            <h2 className="text-xl font-black text-gray-900 mb-6 text-center">Preguntas frecuentes</h2>
+            <div className="space-y-3 max-w-2xl mx-auto">
+                {FAQ_ITEMS.map((item, i) => (
+                    <div key={i} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                        <button
+                            className="w-full flex items-center justify-between px-5 py-4 text-left font-bold text-gray-900 text-sm hover:bg-gray-50 transition"
+                            onClick={() => setOpenIndex(openIndex === i ? null : i)}
+                        >
+                            <span>{item.q}</span>
+                            {openIndex === i ? <ChevronUp size={18} className="flex-shrink-0 text-primary-500" /> : <ChevronDown size={18} className="flex-shrink-0 text-gray-400" />}
+                        </button>
+                        {openIndex === i && (
+                            <div className="px-5 pb-4 text-sm text-gray-600 border-t border-gray-100 pt-3">
+                                {item.a}
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+        </div>
+    )
+}
+
+// ─── Testimonials section ────────────────────────────────────────────────
+function TestimonialsSection() {
+    return (
+        <div className="bg-white py-12 px-6 md:px-10">
+            <h2 className="text-xl font-black text-gray-900 mb-6 text-center">Lo que dicen nuestros socios</h2>
+            {/* Mobile: horizontal scroll carousel; Desktop: 3 columns */}
+            <div className="flex md:grid md:grid-cols-3 gap-4 overflow-x-auto md:overflow-visible snap-x snap-mandatory md:snap-none pb-2 md:pb-0">
+                {TESTIMONIALS.map((t) => (
+                    <div
+                        key={t.name}
+                        className="flex-shrink-0 w-72 md:w-auto bg-white border border-gray-200 rounded-xl shadow-sm p-5 snap-start"
+                    >
+                        <div className="flex items-center gap-3 mb-3">
+                            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-primary-500 to-secondary-500 flex items-center justify-center text-white font-black text-sm flex-shrink-0">
+                                {t.initials}
+                            </div>
+                            <div>
+                                <div className="font-bold text-gray-900 text-sm">{t.name}</div>
+                                <div className="text-xs text-gray-500">{t.trade} · {t.city}</div>
+                            </div>
+                        </div>
+                        <div className="flex mb-2">
+                            {[...Array(5)].map((_, i) => <Star key={i} size={12} className="text-yellow-400 fill-yellow-400" />)}
+                        </div>
+                        <p className="text-sm text-gray-700 italic">"{t.quote}"</p>
+                    </div>
+                ))}
+            </div>
+        </div>
+    )
+}
+
+// ─── Main form ───────────────────────────────────────────────────────────
 function SqueezeForm() {
     const router = useRouter()
     const { cities, loading: citiesLoading } = useCity()
@@ -40,6 +183,7 @@ function SqueezeForm() {
         role: 'PARTNER',
         city: '',
         services: [] as string[],
+        oficio: '',
     })
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
@@ -48,44 +192,23 @@ function SqueezeForm() {
     const [captchaToken, setCaptchaToken] = useState('')
     const [honeypot, setHoneypot] = useState('')
     const [formStartedAt] = useState(() => Date.now().toString())
-    const [searchQuery, setSearchQuery] = useState('')
-    const [showPassword, setShowPassword] = useState(false)
-    const [servicesError, setServicesError] = useState('')
-    const [servicesCatalog, setServicesCatalog] = useState<
-        Array<{ id: string; name: string; slug: string; basePrice?: number }>
-    >([])
 
-    const [step, setStep] = useState(1)
-
-    const [fieldErrors, setFieldErrors] = useState({
-        name: '',
-        email: '',
-        password: '',
-        phone: '',
-    })
-    const [touched, setTouched] = useState({
-        name: false,
-        email: false,
-        password: false,
-        phone: false,
-    })
+    const [fieldErrors, setFieldErrors] = useState({ name: '', email: '', phone: '' })
+    const [touched, setTouched] = useState({ name: false, email: false, phone: false })
 
     const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ''
     const isBotProtectionEnabled = Boolean(turnstileSiteKey)
 
     useEffect(() => {
-        // Esconder barras de navegacion globales para enfocarse en la landing
         const hideGlobalElements = () => {
             document.querySelectorAll('nav, footer').forEach((el) => {
                 if (el instanceof HTMLElement) el.style.display = 'none'
             })
-            // Ocultar bottom navigation de PWA si existe
             document.querySelectorAll('div[class*="fixed bottom-0 z-40"]').forEach((el) => {
                 if (el instanceof HTMLElement) el.style.display = 'none'
             })
         }
         hideGlobalElements()
-        // Run again slightly later to catch delayed renders
         setTimeout(hideGlobalElements, 500)
         return () => {
             document.querySelectorAll('nav, footer').forEach((el) => {
@@ -103,45 +226,20 @@ function SqueezeForm() {
             const defaultCity = medellin || cities.find((c) => c.status === 'ACTIVE') || cities[0]
             setFormData((prev) => ({ ...prev, city: defaultCity.slug }))
         }
-
         const container = document.getElementById('unete-container')
         if (container) container.scrollTo(0, 0)
         window.scrollTo(0, 0)
     }, [cities, formData.city])
 
-    useEffect(() => {
-        fetch('/api/services')
-            .then((res) => res.json())
-            .then((data) => {
-                const catalog = data.services || data
-                if (Array.isArray(catalog)) {
-                    setServicesCatalog(
-                        catalog.map((service: any) => ({
-                            id: service.id,
-                            name: service.name,
-                            slug: service.slug,
-                            basePrice: service.basePrice,
-                        }))
-                    )
-                }
-            })
-            .catch((err) => {
-                console.error('Error fetching services', err)
-            })
-    }, [])
-
-    const validateName = (name: string) => (!name ? 'El nombre es obligatorio' : name.length < 2 ? 'Debe tener al menos 2 caracteres' : '')
-    const validateEmail = (email: string) => (!email ? 'El correo es obligatorio' : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? 'Correo inválido' : '')
-    const validatePhone = (phone: string) => {
-        if (!phone) return 'El teléfono es obligatorio'
-        const clean = phone.replace(/\s/g, '')
+    const validateName = (v: string) => (!v ? 'El nombre es obligatorio' : v.length < 2 ? 'Debe tener al menos 2 caracteres' : '')
+    const validateEmail = (v: string) => (!v ? 'El correo es obligatorio' : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? 'Correo inválido' : '')
+    const validatePhone = (v: string) => {
+        if (!v) return 'El teléfono es obligatorio'
+        const clean = v.replace(/\s/g, '')
         if (!/^[0-9]{10}$/.test(clean)) return 'El teléfono debe tener 10 dígitos'
         if (!clean.startsWith('3')) return 'Debe comenzar con 3 (formato colombiano)'
         return ''
     }
-    const validatePassword = (password: string) => (!password ? 'La contraseña es obligatoria' : password.length < 8 ? 'Mínimo 8 caracteres' : '')
-
-    type ValidatableField = keyof typeof fieldErrors
 
     const formatPhoneNumber = (value: string) => {
         const cleaned = value.replace(/\D/g, '').slice(0, 10)
@@ -161,50 +259,18 @@ function SqueezeForm() {
             name: validateName(formData.name),
             email: validateEmail(formData.email),
             phone: validatePhone(formData.phone),
-            password: validatePassword(formData.password)
         }
         setFieldErrors((prev) => ({ ...prev, [field]: errorMap[field] }))
-    }
-
-    const toggleService = (slug: string) => {
-        setFormData((prev) => {
-            const alreadySelected = prev.services.includes(slug)
-            if (!alreadySelected && prev.services.length >= 5) {
-                alert('Máximo 5 servicios')
-                return prev
-            }
-            return {
-                ...prev,
-                services: alreadySelected ? prev.services.filter((s) => s !== slug) : [...prev.services, slug]
-            }
-        })
-    }
-
-    const nextStep = () => {
-        if (step === 1) {
-            setTouched({ ...touched, name: true, phone: true })
-            const errorN = validateName(formData.name)
-            const errorP = validatePhone(formData.phone)
-            setFieldErrors({ ...fieldErrors, name: errorN, phone: errorP })
-            if (!errorN && !errorP) setStep(2)
-        } else if (step === 2) {
-            if (formData.services.length === 0) {
-                setServicesError('Debes seleccionar al menos 1 servicio')
-                return
-            }
-            setServicesError('')
-            setStep(3)
-        }
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setError('')
-        setTouched({ ...touched, name: true, phone: true, email: true })
+        setTouched({ name: true, phone: true, email: true })
         const errorN = validateName(formData.name)
         const errorP = validatePhone(formData.phone)
         const errorE = validateEmail(formData.email)
-        setFieldErrors({ ...fieldErrors, name: errorN, phone: errorP, email: errorE })
+        setFieldErrors({ name: errorN, phone: errorP, email: errorE })
 
         if (errorN || errorP || errorE) {
             scrollToTopError()
@@ -219,7 +285,6 @@ function SqueezeForm() {
 
         setLoading(true)
 
-        // Generar contraseña fácil: Nombre + 4 números + *
         const firstName = formData.name.split(' ')[0].replace(/[^a-zA-Z]/g, '').toLowerCase() || 'socio'
         const randomNum = Math.floor(1000 + Math.random() * 9000)
         const autoPassword = `${firstName.charAt(0).toUpperCase() + firstName.slice(1)}${randomNum}*`
@@ -255,13 +320,11 @@ function SqueezeForm() {
                     if (typeof window !== 'undefined' && window.fbq) {
                         window.fbq('track', 'CompleteRegistration', { value: 0, currency: 'COP' })
                     }
-                    // Fallback robusto a prueba de bloqueadores de JavaScript
                     const pixelId = process.env.NEXT_PUBLIC_META_PIXEL_ID || '961436919897711'
                     if (pixelId) {
                         const img = new Image()
                         img.src = `https://www.facebook.com/tr?id=${pixelId}&ev=CompleteRegistration&cd[value]=0&cd[currency]=COP&noscript=1`
                     }
-                    console.log('Pixel: Disparado CompleteRegistration (Incluye modo imagen)')
                 } catch (e) {
                     console.error('Error enviando pixel', e)
                 }
@@ -271,10 +334,7 @@ function SqueezeForm() {
         } catch (err: any) {
             setError(err.message || 'Error al registrar')
             setLoading(false)
-            setTimeout(() => {
-                const container = document.getElementById('unete-container')
-                if (container) container.scrollTo({ top: 0, behavior: 'smooth' })
-            }, 10)
+            scrollToTopError()
         }
     }
 
@@ -286,105 +346,108 @@ function SqueezeForm() {
     }
 
     return (
-        <div id="unete-container" className="min-h-screen bg-slate-50 flex flex-col md:flex-row absolute inset-0 z-[100] overflow-y-auto">
-            {/* Columna Izquierda / Hero de la Landing */}
-            <div className="w-full md:w-5/12 bg-gradient-to-br from-primary-600 via-primary-500 to-secondary-500 text-white p-8 md:p-12 flex flex-col justify-between order-2 md:order-1">
-                <div>
-                    <Link href="/" className="inline-flex items-center space-x-2 group">
-                        <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
-                            <Sparkles className="w-6 h-6 text-white" />
+        <div id="unete-container" className="min-h-screen bg-slate-50 absolute inset-0 z-[100] overflow-y-auto">
+
+            {/* ── Two-column section ─────────────────────────────────── */}
+            <div className="flex flex-col md:flex-row">
+
+                {/* ── Left column: Hero ─────────────────────────────── */}
+                <div className="w-full md:w-[55%] bg-gradient-to-br from-primary-600 via-primary-500 to-secondary-500 text-white flex flex-col">
+                    <div className="p-8 md:p-12 flex flex-col flex-1">
+                        <Link href="/" className="inline-flex items-center space-x-2 group">
+                            <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
+                                <Sparkles className="w-6 h-6 text-white" />
+                            </div>
+                            <span className="text-2xl font-black tracking-tight text-white">LoHaggo</span>
+                        </Link>
+
+                        <div className="mt-10 space-y-6">
+                            <h1 className="text-2xl leading-snug md:text-5xl font-extrabold md:leading-tight">
+                                Aumenta tus ingresos arreglando y solucionando lo que sabes.
+                            </h1>
+                            <p className="text-white/80 text-lg md:text-xl font-medium">
+                                Conviértete en socio de la plataforma líder y recibe clientes en tu ciudad cada día. Sin jefes, maneja tu propio tiempo y aumenta tus ingresos.
+                            </p>
+
+                            <div className="bg-white/10 p-5 rounded-2xl border border-white/20 backdrop-blur-sm shadow-xl md:mr-8">
+                                <h3 className="text-base sm:text-lg font-black text-white mb-4 flex flex-wrap items-center gap-2 leading-tight">
+                                    Más de <span className="bg-yellow-400 text-yellow-900 text-xs sm:text-sm px-2 py-0.5 rounded-full inline-block">100+</span> servicios disponibles:
+                                </h3>
+                                <div className="flex flex-wrap gap-2.5">
+                                    {['🚰 Plomería', '⚡ Electricistas', '🪚 Carpintería', '🧹 Aseo y Limpieza', '🛵 Mensajeros', '🔧 Reparaciones'].map((s) => (
+                                        <span key={s} className="bg-white/20 hover:bg-white/30 transition-colors backdrop-blur-md text-white text-xs sm:text-sm font-bold px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5 shadow-sm">
+                                            {s}
+                                        </span>
+                                    ))}
+                                    <span className="text-yellow-300 text-xs sm:text-sm font-black px-1 py-1.5 flex items-center drop-shadow-md">y decenas más...</span>
+                                </div>
+                            </div>
                         </div>
-                        <span className="text-2xl font-black tracking-tight text-white">LoHaggo</span>
-                    </Link>
 
-                    <div className="mt-12 space-y-6">
-                        <h1 className="text-2xl leading-snug md:text-5xl font-extrabold md:leading-tight">
-                            Aumenta tus ingresos arreglando y solucionando lo que sabes.
-                        </h1>
-                        <p className="text-white/80 text-lg md:text-xl font-medium">
-                            Conviértete en socio de la plataforma líder y recibe clientes en tu ciudad cada día. Sin jefes, maneja tu propio tiempo y aumenta tus ingresos.
-                        </p>
+                        <div className="mt-10 space-y-5 hidden md:block">
+                            <div className="flex items-center gap-4 text-white">
+                                <div className="bg-white/10 p-3 rounded-full"><DollarSign size={24} /></div>
+                                <div className="flex-1 font-semibold">Decide cuánto ganas. Cero suscripciones para entrar.</div>
+                            </div>
+                            <div className="flex items-center gap-4 text-white">
+                                <div className="bg-white/10 p-3 rounded-full"><Clock size={24} /></div>
+                                <div className="flex-1 font-semibold">Tú controlas tu tiempo.</div>
+                            </div>
+                            <div className="flex items-center gap-4 text-white">
+                                <div className="bg-white/10 p-3 rounded-full"><Shield size={24} /></div>
+                                <div className="flex-1 font-semibold">Soporte y pagos protegidos por LoHaggo.</div>
+                            </div>
+                        </div>
 
-                        <div className="mt-8 bg-white/10 p-5 rounded-2xl border border-white/20 backdrop-blur-sm shadow-xl md:mr-8">
-                            <h3 className="text-base sm:text-lg font-black text-white mb-4 flex flex-wrap items-center gap-2 leading-tight">
-                                Más de <span className="bg-yellow-400 text-yellow-900 text-xs sm:text-sm px-2 py-0.5 rounded-full inline-block">100+</span> servicios disponibles:
-                            </h3>
-                            <div className="flex flex-wrap gap-2.5">
-                                <span className="bg-white/20 hover:bg-white/30 transition-colors backdrop-blur-md text-white text-xs sm:text-sm font-bold px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5 shadow-sm">
-                                    🚰 Plomería
-                                </span>
-                                <span className="bg-white/20 hover:bg-white/30 transition-colors backdrop-blur-md text-white text-xs sm:text-sm font-bold px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5 shadow-sm">
-                                    ⚡ Electricistas
-                                </span>
-                                <span className="bg-white/20 hover:bg-white/30 transition-colors backdrop-blur-md text-white text-xs sm:text-sm font-bold px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5 shadow-sm">
-                                    🪚 Carpintería
-                                </span>
-                                <span className="bg-white/20 hover:bg-white/30 transition-colors backdrop-blur-md text-white text-xs sm:text-sm font-bold px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5 shadow-sm">
-                                    🧹 Aseo y Limpieza
-                                </span>
-                                <span className="bg-white/20 hover:bg-white/30 transition-colors backdrop-blur-md text-white text-xs sm:text-sm font-bold px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5 shadow-sm">
-                                    🛵 Mensajeros
-                                </span>
-                                <span className="bg-white/20 hover:bg-white/30 transition-colors backdrop-blur-md text-white text-xs sm:text-sm font-bold px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5 shadow-sm">
-                                    🔧 Reparaciones
-                                </span>
-                                <span className="text-yellow-300 text-xs sm:text-sm font-black px-1 py-1.5 flex items-center drop-shadow-md">
-                                    y decenas más...
-                                </span>
+                        {/* Social proof */}
+                        <div className="mt-10 pt-8 border-t border-white/20">
+                            <div className="flex items-center gap-4">
+                                <div className="flex -space-x-3">
+                                    <div className="w-10 h-10 rounded-full border-2 border-primary-500 bg-slate-200 flex items-center justify-center font-bold text-xs text-slate-800 shadow-sm">CR</div>
+                                    <div className="w-10 h-10 rounded-full border-2 border-primary-500 bg-slate-300 flex items-center justify-center font-bold text-xs text-slate-800 shadow-sm">MA</div>
+                                    <div className="w-10 h-10 rounded-full border-2 border-primary-500 bg-secondary-400 flex items-center justify-center font-bold text-xs text-white shadow-sm">+500</div>
+                                </div>
+                                <div className="text-sm">
+                                    <div className="flex text-yellow-300">
+                                        {[...Array(5)].map((_, i) => <Star key={i} size={14} fill="currentColor" />)}
+                                    </div>
+                                    <span className="font-semibold text-white/90">Socios activos hoy</span>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <div className="mt-10 space-y-6 hidden md:block">
-                        <div className="flex items-center gap-4 text-white">
-                            <div className="bg-white/10 p-3 rounded-full"><DollarSign size={24} /></div>
-                            <div className="flex-1 font-semibold">Decide cuánto ganas. Cero suscripciones para entrar.</div>
-                        </div>
-                        <div className="flex items-center gap-4 text-white">
-                            <div className="bg-white/10 p-3 rounded-full"><Clock size={24} /></div>
-                            <div className="flex-1 font-semibold">Tú controlas tu tiempo.</div>
-                        </div>
-                        <div className="flex items-center gap-4 text-white">
-                            <div className="bg-white/10 p-3 rounded-full"><Shield size={24} /></div>
-                            <div className="flex-1 font-semibold">Soporte y pagos protegidos por LoHaggo.</div>
-                        </div>
+                    {/* Steps — desktop only (inside left col) */}
+                    <div className="hidden md:block">
+                        <HowItWorksSection />
                     </div>
                 </div>
 
-                {/* Social Proof Mobile/Desktop */}
-                <div className="mt-12 pt-8 border-t border-white/20">
-                    <div className="flex items-center gap-4">
-                        <div className="flex -space-x-3">
-                            <div className="w-10 h-10 rounded-full border-2 border-primary-500 bg-slate-200 flex items-center justify-center font-bold text-xs text-slate-800 shadow-sm">CR</div>
-                            <div className="w-10 h-10 rounded-full border-2 border-primary-500 bg-slate-300 flex items-center justify-center font-bold text-xs text-slate-800 shadow-sm">MA</div>
-                            <div className="w-10 h-10 rounded-full border-2 border-primary-500 bg-secondary-400 flex items-center justify-center font-bold text-xs text-white shadow-sm">+500</div>
-                        </div>
-                        <div className="text-sm">
-                            <div className="flex text-yellow-300"><Star size={14} fill="currentColor" /><Star size={14} fill="currentColor" /><Star size={14} fill="currentColor" /><Star size={14} fill="currentColor" /><Star size={14} fill="currentColor" /></div>
-                            <span className="font-semibold text-white/90">Socios activos hoy</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                {/* ── Right column: Form ────────────────────────────── */}
+                <div className="w-full md:w-[45%] bg-slate-50 md:sticky md:top-0 md:h-screen md:overflow-y-auto flex flex-col justify-center p-6 md:p-10">
 
-            {/* Columna Derecha / Formulario (Diseño Wizard / Funnel) */}
-            <div className="w-full md:w-7/12 flex items-center justify-center p-6 md:p-12 order-1 md:order-2">
-                <div className="max-w-md w-full animate-fade-in">
-                    <div className="mb-6">
-                        <div className="flex items-center justify-between mb-2">
-                            <h2 className="text-2xl font-black text-gray-900">Activa tu perfil profesional</h2>
-                            <span className="text-sm font-bold text-primary-500 bg-primary-50 px-3 py-1 rounded-full">100% Gratis</span>
-                        </div>
-                        <p className="text-sm text-gray-600 font-medium">Déjanos tus datos para conectar con cientos de clientes en tu ciudad que buscan tus servicios.</p>
+                    {/* Steps — mobile only (shown before form) */}
+                    <div className="md:hidden mb-6">
+                        <HowItWorksSection className="rounded-2xl shadow-sm border border-gray-100" />
                     </div>
 
-                    <form onSubmit={handleSubmit} className="space-y-5 relative">
-                        {error && (
-                            <div className="bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded-lg text-sm font-medium">
-                                {error}
+                    <div className="max-w-md w-full mx-auto animate-fade-in">
+                        <div className="mb-6">
+                            <div className="flex items-center justify-between mb-2">
+                                <h2 className="text-2xl font-black text-gray-900">Activa tu perfil profesional</h2>
+                                <span className="text-sm font-bold text-primary-500 bg-primary-50 px-3 py-1 rounded-full">100% Gratis</span>
                             </div>
-                        )}
-                        <div className="space-y-4">
+                            <p className="text-sm text-gray-600 font-medium">Déjanos tus datos para conectar con cientos de clientes en tu ciudad que buscan tus servicios.</p>
+                        </div>
+
+                        <form onSubmit={handleSubmit} className="space-y-4 relative">
+                            {error && (
+                                <div className="bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded-lg text-sm font-medium">
+                                    {error}
+                                </div>
+                            )}
+
+                            {/* Name */}
                             <div className="space-y-1">
                                 <label className="text-sm font-bold text-gray-700">Tu nombre completo</label>
                                 <div className="relative">
@@ -401,6 +464,7 @@ function SqueezeForm() {
                                 {fieldErrors.name && touched.name && <p className="text-xs text-red-600 font-semibold">{fieldErrors.name}</p>}
                             </div>
 
+                            {/* Phone */}
                             <div className="space-y-1">
                                 <label className="text-sm font-bold text-gray-700">Teléfono (WhatsApp)</label>
                                 <div className="relative">
@@ -417,6 +481,28 @@ function SqueezeForm() {
                                 {fieldErrors.phone && touched.phone && <p className="text-xs text-red-600 font-semibold">{fieldErrors.phone}</p>}
                             </div>
 
+                            {/* Oficio (TAREA 6) */}
+                            <div className="space-y-1">
+                                <label className="text-sm font-bold text-gray-700">¿Cuál es tu oficio principal? <span className="text-gray-400 font-normal">(opcional)</span></label>
+                                <div className="flex flex-wrap gap-2">
+                                    {OFICIOS.map((o) => (
+                                        <button
+                                            key={o}
+                                            type="button"
+                                            onClick={() => setFormData((prev) => ({ ...prev, oficio: prev.oficio === o ? '' : o }))}
+                                            className={`px-3 py-1.5 rounded-full text-sm font-semibold border-2 transition-all ${
+                                                formData.oficio === o
+                                                    ? 'bg-primary-500 border-primary-500 text-white'
+                                                    : 'bg-white border-gray-200 text-gray-700 hover:border-primary-300'
+                                            }`}
+                                        >
+                                            {o}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Email */}
                             <div className="space-y-1">
                                 <label className="text-sm font-bold text-gray-700">Tu correo electrónico</label>
                                 <div className="relative">
@@ -433,6 +519,7 @@ function SqueezeForm() {
                                 {fieldErrors.email && touched.email && <p className="text-xs text-red-600 font-semibold">{fieldErrors.email}</p>}
                             </div>
 
+                            {/* Honeypot */}
                             <input type="text" className="hidden" aria-hidden="true" value={honeypot} onChange={(e) => setHoneypot(e.target.value)} />
 
                             {isBotProtectionEnabled && (
@@ -440,16 +527,30 @@ function SqueezeForm() {
                                     <TurnstileWidget siteKey={turnstileSiteKey} action="register_unete" onTokenChange={setCaptchaToken} />
                                 </div>
                             )}
-                        </div>
 
-                        <button type="submit" disabled={loading} className="mt-8 w-full bg-secondary-500 hover:bg-secondary-600 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">
-                            {loading ? 'Procesando...' : 'Quiero recibir clientes'} <ArrowRight size={18} />
-                        </button>
-                    </form>
+                            <div>
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="mt-2 w-full bg-secondary-500 hover:bg-secondary-600 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
+                                >
+                                    {loading ? 'Procesando...' : 'Quiero recibir clientes'} <ArrowRight size={18} />
+                                </button>
+                                {/* TAREA 3: confirmation text */}
+                                <p className="text-center text-xs text-gray-500 mt-2">
+                                    ✅ En menos de 24 horas un asesor te escribirá por WhatsApp para activar tu perfil. Sin compromisos.
+                                </p>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
 
-            {/* Modal de Éxito */}
+            {/* ── Full-width sections ────────────────────────────────── */}
+            <TestimonialsSection />
+            <FAQSection />
+
+            {/* ── Success Modal ──────────────────────────────────────── */}
             {showSuccessModal && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-fade-in">
                     <div className="bg-white rounded-3xl w-full max-w-md p-8 text-center shadow-2xl">
@@ -457,18 +558,15 @@ function SqueezeForm() {
                             <Check className="text-green-500 w-8 h-8 stroke-[3]" />
                         </div>
                         <h3 className="text-2xl font-black text-gray-900 mb-2">¡Registro Exitoso!</h3>
-                        
                         <p className="text-gray-600 mb-4 font-medium leading-relaxed">
                             Cuenta creada. Usa esta contraseña para iniciar sesión o cámbiala en tu perfil:
                         </p>
-                        
                         <div className="bg-slate-100 border-2 border-slate-200 rounded-xl p-4 mb-5 flex justify-center">
                             <div className="text-center">
                                 <span className="text-xs font-bold text-slate-500 block mb-1">TU CONTRASEÑA ES</span>
                                 <span className="text-3xl font-black text-slate-800 tracking-wider font-mono">{generatedPassword}</span>
                             </div>
                         </div>
-
                         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 text-sm text-yellow-800 font-medium text-left">
                             <strong>⚠️ Próximos pasos en tu Perfil:</strong>
                             <ul className="list-disc pl-5 mt-1 space-y-1">
@@ -476,12 +574,9 @@ function SqueezeForm() {
                                 <li>Sube tus <strong>documentos de verificación</strong>.</li>
                             </ul>
                         </div>
-
                         <button
                             type="button"
-                            onClick={() => {
-                                window.location.href = '/partner/verification'
-                            }}
+                            onClick={() => { window.location.href = '/partner/verification' }}
                             className="w-full bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-primary-500/20 flex items-center justify-center gap-2"
                         >
                             Verificar mis documentos <ArrowRight size={18} />

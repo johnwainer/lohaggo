@@ -236,6 +236,12 @@ export function Navbar() {
             >
               FAQ
             </Link>
+            <Link
+              href="/unete"
+              className="px-5 py-2.5 rounded-xl text-sm font-bold border-2 border-secondary-500 text-secondary-600 hover:bg-secondary-500 hover:text-white transition-all"
+            >
+              Soy profesional
+            </Link>
 
             {session ? (
               <>
@@ -517,6 +523,13 @@ export function Navbar() {
                 >
                   FAQ
                 </Link>
+                <Link
+                  href="/unete"
+                  className="block px-4 py-3 rounded-xl text-sm font-bold border-2 border-secondary-500 text-secondary-600 text-center hover:bg-secondary-500 hover:text-white transition-all"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Soy profesional
+                </Link>
               </>
             )}
 
@@ -551,6 +564,13 @@ export function Navbar() {
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   FAQ
+                </Link>
+                <Link
+                  href="/unete"
+                  className="block px-4 py-3 rounded-xl text-sm font-bold border-2 border-secondary-500 text-secondary-600 text-center hover:bg-secondary-500 hover:text-white transition-all"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Soy profesional
                 </Link>
                 <div className="border-t border-gray-200 pt-2 mt-2 space-y-2">
                   <div className="flex items-center space-x-3 px-4 py-2 mb-1">

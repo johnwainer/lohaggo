@@ -73,17 +73,14 @@ export function Footer() {
                 { name: 'Cómo funciona', href: '/how-it-works' },
                 {
                   name: 'Conviértete en socio',
-                  href: '/register?role=partner',
+                  href: '/unete',
                   onClick: async (e: React.MouseEvent) => {
                     e.preventDefault()
                     if (session?.user?.role === 'PARTNER') {
                       window.location.href = '/profile'
                       return
                     }
-                    if (session) {
-                      await signOut({ redirect: false })
-                    }
-                    window.location.href = '/register?role=partner'
+                    window.location.href = '/unete'
                   }
                 },
                 { name: 'FAQ', href: '/faq' },
@@ -130,10 +127,7 @@ export function Footer() {
                     window.location.href = '/profile'
                     return
                   }
-                  if (session) {
-                    await signOut({ redirect: false })
-                  }
-                  window.location.href = 'https://www.lohaggo.com/register?role=partner'
+                  window.location.href = '/unete'
                 }}
                 className="inline-block bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-6 py-3 rounded-xl hover:from-primary-600 hover:to-secondary-600 transition-all font-bold text-sm shadow-lg hover:shadow-xl transform hover:scale-105"
               >

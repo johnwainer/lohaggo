@@ -145,8 +145,17 @@ export default async function Home() {
               Encuentra y contrata plomeros, electricistas, limpieza, carpinteros, jardineros y más. Profesionales verificados en Medellín con precios transparentes. Reserva tu servicio ahora.
             </p>
 
-            <div className="max-w-3xl mx-auto mb-16">
+            <div className="max-w-3xl mx-auto mb-6">
               <SearchBar />
+            </div>
+
+            <div className="mb-16 text-center">
+              <Link
+                href="/unete"
+                className="inline-flex items-center gap-1.5 text-white/90 underline underline-offset-2 hover:text-white text-sm font-semibold transition"
+              >
+                ¿Eres profesional? Únete y recibe clientes →
+              </Link>
             </div>
 
             <div className="flex flex-wrap justify-center gap-8 md:gap-12">

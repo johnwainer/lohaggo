@@ -20,10 +20,10 @@ export default function TermsBanner() {
     )
 
     useEffect(() => {
-        // Check if user has already accepted terms
         const termsAccepted = localStorage.getItem('terms-accepted')
         if (!termsAccepted) {
-            setIsVisible(true)
+            const timer = setTimeout(() => setIsVisible(true), 3000)
+            return () => clearTimeout(timer)
         }
     }, [])
 

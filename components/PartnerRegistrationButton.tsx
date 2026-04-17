@@ -18,7 +18,7 @@ export default function PartnerRegistrationButton() {
       await signOut({ redirect: false })
     }
     
-    window.location.href = 'https://www.lohaggo.com/register?role=partner'
+    window.location.href = '/unete'
   }
 
   return (
