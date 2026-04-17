@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useRef, useState, Suspense } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -85,12 +85,12 @@ const FAQ_ITEMS = [
 // ─── Oficio options ─────────────────────────────────────────────────────
 const OFICIOS = ['Plomero', 'Electricista', 'Limpieza', 'Carpintero', 'Pintor', 'Jardinero', 'Mensajero', 'Otro']
 
-// ─── Steps section (reused in both columns) ─────────────────────────────
+// ─── Steps section ───────────────────────────────────────────────────────
 function HowItWorksSection({ className = '' }: { className?: string }) {
     return (
         <div className={`bg-white py-10 px-6 md:px-10 ${className}`}>
             <h2 className="text-xl font-black text-gray-900 mb-6 text-center">¿Cómo funciona?</h2>
-            <div className="grid grid-cols-2 md:grid-cols-1 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
                 {HOW_IT_WORKS.map((step) => (
                     <div key={step.num} className="flex items-start gap-3">
                         <div className="flex-shrink-0 w-9 h-9 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center font-black text-sm">
@@ -347,6 +347,29 @@ function SqueezeForm() {
         }, 10)
     }
 
+    // ── Floating CTA visibility (hides when form is in viewport) ──────────
+    const [showFloatingCta, setShowFloatingCta] = useState(true)
+    const formSectionRef = useRef<HTMLDivElement>(null)
+
+    useEffect(() => {
+        const el = formSectionRef.current
+        if (!el) return
+        const observer = new IntersectionObserver(
+            ([entry]) => setShowFloatingCta(!entry.isIntersecting),
+            { threshold: 0.3 }
+        )
+        observer.observe(el)
+        return () => observer.disconnect()
+    }, [])
+
+    const scrollToForm = () => {
+        const container = document.getElementById('unete-container')
+        const form = formSectionRef.current
+        if (container && form) {
+            container.scrollTo({ top: form.offsetTop - 16, behavior: 'smooth' })
+        }
+    }
+
     return (
         <div id="unete-container" className="min-h-screen bg-slate-50 absolute inset-0 z-[100] overflow-y-auto">
 
@@ -356,15 +379,16 @@ function SqueezeForm() {
                 {/* ── Left column: Hero ─────────────────────────────── */}
                 <div className="w-full md:w-[55%] bg-gradient-to-br from-primary-600 via-primary-500 to-secondary-500 text-white flex flex-col">
                     <div className="p-8 md:p-12 flex flex-col flex-1">
-                        <Link href="/" className="inline-flex items-center space-x-2 group">
+                        {/* Logo sin link — landing de conversión, sin distracciones */}
+                        <div className="inline-flex items-center space-x-2">
                             <div className="bg-white/20 p-2 rounded-xl backdrop-blur-sm">
                                 <Sparkles className="w-6 h-6 text-white" />
                             </div>
                             <span className="text-2xl font-black tracking-tight text-white">LoHaggo</span>
-                        </Link>
+                        </div>
 
                         <div className="mt-10 space-y-6">
-                            <h1 className="text-2xl leading-snug md:text-5xl font-extrabold md:leading-tight">
+                            <h1 className="text-xl min-[400px]:text-2xl leading-snug md:text-5xl font-extrabold md:leading-tight break-words overflow-hidden">
                                 Aumenta tus ingresos arreglando y solucionando lo que sabes.
                             </h1>
                             <p className="text-white/80 text-lg md:text-xl font-medium">
@@ -401,6 +425,14 @@ function SqueezeForm() {
                             ))}
                         </div>
 
+                        {/* CTA secundario — para usuarios ya convencidos */}
+                        <button
+                            onClick={scrollToForm}
+                            className="mt-6 inline-flex items-center gap-2 bg-white text-primary-700 font-black px-6 py-3 rounded-xl shadow-lg hover:bg-gray-50 transition-all text-sm md:text-base"
+                        >
+                            Registrarme ahora <ArrowRight size={16} />
+                        </button>
+
                         {/* Social proof */}
                         <div className="mt-10 pt-8 border-t border-white/20">
                             <div className="flex items-center gap-4">
@@ -424,7 +456,7 @@ function SqueezeForm() {
                 </div>
 
                 {/* ── Right column: Form ────────────────────────────── */}
-                <div className="w-full md:w-[45%] bg-slate-50 md:sticky md:top-0 md:h-screen md:overflow-y-auto flex flex-col justify-center p-6 md:p-10">
+                <div ref={formSectionRef} className="w-full md:w-[45%] bg-slate-50 md:sticky md:top-0 md:h-screen md:overflow-y-auto flex flex-col justify-center p-6 md:p-10">
 
                     <div className="max-w-md w-full mx-auto animate-fade-in">
                         <div className="mb-6">
@@ -577,6 +609,25 @@ function SqueezeForm() {
                             Verificar mis documentos <ArrowRight size={18} />
                         </button>
                     </div>
+                </div>
+            )}
+
+            {/* ── Link para clientes al final de la página ───────────── */}
+            <div className="bg-gray-900 py-4 text-center">
+                <Link href="/servicios" className="text-gray-400 hover:text-white text-sm transition-colors">
+                    ¿Eres cliente? Ver servicios disponibles →
+                </Link>
+            </div>
+
+            {/* ── Floating CTA — mobile only, oculto cuando el form está visible ── */}
+            {showFloatingCta && !showSuccessModal && (
+                <div className="fixed bottom-0 left-0 right-0 z-[150] md:hidden px-4 pb-4 pt-6 bg-gradient-to-t from-slate-900/70 to-transparent pointer-events-none">
+                    <button
+                        onClick={scrollToForm}
+                        className="pointer-events-auto w-full bg-secondary-500 hover:bg-secondary-600 active:bg-secondary-700 text-white font-black py-4 rounded-xl shadow-2xl flex items-center justify-center gap-2 text-base"
+                    >
+                        Quiero recibir clientes <ArrowRight size={18} />
+                    </button>
                 </div>
             )}
         </div>
