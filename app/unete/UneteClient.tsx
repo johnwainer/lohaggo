@@ -143,9 +143,8 @@ function TestimonialsSection() {
     return (
         <div className="bg-white py-12 px-6 md:px-10">
             <h2 className="text-xl font-black text-gray-900 mb-6 text-center">Lo que dicen nuestros socios</h2>
-            {/* Mobile: horizontal scroll; Desktop: 3-column grid */}
-            <div className="overflow-x-auto md:overflow-visible -mx-6 md:mx-0 px-6 md:px-0 pb-2 md:pb-0">
-                <div className="grid grid-cols-3 gap-4 min-w-[680px] md:min-w-0">
+            {/* Mobile: 1 column stacked; Desktop: 3 columns */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto">
                 {TESTIMONIALS.map((t) => (
                     <div
                         key={t.name}
@@ -166,7 +165,6 @@ function TestimonialsSection() {
                         <p className="text-sm text-gray-700 italic">"{t.quote}"</p>
                     </div>
                 ))}
-                </div>
             </div>
         </div>
     )
