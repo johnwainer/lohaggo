@@ -144,11 +144,11 @@ function TestimonialsSection() {
         <div className="bg-white py-12 px-6 md:px-10">
             <h2 className="text-xl font-black text-gray-900 mb-6 text-center">Lo que dicen nuestros socios</h2>
             {/* Mobile: horizontal scroll carousel; Desktop: 3 columns */}
-            <div className="flex md:grid md:grid-cols-3 gap-4 overflow-x-auto md:overflow-visible snap-x snap-mandatory md:snap-none pb-2 md:pb-0">
+            <div className="flex md:grid md:grid-cols-3 gap-4 overflow-x-auto md:overflow-x-visible snap-x snap-mandatory md:snap-none pb-2 md:pb-0 max-w-4xl md:max-w-none mx-auto">
                 {TESTIMONIALS.map((t) => (
                     <div
                         key={t.name}
-                        className="flex-shrink-0 w-72 md:w-auto bg-white border border-gray-200 rounded-xl shadow-sm p-5 snap-start"
+                        className="flex-shrink-0 w-72 md:w-full bg-white border border-gray-200 rounded-xl shadow-sm p-5 snap-start"
                     >
                         <div className="flex items-center gap-3 mb-3">
                             <div className="w-11 h-11 rounded-full bg-gradient-to-br from-primary-500 to-secondary-500 flex items-center justify-center text-white font-black text-sm flex-shrink-0">
@@ -384,19 +384,19 @@ function SqueezeForm() {
                             </div>
                         </div>
 
-                        <div className="mt-10 space-y-5 hidden md:block">
-                            <div className="flex items-center gap-4 text-white">
-                                <div className="bg-white/10 p-3 rounded-full"><DollarSign size={24} /></div>
-                                <div className="flex-1 font-semibold">Decide cuánto ganas. Cero suscripciones para entrar.</div>
-                            </div>
-                            <div className="flex items-center gap-4 text-white">
-                                <div className="bg-white/10 p-3 rounded-full"><Clock size={24} /></div>
-                                <div className="flex-1 font-semibold">Tú controlas tu tiempo.</div>
-                            </div>
-                            <div className="flex items-center gap-4 text-white">
-                                <div className="bg-white/10 p-3 rounded-full"><Shield size={24} /></div>
-                                <div className="flex-1 font-semibold">Soporte y pagos protegidos por LoHaggo.</div>
-                            </div>
+                        <div className="mt-8 space-y-3">
+                            {[
+                                { icon: <DollarSign size={18} />, text: 'Decide cuánto ganas. Cero suscripciones para entrar.' },
+                                { icon: <Clock size={18} />, text: 'Tú controlas tu tiempo. Sin jefes.' },
+                                { icon: <Shield size={18} />, text: 'Soporte y pagos protegidos por LoHaggo.' },
+                            ].map(({ icon, text }) => (
+                                <div key={text} className="flex items-center gap-3 bg-white/10 border border-white/20 rounded-xl px-4 py-3">
+                                    <div className="flex-shrink-0 w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center text-white">
+                                        {icon}
+                                    </div>
+                                    <span className="text-white font-semibold text-sm">{text}</span>
+                                </div>
+                            ))}
                         </div>
 
                         {/* Social proof */}
