@@ -143,12 +143,13 @@ function TestimonialsSection() {
     return (
         <div className="bg-white py-12 px-6 md:px-10">
             <h2 className="text-xl font-black text-gray-900 mb-6 text-center">Lo que dicen nuestros socios</h2>
-            {/* Mobile: horizontal scroll carousel; Desktop: 3 columns */}
-            <div className="flex md:grid md:grid-cols-3 gap-4 overflow-x-auto md:overflow-x-visible snap-x snap-mandatory md:snap-none pb-2 md:pb-0 max-w-4xl md:max-w-none mx-auto">
+            {/* Mobile: horizontal scroll; Desktop: 3-column grid */}
+            <div className="overflow-x-auto md:overflow-visible -mx-6 md:mx-0 px-6 md:px-0 pb-2 md:pb-0">
+                <div className="grid grid-cols-3 gap-4 min-w-[680px] md:min-w-0">
                 {TESTIMONIALS.map((t) => (
                     <div
                         key={t.name}
-                        className="flex-shrink-0 w-72 md:w-full bg-white border border-gray-200 rounded-xl shadow-sm p-5 snap-start"
+                        className="bg-white border border-gray-200 rounded-xl shadow-sm p-5"
                     >
                         <div className="flex items-center gap-3 mb-3">
                             <div className="w-11 h-11 rounded-full bg-gradient-to-br from-primary-500 to-secondary-500 flex items-center justify-center text-white font-black text-sm flex-shrink-0">
@@ -165,6 +166,7 @@ function TestimonialsSection() {
                         <p className="text-sm text-gray-700 italic">"{t.quote}"</p>
                     </div>
                 ))}
+                </div>
             </div>
         </div>
     )
@@ -417,19 +419,12 @@ function SqueezeForm() {
                         </div>
                     </div>
 
-                    {/* Steps — desktop only (inside left col) */}
-                    <div className="hidden md:block">
-                        <HowItWorksSection />
-                    </div>
+                    {/* Steps — single instance, always visible, in left col */}
+                    <HowItWorksSection />
                 </div>
 
                 {/* ── Right column: Form ────────────────────────────── */}
                 <div className="w-full md:w-[45%] bg-slate-50 md:sticky md:top-0 md:h-screen md:overflow-y-auto flex flex-col justify-center p-6 md:p-10">
-
-                    {/* Steps — mobile only (shown before form) */}
-                    <div className="md:hidden mb-6">
-                        <HowItWorksSection className="rounded-2xl shadow-sm border border-gray-100" />
-                    </div>
 
                     <div className="max-w-md w-full mx-auto animate-fade-in">
                         <div className="mb-6">
