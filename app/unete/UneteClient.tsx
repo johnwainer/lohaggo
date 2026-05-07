@@ -195,9 +195,45 @@ function SqueezeForm() {
 
     const [fieldErrors, setFieldErrors] = useState({ name: '', email: '', phone: '' })
     const [touched, setTouched] = useState({ name: false, email: false, phone: false })
+    const [leadFired, setLeadFired] = useState(false)
 
     const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ''
     const isBotProtectionEnabled = Boolean(turnstileSiteKey)
+
+    // ── Pixel: ViewContent al cargar + captura de UTM ─────────────────────
+    useEffect(() => {
+        // Disparar ViewContent para que Meta sepa quién llega a la landing
+        try {
+            if (typeof window !== 'undefined' && window.fbq) {
+                window.fbq('track', 'ViewContent', {
+                    content_name: 'Unete Socio Landing',
+                    content_category: 'Partner Registration',
+                })
+            }
+        } catch (e) { /* silent */ }
+
+        // Guardar UTM params en sessionStorage para enviarlos al registrar
+        const params = new URLSearchParams(window.location.search)
+        const utmData: Record<string, string> = {}
+        ;['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'fbclid'].forEach((key) => {
+            const val = params.get(key)
+            if (val) utmData[key] = val
+        })
+        if (Object.keys(utmData).length > 0) {
+            sessionStorage.setItem('unete_utm', JSON.stringify(utmData))
+        }
+    }, [])
+
+    // ── Pixel: Lead cuando el usuario toca el primer campo ────────────────
+    const fireLeadEvent = () => {
+        if (leadFired) return
+        setLeadFired(true)
+        try {
+            if (typeof window !== 'undefined' && window.fbq) {
+                window.fbq('track', 'Lead', { content_name: 'Unete Form Start' })
+            }
+        } catch (e) { /* silent */ }
+    }
 
     useEffect(() => {
         const hideGlobalElements = () => {
@@ -291,7 +327,9 @@ function SqueezeForm() {
         setGeneratedPassword(autoPassword)
 
         try {
-            const payload = { ...formData, password: autoPassword, captchaToken, honeypot, formStartedAt }
+            const savedUtm = sessionStorage.getItem('unete_utm')
+            const utmData = savedUtm ? JSON.parse(savedUtm) : {}
+            const payload = { ...formData, password: autoPassword, captchaToken, honeypot, formStartedAt, ...utmData }
             const res = await fetch('/api/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -484,6 +522,7 @@ function SqueezeForm() {
                                         value={formData.name}
                                         onChange={(e) => handleFieldChange('name', e.target.value)}
                                         onBlur={() => handleFieldBlur('name')}
+                                        onFocus={fireLeadEvent}
                                     />
                                 </div>
                                 {fieldErrors.name && touched.name && <p className="text-xs text-red-600 font-semibold">{fieldErrors.name}</p>}
