@@ -49,7 +49,7 @@ export const partnerProfileSchema = z.object({
 
 export const userProfileSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres').max(100, 'El nombre es demasiado largo'),
-  phone: z.string().regex(/^\+?[1-9]\d{1,14}$/, 'Número de teléfono inválido').optional(),
+  phone: z.string().regex(/^\+?[1-9]\d{1,14}$/, 'Número de teléfono inválido').or(z.literal('')).optional(),
   email: z.string().email('Email inválido').optional()
 })
 
