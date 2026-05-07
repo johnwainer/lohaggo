@@ -515,9 +515,6 @@ export default function ProfilePage() {
                     <ChevronRight className="text-gray-400 group-hover:text-secondary-600 transition-colors" size={20} />
                   </div>
                   <h3 className="text-lg font-bold text-gray-900 mb-2">Mis Servicios</h3>
-                  {partnerData?.mainTrade && (
-                    <p className="text-xs font-semibold text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full inline-block mb-2">{partnerData.mainTrade}</p>
-                  )}
                   <p className="text-3xl font-bold text-blue-600 mb-2">
                     {partnerData?.services?.length || 0}
                   </p>

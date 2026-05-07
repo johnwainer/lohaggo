@@ -16,6 +16,16 @@ const logger = createLogger('register')
 
 export const dynamic = 'force-dynamic'
 
+const OFICIO_SERVICE_SLUGS: Record<string, string[]> = {
+  'Plomero':      ['reparacion-fugas', 'instalacion-grifos'],
+  'Electricista': ['instalacion-electrica', 'reparacion-cortocircuitos'],
+  'Limpieza':     ['limpieza-general', 'limpieza-profunda'],
+  'Carpintero':   ['fabricacion-muebles', 'reparacion-muebles'],
+  'Pintor':       ['pintura-interior', 'pintura-exterior'],
+  'Jardinero':    ['mantenimiento-jardines', 'diseno-jardines'],
+  'Mensajero':    ['lohaggo-ya'],
+}
+
 // Helper function to normalize city name to enum format
 function normalizeCityName(name: string): string {
   return name
@@ -143,7 +153,6 @@ async function handlePOST(request: NextRequest) {
       userData.partnerProfile = {
         create: {
           bio: "",
-          mainTrade: oficio || null,
           rating: 0,
           totalReviews: 0,
           verified: false,
@@ -160,12 +169,15 @@ async function handlePOST(request: NextRequest) {
     })
 
     // Si es socio y tiene servicios seleccionados, crear las relaciones
-    if (role === "PARTNER" && user.partnerProfile && Array.isArray(services) && services.length > 0) {
+    const oficioSlugs = oficio ? (OFICIO_SERVICE_SLUGS[oficio] ?? []) : []
+    const allServiceSlugs = Array.from(new Set([...(services ?? []), ...oficioSlugs]))
+
+    if (role === "PARTNER" && user.partnerProfile && allServiceSlugs.length > 0) {
       // Obtener los IDs de los servicios por sus slugs
       const serviceRecords = await prisma.service.findMany({
         where: {
           slug: {
-            in: services
+            in: allServiceSlugs
           }
         }
       })
@@ -179,9 +191,12 @@ async function handlePOST(request: NextRequest) {
         active: true,
       }))
 
-      await prisma.partnerService.createMany({
-        data: partnerServices
-      })
+      if (partnerServices.length > 0) {
+        await prisma.partnerService.createMany({
+          data: partnerServices,
+          skipDuplicates: true,
+        })
+      }
     }
 
     return NextResponse.json({
