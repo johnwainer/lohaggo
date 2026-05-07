@@ -28,7 +28,7 @@ import { PWA_EVENTS } from '@/lib/pwa/events'
 // ─── How it works steps ────────────────────────────────────────────────────
 const HOW_IT_WORKS = [
     { num: '1', icon: '📋', title: 'Deja tus datos', desc: 'Llena el formulario en 30 segundos, es gratis.' },
-    { num: '2', icon: '💬', title: 'Activa tu perfil', desc: 'Un asesor de LoHaggo te contacta por WhatsApp en menos de 24h.' },
+    { num: '2', icon: '💬', title: 'Activa tu perfil', desc: 'Completa tu perfil: sube tus documentos y servicios en minutos.' },
     { num: '3', icon: '📲', title: 'Recibe solicitudes', desc: 'Clientes en tu ciudad te encuentran y solicitan tu servicio.' },
     { num: '4', icon: '💰', title: 'Cobra seguro', desc: 'Recibes el pago protegido por LoHaggo, sin riesgo de estafa.' },
 ]
@@ -62,7 +62,7 @@ const TESTIMONIALS = [
 const FAQ_ITEMS = [
     {
         q: '¿Cuánto cobra LoHaggo por cada trabajo?',
-        a: 'LoHaggo retiene un porcentaje de servicio por cada trabajo completado. Tu asesor te explicará el detalle al activar tu perfil.',
+        a: 'LoHaggo retiene un porcentaje de servicio por cada trabajo completado. Consulta los detalles completos en tu perfil al activarlo.',
     },
     {
         q: '¿Cuándo y cómo me pagan?',
@@ -602,7 +602,7 @@ function SqueezeForm() {
                                 </button>
                                 {/* TAREA 3: confirmation text */}
                                 <p className="text-center text-xs text-gray-500 mt-2">
-                                    ✅ En menos de 24 horas un asesor te escribirá por WhatsApp para activar tu perfil. Sin compromisos.
+                                    ✅ Proceso 100% en línea. Gratis. Sin compromisos.
                                 </p>
                             </div>
                         </form>
@@ -623,7 +623,7 @@ function SqueezeForm() {
                         </div>
                         <h3 className="text-2xl font-black text-gray-900 mb-2">¡Registro Exitoso!</h3>
                         <p className="text-gray-600 mb-4 font-medium leading-relaxed">
-                            Cuenta creada. Usa esta contraseña para iniciar sesión o cámbiala en tu perfil:
+                            Te creamos una contraseña automática. Guárdala o cámbiala desde tu perfil:
                         </p>
                         <div className="bg-slate-100 border-2 border-slate-200 rounded-xl p-4 mb-5 flex justify-center">
                             <div className="text-center">
