@@ -17,13 +17,13 @@ const logger = createLogger('register')
 export const dynamic = 'force-dynamic'
 
 const OFICIO_SERVICE_SLUGS: Record<string, string[]> = {
-  'Plomero':      ['reparacion-fugas', 'instalacion-grifos'],
-  'Electricista': ['instalacion-electrica', 'reparacion-cortocircuitos'],
-  'Limpieza':     ['limpieza-general', 'limpieza-profunda'],
-  'Carpintero':   ['fabricacion-muebles', 'reparacion-muebles'],
-  'Pintor':       ['pintura-interior', 'pintura-exterior'],
-  'Jardinero':    ['mantenimiento-jardines', 'diseno-jardines'],
-  'Mensajero':    ['lohaggo-ya'],
+  'Plomero':      ['plomeria', 'reparacion-calentadores', 'instalacion-gas'],
+  'Electricista': ['electricidad', 'instalacion-camaras', 'instalacion-redes'],
+  'Limpieza':     ['limpieza-hogar', 'limpieza-oficinas', 'limpieza-ventanas'],
+  'Carpintero':   ['carpinteria', 'instalacion-muebles', 'reparacion-puertas'],
+  'Pintor':       ['pintura'],
+  'Jardinero':    ['jardineria', 'instalacion-riego'],
+  'Mensajero':    ['mensajeria', 'lohaggo-ya'],
 }
 
 // Helper function to normalize city name to enum format
