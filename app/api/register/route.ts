@@ -42,6 +42,7 @@ async function handlePOST(request: NextRequest) {
       role,
       city: citySlug,
       services,
+      oficio,
       captchaToken,
       honeypot,
       formStartedAt,
@@ -142,6 +143,7 @@ async function handlePOST(request: NextRequest) {
       userData.partnerProfile = {
         create: {
           bio: "",
+          mainTrade: oficio || null,
           rating: 0,
           totalReviews: 0,
           verified: false,

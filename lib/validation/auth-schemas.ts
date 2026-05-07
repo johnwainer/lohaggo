@@ -8,6 +8,7 @@ export const registerSchema = z.object({
     role: z.enum(["CLIENT", "PARTNER"]).optional().default("CLIENT"),
     city: z.string().optional(),
     services: z.array(z.string()).optional(),
+    oficio: z.string().optional(),
     captchaToken: z.string().optional(),
     honeypot: z.string().optional(),
     formStartedAt: z.string().optional(),

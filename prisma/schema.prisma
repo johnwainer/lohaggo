@@ -58,6 +58,7 @@ model PartnerProfile {
   id                     String                 @id @default(cuid())
   userId                 String                 @unique
   bio                    String?
+  mainTrade              String?
   rating                 Float                  @default(0)
   totalReviews           Int                    @default(0)
   completedServicesCount Int                    @default(0)

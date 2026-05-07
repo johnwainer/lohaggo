@@ -586,11 +586,11 @@ function SqueezeForm() {
                             {/* Honeypot */}
                             <input type="text" className="hidden" aria-hidden="true" value={honeypot} onChange={(e) => setHoneypot(e.target.value)} />
 
-                            {isBotProtectionEnabled && (
-                                <div className="pt-2">
+                            <div className="pt-2" style={{ minHeight: isBotProtectionEnabled ? '70px' : 0 }}>
+                                {isBotProtectionEnabled && (
                                     <TurnstileWidget siteKey={turnstileSiteKey} action="register_unete" onTokenChange={setCaptchaToken} />
-                                </div>
-                            )}
+                                )}
+                            </div>
 
                             <div>
                                 <button
