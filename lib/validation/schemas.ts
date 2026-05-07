@@ -47,9 +47,14 @@ export const partnerProfileSchema = z.object({
   serviceIds: z.array(z.string()).min(1, 'Debes seleccionar al menos un servicio').max(50, 'Máximo 50 servicios')
 })
 
+const normalizedPhone = z.preprocess(
+  (val) => typeof val === 'string' ? val.replace(/[\s\-\(\)]/g, '') : val,
+  z.string().regex(/^\+?[1-9]\d{1,14}$/, 'Número de teléfono inválido').or(z.literal(''))
+)
+
 export const userProfileSchema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres').max(100, 'El nombre es demasiado largo'),
-  phone: z.string().regex(/^\+?[1-9]\d{1,14}$/, 'Número de teléfono inválido').or(z.literal('')).optional(),
+  phone: normalizedPhone.optional(),
   email: z.string().email('Email inválido').optional()
 })
 
