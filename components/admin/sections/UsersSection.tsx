@@ -9,6 +9,7 @@ interface User {
   email: string
   name: string
   phone: string | null
+  image: string | null
   role: string
   isActive: boolean
   createdAt: string
@@ -117,15 +118,27 @@ export default function UsersSection() {
       key: 'name',
       label: 'Usuario',
       sortable: true,
-      render: (value: string, row: User) => (
-        <div>
-          <div className="font-medium text-gray-900">{value}</div>
-          <div className="text-sm text-gray-500 flex items-center gap-1">
-            <Mail size={12} />
-            {row.email}
+      render: (value: string, row: User) => {
+        const initials = value.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+        return (
+          <div className="flex items-center gap-3">
+            {row.image ? (
+              <img src={row.image} alt={value} className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+            ) : (
+              <div className="w-9 h-9 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                {initials}
+              </div>
+            )}
+            <div>
+              <div className="font-medium text-gray-900">{value}</div>
+              <div className="text-sm text-gray-500 flex items-center gap-1">
+                <Mail size={12} />
+                {row.email}
+              </div>
+            </div>
           </div>
-        </div>
-      )
+        )
+      }
     },
     {
       key: 'phone',

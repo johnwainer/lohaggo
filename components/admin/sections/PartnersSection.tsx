@@ -18,6 +18,7 @@ interface Partner {
     email: string
     name: string
     phone: string | null
+    image: string | null
     createdAt: string
   }
   services: Array<{
@@ -80,20 +81,32 @@ export default function PartnersSection() {
       key: 'user',
       label: 'Socio',
       sortable: true,
-      render: (value: any, row: Partner) => (
-        <div>
-          <div className="font-medium text-gray-900 flex items-center gap-2">
-            {value.name}
-            {row.verified && (
-              <ShieldCheck size={16} className="text-green-600" />
+      render: (value: any, row: Partner) => {
+        const initials = value.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+        return (
+          <div className="flex items-center gap-3">
+            {value.image ? (
+              <img src={value.image} alt={value.name} className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+            ) : (
+              <div className="w-9 h-9 rounded-full bg-secondary-100 text-secondary-700 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                {initials}
+              </div>
             )}
+            <div>
+              <div className="font-medium text-gray-900 flex items-center gap-2">
+                {value.name}
+                {row.verified && (
+                  <ShieldCheck size={16} className="text-green-600" />
+                )}
+              </div>
+              <div className="text-sm text-gray-500">{value.email}</div>
+              {value.phone && (
+                <div className="text-sm text-gray-500">{value.phone}</div>
+              )}
+            </div>
           </div>
-          <div className="text-sm text-gray-500">{value.email}</div>
-          {value.phone && (
-            <div className="text-sm text-gray-500">{value.phone}</div>
-          )}
-        </div>
-      )
+        )
+      }
     },
     {
       key: 'rating',

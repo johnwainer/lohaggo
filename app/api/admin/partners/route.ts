@@ -25,6 +25,7 @@ export async function GET() {
             email: true,
             name: true,
             phone: true,
+            image: true,
             createdAt: true,
           }
         },
