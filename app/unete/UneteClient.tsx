@@ -628,7 +628,7 @@ function SqueezeForm() {
                     : null
                 const hasFutureLaunch = daysUntilLaunch !== null && daysUntilLaunch > 0
                 const launchFormatted = launchDate
-                    ? new Date(launchDate).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })
+                    ? new Date(launchDate).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
                     : null
                 const shareUrl = 'https://www.lohaggo.com/unete'
                 const shareMsg = `¡Me acabo de registrar en LoHaggo para recibir clientes! Si eres técnico, plomero, electricista u ofreces servicios del hogar, regístrate gratis aquí: ${shareUrl}`
