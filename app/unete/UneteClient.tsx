@@ -565,7 +565,7 @@ function SqueezeForm() {
                             <div className="space-y-1">
                                 <label className="text-sm font-bold text-gray-700">
                                     ¿Qué servicios ofreces?{' '}
-                                    <span className="text-gray-400 font-normal">(opcional, puedes elegir varios)</span>
+                                    <span className="text-gray-400 font-normal">(opcional, máx. 5)</span>
                                     {formData.oficio.length > 0 && (
                                         <span className="ml-2 text-primary-600 font-semibold">{formData.oficio.length} seleccionado{formData.oficio.length > 1 ? 's' : ''}</span>
                                     )}
@@ -592,12 +592,14 @@ function SqueezeForm() {
                                                         ...prev,
                                                         oficio: selected
                                                             ? prev.oficio.filter((x) => x !== o)
-                                                            : [...prev.oficio, o],
+                                                            : prev.oficio.length < 5 ? [...prev.oficio, o] : prev.oficio,
                                                     }))}
                                                     className={`px-3 py-1.5 rounded-full text-sm font-semibold border-2 transition-all ${
                                                         selected
                                                             ? 'bg-primary-500 border-primary-500 text-white'
-                                                            : 'bg-white border-gray-200 text-gray-700 hover:border-primary-300'
+                                                            : formData.oficio.length >= 5
+                                                                ? 'bg-white border-gray-100 text-gray-300 cursor-not-allowed'
+                                                                : 'bg-white border-gray-200 text-gray-700 hover:border-primary-300'
                                                     }`}
                                                 >
                                                     {o}
