@@ -358,11 +358,6 @@ function SqueezeForm() {
                     if (typeof window !== 'undefined' && window.fbq) {
                         window.fbq('track', 'CompleteRegistration', { value: 0, currency: 'COP' })
                     }
-                    const pixelId = process.env.NEXT_PUBLIC_META_PIXEL_ID || '961436919897711'
-                    if (pixelId) {
-                        const img = new Image()
-                        img.src = `https://www.facebook.com/tr?id=${pixelId}&ev=CompleteRegistration&cd[value]=0&cd[currency]=COP&noscript=1`
-                    }
                 } catch (e) {
                     console.error('Error enviando pixel', e)
                 }
