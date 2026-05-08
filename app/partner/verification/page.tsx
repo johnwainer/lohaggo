@@ -305,7 +305,7 @@ export default function VerificationPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => window.open(doc.documentUrl, '_blank')}
+                          onClick={() => window.open(`/api/documents/view/${doc.id}`, '_blank')}
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title="Ver documento"
                         >
