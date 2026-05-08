@@ -626,6 +626,10 @@ function SqueezeForm() {
                                 <span className="text-3xl font-black text-slate-800 tracking-wider font-mono">{generatedPassword}</span>
                             </div>
                         </div>
+                        <div className="bg-primary-50 border border-primary-200 rounded-xl p-4 mb-4 text-center">
+                            <p className="text-primary-700 font-black text-base">🚀 Próximamente estarás disponible</p>
+                            <p className="text-primary-600 text-sm mt-1">Tu perfil estará visible para los clientes una vez que verifiquemos tu cuenta.</p>
+                        </div>
                         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 text-sm text-yellow-800 font-medium text-left">
                             <strong>⚠️ Próximos pasos en tu Perfil:</strong>
                             <ul className="list-disc pl-5 mt-1 space-y-1">
