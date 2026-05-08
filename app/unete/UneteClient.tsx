@@ -565,6 +565,15 @@ function SqueezeForm() {
                             <div className="space-y-1">
                                 <label className="text-sm font-bold text-gray-700">¿Cuál es tu oficio principal? <span className="text-gray-400 font-normal">(opcional)</span></label>
                                 <div className="flex flex-wrap gap-2">
+                                    {servicesPage > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setServicesPage((p) => p - 1)}
+                                            className="px-3 py-1.5 rounded-full text-sm font-semibold border-2 border-gray-300 text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-all"
+                                        >
+                                            ← Anteriores
+                                        </button>
+                                    )}
                                     {allServices
                                         .slice(servicesPage * SERVICES_PAGE_SIZE, (servicesPage + 1) * SERVICES_PAGE_SIZE)
                                         .map((o) => (
