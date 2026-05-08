@@ -46,9 +46,9 @@ export async function PUT(
     const city = await prisma.cityConfig.update({
       where: { id },
       data: {
-        ...(name && { name }),
-        ...(slug && { slug }),
-        ...(status && { status }),
+        ...(name !== undefined && { name }),
+        ...(slug !== undefined && { slug }),
+        ...(status !== undefined && { status }),
         ...(order !== undefined && { order }),
         ...(latitude !== undefined && { latitude }),
         ...(longitude !== undefined && { longitude }),

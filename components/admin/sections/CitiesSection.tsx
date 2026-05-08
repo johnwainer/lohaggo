@@ -235,6 +235,7 @@ export default function CitiesSection() {
   const [showAddForm, setShowAddForm] = useState(false)
   const [newCity, setNewCity] = useState<Omit<City, 'id'>>({ ...EMPTY_FORM })
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   useEffect(() => { fetchCities() }, [])
 
@@ -249,24 +250,37 @@ export default function CitiesSection() {
     }
   }
 
+  const buildPayload = (data: Omit<City, 'id'>) => ({
+    name: data.name,
+    slug: data.slug,
+    status: data.status,
+    order: data.order,
+    latitude: data.latitude,
+    longitude: data.longitude,
+    isLaunched: data.isLaunched,
+    launchDate: data.launchDate ? new Date(data.launchDate).toISOString() : null,
+    partnerRegistry: data.partnerRegistry,
+  })
+
   const handleAdd = async () => {
     setSaving(true)
+    setSaveError(null)
     try {
       const res = await fetch('/api/admin/cities', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...newCity,
-          launchDate: newCity.launchDate ? new Date(newCity.launchDate).toISOString() : null,
-        }),
+        body: JSON.stringify(buildPayload(newCity)),
       })
       if (res.ok) {
         await fetchCities()
         setShowAddForm(false)
         setNewCity({ ...EMPTY_FORM })
+      } else {
+        const err = await res.json()
+        setSaveError(err.error || 'Error al crear ciudad')
       }
     } catch (e) {
-      console.error('Error adding city:', e)
+      setSaveError('Error de conexión')
     } finally {
       setSaving(false)
     }
@@ -275,22 +289,23 @@ export default function CitiesSection() {
   const handleSaveEdit = async () => {
     if (!editingId || !editingData) return
     setSaving(true)
+    setSaveError(null)
     try {
       const res = await fetch(`/api/admin/cities/${editingId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...editingData,
-          launchDate: editingData.launchDate ? new Date(editingData.launchDate).toISOString() : null,
-        }),
+        body: JSON.stringify(buildPayload(editingData)),
       })
       if (res.ok) {
         await fetchCities()
         setEditingId(null)
         setEditingData(null)
+      } else {
+        const err = await res.json()
+        setSaveError(err.error || 'Error al guardar')
       }
     } catch (e) {
-      console.error('Error updating city:', e)
+      setSaveError('Error de conexión')
     } finally {
       setSaving(false)
     }
@@ -321,6 +336,12 @@ export default function CitiesSection() {
 
   return (
     <div className="space-y-6">
+      {saveError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-700 text-sm font-medium flex items-center gap-2">
+          <AlertCircle size={16} /> {saveError}
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Gestión de Ciudades</h2>
