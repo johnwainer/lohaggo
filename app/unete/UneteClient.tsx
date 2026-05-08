@@ -593,7 +593,7 @@ function SqueezeForm() {
 
                             <div className="pt-2" style={{ minHeight: isBotProtectionEnabled ? '70px' : 0 }}>
                                 {isBotProtectionEnabled && (
-                                    <TurnstileWidget siteKey={turnstileSiteKey} action="register_unete" onTokenChange={setCaptchaToken} />
+                                    <TurnstileWidget siteKey={turnstileSiteKey} action="register" onTokenChange={setCaptchaToken} />
                                 )}
                             </div>
 
