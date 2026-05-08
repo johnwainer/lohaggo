@@ -46,7 +46,7 @@ export async function GET(
 
     // Detect content type: prefer what Cloudinary returns, fallback by URL
     const upstreamType = response.headers.get('content-type') || ''
-    const isPdf = fetchUrl.endsWith('.pdf') || upstreamType.includes('pdf')
+    const isPdf = fetchUrl.endsWith('.pdf') || fetchUrl.includes('/raw/upload/') || upstreamType.includes('pdf')
     const contentType = isPdf ? 'application/pdf' : upstreamType || 'image/jpeg'
     const filename = isPdf ? 'documento.pdf' : 'documento.jpg'
 
