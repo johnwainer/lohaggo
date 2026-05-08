@@ -25,8 +25,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Archivo, tipo y partnerId son requeridos' }, { status: 400 })
     }
 
-    if (file.type !== 'application/pdf') {
-      return NextResponse.json({ error: 'Solo se permiten archivos PDF' }, { status: 400 })
+    const isImage = file.type.startsWith('image/')
+    const isPdf = file.type === 'application/pdf'
+    if (!isImage && !isPdf) {
+      return NextResponse.json({ error: 'Solo se permiten archivos PDF o imágenes (JPG, PNG)' }, { status: 400 })
     }
 
     const partnerProfile = await prisma.partnerProfile.findUnique({
@@ -38,7 +40,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Socio no encontrado' }, { status: 404 })
     }
 
-    const { url, publicId } = await cloudinaryService.upload(file, 'lohaggo/documents/background', 'raw')
+    const resourceType = isPdf ? 'raw' : 'image'
+    const { url, publicId } = await cloudinaryService.upload(file, 'lohaggo/documents/background', resourceType)
 
     const document = await prisma.verificationDocument.create({
       data: {

@@ -58,12 +58,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Archivo y tipo son requeridos' }, { status: 400 })
     }
 
-    if (file.type !== 'application/pdf') {
-      return NextResponse.json({ error: 'Solo se permiten archivos PDF' }, { status: 400 })
+    const isImage = file.type.startsWith('image/')
+    const isPdf = file.type === 'application/pdf'
+    if (!isImage && !isPdf) {
+      return NextResponse.json({ error: 'Solo se permiten archivos PDF o imágenes (JPG, PNG)' }, { status: 400 })
     }
 
-    // Use centralized cloudinary service
-    const { url, publicId } = await cloudinaryService.upload(file, 'lohaggo/documents', 'raw')
+    const resourceType = isPdf ? 'raw' : 'image'
+    const { url, publicId } = await cloudinaryService.upload(file, 'lohaggo/documents', resourceType)
 
     const document = await prisma.verificationDocument.create({
       data: {

@@ -30,9 +30,9 @@ export async function GET(
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
-  // Build the Cloudinary URL — force serving the original file for image/upload PDFs
+  // For image/upload PDFs: force original file serving
   let fetchUrl = document.documentUrl
-  if (fetchUrl.includes('/image/upload/') && !fetchUrl.includes('fl_attachment')) {
+  if (fetchUrl.includes('/image/upload/') && fetchUrl.endsWith('.pdf')) {
     fetchUrl = fetchUrl.replace('/image/upload/', '/image/upload/fl_attachment:false/')
   }
 
@@ -44,10 +44,16 @@ export async function GET(
 
     const buffer = await response.arrayBuffer()
 
+    // Detect content type: prefer what Cloudinary returns, fallback by URL
+    const upstreamType = response.headers.get('content-type') || ''
+    const isPdf = fetchUrl.endsWith('.pdf') || upstreamType.includes('pdf')
+    const contentType = isPdf ? 'application/pdf' : upstreamType || 'image/jpeg'
+    const filename = isPdf ? 'documento.pdf' : 'documento.jpg'
+
     return new NextResponse(buffer, {
       headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': 'inline; filename="documento.pdf"',
+        'Content-Type': contentType,
+        'Content-Disposition': `inline; filename="${filename}"`,
         'Cache-Control': 'private, max-age=3600',
       },
     })
