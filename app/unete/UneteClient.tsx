@@ -200,7 +200,7 @@ function SqueezeForm() {
     const [touched, setTouched] = useState({ name: false, email: false, phone: false })
     const [leadFired, setLeadFired] = useState(false)
     const [allServices, setAllServices] = useState<string[]>([])
-    const [visibleCount, setVisibleCount] = useState(SERVICES_PAGE_SIZE)
+    const [servicesPage, setServicesPage] = useState(0)
 
     const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ''
     const isBotProtectionEnabled = Boolean(turnstileSiteKey)
@@ -565,24 +565,26 @@ function SqueezeForm() {
                             <div className="space-y-1">
                                 <label className="text-sm font-bold text-gray-700">¿Cuál es tu oficio principal? <span className="text-gray-400 font-normal">(opcional)</span></label>
                                 <div className="flex flex-wrap gap-2">
-                                    {allServices.slice(0, visibleCount).map((o) => (
+                                    {allServices
+                                        .slice(servicesPage * SERVICES_PAGE_SIZE, (servicesPage + 1) * SERVICES_PAGE_SIZE)
+                                        .map((o) => (
+                                            <button
+                                                key={o}
+                                                type="button"
+                                                onClick={() => setFormData((prev) => ({ ...prev, oficio: prev.oficio === o ? '' : o }))}
+                                                className={`px-3 py-1.5 rounded-full text-sm font-semibold border-2 transition-all ${
+                                                    formData.oficio === o
+                                                        ? 'bg-primary-500 border-primary-500 text-white'
+                                                        : 'bg-white border-gray-200 text-gray-700 hover:border-primary-300'
+                                                }`}
+                                            >
+                                                {o}
+                                            </button>
+                                        ))}
+                                    {(servicesPage + 1) * SERVICES_PAGE_SIZE < allServices.length && (
                                         <button
-                                            key={o}
                                             type="button"
-                                            onClick={() => setFormData((prev) => ({ ...prev, oficio: prev.oficio === o ? '' : o }))}
-                                            className={`px-3 py-1.5 rounded-full text-sm font-semibold border-2 transition-all ${
-                                                formData.oficio === o
-                                                    ? 'bg-primary-500 border-primary-500 text-white'
-                                                    : 'bg-white border-gray-200 text-gray-700 hover:border-primary-300'
-                                            }`}
-                                        >
-                                            {o}
-                                        </button>
-                                    ))}
-                                    {visibleCount < allServices.length && (
-                                        <button
-                                            type="button"
-                                            onClick={() => setVisibleCount((v) => v + SERVICES_PAGE_SIZE)}
+                                            onClick={() => setServicesPage((p) => p + 1)}
                                             className="px-3 py-1.5 rounded-full text-sm font-semibold border-2 border-dashed border-primary-400 text-primary-600 hover:bg-primary-50 transition-all"
                                         >
                                             Otro →

@@ -5,7 +5,7 @@ export const revalidate = 3600
 
 export async function GET() {
   const services = await prisma.service.findMany({
-    orderBy: { name: 'asc' },
+    orderBy: [{ popular: 'desc' }, { name: 'asc' }],
     select: { id: true, name: true },
   })
   return NextResponse.json(services)
