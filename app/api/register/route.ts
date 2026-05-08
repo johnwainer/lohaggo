@@ -16,15 +16,6 @@ const logger = createLogger('register')
 
 export const dynamic = 'force-dynamic'
 
-const OFICIO_SERVICE_SLUGS: Record<string, string[]> = {
-  'Plomero':      ['plomeria', 'reparacion-calentadores', 'instalacion-gas'],
-  'Electricista': ['electricidad', 'instalacion-camaras', 'instalacion-redes'],
-  'Limpieza':     ['limpieza-hogar', 'limpieza-oficinas', 'limpieza-ventanas'],
-  'Carpintero':   ['carpinteria', 'instalacion-muebles', 'reparacion-puertas'],
-  'Pintor':       ['pintura'],
-  'Jardinero':    ['jardineria', 'instalacion-riego'],
-  'Mensajero':    ['mensajeria', 'lohaggo-ya'],
-}
 
 // Helper function to normalize city name to enum format
 function normalizeCityName(name: string): string {
@@ -169,17 +160,22 @@ async function handlePOST(request: NextRequest) {
     })
 
     // Si es socio y tiene servicios seleccionados, crear las relaciones
-    const oficioSlugs = oficio ? (OFICIO_SERVICE_SLUGS[oficio] ?? []) : []
-    const allServiceSlugs = Array.from(new Set([...(services ?? []), ...oficioSlugs]))
+    // oficio is now an array of service names from the DB
+    const oficioNames: string[] = Array.isArray(oficio) ? oficio : []
 
-    if (role === "PARTNER" && user.partnerProfile && allServiceSlugs.length > 0) {
-      // Obtener los IDs de los servicios por sus slugs
-      const serviceRecords = await prisma.service.findMany({
-        where: {
-          slug: {
-            in: allServiceSlugs
-          }
-        }
+    if (role === "PARTNER" && user.partnerProfile && (oficioNames.length > 0 || (services ?? []).length > 0)) {
+      const bySlug = (services ?? []).length > 0
+        ? await prisma.service.findMany({ where: { slug: { in: services } } })
+        : []
+      const byName = oficioNames.length > 0
+        ? await prisma.service.findMany({ where: { name: { in: oficioNames } } })
+        : []
+
+      const seen = new Set<string>()
+      const serviceRecords = [...bySlug, ...byName].filter((s) => {
+        if (seen.has(s.id)) return false
+        seen.add(s.id)
+        return true
       })
 
       // Crear las relaciones PartnerService

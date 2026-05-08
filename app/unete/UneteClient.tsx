@@ -185,7 +185,7 @@ function SqueezeForm() {
         role: 'PARTNER',
         city: '',
         services: [] as string[],
-        oficio: '',
+        oficio: [] as string[],
     })
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
@@ -561,9 +561,15 @@ function SqueezeForm() {
                                 {fieldErrors.phone && touched.phone && <p className="text-xs text-red-600 font-semibold">{fieldErrors.phone}</p>}
                             </div>
 
-                            {/* Oficio */}
+                            {/* Oficio — multi-select */}
                             <div className="space-y-1">
-                                <label className="text-sm font-bold text-gray-700">¿Cuál es tu oficio principal? <span className="text-gray-400 font-normal">(opcional)</span></label>
+                                <label className="text-sm font-bold text-gray-700">
+                                    ¿Qué servicios ofreces?{' '}
+                                    <span className="text-gray-400 font-normal">(opcional, puedes elegir varios)</span>
+                                    {formData.oficio.length > 0 && (
+                                        <span className="ml-2 text-primary-600 font-semibold">{formData.oficio.length} seleccionado{formData.oficio.length > 1 ? 's' : ''}</span>
+                                    )}
+                                </label>
                                 <div className="flex flex-wrap gap-2">
                                     {servicesPage > 0 && (
                                         <button
@@ -576,20 +582,28 @@ function SqueezeForm() {
                                     )}
                                     {allServices
                                         .slice(servicesPage * SERVICES_PAGE_SIZE, (servicesPage + 1) * SERVICES_PAGE_SIZE)
-                                        .map((o) => (
-                                            <button
-                                                key={o}
-                                                type="button"
-                                                onClick={() => setFormData((prev) => ({ ...prev, oficio: prev.oficio === o ? '' : o }))}
-                                                className={`px-3 py-1.5 rounded-full text-sm font-semibold border-2 transition-all ${
-                                                    formData.oficio === o
-                                                        ? 'bg-primary-500 border-primary-500 text-white'
-                                                        : 'bg-white border-gray-200 text-gray-700 hover:border-primary-300'
-                                                }`}
-                                            >
-                                                {o}
-                                            </button>
-                                        ))}
+                                        .map((o) => {
+                                            const selected = formData.oficio.includes(o)
+                                            return (
+                                                <button
+                                                    key={o}
+                                                    type="button"
+                                                    onClick={() => setFormData((prev) => ({
+                                                        ...prev,
+                                                        oficio: selected
+                                                            ? prev.oficio.filter((x) => x !== o)
+                                                            : [...prev.oficio, o],
+                                                    }))}
+                                                    className={`px-3 py-1.5 rounded-full text-sm font-semibold border-2 transition-all ${
+                                                        selected
+                                                            ? 'bg-primary-500 border-primary-500 text-white'
+                                                            : 'bg-white border-gray-200 text-gray-700 hover:border-primary-300'
+                                                    }`}
+                                                >
+                                                    {o}
+                                                </button>
+                                            )
+                                        })}
                                     {(servicesPage + 1) * SERVICES_PAGE_SIZE < allServices.length && (
                                         <button
                                             type="button"
