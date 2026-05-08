@@ -85,8 +85,7 @@ const FAQ_ITEMS = [
     },
 ]
 
-// ─── Oficio options ─────────────────────────────────────────────────────
-const OFICIOS = ['Plomero', 'Electricista', 'Limpieza', 'Carpintero', 'Pintor', 'Jardinero', 'Mensajero', 'Otro']
+const SERVICES_PAGE_SIZE = 10
 
 // ─── Steps section ───────────────────────────────────────────────────────
 function HowItWorksSection({ className = '' }: { className?: string }) {
@@ -200,9 +199,21 @@ function SqueezeForm() {
     const [fieldErrors, setFieldErrors] = useState({ name: '', email: '', phone: '' })
     const [touched, setTouched] = useState({ name: false, email: false, phone: false })
     const [leadFired, setLeadFired] = useState(false)
+    const [allServices, setAllServices] = useState<string[]>([])
+    const [visibleCount, setVisibleCount] = useState(SERVICES_PAGE_SIZE)
 
     const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ''
     const isBotProtectionEnabled = Boolean(turnstileSiteKey)
+
+    // ── Cargar servicios de la DB ─────────────────────────────────────────
+    useEffect(() => {
+        fetch('/api/public/services')
+            .then((r) => r.json())
+            .then((data: { id: string; name: string }[]) => {
+                setAllServices(data.map((s) => s.name))
+            })
+            .catch(() => {})
+    }, [])
 
     // ── Pixel: ViewContent al cargar + captura de UTM ─────────────────────
     useEffect(() => {
@@ -550,11 +561,11 @@ function SqueezeForm() {
                                 {fieldErrors.phone && touched.phone && <p className="text-xs text-red-600 font-semibold">{fieldErrors.phone}</p>}
                             </div>
 
-                            {/* Oficio (TAREA 6) */}
+                            {/* Oficio */}
                             <div className="space-y-1">
                                 <label className="text-sm font-bold text-gray-700">¿Cuál es tu oficio principal? <span className="text-gray-400 font-normal">(opcional)</span></label>
                                 <div className="flex flex-wrap gap-2">
-                                    {OFICIOS.map((o) => (
+                                    {allServices.slice(0, visibleCount).map((o) => (
                                         <button
                                             key={o}
                                             type="button"
@@ -568,6 +579,15 @@ function SqueezeForm() {
                                             {o}
                                         </button>
                                     ))}
+                                    {visibleCount < allServices.length && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setVisibleCount((v) => v + SERVICES_PAGE_SIZE)}
+                                            className="px-3 py-1.5 rounded-full text-sm font-semibold border-2 border-dashed border-primary-400 text-primary-600 hover:bg-primary-50 transition-all"
+                                        >
+                                            Otro →
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 
