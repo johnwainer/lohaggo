@@ -426,6 +426,12 @@ function SqueezeForm() {
                             <h1 className="text-xl min-[400px]:text-2xl leading-snug md:text-5xl font-extrabold md:leading-tight break-words overflow-hidden">
                                 Aumenta tus ingresos arreglando y solucionando lo que sabes.
                             </h1>
+                            {/* Cobertura actual — no invasivo */}
+                            <div className="inline-flex items-center gap-2 bg-white/15 border border-white/25 backdrop-blur-sm px-3 py-1.5 rounded-full">
+                                <span className="text-base leading-none">📍</span>
+                                <span className="text-white font-semibold text-sm">Medellín y Área Metropolitana</span>
+                                <span className="bg-green-400/30 text-green-200 text-xs font-bold px-2 py-0.5 rounded-full border border-green-300/30">Lanzamiento Jul 2026</span>
+                            </div>
                             <p className="text-white/80 text-lg md:text-xl font-medium">
                                 Conviértete en socio de la plataforma líder y recibe clientes en tu ciudad cada día. Sin jefes, maneja tu propio tiempo y aumenta tus ingresos.
                             </p>
@@ -499,7 +505,7 @@ function SqueezeForm() {
                                 <h2 className="text-2xl font-black text-gray-900">Activa tu perfil profesional</h2>
                                 <span className="text-sm font-bold text-primary-500 bg-primary-50 px-3 py-1 rounded-full">100% Gratis</span>
                             </div>
-                            <p className="text-sm text-gray-600 font-medium">Déjanos tus datos para conectar con cientos de clientes en tu ciudad que buscan tus servicios.</p>
+                            <p className="text-sm text-gray-600 font-medium">Déjanos tus datos para conectar con cientos de clientes en <span className="font-semibold text-gray-800">Medellín y el Área Metropolitana</span> que buscan tus servicios.</p>
                         </div>
 
                         <form onSubmit={handleSubmit} className="space-y-4 relative">
