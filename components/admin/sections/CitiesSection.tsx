@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { MapPin, Plus, Edit2, Trash2, Save, X, Navigation } from 'lucide-react'
+import { MapPin, Plus, Edit2, Trash2, Save, X, Navigation, Calendar, Users, CheckCircle, Clock, AlertCircle } from 'lucide-react'
 
 type CityStatus = 'ACTIVE' | 'INACTIVE' | 'COMING_SOON'
 
@@ -18,535 +18,445 @@ interface City {
   partnerRegistry: boolean
 }
 
-const statusLabels: Record<CityStatus, string> = {
-  ACTIVE: 'Activa',
-  INACTIVE: 'Inactiva',
-  COMING_SOON: 'Próximamente'
+const EMPTY_FORM: Omit<City, 'id'> = {
+  name: '',
+  slug: '',
+  status: 'ACTIVE',
+  order: 0,
+  latitude: null,
+  longitude: null,
+  isLaunched: false,
+  launchDate: null,
+  partnerRegistry: false,
 }
 
-const statusColors: Record<CityStatus, string> = {
-  ACTIVE: 'bg-green-100 text-green-800',
-  INACTIVE: 'bg-red-100 text-red-800',
-  COMING_SOON: 'bg-yellow-100 text-yellow-800'
+function formatLaunchDate(dateStr: string | null): string {
+  if (!dateStr) return ''
+  return new Date(dateStr).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+function daysUntil(dateStr: string | null): number | null {
+  if (!dateStr) return null
+  const diff = new Date(dateStr).getTime() - Date.now()
+  return Math.ceil(diff / (1000 * 60 * 60 * 24))
+}
+
+function toDateInput(dateStr: string | null): string {
+  if (!dateStr) return ''
+  return dateStr.slice(0, 10)
+}
+
+function LaunchBadge({ city }: { city: City }) {
+  if (!city.launchDate) return <span className="text-gray-400 text-xs italic">Sin fecha</span>
+  const days = daysUntil(city.launchDate)
+  if (days === null) return null
+  if (days > 0) {
+    return (
+      <div className="flex flex-col gap-0.5">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">
+          <Clock size={11} /> En {days} días
+        </span>
+        <span className="text-xs text-gray-500">{formatLaunchDate(city.launchDate)}</span>
+      </div>
+    )
+  }
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-800 rounded-full text-xs font-semibold">
+        <CheckCircle size={11} /> Disponible
+      </span>
+      <span className="text-xs text-gray-500">{formatLaunchDate(city.launchDate)}</span>
+    </div>
+  )
+}
+
+function CityForm({
+  data,
+  onChange,
+  onSave,
+  onCancel,
+  saveLabel = 'Guardar',
+}: {
+  data: Omit<City, 'id'>
+  onChange: (d: Omit<City, 'id'>) => void
+  onSave: () => void
+  onCancel: () => void
+  saveLabel?: string
+}) {
+  return (
+    <div className="space-y-5">
+      {/* Identificación */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">Nombre</label>
+          <input
+            type="text"
+            value={data.name}
+            onChange={(e) => onChange({ ...data, name: e.target.value })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            placeholder="Ej.: Medellín"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">Slug</label>
+          <input
+            type="text"
+            value={data.slug}
+            onChange={(e) => onChange({ ...data, slug: e.target.value.toLowerCase() })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            placeholder="Ej.: medellin"
+          />
+        </div>
+      </div>
+
+      {/* Estado y orden */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">Estado operativo</label>
+          <select
+            value={data.status}
+            onChange={(e) => onChange({ ...data, status: e.target.value as CityStatus })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+          >
+            <option value="ACTIVE">Activa</option>
+            <option value="COMING_SOON">Próximamente</option>
+            <option value="INACTIVE">Inactiva</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">Orden</label>
+          <input
+            type="number"
+            value={data.order}
+            onChange={(e) => onChange({ ...data, order: parseInt(e.target.value) || 0 })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+          />
+        </div>
+      </div>
+
+      {/* Lanzamiento para clientes */}
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-2">
+        <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide flex items-center gap-1">
+          <Calendar size={13} /> Disponibilidad para clientes
+        </p>
+        <p className="text-xs text-blue-600">Fecha en que los clientes podrán solicitar servicios en esta ciudad.</p>
+        <input
+          type="date"
+          value={toDateInput(data.launchDate)}
+          onChange={(e) => onChange({ ...data, launchDate: e.target.value ? e.target.value + 'T00:00:00.000Z' : null })}
+          className="w-full px-3 py-2 border border-blue-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+        />
+        {data.launchDate && daysUntil(data.launchDate) !== null && (
+          <p className="text-xs text-blue-700 font-medium">
+            {daysUntil(data.launchDate)! > 0
+              ? `⏳ Lanza en ${daysUntil(data.launchDate)} días — ${formatLaunchDate(data.launchDate)}`
+              : `✅ Ya disponible desde ${formatLaunchDate(data.launchDate)}`}
+          </p>
+        )}
+      </div>
+
+      {/* Registro de socios */}
+      <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={data.partnerRegistry}
+            onChange={(e) => onChange({ ...data, partnerRegistry: e.target.checked })}
+            className="mt-0.5 w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+          />
+          <div>
+            <p className="text-sm font-semibold text-green-800 flex items-center gap-1">
+              <Users size={14} /> Registro de socios habilitado
+            </p>
+            <p className="text-xs text-green-600 mt-0.5">Los socios podrán registrarse para operar en esta ciudad.</p>
+          </div>
+        </label>
+      </div>
+
+      {/* Coordenadas */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">
+            <span className="flex items-center gap-1"><Navigation size={11} /> Latitud</span>
+          </label>
+          <input
+            type="number"
+            step="0.0001"
+            value={data.latitude ?? ''}
+            onChange={(e) => onChange({ ...data, latitude: e.target.value ? parseFloat(e.target.value) : null })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            placeholder="6.2442"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">
+            <span className="flex items-center gap-1"><Navigation size={11} /> Longitud</span>
+          </label>
+          <input
+            type="number"
+            step="0.0001"
+            value={data.longitude ?? ''}
+            onChange={(e) => onChange({ ...data, longitude: e.target.value ? parseFloat(e.target.value) : null })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            placeholder="-75.5812"
+          />
+        </div>
+      </div>
+
+      <div className="flex gap-2 pt-2">
+        <button
+          onClick={onSave}
+          className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition text-sm font-semibold"
+        >
+          <Save size={16} /> {saveLabel}
+        </button>
+        <button
+          onClick={onCancel}
+          className="flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition text-sm"
+        >
+          <X size={16} /> Cancelar
+        </button>
+      </div>
+    </div>
+  )
+}
+
+const statusBadge: Record<CityStatus, { label: string; cls: string; icon: React.ReactNode }> = {
+  ACTIVE: { label: 'Activa', cls: 'bg-green-100 text-green-800', icon: <CheckCircle size={11} /> },
+  INACTIVE: { label: 'Inactiva', cls: 'bg-red-100 text-red-800', icon: <AlertCircle size={11} /> },
+  COMING_SOON: { label: 'Próximamente', cls: 'bg-yellow-100 text-yellow-800', icon: <Clock size={11} /> },
 }
 
 export default function CitiesSection() {
   const [cities, setCities] = useState<City[]>([])
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [editingData, setEditingData] = useState<Partial<City> | null>(null)
+  const [editingData, setEditingData] = useState<Omit<City, 'id'> | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
-  const [formData, setFormData] = useState({
-    name: '',
-    slug: '',
-    status: 'ACTIVE' as CityStatus,
-    order: 0,
-    latitude: null as number | null,
-    longitude: null as number | null,
-    isLaunched: false,
-    launchDate: null as string | null,
-    partnerRegistry: false
-  })
+  const [newCity, setNewCity] = useState<Omit<City, 'id'>>({ ...EMPTY_FORM })
+  const [saving, setSaving] = useState(false)
 
-  useEffect(() => {
-    fetchCities()
-  }, [])
+  useEffect(() => { fetchCities() }, [])
 
   const fetchCities = async () => {
     try {
       const res = await fetch('/api/admin/cities')
-      if (res.ok) {
-        const data = await res.json()
-        setCities(data)
-      }
-    } catch (error) {
-      console.error('Error fetching cities:', error)
+      if (res.ok) setCities(await res.json())
+    } catch (e) {
+      console.error('Error fetching cities:', e)
     } finally {
       setLoading(false)
     }
   }
 
   const handleAdd = async () => {
+    setSaving(true)
     try {
-      const dataToSend = {
-        ...formData,
-        launchDate: formData.isLaunched && formData.launchDate ? new Date(formData.launchDate).toISOString() : null
-      }
-
       const res = await fetch('/api/admin/cities', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dataToSend)
+        body: JSON.stringify({
+          ...newCity,
+          launchDate: newCity.launchDate ? new Date(newCity.launchDate).toISOString() : null,
+        }),
       })
-
       if (res.ok) {
         await fetchCities()
         setShowAddForm(false)
-        setFormData({ name: '', slug: '', status: 'ACTIVE', order: 0, latitude: null, longitude: null, isLaunched: false, launchDate: null, partnerRegistry: false })
+        setNewCity({ ...EMPTY_FORM })
       }
-    } catch (error) {
-      console.error('Error adding city:', error)
+    } catch (e) {
+      console.error('Error adding city:', e)
+    } finally {
+      setSaving(false)
     }
   }
 
-  const handleUpdate = async (id: string, data: Partial<City>) => {
+  const handleSaveEdit = async () => {
+    if (!editingId || !editingData) return
+    setSaving(true)
     try {
-      const res = await fetch(`/api/admin/cities/${id}`, {
+      const res = await fetch(`/api/admin/cities/${editingId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
+        body: JSON.stringify({
+          ...editingData,
+          launchDate: editingData.launchDate ? new Date(editingData.launchDate).toISOString() : null,
+        }),
       })
-
       if (res.ok) {
         await fetchCities()
         setEditingId(null)
         setEditingData(null)
       }
-    } catch (error) {
-      console.error('Error updating city:', error)
+    } catch (e) {
+      console.error('Error updating city:', e)
+    } finally {
+      setSaving(false)
     }
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('¿Estás seguro de que quieres eliminar esta ciudad?')) return
-
+    if (!confirm('¿Eliminar esta ciudad? Esta acción no se puede deshacer.')) return
     try {
-      const res = await fetch(`/api/admin/cities/${id}`, {
-        method: 'DELETE'
-      })
-
-      if (res.ok) {
-        await fetchCities()
-      }
-    } catch (error) {
-      console.error('Error deleting city:', error)
+      const res = await fetch(`/api/admin/cities/${id}`, { method: 'DELETE' })
+      if (res.ok) fetchCities()
+    } catch (e) {
+      console.error('Error deleting city:', e)
     }
   }
 
   const startEditing = (city: City) => {
     setEditingId(city.id)
-    setEditingData({ ...city })
-  }
-
-  const saveEditing = async () => {
-    if (!editingId || !editingData) return
-
-    try {
-      const dataToSend = {
-        ...editingData,
-        launchDate: editingData.isLaunched && editingData.launchDate ? new Date(editingData.launchDate).toISOString() : null
-      }
-      await handleUpdate(editingId, dataToSend)
-    } catch (error) {
-      console.error('Error saving changes:', error)
-    }
-  }
-
-  const cancelEditing = () => {
-    setEditingId(null)
-    setEditingData(null)
-  }
-
-  const formatDateForInput = (dateString: string | null | undefined): string => {
-    if (!dateString) return ''
-    const date = new Date(dateString)
-    return date.toISOString().slice(0, 16)
+    setEditingData({ name: city.name, slug: city.slug, status: city.status, order: city.order, latitude: city.latitude, longitude: city.longitude, isLaunched: city.isLaunched, launchDate: city.launchDate, partnerRegistry: city.partnerRegistry })
   }
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600" />
       </div>
     )
   }
 
   return (
-
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Gestión de Ciudades</h2>
-          <p className="text-gray-600 mt-1">Administra las ciudades disponibles en la plataforma</p>
+          <p className="text-gray-500 mt-1 text-sm">Configura el estado operativo y la disponibilidad para clientes de cada ciudad.</p>
         </div>
         <button
-          onClick={() => setShowAddForm(true)}
-          className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition"
+          onClick={() => { setShowAddForm(true); setEditingId(null) }}
+          className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition text-sm font-semibold"
         >
-          <Plus size={20} />
-          Agregar Ciudad
+          <Plus size={18} /> Nueva Ciudad
         </button>
       </div>
 
+      {/* Formulario nueva ciudad */}
       {showAddForm && (
-        <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-          <h3 className="text-lg font-semibold mb-4">Nueva Ciudad</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nombre
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                placeholder="Ej.: Medellín"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Slug
-              </label>
-              <input
-                type="text"
-                value={formData.slug}
-                onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase() })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                placeholder="Ej.: medellin"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Estado
-              </label>
-              <select
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value as CityStatus })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              >
-                <option value="ACTIVE">Activa</option>
-                <option value="INACTIVE">Inactiva</option>
-                <option value="COMING_SOON">Próximamente</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Orden
-              </label>
-              <input
-                type="number"
-                value={formData.order}
-                onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <div className="flex items-center gap-1">
-                  <Navigation size={14} />
-                  Latitud
-                </div>
-              </label>
-              <input
-                type="number"
-                step="0.0001"
-                value={formData.latitude ?? ''}
-                onChange={(e) => setFormData({ ...formData, latitude: e.target.value ? parseFloat(e.target.value) : null })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                placeholder="Ej.: 6.2442"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <div className="flex items-center gap-1">
-                  <Navigation size={14} />
-                  Longitud
-                </div>
-              </label>
-              <input
-                type="number"
-                step="0.0001"
-                value={formData.longitude ?? ''}
-                onChange={(e) => setFormData({ ...formData, longitude: e.target.value ? parseFloat(e.target.value) : null })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                placeholder="Ej.: -75.5812"
-              />
-            </div>
-            {formData.status !== 'ACTIVE' && (
-              <div className="col-span-2">
-                <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={formData.isLaunched}
-                    onChange={(e) => setFormData({ ...formData, isLaunched: e.target.checked })}
-                    className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-                  />
-                  Programar lanzamiento
-                </label>
-              </div>
-            )}
-            {formData.isLaunched && formData.status !== 'ACTIVE' && (
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Fecha de lanzamiento
-                </label>
-                <input
-                  type="datetime-local"
-                  value={formatDateForInput(formData.launchDate)}
-                  onChange={(e) => setFormData({ ...formData, launchDate: e.target.value || null })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                />
-              </div>
-            )}
-            {formData.status === 'ACTIVE' && (
-              <div className="col-span-2">
-                <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={formData.partnerRegistry}
-                    onChange={(e) => setFormData({ ...formData, partnerRegistry: e.target.checked })}
-                    className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-                  />
-                  Registro de socios habilitado
-                </label>
-              </div>
-            )}
-          </div>
-
-          <div className="flex gap-2 mt-4">
-            <button
-              onClick={handleAdd}
-              className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition"
-            >
-              <Save size={18} />
-              Guardar
-            </button>
-            <button
-              onClick={() => {
-                setShowAddForm(false)
-                setFormData({ name: '', slug: '', status: 'ACTIVE' as CityStatus, order: 0, latitude: null, longitude: null, isLaunched: false, launchDate: null, partnerRegistry: false })
-              }}
-              className="flex items-center gap-2 bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition"
-            >
-              <X size={18} />
-              Cancelar
-            </button>
-          </div>
+        <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-6">
+          <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <Plus size={18} className="text-primary-600" /> Nueva Ciudad
+          </h3>
+          <CityForm
+            data={newCity}
+            onChange={setNewCity}
+            onSave={handleAdd}
+            onCancel={() => { setShowAddForm(false); setNewCity({ ...EMPTY_FORM }) }}
+            saveLabel={saving ? 'Guardando…' : 'Crear Ciudad'}
+          />
         </div>
-      )
-      }
+      )}
 
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Ciudad
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Slug
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Estado
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Orden
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Coordenadas
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Lanzamiento
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Registro de Socios
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Acciones
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {cities.map((city) => (
-              <tr key={city.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <MapPin className="text-primary-600 mr-2" size={20} />
-                    <span className="text-sm font-medium text-gray-900">{city.name}</span>
+      {/* Cards de ciudades */}
+      <div className="grid gap-4">
+        {cities.map((city) => {
+          const badge = statusBadge[city.status]
+          const isEditing = editingId === city.id
+
+          return (
+            <div key={city.id} className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+              {/* Header de la card */}
+              <div className="flex items-start justify-between px-6 py-4 border-b border-gray-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-primary-100 rounded-xl flex items-center justify-center">
+                    <MapPin size={20} className="text-primary-600" />
                   </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm text-gray-600">{city.slug}</span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {editingId === city.id && editingData ? (
-                    <select
-                      value={editingData.status}
-                      onChange={(e) => setEditingData({ ...editingData, status: e.target.value as CityStatus })}
-                      className="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500"
-                    >
-                      <option value="ACTIVE">Activa</option>
-                      <option value="INACTIVE">Inactiva</option>
-                      <option value="COMING_SOON">Próximamente</option>
-                    </select>
-                  ) : (
-                    <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[city.status]}`}>
-                      {statusLabels[city.status]}
-                    </span>
-                  )}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {editingId === city.id && editingData ? (
-                    <input
-                      type="number"
-                      value={editingData.order}
-                      onChange={(e) => setEditingData({ ...editingData, order: parseInt(e.target.value) })}
-                      className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
-                    />
-                  ) : (
-                    <span className="text-sm text-gray-600">{city.order}</span>
-                  )}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {editingId === city.id && editingData ? (
-                    <div className="flex flex-col gap-2">
-                      <input
-                        type="number"
-                        step="0.0001"
-                        value={editingData.latitude ?? ''}
-                        onChange={(e) => setEditingData({ ...editingData, latitude: e.target.value ? parseFloat(e.target.value) : null })}
-                        className="w-32 px-2 py-1 border border-gray-300 rounded text-xs"
-                        placeholder="Latitude"
-                      />
-                      <input
-                        type="number"
-                        step="0.0001"
-                        value={editingData.longitude ?? ''}
-                        onChange={(e) => setEditingData({ ...editingData, longitude: e.target.value ? parseFloat(e.target.value) : null })}
-                        className="w-32 px-2 py-1 border border-gray-300 rounded text-xs"
-                        placeholder="Longitude"
-                      />
-                    </div>
-                  ) : (
-                    <div className="text-xs text-gray-600">
-                      {city.latitude != null && city.longitude != null ? (
-                        <div className="flex items-center gap-1">
-                          <Navigation size={12} className="text-primary-600" />
-                          <span>{city.latitude.toFixed(4)}, {city.longitude.toFixed(4)}</span>
-                        </div>
-                      ) : (
-                        <span className="text-gray-400 italic">Sin coordenadas</span>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-base font-bold text-gray-900">{city.name}</span>
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${badge.cls}`}>
+                        {badge.icon} {badge.label}
+                      </span>
+                      {city.partnerRegistry && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full text-xs font-semibold">
+                          <Users size={11} /> Socios abierto
+                        </span>
                       )}
                     </div>
-                  )}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {editingId === city.id && editingData ? (
-                    <div className="flex flex-col gap-2">
-                      <label className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={editingData.isLaunched}
-                          onChange={(e) => setEditingData({ ...editingData, isLaunched: e.target.checked })}
-                          disabled={editingData.status === 'ACTIVE'}
-                          className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                        />
-                        Programado
-                      </label>
-                      {editingData.isLaunched && editingData.status !== 'ACTIVE' && (
-                        <input
-                          type="datetime-local"
-                          value={formatDateForInput(editingData.launchDate)}
-                          onChange={(e) => setEditingData({ ...editingData, launchDate: e.target.value || null })}
-                          className="px-2 py-1 border border-gray-300 rounded text-xs"
-                        />
-                      )}
-                    </div>
-                  ) : (
-                    <div className="text-xs text-gray-600">
-                      {city.isLaunched && city.status !== 'ACTIVE' ? (
-                        <div className="flex flex-col gap-1">
-                          <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-semibold">
-                            Programado
-                          </span>
-                          {city.launchDate && (
-                            <span className="text-gray-500">
-                              {new Date(city.launchDate).toLocaleString('es-ES', {
-                                day: '2-digit',
-                                month: '2-digit',
-                                year: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </span>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-gray-400 italic">No programado</span>
-                      )}
-                    </div>
-                  )}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {editingId === city.id && editingData ? (
-                    editingData.status === 'ACTIVE' ? (
-                      <label className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={editingData.partnerRegistry}
-                          onChange={(e) => setEditingData({ ...editingData, partnerRegistry: e.target.checked })}
-                          className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-                        />
-                        Enabled
-                      </label>
-                    ) : (
-                      <span className="text-xs text-gray-400 italic">Only available for active cities</span>
-                    )
-                  ) : (
-                    <div className="text-xs text-gray-600">
-                      {city.status === 'ACTIVE' ? (
-                        city.partnerRegistry ? (
-                          <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-semibold">
-                            Habilitado
-                          </span>
-                        ) : (
-                          <span className="text-gray-400 italic">Deshabilitado</span>
-                        )
-                      ) : (
-                        <span className="text-gray-400 italic">N/A</span>
-                      )}
-                    </div>
-                  )}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <div className="flex items-center justify-end gap-2">
-                    {editingId === city.id ? (
-                      <>
-                        <button
-                          onClick={saveEditing}
-                          className="text-green-600 hover:text-green-900"
-                        >
-                          <Save size={18} />
-                        </button>
-                        <button
-                          onClick={cancelEditing}
-                          className="text-gray-600 hover:text-gray-900"
-                        >
-                          <X size={18} />
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        onClick={() => startEditing(city)}
-                        className="text-primary-600 hover:text-primary-900"
-                      >
-                        <Edit2 size={18} />
+                    <span className="text-xs text-gray-400 font-mono">/{city.slug}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  {isEditing ? (
+                    <>
+                      <button onClick={handleSaveEdit} disabled={saving} className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-xs font-semibold transition disabled:opacity-50">
+                        <Save size={13} /> {saving ? 'Guardando…' : 'Guardar'}
                       </button>
-                    )}
-                    <button
-                      onClick={() => handleDelete(city.id)}
-                      className="text-red-600 hover:text-red-900"
-                    >
-                      <Trash2 size={18} />
-                    </button>
+                      <button onClick={() => { setEditingId(null); setEditingData(null) }} className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-xs transition">
+                        <X size={13} /> Cancelar
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button onClick={() => startEditing(city)} className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition" title="Editar">
+                        <Edit2 size={16} />
+                      </button>
+                      <button onClick={() => handleDelete(city.id)} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Eliminar">
+                        <Trash2 size={16} />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Cuerpo */}
+              {isEditing && editingData ? (
+                <div className="px-6 py-5">
+                  <CityForm
+                    data={editingData}
+                    onChange={setEditingData}
+                    onSave={handleSaveEdit}
+                    onCancel={() => { setEditingId(null); setEditingData(null) }}
+                    saveLabel={saving ? 'Guardando…' : 'Guardar cambios'}
+                  />
+                </div>
+              ) : (
+                <div className="px-6 py-4 grid grid-cols-3 gap-6 text-sm">
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 flex items-center gap-1">
+                      <Calendar size={11} /> Disponible para clientes
+                    </p>
+                    <LaunchBadge city={city} />
                   </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 flex items-center gap-1">
+                      <Users size={11} /> Registro de socios
+                    </p>
+                    {city.partnerRegistry ? (
+                      <span className="inline-flex items-center gap-1 text-green-700 font-semibold text-xs">
+                        <CheckCircle size={13} /> Habilitado
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 text-xs italic">Deshabilitado</span>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 flex items-center gap-1">
+                      <Navigation size={11} /> Coordenadas
+                    </p>
+                    {city.latitude != null && city.longitude != null ? (
+                      <span className="text-xs text-gray-600 font-mono">{city.latitude.toFixed(4)}, {city.longitude.toFixed(4)}</span>
+                    ) : (
+                      <span className="text-gray-400 text-xs italic">Sin coordenadas</span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })}
+
+        {cities.length === 0 && (
+          <div className="text-center py-16 text-gray-400">
+            <MapPin size={40} className="mx-auto mb-3 opacity-30" />
+            <p className="font-medium">No hay ciudades configuradas</p>
+            <p className="text-sm mt-1">Agrega la primera ciudad con el botón de arriba.</p>
+          </div>
+        )}
       </div>
-    </div >
+    </div>
   )
 }
