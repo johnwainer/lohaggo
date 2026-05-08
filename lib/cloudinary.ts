@@ -81,7 +81,7 @@ class CloudinaryService {
     const signature = this.generateSignature(params)
 
     const formData = new FormData()
-    formData.append('file', new Blob([buffer], { type: file.type || 'application/octet-stream' }))
+    formData.append('file', new Blob([buffer], { type: file.type || 'application/octet-stream' }), file.name || 'upload')
     formData.append('folder', folder)
     formData.append('timestamp', timestamp.toString())
     formData.append('api_key', this.config.apiKey)
