@@ -11,9 +11,9 @@ export const metadata: Metadata = {
         siteName: 'LoHaggo',
         images: [
             {
-                url: 'https://www.lohaggo.com/og-unete.jpg',
-                width: 1200,
-                height: 630,
+                url: 'https://www.lohaggo.com/icon-512.png',
+                width: 512,
+                height: 512,
                 alt: 'Únete a LoHaggo como profesional y recibe clientes',
             },
         ],
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
         card: 'summary_large_image',
         title: '¿Eres profesional? Únete a LoHaggo y recibe clientes hoy',
         description: 'Más de 500 socios ya están ganando en LoHaggo. Regístrate gratis.',
-        images: ['https://www.lohaggo.com/og-unete.jpg'],
+        images: ['https://www.lohaggo.com/icon-512.png'],
     },
     alternates: {
         canonical: 'https://www.lohaggo.com/unete',
