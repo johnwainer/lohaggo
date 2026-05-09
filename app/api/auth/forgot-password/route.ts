@@ -3,10 +3,14 @@ import { prisma } from "@/lib/prisma"
 import { encode } from "next-auth/jwt"
 import { sendMessageViaProvider } from "@/lib/messaging/providers"
 import { getMessagingProviderRuntimeConfig } from "@/lib/messaging/provider-config"
+import { createLogger } from "@/lib/logger"
+import { forgotPasswordRateLimiter } from "@/lib/rate-limit"
 
 export const dynamic = 'force-dynamic'
 
-export async function POST(request: NextRequest) {
+const logger = createLogger('forgot-password')
+
+async function handlePOST(request: NextRequest) {
   try {
     const body = await request.json()
     const email = body?.email?.trim()?.toLowerCase()
@@ -25,24 +29,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, message: "Si el correo está registrado, te hemos enviado las instrucciones." })
     }
 
-    const secret = process.env.NEXTAUTH_SECRET || "default_secret"
+    const secret = process.env.NEXTAUTH_SECRET
+    if (!secret) {
+      logger.error('NEXTAUTH_SECRET not configured')
+      return NextResponse.json({ error: "Ocurrió un error al procesar la solicitud" }, { status: 500 })
+    }
+
     const token = await encode({
-      token: { 
-        email: user.email, 
+      token: {
+        email: user.email,
         intent: "reset",
-        hash: user.password.substring(0, 15),
+        hash: user.password.substring(0, 30),
         role: "CLIENT" as any
       },
-      secret: secret,
+      secret,
       maxAge: 3600 // 1 hour
     })
-    
+
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "https://www.lohaggo.com"
     const resetLink = `${baseUrl}/restablecer-contrasena?token=${token}`
 
     const runtimeConfig = await getMessagingProviderRuntimeConfig()
-    
-    // We attempt to send the email using our existing providers
+
     const htmlBody = `
       <div style="font-family: sans-serif; padding: 20px; background-color: #f9f9f9;">
         <div style="background-color: white; padding: 30px; border-radius: 8px; max-width: 600px; margin: 0 auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
@@ -67,15 +75,17 @@ export async function POST(request: NextRequest) {
       body: htmlBody
     }, runtimeConfig)
 
-    // Log the link so developers can see it in Vercel if SendGrid is incorrectly configured
-    console.log(`[FORGOT PASSWORD] Link generated for ${email}: ${resetLink}`)
     if (!result.ok) {
-        console.warn(`[FORGOT PASSWORD] Failed to send email to ${email}: ${result.errorMessage}`)
+      logger.warn('Failed to send password reset email', { userId: user.id, error: result.errorMessage })
     }
 
     return NextResponse.json({ success: true, message: "Si el correo está registrado, te hemos enviado las instrucciones." })
   } catch (error) {
-    console.error("Forgot password error:", error)
+    logger.error("Forgot password error", { error })
     return NextResponse.json({ error: "Ocurrió un error al procesar la solicitud" }, { status: 500 })
   }
+}
+
+export async function POST(request: NextRequest) {
+  return forgotPasswordRateLimiter(request, handlePOST)
 }

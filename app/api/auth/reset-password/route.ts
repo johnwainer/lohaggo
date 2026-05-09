@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
 import { decode } from "next-auth/jwt"
+import { createLogger } from "@/lib/logger"
+import { forgotPasswordRateLimiter } from "@/lib/rate-limit"
 
 export const dynamic = 'force-dynamic'
 
-export async function POST(request: NextRequest) {
+const logger = createLogger('reset-password')
+
+async function handlePOST(request: NextRequest) {
   try {
     const body = await request.json()
     const { token, newPassword } = body
@@ -17,7 +21,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const secret = process.env.NEXTAUTH_SECRET || "default_secret"
+    const secret = process.env.NEXTAUTH_SECRET
+    if (!secret) {
+      logger.error('NEXTAUTH_SECRET not configured')
+      return NextResponse.json({ error: 'Hubo un error al procesar tu solicitud.' }, { status: 500 })
+    }
+
     const decoded = await decode({ token, secret })
 
     if (!decoded || decoded.intent !== 'reset' || !decoded.email) {
@@ -31,11 +40,11 @@ export async function POST(request: NextRequest) {
     const user = await prisma.user.findUnique({ where: { email } })
 
     if (!user) {
-      return NextResponse.json({ error: 'Usuario no encontrado.' }, { status: 404 })
+      return NextResponse.json({ error: 'El enlace ha caducado o no es válido.' }, { status: 400 })
     }
 
-    // Verify token payload to make sure it's single use
-    if (decoded.hash !== user.password.substring(0, 15)) {
+    // Single-use check: token embeds first 30 chars of hash; changes when password is reset
+    if (decoded.hash !== user.password.substring(0, 30)) {
       return NextResponse.json(
         { error: 'El enlace ya fue utilizado o no es válido.' },
         { status: 400 }
@@ -51,7 +60,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, message: 'Contraseña actualizada con éxito.' })
   } catch (error) {
-    console.error('Error resetting password:', error)
+    logger.error('Error resetting password', { error })
     return NextResponse.json({ error: 'Hubo un error al procesar tu solicitud.' }, { status: 500 })
   }
+}
+
+export async function POST(request: NextRequest) {
+  return forgotPasswordRateLimiter(request, handlePOST)
 }

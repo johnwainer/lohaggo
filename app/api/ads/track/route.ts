@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
 import { z } from 'zod'
+import { adsTrackRateLimiter } from '@/lib/rate-limit'
 
 const logger = createLogger('ads-track')
 
@@ -10,7 +11,7 @@ const trackSchema = z.object({
   type: z.enum(['impression', 'click'])
 })
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   try {
     const body = await request.json()
 
@@ -38,4 +39,8 @@ export async function POST(request: NextRequest) {
     logger.error('Error tracking ad:', error || undefined)
     return NextResponse.json({ error: 'Error tracking ad' }, { status: 500 })
   }
+}
+
+export async function POST(request: NextRequest) {
+  return adsTrackRateLimiter(request, handlePOST)
 }

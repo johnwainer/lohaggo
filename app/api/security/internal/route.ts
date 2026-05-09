@@ -13,7 +13,7 @@ const AUTO_BLOCK_THRESHOLD = 8
 const AUTO_BLOCK_HOURS = 24
 
 function getInternalToken() {
-  return env.SECURITY_INTERNAL_TOKEN || env.NEXTAUTH_SECRET_CURRENT || env.NEXTAUTH_SECRET
+  return env.SECURITY_INTERNAL_TOKEN || env.NEXTAUTH_SECRET_CURRENT
 }
 
 function isAuthorized(request: NextRequest): boolean {

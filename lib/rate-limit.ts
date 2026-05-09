@@ -124,3 +124,15 @@ export const apiRateLimiter = createRateLimiter({
   max: 60,
   message: 'Demasiadas solicitudes. Por favor, intente más tarde.',
 });
+
+export const forgotPasswordRateLimiter = createRateLimiter({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: 'Demasiadas solicitudes de recuperación. Por favor, intente nuevamente en 1 hora.',
+});
+
+export const adsTrackRateLimiter = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: 'Demasiadas solicitudes.',
+});

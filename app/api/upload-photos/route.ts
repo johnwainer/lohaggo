@@ -5,6 +5,7 @@ import { existsSync } from 'fs'
 import { createLogger } from '@/lib/logger'
 import { cloudinaryService } from '@/lib/cloudinary'
 import { handleApiError } from '@/lib/errors'
+import { getCurrentUser } from '@/lib/auth'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -33,6 +34,11 @@ async function uploadToLocal(file: File): Promise<string> {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getCurrentUser()
+    if (!user) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    }
+
     const formData = await request.formData()
     const photos = formData.getAll('photos') as File[]
 
