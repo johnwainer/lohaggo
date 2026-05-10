@@ -87,6 +87,15 @@ const FAQ_ITEMS = [
 
 const SERVICES_PAGE_SIZE = 10
 
+const PILL_SERVICE_MAP: Record<string, string> = {
+    'Plomería': 'Plomería',
+    'Electricistas': 'Electricidad',
+    'Carpintería': 'Carpintería',
+    'Aseo y Limpieza': 'Limpieza de hogar',
+    'Mensajeros': 'Mensajería',
+    'Reparaciones': 'Reparación de electrodomésticos',
+}
+
 // ─── Steps section ───────────────────────────────────────────────────────
 function HowItWorksSection({ className = '' }: { className?: string }) {
     return (
@@ -394,11 +403,9 @@ function SqueezeForm() {
     }
 
     const handlePillClick = (pillLabel: string) => {
-        const serviceName = pillLabel.split(' ').slice(1).join(' ')
-        const match = allServices.find(s =>
-            s.toLowerCase().includes(serviceName.toLowerCase()) ||
-            serviceName.toLowerCase().includes(s.toLowerCase())
-        )
+        const pillName = pillLabel.split(' ').slice(1).join(' ')
+        const targetService = PILL_SERVICE_MAP[pillName]
+        const match = allServices.find(s => s === targetService)
         if (match && !formData.oficio.includes(match) && formData.oficio.length < 5) {
             const idx = allServices.indexOf(match)
             setServicesPage(Math.floor(idx / SERVICES_PAGE_SIZE))
