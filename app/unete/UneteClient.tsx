@@ -393,6 +393,21 @@ function SqueezeForm() {
         }, 10)
     }
 
+    const handlePillClick = (pillLabel: string) => {
+        const serviceName = pillLabel.split(' ').slice(1).join(' ')
+        const match = allServices.find(s =>
+            s.toLowerCase().includes(serviceName.toLowerCase()) ||
+            serviceName.toLowerCase().includes(s.toLowerCase())
+        )
+        if (match && !formData.oficio.includes(match) && formData.oficio.length < 5) {
+            const idx = allServices.indexOf(match)
+            setServicesPage(Math.floor(idx / SERVICES_PAGE_SIZE))
+            setFormData(prev => ({ ...prev, oficio: [...prev.oficio, match] }))
+        }
+        scrollToForm()
+        fireLeadEvent()
+    }
+
     // ── Floating CTA visibility (hides when form is in viewport) ──────────
     const [showFloatingCta, setShowFloatingCta] = useState(true)
     const formSectionRef = useRef<HTMLDivElement>(null)
@@ -452,11 +467,25 @@ function SqueezeForm() {
                                     Más de <span className="bg-yellow-400 text-yellow-900 text-xs sm:text-sm px-2 py-0.5 rounded-full inline-block">100+</span> servicios disponibles:
                                 </h3>
                                 <div className="flex flex-wrap gap-2.5">
-                                    {['🚰 Plomería', '⚡ Electricistas', '🪚 Carpintería', '🧹 Aseo y Limpieza', '🛵 Mensajeros', '🔧 Reparaciones'].map((s) => (
-                                        <span key={s} className="bg-white/20 hover:bg-white/30 transition-colors backdrop-blur-md text-white text-xs sm:text-sm font-bold px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5 shadow-sm">
-                                            {s}
-                                        </span>
-                                    ))}
+                                    {['🚰 Plomería', '⚡ Electricistas', '🪚 Carpintería', '🧹 Aseo y Limpieza', '🛵 Mensajeros', '🔧 Reparaciones'].map((s) => {
+                                        const svc = s.split(' ').slice(1).join(' ')
+                                        const isSelected = formData.oficio.some(o => o.toLowerCase().includes(svc.toLowerCase()) || svc.toLowerCase().includes(o.toLowerCase()))
+                                        return (
+                                            <button
+                                                key={s}
+                                                type="button"
+                                                onClick={() => handlePillClick(s)}
+                                                className={`transition-all backdrop-blur-md text-white text-xs sm:text-sm font-bold px-3 py-1.5 rounded-full border flex items-center gap-1.5 shadow-sm cursor-pointer active:scale-95 ${
+                                                    isSelected
+                                                        ? 'bg-white/40 border-white/60 ring-2 ring-white/40'
+                                                        : 'bg-white/20 hover:bg-white/30 hover:scale-105 border-white/10'
+                                                }`}
+                                            >
+                                                {isSelected && <Check size={11} className="flex-shrink-0" />}
+                                                {s}
+                                            </button>
+                                        )
+                                    })}
                                     <span className="text-yellow-300 text-xs sm:text-sm font-black px-1 py-1.5 flex items-center drop-shadow-md">y decenas más...</span>
                                 </div>
                             </div>
