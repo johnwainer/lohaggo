@@ -4,7 +4,15 @@ import { prisma } from '@/lib/prisma'
 import { auditAdminAction, requireAdmin } from '@/lib/admin-utils'
 
 function buildDocumentNumber(prefix: string) {
-  const stamp = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14)
+  const d = new Date()
+  const stamp = [
+    d.getUTCFullYear(),
+    String(d.getUTCMonth() + 1).padStart(2, '0'),
+    String(d.getUTCDate()).padStart(2, '0'),
+    String(d.getUTCHours()).padStart(2, '0'),
+    String(d.getUTCMinutes()).padStart(2, '0'),
+    String(d.getUTCSeconds()).padStart(2, '0'),
+  ].join('')
   const random = Math.random().toString(36).slice(2, 7).toUpperCase()
   return `${prefix}-${stamp}-${random}`
 }
