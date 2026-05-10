@@ -85,7 +85,7 @@ const FAQ_ITEMS = [
     },
 ]
 
-const SERVICES_PAGE_SIZE = 10
+const SERVICES_PAGE_SIZE = 8
 
 const PILL_SERVICE_MAP: Record<string, string> = {
     'Plomería': 'Plomería',
@@ -552,7 +552,7 @@ function SqueezeForm() {
                                 <h2 className="text-2xl font-black text-gray-900">Activa tu perfil profesional</h2>
                                 <span className="text-sm font-bold text-primary-500 bg-primary-50 px-3 py-1 rounded-full">100% Gratis</span>
                             </div>
-                            <p className="text-sm text-gray-600 font-medium">Déjanos tus datos para conectar con cientos de clientes en <span className="font-semibold text-gray-800">Medellín y el Área Metropolitana</span> que buscan tus servicios.</p>
+                            <p className="text-xs text-gray-500">Gratis · Solo toma 30 segundos.</p>
                         </div>
 
                         <form onSubmit={handleSubmit} className="space-y-4 relative">
@@ -630,7 +630,7 @@ function SqueezeForm() {
                                                             ? prev.oficio.filter((x) => x !== o)
                                                             : prev.oficio.length < 5 ? [...prev.oficio, o] : prev.oficio,
                                                     }))}
-                                                    className={`px-3 py-1.5 rounded-full text-sm font-semibold border-2 transition-all ${
+                                                    className={`px-2.5 py-1 rounded-full text-xs font-semibold border-2 transition-all ${
                                                         selected
                                                             ? 'bg-primary-500 border-primary-500 text-white'
                                                             : formData.oficio.length >= 5
