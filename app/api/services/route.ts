@@ -9,7 +9,6 @@ export const dynamic = 'force-dynamic'
 
 const logger = createLogger('services')
 
-const IDENTITY_TYPES = ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE']
 
 function normalizeCityEnum(cityName: string): City {
   return cityName
@@ -28,18 +27,11 @@ function enrichPartnerStats<T extends {
   }>
 }>(services: T[]) {
   return services.map((service) => {
-    const qualifiedPartners = service.partners.filter((partnerService) => {
-      const documents = partnerService.partner.documents || []
-      const hasIdentityDoc = documents.some((doc) => IDENTITY_TYPES.includes(doc.type))
-      const hasBackgroundCheck = documents.some((doc) => doc.type === 'ANTECEDENTES')
-      return hasIdentityDoc && hasBackgroundCheck
-    })
-
-    const availableCount = qualifiedPartners.length
+    const availableCount = service.partners.length
     const avgRating = availableCount > 0
       ? Number(
           (
-            qualifiedPartners.reduce((acc, item) => acc + (item.partner.rating || 0), 0) / availableCount
+            service.partners.reduce((acc, item) => acc + (item.partner.rating || 0), 0) / availableCount
           ).toFixed(1)
         )
       : 0
@@ -90,18 +82,11 @@ export async function GET(request: Request) {
       partners: {
         where: {
           active: true,
-          ...(cityEnum
-            ? {
-                partner: {
-                  city: cityEnum,
-                  isActive: true,
-                },
-              }
-            : {
-                partner: {
-                  isActive: true,
-                },
-              }),
+          partner: {
+            isActive: true,
+            verified: true,
+            ...(cityEnum ? { city: cityEnum } : {}),
+          },
         },
         include: {
           partner: {

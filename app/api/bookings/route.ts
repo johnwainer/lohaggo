@@ -124,13 +124,7 @@ export async function POST(request: Request) {
     if (partnerId) {
       const partner = await prisma.partnerProfile.findUnique({
         where: { id: partnerId },
-        include: {
-          documents: {
-            where: {
-              status: 'APPROVED'
-            }
-          }
-        }
+        select: { id: true, verified: true, isActive: true },
       })
 
       if (!partner) {
@@ -140,14 +134,7 @@ export async function POST(request: Request) {
         )
       }
 
-      const hasIdentityDoc = partner.documents.some(
-        doc => ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE'].includes(doc.type)
-      )
-      const hasBackgroundCheck = partner.documents.some(
-        doc => doc.type === 'ANTECEDENTES'
-      )
-
-      if (!hasIdentityDoc || !hasBackgroundCheck) {
+      if (!partner.verified || !partner.isActive) {
         return NextResponse.json(
           { error: "Este socio no tiene la verificación completa para prestar servicios" },
           { status: 403 }

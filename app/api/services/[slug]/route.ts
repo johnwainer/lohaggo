@@ -44,7 +44,8 @@ export async function GET(
             active: true,
             partner: {
               city: cityEnum as any,
-              isActive: true
+              isActive: true,
+              verified: true,
             }
           },
           include: {
@@ -58,13 +59,8 @@ export async function GET(
                   }
                 },
                 documents: {
-                  where: {
-                    status: 'APPROVED'
-                  },
-                  select: {
-                    type: true,
-                    status: true
-                  }
+                  where: { status: 'APPROVED' },
+                  select: { type: true, status: true }
                 }
               }
             }
@@ -80,21 +76,9 @@ export async function GET(
       )
     }
 
-    // Filtrar socios que tengan documentos de identidad y antecedentes aprobados
-    const filteredPartners = service.partners.filter(partnerService => {
-      const documents = partnerService.partner.documents || []
-      const hasIdentityDoc = documents.some(
-        doc => ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE'].includes(doc.type)
-      )
-      const hasBackgroundCheck = documents.some(
-        doc => doc.type === 'ANTECEDENTES'
-      )
-      return hasIdentityDoc && hasBackgroundCheck
-    })
-
     return NextResponse.json({
       ...service,
-      partners: filteredPartners
+      partners: service.partners,
     })
   } catch (error) {
     logger.error('Error fetching servicio:', error || undefined)
