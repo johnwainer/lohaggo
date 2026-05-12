@@ -93,11 +93,11 @@ const PILL_SERVICE_MAP: Record<string, string> = {
     'Lashistas': 'Maquillaje',
     'Masajistas': 'Masajes',
     'Aseo y Limpieza': 'Limpieza de hogar',
-    'Lo Hago Ya': 'Mensajería',
+    'LoHaggo Ya': 'Mensajería',
 }
 
 const SERVICE_DISPLAY_NAMES: Record<string, string> = {
-    'Mensajería': '⚡ Lo Hago Ya',
+    'Mensajería': '⚡ LoHaggo Ya',
 }
 
 const FEATURED_SERVICES = [
@@ -492,7 +492,7 @@ function SqueezeForm() {
                                     Más de <span className="bg-yellow-400 text-yellow-900 text-xs sm:text-sm px-2 py-0.5 rounded-full inline-block">100+</span> servicios disponibles:
                                 </h3>
                                 <div className="flex flex-wrap gap-2.5">
-                                    {['💅 Manicuristas', '💇 Estilistas', '👁️ Lashistas', '💆 Masajistas', '🧹 Aseo y Limpieza', '⚡ Lo Hago Ya'].map((s) => {
+                                    {['💅 Manicuristas', '💇 Estilistas', '👁️ Lashistas', '💆 Masajistas', '🧹 Aseo y Limpieza', '⚡ LoHaggo Ya'].map((s) => {
                                         const svc = s.split(' ').slice(1).join(' ')
                                         const mappedService = PILL_SERVICE_MAP[svc]
                                         const isSelected = mappedService ? formData.oficio.includes(mappedService) : formData.oficio.some(o => o.toLowerCase().includes(svc.toLowerCase()) || svc.toLowerCase().includes(o.toLowerCase()))
@@ -514,6 +514,9 @@ function SqueezeForm() {
                                     })}
                                     <span className="text-yellow-300 text-xs sm:text-sm font-black px-1 py-1.5 flex items-center drop-shadow-md">y decenas más...</span>
                                 </div>
+                                <p className="mt-3 text-white/60 text-xs leading-snug">
+                                    <span className="font-bold text-white/80">⚡ LoHaggo Ya</span> — servicio express: el cliente solicita ayuda urgente y tú respondes de inmediato.
+                                </p>
                             </div>
                         </div>
 
