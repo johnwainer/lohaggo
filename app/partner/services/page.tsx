@@ -13,6 +13,12 @@ import { formatCurrency } from '@/lib/utils'
 import AccountTopHeader from '@/components/shared/AccountTopHeader'
 import AccountPanel from '@/components/shared/AccountPanel'
 
+interface ApprovedDoc {
+  id: string
+  type: string
+  status: string
+}
+
 interface Service {
   id: string
   name: string
@@ -27,6 +33,18 @@ interface Service {
   partnerServiceId?: string
   price: number
   city?: string
+  approvedDocuments?: ApprovedDoc[]
+}
+
+const EDUCATION_TYPES = ['DIPLOMA_BACHILLERATO', 'DIPLOMA_TECNICO', 'DIPLOMA_TECNOLOGO', 'DIPLOMA_PROFESIONAL', 'DIPLOMA_POSGRADO', 'CERTIFICADO_CURSO']
+
+const DOC_ICONS: Record<string, string> = {
+  DIPLOMA_BACHILLERATO: '🎓',
+  DIPLOMA_TECNICO: '📋',
+  DIPLOMA_TECNOLOGO: '📋',
+  DIPLOMA_PROFESIONAL: '🏛️',
+  DIPLOMA_POSGRADO: '🎓',
+  CERTIFICADO_CURSO: '📜',
 }
 
 const CITIES = [
@@ -299,6 +317,19 @@ export default function ServicesManagementPage() {
                                   {service.duration} min
                                 </span>
                               </div>
+                              {service.approvedDocuments && service.approvedDocuments.filter(d => EDUCATION_TYPES.includes(d.type)).length > 0 && (
+                                <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                                  {service.approvedDocuments.filter(d => EDUCATION_TYPES.includes(d.type)).map(d => (
+                                    <span
+                                      key={d.id}
+                                      title={d.type.replace(/_/g, ' ')}
+                                      className="inline-flex items-center gap-1 text-xs bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded-full font-medium"
+                                    >
+                                      {DOC_ICONS[d.type] ?? '📄'} Certificado
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           </div>
                           <div className="flex items-center gap-2">

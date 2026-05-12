@@ -18,6 +18,12 @@ interface Document {
   rejectionReason?: string
   createdAt: string
   reviewedAt?: string
+  partnerServiceId?: string | null
+}
+
+interface PartnerService {
+  id: string
+  service: { name: string; icon: string }
 }
 
 const DOCUMENT_TYPES = {
@@ -53,6 +59,9 @@ export default function VerificationPage() {
   const [selectedType, setSelectedType] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [partnerServices, setPartnerServices] = useState<PartnerService[]>([])
+  const [selectedServiceId, setSelectedServiceId] = useState('')
+  const [linkingDocId, setLinkingDocId] = useState<string | null>(null)
   const [bookingsCount, setBookingsCount] = useState(0)
   const [requestsCount, setRequestsCount] = useState(0)
 
@@ -65,6 +74,7 @@ export default function VerificationPage() {
   useEffect(() => {
     fetchDocuments()
     fetchCounts()
+    fetchPartnerServices()
   }, [])
 
   const fetchCounts = async () => {
@@ -84,6 +94,20 @@ export default function VerificationPage() {
     } catch { /* silent */ }
   }
 
+  const fetchPartnerServices = async () => {
+    try {
+      const res = await fetch('/api/partner/services')
+      if (res.ok) {
+        const data = await res.json()
+        setPartnerServices(
+          (data.services ?? [])
+            .filter((s: any) => s.isActive)
+            .map((s: any) => ({ id: s.partnerServiceId, service: { name: s.name, icon: s.icon } }))
+        )
+      }
+    } catch { /* silent */ }
+  }
+
   const fetchDocuments = async () => {
     try {
       const res = await fetch('/api/partner/documents')
@@ -96,6 +120,7 @@ export default function VerificationPage() {
   const openUploadFor = (category: 'IDENTITY' | 'EDUCATION') => {
     setSelectedCategory(category)
     setSelectedType('')
+    setSelectedServiceId('')
     setSelectedFile(null)
     setPreviewUrl(null)
     setShowUploadModal(true)
@@ -117,6 +142,7 @@ export default function VerificationPage() {
       const formData = new FormData()
       formData.append('file', selectedFile)
       formData.append('type', selectedType)
+      if (selectedServiceId) formData.append('partnerServiceId', selectedServiceId)
       const res = await fetch('/api/partner/documents', { method: 'POST', body: formData })
       if (res.ok) {
         await fetchDocuments()
@@ -127,6 +153,20 @@ export default function VerificationPage() {
       }
     } catch { /* silent */ } finally {
       setUploading(false)
+    }
+  }
+
+  const handleLinkService = async (documentId: string, partnerServiceId: string) => {
+    setLinkingDocId(documentId)
+    try {
+      const res = await fetch('/api/partner/documents', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ documentId, partnerServiceId: partnerServiceId || null }),
+      })
+      if (res.ok) await fetchDocuments()
+    } catch { /* silent */ } finally {
+      setLinkingDocId(null)
     }
   }
 
@@ -234,6 +274,41 @@ export default function VerificationPage() {
           />
         </div>
 
+        {/* Banner: education docs approved without service linked */}
+        {(() => {
+          const unlinked = educationDocs.filter(
+            d => d.status === 'APPROVED' && !d.partnerServiceId && partnerServices.length > 0
+          )
+          if (!unlinked.length) return null
+          return (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
+              <p className="text-sm font-bold text-amber-800 flex items-center gap-1.5 mb-2">
+                <GraduationCap className="w-4 h-4" />
+                {unlinked.length === 1 ? 'Tienes un certificado aprobado sin servicio asignado' : `Tienes ${unlinked.length} certificados aprobados sin servicio asignado`}
+              </p>
+              <p className="text-xs text-amber-700 mb-3">Asígnalos a un servicio para que aparezcan en tu perfil.</p>
+              <div className="space-y-2">
+                {unlinked.map(doc => (
+                  <div key={doc.id} className="flex items-center gap-2">
+                    <span className="text-xs text-amber-900 font-medium flex-1 truncate">{getDocumentLabel(doc.type)}</span>
+                    <select
+                      defaultValue=""
+                      onChange={e => e.target.value && handleLinkService(doc.id, e.target.value)}
+                      disabled={linkingDocId === doc.id}
+                      className="text-xs border border-amber-300 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-amber-400 focus:border-transparent"
+                    >
+                      <option value="">Seleccionar servicio…</option>
+                      {partnerServices.map(ps => (
+                        <option key={ps.id} value={ps.id}>{ps.service.icon} {ps.service.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        })()}
+
         {/* Document list */}
         {documents.length > 0 && (
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -247,11 +322,20 @@ export default function VerificationPage() {
               </button>
             </div>
             <div className="divide-y divide-gray-100">
-              {documents.map((doc) => (
+              {documents.map((doc) => {
+                const linkedService = doc.partnerServiceId
+                  ? partnerServices.find(ps => ps.id === doc.partnerServiceId)
+                  : null
+                return (
                 <div key={doc.id} className="flex items-center gap-3 px-4 py-3">
                   <FileText className="w-5 h-5 text-gray-400 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">{getDocumentLabel(doc.type)}</p>
+                    {linkedService && (
+                      <p className="text-xs text-purple-600 font-medium mt-0.5 flex items-center gap-1">
+                        <span>{linkedService.service.icon}</span>{linkedService.service.name}
+                      </p>
+                    )}
                     <p className="text-xs text-gray-400">{new Date(doc.createdAt).toLocaleDateString('es-CO')}</p>
                     {doc.rejectionReason && (
                       <p className="text-xs text-red-500 mt-0.5">Razón: {doc.rejectionReason}</p>
@@ -277,7 +361,8 @@ export default function VerificationPage() {
                     )}
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}
@@ -326,6 +411,25 @@ export default function VerificationPage() {
                 ))}
               </select>
             </div>
+
+            {selectedCategory === 'EDUCATION' && partnerServices.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  ¿A qué servicio aplica este certificado? <span className="text-gray-400 font-normal">(opcional)</span>
+                </label>
+                <select
+                  value={selectedServiceId}
+                  onChange={(e) => setSelectedServiceId(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                >
+                  <option value="">Sin asignar por ahora</option>
+                  {partnerServices.map(ps => (
+                    <option key={ps.id} value={ps.id}>{ps.service.icon} {ps.service.name}</option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-400">Puedes asignarlo después desde esta pantalla.</p>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Archivo (PDF o imagen)</label>

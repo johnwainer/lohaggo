@@ -25,14 +25,14 @@ export async function GET(request: NextRequest) {
          include: {
            services: {
              include: {
-               service: {
-                 include: {
-                   category: true
-                 }
-               }
-             }
-           }
-         }
+               service: { include: { category: true } },
+               documents: {
+                 where: { status: 'APPROVED' },
+                 select: { id: true, type: true, status: true },
+               },
+             },
+           },
+         },
        })
      } else {
        // Modo normal: requiere autenticación
@@ -46,14 +46,14 @@ export async function GET(request: NextRequest) {
          include: {
            services: {
              include: {
-               service: {
-                 include: {
-                   category: true
-                 }
-               }
-             }
-           }
-         }
+               service: { include: { category: true } },
+               documents: {
+                 where: { status: 'APPROVED' },
+                 select: { id: true, type: true, status: true },
+               },
+             },
+           },
+         },
        })
      }
 
@@ -78,7 +78,8 @@ export async function GET(request: NextRequest) {
         isActive: !!partnerService,
         partnerServiceId: partnerService?.id,
         price: partnerService?.price || (service as { basePrice?: number }).basePrice,
-        city: partnerService?.city
+        city: partnerService?.city,
+        approvedDocuments: partnerService?.documents ?? [],
       }
     })
 

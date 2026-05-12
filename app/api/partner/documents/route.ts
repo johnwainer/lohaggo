@@ -53,6 +53,7 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData()
     const file = formData.get('file') as File
     const type = formData.get('type') as string
+    const partnerServiceId = formData.get('partnerServiceId') as string | null
 
     if (!file || !type) {
       return NextResponse.json({ error: 'Archivo y tipo son requeridos' }, { status: 400 })
@@ -64,6 +65,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Solo se permiten archivos PDF o imágenes (JPG, PNG)' }, { status: 400 })
     }
 
+    // Validate partnerServiceId belongs to this partner if provided
+    if (partnerServiceId) {
+      const ps = await prisma.partnerService.findFirst({
+        where: { id: partnerServiceId, partnerId: partnerProfile.id },
+      })
+      if (!ps) return NextResponse.json({ error: 'Servicio inválido' }, { status: 400 })
+    }
+
     const resourceType = isPdf ? 'raw' : 'image'
     const { url, publicId } = await cloudinaryService.upload(file, 'lohaggo/documents', resourceType)
 
@@ -72,8 +81,9 @@ export async function POST(req: NextRequest) {
         partnerId: partnerProfile.id,
         type: type as any,
         documentUrl: url,
-        publicId: publicId
-      }
+        publicId: publicId,
+        ...(partnerServiceId ? { partnerServiceId } : {}),
+      },
     })
 
     await createNotification({
@@ -86,6 +96,44 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(document)
   } catch (error) {
     return handleApiError(error, 'partner-documents-post')
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user || session.user.role !== 'PARTNER') {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    }
+
+    const partnerProfile = await prisma.partnerProfile.findUnique({
+      where: { userId: session.user.id },
+    })
+    if (!partnerProfile) return NextResponse.json({ error: 'Perfil no encontrado' }, { status: 404 })
+
+    const { documentId, partnerServiceId } = await req.json()
+    if (!documentId) return NextResponse.json({ error: 'documentId requerido' }, { status: 400 })
+
+    const doc = await prisma.verificationDocument.findFirst({
+      where: { id: documentId, partnerId: partnerProfile.id },
+    })
+    if (!doc) return NextResponse.json({ error: 'Documento no encontrado' }, { status: 404 })
+
+    if (partnerServiceId) {
+      const ps = await prisma.partnerService.findFirst({
+        where: { id: partnerServiceId, partnerId: partnerProfile.id },
+      })
+      if (!ps) return NextResponse.json({ error: 'Servicio inválido' }, { status: 400 })
+    }
+
+    const updated = await prisma.verificationDocument.update({
+      where: { id: documentId },
+      data: { partnerServiceId: partnerServiceId ?? null },
+    })
+
+    return NextResponse.json(updated)
+  } catch (error) {
+    return handleApiError(error, 'partner-documents-patch')
   }
 }
 
