@@ -70,3 +70,4 @@ ios/App/App/public/
 *.sql
 docs/sql/
 sql-migrations/
+.playwright-mcp/
