@@ -88,13 +88,24 @@ const FAQ_ITEMS = [
 const SERVICES_PAGE_SIZE = 8
 
 const PILL_SERVICE_MAP: Record<string, string> = {
-    'Plomería': 'Plomería',
-    'Electricistas': 'Electricidad',
-    'Carpintería': 'Carpintería',
+    'Manicuristas': 'Manicure y pedicure',
+    'Estilistas': 'Peluquería a domicilio',
+    'Lashistas': 'Maquillaje',
+    'Masajistas': 'Masajes',
     'Aseo y Limpieza': 'Limpieza de hogar',
     'Mensajeros': 'Mensajería',
-    'Reparaciones': 'Reparación de electrodomésticos',
 }
+
+const FEATURED_SERVICES = [
+    'Manicure y pedicure',
+    'Peluquería a domicilio',
+    'Masajes',
+    'Maquillaje',
+    'Barbería',
+    'Limpieza de hogar',
+    'Mensajería',
+    'Fotografía',
+]
 
 // ─── Steps section ───────────────────────────────────────────────────────
 function HowItWorksSection({ className = '' }: { className?: string }) {
@@ -219,7 +230,10 @@ function SqueezeForm() {
         fetch('/api/public/services')
             .then((r) => r.json())
             .then((data: { id: string; name: string }[]) => {
-                setAllServices(data.map((s) => s.name))
+                const names = data.map((s) => s.name)
+                const featured = FEATURED_SERVICES.filter(f => names.includes(f))
+                const rest = names.filter(n => !FEATURED_SERVICES.includes(n))
+                setAllServices([...featured, ...rest])
             })
             .catch(() => {})
     }, [])
@@ -474,9 +488,10 @@ function SqueezeForm() {
                                     Más de <span className="bg-yellow-400 text-yellow-900 text-xs sm:text-sm px-2 py-0.5 rounded-full inline-block">100+</span> servicios disponibles:
                                 </h3>
                                 <div className="flex flex-wrap gap-2.5">
-                                    {['🚰 Plomería', '⚡ Electricistas', '🪚 Carpintería', '🧹 Aseo y Limpieza', '🛵 Mensajeros', '🔧 Reparaciones'].map((s) => {
+                                    {['💅 Manicuristas', '💇 Estilistas', '👁️ Lashistas', '💆 Masajistas', '🧹 Aseo y Limpieza', '🛵 Mensajeros'].map((s) => {
                                         const svc = s.split(' ').slice(1).join(' ')
-                                        const isSelected = formData.oficio.some(o => o.toLowerCase().includes(svc.toLowerCase()) || svc.toLowerCase().includes(o.toLowerCase()))
+                                        const mappedService = PILL_SERVICE_MAP[svc]
+                                        const isSelected = mappedService ? formData.oficio.includes(mappedService) : formData.oficio.some(o => o.toLowerCase().includes(svc.toLowerCase()) || svc.toLowerCase().includes(o.toLowerCase()))
                                         return (
                                             <button
                                                 key={s}
