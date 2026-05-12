@@ -131,6 +131,19 @@ export async function POST(req: NextRequest) {
 
     if (status === 'APPROVED') {
       await checkAndUnlockAchievements(document.partnerId)
+
+      // Auto-activate partner when an identity document is approved
+      const IDENTITY_TYPES = ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP']
+      if (IDENTITY_TYPES.includes(document.type)) {
+        await prisma.partnerProfile.update({
+          where: { id: document.partnerId },
+          data: { verified: true, isActive: true },
+        })
+        await prisma.partnerService.updateMany({
+          where: { partnerId: document.partnerId },
+          data: { active: true },
+        })
+      }
     }
 
     return NextResponse.json(updatedDocument)
