@@ -320,66 +320,48 @@ export default function ServicesManagementPage() {
                         </div>
                       </div>
 
-                      <div className="border-t border-gray-200 p-6 bg-gradient-to-r from-blue-50 to-indigo-50">
-                        <div className="flex items-center gap-2 mb-4">
-                          <Settings size={20} className="text-primary-600" />
-                          <h4 className="font-semibold text-gray-900">Configuración del Servicio</h4>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              💰 Precio del Servicio
-                            </label>
-                            <div className="flex gap-2">
-                              <input
-                                type="number"
-                                value={service.price}
-                                onChange={(e) => {
-                                  const newServices = activeServices.map(s =>
-                                    s.id === service.id ? { ...s, price: parseFloat(e.target.value) } : s
-                                  )
-                                  setActiveServices(newServices)
-                                }}
-                                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                                min="0"
-                                step="1000"
-                              />
-                              <button
-                                onClick={() => handleUpdatePrice(service.partnerServiceId!, service.id, service.price, service.city || 'MEDELLIN')}
-                                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium"
-                              >
-                                Guardar
-                              </button>
-                            </div>
+                      <div className="border-t border-gray-100 px-4 py-4 bg-gray-50">
+                        <div className="flex flex-col sm:flex-row gap-3">
+                          <div className="flex-1">
+                            <label className="block text-xs font-medium text-gray-500 mb-1.5">💰 Precio</label>
+                            <input
+                              type="number"
+                              value={service.price}
+                              onChange={(e) => {
+                                const newServices = activeServices.map(s =>
+                                  s.id === service.id ? { ...s, price: parseFloat(e.target.value) } : s
+                                )
+                                setActiveServices(newServices)
+                              }}
+                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                              min="0"
+                              step="1000"
+                            />
                           </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              📍 Ciudad
-                            </label>
-                            <div className="flex gap-2">
-                              <select
-                                value={service.city || 'MEDELLIN'}
-                                onChange={(e) => {
-                                  const newServices = activeServices.map(s =>
-                                    s.id === service.id ? { ...s, city: e.target.value } : s
-                                  )
-                                  setActiveServices(newServices)
-                                }}
-                                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                              >
-                                {CITIES.map(city => (
-                                  <option key={city.value} value={city.value}>
-                                    {city.label}
-                                  </option>
-                                ))}
-                              </select>
-                              <button
-                                onClick={() => handleUpdatePrice(service.partnerServiceId!, service.id, service.price, service.city || 'MEDELLIN')}
-                                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium"
-                              >
-                                Guardar
-                              </button>
-                            </div>
+                          <div className="flex-1">
+                            <label className="block text-xs font-medium text-gray-500 mb-1.5">📍 Ciudad</label>
+                            <select
+                              value={service.city || 'MEDELLIN'}
+                              onChange={(e) => {
+                                const newServices = activeServices.map(s =>
+                                  s.id === service.id ? { ...s, city: e.target.value } : s
+                                )
+                                setActiveServices(newServices)
+                              }}
+                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                            >
+                              {CITIES.map(city => (
+                                <option key={city.value} value={city.value}>{city.label}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="sm:self-end">
+                            <button
+                              onClick={() => handleUpdatePrice(service.partnerServiceId!, service.id, service.price, service.city || 'MEDELLIN')}
+                              className="w-full sm:w-auto px-5 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 transition"
+                            >
+                              Guardar
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -390,125 +372,100 @@ export default function ServicesManagementPage() {
             </div>
 
             {showAddModal && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-                  <div className="p-6 border-b border-gray-200">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h2 className="text-2xl font-bold">Agregar Servicio</h2>
-                        <p className="text-gray-600 mt-1">Selecciona un servicio para agregar a tu perfil (máximo 5)</p>
-                      </div>
-                      <span className={`text-sm font-medium px-3 py-1 rounded-full ${
-                        activeServices.length >= 5
-                          ? 'bg-red-100 text-red-700'
-                          : 'bg-blue-100 text-blue-700'
+              <div className="fixed inset-0 bg-black/50 z-50 flex flex-col justify-end sm:items-center sm:justify-center sm:p-4">
+                <div className="bg-white w-full rounded-t-2xl sm:rounded-2xl sm:max-w-2xl max-h-[92vh] sm:max-h-[85vh] overflow-hidden flex flex-col">
+                  {/* Header */}
+                  <div className="px-5 pt-5 pb-4 border-b border-gray-100 flex items-center justify-between">
+                    <div>
+                      <h2 className="text-lg font-bold text-gray-900">Agregar servicio</h2>
+                      <p className="text-xs text-gray-500 mt-0.5">Máximo 5 servicios en tu perfil</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                        activeServices.length >= 5 ? 'bg-red-100 text-red-700' : 'bg-primary-100 text-primary-700'
                       }`}>
-                        {activeServices.length}/5 servicios
+                        {activeServices.length}/5
                       </span>
+                      <button
+                        onClick={() => setShowAddModal(false)}
+                        className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition"
+                      >
+                        ✕
+                      </button>
                     </div>
                   </div>
 
-                  <div className="p-6 border-b border-gray-200">
-                    {allServices.length === 0 ? (
-                      <div className="text-center py-4">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-2"></div>
-                        <p className="text-gray-600 text-sm">Cargando categorías...</p>
-                      </div>
-                    ) : (
-                      <div className="flex gap-2 flex-wrap">
+                  {/* Category tabs — horizontal scroll */}
+                  <div className="px-5 py-3 border-b border-gray-100">
+                    <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+                      <button
+                        onClick={() => setSelectedCategory('all')}
+                        className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition ${
+                          selectedCategory === 'all'
+                            ? 'bg-primary-600 text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        Todos
+                      </button>
+                      {categories.map(category => (
                         <button
-                          onClick={() => setSelectedCategory('all')}
-                          className={`px-4 py-2 rounded-lg transition ${
-                            selectedCategory === 'all'
+                          key={category}
+                          onClick={() => setSelectedCategory(category)}
+                          className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition ${
+                            selectedCategory === category
                               ? 'bg-primary-600 text-white'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                           }`}
                         >
-                          Todos
+                          {category}
                         </button>
-                        {categories.map(category => (
-                          <button
-                            key={category}
-                            onClick={() => setSelectedCategory(category)}
-                            className={`px-4 py-2 rounded-lg transition ${
-                              selectedCategory === category
-                                ? 'bg-primary-600 text-white'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
-                          >
-                            {category}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                      ))}
+                    </div>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto p-6">
+                  {/* Service list */}
+                  <div className="flex-1 overflow-y-auto">
                     {filteredServices.length === 0 ? (
-                      <div className="text-center py-8">
-                        <AlertCircle className="mx-auto text-gray-400 mb-4" size={48} />
-                        <p className="text-gray-600">No hay servicios disponibles en esta categoría</p>
+                      <div className="text-center py-12">
+                        <AlertCircle className="mx-auto text-gray-300 mb-3" size={40} />
+                        <p className="text-gray-500 text-sm">No hay servicios en esta categoría</p>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <ul className="divide-y divide-gray-100">
                         {filteredServices.map((service) => {
                           const isDisabled = !service.isActive && activeServices.length >= 5
                           return (
-                            <div
+                            <li
                               key={service.id}
-                              className={`border rounded-lg p-4 transition ${
-                                service.isActive
-                                  ? 'border-green-500 bg-green-50'
-                                  : isDisabled
-                                  ? 'border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed'
-                                  : 'border-gray-200 hover:border-primary-500 hover:bg-primary-50 cursor-pointer'
-                              }`}
                               onClick={() => !service.isActive && !isDisabled && handleAddService(service)}
+                              className={`flex items-center gap-3 px-5 py-3.5 transition ${
+                                service.isActive
+                                  ? 'bg-green-50'
+                                  : isDisabled
+                                  ? 'opacity-40 cursor-not-allowed'
+                                  : 'active:bg-gray-50 cursor-pointer hover:bg-gray-50'
+                              }`}
                             >
-                              <div className="flex items-start gap-3">
-                                <div className="text-3xl emoji-icon">{service.icon}</div>
-                                <div className="flex-1">
-                                  <h3 className="font-semibold text-gray-900">{service.name}</h3>
-                                  <p className="text-sm text-gray-600 mt-1">{service.description}</p>
-                                  <div className="flex items-center gap-3 mt-2">
-                                    <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
-                                      {service.category.name}
-                                    </span>
-                                    <span className="text-xs text-gray-500">
-                                      {service.duration} min
-                                    </span>
-                                    <span className="text-xs font-semibold text-primary-600">
-                                      {formatCurrency(service.basePrice)}
-                                    </span>
-                                  </div>
-                                  {service.isActive && (
-                                    <div className="mt-2 flex items-center gap-1 text-green-600 text-sm">
-                                      <CheckCircle size={16} />
-                                      <span>Ya agregado</span>
-                                    </div>
-                                  )}
-                                  {isDisabled && (
-                                    <div className="mt-2 flex items-center gap-1 text-gray-500 text-sm">
-                                      <AlertCircle size={16} />
-                                      <span>Límite de servicios alcanzado</span>
-                                    </div>
-                                  )}
-                                </div>
+                              <span className="text-2xl flex-shrink-0 emoji-icon">{service.icon}</span>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-gray-900 text-sm leading-tight">{service.name}</p>
+                                <p className="text-xs text-gray-500 mt-0.5">{service.category.name} · {service.duration} min</p>
                               </div>
-                            </div>
+                              <div className="flex-shrink-0">
+                                {service.isActive ? (
+                                  <CheckCircle size={20} className="text-green-500" />
+                                ) : isDisabled ? (
+                                  <AlertCircle size={20} className="text-gray-300" />
+                                ) : (
+                                  <span className="text-xs font-bold text-primary-600 bg-primary-50 px-2.5 py-1 rounded-full">+ Agregar</span>
+                                )}
+                              </div>
+                            </li>
                           )
                         })}
-                      </div>
+                      </ul>
                     )}
-                  </div>
-
-                  <div className="p-6 border-t border-gray-200 flex justify-end">
-                    <button
-                      onClick={() => setShowAddModal(false)}
-                      className="px-6 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition"
-                    >
-                      Cerrar
-                    </button>
                   </div>
                 </div>
               </div>

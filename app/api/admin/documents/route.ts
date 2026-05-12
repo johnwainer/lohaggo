@@ -21,16 +21,19 @@ export async function GET(req: NextRequest) {
       where: status ? { status: status as any } : undefined,
       include: {
         partner: {
-          include: {
+          select: {
+            id: true,
+            verified: true,
+            isActive: true,
             user: {
               select: {
                 name: true,
                 email: true,
-                phone: true
-              }
-            }
-          }
-        }
+                phone: true,
+              },
+            },
+          },
+        },
       },
       orderBy: { createdAt: 'desc' }
     })

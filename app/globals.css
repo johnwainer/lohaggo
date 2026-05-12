@@ -334,4 +334,7 @@ textarea .emoji {
   .panel-stat {
     @apply text-[1.55rem] sm:text-[2rem] font-bold tracking-tight text-slate-900;
   }
+
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 }

@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import {
-  FileText, CheckCircle, XCircle, Clock, Eye, User, Mail, Phone,
-  Filter, Search, CreditCard, GraduationCap, Shield, Upload
+  FileText, CheckCircle, XCircle, Clock, Eye, User,
+  Search, CreditCard, GraduationCap, Shield, Upload, Zap
 } from 'lucide-react'
 import Modal from '@/components/Modal'
 
@@ -20,6 +20,8 @@ interface Document {
   reviewedAt?: string
   partner: {
     id: string
+    verified: boolean
+    isActive: boolean
     user: {
       name: string
       email: string
@@ -55,6 +57,7 @@ export default function AdminDocumentsPage() {
   const [reviewAction, setReviewAction] = useState<'APPROVED' | 'REJECTED'>('APPROVED')
   const [rejectionReason, setRejectionReason] = useState('')
   const [reviewing, setReviewing] = useState(false)
+  const [activatingPartnerId, setActivatingPartnerId] = useState<string | null>(null)
   const [showBackgroundModal, setShowBackgroundModal] = useState(false)
   const [selectedPartner, setSelectedPartner] = useState<any>(null)
   const [backgroundFile, setBackgroundFile] = useState<File | null>(null)
@@ -153,6 +156,27 @@ export default function AdminDocumentsPage() {
       console.error('Error reviewing document:', error)
     } finally {
       setReviewing(false)
+    }
+  }
+
+  const handleActivatePartner = async (partnerId: string) => {
+    setActivatingPartnerId(partnerId)
+    try {
+      const res = await fetch('/api/admin/documents/activate-partner', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ partnerId }),
+      })
+      if (res.ok) {
+        await fetchDocuments()
+      } else {
+        const data = await res.json()
+        alert(data.error || 'Error al activar')
+      }
+    } catch {
+      alert('Error al activar socio')
+    } finally {
+      setActivatingPartnerId(null)
     }
   }
 
@@ -345,7 +369,13 @@ export default function AdminDocumentsPage() {
                               <User className="w-6 h-6 text-gray-600" />
                             </div>
                             <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">{doc.partner.user.name}</div>
+                              <div className="text-sm font-medium text-gray-900 flex items-center gap-1.5">
+                                {doc.partner.user.name}
+                                {doc.partner.verified
+                                  ? <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">Verificado</span>
+                                  : <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-medium">Sin verificar</span>
+                                }
+                              </div>
                               <div className="text-sm text-gray-500">{doc.partner.user.email}</div>
                             </div>
                           </div>
@@ -382,6 +412,7 @@ export default function AdminDocumentsPage() {
                                     setShowReviewModal(true)
                                   }}
                                   className="text-green-600 hover:text-green-900"
+                                  title="Aprobar"
                                 >
                                   <CheckCircle className="w-5 h-5" />
                                 </button>
@@ -392,10 +423,24 @@ export default function AdminDocumentsPage() {
                                     setShowReviewModal(true)
                                   }}
                                   className="text-red-600 hover:text-red-900"
+                                  title="Rechazar"
                                 >
                                   <XCircle className="w-5 h-5" />
                                 </button>
                               </>
+                            )}
+                            {doc.status === 'APPROVED' &&
+                              ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP'].includes(doc.type) &&
+                              !doc.partner.verified && (
+                              <button
+                                onClick={() => handleActivatePartner(doc.partner.id)}
+                                disabled={activatingPartnerId === doc.partner.id}
+                                title="Verificar y activar socio en plataforma"
+                                className="flex items-center gap-1 text-xs font-semibold bg-primary-600 hover:bg-primary-700 disabled:bg-gray-300 text-white px-2 py-1 rounded-lg transition-colors"
+                              >
+                                <Zap className="w-3.5 h-3.5" />
+                                {activatingPartnerId === doc.partner.id ? 'Activando...' : 'Activar'}
+                              </button>
                             )}
                           </div>
                         </td>
