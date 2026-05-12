@@ -540,52 +540,56 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
   const IDENTITY_TYPES = ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP']
   const EDUCATION_TYPES = ['DIPLOMA_BACHILLERATO', 'DIPLOMA_TECNICO', 'DIPLOMA_TECNOLOGO', 'DIPLOMA_PROFESIONAL', 'DIPLOMA_POSGRADO', 'CERTIFICADO_CURSO']
 
-  const isFullyVerified = (documents?: Array<{ type: string; status: string }>) => {
-    if (!documents || documents.length === 0) return false
+  const isFullyVerified = (partner: { verified: boolean }) => partner.verified
 
-    const hasIdentity = documents.some(d => IDENTITY_TYPES.includes(d.type) && d.status === 'APPROVED')
-    const hasEducation = documents.some(d => EDUCATION_TYPES.includes(d.type) && d.status === 'APPROVED')
-    const hasBackground = documents.some(d => d.type === 'ANTECEDENTES' && d.status === 'APPROVED')
+  const getVerificationBadges = (
+    verified: boolean,
+    documents?: Array<{ type: string; status: string }>
+  ) => {
+    const hasIdentity = documents?.some(d => IDENTITY_TYPES.includes(d.type) && d.status === 'APPROVED') ?? false
+    const hasEducation = documents?.some(d => EDUCATION_TYPES.includes(d.type) && d.status === 'APPROVED') ?? false
+    const hasBackground = documents?.some(d => d.type === 'ANTECEDENTES' && d.status === 'APPROVED') ?? false
 
-    return hasIdentity && hasEducation && hasBackground
-  }
+    const badges = [
+      verified && {
+        icon: <ShieldCheck size={13} />,
+        label: 'Verificado',
+        bg: 'bg-emerald-50 border-emerald-300 text-emerald-700',
+        tooltip: 'Socio verificado por LoHaggo',
+      },
+      hasIdentity && {
+        icon: <CreditCard size={13} />,
+        label: 'Identidad',
+        bg: 'bg-blue-50 border-blue-200 text-blue-700',
+        tooltip: 'Documento de identidad aprobado',
+      },
+      hasBackground && {
+        icon: <Shield size={13} />,
+        label: 'Sin antecedentes',
+        bg: 'bg-green-50 border-green-200 text-green-700',
+        tooltip: 'Verificación de antecedentes aprobada',
+      },
+      hasEducation && {
+        icon: <GraduationCap size={13} />,
+        label: 'Estudios',
+        bg: 'bg-purple-50 border-purple-200 text-purple-700',
+        tooltip: 'Título o certificado de estudios aprobado',
+      },
+    ].filter(Boolean) as { icon: React.ReactNode; label: string; bg: string; tooltip: string }[]
 
-  const getVerificationBadges = (documents?: Array<{ type: string; status: string }>) => {
-    if (!documents || documents.length === 0) return null
-
-    const hasIdentity = documents.some(d => IDENTITY_TYPES.includes(d.type) && d.status === 'APPROVED')
-    const hasEducation = documents.some(d => EDUCATION_TYPES.includes(d.type) && d.status === 'APPROVED')
-    const hasBackground = documents.some(d => d.type === 'ANTECEDENTES' && d.status === 'APPROVED')
+    if (!badges.length) return null
 
     return (
-      <div className="flex items-center gap-2 mt-2">
-        {hasIdentity && (
-          <div className="group relative flex items-center gap-1 bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full text-xs font-medium border border-blue-200">
-            <CreditCard size={14} />
-            <span>ID</span>
-            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-lg z-10">
-              Identidad verificada
+      <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+        {badges.map((b) => (
+          <div key={b.label} className={`group relative flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${b.bg}`}>
+            {b.icon}
+            <span>{b.label}</span>
+            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-lg z-10">
+              {b.tooltip}
             </span>
           </div>
-        )}
-        {hasEducation && (
-          <div className="group relative flex items-center gap-1 bg-purple-50 text-purple-700 px-2.5 py-1 rounded-full text-xs font-medium border border-purple-200">
-            <GraduationCap size={14} />
-            <span>EDU</span>
-            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-lg z-10">
-              Educación verificada
-            </span>
-          </div>
-        )}
-        {hasBackground && (
-          <div className="group relative flex items-center gap-1 bg-green-50 text-green-700 px-2.5 py-1 rounded-full text-xs font-medium border border-green-200">
-            <Shield size={14} />
-            <span>ANT</span>
-            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-lg z-10">
-              Antecedentes verificados
-            </span>
-          </div>
-        )}
+        ))}
       </div>
     )
   }
@@ -701,8 +705,8 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               {service.partners
                 .sort((a, b) => {
-                  const aFullyVerified = isFullyVerified(a.partner.documents)
-                  const bFullyVerified = isFullyVerified(b.partner.documents)
+                  const aFullyVerified = isFullyVerified(a.partner)
+                  const bFullyVerified = isFullyVerified(b.partner)
 
                   if (aFullyVerified && !bFullyVerified) return -1
                   if (!aFullyVerified && bFullyVerified) return 1
@@ -714,7 +718,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                   return b.partner.rating - a.partner.rating
                 })
                 .map((partnerService) => {
-                  const fullyVerified = isFullyVerified(partnerService.partner.documents)
+                  const fullyVerified = isFullyVerified(partnerService.partner)
 
                   return (
                     <div
@@ -772,14 +776,6 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                             <h3 className="font-bold text-lg md:text-xl text-gray-900 truncate">
                               {partnerService.partner.user.name}
                             </h3>
-                            {partnerService.partner.verified && (
-                              <div className="group/tooltip relative flex-shrink-0">
-                                <ShieldCheck size={18} className="text-blue-600" />
-                                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-lg z-20">
-                                  Socio verificado
-                                </span>
-                              </div>
-                            )}
                           </div>
 
                           <div className="flex items-center gap-2 mb-2">
@@ -792,7 +788,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                             </span>
                           </div>
 
-                          {getVerificationBadges(partnerService.partner.documents)}
+                          {getVerificationBadges(partnerService.partner.verified, partnerService.partner.documents)}
                         </div>
                       </div>
 
