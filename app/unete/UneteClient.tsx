@@ -93,7 +93,11 @@ const PILL_SERVICE_MAP: Record<string, string> = {
     'Lashistas': 'Maquillaje',
     'Masajistas': 'Masajes',
     'Aseo y Limpieza': 'Limpieza de hogar',
-    'Mensajeros': 'Mensajería',
+    'Lo Hago Ya': 'Mensajería',
+}
+
+const SERVICE_DISPLAY_NAMES: Record<string, string> = {
+    'Mensajería': '⚡ Lo Hago Ya',
 }
 
 const FEATURED_SERVICES = [
@@ -488,7 +492,7 @@ function SqueezeForm() {
                                     Más de <span className="bg-yellow-400 text-yellow-900 text-xs sm:text-sm px-2 py-0.5 rounded-full inline-block">100+</span> servicios disponibles:
                                 </h3>
                                 <div className="flex flex-wrap gap-2.5">
-                                    {['💅 Manicuristas', '💇 Estilistas', '👁️ Lashistas', '💆 Masajistas', '🧹 Aseo y Limpieza', '🛵 Mensajeros'].map((s) => {
+                                    {['💅 Manicuristas', '💇 Estilistas', '👁️ Lashistas', '💆 Masajistas', '🧹 Aseo y Limpieza', '⚡ Lo Hago Ya'].map((s) => {
                                         const svc = s.split(' ').slice(1).join(' ')
                                         const mappedService = PILL_SERVICE_MAP[svc]
                                         const isSelected = mappedService ? formData.oficio.includes(mappedService) : formData.oficio.some(o => o.toLowerCase().includes(svc.toLowerCase()) || svc.toLowerCase().includes(o.toLowerCase()))
@@ -653,7 +657,7 @@ function SqueezeForm() {
                                                                 : 'bg-white border-gray-200 text-gray-700 hover:border-primary-300'
                                                     }`}
                                                 >
-                                                    {o}
+                                                    {SERVICE_DISPLAY_NAMES[o] ?? o}
                                                 </button>
                                             )
                                         })}
