@@ -540,7 +540,13 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
   const IDENTITY_TYPES = ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP']
   const EDUCATION_TYPES = ['DIPLOMA_BACHILLERATO', 'DIPLOMA_TECNICO', 'DIPLOMA_TECNOLOGO', 'DIPLOMA_PROFESIONAL', 'DIPLOMA_POSGRADO', 'CERTIFICADO_CURSO']
 
-  const isFullyVerified = (partner: { verified: boolean }) => partner.verified
+  const isFullyVerified = (partner: { verified: boolean; documents?: Array<{ type: string; status: string }> }) => {
+    const docs = partner.documents ?? []
+    const hasIdentity = docs.some(d => IDENTITY_TYPES.includes(d.type) && d.status === 'APPROVED')
+    const hasEducation = docs.some(d => EDUCATION_TYPES.includes(d.type) && d.status === 'APPROVED')
+    const hasBackground = docs.some(d => d.type === 'ANTECEDENTES' && d.status === 'APPROVED')
+    return hasIdentity && hasEducation && hasBackground
+  }
 
   const getVerificationBadges = (
     verified: boolean,
