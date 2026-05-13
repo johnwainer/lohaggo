@@ -551,11 +551,11 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     const hasBackground = documents?.some(d => d.type === 'ANTECEDENTES' && d.status === 'APPROVED') ?? false
 
     const badges = [
-      verified && {
+      (hasIdentity && hasEducation && hasBackground) && {
         icon: <ShieldCheck size={13} />,
-        label: 'Verificado',
+        label: 'Verificado Plus',
         bg: 'bg-emerald-50 border-emerald-300 text-emerald-700',
-        tooltip: 'Socio verificado por LoHaggo',
+        tooltip: 'Identidad, antecedentes y estudios verificados',
       },
       hasIdentity && {
         icon: <CreditCard size={13} />,
