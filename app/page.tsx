@@ -2,10 +2,8 @@ import { Suspense } from 'react'
 import { Metadata } from 'next'
 import { Star } from 'lucide-react'
 import Link from 'next/link'
-import nextDynamic from 'next/dynamic'
+import HomeClientWrapper from '@/components/HomeClientWrapper'
 import { ServiciosContent } from './servicios/page'
-
-const OnboardingTour = nextDynamic(() => import('@/components/OnboardingTour'), { ssr: false })
 
 export const dynamic = 'force-dynamic'
 
@@ -106,8 +104,7 @@ export default function Home() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
       />
-      <OnboardingTour />
-
+      <HomeClientWrapper>
       <div className="min-h-screen bg-gray-50">
         {/* Compact hero */}
         <div className="bg-gradient-to-br from-primary-500 via-secondary-500 to-accent-500 text-white py-8 md:py-10 px-4">
@@ -166,6 +163,7 @@ export default function Home() {
           </div>
         </section>
       </div>
+      </HomeClientWrapper>
     </>
   )
 }
