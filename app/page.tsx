@@ -1,13 +1,11 @@
-import Link from 'next/link'
+import { Suspense } from 'react'
 import { Metadata } from 'next'
-import { Search, Star, Shield, Zap, Clock, Users, CheckCircle, ArrowRight, Sparkles, ChevronRight } from 'lucide-react'
-import { prisma } from '@/lib/prisma'
-import { formatCurrency } from '@/lib/utils'
-import SearchBar from '@/components/SearchBar'
-import AdBanner from '@/components/ads/AdBanner'
-import HomeClientWrapper from '@/components/HomeClientWrapper'
-import PlatformTrustBanner from '@/components/PlatformTrustBanner'
-import PartnerRegistrationButton from '@/components/PartnerRegistrationButton'
+import { Star } from 'lucide-react'
+import Link from 'next/link'
+import nextDynamic from 'next/dynamic'
+import { ServiciosContent } from './servicios/page'
+
+const OnboardingTour = nextDynamic(() => import('@/components/OnboardingTour'), { ssr: false })
 
 export const dynamic = 'force-dynamic'
 
@@ -42,78 +40,62 @@ export const metadata: Metadata = {
   },
 }
 
-async function getOrganizationSchema() {
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'Organization',
-    name: 'LoHaggo',
-    url: 'https://www.lohaggo.com',
-    logo: 'https://www.lohaggo.com/icon-512.png',
-    description: 'Plataforma de servicios profesionales en Colombia. Conectamos clientes con profesionales verificados en Medellín.',
-    address: {
-      '@type': 'PostalAddress',
-      addressLocality: 'Medellín',
-      addressRegion: 'Antioquia',
-      addressCountry: 'CO'
-    },
-    contactPoint: {
-      '@type': 'ContactPoint',
-      email: 'hola@lohaggo.com',
-      contactType: 'customer service',
-      availableLanguage: 'Spanish'
-    },
-    sameAs: [
-      'https://www.facebook.com/lohaggo',
-      'https://www.instagram.com/lohaggo_'
-    ]
+const organizationSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'LoHaggo',
+  url: 'https://www.lohaggo.com',
+  logo: 'https://www.lohaggo.com/icon-512.png',
+  description: 'Plataforma de servicios profesionales en Colombia. Conectamos clientes con profesionales verificados en Medellín.',
+  address: {
+    '@type': 'PostalAddress',
+    addressLocality: 'Medellín',
+    addressRegion: 'Antioquia',
+    addressCountry: 'CO'
+  },
+  contactPoint: {
+    '@type': 'ContactPoint',
+    email: 'hola@lohaggo.com',
+    contactType: 'customer service',
+    availableLanguage: 'Spanish'
+  },
+  sameAs: [
+    'https://www.facebook.com/lohaggo',
+    'https://www.instagram.com/lohaggo_'
+  ]
+}
+
+const websiteSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'LoHaggo',
+  url: 'https://www.lohaggo.com',
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: 'https://www.lohaggo.com/?search={search_term_string}',
+    'query-input': 'required name=search_term_string'
   }
 }
 
-async function getWebsiteSchema() {
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'WebSite',
-    name: 'LoHaggo',
-    url: 'https://www.lohaggo.com',
-    potentialAction: {
-      '@type': 'SearchAction',
-      target: 'https://www.lohaggo.com/servicios?q={search_term_string}',
-      'query-input': 'required name=search_term_string'
-    }
-  }
-}
+const testimonials = [
+  {
+    text: 'Contraté un plomero y llegó en menos de 2 horas. Muy profesional y el precio fue justo.',
+    name: 'María González',
+    initial: 'M',
+  },
+  {
+    text: 'La mejor plataforma para encontrar servicios. Rápida, confiable y con excelentes profesionales.',
+    name: 'Juan Pérez',
+    initial: 'J',
+  },
+  {
+    text: 'El electricista que contraté fue muy profesional y resolvió mi problema rápidamente.',
+    name: 'Ana Martínez',
+    initial: 'A',
+  },
+]
 
-export default async function Home() {
-  const categories = await prisma.category.findMany({
-    orderBy: { order: 'asc' },
-    take: 12
-  })
-
-  const lohaggoYaService = await prisma.service.findUnique({
-    where: { slug: 'lohaggo-ya' },
-    include: {
-      category: true,
-      _count: {
-        select: { partners: true }
-      }
-    }
-  })
-
-  const popularServices = await prisma.service.findMany({
-    where: { popular: true },
-    include: {
-      category: true,
-      _count: {
-        select: { partners: true }
-      }
-    },
-    take: 20,
-    orderBy: { name: 'asc' }
-  })
-
-  const organizationSchema = await getOrganizationSchema()
-  const websiteSchema = await getWebsiteSchema()
-
+export default function Home() {
   return (
     <>
       <script
@@ -124,372 +106,66 @@ export default async function Home() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
       />
-      <HomeClientWrapper>
+      <OnboardingTour />
+
       <div className="min-h-screen bg-gray-50">
-        {/* Hero Section - Estilo Rappi */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-primary-500 via-secondary-500 to-accent-500 text-white pt-16 pb-[136px] md:pt-20 md:pb-32">
-        <div className="absolute inset-0 overflow-hidden opacity-20">
-          <div className="absolute -top-40 -right-40 w-96 h-96 bg-secondary-300 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slow"></div>
-          <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-accent-300 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slow" style={{ animationDelay: '1s' }}></div>
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-primary-300 rounded-full mix-blend-overlay filter blur-3xl animate-pulse-slow" style={{ animationDelay: '2s' }}></div>
-        </div>
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-4xl mx-auto text-center">
-            <h1 className="text-4xl md:text-7xl lg:text-8xl font-black mb-6 leading-tight tracking-tight">
-              Contrata Servicios Profesionales
-              <span className="block bg-gradient-to-r from-yellow-200 to-white bg-clip-text text-transparent">en Colombia en Minutos</span>
+        {/* Compact hero */}
+        <div className="bg-gradient-to-br from-primary-500 via-secondary-500 to-accent-500 text-white py-8 md:py-10 px-4">
+          <div className="max-w-3xl mx-auto text-center">
+            <h1 className="text-2xl md:text-4xl font-black mb-1.5 leading-tight">
+              ¿Qué necesitas hoy?
             </h1>
-
-            <p className="text-lg md:text-2xl mb-12 text-white/90 font-medium max-w-2xl mx-auto">
-              Encuentra y contrata plomeros, electricistas, limpieza, carpinteros, jardineros y más. Profesionales verificados en Medellín con precios transparentes. Reserva tu servicio ahora.
+            <p className="text-white/80 text-sm md:text-base">
+              Profesionales verificados · Precios transparentes · En minutos
             </p>
-
-            <div className="max-w-3xl mx-auto mb-6">
-              <SearchBar />
-            </div>
-
-            <div className="mb-16 text-center">
-              <Link
-                href="/unete"
-                className="inline-flex items-center gap-1.5 text-white/90 underline underline-offset-2 hover:text-white text-sm font-semibold transition"
-              >
-                ¿Eres profesional? Únete y recibe clientes →
-              </Link>
-            </div>
-
-            <div className="flex flex-wrap justify-center gap-8 md:gap-12">
-              <div className="flex items-center gap-3">
-                <div className="bg-white/20 backdrop-blur-md p-4 rounded-2xl border border-white/30">
-                  <Users className="w-7 h-7" />
-                </div>
-                <div className="text-left">
-                  <div className="text-3xl font-black">50K+</div>
-                  <div className="text-white/80 text-sm font-medium">Usuarios activos</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="bg-white/20 backdrop-blur-md p-4 rounded-2xl border border-white/30">
-                  <CheckCircle className="w-7 h-7" />
-                </div>
-                <div className="text-left">
-                  <div className="text-3xl font-black">100K+</div>
-                  <div className="text-white/80 text-sm font-medium">Servicios completados</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="bg-white/20 backdrop-blur-md p-4 rounded-2xl border border-white/30">
-                  <Star className="w-7 h-7" />
-                </div>
-                <div className="text-left">
-                  <div className="text-3xl font-black">4.9/5</div>
-                  <div className="text-white/80 text-sm font-medium">Calificación promedio</div>
-                </div>
-              </div>
-            </div>
+            <Link
+              href="/unete"
+              className="inline-block mt-4 text-white/70 hover:text-white text-xs underline underline-offset-2 transition"
+            >
+              ¿Eres profesional? Únete →
+            </Link>
           </div>
         </div>
-      </section>
 
-      {/* Categories Section - Todas las categorías visibles */}
-      <section className="py-12 bg-white -mt-20 relative z-10" aria-labelledby="categories-heading">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl p-4 sm:p-6 md:p-8">
-            {lohaggoYaService && (
-              <Link
-                href={`/servicios/${lohaggoYaService.slug}`}
-                className="mb-6 sm:mb-8 block overflow-hidden rounded-2xl border border-primary-200 bg-gradient-to-r from-primary-600 via-secondary-500 to-accent-500 p-4 sm:p-5 text-white transition hover:shadow-xl"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="mb-1 inline-flex items-center rounded-full bg-white/20 px-2.5 py-1 text-xs font-bold uppercase tracking-wide">
-                      Nuevo destacado
-                    </p>
-                    <h3 className="text-xl sm:text-2xl font-black">{lohaggoYaService.name}</h3>
-                    <p className="mt-1 text-sm sm:text-base text-white/90">
-                      Encargos y diligencias en minutos. Compra, recoge y entrega sin complicaciones.
-                    </p>
-                    <p className="mt-2 text-xs sm:text-sm font-semibold text-white/90">
-                      Desde {formatCurrency(lohaggoYaService.basePrice)} · {lohaggoYaService._count.partners} socios disponibles
-                    </p>
+        {/* Service browser */}
+        <Suspense
+          fallback={
+            <div className="flex justify-center py-16">
+              <div className="animate-spin rounded-full h-10 w-10 border-4 border-primary-500 border-t-transparent" />
+            </div>
+          }
+        >
+          <ServiciosContent showHeading={false} />
+        </Suspense>
+
+        {/* Social proof — al fondo, fuera del flujo de compra */}
+        <section className="py-12 bg-gray-50 border-t border-gray-100">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-xl font-black text-gray-900 mb-6 text-center">Lo que dicen nuestros clientes</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {testimonials.map((t) => (
+                <div key={t.name} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                  <div className="flex gap-0.5 mb-3">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Star key={i} className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                    ))}
                   </div>
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/20 text-3xl backdrop-blur-sm">
-                    {lohaggoYaService.icon}
+                  <p className="text-gray-700 text-sm mb-4 leading-relaxed">"{t.text}"</p>
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                      {t.initial}
+                    </div>
+                    <div>
+                      <div className="font-semibold text-sm text-gray-900">{t.name}</div>
+                      <div className="text-xs text-gray-400">Cliente verificado</div>
+                    </div>
                   </div>
                 </div>
-              </Link>
-            )}
-
-            <div className="flex items-center justify-between gap-2 mb-4 sm:mb-6">
-              <h2 id="categories-heading" className="text-xl sm:text-2xl md:text-3xl font-black text-gray-900">
-                Categorías
-              </h2>
-              <Link
-                href="/servicios"
-                className="inline-flex items-center gap-1 rounded-full border border-primary-100 bg-primary-50 px-2.5 py-1 text-[11px] sm:text-sm font-semibold text-primary-600 hover:bg-primary-100 transition whitespace-nowrap"
-                aria-label="Ver todas las categorías de servicios"
-              >
-                Ver todas
-                <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              </Link>
-            </div>
-
-            <div className="grid grid-cols-4 sm:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-2 sm:gap-2.5" data-tour="service-categories">
-              {categories.map((category: any) => (
-                <Link
-                  key={category.id}
-                  href={`/servicios?category=${category.slug}`}
-                  className="group"
-                  aria-label={`Ver servicios de ${category.name}`}
-                >
-                  <div className="h-full min-h-[88px] sm:min-h-[104px] bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg px-2 py-1.5 sm:px-2.5 sm:py-2 text-center hover:from-primary-50 hover:to-secondary-50 transition-all hover:shadow-md border border-transparent hover:border-primary-200">
-                    <div
-                      className="flex items-center justify-center mx-auto mt-0.5 mb-1.5 sm:mb-2 group-hover:scale-105 transition-transform emoji-icon leading-none"
-                      style={{ fontSize: '3em' }}
-                      role="img"
-                      aria-label={category.name}
-                    >
-                      {category.icon}
-                    </div>
-                    <div className="hidden sm:block font-semibold text-[11px] lg:text-sm text-gray-800 group-hover:text-primary-600 transition leading-tight line-clamp-3">
-                      {category.name}
-                    </div>
-                  </div>
-                </Link>
               ))}
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* CTA Section - ¿Eres profesional? */}
-      <section className="py-20 bg-gradient-to-br from-primary-500 via-secondary-500 to-accent-500 text-white relative overflow-hidden">
-        <div className="absolute inset-0 overflow-hidden opacity-20">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-secondary-300 rounded-full mix-blend-overlay filter blur-3xl"></div>
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-accent-300 rounded-full mix-blend-overlay filter blur-3xl"></div>
-        </div>
-
-        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-5 py-2.5 rounded-full text-sm font-bold mb-8 border border-white/30">
-            <Sparkles className="w-4 h-4" />
-            <span>Únete a nuestra comunidad</span>
-          </div>
-
-          <h2 className="text-4xl md:text-5xl font-black mb-6">¿Eres profesional?</h2>
-          <p className="text-xl md:text-2xl mb-10 text-white/90 font-medium max-w-2xl mx-auto">
-            Conecta con miles de clientes y haz crecer tu negocio
-          </p>
-
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-10">
-            <div className="flex items-center gap-3 bg-white/20 backdrop-blur-md px-6 py-4 rounded-2xl border border-white/30">
-              <CheckCircle className="w-6 h-6" />
-              <span className="font-bold">Sin comisiones ocultas</span>
-            </div>
-            <div className="flex items-center gap-3 bg-white/20 backdrop-blur-md px-6 py-4 rounded-2xl border border-white/30">
-              <CheckCircle className="w-6 h-6" />
-              <span className="font-bold">Pagos seguros</span>
-            </div>
-            <div className="flex items-center gap-3 bg-white/20 backdrop-blur-md px-6 py-4 rounded-2xl border border-white/30">
-              <CheckCircle className="w-6 h-6" />
-              <span className="font-bold">Soporte 24/7</span>
-            </div>
-          </div>
-
-          <PartnerRegistrationButton />
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section className="py-16 bg-gray-50" aria-labelledby="benefits-heading">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 id="benefits-heading" className="text-3xl md:text-4xl font-black mb-4 text-gray-900">¿Por qué contratar servicios profesionales en LoHaggo?</h2>
-            <p className="text-gray-600 text-lg font-medium">La plataforma líder en Colombia para contratar servicios profesionales del hogar en Medellín</p>
-          </div>
-
-          <PlatformTrustBanner
-            variant="info"
-            context="general"
-            className="mb-12 max-w-4xl mx-auto"
-          />
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <article className="bg-white rounded-2xl p-8 text-center hover:shadow-xl transition-all group border-2 border-transparent hover:border-primary-200">
-              <div className="bg-gradient-to-br from-primary-500 to-primary-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform">
-                <Clock className="w-8 h-8 text-white" />
-              </div>
-              <div className="text-xl font-bold mb-2 text-gray-900">Súper rápido</div>
-              <p className="text-gray-600 font-medium">Contrata en minutos, no en días</p>
-            </article>
-
-            <article className="bg-white rounded-2xl p-8 text-center hover:shadow-xl transition-all group border-2 border-transparent hover:border-secondary-200">
-              <div className="bg-gradient-to-br from-secondary-500 to-secondary-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform">
-                <Shield className="w-8 h-8 text-white" />
-              </div>
-              <div className="text-xl font-bold mb-2 text-gray-900">100% verificado</div>
-              <p className="text-gray-600 font-medium">Profesionales con identidad confirmada</p>
-            </article>
-
-            <article className="bg-white rounded-2xl p-8 text-center hover:shadow-xl transition-all group border-2 border-transparent hover:border-accent-200">
-              <div className="bg-gradient-to-br from-accent-500 to-accent-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform">
-                <Star className="w-8 h-8 text-white" />
-              </div>
-              <div className="text-xl font-bold mb-2 text-gray-900">Mejor calidad</div>
-              <p className="text-gray-600 font-medium">Reseñas reales de clientes verificados</p>
-            </article>
-
-            <article className="bg-white rounded-2xl p-8 text-center hover:shadow-xl transition-all group border-2 border-transparent hover:border-primary-200">
-              <div className="bg-gradient-to-br from-primary-600 to-primary-700 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-110 transition-transform">
-                <Zap className="w-8 h-8 text-white" />
-              </div>
-              <div className="text-xl font-bold mb-2 text-gray-900">Precios justos</div>
-              <p className="text-gray-600 font-medium">Compara y elige la mejor opción</p>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      {/* Ad Banner Section */}
-      <section className="py-8 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <AdBanner placement="HOME" className="h-32 md:h-40 lg:h-48" />
-        </div>
-      </section>
-
-      {/* Popular Services */}
-      <section className="pt-8 pb-16 bg-white" aria-labelledby="popular-services-heading">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h2 id="popular-services-heading" className="text-3xl md:text-4xl font-black text-gray-900 mb-2">
-                Servicios Profesionales Más Solicitados
-              </h2>
-              <p className="text-gray-600 font-medium">Plomeros, electricistas, limpieza y más servicios cerca de ti</p>
-            </div>
-            <Link href="/servicios" className="hidden md:flex text-primary-500 font-bold items-center gap-1 hover:gap-2 transition-all" aria-label="Ver todos los servicios">
-              Ver todos
-              <ChevronRight className="w-5 h-5" />
-            </Link>
-          </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {popularServices.map((service: any) => (
-              <Link
-                key={service.id}
-                href={`/servicios/${service.slug}`}
-                className="bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all overflow-hidden group border-2 border-gray-100 hover:border-primary-300"
-              >
-                <div className="h-48 md:h-44 bg-gradient-to-br from-primary-500 to-secondary-500 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <span className="emoji-icon" style={{ fontSize: '3em' }}>{service.icon}</span>
-                </div>
-                <div className="p-5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-xs font-bold px-3 py-1 bg-primary-50 text-primary-600 rounded-full border border-primary-200">
-                      {service.category.name}
-                    </span>
-                  </div>
-                  <div className="font-bold text-lg mb-2 text-gray-900 group-hover:text-primary-600 transition">
-                    {service.name}
-                  </div>
-                  <p className="text-gray-600 text-sm mb-4 line-clamp-2 font-medium">{service.description}</p>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1">
-                      <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                      <span className="text-sm font-bold text-gray-900">4.8</span>
-                      <span className="text-xs text-gray-500 ml-1">({service._count.partners})</span>
-                    </div>
-                    <span className="text-primary-600 font-black text-lg">Desde {formatCurrency(service.basePrice)}</span>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-
-          <div className="text-center mt-10">
-            <Link
-              href="/servicios"
-              className="inline-flex items-center gap-2 bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-10 py-4 rounded-2xl hover:from-primary-600 hover:to-secondary-600 transition-all font-bold shadow-lg hover:shadow-xl transform hover:scale-105"
-            >
-              Ver todos los servicios
-              <ArrowRight className="w-5 h-5" />
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials */}
-      <section className="py-16 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-4">Lo que dicen nuestros clientes</h2>
-            <p className="text-gray-600 text-lg font-medium">Miles de personas confían en LoHaggo</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all border-2 border-transparent hover:border-primary-200">
-              <div className="flex items-center gap-1 mb-4">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-5 h-5 text-yellow-500 fill-yellow-500" />
-                ))}
-              </div>
-              <p className="text-gray-700 mb-6 font-medium leading-relaxed">
-                "Excelente servicio. Contraté un plomero y llegó en menos de 2 horas. Muy profesional y el precio fue justo."
-              </p>
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                  M
-                </div>
-                <div>
-                  <div className="font-bold text-gray-900">María González</div>
-                  <div className="text-sm text-gray-500">Cliente verificado</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all border-2 border-transparent hover:border-primary-200">
-              <div className="flex items-center gap-1 mb-4">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-5 h-5 text-yellow-500 fill-yellow-500" />
-                ))}
-              </div>
-              <p className="text-gray-700 mb-6 font-medium leading-relaxed">
-                "La mejor plataforma para encontrar servicios. Rápida, confiable y con excelentes profesionales."
-              </p>
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                  J
-                </div>
-                <div>
-                  <div className="font-bold text-gray-900">Juan Pérez</div>
-                  <div className="text-sm text-gray-500">Cliente verificado</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all border-2 border-transparent hover:border-primary-200">
-              <div className="flex items-center gap-1 mb-4">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-5 h-5 text-yellow-500 fill-yellow-500" />
-                ))}
-              </div>
-              <p className="text-gray-700 mb-6 font-medium leading-relaxed">
-                "Increíble experiencia. El electricista que contraté fue muy profesional y resolvió mi problema rápidamente."
-              </p>
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                  A
-                </div>
-                <div>
-                  <div className="font-bold text-gray-900">Ana Martínez</div>
-                  <div className="text-sm text-gray-500">Cliente verificado</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+        </section>
       </div>
-      </HomeClientWrapper>
     </>
   )
 }

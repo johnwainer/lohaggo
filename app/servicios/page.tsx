@@ -62,7 +62,7 @@ type SortBy =
   | 'PRICE_ASC'
   | 'PRICE_DESC'
 
-function ServiciosContent() {
+export function ServiciosContent({ showHeading = true }: { showHeading?: boolean }) {
   const searchParams = useSearchParams()
   const { data: session } = useSession()
   const [services, setServices] = useState<Service[]>([])
@@ -456,14 +456,16 @@ function ServiciosContent() {
     <div className="min-h-screen bg-gray-50">
       <ServicesTour />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
-        <div className="mb-6 md:mb-8">
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-black mb-2 md:mb-3 text-gray-900">
-            Todos los servicios
-          </h1>
-          <p className="text-gray-600 text-base md:text-lg font-medium">
-            Encuentra el servicio perfecto para ti
-          </p>
-        </div>
+        {showHeading && (
+          <div className="mb-6 md:mb-8">
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-black mb-2 md:mb-3 text-gray-900">
+              Todos los servicios
+            </h1>
+            <p className="text-gray-600 text-base md:text-lg font-medium">
+              Encuentra el servicio perfecto para ti
+            </p>
+          </div>
+        )}
 
         <div className="bg-white rounded-2xl md:rounded-3xl shadow-xl p-4 md:p-6 mb-4 md:mb-6 border-2 border-transparent hover:border-primary-500/20 transition">
           <div className="flex flex-col md:flex-row gap-4">
