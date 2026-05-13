@@ -540,13 +540,45 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
   const IDENTITY_TYPES = ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP']
   const EDUCATION_TYPES = ['DIPLOMA_BACHILLERATO', 'DIPLOMA_TECNICO', 'DIPLOMA_TECNOLOGO', 'DIPLOMA_PROFESIONAL', 'DIPLOMA_POSGRADO', 'CERTIFICADO_CURSO']
 
-  const isFullyVerified = (partner: { verified: boolean; documents?: Array<{ type: string; status: string }> }) => {
-    const docs = partner.documents ?? []
-    const hasIdentity = docs.some(d => IDENTITY_TYPES.includes(d.type) && d.status === 'APPROVED')
-    const hasEducation = docs.some(d => EDUCATION_TYPES.includes(d.type) && d.status === 'APPROVED')
-    const hasBackground = docs.some(d => d.type === 'ANTECEDENTES' && d.status === 'APPROVED')
-    return hasIdentity && hasEducation && hasBackground
+  const getPartnerTier = (documents: Array<{ type: string; status: string }> = []) => {
+    const hasIdentity = documents.some(d => IDENTITY_TYPES.includes(d.type) && d.status === 'APPROVED')
+    const hasBackground = documents.some(d => d.type === 'ANTECEDENTES' && d.status === 'APPROVED')
+    const hasEducation = documents.some(d => EDUCATION_TYPES.includes(d.type) && d.status === 'APPROVED')
+
+    if (hasIdentity && hasBackground && hasEducation) return {
+      level: 3 as const,
+      label: 'Pro',
+      card: 'bg-gradient-to-br from-amber-50 via-yellow-50 to-orange-50 border-2 border-amber-400 shadow-lg shadow-amber-100/50 hover:shadow-amber-200/60 hover:border-amber-500',
+      avatarBg: 'bg-gradient-to-br from-amber-500 to-orange-500',
+      ring: 'ring-2 ring-amber-400',
+      badgeBg: 'from-amber-500 to-orange-500',
+      buttonBg: 'from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600',
+      priceColor: 'text-amber-600',
+    }
+    if (hasIdentity && hasBackground) return {
+      level: 2 as const,
+      label: 'De Confianza',
+      card: 'bg-gradient-to-br from-blue-50 via-indigo-50 to-blue-50 border-2 border-blue-300 shadow-lg shadow-blue-100/50 hover:shadow-blue-200/60 hover:border-blue-400',
+      avatarBg: 'bg-gradient-to-br from-blue-500 to-indigo-500',
+      ring: 'ring-2 ring-blue-400',
+      badgeBg: 'from-blue-600 to-indigo-600',
+      buttonBg: 'from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700',
+      priceColor: 'text-blue-700',
+    }
+    return {
+      level: 1 as const,
+      label: 'Verificado',
+      card: 'bg-white border-2 border-gray-200 hover:border-gray-300 shadow-md hover:shadow-lg',
+      avatarBg: 'bg-gradient-to-br from-emerald-400 to-teal-500',
+      ring: 'ring-2 ring-gray-300',
+      badgeBg: 'from-emerald-500 to-teal-500',
+      buttonBg: 'from-primary-500 to-secondary-500 hover:from-[#E02850] hover:to-[#E65F00]',
+      priceColor: 'text-primary-600',
+    }
   }
+
+  const isFullyVerified = (partner: { verified: boolean; documents?: Array<{ type: string; status: string }> }) =>
+    getPartnerTier(partner.documents ?? []).level === 3
 
   const getVerificationBadges = (
     verified: boolean,
@@ -711,28 +743,20 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               {service.partners
                 .sort((a, b) => {
-                  const aFullyVerified = isFullyVerified(a.partner)
-                  const bFullyVerified = isFullyVerified(b.partner)
-
-                  if (aFullyVerified && !bFullyVerified) return -1
-                  if (!aFullyVerified && bFullyVerified) return 1
-
-                  if (a.partner.completedServicesCount !== b.partner.completedServicesCount) {
+                  const aTier = getPartnerTier(a.partner.documents ?? []).level
+                  const bTier = getPartnerTier(b.partner.documents ?? []).level
+                  if (aTier !== bTier) return bTier - aTier
+                  if (a.partner.completedServicesCount !== b.partner.completedServicesCount)
                     return b.partner.completedServicesCount - a.partner.completedServicesCount
-                  }
-
                   return b.partner.rating - a.partner.rating
                 })
                 .map((partnerService) => {
-                  const fullyVerified = isFullyVerified(partnerService.partner)
+                  const tier = getPartnerTier(partnerService.partner.documents ?? [])
 
                   return (
                     <div
                       key={partnerService.id}
-                      className={`group relative rounded-xl p-5 md:p-6 transition-all duration-300 hover:shadow-xl ${fullyVerified
-                        ? 'bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 border-2 border-emerald-400 shadow-lg shadow-emerald-100/50 hover:shadow-emerald-200/70 hover:border-emerald-500'
-                        : 'bg-white border-2 border-gray-200 hover:border-gray-300 shadow-md hover:shadow-lg'
-                        }`}
+                      className={`group relative rounded-xl p-5 md:p-6 transition-all duration-300 hover:shadow-xl ${tier.card}`}
                     >
                       <button
                         onClick={() => toggleFavorite(partnerService.partner.id)}
@@ -749,12 +773,10 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                         />
                       </button>
 
-                      {fullyVerified && (
-                        <div className="flex items-center gap-2 mb-4 bg-gradient-to-r from-emerald-600 to-green-600 text-white px-4 py-2 rounded-full text-xs font-bold w-fit shadow-md">
-                          <ShieldCheck size={16} className="animate-pulse" />
-                          <span>VERIFICADO PLUS</span>
-                        </div>
-                      )}
+                      <div className={`flex items-center gap-2 mb-4 bg-gradient-to-r ${tier.badgeBg} text-white px-3 py-1.5 rounded-full text-xs font-bold w-fit shadow-sm`}>
+                        {tier.level === 3 ? <ShieldCheck size={13} /> : tier.level === 2 ? <Shield size={13} /> : <CreditCard size={13} />}
+                        <span>{tier.label.toUpperCase()}</span>
+                      </div>
 
                       <div className="flex items-start gap-4 mb-4">
                         <div className="flex-shrink-0">
@@ -762,16 +784,10 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                             <img
                               src={partnerService.partner.user.image}
                               alt={partnerService.partner.user.name}
-                              className={`w-14 h-14 md:w-16 md:h-16 rounded-full object-cover shadow-md ${fullyVerified
-                                ? 'ring-2 ring-emerald-500'
-                                : 'ring-2 ring-gray-300'
-                                }`}
+                              className={`w-14 h-14 md:w-16 md:h-16 rounded-full object-cover shadow-md ${tier.ring}`}
                             />
                           ) : (
-                            <div className={`w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center text-white font-bold text-xl md:text-2xl shadow-md ${fullyVerified
-                              ? 'bg-gradient-to-br from-emerald-500 to-green-600'
-                              : 'bg-gradient-to-br from-gray-400 to-gray-500'
-                              }`}>
+                            <div className={`w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center text-white font-bold text-xl md:text-2xl shadow-md ${tier.avatarBg}`}>
                               {partnerService.partner.user.name.charAt(0).toUpperCase()}
                             </div>
                           )}
@@ -807,8 +823,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                         </div>
                         <div className="flex items-baseline gap-2">
                           <span className="text-gray-600 text-sm font-medium">Precio:</span>
-                          <p className={`font-bold text-2xl md:text-3xl ${fullyVerified ? 'text-emerald-600' : 'text-primary-600'
-                            }`}>
+                          <p className={`font-bold text-2xl md:text-3xl ${tier.priceColor}`}>
                             {formatCurrency(partnerService.price)}
                           </p>
                         </div>
@@ -818,10 +833,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                         type="button"
                         onClick={(event) => void handleRequestToPartner(partnerService.partner.id, event)}
                         disabled={requestActionLoading !== null}
-                        className={`w-full font-bold py-3.5 px-4 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2 group/btn ${fullyVerified
-                          ? 'bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white'
-                          : 'bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-[#E02850] hover:to-[#E65F00] text-white'
-                          }`}
+                        className={`w-full font-bold py-3.5 px-4 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2 group/btn bg-gradient-to-r ${tier.buttonBg} text-white`}
                       >
                         {requestActionLoading === partnerService.partner.id ? (
                           <>
