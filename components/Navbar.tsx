@@ -211,16 +211,6 @@ export function Navbar() {
               Inicio
             </Link>
             <Link
-              href="/servicios"
-              className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                pathname?.startsWith('/servicios')
-                  ? 'text-primary-600 bg-primary-500/5'
-                  : 'text-gray-700 hover:text-primary-600 hover:bg-primary-500/5'
-              }`}
-            >
-              Servicios
-            </Link>
-            <Link
               href="/faq"
               className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
                 pathname === '/faq'
@@ -495,17 +485,6 @@ export function Navbar() {
             {!session && (
               <>
                 <Link
-                  href="/servicios"
-                  className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
-                    pathname?.startsWith('/servicios')
-                      ? 'text-primary-600 bg-primary-500/5'
-                      : 'text-gray-700 hover:text-primary-600 hover:bg-primary-500/5'
-                  }`}
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Servicios
-                </Link>
-                <Link
                   href="/faq"
                   className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
                     pathname === '/faq'
@@ -528,17 +507,6 @@ export function Navbar() {
 
             {session ? (
               <>
-                <Link
-                  href="/servicios"
-                  className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
-                    pathname?.startsWith('/servicios')
-                      ? 'text-primary-600 bg-primary-500/5'
-                      : 'text-gray-700 hover:text-primary-600 hover:bg-primary-500/5'
-                  }`}
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Servicios
-                </Link>
                 <Link
                   href={getDashboardLink() || '/dashboard'}
                   className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"

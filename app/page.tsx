@@ -106,24 +106,6 @@ export default function Home() {
       />
       <HomeClientWrapper>
       <div className="min-h-screen bg-gray-50">
-        {/* Compact hero */}
-        <div className="bg-gradient-to-br from-primary-500 via-secondary-500 to-accent-500 text-white py-8 md:py-10 px-4">
-          <div className="max-w-3xl mx-auto text-center">
-            <h1 className="text-2xl md:text-4xl font-black mb-1.5 leading-tight">
-              ¿Qué necesitas hoy?
-            </h1>
-            <p className="text-white/80 text-sm md:text-base">
-              Profesionales verificados · Precios transparentes · En minutos
-            </p>
-            <Link
-              href="/unete"
-              className="inline-block mt-4 text-white/70 hover:text-white text-xs underline underline-offset-2 transition"
-            >
-              ¿Eres profesional? Únete →
-            </Link>
-          </div>
-        </div>
-
         {/* Service browser */}
         <Suspense
           fallback={

@@ -1,8 +1,7 @@
 'use client'
 
-import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Home, Search, Calendar, User } from 'lucide-react'
+import { Home, Calendar, User } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 
 export function BottomNav() {
@@ -22,20 +21,17 @@ export function BottomNav() {
 
   const loggedOutTabs = [
     { id: 'home', href: '/', icon: Home, label: 'Inicio', requiresAuth: false },
-    { id: 'services', href: '/servicios', icon: Search, label: 'Servicios', requiresAuth: false },
     { id: 'profile', href: '/profile', icon: User, label: 'Perfil', requiresAuth: true },
   ]
 
   const clientTabs = [
     { id: 'home', href: '/', icon: Home, label: 'Inicio', requiresAuth: false },
-    { id: 'services', href: '/servicios', icon: Search, label: 'Servicios', requiresAuth: false },
     { id: 'bookings', href: '/dashboard', icon: Calendar, label: 'Reservas', requiresAuth: true },
     { id: 'profile', href: '/profile', icon: User, label: 'Perfil', requiresAuth: true },
   ]
 
   const partnerTabs = [
     { id: 'home', href: '/', icon: Home, label: 'Inicio', requiresAuth: false },
-    { id: 'services', href: '/servicios', icon: Search, label: 'Servicios', requiresAuth: false },
     { id: 'bookings', href: '/partner/requests', icon: Calendar, label: 'Reservas', requiresAuth: true },
     { id: 'profile', href: '/profile', icon: User, label: 'Perfil', requiresAuth: true },
   ]
@@ -44,8 +40,8 @@ export function BottomNav() {
 
   const isTabActive = (tab: { id: string; href: string }) => {
     if (tab.id === 'bookings' && isPartner) return pathname.startsWith('/partner/requests')
-    if (tab.href === '/servicios') return pathname.startsWith('/servicios')
     if (tab.href === '/dashboard') return pathname.startsWith('/dashboard')
+    if (tab.href === '/') return pathname === '/' || pathname.startsWith('/servicios')
     return pathname === tab.href
   }
 
