@@ -86,7 +86,7 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
   const [sortBy, setSortBy] = useState<SortBy>('RELEVANCE')
   const [showRefineSheet, setShowRefineSheet] = useState(false)
   const [showAllCategories, setShowAllCategories] = useState(false)
-  const [placeholder, setPlaceholder] = useState('¿Qué necesitas hoy?')
+  const [placeholder, setPlaceholder] = useState('¿Qué buscas?')
   const placeholderIndexRef = useRef(0)
 
   const applyQuickFiltersAndSort = useCallback(
@@ -461,10 +461,10 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
 
     const rotate = () => {
       placeholderIndexRef.current = (placeholderIndexRef.current + 1) % shuffled.length
-      setPlaceholder(`Ej: ${shuffled[placeholderIndexRef.current]}`)
+      setPlaceholder(`¿Qué buscas? Ej: ${shuffled[placeholderIndexRef.current]}`)
     }
 
-    setPlaceholder(`Ej: ${shuffled[0]}`)
+    setPlaceholder(`¿Qué buscas? Ej: ${shuffled[0]}`)
     const id = setInterval(rotate, 2500)
     return () => clearInterval(id)
   }, [services.length])
