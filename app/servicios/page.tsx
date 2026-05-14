@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, Suspense, useCallback, useMemo } from 'react'
+import { useEffect, useState, Suspense, useCallback, useMemo, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
@@ -86,6 +86,8 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
   const [sortBy, setSortBy] = useState<SortBy>('RELEVANCE')
   const [showRefineSheet, setShowRefineSheet] = useState(false)
   const [showAllCategories, setShowAllCategories] = useState(false)
+  const [placeholder, setPlaceholder] = useState('¿Qué necesitas hoy?')
+  const placeholderIndexRef = useRef(0)
 
   const applyQuickFiltersAndSort = useCallback(
     (items: Service[]) => {
@@ -452,6 +454,21 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
     }
   }, [showRefineSheet])
 
+  useEffect(() => {
+    if (services.length === 0) return
+    const names = services.map(s => s.name)
+    const shuffled = [...names].sort(() => Math.random() - 0.5)
+
+    const rotate = () => {
+      placeholderIndexRef.current = (placeholderIndexRef.current + 1) % shuffled.length
+      setPlaceholder(`Ej: ${shuffled[placeholderIndexRef.current]}`)
+    }
+
+    setPlaceholder(`Ej: ${shuffled[0]}`)
+    const id = setInterval(rotate, 2500)
+    return () => clearInterval(id)
+  }, [services.length])
+
   return (
     <div className="min-h-screen bg-gray-50">
       <ServicesTour />
@@ -467,13 +484,13 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
           </div>
         )}
 
-        <div className="bg-white rounded-2xl md:rounded-3xl shadow-xl p-4 md:p-6 mb-4 md:mb-6 border-2 border-transparent hover:border-primary-500/20 transition">
+        <div className="bg-white rounded-2xl md:rounded-3xl shadow-xl p-4 md:p-6 mb-4 md:mb-6 border-2 border-primary-200 transition">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative" data-tour="services-search">
-              <Search className="absolute left-3 md:left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              <Search className="absolute left-3 md:left-4 top-1/2 transform -translate-y-1/2 text-primary-400" size={22} />
               <input
                 type="text"
-                placeholder="¿Qué servicio necesitas? Ej: plomero"
+                placeholder={placeholder}
                 value={searchTerm}
                 onChange={(e) => {
                   const value = e.target.value
@@ -501,7 +518,7 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
                     setShowHistory(false)
                   }, 150)
                 }}
-                className="w-full pl-10 md:pl-12 pr-4 py-3 md:py-4 border-2 border-gray-200 rounded-xl md:rounded-2xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none text-gray-800 font-medium transition text-sm md:text-base"
+                className="w-full pl-11 md:pl-13 pr-4 py-3.5 md:py-4 border-2 border-primary-300 rounded-xl md:rounded-2xl focus:ring-4 focus:ring-primary-100 focus:border-primary-500 outline-none text-gray-800 font-medium transition text-sm md:text-base placeholder:text-gray-400 shadow-sm"
               />
 
               {showHistory && searchHistory.length > 0 && !searchTerm && session?.user && (
