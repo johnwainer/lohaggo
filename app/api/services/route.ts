@@ -58,6 +58,14 @@ export async function GET(request: Request) {
     const search = searchParams.get("search")
     const citySlug = searchParams.get('city') || 'medellin'
 
+    // Global visibility flags — override per-service settings when disabled
+    const [flagPartnerCount, flagAvgRating] = await Promise.all([
+      prisma.featureFlag.findUnique({ where: { key: 'show_partner_count' } }),
+      prisma.featureFlag.findUnique({ where: { key: 'show_avg_rating' } }),
+    ])
+    const globalShowPartnerCount = flagPartnerCount ? flagPartnerCount.enabled : true
+    const globalShowAvgRating = flagAvgRating ? flagAvgRating.enabled : true
+
     const where: any = {}
 
     if (category) {
@@ -102,6 +110,13 @@ export async function GET(request: Request) {
       },
     } as const
 
+    const applyGlobalFlags = <T extends { showPartnerCount?: boolean; showAvgRating?: boolean }>(items: T[]): T[] =>
+      items.map(s => ({
+        ...s,
+        showPartnerCount: globalShowPartnerCount ? (s.showPartnerCount ?? true) : false,
+        showAvgRating: globalShowAvgRating ? (s.showAvgRating ?? true) : false,
+      }))
+
     let servicesRaw = await prisma.service.findMany({
       where,
       include: serviceQueryInclude,
@@ -110,7 +125,7 @@ export async function GET(request: Request) {
         { name: "asc" }
       ]
     })
-    let services = enrichPartnerStats(servicesRaw)
+    let services = applyGlobalFlags(enrichPartnerStats(servicesRaw))
 
     if (search) {
       const searchResult = enhancedSearch(services, search)
@@ -123,7 +138,7 @@ export async function GET(request: Request) {
             { name: "asc" }
           ]
         })
-        const allServices = enrichPartnerStats(allServicesRaw)
+        const allServices = applyGlobalFlags(enrichPartnerStats(allServicesRaw))
 
         const suggestions = getSuggestions(search, allServices)
 
