@@ -277,7 +277,10 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
         resultServices = data.services
         setServices(data.services)
         if (!selectedCategory && !searchTerm) {
-          setActiveCategorySlugs(new Set(data.services.map((s: Service) => s.category.slug)))
+          const withPartners = (data.services as Service[]).filter(
+            s => (s.partnerStats?.availableCount ?? s._count.partners) > 0
+          )
+          setActiveCategorySlugs(new Set(withPartners.map(s => s.category.slug)))
         }
 
         if (data.relatedByCategory && data.relatedByCategory.length > 0) {
