@@ -1,9 +1,17 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Package, DollarSign, Clock, TrendingUp, Edit, Trash2 } from 'lucide-react'
+import { Package, DollarSign, Clock, TrendingUp, Edit, Trash2, Eye, EyeOff } from 'lucide-react'
 import DataTable from '@/components/admin/DataTable'
 import { formatCurrency } from '@/lib/utils'
+
+interface FeatureFlag {
+  id: string
+  key: string
+  name: string
+  description: string | null
+  enabled: boolean
+}
 
 interface Service {
   id: string
@@ -40,6 +48,11 @@ export default function ServicesSection() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [serviceCategories, setServiceCategories] = useState<ServiceCategory[]>([])
+  const [globalFlags, setGlobalFlags] = useState<{ showPartnerCount: boolean; showAvgRating: boolean }>({
+    showPartnerCount: true,
+    showAvgRating: true,
+  })
+  const [togglingFlag, setTogglingFlag] = useState<string | null>(null)
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null)
   const [serviceForm, setServiceForm] = useState({
     name: '',
@@ -56,7 +69,34 @@ export default function ServicesSection() {
 
   useEffect(() => {
     void fetchServices()
+    void fetchGlobalFlags()
   }, [])
+
+  const fetchGlobalFlags = async () => {
+    const res = await fetch('/api/admin/feature-flags')
+    if (!res.ok) return
+    const data = await res.json()
+    const flags: FeatureFlag[] = data.flags ?? []
+    setGlobalFlags({
+      showPartnerCount: flags.find(f => f.key === 'show_partner_count')?.enabled ?? true,
+      showAvgRating: flags.find(f => f.key === 'show_avg_rating')?.enabled ?? true,
+    })
+  }
+
+  const toggleGlobalFlag = async (key: 'show_partner_count' | 'show_avg_rating') => {
+    setTogglingFlag(key)
+    const res = await fetch('/api/admin/feature-flags')
+    const data = await res.json()
+    const flag: FeatureFlag | undefined = (data.flags ?? []).find((f: FeatureFlag) => f.key === key)
+    if (!flag) { setTogglingFlag(null); return }
+    await fetch('/api/admin/feature-flags', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: flag.id, enabled: !flag.enabled }),
+    })
+    await fetchGlobalFlags()
+    setTogglingFlag(null)
+  }
 
   useEffect(() => {
     if (!serviceForm.categoryId && serviceCategories.length > 0) {
@@ -297,6 +337,38 @@ export default function ServicesSection() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Gestión de Servicios</h1>
         <p className="text-gray-600">Administra todos los servicios disponibles en la plataforma</p>
+      </div>
+
+      {/* Global visibility config */}
+      <div className="bg-white rounded-xl shadow-md p-5 border-l-4 border-primary-500">
+        <h2 className="font-bold text-gray-900 mb-1">Visibilidad global para clientes</h2>
+        <p className="text-gray-500 text-sm mb-4">Aplica a todos los servicios. Si está desactivado, se oculta aunque el servicio individual lo tenga habilitado.</p>
+        <div className="flex flex-col sm:flex-row gap-3">
+          {[
+            { key: 'show_partner_count' as const, label: 'Mostrar nº de socios disponibles', field: 'showPartnerCount' as const },
+            { key: 'show_avg_rating' as const, label: 'Mostrar calificación promedio', field: 'showAvgRating' as const },
+          ].map(({ key, label, field }) => {
+            const enabled = globalFlags[field]
+            return (
+              <button
+                key={key}
+                onClick={() => toggleGlobalFlag(key)}
+                disabled={togglingFlag === key}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 font-semibold text-sm transition-all ${
+                  enabled
+                    ? 'border-emerald-400 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                    : 'border-gray-300 bg-gray-50 text-gray-500 hover:bg-gray-100'
+                } ${togglingFlag === key ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {enabled ? <Eye size={16} /> : <EyeOff size={16} />}
+                {label}
+                <span className={`ml-auto text-xs font-bold px-2 py-0.5 rounded-full ${enabled ? 'bg-emerald-200 text-emerald-800' : 'bg-gray-200 text-gray-600'}`}>
+                  {enabled ? 'ON' : 'OFF'}
+                </span>
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
