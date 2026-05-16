@@ -1,6 +1,6 @@
-const CACHE_NAME = 'lohaggo-v4';
-const RUNTIME_CACHE = 'lohaggo-runtime-v4';
-const IMAGE_CACHE = 'lohaggo-images-v4';
+const CACHE_NAME = 'lohaggo-v5';
+const RUNTIME_CACHE = 'lohaggo-runtime-v5';
+const IMAGE_CACHE = 'lohaggo-images-v5';
 
 const PRECACHE_URLS = [
   '/manifest.json',
@@ -67,6 +67,12 @@ self.addEventListener('fetch', (event) => {
 
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(networkFirst(request, RUNTIME_CACHE));
+    return;
+  }
+
+  // Always fetch fresh HTML for navigation — stale HTML causes ChunkLoadErrors after deploys
+  if (request.mode === 'navigate') {
+    event.respondWith(networkFirst(request, CACHE_NAME));
     return;
   }
 

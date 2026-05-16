@@ -17,6 +17,7 @@ import InactiveAccountBanner from '@/components/InactiveAccountBanner'
 import MetaPixel from '@/components/analytics/MetaPixel'
 import GoogleAnalytics from '@/components/analytics/GoogleAnalytics'
 import MicrosoftClarity from '@/components/analytics/MicrosoftClarity'
+import ChunkErrorHandler from '@/components/ChunkErrorHandler'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -326,6 +327,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
           />
         </noscript>
         <Providers>
+          <ChunkErrorHandler />
           <PWARegister />
           <TestModeBanner />
           <InactiveAccountBanner />
