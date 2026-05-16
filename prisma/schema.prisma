@@ -104,6 +104,8 @@ model Service {
   basePrice       Float
   duration        Int
   popular         Boolean           @default(false)
+  showPartnerCount Boolean          @default(true)
+  showAvgRating   Boolean           @default(true)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   bookings        Booking[]

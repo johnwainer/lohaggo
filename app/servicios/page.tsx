@@ -32,6 +32,8 @@ interface Service {
     availableCount: number
     avgRating: number
   }
+  showPartnerCount?: boolean
+  showAvgRating?: boolean
 }
 
 interface Category {
@@ -890,15 +892,19 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
                         </p>
                       </div>
                       <div className="text-right">
-                        <div className="flex items-center gap-1 mb-1">
-                          <Star className="w-3.5 h-3.5 md:w-4 md:h-4 text-yellow-500 fill-yellow-500" />
-                          <span className="text-xs md:text-sm font-bold text-gray-900">
-                            {(service.partnerStats?.avgRating ?? 0).toFixed(1)}
-                          </span>
-                        </div>
-                        <p className="text-gray-500 text-xs font-medium">
-                          {service.partnerStats?.availableCount ?? service._count.partners} disponibles
-                        </p>
+                        {service.showAvgRating !== false && (
+                          <div className="flex items-center gap-1 mb-1">
+                            <Star className="w-3.5 h-3.5 md:w-4 md:h-4 text-yellow-500 fill-yellow-500" />
+                            <span className="text-xs md:text-sm font-bold text-gray-900">
+                              {(service.partnerStats?.avgRating ?? 0).toFixed(1)}
+                            </span>
+                          </div>
+                        )}
+                        {service.showPartnerCount !== false && (
+                          <p className="text-gray-500 text-xs font-medium">
+                            {service.partnerStats?.availableCount ?? service._count.partners} disponibles
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -967,15 +973,19 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
                               </p>
                             </div>
                             <div className="text-right">
-                              <div className="flex items-center gap-1 mb-1">
-                                <Star className="w-3 h-3 md:w-3.5 md:h-3.5 text-yellow-500 fill-yellow-500" />
-                                <span className="text-xs font-bold text-gray-900">
-                                  {(service.partnerStats?.avgRating ?? 0).toFixed(1)}
-                                </span>
-                              </div>
-                              <p className="text-gray-500 text-xs">
-                                {service.partnerStats?.availableCount ?? service._count.partners} disponibles
-                              </p>
+                              {service.showAvgRating !== false && (
+                                <div className="flex items-center gap-1 mb-1">
+                                  <Star className="w-3 h-3 md:w-3.5 md:h-3.5 text-yellow-500 fill-yellow-500" />
+                                  <span className="text-xs font-bold text-gray-900">
+                                    {(service.partnerStats?.avgRating ?? 0).toFixed(1)}
+                                  </span>
+                                </div>
+                              )}
+                              {service.showPartnerCount !== false && (
+                                <p className="text-gray-500 text-xs">
+                                  {service.partnerStats?.availableCount ?? service._count.partners} disponibles
+                                </p>
+                              )}
                             </div>
                           </div>
                         </div>

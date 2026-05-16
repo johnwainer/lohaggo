@@ -15,6 +15,8 @@ const serviceUpdateSchema = z.object({
   basePrice: z.number().positive(),
   duration: z.number().int().positive().max(1440),
   popular: z.boolean(),
+  showPartnerCount: z.boolean().optional().default(true),
+  showAvgRating: z.boolean().optional().default(true),
 })
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

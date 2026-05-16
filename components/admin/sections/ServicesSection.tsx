@@ -14,6 +14,8 @@ interface Service {
   basePrice: number
   duration: number
   popular: boolean
+  showPartnerCount: boolean
+  showAvgRating: boolean
   category: {
     id?: string
     slug?: string
@@ -48,6 +50,8 @@ export default function ServicesSection() {
     basePrice: '0',
     duration: '60',
     popular: false,
+    showPartnerCount: true,
+    showAvgRating: true,
   })
 
   useEffect(() => {
@@ -103,6 +107,8 @@ export default function ServicesSection() {
       basePrice: String(service.basePrice),
       duration: String(service.duration),
       popular: Boolean(service.popular),
+      showPartnerCount: service.showPartnerCount !== false,
+      showAvgRating: service.showAvgRating !== false,
     })
   }
 
@@ -121,6 +127,8 @@ export default function ServicesSection() {
       basePrice: Number(serviceForm.basePrice),
       duration: Number(serviceForm.duration),
       popular: Boolean(serviceForm.popular),
+      showPartnerCount: Boolean(serviceForm.showPartnerCount),
+      showAvgRating: Boolean(serviceForm.showAvgRating),
     }
 
     if (!payload.description || Number.isNaN(payload.basePrice) || Number.isNaN(payload.duration)) {
@@ -404,14 +412,32 @@ export default function ServicesSection() {
           className="w-full border rounded-lg px-3 py-2 text-sm"
         />
 
-        <label className="inline-flex items-center gap-2 text-sm text-gray-700">
-          <input
-            type="checkbox"
-            checked={serviceForm.popular}
-            onChange={(e) => setServiceForm((prev) => ({ ...prev, popular: e.target.checked }))}
-          />
-          Marcar como popular
-        </label>
+        <div className="flex flex-col gap-2">
+          <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={serviceForm.popular}
+              onChange={(e) => setServiceForm((prev) => ({ ...prev, popular: e.target.checked }))}
+            />
+            Marcar como popular
+          </label>
+          <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={serviceForm.showPartnerCount}
+              onChange={(e) => setServiceForm((prev) => ({ ...prev, showPartnerCount: e.target.checked }))}
+            />
+            Mostrar número de socios disponibles a clientes
+          </label>
+          <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={serviceForm.showAvgRating}
+              onChange={(e) => setServiceForm((prev) => ({ ...prev, showAvgRating: e.target.checked }))}
+            />
+            Mostrar calificación promedio a clientes
+          </label>
+        </div>
 
         <div className="flex flex-wrap gap-2">
           <button
