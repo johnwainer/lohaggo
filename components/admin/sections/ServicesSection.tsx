@@ -93,6 +93,8 @@ export default function ServicesSection() {
       basePrice: '0',
       duration: '60',
       popular: false,
+      showPartnerCount: true,
+      showAvgRating: true,
     })
   }
 
