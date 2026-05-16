@@ -71,6 +71,7 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
   const [relatedServices, setRelatedServices] = useState<Service[]>([])
   const [topMatch, setTopMatch] = useState<Service | null>(null)
   const [categories, setCategories] = useState<Category[]>([])
+  const [activeCategorySlugs, setActiveCategorySlugs] = useState<Set<string>>(new Set())
   const [selectedCategory, setSelectedCategory] = useState<string>('')
   const [searchTerm, setSearchTerm] = useState('')
   const [loading, setLoading] = useState(true)
@@ -153,10 +154,10 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
     return [featuredLohaggoYa, ...filteredServices.filter((service) => service.id !== featuredLohaggoYa.id)]
   }, [filteredServices, featuredLohaggoYa])
 
-  const categoriesWithServices = useMemo(() => {
-    const slugsWithServices = new Set(services.map(s => s.category.slug))
-    return categories.filter(c => slugsWithServices.has(c.slug))
-  }, [categories, services])
+  const categoriesWithServices = useMemo(
+    () => categories.filter(c => activeCategorySlugs.size === 0 || activeCategorySlugs.has(c.slug)),
+    [categories, activeCategorySlugs]
+  )
 
   const visibleCategories = useMemo(
     () => (showAllCategories ? categoriesWithServices : categoriesWithServices.slice(0, 7)),
@@ -275,6 +276,9 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
       if (data.services) {
         resultServices = data.services
         setServices(data.services)
+        if (!selectedCategory && !searchTerm) {
+          setActiveCategorySlugs(new Set(data.services.map((s: Service) => s.category.slug)))
+        }
 
         if (data.relatedByCategory && data.relatedByCategory.length > 0) {
           setRelatedServices(data.relatedByCategory)
