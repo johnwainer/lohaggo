@@ -153,9 +153,14 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
     return [featuredLohaggoYa, ...filteredServices.filter((service) => service.id !== featuredLohaggoYa.id)]
   }, [filteredServices, featuredLohaggoYa])
 
+  const categoriesWithServices = useMemo(() => {
+    const slugsWithServices = new Set(services.map(s => s.category.slug))
+    return categories.filter(c => slugsWithServices.has(c.slug))
+  }, [categories, services])
+
   const visibleCategories = useMemo(
-    () => (showAllCategories ? categories : categories.slice(0, 7)),
-    [categories, showAllCategories]
+    () => (showAllCategories ? categoriesWithServices : categoriesWithServices.slice(0, 7)),
+    [categoriesWithServices, showAllCategories]
   )
 
   const activeRefinementCount = useMemo(() => {
