@@ -755,6 +755,96 @@ export default function MessagingPage() {
         )}
       </section>
 
+      {/* Meta / WhatsApp Business Guidelines */}
+      <section className="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-amber-100 bg-amber-50 font-semibold text-amber-800 text-sm flex items-center gap-2">
+          <AlertTriangle size={15} className="text-amber-500" />
+          Reglas de Meta / WhatsApp Business — Límites y Recomendaciones
+        </div>
+        <div className="p-5 space-y-4 text-sm text-gray-700">
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="bg-red-50 border border-red-100 rounded-xl p-4">
+              <p className="font-bold text-red-700 mb-2">⛔ Prohibido</p>
+              <ul className="space-y-1.5 text-red-600 text-xs list-disc list-inside">
+                <li>Enviar mensajes sin opt-in explícito del usuario</li>
+                <li>Usar WhatsApp para mensajes de marketing no solicitados</li>
+                <li>Enviar mensajes masivos fuera de una campaña aprobada</li>
+                <li>Reintentar después de que el usuario bloquee o reporte</li>
+                <li>Plantillas con contenido engañoso o de baja calidad</li>
+              </ul>
+            </div>
+            <div className="bg-green-50 border border-green-100 rounded-xl p-4">
+              <p className="font-bold text-green-700 mb-2">✅ Permitido y recomendado</p>
+              <ul className="space-y-1.5 text-green-700 text-xs list-disc list-inside">
+                <li>Mensajes transaccionales (confirmaciones, alertas de estado)</li>
+                <li>Marketing solo con opt-in explícito previo</li>
+                <li>Plantillas aprobadas por Meta en categoría correcta</li>
+                <li>Respuestas dentro de la ventana de 24h de conversación</li>
+                <li>Botones CTA claros y honestos</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 space-y-2">
+            <p className="font-bold text-blue-700">📋 Ventana de Sesión (24 horas)</p>
+            <p className="text-xs text-blue-700">Cuando un usuario te escribe, tienes <strong>24 horas</strong> para responder libremente (cualquier mensaje). Pasadas las 24h, solo puedes iniciar conversación usando una <strong>plantilla aprobada</strong> (template message). Por eso todas las automatizaciones usan plantillas.</p>
+          </div>
+
+          <div className="bg-purple-50 border border-purple-100 rounded-xl p-4 space-y-2">
+            <p className="font-bold text-purple-700">📊 Límites de calidad y volumen (Twilio + Meta)</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div className="bg-white rounded-lg p-3 text-center border border-purple-100">
+                <p className="text-2xl font-black text-purple-600">250</p>
+                <p className="text-gray-500">Mensajes/día (inicio)</p>
+              </div>
+              <div className="bg-white rounded-lg p-3 text-center border border-purple-100">
+                <p className="text-2xl font-black text-purple-600">1K</p>
+                <p className="text-gray-500">Mensajes/día (nivel 1)</p>
+              </div>
+              <div className="bg-white rounded-lg p-3 text-center border border-purple-100">
+                <p className="text-2xl font-black text-purple-600">10K</p>
+                <p className="text-gray-500">Mensajes/día (nivel 2)</p>
+              </div>
+              <div className="bg-white rounded-lg p-3 text-center border border-purple-100">
+                <p className="text-2xl font-black text-purple-600">100K+</p>
+                <p className="text-gray-500">Mensajes/día (nivel 3)</p>
+              </div>
+            </div>
+            <p className="text-xs text-purple-600">El límite sube automáticamente con el tiempo si mantienes alta calidad (tasa de bloqueo baja, plantillas UTILITY/MARKETING bien redactadas). El nivel actual depende de la antigüedad y reputación de tu número en Meta.</p>
+          </div>
+
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-2">
+            <p className="font-bold text-gray-700">🏷️ Categorías de Plantillas</p>
+            <div className="grid sm:grid-cols-3 gap-3 text-xs">
+              <div className="bg-white rounded-lg p-3 border border-gray-100">
+                <p className="font-semibold text-blue-600 mb-1">UTILITY</p>
+                <p className="text-gray-500">Transaccionales: confirmaciones de reserva, verificación, alertas de cuenta. Tarifa más baja. <strong>Recomendadas para LoHaggo.</strong></p>
+              </div>
+              <div className="bg-white rounded-lg p-3 border border-gray-100">
+                <p className="font-semibold text-green-600 mb-1">AUTHENTICATION</p>
+                <p className="text-gray-500">OTPs y códigos de verificación únicamente. Sin marketing. Tarifa especial.</p>
+              </div>
+              <div className="bg-white rounded-lg p-3 border border-gray-100">
+                <p className="font-semibold text-amber-600 mb-1">MARKETING</p>
+                <p className="text-gray-500">Promociones, referidos, campañas. Requiere opt-in explícito. Tarifa más alta y mayor control de calidad.</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-4">
+            <p className="font-bold text-yellow-700 mb-2">⚡ Mejores prácticas para LoHaggo</p>
+            <ul className="space-y-1 text-xs text-yellow-700 list-disc list-inside">
+              <li>Usa <strong>UTILITY</strong> para: bienvenida, verificación de documentos, confirmación de reserva</li>
+              <li>Usa <strong>MARKETING</strong> solo para referidos (los usuarios ya dieron opt-in al registrarse)</li>
+              <li>Mantén el texto de las plantillas claro, sin emojis excesivos ni lenguaje de spam</li>
+              <li>Monitorea la tasa de bloqueo en el <strong>WhatsApp Manager</strong> de Meta Business</li>
+              <li>Si una plantilla es rechazada, revisa la categoría y el lenguaje antes de reenviar</li>
+              <li>SMS es el fallback seguro cuando WhatsApp falla (ya implementado)</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
       {/* Registered WA senders */}
       {waSenders.length > 0 && (
         <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">

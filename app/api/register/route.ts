@@ -12,6 +12,7 @@ import {
   verifyTurnstileToken,
 } from '@/lib/security/bot-protection'
 import { sendWelcomePartner } from '@/lib/messaging/whatsapp-templates'
+import { scheduleAutomationsForUser } from '@/lib/messaging/automation-service'
 
 const logger = createLogger('register')
 
@@ -201,6 +202,21 @@ async function handlePOST(request: NextRequest) {
       sendWelcomePartner(phone, name).catch((err) =>
         logger.error('Welcome WA send failed', { userId: user.id, err })
       )
+    }
+
+    // Schedule all active automation rules for this user's role
+    const automationTrigger = role === 'PARTNER' ? 'PARTNER_REGISTERED' : 'CLIENT_REGISTERED'
+    scheduleAutomationsForUser(user.id, automationTrigger).catch((err) =>
+      logger.error('scheduleAutomations failed', { userId: user.id, err })
+    )
+
+    // Schedule docs reminder for partners (delayHours is set in the rule)
+    if (role === 'PARTNER') {
+      scheduleAutomationsForUser(user.id, 'PARTNER_DOCS_REMINDER').catch(() => null)
+      scheduleAutomationsForUser(user.id, 'PARTNER_REFERRAL_REMINDER').catch(() => null)
+    } else {
+      scheduleAutomationsForUser(user.id, 'CLIENT_FIRST_BOOKING_NUDGE').catch(() => null)
+      scheduleAutomationsForUser(user.id, 'CLIENT_REFERRAL_REMINDER').catch(() => null)
     }
 
     return NextResponse.json({

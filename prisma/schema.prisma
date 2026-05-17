@@ -35,6 +35,7 @@ model User {
   messagingDeliveries    MessagingDelivery[]
   notificationDispatches NotificationDispatchLog[]
   messagingOptOuts       MessagingOptOut[]
+  automationExecutions   AutomationExecution[]
   partnerProfile         PartnerProfile?
   payments               Payment[]
   paymentMethods         PaymentMethod[]
@@ -407,6 +408,53 @@ model MessagingProviderConfig {
   updatedByEmail  String?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
+}
+
+model AutomationRule {
+  id           String              @id @default(cuid())
+  name         String
+  description  String?
+  trigger      AutomationTrigger
+  targetRole   UserRole?
+  delayHours   Int                 @default(0)
+  channels     String              // JSON array of MessagingChannel
+  waTemplateFn String?             // function name in whatsapp-templates.ts
+  customBody   String?             // for SMS / Email body (supports {{name}} vars)
+  subject      String?             // for Email subject
+  isActive     Boolean             @default(true)
+  metadata     String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  executions   AutomationExecution[]
+
+  @@index([trigger, isActive])
+}
+
+model AutomationExecution {
+  id          String            @id @default(cuid())
+  ruleId      String
+  userId      String
+  channel     MessagingChannel
+  status      String            @default("PENDING")
+  scheduledAt DateTime
+  executedAt  DateTime?
+  error       String?
+  createdAt   DateTime          @default(now())
+  rule        AutomationRule    @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([ruleId, userId, channel])
+  @@index([scheduledAt, status])
+  @@index([userId, status])
+}
+
+enum AutomationTrigger {
+  PARTNER_REGISTERED
+  CLIENT_REGISTERED
+  PARTNER_DOCS_REMINDER
+  PARTNER_REFERRAL_REMINDER
+  CLIENT_FIRST_BOOKING_NUDGE
+  CLIENT_REFERRAL_REMINDER
 }
 
 model PwaTelemetryEvent {

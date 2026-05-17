@@ -3,6 +3,14 @@
     {
       "path": "/api/pwa/cron/adoption-alerts",
       "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/cron/automations",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/admin/messaging/run-scheduled",
+      "schedule": "*/15 * * * *"
     }
   ]
 }
