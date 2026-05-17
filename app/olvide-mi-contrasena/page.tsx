@@ -49,8 +49,8 @@ export default function ForgotPasswordPage() {
       <div className="absolute top-0 left-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 animate-pulse pointer-events-none"></div>
       <div className="absolute bottom-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl translate-x-1/2 translate-y-1/2 animate-pulse delay-1000 pointer-events-none"></div>
 
-      <div className="relative min-h-screen flex flex-col items-center justify-center py-8 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-6xl w-full grid lg:grid-cols-2 gap-8 items-center">
+      <div className="relative flex flex-col items-center min-h-screen py-8 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl w-full my-auto grid lg:grid-cols-2 gap-8 items-center">
           <div className="hidden lg:block text-white space-y-8 animate-fade-in">
             <div className="space-y-4">
               <Link href="/" className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full hover:bg-white/30 transition-all cursor-pointer">
