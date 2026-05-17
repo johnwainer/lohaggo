@@ -1,7 +1,7 @@
 import type { MessagingCampaign, MessagingCampaignStatus, MessagingChannel, UserRole } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { renderTextTemplate } from '@/lib/messaging/template'
-import { sendMessageViaProvider } from '@/lib/messaging/providers'
+import { sendMessageViaProvider, sendWhatsAppTemplate } from '@/lib/messaging/providers'
 import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
 import { resolveCampaignRecipients, resolveDestination } from '@/lib/messaging/campaign-recipients'
 
@@ -31,6 +31,20 @@ export async function processCampaign(campaignId: string) {
     take: 2000,
   })
   const runtimeConfig = await getMessagingProviderRuntimeConfig()
+
+  // WA Content Template metadata (WHATSAPP channel only)
+  let waContentSid: string | null = null
+  let waTemplateVariables: Record<string, string> = {}
+  if (campaign.channel === 'WHATSAPP') {
+    try {
+      const meta = JSON.parse(campaign.metadata ?? '{}') as {
+        waContentSid?: string
+        waTemplateVariables?: Record<string, string>
+      }
+      waContentSid = meta.waContentSid || null
+      waTemplateVariables = meta.waTemplateVariables || {}
+    } catch { /* ignore */ }
+  }
 
   let sent = 0
   let failed = 0
@@ -134,22 +148,33 @@ export async function processCampaign(campaignId: string) {
       ? renderTextTemplate(subjectTemplate, { user_name: user.name, user_email: user.email })
       : null
 
-    const result = await sendMessageViaProvider(
-      {
-        channel: campaign.channel,
-        to: destination,
-        userId: user.id,
-        subject,
-        body,
-        data: {
-          notificationId: `${campaign.id}:${user.id}:${Date.now()}`,
-          campaignId: campaign.id,
-          campaignName: campaign.name,
-          targetUrl: '/notifications',
+    let result: Awaited<ReturnType<typeof sendMessageViaProvider>>
+    if (campaign.channel === 'WHATSAPP' && waContentSid) {
+      const resolvedVars: Record<string, string> = {}
+      for (const [key, val] of Object.entries(waTemplateVariables)) {
+        resolvedVars[key] = val
+          .replace(/\{\{user_name\}\}/g, user.name || user.email)
+          .replace(/\{\{user_email\}\}/g, user.email)
+      }
+      result = await sendWhatsAppTemplate(destination, waContentSid, resolvedVars, runtimeConfig.twilio)
+    } else {
+      result = await sendMessageViaProvider(
+        {
+          channel: campaign.channel,
+          to: destination,
+          userId: user.id,
+          subject,
+          body,
+          data: {
+            notificationId: `${campaign.id}:${user.id}:${Date.now()}`,
+            campaignId: campaign.id,
+            campaignName: campaign.name,
+            targetUrl: '/notifications',
+          },
         },
-      },
-      runtimeConfig
-    )
+        runtimeConfig
+      )
+    }
 
     await prisma.messagingDelivery.create({
       data: {

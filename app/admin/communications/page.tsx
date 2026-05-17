@@ -120,6 +120,18 @@ type ProviderState = {
   }
 }
 
+type WaTemplate = {
+  sid: string
+  name: string
+  language: string
+  types: string[]
+  body: string
+  variables: Record<string, string>
+  waStatus: string
+  waName: string | null
+  waCategory: string | null
+}
+
 type Panel = 'OVERVIEW' | 'CONFIG' | 'CAMPAIGNS' | 'CREATE' | 'ANALYTICS'
 
 const PANEL_OPTIONS: Array<{ id: Panel; label: string }> = [
@@ -145,6 +157,7 @@ export default function AdminCommunicationsPage() {
   const [activePanel, setActivePanel] = useState<Panel>('OVERVIEW')
 
   const [templates, setTemplates] = useState<Template[]>([])
+  const [waTemplates, setWaTemplates] = useState<WaTemplate[]>([])
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [serviceOptions, setServiceOptions] = useState<ServiceOption[]>([])
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null)
@@ -175,6 +188,8 @@ export default function AdminCommunicationsPage() {
     customSubject: '',
     customBody: '',
     templateId: '',
+    waContentSid: '',
+    waTemplateVariables: {} as Record<string, string>,
     scheduledAt: '',
     abTestEnabled: false,
     abVariantAKey: 'A',
@@ -233,6 +248,14 @@ export default function AdminCommunicationsPage() {
     () => channelTemplates.find((template) => template.id === campForm.templateId) || null,
     [channelTemplates, campForm.templateId]
   )
+  const selectedWaTemplate = useMemo(
+    () => waTemplates.find((t) => t.sid === campForm.waContentSid) || null,
+    [waTemplates, campForm.waContentSid]
+  )
+  const approvedWaTemplates = useMemo(
+    () => waTemplates.filter((t) => t.waStatus === 'approved'),
+    [waTemplates]
+  )
   const partnerCategoryOptions = useMemo(() => {
     const map = new Map<string, string>()
     for (const service of serviceOptions) {
@@ -262,21 +285,24 @@ export default function AdminCommunicationsPage() {
   const load = async () => {
     setLoading(true)
     try {
-      const [tplRes, campRes, ovRes, pvRes] = await Promise.all([
+      const [tplRes, campRes, ovRes, pvRes, waRes] = await Promise.all([
         fetch('/api/admin/messaging/templates', { cache: 'no-store' }),
         fetch('/api/admin/messaging/campaigns', { cache: 'no-store' }),
         fetch('/api/admin/messaging/overview', { cache: 'no-store' }),
         fetch('/api/admin/messaging/providers', { cache: 'no-store' }),
+        fetch('/api/admin/messaging/wa-templates', { cache: 'no-store' }),
       ])
       const svcRes = await fetch('/api/admin/messaging/services', { cache: 'no-store' })
-      const [tplData, campData, ovData, pvData, svcData] = await Promise.all([
+      const [tplData, campData, ovData, pvData, waData, svcData] = await Promise.all([
         tplRes.json(),
         campRes.json(),
         ovRes.json(),
         pvRes.json(),
+        waRes.json(),
         svcRes.json(),
       ])
       setTemplates(tplData.templates || [])
+      setWaTemplates(waData.templates || [])
       setCampaigns(campData.campaigns || [])
       setOverview(ovData)
       setProviders(pvData.providers || null)
@@ -390,6 +416,7 @@ export default function AdminCommunicationsPage() {
 
   useEffect(() => {
     if (campForm.contentMode !== 'TEMPLATE') return
+    if (campForm.channel === 'WHATSAPP') return // WA templates handled separately
     if (!campForm.templateId && channelTemplates.length > 0) {
       setCampForm((prev) => ({ ...prev, templateId: channelTemplates[0].id }))
       return
@@ -397,7 +424,7 @@ export default function AdminCommunicationsPage() {
     if (campForm.templateId && !channelTemplates.find((template) => template.id === campForm.templateId)) {
       setCampForm((prev) => ({ ...prev, templateId: channelTemplates[0]?.id || '' }))
     }
-  }, [campForm.contentMode, campForm.templateId, channelTemplates])
+  }, [campForm.contentMode, campForm.templateId, campForm.channel, channelTemplates])
 
   useEffect(() => {
     if (campForm.contentMode !== 'TEMPLATE' || !selectedTemplate) return
@@ -466,7 +493,12 @@ export default function AdminCommunicationsPage() {
       setCampaignFeedback({ type: 'error', message: 'El nombre de campaña es requerido' })
       return
     }
-    if (campForm.contentMode === 'TEMPLATE' && !campForm.templateId) {
+    const isWaTemplate = campForm.channel === 'WHATSAPP' && campForm.contentMode === 'TEMPLATE'
+    if (isWaTemplate && !campForm.waContentSid) {
+      setCampaignFeedback({ type: 'error', message: 'Selecciona una plantilla de WhatsApp aprobada para continuar' })
+      return
+    }
+    if (!isWaTemplate && campForm.contentMode === 'TEMPLATE' && !campForm.templateId) {
       setCampaignFeedback({ type: 'error', message: 'Selecciona una plantilla para continuar' })
       return
     }
@@ -484,12 +516,20 @@ export default function AdminCommunicationsPage() {
     }
     const splitA = Math.min(99, Math.max(1, Number(campForm.abSplitA) || 50))
     const splitB = 100 - splitA
+    // For WA templates, send as CUSTOM with the template body so backend accepts it;
+    // the real sending uses the waContentSid stored in metadata
+    const backendContentMode = isWaTemplate ? 'CUSTOM' : campForm.contentMode
+    const backendCustomBody = isWaTemplate
+      ? (selectedWaTemplate?.body || `WA:${campForm.waContentSid}`)
+      : campForm.customBody
     const response = await fetch('/api/admin/messaging/campaigns', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...campForm,
         channel: campForm.channel,
+        contentMode: backendContentMode,
+        customBody: backendCustomBody,
         targetRole: campForm.targetRole || null,
         targetCity: campForm.targetCity || null,
         partnerFilterMode: campForm.targetRole === 'PARTNER' ? campForm.partnerFilterMode : 'ALL',
@@ -499,7 +539,7 @@ export default function AdminCommunicationsPage() {
             ? campForm.partnerServiceIds
             : [],
         customSubject: campForm.customSubject || null,
-        templateId: campForm.templateId || null,
+        templateId: isWaTemplate ? null : (campForm.templateId || null),
         status: campForm.scheduledAt ? 'SCHEDULED' : 'DRAFT',
         scheduledAt: campForm.scheduledAt || null,
         abTestEnabled: campForm.abTestEnabled,
@@ -509,13 +549,13 @@ export default function AdminCommunicationsPage() {
                 {
                   key: campForm.abVariantAKey || 'A',
                   subject: campForm.abVariantASubject || null,
-                  body: campForm.abVariantABody || campForm.customBody,
+                  body: campForm.abVariantABody || backendCustomBody,
                   allocation: splitA,
                 },
                 {
                   key: campForm.abVariantBKey || 'B',
                   subject: campForm.abVariantBSubject || null,
-                  body: campForm.abVariantBBody || campForm.customBody,
+                  body: campForm.abVariantBBody || backendCustomBody,
                   allocation: splitB,
                 },
               ],
@@ -524,8 +564,13 @@ export default function AdminCommunicationsPage() {
         includeUserIds: recipientIncludeIds,
         excludeUserIds: recipientExcludeIds,
         metadata: {
-          contentMode: campForm.contentMode,
-          source: campForm.contentMode === 'TEMPLATE' ? 'template' : 'custom',
+          contentMode: isWaTemplate ? 'WA_TEMPLATE' : campForm.contentMode,
+          source: isWaTemplate ? 'wa_template' : (campForm.contentMode === 'TEMPLATE' ? 'template' : 'custom'),
+          ...(isWaTemplate ? {
+            waContentSid: campForm.waContentSid,
+            waTemplateName: selectedWaTemplate?.name || null,
+            waTemplateVariables: campForm.waTemplateVariables,
+          } : {}),
         },
       }),
     })
@@ -546,6 +591,8 @@ export default function AdminCommunicationsPage() {
       customSubject: '',
       customBody: '',
       templateId: '',
+      waContentSid: '',
+      waTemplateVariables: {},
       scheduledAt: '',
       abTestEnabled: false,
       abVariantAKey: 'A',
@@ -1356,7 +1403,77 @@ export default function AdminCommunicationsPage() {
                     </p>
                   </div>
                 )}
-                {campForm.contentMode === 'TEMPLATE' ? (
+                {campForm.channel === 'WHATSAPP' && campForm.contentMode === 'TEMPLATE' ? (
+                  <div className="space-y-2">
+                    <label className="text-xs text-gray-700 space-y-1 block">
+                      <span className="font-medium">Plantilla WhatsApp (aprobadas por Meta)</span>
+                      {approvedWaTemplates.length === 0 ? (
+                        <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                          {waTemplates.length === 0
+                            ? 'No se encontraron plantillas en Twilio. Verifica las credenciales en Configuración.'
+                            : 'No hay plantillas aprobadas por Meta. Solo se pueden enviar plantillas con estado "approved".'}
+                        </p>
+                      ) : (
+                        <select
+                          className="border rounded px-2 py-2 text-sm w-full"
+                          value={campForm.waContentSid}
+                          onChange={(e) => {
+                            const sid = e.target.value
+                            const tpl = waTemplates.find((t) => t.sid === sid)
+                            const vars: Record<string, string> = {}
+                            if (tpl?.variables) {
+                              for (const key of Object.keys(tpl.variables)) {
+                                vars[key] = key === '1' ? '{{user_name}}' : ''
+                              }
+                            }
+                            setCampForm((p) => ({ ...p, waContentSid: sid, waTemplateVariables: vars }))
+                          }}
+                        >
+                          <option value="">Selecciona una plantilla WA…</option>
+                          {approvedWaTemplates.map((tpl) => (
+                            <option key={tpl.sid} value={tpl.sid}>
+                              {tpl.name} ({tpl.language}){tpl.waCategory ? ` · ${tpl.waCategory}` : ''}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </label>
+                    {selectedWaTemplate && (
+                      <>
+                        <div className="rounded border bg-gray-50 p-2 text-xs text-gray-700 whitespace-pre-wrap min-h-[60px]">
+                          {selectedWaTemplate.body || 'Sin vista previa de cuerpo disponible.'}
+                        </div>
+                        {Object.keys(campForm.waTemplateVariables).length > 0 && (
+                          <div className="rounded border p-3 space-y-2">
+                            <p className="text-xs font-medium text-gray-700">Variables de la plantilla</p>
+                            <p className="text-xs text-gray-500">
+                              Usa <code className="bg-gray-100 px-1 rounded">{'{{user_name}}'}</code> para el nombre del destinatario,{' '}
+                              <code className="bg-gray-100 px-1 rounded">{'{{user_email}}'}</code> para su correo.
+                            </p>
+                            <div className="space-y-1.5">
+                              {Object.entries(campForm.waTemplateVariables).map(([key, val]) => (
+                                <div key={key} className="flex items-center gap-2">
+                                  <span className="w-10 shrink-0 rounded border bg-gray-100 px-2 py-1 text-center font-mono text-xs text-gray-600">{`{{${key}}}`}</span>
+                                  <input
+                                    className="flex-1 border rounded px-2 py-1 text-xs"
+                                    placeholder={key === '1' ? '{{user_name}} — nombre del destinatario' : 'Valor estático (ej: https://lohaggo.com)'}
+                                    value={val}
+                                    onChange={(e) =>
+                                      setCampForm((p) => ({
+                                        ...p,
+                                        waTemplateVariables: { ...p.waTemplateVariables, [key]: e.target.value },
+                                      }))
+                                    }
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                ) : campForm.contentMode === 'TEMPLATE' ? (
                   <div className="space-y-2">
                     <label className="text-xs text-gray-700 space-y-1 block">
                       <span className="font-medium">Plantilla a usar</span>
