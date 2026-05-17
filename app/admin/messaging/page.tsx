@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   MessageSquare, Phone, Key, CheckCircle2, XCircle, Eye, EyeOff,
   Send, Loader2, RefreshCw, Wifi, WifiOff, AlertTriangle, ChevronDown,
-  FileText, Clock, Search, User, X,
+  FileText, Clock, Search, User, X, ShieldCheck, Zap,
 } from 'lucide-react'
 
 type TwilioProvider = {
@@ -54,22 +54,30 @@ type TestResult = {
   errorExplanation?: string
 } | null
 
+type Tab = 'estado' | 'credenciales' | 'prueba' | 'plantillas' | 'guia'
+
+const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
+  { id: 'estado',       label: 'Estado',       icon: <Wifi size={15} /> },
+  { id: 'credenciales', label: 'Credenciales', icon: <Key size={15} /> },
+  { id: 'prueba',       label: 'Prueba',        icon: <Send size={15} /> },
+  { id: 'plantillas',   label: 'Plantillas WA', icon: <FileText size={15} /> },
+  { id: 'guia',         label: 'Guía Meta',     icon: <ShieldCheck size={15} /> },
+]
+
 const STATUS_COLOR: Record<string, string> = {
-  queued: 'text-yellow-700 bg-yellow-50 border-yellow-200',
-  sent: 'text-blue-700 bg-blue-50 border-blue-200',
-  delivered: 'text-green-700 bg-green-50 border-green-200',
+  queued:      'text-yellow-700 bg-yellow-50 border-yellow-200',
+  sent:        'text-blue-700 bg-blue-50 border-blue-200',
+  delivered:   'text-green-700 bg-green-50 border-green-200',
   undelivered: 'text-red-700 bg-red-50 border-red-200',
-  failed: 'text-red-700 bg-red-50 border-red-200',
+  failed:      'text-red-700 bg-red-50 border-red-200',
 }
 
-// Extract variable numbers from a template body: {{1}}, {{2}}, ...
 function extractVars(body: string): string[] {
   const matches = body.match(/\{\{(\d+)\}\}/g) || []
   const nums = Array.from(new Set(matches.map(m => m.replace(/\D/g, ''))))
   return nums.sort((a, b) => Number(a) - Number(b))
 }
 
-// Guess which contact field maps to a variable index (heuristic)
 function guessField(varNum: string, templateName: string): string {
   if (varNum === '1') return 'nombre'
   if (varNum === '2') {
@@ -86,6 +94,8 @@ function guessField(varNum: string, templateName: string): string {
 }
 
 export default function MessagingPage() {
+  const [activeTab, setActiveTab] = useState<Tab>('estado')
+
   const [provider, setProvider] = useState<TwilioProvider | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -106,16 +116,14 @@ export default function MessagingPage() {
   const [isActive, setIsActive] = useState(true)
   const [showToken, setShowToken] = useState(false)
 
-  // test state
   const [testChannel, setTestChannel] = useState<'WHATSAPP' | 'SMS'>('WHATSAPP')
   const [testFrom, setTestFrom] = useState('')
   const [testContentSid, setTestContentSid] = useState('')
-  const [testVars, setTestVars] = useState<Record<string, string>>({}) // {1: val, 2: val}
+  const [testVars, setTestVars] = useState<Record<string, string>>({})
   const [testMessage, setTestMessage] = useState('')
   const [testLoading, setTestLoading] = useState(false)
   const [testResult, setTestResult] = useState<TestResult>(null)
 
-  // contact picker
   const [contactSearch, setContactSearch] = useState('')
   const [contactRole, setContactRole] = useState<'ALL' | 'PARTNER' | 'CLIENT'>('ALL')
   const [contacts, setContacts] = useState<Contact[]>([])
@@ -143,12 +151,9 @@ export default function MessagingPage() {
   }, [])
 
   useEffect(() => {
-    if (phoneMode === 'contact') {
-      fetchContacts(contactSearch, contactRole)
-    }
+    if (phoneMode === 'contact') fetchContacts(contactSearch, contactRole)
   }, [contactSearch, contactRole, phoneMode, fetchContacts])
 
-  // Auto-fill vars when contact or template changes
   const activeTemplate = waTemplates.find(t => t.sid === testContentSid)
   useEffect(() => {
     if (!activeTemplate || !selectedContact) return
@@ -157,24 +162,17 @@ export default function MessagingPage() {
     for (const num of varNums) {
       const field = guessField(num, activeTemplate.name)
       const val = field ? (selectedContact.fields[field] || '') : ''
-      // Only auto-fill if not already manually set
       filled[num] = testVars[num] !== undefined ? testVars[num] : val
     }
     setTestVars(filled)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [testContentSid, selectedContact?.id])
 
-  // Reset vars when template changes
-  useEffect(() => {
-    setTestVars({})
-  }, [testContentSid])
+  useEffect(() => { setTestVars({}) }, [testContentSid])
 
-  // Close contact dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (contactRef.current && !contactRef.current.contains(e.target as Node)) {
-        setShowContactList(false)
-      }
+      if (contactRef.current && !contactRef.current.contains(e.target as Node)) setShowContactList(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -263,6 +261,11 @@ export default function MessagingPage() {
   }
 
   const effectiveTo = phoneMode === 'contact' ? (selectedContact?.phone || '') : customPhone
+  const isConfigured = provider?.hasAuthToken && provider?.accountSid
+  const wpConfigured = isConfigured && !!provider?.whatsappFrom
+  const smsConfigured = isConfigured && !!provider?.smsFrom
+  const effectiveTestFrom = testFrom || (testChannel === 'WHATSAPP' ? provider?.whatsappFrom : provider?.smsFrom) || ''
+  const approvedTemplates = waTemplates.filter(t => t.waStatus === 'approved')
 
   async function handleTest() {
     if (!effectiveTo) return
@@ -289,12 +292,6 @@ export default function MessagingPage() {
     }
   }
 
-  const isConfigured = provider?.hasAuthToken && provider?.accountSid
-  const wpConfigured = isConfigured && !!provider?.whatsappFrom
-  const smsConfigured = isConfigured && !!provider?.smsFrom
-  const effectiveTestFrom = testFrom || (testChannel === 'WHATSAPP' ? provider?.whatsappFrom : provider?.smsFrom) || ''
-  const approvedTemplates = waTemplates.filter(t => t.waStatus === 'approved')
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -306,231 +303,319 @@ export default function MessagingPage() {
         <button
           onClick={() => { fetchStatus(); fetchNumbers(); fetchWaTemplates() }}
           disabled={loading}
-          className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition"
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-600 hover:bg-gray-50 transition-all disabled:opacity-50"
           title="Recargar"
         >
-          <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+          <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
+          Actualizar
         </button>
       </div>
 
-      {/* Status cards */}
-      <div className="grid grid-cols-3 gap-3">
-        <StatusCard label="Twilio" ok={!!isConfigured && !!provider?.active}
-          detail={provider?.accountSid ? `${provider.accountSid.slice(0, 6)}…` : 'No config'} loading={loading} />
-        <StatusCard label="WhatsApp" ok={!!wpConfigured}
-          detail={provider?.whatsappFrom || 'Sin número'} loading={loading} />
-        <StatusCard label="SMS" ok={!!smsConfigured}
-          detail={provider?.smsFrom || 'Sin número'} loading={loading} />
+      {/* Tab bar */}
+      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-full overflow-x-auto">
+        {TABS.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap flex-1 justify-center ${
+              activeTab === tab.id
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {tab.icon}
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      {/* Credentials */}
-      <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <div className="flex items-center gap-2 font-semibold text-gray-800">
-            <Key size={16} className="text-gray-400" /> Credenciales Twilio
-          </div>
-          {!editing && (
-            <button onClick={() => setEditing(true)} className="text-sm font-medium text-primary-600 hover:text-primary-700">
-              Editar
-            </button>
-          )}
-        </div>
-        <div className="p-5 space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="Account SID" value={accountSid} onChange={setAccountSid}
-              placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" disabled={!editing} />
-            <div className="space-y-1">
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide">Auth Token</label>
-              <div className="relative">
-                <input type={showToken ? 'text' : 'password'} value={authToken}
-                  onChange={e => setAuthToken(e.target.value)} disabled={!editing}
-                  placeholder={provider?.hasAuthToken ? '••••••••••••••••••••••••••••••••' : 'Pega el auth token'}
-                  className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-gray-50 disabled:text-gray-500" />
-                {editing && (
-                  <button type="button" onClick={() => setShowToken(v => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                    {showToken ? <EyeOff size={15} /> : <Eye size={15} />}
-                  </button>
-                )}
-              </div>
-              {provider?.hasAuthToken && !authToken && editing && (
-                <p className="text-xs text-gray-400">Dejar vacío para mantener el actual</p>
-              )}
-            </div>
-            <div className="space-y-1">
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide">Número SMS activo</label>
-              {editing && smsNumbers.length > 0 ? (
-                <SelectOrInput value={smsFrom} onChange={setSmsFrom}
-                  options={smsNumbers.map(n => ({ value: n.number, label: `${n.number} — ${n.friendly}` }))}
-                  placeholder="+19786445487" />
-              ) : (
-                <Field value={smsFrom} onChange={setSmsFrom} placeholder="+19786445487" disabled={!editing} />
-              )}
-            </div>
-            <div className="space-y-1">
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide">Sender WhatsApp activo</label>
-              {editing && waSenders.length > 0 ? (
-                <SelectOrInput value={whatsappFrom} onChange={setWhatsappFrom}
-                  options={waSenders.map(s => ({ value: s.number, label: s.label }))}
-                  placeholder="+573337507792" />
-              ) : (
-                <Field value={whatsappFrom} onChange={setWhatsappFrom} placeholder="+573337507792" disabled={!editing} />
-              )}
-              {!editing && provider?.whatsappFrom?.includes('15558464003') && (
-                <p className="text-xs text-amber-600">⚠️ Sandbox activo — requiere opt-in</p>
-              )}
-            </div>
-          </div>
-          {editing && (
-            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-              <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} className="rounded" />
-              Proveedor activo
-            </label>
-          )}
-          {msg && (
-            <div className={`flex items-center gap-2 p-3 rounded-lg text-sm border ${
-              msg.type === 'success' ? 'bg-green-50 text-green-800 border-green-200' : 'bg-red-50 text-red-800 border-red-200'
-            }`}>
-              {msg.type === 'success' ? <CheckCircle2 size={15} /> : <XCircle size={15} />}
-              {msg.text}
-            </div>
-          )}
-          {editing && (
-            <div className="flex gap-2 pt-1">
-              <button onClick={() => { setEditing(false); setAuthToken(''); setMsg(null); fetchStatus() }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition">
-                Cancelar
-              </button>
-              <button onClick={handleSave} disabled={saving}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition disabled:opacity-50">
-                {saving ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
-                Guardar
-              </button>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* ── TEST SEND ── */}
-      <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="flex items-center gap-2 px-5 py-4 border-b border-gray-100 font-semibold text-gray-800">
-          <Send size={16} className="text-gray-400" /> Envío de Prueba
-        </div>
-
-        <div className="p-5 space-y-5">
-
-          {/* Row 1: Canal + Sender */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide">Canal</label>
-              <div className="flex gap-2">
-                {(['WHATSAPP', 'SMS'] as const).map(ch => (
-                  <button key={ch} onClick={() => { setTestChannel(ch); setTestFrom(''); setTestContentSid(''); setTestVars({}) }}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium border transition ${
-                      testChannel === ch ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                    }`}>
-                    {ch === 'WHATSAPP' ? <MessageSquare size={14} /> : <Phone size={14} />}
-                    {ch}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="space-y-1">
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide">
-                Enviar desde <span className="text-gray-400 normal-case font-normal">(opcional)</span>
-              </label>
-              {testChannel === 'WHATSAPP' && waSenders.length > 0 ? (
-                <SelectOrInput value={testFrom} onChange={setTestFrom}
-                  options={[
-                    { value: '', label: `Default: ${provider?.whatsappFrom || '—'}` },
-                    ...waSenders.map(s => ({ value: s.number, label: s.label })),
-                  ]} placeholder={`Default: ${effectiveTestFrom}`} />
-              ) : testChannel === 'SMS' && smsNumbers.length > 0 ? (
-                <SelectOrInput value={testFrom} onChange={setTestFrom}
-                  options={[
-                    { value: '', label: `Default: ${provider?.smsFrom || '—'}` },
-                    ...smsNumbers.map(n => ({ value: n.number, label: `${n.number} — ${n.friendly}` })),
-                  ]} placeholder={`Default: ${effectiveTestFrom}`} />
-              ) : (
-                <input type="text" value={testFrom} onChange={e => setTestFrom(e.target.value)}
-                  placeholder={`Default: ${effectiveTestFrom}`}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
-              )}
-            </div>
+      {/* ── TAB: ESTADO ── */}
+      {activeTab === 'estado' && (
+        <div className="space-y-5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <StatusCard label="Twilio" ok={!!isConfigured && !!provider?.active}
+              detail={provider?.accountSid ? `${provider.accountSid.slice(0, 6)}…` : 'No config'} loading={loading} />
+            <StatusCard label="WhatsApp" ok={!!wpConfigured}
+              detail={provider?.whatsappFrom || 'Sin número'} loading={loading} />
+            <StatusCard label="SMS" ok={!!smsConfigured}
+              detail={provider?.smsFrom || 'Sin número'} loading={loading} />
           </div>
 
-          {/* Row 2: Destination — Contact picker or custom */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide">Destinatario</label>
-              <div className="flex gap-1">
-                {(['contact', 'custom'] as const).map(mode => (
-                  <button key={mode} onClick={() => { setPhoneMode(mode); setSelectedContact(null); setCustomPhone('') }}
-                    className={`text-xs px-2.5 py-1 rounded-md font-medium border transition ${
-                      phoneMode === mode ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-                    }`}>
-                    {mode === 'contact' ? 'Buscar socio/cliente' : 'Número personalizado'}
-                  </button>
-                ))}
+          {/* WA Senders */}
+          {waSenders.length > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-100 font-semibold text-gray-800 text-sm flex items-center gap-2">
+                <MessageSquare size={15} className="text-gray-400" />
+                Senders WhatsApp
+                {numbersLoading && <Loader2 size={13} className="animate-spin text-gray-400 ml-auto" />}
               </div>
-            </div>
-
-            {phoneMode === 'custom' ? (
-              <input type="text" value={customPhone} onChange={e => setCustomPhone(e.target.value)}
-                placeholder="+573001234567"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
-            ) : (
-              <div ref={contactRef} className="relative">
-                {/* Selected contact chip */}
-                {selectedContact ? (
-                  <div className="flex items-center gap-2 px-3 py-2 border border-green-300 bg-green-50 rounded-lg">
-                    <User size={14} className="text-green-600 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <span className="text-sm font-medium text-green-900">{selectedContact.name}</span>
-                      <span className="text-xs text-green-700 ml-2">{selectedContact.phone}</span>
-                      <span className="text-xs text-green-600 ml-1 opacity-70">
-                        {selectedContact.role === 'PARTNER' ? '· Socio' : '· Cliente'}
-                        {selectedContact.service ? ` · ${selectedContact.service}` : ''}
-                      </span>
+              <div className="divide-y divide-gray-50">
+                {waSenders.map(s => (
+                  <div key={s.number} className="flex items-center justify-between px-5 py-3">
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">{s.number}</p>
+                      {s.isSandbox && <p className="text-xs text-amber-600">Sandbox — requiere opt-in</p>}
                     </div>
-                    <button onClick={() => { setSelectedContact(null); setTestVars({}) }}
-                      className="text-green-600 hover:text-green-800 flex-shrink-0">
-                      <X size={14} />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                      <input
-                        type="text"
-                        value={contactSearch}
-                        onChange={e => { setContactSearch(e.target.value); setShowContactList(true) }}
-                        onFocus={() => { setShowContactList(true); fetchContacts(contactSearch, contactRole) }}
-                        placeholder="Buscar por nombre, teléfono o email…"
-                        className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      />
-                    </div>
-                    <select value={contactRole} onChange={e => setContactRole(e.target.value as any)}
-                      className="px-2 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
-                      <option value="ALL">Todos</option>
-                      <option value="PARTNER">Socios</option>
-                      <option value="CLIENT">Clientes</option>
-                    </select>
-                  </div>
-                )}
-
-                {/* Dropdown */}
-                {showContactList && !selectedContact && (
-                  <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
-                    {contactsLoading ? (
-                      <div className="flex items-center justify-center py-4">
-                        <Loader2 size={16} className="animate-spin text-gray-400" />
-                      </div>
-                    ) : contacts.length === 0 ? (
-                      <p className="text-sm text-gray-500 px-4 py-3">Sin resultados</p>
+                    {provider?.whatsappFrom === s.number ? (
+                      <span className="text-xs font-semibold px-2.5 py-1 bg-green-100 text-green-700 rounded-full">Activo</span>
                     ) : (
-                      contacts.map(c => (
+                      <button
+                        onClick={async () => {
+                          setSaving(true)
+                          await fetch('/api/admin/messaging/providers', {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ provider: 'TWILIO', whatsappFrom: s.number }),
+                          })
+                          await fetchStatus()
+                          setSaving(false)
+                        }}
+                        disabled={saving}
+                        className="text-xs font-semibold text-primary-600 hover:text-primary-700 px-3 py-1 rounded-lg hover:bg-primary-50 transition-colors disabled:opacity-50"
+                      >
+                        Usar este
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* SMS numbers */}
+          {smsNumbers.length > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-100 font-semibold text-gray-800 text-sm flex items-center gap-2">
+                <Phone size={15} className="text-gray-400" />
+                Números SMS
+              </div>
+              <div className="divide-y divide-gray-50">
+                {smsNumbers.map(n => (
+                  <div key={n.number} className="flex items-center justify-between px-5 py-3">
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">{n.number}</p>
+                      <p className="text-xs text-gray-500">{n.friendly}</p>
+                    </div>
+                    {provider?.smsFrom === n.number && (
+                      <span className="text-xs font-semibold px-2.5 py-1 bg-blue-100 text-blue-700 rounded-full">Activo</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!loading && !provider?.active && (
+            <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 text-sm">
+              <AlertTriangle size={18} className="flex-shrink-0" />
+              El proveedor Twilio no está activo. Ve a <button className="underline font-semibold" onClick={() => setActiveTab('credenciales')}>Credenciales</button> para configurarlo.
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── TAB: CREDENCIALES ── */}
+      {activeTab === 'credenciales' && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            <div className="flex items-center gap-2 font-semibold text-gray-800">
+              <Key size={16} className="text-gray-400" /> Credenciales Twilio
+            </div>
+            {!editing && (
+              <button onClick={() => setEditing(true)} className="text-sm font-semibold text-primary-600 hover:text-primary-700 px-3 py-1 rounded-lg hover:bg-primary-50 transition-colors">
+                Editar
+              </button>
+            )}
+          </div>
+          <div className="p-5 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="Account SID" value={accountSid} onChange={setAccountSid}
+                placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" disabled={!editing} />
+              <div className="space-y-1">
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide">Auth Token</label>
+                <div className="relative">
+                  <input type={showToken ? 'text' : 'password'} value={authToken}
+                    onChange={e => setAuthToken(e.target.value)} disabled={!editing}
+                    placeholder={provider?.hasAuthToken ? '••••••••••••••••••••••••••••••••' : 'Pega el auth token'}
+                    className="w-full px-3 py-2 pr-10 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-gray-50 disabled:text-gray-500" />
+                  {editing && (
+                    <button type="button" onClick={() => setShowToken(v => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      {showToken ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  )}
+                </div>
+                {provider?.hasAuthToken && !authToken && editing && (
+                  <p className="text-xs text-gray-400">Dejar vacío para mantener el actual</p>
+                )}
+              </div>
+              <div className="space-y-1">
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide">Número SMS activo</label>
+                {editing && smsNumbers.length > 0 ? (
+                  <SelectOrInput value={smsFrom} onChange={setSmsFrom}
+                    options={smsNumbers.map(n => ({ value: n.number, label: `${n.number} — ${n.friendly}` }))}
+                    placeholder="+19786445487" />
+                ) : (
+                  <Field value={smsFrom} onChange={setSmsFrom} placeholder="+19786445487" disabled={!editing} />
+                )}
+              </div>
+              <div className="space-y-1">
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide">Sender WhatsApp activo</label>
+                {editing && waSenders.length > 0 ? (
+                  <SelectOrInput value={whatsappFrom} onChange={setWhatsappFrom}
+                    options={waSenders.map(s => ({ value: s.number, label: s.label }))}
+                    placeholder="+573337507792" />
+                ) : (
+                  <Field value={whatsappFrom} onChange={setWhatsappFrom} placeholder="+573337507792" disabled={!editing} />
+                )}
+                {!editing && provider?.whatsappFrom?.includes('15558464003') && (
+                  <p className="text-xs text-amber-600">⚠️ Sandbox activo — requiere opt-in</p>
+                )}
+              </div>
+            </div>
+            {editing && (
+              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} className="rounded" />
+                Proveedor activo
+              </label>
+            )}
+            {msg && (
+              <div className={`flex items-center gap-2 p-3 rounded-xl text-sm border ${
+                msg.type === 'success' ? 'bg-green-50 text-green-800 border-green-200' : 'bg-red-50 text-red-800 border-red-200'
+              }`}>
+                {msg.type === 'success' ? <CheckCircle2 size={15} /> : <XCircle size={15} />}
+                {msg.text}
+              </div>
+            )}
+            {editing && (
+              <div className="flex gap-2 pt-1">
+                <button onClick={() => { setEditing(false); setAuthToken(''); setMsg(null); fetchStatus() }}
+                  className="px-4 py-2 text-sm font-semibold text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
+                  Cancelar
+                </button>
+                <button onClick={handleSave} disabled={saving}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-primary-600 rounded-xl hover:bg-primary-700 transition-colors disabled:opacity-50">
+                  {saving ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
+                  Guardar
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB: PRUEBA ── */}
+      {activeTab === 'prueba' && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="flex items-center gap-2 px-5 py-4 border-b border-gray-100 font-semibold text-gray-800">
+            <Send size={16} className="text-gray-400" /> Envío de Prueba
+          </div>
+          <div className="p-5 space-y-5">
+
+            {/* Canal + Sender */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide">Canal</label>
+                <div className="flex gap-2">
+                  {(['WHATSAPP', 'SMS'] as const).map(ch => (
+                    <button key={ch} onClick={() => { setTestChannel(ch); setTestFrom(''); setTestContentSid(''); setTestVars({}) }}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-sm font-semibold border-2 transition-all ${
+                        testChannel === ch ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                      }`}>
+                      {ch === 'WHATSAPP' ? <MessageSquare size={14} /> : <Phone size={14} />}
+                      {ch}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  Enviar desde <span className="text-gray-400 normal-case font-normal">(opcional)</span>
+                </label>
+                {testChannel === 'WHATSAPP' && waSenders.length > 0 ? (
+                  <SelectOrInput value={testFrom} onChange={setTestFrom}
+                    options={[
+                      { value: '', label: `Default: ${provider?.whatsappFrom || '—'}` },
+                      ...waSenders.map(s => ({ value: s.number, label: s.label })),
+                    ]} placeholder={`Default: ${effectiveTestFrom}`} />
+                ) : testChannel === 'SMS' && smsNumbers.length > 0 ? (
+                  <SelectOrInput value={testFrom} onChange={setTestFrom}
+                    options={[
+                      { value: '', label: `Default: ${provider?.smsFrom || '—'}` },
+                      ...smsNumbers.map(n => ({ value: n.number, label: `${n.number} — ${n.friendly}` })),
+                    ]} placeholder={`Default: ${effectiveTestFrom}`} />
+                ) : (
+                  <input type="text" value={testFrom} onChange={e => setTestFrom(e.target.value)}
+                    placeholder={`Default: ${effectiveTestFrom}`}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                )}
+              </div>
+            </div>
+
+            {/* Destinatario */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide">Destinatario</label>
+                <div className="flex gap-1">
+                  {(['contact', 'custom'] as const).map(mode => (
+                    <button key={mode} onClick={() => { setPhoneMode(mode); setSelectedContact(null); setCustomPhone('') }}
+                      className={`text-xs px-3 py-1 rounded-lg font-semibold border transition-all ${
+                        phoneMode === mode ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                      }`}>
+                      {mode === 'contact' ? 'Buscar usuario' : 'Número manual'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {phoneMode === 'custom' ? (
+                <input type="text" value={customPhone} onChange={e => setCustomPhone(e.target.value)}
+                  placeholder="+573001234567"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+              ) : (
+                <div ref={contactRef} className="relative">
+                  {selectedContact ? (
+                    <div className="flex items-center gap-2 px-3 py-2 border border-green-300 bg-green-50 rounded-xl">
+                      <User size={14} className="text-green-600 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm font-medium text-green-900">{selectedContact.name}</span>
+                        <span className="text-xs text-green-700 ml-2">{selectedContact.phone}</span>
+                        <span className="text-xs text-green-600 ml-1 opacity-70">
+                          {selectedContact.role === 'PARTNER' ? '· Socio' : '· Cliente'}
+                          {selectedContact.service ? ` · ${selectedContact.service}` : ''}
+                        </span>
+                      </div>
+                      <button onClick={() => { setSelectedContact(null); setTestVars({}) }} className="text-green-600 hover:text-green-800 flex-shrink-0">
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input type="text" value={contactSearch}
+                          onChange={e => { setContactSearch(e.target.value); setShowContactList(true) }}
+                          onFocus={() => { setShowContactList(true); fetchContacts(contactSearch, contactRole) }}
+                          placeholder="Buscar por nombre, teléfono o email…"
+                          className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                      </div>
+                      <select value={contactRole} onChange={e => setContactRole(e.target.value as any)}
+                        className="px-2 py-2 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
+                        <option value="ALL">Todos</option>
+                        <option value="PARTNER">Socios</option>
+                        <option value="CLIENT">Clientes</option>
+                      </select>
+                    </div>
+                  )}
+                  {showContactList && !selectedContact && (
+                    <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                      {contactsLoading ? (
+                        <div className="flex items-center justify-center py-4">
+                          <Loader2 size={16} className="animate-spin text-gray-400" />
+                        </div>
+                      ) : contacts.length === 0 ? (
+                        <p className="text-sm text-gray-500 px-4 py-3">Sin resultados</p>
+                      ) : contacts.map(c => (
                         <button key={c.id} onClick={() => { setSelectedContact(c); setShowContactList(false); setContactSearch('') }}
                           className="w-full flex items-start gap-3 px-4 py-2.5 hover:bg-gray-50 transition text-left">
                           <div className={`mt-0.5 w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold text-white ${
@@ -540,11 +625,7 @@ export default function MessagingPage() {
                           </div>
                           <div className="min-w-0">
                             <p className="text-sm font-medium text-gray-800 truncate">{c.name}</p>
-                            <p className="text-xs text-gray-500">
-                              {c.phone}
-                              {c.service ? ` · ${c.service}` : ''}
-                              {c.city ? ` · ${c.city}` : ''}
-                            </p>
+                            <p className="text-xs text-gray-500">{c.phone}{c.service ? ` · ${c.service}` : ''}{c.city ? ` · ${c.city}` : ''}</p>
                           </div>
                           <span className={`ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0 ${
                             c.role === 'PARTNER' ? 'bg-primary-100 text-primary-700' : 'bg-secondary-100 text-secondary-700'
@@ -552,338 +633,261 @@ export default function MessagingPage() {
                             {c.role === 'PARTNER' ? 'Socio' : 'Cliente'}
                           </span>
                         </button>
-                      ))
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {effectiveTo && (
-              <p className="text-xs text-gray-500">
-                Enviará a: <span className="font-mono font-medium">{effectiveTo}</span>
-              </p>
-            )}
-          </div>
-
-          {/* Row 3: Template picker (WA only) */}
-          {testChannel === 'WHATSAPP' && (
-            <div className="space-y-1">
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide">
-                Plantilla <span className="text-gray-400 normal-case font-normal">(requerida para iniciar conversación)</span>
-              </label>
-              {approvedTemplates.length === 0 ? (
-                <p className="text-xs text-amber-600 flex items-center gap-1">
-                  <Clock size={12} /> Sin plantillas aprobadas aún — usa texto libre (requiere sesión abierta)
-                </p>
-              ) : (
-                <SelectOrInput
-                  value={testContentSid}
-                  onChange={v => { setTestContentSid(v); setTestVars({}) }}
-                  options={[
-                    { value: '', label: 'Sin plantilla — texto libre (solo en sesión activa)' },
-                    ...approvedTemplates.map(t => ({
-                      value: t.sid,
-                      label: `${t.waName || t.name}${t.waCategory ? ` — ${t.waCategory}` : ''}`,
-                    })),
-                  ]}
-                />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              {effectiveTo && (
+                <p className="text-xs text-gray-500">Enviará a: <span className="font-mono font-medium">{effectiveTo}</span></p>
               )}
             </div>
-          )}
 
-          {/* Row 4: Template variables editor */}
-          {testContentSid && activeTemplate && (() => {
-            const varNums = extractVars(activeTemplate.body)
-            if (varNums.length === 0) return null
-
-            // Available contact fields for binding
-            const contactFieldOptions = selectedContact
-              ? Object.entries(selectedContact.fields)
-                  .filter(([, v]) => v)
-                  .map(([k, v]) => ({ label: `${k}: "${v}"`, value: v }))
-              : []
-
-            return (
-              <div className="space-y-3 p-4 bg-gray-50 rounded-xl border border-gray-200">
-                {/* Template body preview */}
-                <div className="text-xs text-gray-500 font-mono bg-white border border-gray-200 rounded-lg p-3 whitespace-pre-wrap leading-relaxed">
-                  {activeTemplate.body.replace(/\{\{(\d+)\}\}/g, (_, n) =>
-                    testVars[n] ? `[${testVars[n]}]` : `{{${n}}}`
-                  )}
-                </div>
-
-                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Variables de la plantilla</p>
-
-                {varNums.map(num => (
-                  <div key={num} className="grid grid-cols-[80px_1fr] gap-2 items-start">
-                    <span className="text-xs font-mono font-bold text-primary-600 bg-primary-50 border border-primary-200 rounded px-2 py-1.5 text-center">
-                      {`{{${num}}}`}
-                    </span>
-                    <div className="space-y-1.5">
-                      {/* If contact selected, show field picker */}
-                      {contactFieldOptions.length > 0 && (
-                        <select
-                          value={testVars[num] !== undefined ? (
-                            contactFieldOptions.find(o => o.value === testVars[num]) ? testVars[num] : '__custom__'
-                          ) : ''}
-                          onChange={e => {
-                            if (e.target.value !== '__custom__') {
-                              setTestVars(v => ({ ...v, [num]: e.target.value }))
-                            }
-                          }}
-                          className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        >
-                          <option value="">— elige un campo del contacto —</option>
-                          {contactFieldOptions.map(o => (
-                            <option key={o.value} value={o.value}>{o.label}</option>
-                          ))}
-                          <option value="__custom__">✏️ Escribir manualmente</option>
-                        </select>
-                      )}
-                      <input
-                        type="text"
-                        value={testVars[num] || ''}
-                        onChange={e => setTestVars(v => ({ ...v, [num]: e.target.value }))}
-                        placeholder={`Valor para {{${num}}}${
-                          num === '1' ? ' (ej: Carlos)' :
-                          num === '2' ? ' (ej: Plomería)' :
-                          num === '3' ? ' (ej: martes 20 de mayo)' : ''
-                        }`}
-                        className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )
-          })()}
-
-          {/* Row 5: Free text (no template) */}
-          {!testContentSid && (
-            <div className="space-y-1">
-              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide">
-                Mensaje <span className="text-gray-400 normal-case font-normal">(opcional — solo funciona si el usuario escribió primero)</span>
-              </label>
-              <textarea value={testMessage} onChange={e => setTestMessage(e.target.value)}
-                placeholder="Mensaje de prueba desde LoHaggo Admin…" rows={2}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none" />
-            </div>
-          )}
-
-          {/* Send button */}
-          <button onClick={handleTest}
-            disabled={testLoading || !effectiveTo || !isConfigured}
-            className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-secondary-600 rounded-lg hover:bg-secondary-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
-            {testLoading ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
-            Enviar prueba
-            {effectiveTo && <span className="text-secondary-200 text-xs ml-1">→ {effectiveTo}</span>}
-          </button>
-
-          {!isConfigured && (
-            <p className="text-xs text-amber-600 flex items-center gap-1">
-              <AlertTriangle size={13} /> Configura las credenciales de Twilio antes de enviar.
-            </p>
-          )}
-
-          {testResult && <TestResultCard result={testResult} />}
-        </div>
-      </section>
-
-      {/* WA Templates section */}
-      <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-100 font-semibold text-gray-800 text-sm flex items-center gap-2">
-          <FileText size={15} className="text-gray-400" />
-          Plantillas WhatsApp
-          {templatesLoading && <Loader2 size={13} className="animate-spin text-gray-400 ml-auto" />}
-          {!templatesLoading && (
-            <button onClick={fetchWaTemplates} className="ml-auto text-gray-400 hover:text-gray-600">
-              <RefreshCw size={13} />
-            </button>
-          )}
-        </div>
-        {waTemplates.length === 0 && !templatesLoading ? (
-          <p className="px-5 py-4 text-sm text-gray-500">No hay plantillas en Twilio Content API.</p>
-        ) : (
-          <div className="divide-y divide-gray-100">
-            {waTemplates.map(t => {
-              const statusBadge: Record<WATemplate['waStatus'], string> = {
-                approved: 'bg-green-100 text-green-700',
-                pending: 'bg-yellow-100 text-yellow-700',
-                rejected: 'bg-red-100 text-red-700',
-                unsubmitted: 'bg-gray-100 text-gray-500',
-              }
-              return (
-                <div key={t.sid} className="px-5 py-3 space-y-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-medium text-gray-800">{t.waName || t.name}</p>
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusBadge[t.waStatus]}`}>
-                      {t.waStatus === 'approved' ? '✓ Aprobada' :
-                       t.waStatus === 'pending' ? '⏳ En revisión' :
-                       t.waStatus === 'rejected' ? '✗ Rechazada' : 'Sin enviar'}
-                    </span>
-                    {t.waCategory && <span className="text-xs text-gray-400">{t.waCategory}</span>}
-                    {t.waStatus === 'approved' && (
-                      <button
-                        onClick={() => { setTestContentSid(t.sid); setTestVars({}); window.scrollTo({ top: 400, behavior: 'smooth' }) }}
-                        className="ml-auto text-xs text-primary-600 hover:text-primary-700 font-medium"
-                      >
-                        Usar en prueba ↑
-                      </button>
-                    )}
-                  </div>
-                  {t.body && (
-                    <p className="text-xs text-gray-500 font-mono bg-gray-50 px-2 py-1 rounded border border-gray-100 line-clamp-2">
-                      {t.body}
-                    </p>
-                  )}
-                  {t.waStatus === 'rejected' && t.waRejectionReason && (
-                    <p className="text-xs text-red-600 flex items-center gap-1">
-                      <AlertTriangle size={11} /> {t.waRejectionReason}
-                    </p>
-                  )}
-                  {t.waStatus === 'pending' && (
-                    <p className="text-xs text-yellow-600 flex items-center gap-1">
-                      <Clock size={11} /> En revisión — las UTILITY suelen aprobarse en minutos
-                    </p>
-                  )}
-                  <p className="text-xs text-gray-400 font-mono">{t.sid}</p>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </section>
-
-      {/* Meta / WhatsApp Business Guidelines */}
-      <section className="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-amber-100 bg-amber-50 font-semibold text-amber-800 text-sm flex items-center gap-2">
-          <AlertTriangle size={15} className="text-amber-500" />
-          Reglas de Meta / WhatsApp Business — Límites y Recomendaciones
-        </div>
-        <div className="p-5 space-y-4 text-sm text-gray-700">
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div className="bg-red-50 border border-red-100 rounded-xl p-4">
-              <p className="font-bold text-red-700 mb-2">⛔ Prohibido</p>
-              <ul className="space-y-1.5 text-red-600 text-xs list-disc list-inside">
-                <li>Enviar mensajes sin opt-in explícito del usuario</li>
-                <li>Usar WhatsApp para mensajes de marketing no solicitados</li>
-                <li>Enviar mensajes masivos fuera de una campaña aprobada</li>
-                <li>Reintentar después de que el usuario bloquee o reporte</li>
-                <li>Plantillas con contenido engañoso o de baja calidad</li>
-              </ul>
-            </div>
-            <div className="bg-green-50 border border-green-100 rounded-xl p-4">
-              <p className="font-bold text-green-700 mb-2">✅ Permitido y recomendado</p>
-              <ul className="space-y-1.5 text-green-700 text-xs list-disc list-inside">
-                <li>Mensajes transaccionales (confirmaciones, alertas de estado)</li>
-                <li>Marketing solo con opt-in explícito previo</li>
-                <li>Plantillas aprobadas por Meta en categoría correcta</li>
-                <li>Respuestas dentro de la ventana de 24h de conversación</li>
-                <li>Botones CTA claros y honestos</li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 space-y-2">
-            <p className="font-bold text-blue-700">📋 Ventana de Sesión (24 horas)</p>
-            <p className="text-xs text-blue-700">Cuando un usuario te escribe, tienes <strong>24 horas</strong> para responder libremente (cualquier mensaje). Pasadas las 24h, solo puedes iniciar conversación usando una <strong>plantilla aprobada</strong> (template message). Por eso todas las automatizaciones usan plantillas.</p>
-          </div>
-
-          <div className="bg-purple-50 border border-purple-100 rounded-xl p-4 space-y-2">
-            <p className="font-bold text-purple-700">📊 Límites de calidad y volumen (Twilio + Meta)</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-              <div className="bg-white rounded-lg p-3 text-center border border-purple-100">
-                <p className="text-2xl font-black text-purple-600">250</p>
-                <p className="text-gray-500">Mensajes/día (inicio)</p>
-              </div>
-              <div className="bg-white rounded-lg p-3 text-center border border-purple-100">
-                <p className="text-2xl font-black text-purple-600">1K</p>
-                <p className="text-gray-500">Mensajes/día (nivel 1)</p>
-              </div>
-              <div className="bg-white rounded-lg p-3 text-center border border-purple-100">
-                <p className="text-2xl font-black text-purple-600">10K</p>
-                <p className="text-gray-500">Mensajes/día (nivel 2)</p>
-              </div>
-              <div className="bg-white rounded-lg p-3 text-center border border-purple-100">
-                <p className="text-2xl font-black text-purple-600">100K+</p>
-                <p className="text-gray-500">Mensajes/día (nivel 3)</p>
-              </div>
-            </div>
-            <p className="text-xs text-purple-600">El límite sube automáticamente con el tiempo si mantienes alta calidad (tasa de bloqueo baja, plantillas UTILITY/MARKETING bien redactadas). El nivel actual depende de la antigüedad y reputación de tu número en Meta.</p>
-          </div>
-
-          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-2">
-            <p className="font-bold text-gray-700">🏷️ Categorías de Plantillas</p>
-            <div className="grid sm:grid-cols-3 gap-3 text-xs">
-              <div className="bg-white rounded-lg p-3 border border-gray-100">
-                <p className="font-semibold text-blue-600 mb-1">UTILITY</p>
-                <p className="text-gray-500">Transaccionales: confirmaciones de reserva, verificación, alertas de cuenta. Tarifa más baja. <strong>Recomendadas para LoHaggo.</strong></p>
-              </div>
-              <div className="bg-white rounded-lg p-3 border border-gray-100">
-                <p className="font-semibold text-green-600 mb-1">AUTHENTICATION</p>
-                <p className="text-gray-500">OTPs y códigos de verificación únicamente. Sin marketing. Tarifa especial.</p>
-              </div>
-              <div className="bg-white rounded-lg p-3 border border-gray-100">
-                <p className="font-semibold text-amber-600 mb-1">MARKETING</p>
-                <p className="text-gray-500">Promociones, referidos, campañas. Requiere opt-in explícito. Tarifa más alta y mayor control de calidad.</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-4">
-            <p className="font-bold text-yellow-700 mb-2">⚡ Mejores prácticas para LoHaggo</p>
-            <ul className="space-y-1 text-xs text-yellow-700 list-disc list-inside">
-              <li>Usa <strong>UTILITY</strong> para: bienvenida, verificación de documentos, confirmación de reserva</li>
-              <li>Usa <strong>MARKETING</strong> solo para referidos (los usuarios ya dieron opt-in al registrarse)</li>
-              <li>Mantén el texto de las plantillas claro, sin emojis excesivos ni lenguaje de spam</li>
-              <li>Monitorea la tasa de bloqueo en el <strong>WhatsApp Manager</strong> de Meta Business</li>
-              <li>Si una plantilla es rechazada, revisa la categoría y el lenguaje antes de reenviar</li>
-              <li>SMS es el fallback seguro cuando WhatsApp falla (ya implementado)</li>
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      {/* Registered WA senders */}
-      {waSenders.length > 0 && (
-        <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100 font-semibold text-gray-800 text-sm flex items-center gap-2">
-            <MessageSquare size={15} className="text-gray-400" />
-            Senders WhatsApp
-            {numbersLoading && <Loader2 size={13} className="animate-spin text-gray-400 ml-auto" />}
-          </div>
-          <div className="divide-y divide-gray-100">
-            {waSenders.map(s => (
-              <div key={s.number} className="flex items-center justify-between px-5 py-3">
-                <div>
-                  <p className="text-sm font-medium text-gray-800">{s.number}</p>
-                  {s.isSandbox && <p className="text-xs text-amber-600">Sandbox — requiere opt-in</p>}
-                </div>
-                {provider?.whatsappFrom === s.number ? (
-                  <span className="text-xs font-semibold px-2 py-0.5 bg-green-100 text-green-700 rounded-full">Activo</span>
+            {/* Plantilla (WA only) */}
+            {testChannel === 'WHATSAPP' && (
+              <div className="space-y-1">
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  Plantilla <span className="text-gray-400 normal-case font-normal">(requerida para iniciar conversación)</span>
+                </label>
+                {approvedTemplates.length === 0 ? (
+                  <p className="text-xs text-amber-600 flex items-center gap-1">
+                    <Clock size={12} /> Sin plantillas aprobadas — usa texto libre (requiere sesión abierta)
+                  </p>
                 ) : (
-                  <button
-                    onClick={async () => {
-                      setSaving(true)
-                      await fetch('/api/admin/messaging/providers', {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ provider: 'TWILIO', whatsappFrom: s.number }),
-                      })
-                      await fetchStatus()
-                      setSaving(false)
-                    }}
-                    disabled={saving}
-                    className="text-xs font-medium text-primary-600 hover:text-primary-700 disabled:opacity-50"
-                  >
-                    Usar este
-                  </button>
+                  <SelectOrInput
+                    value={testContentSid}
+                    onChange={v => { setTestContentSid(v); setTestVars({}) }}
+                    options={[
+                      { value: '', label: 'Sin plantilla — texto libre (solo en sesión activa)' },
+                      ...approvedTemplates.map(t => ({
+                        value: t.sid,
+                        label: `${t.waName || t.name}${t.waCategory ? ` — ${t.waCategory}` : ''}`,
+                      })),
+                    ]}
+                  />
                 )}
               </div>
-            ))}
+            )}
+
+            {/* Variables de plantilla */}
+            {testContentSid && activeTemplate && (() => {
+              const varNums = extractVars(activeTemplate.body)
+              if (varNums.length === 0) return null
+              const contactFieldOptions = selectedContact
+                ? Object.entries(selectedContact.fields).filter(([, v]) => v).map(([k, v]) => ({ label: `${k}: "${v}"`, value: v }))
+                : []
+              return (
+                <div className="space-y-3 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                  <div className="text-xs text-gray-500 font-mono bg-white border border-gray-100 rounded-xl p-3 whitespace-pre-wrap leading-relaxed">
+                    {activeTemplate.body.replace(/\{\{(\d+)\}\}/g, (_, n) =>
+                      testVars[n] ? `[${testVars[n]}]` : `{{${n}}}`
+                    )}
+                  </div>
+                  <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Variables</p>
+                  {varNums.map(num => (
+                    <div key={num} className="grid grid-cols-[80px_1fr] gap-2 items-start">
+                      <span className="text-xs font-mono font-bold text-primary-600 bg-primary-50 border border-primary-200 rounded-lg px-2 py-1.5 text-center">
+                        {`{{${num}}}`}
+                      </span>
+                      <div className="space-y-1.5">
+                        {contactFieldOptions.length > 0 && (
+                          <select
+                            value={testVars[num] !== undefined ? (contactFieldOptions.find(o => o.value === testVars[num]) ? testVars[num] : '__custom__') : ''}
+                            onChange={e => { if (e.target.value !== '__custom__') setTestVars(v => ({ ...v, [num]: e.target.value })) }}
+                            className="w-full px-2.5 py-1.5 border border-gray-200 rounded-xl text-xs bg-white focus:outline-none focus:ring-2 focus:ring-primary-500">
+                            <option value="">— campo del contacto —</option>
+                            {contactFieldOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                            <option value="__custom__">✏️ Escribir manualmente</option>
+                          </select>
+                        )}
+                        <input type="text" value={testVars[num] || ''}
+                          onChange={e => setTestVars(v => ({ ...v, [num]: e.target.value }))}
+                          placeholder={`Valor para {{${num}}}${num === '1' ? ' (ej: Carlos)' : num === '2' ? ' (ej: Plomería)' : ''}`}
+                          className="w-full px-2.5 py-1.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
+
+            {/* Texto libre */}
+            {!testContentSid && (
+              <div className="space-y-1">
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  Mensaje <span className="text-gray-400 normal-case font-normal">(solo si el usuario escribió primero)</span>
+                </label>
+                <textarea value={testMessage} onChange={e => setTestMessage(e.target.value)}
+                  placeholder="Mensaje de prueba desde LoHaggo Admin…" rows={2}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none" />
+              </div>
+            )}
+
+            <button onClick={handleTest}
+              disabled={testLoading || !effectiveTo || !isConfigured}
+              className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-secondary-600 rounded-xl hover:bg-secondary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+              {testLoading ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
+              Enviar prueba
+              {effectiveTo && <span className="text-secondary-200 text-xs ml-1">→ {effectiveTo}</span>}
+            </button>
+
+            {!isConfigured && (
+              <p className="text-xs text-amber-600 flex items-center gap-1">
+                <AlertTriangle size={13} /> Configura las credenciales de Twilio antes de enviar.
+              </p>
+            )}
+
+            {testResult && <TestResultCard result={testResult} />}
           </div>
-        </section>
+        </div>
+      )}
+
+      {/* ── TAB: PLANTILLAS WA ── */}
+      {activeTab === 'plantillas' && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100 font-semibold text-gray-800 text-sm flex items-center gap-2">
+            <FileText size={15} className="text-gray-400" />
+            Plantillas WhatsApp
+            <span className="ml-1 text-xs font-normal text-gray-400">({waTemplates.length} total · {approvedTemplates.length} aprobadas)</span>
+            {templatesLoading
+              ? <Loader2 size={13} className="animate-spin text-gray-400 ml-auto" />
+              : <button onClick={fetchWaTemplates} className="ml-auto text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-colors"><RefreshCw size={13} /></button>
+            }
+          </div>
+          {waTemplates.length === 0 && !templatesLoading ? (
+            <p className="px-5 py-8 text-sm text-gray-500 text-center">No hay plantillas en Twilio Content API.</p>
+          ) : (
+            <div className="divide-y divide-gray-50">
+              {waTemplates.map(t => {
+                const statusBadge: Record<WATemplate['waStatus'], string> = {
+                  approved:    'bg-green-100 text-green-700',
+                  pending:     'bg-yellow-100 text-yellow-700',
+                  rejected:    'bg-red-100 text-red-700',
+                  unsubmitted: 'bg-gray-100 text-gray-500',
+                }
+                return (
+                  <div key={t.sid} className="px-5 py-4 space-y-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-semibold text-gray-800">{t.waName || t.name}</p>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusBadge[t.waStatus]}`}>
+                        {t.waStatus === 'approved' ? '✓ Aprobada' :
+                         t.waStatus === 'pending' ? '⏳ En revisión' :
+                         t.waStatus === 'rejected' ? '✗ Rechazada' : 'Sin enviar'}
+                      </span>
+                      {t.waCategory && <span className="text-xs text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full">{t.waCategory}</span>}
+                      {t.waStatus === 'approved' && (
+                        <button
+                          onClick={() => { setTestContentSid(t.sid); setTestVars({}); setActiveTab('prueba') }}
+                          className="ml-auto text-xs font-semibold text-primary-600 hover:text-primary-700 px-3 py-1 rounded-lg hover:bg-primary-50 transition-colors"
+                        >
+                          Usar en prueba →
+                        </button>
+                      )}
+                    </div>
+                    {t.body && (
+                      <p className="text-xs text-gray-500 font-mono bg-gray-50 px-3 py-2 rounded-xl border border-gray-100 line-clamp-2">
+                        {t.body}
+                      </p>
+                    )}
+                    {t.waStatus === 'rejected' && t.waRejectionReason && (
+                      <p className="text-xs text-red-600 flex items-center gap-1">
+                        <AlertTriangle size={11} /> {t.waRejectionReason}
+                      </p>
+                    )}
+                    {t.waStatus === 'pending' && (
+                      <p className="text-xs text-yellow-600 flex items-center gap-1">
+                        <Clock size={11} /> En revisión — las UTILITY suelen aprobarse en minutos
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-300 font-mono">{t.sid}</p>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── TAB: GUÍA META ── */}
+      {activeTab === 'guia' && (
+        <div className="space-y-4">
+          <div className="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-amber-100 bg-amber-50 font-semibold text-amber-800 text-sm flex items-center gap-2">
+              <AlertTriangle size={15} className="text-amber-500" />
+              Reglas de Meta / WhatsApp Business
+            </div>
+            <div className="p-5 space-y-4 text-sm text-gray-700">
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="bg-red-50 border border-red-100 rounded-xl p-4">
+                  <p className="font-bold text-red-700 mb-2">⛔ Prohibido</p>
+                  <ul className="space-y-1.5 text-red-600 text-xs list-disc list-inside">
+                    <li>Enviar mensajes sin opt-in explícito del usuario</li>
+                    <li>Usar WhatsApp para marketing no solicitado</li>
+                    <li>Enviar masivos fuera de campaña aprobada</li>
+                    <li>Reintentar tras bloqueo o reporte del usuario</li>
+                    <li>Plantillas con contenido engañoso</li>
+                  </ul>
+                </div>
+                <div className="bg-green-50 border border-green-100 rounded-xl p-4">
+                  <p className="font-bold text-green-700 mb-2">✅ Permitido</p>
+                  <ul className="space-y-1.5 text-green-700 text-xs list-disc list-inside">
+                    <li>Mensajes transaccionales (confirmaciones, alertas)</li>
+                    <li>Marketing solo con opt-in explícito previo</li>
+                    <li>Plantillas aprobadas por Meta</li>
+                    <li>Respuestas dentro de ventana 24h</li>
+                    <li>Botones CTA claros y honestos</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 space-y-1">
+                <p className="font-bold text-blue-700">📋 Ventana de Sesión (24 horas)</p>
+                <p className="text-xs text-blue-700">Cuando un usuario te escribe, tienes <strong>24 horas</strong> para responder libremente. Pasadas las 24h, solo puedes iniciar con una <strong>plantilla aprobada</strong>.</p>
+              </div>
+
+              <div className="bg-purple-50 border border-purple-100 rounded-xl p-4 space-y-3">
+                <p className="font-bold text-purple-700">📊 Límites de volumen (Twilio + Meta)</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                  {[['250', 'Inicio'], ['1K', 'Nivel 1'], ['10K', 'Nivel 2'], ['100K+', 'Nivel 3']].map(([n, l]) => (
+                    <div key={l} className="bg-white rounded-xl p-3 text-center border border-purple-100">
+                      <p className="text-2xl font-black text-purple-600">{n}</p>
+                      <p className="text-gray-500">msg/día · {l}</p>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-purple-600">El límite sube automáticamente manteniendo baja tasa de bloqueo.</p>
+              </div>
+
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
+                <p className="font-bold text-gray-700">🏷️ Categorías de Plantillas</p>
+                <div className="grid sm:grid-cols-3 gap-3 text-xs">
+                  {[
+                    { title: 'UTILITY', color: 'text-blue-600', desc: 'Confirmaciones de reserva, verificación, alertas. Tarifa más baja. Recomendadas para LoHaggo.' },
+                    { title: 'AUTHENTICATION', color: 'text-green-600', desc: 'OTPs y códigos de verificación únicamente. Tarifa especial.' },
+                    { title: 'MARKETING', color: 'text-amber-600', desc: 'Promociones, referidos, campañas. Requiere opt-in. Tarifa más alta.' },
+                  ].map(({ title, color, desc }) => (
+                    <div key={title} className="bg-white rounded-xl p-3 border border-gray-100">
+                      <p className={`font-semibold ${color} mb-1`}>{title}</p>
+                      <p className="text-gray-500">{desc}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-4">
+                <p className="font-bold text-yellow-700 mb-2">⚡ Mejores prácticas para LoHaggo</p>
+                <ul className="space-y-1 text-xs text-yellow-700 list-disc list-inside">
+                  <li>Usa <strong>UTILITY</strong> para: bienvenida, verificación de documentos, confirmación de reserva</li>
+                  <li>Usa <strong>MARKETING</strong> solo para referidos (opt-in al registrarse)</li>
+                  <li>Texto claro, sin emojis excesivos ni lenguaje de spam</li>
+                  <li>Monitorea la tasa de bloqueo en WhatsApp Manager</li>
+                  <li>Si una plantilla es rechazada, revisa categoría y lenguaje antes de reenviar</li>
+                  <li>SMS es el fallback seguro cuando WhatsApp falla</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
@@ -893,7 +897,7 @@ export default function MessagingPage() {
 
 function StatusCard({ label, ok, detail, loading }: { label: string; ok: boolean; detail: string; loading: boolean }) {
   return (
-    <div className={`rounded-xl border p-3 sm:p-4 flex items-center gap-3 ${ok ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+    <div className={`rounded-xl border-2 p-4 flex items-center gap-3 transition-all ${ok ? 'border-green-200 bg-green-50' : 'border-gray-100 bg-gray-50'}`}>
       <div className={`p-2 rounded-full flex-shrink-0 ${ok ? 'bg-green-100' : 'bg-gray-200'}`}>
         {loading ? <Loader2 size={16} className="animate-spin text-gray-400" /> :
           ok ? <Wifi size={16} className="text-green-600" /> : <WifiOff size={16} className="text-gray-400" />}
@@ -916,7 +920,7 @@ function Field({ label, value, onChange, placeholder, disabled }: {
       {label && <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</label>}
       <input type="text" value={value} onChange={e => onChange(e.target.value)}
         placeholder={placeholder} disabled={disabled}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-gray-50 disabled:text-gray-500" />
+        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-gray-50 disabled:text-gray-500" />
     </div>
   )
 }
@@ -928,7 +932,7 @@ function SelectOrInput({ value, onChange, options, placeholder }: {
   return (
     <div className="relative">
       <select value={value} onChange={e => onChange(e.target.value)}
-        className="w-full appearance-none px-3 py-2 pr-8 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
+        className="w-full appearance-none px-3 py-2 pr-8 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white">
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
       <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
@@ -957,7 +961,7 @@ function TestResultCard({ result }: { result: NonNullable<TestResult> }) {
         {result.errorMessage && <p><span className="font-medium">Error Twilio:</span> {result.errorMessage}</p>}
       </div>
       {result.errorExplanation && (
-        <div className="flex items-start gap-2 p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+        <div className="flex items-start gap-2 p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
           <AlertTriangle size={13} className="flex-shrink-0 mt-0.5" />
           {result.errorExplanation}
         </div>
