@@ -65,7 +65,7 @@ const STATUS_COLOR: Record<string, string> = {
 // Extract variable numbers from a template body: {{1}}, {{2}}, ...
 function extractVars(body: string): string[] {
   const matches = body.match(/\{\{(\d+)\}\}/g) || []
-  const nums = [...new Set(matches.map(m => m.replace(/\D/g, '')))]
+  const nums = Array.from(new Set(matches.map(m => m.replace(/\D/g, ''))))
   return nums.sort((a, b) => Number(a) - Number(b))
 }
 
