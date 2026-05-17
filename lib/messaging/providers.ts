@@ -61,6 +61,48 @@ async function sendByTwilioSms(to: string, body: string, cfg: MessagingProviderR
   return { ok: true, provider: 'twilio-sms', providerMessageId: data?.sid }
 }
 
+export async function sendWhatsAppTemplate(
+  to: string,
+  contentSid: string,
+  variables: Record<string, string>,
+  cfg: MessagingProviderRuntimeConfig['twilio']
+): Promise<SendResult> {
+  const conf = cfg.config
+  if (!cfg.active || !conf?.accountSid || !conf?.authToken || !conf?.whatsappFrom) {
+    return { ok: false, provider: 'twilio-whatsapp', errorCode: 'CONFIG', errorMessage: 'Twilio WhatsApp not configured' }
+  }
+
+  const endpoint = `https://api.twilio.com/2010-04-01/Accounts/${conf.accountSid}/Messages.json`
+  const from = conf.whatsappFrom.startsWith('whatsapp:') ? conf.whatsappFrom : `whatsapp:${conf.whatsappFrom}`
+  const payload = new URLSearchParams({
+    To: `whatsapp:${normalizePhone(to)}`,
+    From: from,
+    ContentSid: contentSid,
+    ContentVariables: JSON.stringify(variables),
+  })
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${Buffer.from(`${conf.accountSid}:${conf.authToken}`).toString('base64')}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: payload.toString(),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    return {
+      ok: false,
+      provider: 'twilio-whatsapp',
+      errorCode: String(data?.code || response.status),
+      errorMessage: String(data?.message || 'Twilio WhatsApp template error'),
+    }
+  }
+
+  return { ok: true, provider: 'twilio-whatsapp', providerMessageId: data?.sid }
+}
+
 async function sendByTwilioWhatsApp(to: string, body: string, cfg: MessagingProviderRuntimeConfig['twilio']): Promise<SendResult> {
   const conf = cfg.config
   if (!cfg.active || !conf?.accountSid || !conf?.authToken || !conf?.whatsappFrom) {

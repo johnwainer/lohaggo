@@ -11,6 +11,7 @@ import {
   isLikelyBotSubmission,
   verifyTurnstileToken,
 } from '@/lib/security/bot-protection'
+import { sendWelcomePartner } from '@/lib/messaging/whatsapp-templates'
 
 const logger = createLogger('register')
 
@@ -193,6 +194,13 @@ async function handlePOST(request: NextRequest) {
           skipDuplicates: true,
         })
       }
+    }
+
+    // Fire-and-forget: send WhatsApp welcome to new partners
+    if (role === 'PARTNER' && phone) {
+      sendWelcomePartner(phone, name).catch((err) =>
+        logger.error('Welcome WA send failed', { userId: user.id, err })
+      )
     }
 
     return NextResponse.json({
