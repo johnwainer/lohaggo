@@ -10,7 +10,7 @@ function normalizePhone(phone: string) {
 }
 
 const WA_ERROR_LABELS: Record<string, string> = {
-  '63016': 'El destinatario no ha unido el sandbox. Para producción: el número sender está Offline o pendiente de activación por Meta.',
+  '63016': 'Mensaje no entregado. Causas posibles: (1) el destinatario no tiene WhatsApp, (2) estás enviando texto libre sin una ventana de sesión abierta — usa una plantilla aprobada para iniciar conversaciones, (3) el sender aún está Offline en Meta.',
   '63007': 'No hay senders de WhatsApp activos configurados en la cuenta.',
   '21211': 'Número de teléfono inválido.',
   '21408': 'Permiso para enviar al número internacional no habilitado.',
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json()
-  const { channel, to, message, fromOverride } = body
+  const { channel, to, message, fromOverride, contentSid, contentVariables } = body
 
   if (!channel || !to) {
     return NextResponse.json({ error: 'channel y to son requeridos' }, { status: 400 })
@@ -54,7 +54,14 @@ export async function POST(request: NextRequest) {
     const sender = fromOverride || conf.whatsappFrom || ''
     from = sender.startsWith('whatsapp:') ? sender : `whatsapp:${sender}`
     const toWA = `whatsapp:${normalizedTo}`
-    const payload = new URLSearchParams({ To: toWA, From: from, Body: testBody })
+    const params: Record<string, string> = { To: toWA, From: from }
+    if (contentSid) {
+      params.ContentSid = contentSid
+      if (contentVariables) params.ContentVariables = JSON.stringify(contentVariables)
+    } else {
+      params.Body = testBody
+    }
+    const payload = new URLSearchParams(params)
     const res = await fetch(endpoint, {
       method: 'POST',
       headers: { Authorization: authHeader, 'Content-Type': 'application/x-www-form-urlencoded' },

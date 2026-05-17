@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   MessageSquare, Phone, Key, CheckCircle2, XCircle, Eye, EyeOff,
-  Send, Loader2, RefreshCw, Wifi, WifiOff, AlertTriangle, ChevronDown,
+  Send, Loader2, RefreshCw, Wifi, WifiOff, AlertTriangle, ChevronDown, FileText, Clock,
 } from 'lucide-react'
 
 type TwilioProvider = {
@@ -16,6 +16,18 @@ type TwilioProvider = {
 
 type PhoneNumber = { number: string; friendly: string; capabilities: string[] }
 type WASender = { number: string; label: string; isSandbox: boolean }
+type WATemplate = {
+  sid: string
+  name: string
+  language: string
+  types: string[]
+  body: string
+  variables: Record<string, string>
+  waStatus: 'unsubmitted' | 'pending' | 'approved' | 'rejected'
+  waName: string | null
+  waCategory: string | null
+  waRejectionReason: string | null
+}
 
 type TestResult = {
   ok: boolean
@@ -49,6 +61,10 @@ export default function MessagingPage() {
   const [waSenders, setWaSenders] = useState<WASender[]>([])
   const [numbersLoading, setNumbersLoading] = useState(false)
 
+  // WA templates
+  const [waTemplates, setWaTemplates] = useState<WATemplate[]>([])
+  const [templatesLoading, setTemplatesLoading] = useState(false)
+
   // form
   const [accountSid, setAccountSid] = useState('')
   const [authToken, setAuthToken] = useState('')
@@ -62,6 +78,7 @@ export default function MessagingPage() {
   const [testTo, setTestTo] = useState('')
   const [testMessage, setTestMessage] = useState('')
   const [testFrom, setTestFrom] = useState('') // override sender for test
+  const [testContentSid, setTestContentSid] = useState('') // use template instead of free text
   const [testLoading, setTestLoading] = useState(false)
   const [testResult, setTestResult] = useState<TestResult>(null)
 
@@ -76,6 +93,19 @@ export default function MessagingPage() {
       }
     } finally {
       setNumbersLoading(false)
+    }
+  }, [])
+
+  const fetchWaTemplates = useCallback(async () => {
+    setTemplatesLoading(true)
+    try {
+      const res = await fetch('/api/admin/messaging/wa-templates')
+      if (res.ok) {
+        const data = await res.json()
+        setWaTemplates(data.templates || [])
+      }
+    } finally {
+      setTemplatesLoading(false)
     }
   }, [])
 
@@ -100,7 +130,8 @@ export default function MessagingPage() {
   useEffect(() => {
     fetchStatus()
     fetchNumbers()
-  }, [fetchStatus, fetchNumbers])
+    fetchWaTemplates()
+  }, [fetchStatus, fetchNumbers, fetchWaTemplates])
 
   async function handleSave() {
     setSaving(true)
@@ -147,6 +178,7 @@ export default function MessagingPage() {
           to: testTo,
           message: testMessage || undefined,
           fromOverride: testFrom || undefined,
+          contentSid: testContentSid || undefined,
         }),
       })
       setTestResult(await res.json())
@@ -173,7 +205,7 @@ export default function MessagingPage() {
           <p className="text-gray-500 text-sm mt-0.5">Twilio · WhatsApp Business · SMS</p>
         </div>
         <button
-          onClick={() => { fetchStatus(); fetchNumbers() }}
+          onClick={() => { fetchStatus(); fetchNumbers(); fetchWaTemplates() }}
           disabled={loading}
           className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition"
           title="Recargar"
@@ -367,14 +399,41 @@ export default function MessagingPage() {
 
           <Field label="Número destino" value={testTo} onChange={setTestTo} placeholder="+573001234567" />
 
-          <div className="space-y-1">
-            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide">
-              Mensaje <span className="text-gray-400 normal-case font-normal">(opcional)</span>
-            </label>
-            <textarea value={testMessage} onChange={e => setTestMessage(e.target.value)}
-              placeholder="Mensaje de prueba desde LoHaggo Admin…" rows={2}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none" />
-          </div>
+          {/* Template picker (WA only, approved templates) */}
+          {testChannel === 'WHATSAPP' && waTemplates.filter(t => t.waStatus === 'approved').length > 0 && (
+            <div className="space-y-1">
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide">
+                Plantilla aprobada <span className="text-gray-400 normal-case font-normal">(para iniciar conversación)</span>
+              </label>
+              <SelectOrInput
+                value={testContentSid}
+                onChange={setTestContentSid}
+                options={[
+                  { value: '', label: 'Sin plantilla — texto libre (requiere sesión abierta)' },
+                  ...waTemplates.filter(t => t.waStatus === 'approved').map(t => ({
+                    value: t.sid,
+                    label: `${t.waName || t.name} — ${t.waCategory}`,
+                  })),
+                ]}
+              />
+              {testContentSid && (
+                <p className="text-xs text-gray-500 bg-gray-50 p-2 rounded border border-gray-200 font-mono">
+                  {waTemplates.find(t => t.sid === testContentSid)?.body}
+                </p>
+              )}
+            </div>
+          )}
+
+          {!testContentSid && (
+            <div className="space-y-1">
+              <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide">
+                Mensaje <span className="text-gray-400 normal-case font-normal">(opcional — solo funciona si el usuario escribió primero)</span>
+              </label>
+              <textarea value={testMessage} onChange={e => setTestMessage(e.target.value)}
+                placeholder="Mensaje de prueba desde LoHaggo Admin…" rows={2}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none" />
+            </div>
+          )}
 
           <button onClick={handleTest} disabled={testLoading || !testTo || !isConfigured}
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-secondary-600 rounded-lg hover:bg-secondary-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
@@ -390,6 +449,65 @@ export default function MessagingPage() {
 
           {testResult && <TestResultCard result={testResult} />}
         </div>
+      </section>
+
+      {/* WA Templates section */}
+      <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-100 font-semibold text-gray-800 text-sm flex items-center gap-2">
+          <FileText size={15} className="text-gray-400" />
+          Plantillas WhatsApp (Twilio Content API)
+          {templatesLoading && <Loader2 size={13} className="animate-spin text-gray-400 ml-auto" />}
+          {!templatesLoading && (
+            <button onClick={fetchWaTemplates} className="ml-auto text-gray-400 hover:text-gray-600">
+              <RefreshCw size={13} />
+            </button>
+          )}
+        </div>
+        {waTemplates.length === 0 && !templatesLoading ? (
+          <p className="px-5 py-4 text-sm text-gray-500">No hay plantillas en Twilio Content API.</p>
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {waTemplates.map(t => {
+              const statusBadge: Record<WATemplate['waStatus'], string> = {
+                approved: 'bg-green-100 text-green-700',
+                pending: 'bg-yellow-100 text-yellow-700',
+                rejected: 'bg-red-100 text-red-700',
+                unsubmitted: 'bg-gray-100 text-gray-500',
+              }
+              return (
+                <div key={t.sid} className="px-5 py-3 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-gray-800">{t.waName || t.name}</p>
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusBadge[t.waStatus]}`}>
+                      {t.waStatus === 'approved' ? '✓ Aprobada' :
+                       t.waStatus === 'pending' ? '⏳ Pendiente' :
+                       t.waStatus === 'rejected' ? '✗ Rechazada' : 'Sin enviar'}
+                    </span>
+                    {t.waCategory && (
+                      <span className="text-xs text-gray-400">{t.waCategory}</span>
+                    )}
+                  </div>
+                  {t.body && (
+                    <p className="text-xs text-gray-500 font-mono bg-gray-50 px-2 py-1 rounded border border-gray-100 truncate">
+                      {t.body}
+                    </p>
+                  )}
+                  {t.waStatus === 'rejected' && t.waRejectionReason && (
+                    <p className="text-xs text-red-600 flex items-center gap-1">
+                      <AlertTriangle size={11} /> {t.waRejectionReason}
+                    </p>
+                  )}
+                  {t.waStatus === 'pending' && (
+                    <p className="text-xs text-yellow-600 flex items-center gap-1">
+                      <Clock size={11} /> Meta está revisando — las plantillas UTILITY suelen aprobarse en minutos
+                    </p>
+                  )}
+                  <p className="text-xs text-gray-400">SID: {t.sid}</p>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </section>
 
       {/* Registered senders list */}
