@@ -1,6 +1,6 @@
 'use client'
 
-import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, LogOut, Menu, X, Shield, DollarSign, Wallet, MapPin, CreditCard, ChevronDown, ChevronRight, Percent, Megaphone, Activity, Building2, BookOpen, Smartphone, MessageSquare } from 'lucide-react'
+import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, LogOut, Menu, X, Shield, DollarSign, Wallet, MapPin, CreditCard, ChevronDown, ChevronRight, Percent, Megaphone, Activity, Building2, BookOpen, Smartphone, MessageSquare, Link2 } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import { useEffect, useState } from 'react'
@@ -36,31 +36,30 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
       hint: 'Vista global y salud del sistema',
       items: [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-        { id: 'training', label: 'Entrenamiento', icon: BookOpen, isLink: true, href: '/admin/training' },
-        { id: 'monitoring', label: 'Monitoreo', icon: Activity, isLink: true, href: '/admin/monitoring' },
-        { id: 'operations', label: 'Centro Ops', icon: Activity, isLink: true, href: '/admin/operations' },
-        { id: 'workflow', label: 'Workflow', icon: Calendar, isLink: true, href: '/admin/workflow' },
         { id: 'analytics', label: 'Analíticas', icon: BarChart3 },
+        { id: 'monitoring', label: 'Monitoreo', icon: Activity, isLink: true, href: '/admin/monitoring' },
+        { id: 'workflow', label: 'Workflow', icon: Calendar, isLink: true, href: '/admin/workflow' },
       ]
     },
     {
       label: 'Operación Diaria',
-      hint: 'Seguimiento de reservas y pagos',
+      hint: 'Reservas, pagos y operaciones',
       items: [
         { id: 'bookings', label: 'Reservas', icon: Calendar },
         { id: 'payments', label: 'Pagos', icon: DollarSign },
         { id: 'payouts', label: 'Pagos a Socios', icon: Wallet },
-        { id: 'finance-ops', label: 'Finanzas Ops', icon: CreditCard, isLink: true, href: '/admin/finance-ops' },
+        { id: 'finance-ops', label: 'Finanzas', icon: CreditCard, isLink: true, href: '/admin/finance-ops' },
+        { id: 'operations', label: 'Centro Ops', icon: Activity, isLink: true, href: '/admin/operations' },
       ]
     },
     {
       label: 'Usuarios y Verificación',
-      hint: 'Gestión de cuentas y validaciones',
+      hint: 'Cuentas, socios y cumplimiento',
       items: [
         { id: 'users', label: 'Usuarios', icon: Users },
         { id: 'partners', label: 'Socios', icon: UserCheck },
-        { id: 'compliance', label: 'KYC/KYB', icon: Shield, isLink: true, href: '/admin/compliance' },
-        { id: 'documents', label: 'Verificación', icon: Shield, isLink: true, href: '/admin/documents' },
+        { id: 'compliance', label: 'KYC / KYB', icon: Shield, isLink: true, href: '/admin/compliance' },
+        { id: 'documents', label: 'Documentos', icon: BookOpen, isLink: true, href: '/admin/documents' },
       ]
     },
     {
@@ -72,28 +71,29 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
       ]
     },
     {
-      label: 'Marketing',
-      hint: 'Adquisición y comportamiento de búsqueda',
+      label: 'Marketing y Canales',
+      hint: 'Adquisición, comunicación y alcance',
       items: [
         { id: 'ads', label: 'Publicidad', icon: Megaphone, isLink: true, href: '/admin/ads' },
         { id: 'communications', label: 'Comunicaciones', icon: Bell, isLink: true, href: '/admin/communications' },
-        { id: 'pwa-adoption', label: 'Adopción PWA', icon: Smartphone, isLink: true, href: '/admin/pwa-adoption' },
+        { id: 'messaging', label: 'Mensajería', icon: MessageSquare, isLink: true, href: '/admin/messaging' },
         { id: 'search-analytics', label: 'Búsquedas', icon: BarChart3, isLink: true, href: '/admin/search-analytics' },
-        { id: 'platform-control', label: 'Control Plataforma', icon: Settings, isLink: true, href: '/admin/platform-control' },
+        { id: 'pwa-adoption', label: 'Adopción PWA', icon: Smartphone, isLink: true, href: '/admin/pwa-adoption' },
       ]
     },
     {
       label: 'Configuración',
-      hint: 'Ajustes de plataforma y comisiones',
+      hint: 'Integraciones, ajustes y plataforma',
       items: [
-        { id: 'messaging', label: 'Mensajería', icon: MessageSquare, isLink: true, href: '/admin/messaging' },
+        { id: 'connections', label: 'Conexiones', icon: Link2, isLink: true, href: '/admin/connections' },
         { id: 'commissions', label: 'Comisiones', icon: Percent },
-        { id: 'payment-config', label: 'Config. Pagos', icon: CreditCard, isLink: true, href: '/admin/payment-config' },
         { id: 'banks', label: 'Bancos', icon: Building2, isLink: true, href: '/admin/banks' },
-        { id: 'security', label: 'Seguridad', icon: Shield, isLink: true, href: '/admin/security' },
         { id: 'notifications', label: 'Notificaciones', icon: Bell },
-        { id: 'settings', label: 'Configuración', icon: Settings },
+        { id: 'security', label: 'Seguridad', icon: Shield, isLink: true, href: '/admin/security' },
         { id: 'risk-control', label: 'Riesgo y Cohortes', icon: Shield, isLink: true, href: '/admin/risk-control' },
+        { id: 'platform-control', label: 'Control Plataforma', icon: Settings, isLink: true, href: '/admin/platform-control' },
+        { id: 'training', label: 'Entrenamiento', icon: BookOpen, isLink: true, href: '/admin/training' },
+        { id: 'settings', label: 'Ajustes', icon: Settings },
       ]
     }
   ]
