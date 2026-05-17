@@ -38,7 +38,6 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { id: 'analytics', label: 'Analíticas', icon: BarChart3 },
         { id: 'monitoring', label: 'Monitoreo', icon: Activity, isLink: true, href: '/admin/monitoring' },
-        { id: 'workflow', label: 'Workflow', icon: Calendar, isLink: true, href: '/admin/workflow' },
       ]
     },
     {
@@ -46,6 +45,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
       hint: 'Reservas, pagos y operaciones',
       items: [
         { id: 'bookings', label: 'Reservas', icon: Calendar },
+        { id: 'workflow', label: 'Workflow', icon: Calendar, isLink: true, href: '/admin/workflow' },
         { id: 'payments', label: 'Pagos', icon: DollarSign },
         { id: 'payouts', label: 'Pagos a Socios', icon: Wallet },
         { id: 'finance-ops', label: 'Finanzas', icon: CreditCard, isLink: true, href: '/admin/finance-ops' },

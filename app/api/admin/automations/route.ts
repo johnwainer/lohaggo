@@ -61,17 +61,17 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json()
 
-  // Seed defaults
+  // Seed defaults — upsert selectivo: solo inserta reglas que no existan por nombre
   if (body.action === 'seed') {
-    const existing = await prisma.automationRule.count()
-    if (existing > 0) {
-      return NextResponse.json({ message: 'Rules already exist', count: existing })
+    const existingNames = new Set(
+      (await prisma.automationRule.findMany({ select: { name: true } })).map(r => r.name)
+    )
+    const toInsert = DEFAULT_AUTOMATION_RULES.filter(r => !existingNames.has(r.name))
+    if (toInsert.length === 0) {
+      return NextResponse.json({ seeded: 0, message: 'Todas las reglas por defecto ya existen' })
     }
     const created = await prisma.automationRule.createMany({
-      data: DEFAULT_AUTOMATION_RULES.map((r) => ({
-        ...r,
-        targetRole: r.targetRole ?? null,
-      })),
+      data: toInsert.map(r => ({ ...r, targetRole: r.targetRole ?? null })),
       skipDuplicates: true,
     })
     logger.info('Seeded default automation rules', { count: created.count, adminId: admin.id })

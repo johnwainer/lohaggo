@@ -340,12 +340,10 @@ export default function AutomationsPage() {
           <button onClick={load} disabled={loading} className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-600 hover:bg-gray-50 transition-all">
             {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
           </button>
-          {rules.length === 0 && !loading && (
-            <button onClick={seed} disabled={seeding} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 transition-all">
-              {seeding ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
-              Cargar reglas por defecto
-            </button>
-          )}
+          <button onClick={seed} disabled={seeding} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 transition-all disabled:opacity-50">
+            {seeding ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
+            Cargar reglas por defecto
+          </button>
           <button onClick={() => setEditRule({})} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 transition-all">
             <Plus size={15} /> Nueva regla
           </button>

@@ -53,6 +53,7 @@ export default function AdminLayoutClient({
     if (pathname.startsWith('/admin/messaging')) return 'messaging'
     if (pathname.startsWith('/admin/connections')) return 'connections'
     if (pathname.startsWith('/admin/automations')) return 'automations'
+    if (pathname.startsWith('/admin/payment-config')) return 'connections'
     return 'dashboard'
   }
 

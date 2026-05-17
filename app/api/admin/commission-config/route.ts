@@ -55,7 +55,7 @@ export async function PUT(req: NextRequest) {
       return validation.error;
     }
 
-    const { clientCommissionRate, partnerCommissionRate } = validation.data;
+    const { clientCommissionRate, partnerCommissionRate, minServicePrice, maxServicePrice } = validation.data;
 
     const existingConfig = await prisma.platformConfig.findFirst();
 
@@ -67,6 +67,8 @@ export async function PUT(req: NextRequest) {
           clientCommissionRate,
           partnerCommissionRate,
           commissionRate: clientCommissionRate,
+          ...(minServicePrice !== undefined ? { minServicePrice } : {}),
+          ...(maxServicePrice !== undefined ? { maxServicePrice } : {}),
         },
       });
     } else {
@@ -76,8 +78,8 @@ export async function PUT(req: NextRequest) {
           commissionRate: clientCommissionRate,
           clientCommissionRate,
           partnerCommissionRate,
-          minServicePrice: 10000,
-          maxServicePrice: 10000000,
+          minServicePrice: minServicePrice ?? 10000,
+          maxServicePrice: maxServicePrice ?? 10000000,
         },
       });
     }
