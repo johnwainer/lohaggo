@@ -3,17 +3,8 @@ import { Inter } from 'next/font/google'
 import Script from 'next/script'
 import './globals.css'
 import { Providers } from './providers'
-import { Navbar } from '@/components/Navbar'
-import { Footer } from '@/components/Footer'
-import { AppDownloadBanner } from '@/components/AppDownloadBanner'
-import { BottomNav } from '@/components/mobile/BottomNav'
-import NotificationPermissionPrompt from '@/components/NotificationPermissionPrompt'
-import PWAInstallPrompt from '@/components/PWAInstallPrompt'
 import PWARegister from '@/components/PWARegister'
-import PWAOnboardingPrompt from '@/components/PWAOnboardingPrompt'
-import TermsBanner from '@/components/TermsBanner'
-import TestModeBanner from '@/components/TestModeBanner'
-import InactiveAccountBanner from '@/components/InactiveAccountBanner'
+import PublicLayout from '@/components/PublicLayout'
 import MetaPixel from '@/components/analytics/MetaPixel'
 import GoogleAnalytics from '@/components/analytics/GoogleAnalytics'
 import MicrosoftClarity from '@/components/analytics/MicrosoftClarity'
@@ -329,19 +320,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         <Providers>
           <ChunkErrorHandler />
           <PWARegister />
-          <TestModeBanner />
-          <InactiveAccountBanner />
-          <Navbar />
-          <main className="min-h-screen pb-24 md:pb-0">
+          <PublicLayout>
             {children}
-          </main>
-          <AppDownloadBanner />
-          <Footer />
-          <BottomNav />
-          <NotificationPermissionPrompt />
-          <PWAInstallPrompt />
-          <PWAOnboardingPrompt />
-          <TermsBanner />
+          </PublicLayout>
         </Providers>
         <MetaPixel />
         <GoogleAnalytics />

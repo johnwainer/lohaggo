@@ -24,14 +24,19 @@ export async function getMessagingProviderRuntimeConfig(): Promise<MessagingProv
     prisma.messagingProviderConfig.findUnique({ where: { provider: 'SENDGRID' } }),
   ])
 
+  const tryDecrypt = <T>(blob: string | null | undefined): T | null => {
+    if (!blob) return null
+    try { return decryptConfig<T>(blob) } catch { return null }
+  }
+
   return {
     twilio: {
       active: Boolean(twilio?.isActive),
-      config: twilio ? decryptConfig<TwilioProviderConfig>(twilio.configEncrypted) : null,
+      config: tryDecrypt<TwilioProviderConfig>(twilio?.configEncrypted),
     },
     sendgrid: {
       active: Boolean(sendgrid?.isActive),
-      config: sendgrid ? decryptConfig<SendgridProviderConfig>(sendgrid.configEncrypted) : null,
+      config: tryDecrypt<SendgridProviderConfig>(sendgrid?.configEncrypted),
     },
   }
 }
