@@ -11,7 +11,7 @@ export const WA_TEMPLATE_SIDS = {
   new_service_request:         'HXab6f5597617124f9d020c9b34c5bc2c7',
   recordatorio_inicio_sesion:  'HX1c79ad25a0166eaf2555372d35e0aa6e',
   verificacion_documentos:     'HX817a31ef8bdd44f9203c3b44d8eaa630',
-  referir_socios:              'HXd2346e137a9f5eedc48d3f91055a3fa9',
+  referir_socios:              'HXfbedddc80b9a6b67318d979bb8d0e5ca',
 } as const
 
 async function getTwilioCfg() {
