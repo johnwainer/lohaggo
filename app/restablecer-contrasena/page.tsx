@@ -172,12 +172,12 @@ function ResetPasswordForm() {
 
 export default function ResetPasswordPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-500 via-secondary-500 to-secondary-500 relative overflow-hidden">
-      <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10"></div>
-      <div className="absolute top-0 left-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 animate-pulse"></div>
-      <div className="absolute bottom-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl translate-x-1/2 translate-y-1/2 animate-pulse delay-1000"></div>
-      
-      <div className="relative min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-primary-500 via-secondary-500 to-secondary-500 relative overflow-x-hidden">
+      <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10 pointer-events-none"></div>
+      <div className="absolute top-0 left-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 animate-pulse pointer-events-none"></div>
+      <div className="absolute bottom-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl translate-x-1/2 translate-y-1/2 animate-pulse delay-1000 pointer-events-none"></div>
+
+      <div className="relative min-h-screen flex flex-col items-center justify-center py-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl w-full grid lg:grid-cols-2 gap-8 items-center">
           <div className="hidden lg:block text-white space-y-8 animate-fade-in">
             <div className="space-y-4">
@@ -196,8 +196,8 @@ export default function ResetPasswordPage() {
           </div>
 
           <div className="w-full">
-            <div className="bg-white rounded-3xl shadow-2xl p-8 sm:p-10 backdrop-blur-sm animate-slide-up">
-              <div className="text-center mb-8">
+            <div className="bg-white rounded-3xl shadow-2xl p-5 sm:p-8 lg:p-10 backdrop-blur-sm animate-slide-up">
+              <div className="text-center mb-6">
                 <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-primary-500 via-secondary-500 to-secondary-500 rounded-2xl mb-4 shadow-lg">
                   <Star className="w-8 h-8 text-white fill-current" />
                 </div>

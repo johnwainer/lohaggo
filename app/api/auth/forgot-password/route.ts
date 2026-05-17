@@ -21,7 +21,7 @@ async function handlePOST(request: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where: { email },
-      select: { id: true, email: true, name: true, password: true }
+      select: { id: true, email: true, name: true, password: true, phone: true }
     })
 
     if (!user) {
@@ -67,7 +67,7 @@ async function handlePOST(request: NextRequest) {
       </div>
     `
 
-    const result = await sendMessageViaProvider({
+    const emailResult = await sendMessageViaProvider({
       channel: 'EMAIL',
       to: user.email,
       userId: user.id,
@@ -75,8 +75,24 @@ async function handlePOST(request: NextRequest) {
       body: htmlBody
     }, runtimeConfig)
 
-    if (!result.ok) {
-      logger.warn('Failed to send password reset email', { userId: user.id, error: result.errorMessage })
+    if (!emailResult.ok) {
+      logger.warn('Failed to send password reset email', { userId: user.id, error: emailResult.errorMessage })
+
+      // SMS fallback when email fails and user has a phone number
+      if (user.phone) {
+        const smsBody = `LoHaggo: Restablece tu contraseña (válido 1 hora): ${resetLink}`
+        const smsResult = await sendMessageViaProvider({
+          channel: 'SMS',
+          to: user.phone,
+          userId: user.id,
+          body: smsBody
+        }, runtimeConfig)
+        if (!smsResult.ok) {
+          logger.warn('SMS fallback also failed for password reset', { userId: user.id, error: smsResult.errorMessage })
+        } else {
+          logger.info('Password reset sent via SMS fallback', { userId: user.id })
+        }
+      }
     }
 
     return NextResponse.json({ success: true, message: "Si el correo está registrado, te hemos enviado las instrucciones." })
