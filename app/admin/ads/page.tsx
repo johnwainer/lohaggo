@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Edit2, Trash2, Eye, EyeOff, ExternalLink, TrendingUp, Image as ImageIcon } from 'lucide-react'
+import { Plus, Edit2, Trash2, Eye, EyeOff, ExternalLink, TrendingUp, Image as ImageIcon, Loader2, AlertCircle } from 'lucide-react'
 import ImageEditor from '@/components/ads/ImageEditor'
+import ConfirmModal from '@/components/ConfirmModal'
 
 interface Service {
   id: string
@@ -45,6 +46,8 @@ export default function AdsAdminPage() {
   const [showForm, setShowForm] = useState(false)
   const [showImageEditor, setShowImageEditor] = useState(false)
   const [editingAd, setEditingAd] = useState<Advertisement | null>(null)
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
+  const [formError, setFormError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     title: '',
     imageUrl: '',
@@ -132,11 +135,11 @@ export default function AdsAdminPage() {
         resetForm()
       } else {
         const error = await response.json()
-        alert(error.error || 'Error saving ad')
+        setFormError(error.error || 'Error al guardar el anuncio')
       }
     } catch (error) {
       console.error('Error saving ad:', error)
-      alert('Error saving ad')
+      setFormError('Error al guardar el anuncio')
     }
   }
 
@@ -174,10 +177,7 @@ export default function AdsAdminPage() {
     setShowForm(true)
   }
 
-  const handleDelete = async (id: string, e?: React.MouseEvent) => {
-    e?.stopPropagation()
-    if (!confirm('¿Estás seguro de eliminar este anuncio?')) return
-
+  const handleDelete = async (id: string) => {
     try {
       const response = await fetch(`/api/ads/${id}`, { method: 'DELETE' })
       if (response.ok) {
@@ -191,6 +191,7 @@ export default function AdsAdminPage() {
   const resetForm = () => {
     setShowForm(false)
     setEditingAd(null)
+    setFormError(null)
     setFormData({
       title: '',
       imageUrl: '',
@@ -212,14 +213,24 @@ export default function AdsAdminPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
+      <div className="flex items-center justify-center py-20 text-gray-400">
+        <Loader2 size={28} className="animate-spin mr-3" />
+        <span className="text-sm font-medium">Cargando anuncios…</span>
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
+      <ConfirmModal
+        isOpen={Boolean(deleteTargetId)}
+        onClose={() => setDeleteTargetId(null)}
+        onConfirm={() => { if (deleteTargetId) handleDelete(deleteTargetId) }}
+        title="Eliminar anuncio"
+        message="¿Estás seguro de eliminar este anuncio? Esta acción no se puede deshacer."
+        type="danger"
+        confirmText="Eliminar"
+      />
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Gestión de Publicidad</h1>
@@ -241,6 +252,12 @@ export default function AdsAdminPage() {
               {editingAd ? 'Editar Anuncio' : 'Nuevo Anuncio'}
             </h2>
             
+            {formError && (
+              <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm mb-4">
+                <AlertCircle size={16} className="flex-shrink-0" />
+                {formError}
+              </div>
+            )}
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -320,7 +337,7 @@ export default function AdsAdminPage() {
                   onChange={(e) => setFormData({ ...formData, placement: e.target.value as any })}
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 >
-                  <option value="HOME">Home</option>
+                  <option value="HOME">Inicio</option>
                   <option value="SERVICE">Servicio</option>
                 </select>
               </div>
@@ -453,8 +470,8 @@ export default function AdsAdminPage() {
           ads.map((ad) => (
             <div
               key={ad.id}
-              className={`bg-white rounded-2xl shadow-md p-6 hover:shadow-lg transition-all ${
-                !ad.active ? 'opacity-60 border-2 border-gray-300' : ''
+              className={`bg-white rounded-2xl border-2 p-6 transition-all ${
+                ad.active ? 'border-gray-100 hover:border-gray-200' : 'border-dashed border-gray-200 opacity-60'
               }`}
             >
               <div className="flex gap-6">
@@ -528,11 +545,8 @@ export default function AdsAdminPage() {
                         <Edit2 className="w-5 h-5 text-blue-600" />
                       </button>
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleDelete(ad.id, e)
-                        }}
-                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                        onClick={(e) => { e.stopPropagation(); setDeleteTargetId(ad.id) }}
+                        className="p-2 hover:bg-red-50 rounded-lg transition-colors"
                         title="Eliminar"
                       >
                         <Trash2 className="w-5 h-5 text-red-600" />
@@ -553,7 +567,7 @@ export default function AdsAdminPage() {
                   </div>
 
                   <div className="grid grid-cols-3 gap-4 mt-4">
-                    <div className="bg-blue-50 p-3 rounded-lg">
+                    <div className="bg-blue-50 p-3 rounded-xl">
                       <div className="flex items-center gap-2 text-blue-600 mb-1">
                         <TrendingUp className="w-4 h-4" />
                         <span className="text-xs font-semibold">Impresiones</span>
@@ -561,7 +575,7 @@ export default function AdsAdminPage() {
                       <p className="text-2xl font-bold text-blue-700">{ad.impressions.toLocaleString()}</p>
                     </div>
 
-                    <div className="bg-green-50 p-3 rounded-lg">
+                    <div className="bg-green-50 p-3 rounded-xl">
                       <div className="flex items-center gap-2 text-green-600 mb-1">
                         <TrendingUp className="w-4 h-4" />
                         <span className="text-xs font-semibold">Clicks</span>
@@ -569,7 +583,7 @@ export default function AdsAdminPage() {
                       <p className="text-2xl font-bold text-green-700">{ad.clicks.toLocaleString()}</p>
                     </div>
 
-                    <div className="bg-purple-50 p-3 rounded-lg">
+                    <div className="bg-purple-50 p-3 rounded-xl">
                       <div className="flex items-center gap-2 text-purple-600 mb-1">
                         <TrendingUp className="w-4 h-4" />
                         <span className="text-xs font-semibold">CTR</span>

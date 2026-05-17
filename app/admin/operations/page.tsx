@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { Loader2 } from 'lucide-react'
 
 type Incident = {
   id: string
@@ -103,86 +104,94 @@ export default function AdminOperationsPage() {
       </div>
 
       {loading ? (
-        <div className="rounded-xl bg-white p-6 border">Cargando...</div>
+        <div className="flex items-center justify-center py-20 text-gray-400">
+          <Loader2 size={28} className="animate-spin mr-3" />
+          <span className="text-sm font-medium">Cargando…</span>
+        </div>
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="rounded-xl border bg-white p-4">
-              <p className="text-sm text-gray-500">Incidentes abiertos</p>
-              <p className="text-3xl font-bold">{incidents.filter((x) => x.status !== 'RESOLVED').length}</p>
+            <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Incidentes abiertos</p>
+              <p className="text-3xl font-black text-gray-900 mt-1">{incidents.filter((x) => x.status !== 'RESOLVED').length}</p>
             </div>
-            <div className="rounded-xl border bg-white p-4">
-              <p className="text-sm text-gray-500">Casos de soporte activos</p>
-              <p className="text-3xl font-bold">{cases.filter((x) => x.status !== 'CLOSED').length}</p>
+            <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Casos activos</p>
+              <p className="text-3xl font-black text-gray-900 mt-1">{cases.filter((x) => x.status !== 'CLOSED').length}</p>
             </div>
-            <div className="rounded-xl border bg-white p-4">
-              <p className="text-sm text-gray-500">Eventos de bitácora</p>
-              <p className="text-3xl font-bold">{logs.length}</p>
+            <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Eventos bitácora</p>
+              <p className="text-3xl font-black text-gray-900 mt-1">{logs.length}</p>
             </div>
           </div>
 
-          <div className="rounded-xl border bg-white p-4 space-y-3">
-            <h2 className="font-semibold text-lg">Incidentes</h2>
+          <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm space-y-3">
+            <h2 className="text-base font-bold text-gray-900">Incidentes</h2>
             <div className="space-y-2">
+              {incidents.length === 0 && <p className="text-sm text-gray-400">Sin incidentes registrados.</p>}
               {incidents.slice(0, 20).map((incident) => (
-                <div key={incident.id} className="flex flex-wrap items-center justify-between gap-3 border rounded-lg p-3">
+                <div key={incident.id} className="flex flex-wrap items-center justify-between gap-3 border border-gray-100 rounded-xl p-4">
                   <div>
-                    <p className="font-medium">{incident.title}</p>
-                    <p className="text-sm text-gray-500">{incident.type} · {incident.severity} · {incident.source} · #{incident.occurrences}</p>
+                    <p className="font-semibold text-sm text-gray-900">{incident.title}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{incident.type} · {incident.severity} · {incident.source} · #{incident.occurrences}</p>
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => updateIncident(incident.id, 'ACKNOWLEDGED')} className="px-3 py-1 text-sm rounded border">Ack</button>
-                    <button onClick={() => updateIncident(incident.id, 'RESOLVED')} className="px-3 py-1 text-sm rounded bg-green-600 text-white">Resolver</button>
+                    <button onClick={() => updateIncident(incident.id, 'ACKNOWLEDGED')} className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">Reconocer</button>
+                    <button onClick={() => updateIncident(incident.id, 'RESOLVED')} className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors">Resolver</button>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="rounded-xl border bg-white p-4 space-y-3">
-            <h2 className="font-semibold text-lg">Soporte Unificado</h2>
-            <div className="grid md:grid-cols-2 gap-3">
-              <input value={newCaseSubject} onChange={(e) => setNewCaseSubject(e.target.value)} placeholder="Asunto del caso" className="border rounded-lg px-3 py-2" />
-              <button onClick={createSupportCase} className="rounded-lg bg-primary-600 text-white px-4 py-2">Crear caso</button>
+          <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm space-y-3">
+            <h2 className="text-base font-bold text-gray-900">Soporte Unificado</h2>
+            <div className="grid md:grid-cols-[1fr_auto] gap-3">
+              <input value={newCaseSubject} onChange={(e) => setNewCaseSubject(e.target.value)} placeholder="Asunto del caso" className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none" />
+              <button onClick={createSupportCase} className="px-4 py-2 rounded-xl bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 transition-colors">Crear caso</button>
             </div>
-            <textarea value={newCaseDescription} onChange={(e) => setNewCaseDescription(e.target.value)} placeholder="Descripción del caso" className="w-full border rounded-lg px-3 py-2 min-h-[90px]" />
+            <textarea value={newCaseDescription} onChange={(e) => setNewCaseDescription(e.target.value)} placeholder="Descripción del caso" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm min-h-[80px] focus:ring-2 focus:ring-primary-500 outline-none resize-none" />
             <div className="space-y-2">
+              {cases.length === 0 && <p className="text-sm text-gray-400">Sin casos de soporte.</p>}
               {cases.slice(0, 20).map((supportCase) => (
-                <div key={supportCase.id} className="flex flex-wrap items-center justify-between gap-3 border rounded-lg p-3">
+                <div key={supportCase.id} className="flex flex-wrap items-center justify-between gap-3 border border-gray-100 rounded-xl p-4">
                   <div>
-                    <p className="font-medium">{supportCase.subject}</p>
-                    <p className="text-sm text-gray-500">{supportCase.priority} · {supportCase.status} · {supportCase.assignedTo || 'sin asignar'}</p>
+                    <p className="font-semibold text-sm text-gray-900">{supportCase.subject}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{supportCase.priority} · {supportCase.assignedTo || 'Sin asignar'}</p>
                   </div>
-                  <select value={supportCase.status} onChange={(e) => updateCase(supportCase.id, e.target.value as SupportCase['status'])} className="border rounded px-2 py-1 text-sm">
-                    <option value="OPEN">OPEN</option>
-                    <option value="IN_PROGRESS">IN_PROGRESS</option>
-                    <option value="RESOLVED">RESOLVED</option>
-                    <option value="CLOSED">CLOSED</option>
+                  <select value={supportCase.status} onChange={(e) => updateCase(supportCase.id, e.target.value as SupportCase['status'])} className="border border-gray-200 rounded-lg px-2 py-1 text-xs font-medium">
+                    <option value="OPEN">Abierto</option>
+                    <option value="IN_PROGRESS">En progreso</option>
+                    <option value="RESOLVED">Resuelto</option>
+                    <option value="CLOSED">Cerrado</option>
                   </select>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="rounded-xl border bg-white p-4 space-y-3">
-            <h2 className="font-semibold text-lg">Bitácora administrativa</h2>
+          <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm space-y-3">
+            <h2 className="text-base font-bold text-gray-900">Bitácora administrativa</h2>
             <div className="overflow-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left border-b">
-                    <th className="py-2 pr-2">Fecha</th>
-                    <th className="py-2 pr-2">Acción</th>
-                    <th className="py-2 pr-2">Entidad</th>
-                    <th className="py-2 pr-2">Actor</th>
+                  <tr className="text-left border-b border-gray-100">
+                    <th className="py-2 pr-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Fecha</th>
+                    <th className="py-2 pr-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Acción</th>
+                    <th className="py-2 pr-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Entidad</th>
+                    <th className="py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Actor</th>
                   </tr>
                 </thead>
                 <tbody>
+                  {logs.length === 0 && (
+                    <tr><td colSpan={4} className="py-6 text-center text-sm text-gray-400">Sin registros en bitácora.</td></tr>
+                  )}
                   {logs.slice(0, 40).map((log) => (
-                    <tr key={log.id} className="border-b">
-                      <td className="py-2 pr-2">{new Date(log.createdAt).toLocaleString('es-CO')}</td>
-                      <td className="py-2 pr-2">{log.action}</td>
-                      <td className="py-2 pr-2">{log.entityType}</td>
-                      <td className="py-2 pr-2">{log.actorEmail || '-'}</td>
+                    <tr key={log.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                      <td className="py-2 pr-3 text-gray-600 text-xs">{new Date(log.createdAt).toLocaleString('es-CO')}</td>
+                      <td className="py-2 pr-3 font-medium text-gray-900">{log.action}</td>
+                      <td className="py-2 pr-3 text-gray-600">{log.entityType}</td>
+                      <td className="py-2 text-gray-500">{log.actorEmail || '-'}</td>
                     </tr>
                   ))}
                 </tbody>

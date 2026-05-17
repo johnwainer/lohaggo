@@ -296,7 +296,7 @@ export default function MessagingPage() {
   const approvedTemplates = waTemplates.filter(t => t.waStatus === 'approved')
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 p-4 sm:p-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
