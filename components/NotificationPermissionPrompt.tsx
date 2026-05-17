@@ -78,7 +78,7 @@ export default function NotificationPermissionPrompt({
     onClose?.()
   }
 
-  if (pathname?.startsWith('/unete') || showCityModal || session?.user?.id || !isVisible || !isSupported || isSubscribed || permission === 'denied') {
+  if (pathname?.startsWith('/unete') || showCityModal || !session?.user?.id || !isVisible || !isSupported || isSubscribed || permission === 'denied') {
     return null
   }
 
