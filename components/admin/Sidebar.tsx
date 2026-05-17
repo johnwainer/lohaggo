@@ -1,6 +1,6 @@
 'use client'
 
-import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, LogOut, Menu, X, Shield, DollarSign, Wallet, MapPin, CreditCard, ChevronDown, ChevronRight, Percent, Megaphone, Activity, Building2, BookOpen, Smartphone } from 'lucide-react'
+import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, LogOut, Menu, X, Shield, DollarSign, Wallet, MapPin, CreditCard, ChevronDown, ChevronRight, Percent, Megaphone, Activity, Building2, BookOpen, Smartphone, MessageSquare } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import { useEffect, useState } from 'react'
@@ -86,6 +86,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
       label: 'Configuración',
       hint: 'Ajustes de plataforma y comisiones',
       items: [
+        { id: 'messaging', label: 'Mensajería', icon: MessageSquare, isLink: true, href: '/admin/messaging' },
         { id: 'commissions', label: 'Comisiones', icon: Percent },
         { id: 'payment-config', label: 'Config. Pagos', icon: CreditCard, isLink: true, href: '/admin/payment-config' },
         { id: 'banks', label: 'Bancos', icon: Building2, isLink: true, href: '/admin/banks' },
