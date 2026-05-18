@@ -74,6 +74,7 @@ export async function GET(request: NextRequest) {
     audienceOverride: hasAudienceOverride ? audienceOverride : campaignAudience || undefined,
     take: 2500,
     includeInactive: true,
+    search: search || undefined,
   })
 
   const withEligibility = recipients.users.map((user) => {
@@ -92,20 +93,14 @@ export async function GET(request: NextRequest) {
     }
   })
 
-  const filtered = withEligibility.filter((user) => {
-    if (!search) return true
-    const haystack = `${user.name} ${user.email} ${user.phone || ''}`.toLowerCase()
-    return haystack.includes(search)
-  })
-
   const eligibleCount = withEligibility.filter((item) => item.eligible).length
   const ineligibleCount = withEligibility.length - eligibleCount
 
   return NextResponse.json({
-    recipients: filtered,
+    recipients: withEligibility,
     summary: {
       total: withEligibility.length,
-      filteredTotal: filtered.length,
+      filteredTotal: withEligibility.length,
       eligible: eligibleCount,
       ineligible: ineligibleCount,
       segmentCount: recipients.segmentCount,

@@ -110,6 +110,7 @@ export async function resolveCampaignRecipients(params: {
   audienceOverride?: CampaignAudienceFilter
   take?: number
   includeInactive?: boolean
+  search?: string
 }) {
   const take = Math.min(params.take || 2000, 10000)
   const activeFilter = params.includeInactive ? {} : { isActive: true }
@@ -120,6 +121,17 @@ export async function resolveCampaignRecipients(params: {
   const partnerServiceIds = sanitizeIds(audience.partnerServiceIds)
   const includeSet = new Set(control.includeUserIds)
   const excludeSet = new Set(control.excludeUserIds)
+
+  const searchTerm = (params.search || '').trim()
+  const searchFilter = searchTerm
+    ? {
+        OR: [
+          { name: { contains: searchTerm, mode: 'insensitive' as const } },
+          { email: { contains: searchTerm, mode: 'insensitive' as const } },
+          { phone: { contains: searchTerm } },
+        ],
+      }
+    : {}
 
   const enforcePartnerRole =
     partnerFilterMode === 'CATEGORY' || partnerFilterMode === 'SERVICE' || partnerCategoryIds.length > 0 || partnerServiceIds.length > 0
@@ -151,12 +163,13 @@ export async function resolveCampaignRecipients(params: {
       : undefined
 
   // When targetRole is null (manual-only mode), skip the segment query entirely.
-  // Recipients come exclusively from includeUserIds.
+  // Recipients come exclusively from includeUserIds + search results.
   const segmentUsers = params.targetRole
     ? await prisma.user.findMany({
         where: {
           role: roleFilter,
           ...activeFilter,
+          ...searchFilter,
           ...((partnerServiceWhere || partnerCategoryWhere) && {
             partnerProfile: {
               ...(partnerServiceWhere || {}),
@@ -177,6 +190,20 @@ export async function resolveCampaignRecipients(params: {
       })
     : []
 
+  // In MANUAL mode with a search term, find matching users across all roles (limit 50 for search results).
+  const searchResultUsers = !params.targetRole && searchTerm
+    ? await prisma.user.findMany({
+        where: {
+          ...searchFilter,
+          ...activeFilter,
+          role: { in: ['PARTNER', 'CLIENT'] as UserRole[] },
+        },
+        select: { id: true, name: true, email: true, phone: true, pushSubscription: true, role: true },
+        take: 50,
+        orderBy: { name: 'asc' },
+      })
+    : []
+
   const manualUsers = includeSet.size
     ? await prisma.user.findMany({
         where: {
@@ -192,6 +219,12 @@ export async function resolveCampaignRecipients(params: {
 
   for (const user of segmentUsers) {
     userMap.set(user.id, { ...user, source: 'SEGMENT' })
+  }
+
+  for (const user of searchResultUsers) {
+    if (!userMap.has(user.id)) {
+      userMap.set(user.id, { ...user, source: 'MANUAL' })
+    }
   }
 
   for (const user of manualUsers) {
