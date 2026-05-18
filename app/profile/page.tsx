@@ -412,7 +412,7 @@ export default function ProfilePage() {
 
       <main className="account-main">
         <div className="flex flex-col lg:flex-row gap-6">
-          <div className="flex-1">
+          <div className="flex-1 space-y-6">
             <AccountPanel noPadding>
               <div className="bg-gradient-to-r from-primary-500 to-secondary-500 px-6 py-8">
                 <h2 className="text-2xl sm:text-3xl font-bold text-white">Información Personal</h2>
@@ -652,9 +652,45 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                <div className="p-6 sm:p-8 grid lg:grid-cols-[1fr_280px] gap-6">
-                  {/* Left: form */}
-                  <div className="space-y-5">
+                <div className="p-4 sm:p-6 space-y-5">
+
+                  {/* QR + share — mobile: full width card at top; desktop: floats right via grid */}
+                  {pubProfileUrl && (
+                    <div className="lg:float-right lg:ml-6 lg:mb-2 lg:w-64">
+                      <div className="bg-gray-50 rounded-2xl border border-gray-100 p-4 flex flex-col items-center gap-3">
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Tu código QR</p>
+                        <QrCode key={pubQrKey} url={pubProfileUrl} size={180} />
+                        <button
+                          onClick={() => setPubQrKey((k) => k + 1)}
+                          className="flex items-center gap-1 text-xs text-gray-400 hover:text-primary-600 transition-colors"
+                        >
+                          <RefreshCw className="w-3 h-3" /> Regenerar
+                        </button>
+                      </div>
+
+                      {/* Share actions */}
+                      <div className="mt-3 space-y-2">
+                        <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
+                          <Link2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                          <span className="flex-1 text-xs text-gray-700 truncate font-mono min-w-0">lohaggo.com/pro/{pubSlug}</span>
+                          <button onClick={copyPubLink} className="flex-shrink-0 flex items-center gap-1 text-xs font-semibold text-primary-600 hover:text-primary-700 ml-1">
+                            {pubCopied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                          </button>
+                        </div>
+                        <a
+                          href={`https://wa.me/?text=${encodeURIComponent(`¡Mira mi perfil en LoHaggo y contrata mis servicios! ${pubProfileUrl}`)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#1ebe5d] text-white font-semibold py-2.5 rounded-xl text-sm transition-colors"
+                        >
+                          <MessageCircle className="w-4 h-4" /> WhatsApp
+                        </a>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Form fields */}
+                  <div className="space-y-4">
                     <div className="space-y-1">
                       <label className="text-sm font-medium text-gray-700">Titular</label>
                       <input
@@ -670,7 +706,7 @@ export default function ProfilePage() {
                     <div className="space-y-1">
                       <label className="text-sm font-medium text-gray-700">Sobre mí</label>
                       <textarea
-                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary-400 focus:border-primary-400 outline-none resize-none min-h-[100px]"
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary-400 focus:border-primary-400 outline-none resize-none min-h-[90px]"
                         placeholder="Cuéntales sobre tu experiencia y especialidades…"
                         value={pubBio}
                         maxLength={800}
@@ -682,10 +718,10 @@ export default function ProfilePage() {
                     <div className="space-y-1">
                       <label className="text-sm font-medium text-gray-700">URL personalizada</label>
                       <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-primary-400 focus-within:border-primary-400">
-                        <span className="px-3 py-2.5 bg-gray-50 text-gray-500 text-sm border-r border-gray-200 select-none whitespace-nowrap">lohaggo.com/pro/</span>
+                        <span className="px-2.5 py-2.5 bg-gray-50 text-gray-500 text-xs border-r border-gray-200 select-none whitespace-nowrap">lohaggo.com/pro/</span>
                         <input
                           className="flex-1 px-3 py-2.5 text-sm outline-none bg-white min-w-0"
-                          placeholder="tu-nombre-ciudad"
+                          placeholder="tu-nombre"
                           value={pubSlug}
                           onChange={(e) => { setPubSlug(e.target.value); setPubSlugError(null) }}
                           onBlur={(e) => setPubSlug(normalizeSlug(e.target.value) || pubSlug)}
@@ -706,102 +742,66 @@ export default function ProfilePage() {
                     <button
                       onClick={savePubProfile}
                       disabled={pubSaving}
-                      className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-500 to-primary-700 text-white font-semibold rounded-xl transition hover:shadow-lg disabled:opacity-50"
+                      className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-500 to-primary-700 text-white font-semibold rounded-xl transition hover:shadow-lg disabled:opacity-50"
                     >
                       <Save className="w-4 h-4" />
                       {pubSaving ? 'Guardando…' : 'Guardar perfil público'}
                     </button>
-
-                    {/* Share bar */}
-                    {pubProfileUrl && (
-                      <div className="space-y-2 pt-2 border-t border-gray-100">
-                        <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
-                          <Link2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                          <span className="flex-1 text-sm text-gray-700 truncate font-mono">lohaggo.com/pro/{pubSlug}</span>
-                          <button onClick={copyPubLink} className="flex-shrink-0 flex items-center gap-1 text-xs font-semibold text-primary-600 hover:text-primary-700">
-                            {pubCopied ? <><Check className="w-4 h-4 text-emerald-500" /> Copiado</> : <><Copy className="w-4 h-4" /> Copiar</>}
-                          </button>
-                        </div>
-                        <a
-                          href={`https://wa.me/?text=${encodeURIComponent(`¡Mira mi perfil en LoHaggo y contrata mis servicios! ${pubProfileUrl}`)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#1ebe5d] text-white font-semibold py-2.5 rounded-xl text-sm transition-colors"
-                        >
-                          <MessageCircle className="w-4 h-4" /> Compartir por WhatsApp
-                        </a>
-                      </div>
-                    )}
-
-                    {/* Work photos */}
-                    <div className="pt-2 border-t border-gray-100 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-semibold text-gray-700">Fotos de mis trabajos <span className="text-gray-400 font-normal">({pubPhotos.length}/10)</span></p>
-                        <button
-                          onClick={() => photoInputRef.current?.click()}
-                          disabled={pubUploadingPhoto || pubPhotos.length >= 10}
-                          className="flex items-center gap-1.5 text-xs font-semibold text-primary-600 hover:text-primary-700 disabled:opacity-50 transition-colors"
-                        >
-                          <Upload className="w-3.5 h-3.5" /> Agregar
-                        </button>
-                        <input
-                          ref={photoInputRef}
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          className="hidden"
-                          onChange={async (e) => {
-                            const files = Array.from(e.target.files ?? [])
-                            for (const file of files.slice(0, 10 - pubPhotos.length)) await uploadPubPhoto(file)
-                            e.target.value = ''
-                          }}
-                        />
-                      </div>
-                      {pubPhotos.length === 0 && !pubUploadingPhoto ? (
-                        <button
-                          onClick={() => photoInputRef.current?.click()}
-                          className="w-full border-2 border-dashed border-gray-200 rounded-xl py-8 flex flex-col items-center gap-1.5 text-gray-400 hover:border-primary-300 hover:text-primary-500 transition-colors text-sm"
-                        >
-                          <Camera className="w-6 h-6" /> Sube fotos de tus trabajos
-                        </button>
-                      ) : (
-                        <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
-                          {pubPhotos.map((photo) => (
-                            <div key={photo.id} className="relative group aspect-square rounded-lg overflow-hidden border border-gray-100">
-                              <img src={photo.url} alt="Trabajo" className="w-full h-full object-cover" />
-                              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                <button onClick={() => deletePubPhoto(photo.id)} className="bg-red-600 hover:bg-red-700 text-white p-1.5 rounded-lg">
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                          {pubUploadingPhoto && (
-                            <div className="aspect-square rounded-lg border-2 border-dashed border-primary-200 bg-primary-50 flex items-center justify-center">
-                              <RefreshCw className="w-4 h-4 text-primary-400 animate-spin" />
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
                   </div>
 
-                  {/* Right: QR */}
-                  {pubProfileUrl && (
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 w-full flex flex-col items-center gap-2">
-                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Tu código QR</p>
-                        <QrCode key={pubQrKey} url={pubProfileUrl} size={200} />
-                        <button
-                          onClick={() => setPubQrKey((k) => k + 1)}
-                          className="flex items-center gap-1 text-xs text-gray-400 hover:text-primary-600 transition-colors"
-                        >
-                          <RefreshCw className="w-3 h-3" /> Regenerar
-                        </button>
-                      </div>
-                      <p className="text-xs text-gray-500 text-center">Imprime o comparte este QR para que los clientes lleguen directo a tu perfil.</p>
+                  {/* Work photos — full width below, clears float */}
+                  <div className="clear-both pt-4 border-t border-gray-100 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-gray-700">
+                        Fotos de mis trabajos <span className="text-gray-400 font-normal">({pubPhotos.length}/10)</span>
+                      </p>
+                      <button
+                        onClick={() => photoInputRef.current?.click()}
+                        disabled={pubUploadingPhoto || pubPhotos.length >= 10}
+                        className="flex items-center gap-1.5 text-xs font-semibold text-primary-600 hover:text-primary-700 disabled:opacity-50 transition-colors"
+                      >
+                        <Upload className="w-3.5 h-3.5" /> Agregar
+                      </button>
+                      <input
+                        ref={photoInputRef}
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={async (e) => {
+                          const files = Array.from(e.target.files ?? [])
+                          for (const file of files.slice(0, 10 - pubPhotos.length)) await uploadPubPhoto(file)
+                          e.target.value = ''
+                        }}
+                      />
                     </div>
-                  )}
+                    {pubPhotos.length === 0 && !pubUploadingPhoto ? (
+                      <button
+                        onClick={() => photoInputRef.current?.click()}
+                        className="w-full border-2 border-dashed border-gray-200 rounded-xl py-8 flex flex-col items-center gap-1.5 text-gray-400 hover:border-primary-300 hover:text-primary-500 transition-colors text-sm"
+                      >
+                        <Camera className="w-6 h-6" /> Sube fotos de tus trabajos
+                      </button>
+                    ) : (
+                      <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
+                        {pubPhotos.map((photo) => (
+                          <div key={photo.id} className="relative group aspect-square rounded-lg overflow-hidden border border-gray-100">
+                            <img src={photo.url} alt="Trabajo" className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <button onClick={() => deletePubPhoto(photo.id)} className="bg-red-600 hover:bg-red-700 text-white p-1.5 rounded-lg">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                        {pubUploadingPhoto && (
+                          <div className="aspect-square rounded-lg border-2 border-dashed border-primary-200 bg-primary-50 flex items-center justify-center">
+                            <RefreshCw className="w-4 h-4 text-primary-400 animate-spin" />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </AccountPanel>
             )}
