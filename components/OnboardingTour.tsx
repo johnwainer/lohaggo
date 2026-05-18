@@ -253,7 +253,7 @@ export default function OnboardingTour() {
     return (
       <button
         onClick={handleRestart}
-        className="fixed bottom-24 md:bottom-6 right-4 z-50 w-12 h-12 md:w-14 md:h-14 bg-gradient-to-r from-primary-500 to-secondary-500 text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center group hover:scale-110"
+        className="fixed bottom-36 md:bottom-20 right-4 z-50 w-12 h-12 md:w-14 md:h-14 bg-gradient-to-r from-primary-500 to-secondary-500 text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center group hover:scale-110"
         aria-label={translations.ui.showTutorial}
       >
         <HelpCircle size={24} className="md:w-7 md:h-7" />

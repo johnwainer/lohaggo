@@ -126,14 +126,13 @@ export default function ServicesTour() {
   }, [])
 
   useEffect(() => {
-    const tourCompleted = localStorage.getItem('services-tour-completed')
-    const dontShowAgain = localStorage.getItem('services-tour-dont-show')
-
-    if (!tourCompleted && !dontShowAgain) {
-      setShowFloatingButton(true)
-    } else {
-      setShowFloatingButton(true)
-    }
+    fetch('/api/public/floating-buttons')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        const enabled = d?.help_float_button?.enabled ?? true
+        setShowFloatingButton(enabled)
+      })
+      .catch(() => setShowFloatingButton(true))
   }, [])
 
   useEffect(() => {
@@ -235,7 +234,7 @@ export default function ServicesTour() {
     return (
       <button
         onClick={handleRestart}
-        className="fixed bottom-24 md:bottom-6 right-4 z-50 w-12 h-12 md:w-14 md:h-14 bg-gradient-to-r from-primary-500 to-secondary-500 text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center group hover:scale-110"
+        className="fixed bottom-36 md:bottom-20 right-4 z-50 w-12 h-12 md:w-14 md:h-14 bg-gradient-to-r from-primary-500 to-secondary-500 text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center group hover:scale-110"
         aria-label={translations.ui.showTutorial}
       >
         <HelpCircle size={24} className="md:w-7 md:h-7" />
