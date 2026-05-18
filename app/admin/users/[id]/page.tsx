@@ -63,10 +63,16 @@ interface Payment {
   booking: { id: string; service: { name: string } } | null
 }
 
+interface InternalNote {
+  id: string; body: string; sentAt: string
+  sentBy: { id: string; name: string } | null
+}
+
 interface Conversation {
   id: string; channel: string; contactPhone: string | null; status: string; tags: string[]
   lastMessageAt: string | null; lastMessageBody: string | null; unreadCount: number; createdAt: string
   _count: { messages: number }
+  messages: InternalNote[]
 }
 
 interface OptOut {
@@ -384,9 +390,9 @@ export default function UserProfilePage({ params }: { params: Promise<{ id: stri
       </div>
 
       {/* Tab content */}
-      {tab === 'resumen' && <TabResumen user={user} />}
+      {tab === 'resumen' && <TabResumen user={user} allTags={Array.from(new Set(user.conversations.flatMap(c => c.tags)))} />}
       {tab === 'reservas' && <TabReservas bookings={user.bookings} isPartner={isPartner} partnerBookings={user.partnerProfile?.bookings} />}
-      {tab === 'conversaciones' && <TabConversaciones conversations={user.conversations} userId={user.id} />}
+      {tab === 'conversaciones' && <TabConversaciones conversations={user.conversations} />}
       {tab === 'pagos' && <TabPagos payments={user.payments} />}
       {tab === 'soporte' && <TabSoporte cases={user.supportCases} />}
       {tab === 'actividad' && <TabActividad fraudSignals={user.fraudSignals} magicTokens={user.magicTokens} optOuts={user.messagingOptOuts} />}
@@ -406,7 +412,20 @@ function Stat({ label, value }: { label: string; value: number }) {
 
 // ── Tab: Resumen ──────────────────────────────────────────────────────────────
 
-function TabResumen({ user }: { user: UserProfile }) {
+const TAG_COLORS: Record<string, string> = {
+  urgente: 'bg-red-100 text-red-700 border-red-200',
+  'pago-pendiente': 'bg-orange-100 text-orange-700 border-orange-200',
+  reclamo: 'bg-rose-100 text-rose-700 border-rose-200',
+  documentos: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+  onboarding: 'bg-purple-100 text-purple-700 border-purple-200',
+  seguimiento: 'bg-blue-100 text-blue-700 border-blue-200',
+  información: 'bg-gray-100 text-gray-600 border-gray-200',
+}
+function tagCls(tag: string) {
+  return TAG_COLORS[tag] ?? 'bg-indigo-50 text-indigo-700 border-indigo-100'
+}
+
+function TabResumen({ user, allTags }: { user: UserProfile; allTags: string[] }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
       <Section title="Información personal">
@@ -442,6 +461,16 @@ function TabResumen({ user }: { user: UserProfile }) {
             </span>
           </Row>
           <Row label="Servicios completados">{user.completedServicesCount}</Row>
+        </Section>
+      )}
+
+      {allTags.length > 0 && (
+        <Section title="Etiquetas del chat">
+          <div className="px-5 py-3 flex flex-wrap gap-2">
+            {allTags.map(tag => (
+              <span key={tag} className={`px-3 py-1 rounded-full text-xs font-semibold border ${tagCls(tag)}`}>{tag}</span>
+            ))}
+          </div>
         </Section>
       )}
 
@@ -541,47 +570,106 @@ function BookingTable({ title, bookings, mode }: { title: string; bookings: any[
 
 // ── Tab: Conversaciones ───────────────────────────────────────────────────────
 
-function TabConversaciones({ conversations, userId }: { conversations: Conversation[]; userId: string }) {
+function TabConversaciones({ conversations }: { conversations: Conversation[] }) {
+  const [expanded, setExpanded] = useState<string | null>(null)
+
+  const allNotes = conversations.flatMap(c =>
+    c.messages.map(n => ({ ...n, conversationId: c.id, channel: c.channel }))
+  ).sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime())
+
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
-      <div className="px-5 py-3 border-b border-gray-100 bg-gray-50">
-        <h3 className="font-semibold text-gray-700 text-sm uppercase tracking-wide">Conversaciones ({conversations.length})</h3>
-      </div>
-      {conversations.length === 0 ? (
-        <p className="p-5 text-sm text-gray-400">Sin conversaciones</p>
-      ) : (
-        <div className="divide-y divide-gray-50">
-          {conversations.map(c => {
-            const st = CONV_STATUS[c.status] ?? { label: c.status, cls: 'bg-gray-100 text-gray-600' }
-            return (
-              <div key={c.id} className="px-5 py-3 flex items-start gap-3 hover:bg-gray-50">
-                <MessageSquare size={16} className="text-gray-400 mt-0.5 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-semibold uppercase text-gray-500">{c.channel}</span>
-                    <Badge label={st.label} cls={st.cls} />
-                    {c.unreadCount > 0 && (
-                      <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{c.unreadCount}</span>
-                    )}
-                    {c.tags.map(tag => (
-                      <span key={tag} className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-indigo-50 text-indigo-600">{tag}</span>
-                    ))}
+    <div className="space-y-5">
+      {/* Notas internas consolidadas */}
+      {allNotes.length > 0 && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 overflow-hidden">
+          <div className="px-5 py-3 border-b border-amber-200">
+            <h3 className="font-semibold text-amber-800 text-sm uppercase tracking-wide">Notas internas ({allNotes.length})</h3>
+          </div>
+          <div className="divide-y divide-amber-100">
+            {allNotes.map(note => (
+              <div key={note.id} className="px-5 py-3">
+                <div className="flex items-start gap-2">
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-800 whitespace-pre-wrap">{note.body}</p>
+                    <p className="text-xs text-amber-600 mt-1">
+                      {note.sentBy?.name ?? 'Admin'} · {fmtDateTime(note.sentAt)} · {note.channel}
+                    </p>
                   </div>
-                  <p className="text-sm text-gray-700 truncate mt-0.5">{c.lastMessageBody || '—'}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{c._count.messages} mensajes · {c.contactPhone} · {fmtDateTime(c.lastMessageAt)}</p>
                 </div>
-                <a
-                  href={`/admin/inbox?conversationId=${c.id}`}
-                  className="flex-shrink-0 p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
-                  title="Abrir en bandeja"
-                >
-                  <ExternalLink size={14} />
-                </a>
               </div>
-            )
-          })}
+            ))}
+          </div>
         </div>
       )}
+
+      {/* Lista de conversaciones */}
+      <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
+        <div className="px-5 py-3 border-b border-gray-100 bg-gray-50">
+          <h3 className="font-semibold text-gray-700 text-sm uppercase tracking-wide">Conversaciones ({conversations.length})</h3>
+        </div>
+        {conversations.length === 0 ? (
+          <p className="p-5 text-sm text-gray-400">Sin conversaciones</p>
+        ) : (
+          <div className="divide-y divide-gray-50">
+            {conversations.map(c => {
+              const st = CONV_STATUS[c.status] ?? { label: c.status, cls: 'bg-gray-100 text-gray-600' }
+              const isOpen = expanded === c.id
+              return (
+                <div key={c.id}>
+                  <button
+                    onClick={() => setExpanded(isOpen ? null : c.id)}
+                    className="w-full px-5 py-3 flex items-start gap-3 hover:bg-gray-50 text-left"
+                  >
+                    <MessageSquare size={16} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-semibold uppercase text-gray-500">{c.channel}</span>
+                        <Badge label={st.label} cls={st.cls} />
+                        {c.unreadCount > 0 && (
+                          <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{c.unreadCount}</span>
+                        )}
+                        {c.tags.map(tag => (
+                          <span key={tag} className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${tagCls(tag)}`}>{tag}</span>
+                        ))}
+                        {c.messages.length > 0 && (
+                          <span className="text-[10px] font-medium bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                            {c.messages.length} nota{c.messages.length > 1 ? 's' : ''}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-700 truncate mt-0.5">{c.lastMessageBody || '—'}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{c._count.messages} mensajes · {c.contactPhone} · {fmtDateTime(c.lastMessageAt)}</p>
+                    </div>
+                    <a
+                      href={`/admin/inbox?conversationId=${c.id}`}
+                      onClick={e => e.stopPropagation()}
+                      className="flex-shrink-0 p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+                      title="Abrir en bandeja"
+                    >
+                      <ExternalLink size={14} />
+                    </a>
+                  </button>
+
+                  {/* Notas de esta conversación */}
+                  {isOpen && c.messages.length > 0 && (
+                    <div className="mx-5 mb-3 rounded-xl border border-amber-200 bg-amber-50 divide-y divide-amber-100 overflow-hidden">
+                      {c.messages.map(note => (
+                        <div key={note.id} className="px-4 py-2.5">
+                          <p className="text-sm text-gray-800 whitespace-pre-wrap">{note.body}</p>
+                          <p className="text-xs text-amber-600 mt-1">{note.sentBy?.name ?? 'Admin'} · {fmtDateTime(note.sentAt)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {isOpen && c.messages.length === 0 && (
+                    <p className="px-5 pb-3 text-xs text-gray-400">Sin notas internas en esta conversación.</p>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

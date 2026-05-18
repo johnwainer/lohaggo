@@ -118,6 +118,16 @@ export async function GET(_request: NextRequest, context: RouteContext) {
           unreadCount: true,
           createdAt: true,
           _count: { select: { messages: true } },
+          messages: {
+            where: { isInternal: true },
+            orderBy: { sentAt: 'desc' },
+            select: {
+              id: true,
+              body: true,
+              sentAt: true,
+              sentBy: { select: { id: true, name: true } },
+            },
+          },
         },
       },
       messagingOptOuts: {
