@@ -43,7 +43,7 @@ export default function PartnerHeader({
           bookingsCount={bookingsCount}
           requestsCount={requestsCount}
           activeTab={activeTab}
-          onTabChange={(tab) => onTabChange?.(tab)}
+          onTabChange={onTabChange}
         />
       )}
     </header>
