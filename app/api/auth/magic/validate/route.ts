@@ -60,7 +60,8 @@ export async function GET(request: NextRequest) {
     data: { usedAt: new Date() },
   })
 
-  const secret = env.NEXTAUTH_SECRET
+  // Must use the same secret as authOptions in lib/auth.ts
+  const secret = env.NEXTAUTH_SECRET_CURRENT || env.NEXTAUTH_SECRET
   if (!secret) {
     logger.error('NEXTAUTH_SECRET not configured')
     return NextResponse.json({ error: 'Error de configuración.' }, { status: 500 })

@@ -1,7 +1,8 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { Loader2, ShieldCheck, AlertCircle, KeyRound } from 'lucide-react'
 
 type State = 'loading' | 'error' | 'success'
@@ -10,8 +11,14 @@ function MagicLinkInner() {
   const searchParams = useSearchParams()
   const [state, setState] = useState<State>('loading')
   const [errorMsg, setErrorMsg] = useState('')
+  const { update } = useSession()
+  // Guard against double-invocation (React Strict Mode / Suspense re-mount)
+  const validated = useRef(false)
 
   useEffect(() => {
+    if (validated.current) return
+    validated.current = true
+
     const token = searchParams.get('token')
     if (!token) {
       setErrorMsg('Enlace inválido. No se encontró el token.')
@@ -26,7 +33,9 @@ function MagicLinkInner() {
           throw new Error(data.error || 'Error al validar el enlace.')
         }
         setState('success')
-        // Full page navigation so the new session cookie is picked up by NextAuth
+        // Refresh the session so needsPasswordUpdate is picked up by the SessionProvider
+        // before navigating, then do a full-page navigation to load the new cookie.
+        await update()
         setTimeout(() => {
           window.location.href = data.redirectUrl || '/partner/verification'
         }, 1200)
