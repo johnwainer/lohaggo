@@ -92,7 +92,7 @@ function MagicLinkInner() {
               Iniciar sesión
             </a>
             <a
-              href="/login?forgot=1"
+              href="/olvide-mi-contrasena"
               className="block w-full rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 transition"
             >
               Recuperar contraseña
