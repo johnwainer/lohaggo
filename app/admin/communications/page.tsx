@@ -269,6 +269,7 @@ export default function AdminCommunicationsPage() {
   const [recipientExcludeIds, setRecipientExcludeIds] = useState<string[]>([])
   const [recipientPreview, setRecipientPreview] = useState<RecipientPreview[]>([])
   const [recipientSummary, setRecipientSummary] = useState<RecipientSummary | null>(null)
+  const [selectionMode, setSelectionMode] = useState<'SEGMENT' | 'MANUAL'>('MANUAL')
   const [campaignRecipientPreview, setCampaignRecipientPreview] = useState<{
     campaignId: string
     recipients: RecipientPreview[]
@@ -339,7 +340,7 @@ export default function AdminCommunicationsPage() {
     if (campForm.channel === 'WHATSAPP') return Boolean(providers.twilio.active && providers.twilio.hasAuthToken && providers.twilio.whatsappFrom)
     return Boolean(providers.push?.configured)
   }, [providers, campForm.channel])
-  const estimatedRecipients = recipientSummary?.total ?? 0
+  const estimatedRecipients = selectionMode === 'MANUAL' ? recipientIncludeIds.length : (recipientSummary?.total ?? 0)
   const estimatedEligible = recipientSummary?.eligible ?? 0
   const estimatedIneligible = recipientSummary?.ineligible ?? 0
   const previewRows = recipientSummary?.filteredTotal ?? recipientSummary?.total ?? 0
@@ -393,9 +394,9 @@ export default function AdminCommunicationsPage() {
       if (options?.forCampaignId) {
         params.set('campaignId', options.forCampaignId)
       } else {
-        if (campForm.targetRole) params.set('targetRole', campForm.targetRole)
+        if (selectionMode === 'SEGMENT' && campForm.targetRole) params.set('targetRole', campForm.targetRole)
         if (campForm.targetCity) params.set('targetCity', campForm.targetCity)
-        if (campForm.targetRole === 'PARTNER') {
+        if (selectionMode === 'SEGMENT' && campForm.targetRole === 'PARTNER') {
           params.set('partnerFilterMode', campForm.partnerFilterMode)
           if (campForm.partnerCategoryIds.length) {
             params.set('partnerCategoryIds', campForm.partnerCategoryIds.join(','))
@@ -461,6 +462,7 @@ export default function AdminCommunicationsPage() {
     campForm.partnerServiceIds,
     recipientIncludeIds,
     recipientExcludeIds,
+    selectionMode,
   ])
 
   useEffect(() => {
@@ -576,6 +578,10 @@ export default function AdminCommunicationsPage() {
       setCampaignFeedback({ type: 'error', message: 'Selecciona al menos un servicio para filtrar socios.' })
       return
     }
+    if (selectionMode === 'MANUAL' && recipientIncludeIds.length === 0) {
+      setCampaignFeedback({ type: 'error', message: 'Selecciona al menos un destinatario en modo manual.' })
+      return
+    }
     const splitA = Math.min(99, Math.max(1, Number(campForm.abSplitA) || 50))
     const splitB = 100 - splitA
     // For WA templates, send as CUSTOM with the template body so backend accepts it;
@@ -592,12 +598,12 @@ export default function AdminCommunicationsPage() {
         channel: campForm.channel,
         contentMode: backendContentMode,
         customBody: backendCustomBody,
-        targetRole: campForm.targetRole || null,
+        targetRole: selectionMode === 'MANUAL' ? null : (campForm.targetRole || null),
         targetCity: campForm.targetCity || null,
-        partnerFilterMode: campForm.targetRole === 'PARTNER' ? campForm.partnerFilterMode : 'ALL',
-        partnerCategoryIds: campForm.targetRole === 'PARTNER' ? campForm.partnerCategoryIds : [],
+        partnerFilterMode: selectionMode === 'SEGMENT' && campForm.targetRole === 'PARTNER' ? campForm.partnerFilterMode : 'ALL',
+        partnerCategoryIds: selectionMode === 'SEGMENT' && campForm.targetRole === 'PARTNER' ? campForm.partnerCategoryIds : [],
         partnerServiceIds:
-          campForm.targetRole === 'PARTNER' && campForm.partnerFilterMode === 'SERVICE'
+          selectionMode === 'SEGMENT' && campForm.targetRole === 'PARTNER' && campForm.partnerFilterMode === 'SERVICE'
             ? campForm.partnerServiceIds
             : [],
         customSubject: campForm.customSubject || null,
@@ -671,6 +677,7 @@ export default function AdminCommunicationsPage() {
     setRecipientExcludeIds([])
     setRecipientPreview([])
     setRecipientSummary(null)
+    setSelectionMode('MANUAL')
     await load()
     setActivePanel('CAMPAIGNS')
   }
@@ -1373,15 +1380,24 @@ export default function AdminCommunicationsPage() {
                 </div>
                 <div className="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                    <span>
-                      Total estimado a enviar:
-                      {' '}
-                      <b>{loadingRecipients ? 'Calculando...' : estimatedRecipients}</b>
-                    </span>
-                    {!loadingRecipients && (
+                    {selectionMode === 'MANUAL' ? (
+                      <span>
+                        Destinatarios seleccionados: <b>{recipientIncludeIds.length}</b>
+                        {recipientIncludeIds.length === 0 && <span className="ml-2 text-amber-700 text-xs">(ninguno seleccionado aún)</span>}
+                      </span>
+                    ) : (
                       <>
-                        <span>Elegibles: <b>{estimatedEligible}</b></span>
-                        <span>Sin destino: <b>{estimatedIneligible}</b></span>
+                        <span>
+                          Total estimado a enviar:
+                          {' '}
+                          <b>{loadingRecipients ? 'Calculando...' : estimatedRecipients}</b>
+                        </span>
+                        {!loadingRecipients && (
+                          <>
+                            <span>Elegibles: <b>{estimatedEligible}</b></span>
+                            <span>Sin destino: <b>{estimatedIneligible}</b></span>
+                          </>
+                        )}
                       </>
                     )}
                   </div>
@@ -1695,13 +1711,50 @@ export default function AdminCommunicationsPage() {
                 <div className="rounded-lg border p-3 space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <h3 className="font-semibold text-gray-900">Destinatarios de la campaña</h3>
-                    <button
-                      className="border rounded px-2 py-1 text-xs"
-                      onClick={() => void loadRecipientPreview()}
-                    >
-                      Actualizar vista previa
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex rounded border overflow-hidden text-xs">
+                        <button
+                          className={`px-3 py-1.5 ${selectionMode === 'MANUAL' ? 'bg-primary-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                          onClick={() => { setSelectionMode('MANUAL'); setRecipientIncludeIds([]); setRecipientExcludeIds([]) }}
+                          type="button"
+                        >
+                          Selección manual
+                        </button>
+                        <button
+                          className={`px-3 py-1.5 border-l ${selectionMode === 'SEGMENT' ? 'bg-primary-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                          onClick={() => { setSelectionMode('SEGMENT'); setRecipientIncludeIds([]); setRecipientExcludeIds([]) }}
+                          type="button"
+                        >
+                          Segmento automático
+                        </button>
+                      </div>
+                      <button
+                        className="border rounded px-2 py-1 text-xs"
+                        onClick={() => void loadRecipientPreview()}
+                      >
+                        Actualizar
+                      </button>
+                    </div>
                   </div>
+                  {selectionMode === 'MANUAL' && (
+                    <div className="flex flex-wrap items-center gap-2 rounded bg-blue-50 border border-blue-200 px-3 py-2 text-xs text-blue-900">
+                      <span className="flex-1">Selección manual: busca y marca usuarios individualmente. Seleccionados: <b>{recipientIncludeIds.length}</b></span>
+                      <button
+                        className="rounded border border-blue-400 bg-white px-2 py-1 text-xs text-blue-800 hover:bg-blue-100"
+                        onClick={() => setRecipientIncludeIds(recipientPreview.map((r) => r.id))}
+                        type="button"
+                      >
+                        Seleccionar todos visibles
+                      </button>
+                      <button
+                        className="rounded border border-blue-400 bg-white px-2 py-1 text-xs text-blue-800 hover:bg-blue-100"
+                        onClick={() => setRecipientIncludeIds([])}
+                        type="button"
+                      >
+                        Deseleccionar todos
+                      </button>
+                    </div>
+                  )}
                   <div className="flex flex-wrap gap-2">
                     <label className="text-xs text-gray-700 space-y-1 flex-1 min-w-[220px]">
                       <span className="font-medium">Buscar destinatarios</span>
@@ -1768,20 +1821,29 @@ export default function AdminCommunicationsPage() {
                                 {recipient.destination || recipient.reason || 'Sin destino'}
                               </td>
                               <td className="px-2 py-2">
-                                <div className="flex flex-wrap gap-1">
+                                {selectionMode === 'MANUAL' ? (
                                   <button
                                     className={`rounded px-2 py-1 ${included ? 'bg-emerald-600 text-white' : 'border'}`}
                                     onClick={() => toggleIncludeRecipient(recipient.id)}
                                   >
-                                    {included ? 'Incluido' : 'Incluir'}
+                                    {included ? 'Seleccionado' : 'Seleccionar'}
                                   </button>
-                                  <button
-                                    className={`rounded px-2 py-1 ${excluded ? 'bg-rose-600 text-white' : 'border'}`}
-                                    onClick={() => toggleExcludeRecipient(recipient.id)}
-                                  >
-                                    {excluded ? 'Excluido' : 'Excluir'}
-                                  </button>
-                                </div>
+                                ) : (
+                                  <div className="flex flex-wrap gap-1">
+                                    <button
+                                      className={`rounded px-2 py-1 ${included ? 'bg-emerald-600 text-white' : 'border'}`}
+                                      onClick={() => toggleIncludeRecipient(recipient.id)}
+                                    >
+                                      {included ? 'Incluido' : 'Incluir'}
+                                    </button>
+                                    <button
+                                      className={`rounded px-2 py-1 ${excluded ? 'bg-rose-600 text-white' : 'border'}`}
+                                      onClick={() => toggleExcludeRecipient(recipient.id)}
+                                    >
+                                      {excluded ? 'Excluido' : 'Excluir'}
+                                    </button>
+                                  </div>
+                                )}
                               </td>
                             </tr>
                           )
@@ -1789,7 +1851,9 @@ export default function AdminCommunicationsPage() {
                         {!loadingRecipients && recipientPreview.length === 0 && (
                           <tr>
                             <td className="px-2 py-3 text-gray-500" colSpan={4}>
-                              No hay destinatarios para este segmento.
+                              {selectionMode === 'MANUAL'
+                                ? 'Busca usuarios por nombre, email o teléfono para agregarlos.'
+                                : 'No hay destinatarios para este segmento.'}
                             </td>
                           </tr>
                         )}

@@ -148,28 +148,32 @@ export async function resolveCampaignRecipients(params: {
         }
       : undefined
 
-  const segmentUsers = await prisma.user.findMany({
-    where: {
-      role: roleFilter,
-      isActive: true,
-      ...((partnerServiceWhere || partnerCategoryWhere) && {
-        partnerProfile: {
-          ...(partnerServiceWhere || {}),
-          ...(partnerCategoryWhere || {}),
+  // When targetRole is null (manual-only mode), skip the segment query entirely.
+  // Recipients come exclusively from includeUserIds.
+  const segmentUsers = params.targetRole
+    ? await prisma.user.findMany({
+        where: {
+          role: roleFilter,
+          isActive: true,
+          ...((partnerServiceWhere || partnerCategoryWhere) && {
+            partnerProfile: {
+              ...(partnerServiceWhere || {}),
+              ...(partnerCategoryWhere || {}),
+            },
+          }),
+          ...(params.targetCity
+            ? {
+                OR: [
+                  { role: 'CLIENT', addresses: { some: { city: params.targetCity, isActive: true } } },
+                  { role: 'PARTNER', partnerProfile: { city: params.targetCity } },
+                ],
+              }
+            : {}),
         },
-      }),
-      ...(params.targetCity
-        ? {
-            OR: [
-              { role: 'CLIENT', addresses: { some: { city: params.targetCity, isActive: true } } },
-              { role: 'PARTNER', partnerProfile: { city: params.targetCity } },
-            ],
-          }
-        : {}),
-    },
-    select: { id: true, name: true, email: true, phone: true, pushSubscription: true, role: true },
-    take,
-  })
+        select: { id: true, name: true, email: true, phone: true, pushSubscription: true, role: true },
+        take,
+      })
+    : []
 
   const manualUsers = includeSet.size
     ? await prisma.user.findMany({
