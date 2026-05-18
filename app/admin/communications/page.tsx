@@ -244,6 +244,9 @@ export default function AdminCommunicationsPage() {
     templateId: '',
     waContentSid: '',
     waTemplateVariables: {} as Record<string, string>,
+    magicLinkRedirectUrl: '/partner/dashboard',
+    magicLinkCustomUrl: '',
+    magicLinkRequirePasswordChange: false,
     scheduledAt: '',
     abTestEnabled: false,
     abVariantAKey: 'A',
@@ -663,6 +666,10 @@ export default function AdminCommunicationsPage() {
             waTemplateName: selectedWaTemplate?.name || null,
             waTemplateVariables: campForm.waTemplateVariables,
           } : {}),
+          magicLinkRedirectUrl: campForm.magicLinkRedirectUrl === '__custom__'
+            ? campForm.magicLinkCustomUrl || '/partner/dashboard'
+            : campForm.magicLinkRedirectUrl,
+          magicLinkRequirePasswordChange: campForm.magicLinkRequirePasswordChange,
         },
       }),
     })
@@ -687,6 +694,9 @@ export default function AdminCommunicationsPage() {
       templateId: '',
       waContentSid: '',
       waTemplateVariables: {},
+      magicLinkRedirectUrl: '/partner/dashboard',
+      magicLinkCustomUrl: '',
+      magicLinkRequirePasswordChange: false,
       scheduledAt: '',
       abTestEnabled: false,
       abVariantAKey: 'A',
@@ -1719,8 +1729,8 @@ export default function AdminCommunicationsPage() {
                               <code className="bg-gray-100 px-1 rounded">{'{{action_url}}'}</code> magic link personalizado.
                             </p>
                             {Object.values(campForm.waTemplateVariables).some((v) => v.includes('action_url')) && (
-                              <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                                <b>Importante:</b> estás usando <code>{'{{action_url}}'}</code>. Debes generar los magic links para los destinatarios <b>antes</b> de enviar la campaña (panel Magic Link). Si un usuario no tiene token activo, su mensaje fallará.
+                              <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+                                Estás usando <code>{'{{action_url}}'}</code>. Configura el destino del magic link más abajo.
                               </div>
                             )}
                             <div className="space-y-1.5">
@@ -1775,6 +1785,53 @@ export default function AdminCommunicationsPage() {
                     />
                   </label>
                 )}
+                {(() => {
+                  const usesActionUrl =
+                    Object.values(campForm.waTemplateVariables).some((v) => v.includes('action_url')) ||
+                    (campForm.customBody || '').includes('{{action_url}}') ||
+                    (campForm.customSubject || '').includes('{{action_url}}') ||
+                    (selectedTemplate?.body || '').includes('{{action_url}}') ||
+                    (selectedTemplate?.subject || '').includes('{{action_url}}')
+                  if (!usesActionUrl) return null
+                  const campSections = campForm.targetRole === 'CLIENT' ? ML_CLIENT_SECTIONS : ML_PARTNER_SECTIONS
+                  return (
+                    <div className="rounded border border-indigo-200 bg-indigo-50 p-3 space-y-2">
+                      <p className="text-xs font-semibold text-indigo-800">Configuración del Magic Link (action_url)</p>
+                      <p className="text-xs text-indigo-700">Se generará automáticamente un link de acceso para cada destinatario. Configura a dónde se redirige al ingresar.</p>
+                      <label className="text-xs text-gray-700 space-y-1 block">
+                        <span className="font-medium">Destino después de iniciar sesión</span>
+                        <div className="grid grid-cols-2 gap-1.5 mt-1">
+                          {campSections.map((sec) => (
+                            <button
+                              key={sec.value}
+                              type="button"
+                              onClick={() => setCampForm((p) => ({ ...p, magicLinkRedirectUrl: sec.value }))}
+                              className={`text-left rounded border px-2 py-1.5 text-xs transition-colors ${campForm.magicLinkRedirectUrl === sec.value ? 'border-indigo-500 bg-indigo-100 text-indigo-800 font-medium' : 'border-gray-200 bg-white text-gray-700 hover:border-indigo-300'}`}
+                            >
+                              {sec.label}
+                            </button>
+                          ))}
+                        </div>
+                        {campForm.magicLinkRedirectUrl === '__custom__' && (
+                          <input
+                            className="border rounded px-2 py-1.5 text-xs w-full mt-1"
+                            placeholder="/ruta/personalizada"
+                            value={campForm.magicLinkCustomUrl}
+                            onChange={(e) => setCampForm((p) => ({ ...p, magicLinkCustomUrl: e.target.value }))}
+                          />
+                        )}
+                      </label>
+                      <label className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={campForm.magicLinkRequirePasswordChange}
+                          onChange={(e) => setCampForm((p) => ({ ...p, magicLinkRequirePasswordChange: e.target.checked }))}
+                        />
+                        Pedir cambio de contraseña al ingresar
+                      </label>
+                    </div>
+                  )
+                })()}
                 <div className="grid md:grid-cols-3 gap-2">
                   <label className="text-xs text-gray-700 space-y-1">
                     <span className="font-medium">Programación (opcional)</span>

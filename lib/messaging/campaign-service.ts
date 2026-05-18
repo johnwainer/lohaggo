@@ -33,19 +33,20 @@ export async function processCampaign(campaignId: string) {
   })
   const runtimeConfig = await getMessagingProviderRuntimeConfig()
 
+  // Parse campaign metadata once for all config below
+  let campaignMeta: Record<string, unknown> = {}
+  try { campaignMeta = JSON.parse(campaign.metadata ?? '{}') } catch { /* ignore */ }
+
   // WA Content Template metadata (WHATSAPP channel only)
   let waContentSid: string | null = null
   let waTemplateVariables: Record<string, string> = {}
   if (campaign.channel === 'WHATSAPP') {
-    try {
-      const meta = JSON.parse(campaign.metadata ?? '{}') as {
-        waContentSid?: string
-        waTemplateVariables?: Record<string, string>
-      }
-      waContentSid = meta.waContentSid || null
-      waTemplateVariables = meta.waTemplateVariables || {}
-    } catch { /* ignore */ }
+    waContentSid = (campaignMeta.waContentSid as string) || null
+    waTemplateVariables = (campaignMeta.waTemplateVariables as Record<string, string>) || {}
   }
+
+  const magicLinkRedirectUrl = (campaignMeta.magicLinkRedirectUrl as string) || '/partner/dashboard'
+  const magicLinkRequirePasswordChange = Boolean(campaignMeta.magicLinkRequirePasswordChange)
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || ''
 
@@ -83,7 +84,7 @@ export async function processCampaign(campaignId: string) {
           try {
             const token = randomBytes(32).toString('hex')
             await prisma.magicToken.create({
-              data: { userId, token, redirectUrl: '/partner/dashboard', requirePasswordChange: false, expiresAt },
+              data: { userId, token, redirectUrl: magicLinkRedirectUrl, requirePasswordChange: magicLinkRequirePasswordChange, expiresAt },
             })
             magicUrlByUser.set(userId, `${appUrl}/auth/magic?token=${token}`)
           } catch {
