@@ -23,7 +23,15 @@ type Campaign = {
   targetRole: 'CLIENT' | 'PARTNER' | 'ADMIN' | null
   targetCity: string | null
   createdAt: string
+  startedAt?: string | null
+  completedAt?: string | null
+  scheduledAt?: string | null
+  customBody?: string | null
+  customSubject?: string | null
+  metadata?: string | null
+  template?: { id: string; key: string; name: string } | null
   abTestEnabled?: boolean
+  abTestConfig?: string | null
 }
 
 type ServiceOption = {
@@ -286,6 +294,7 @@ export default function AdminCommunicationsPage() {
   const [failedDeliveries, setFailedDeliveries] = useState<FailedDelivery[]>([])
   const [loadingFailedDeliveries, setLoadingFailedDeliveries] = useState(false)
   const [failedDeliveriesError, setFailedDeliveriesError] = useState<string | null>(null)
+  const [detailCampaign, setDetailCampaign] = useState<Campaign | null>(null)
 
   // Magic link state
 
@@ -1131,6 +1140,12 @@ export default function AdminCommunicationsPage() {
                           <div className="flex justify-end gap-2">
                             <button
                               className="border rounded px-2 py-1 text-xs"
+                              onClick={() => setDetailCampaign(campaign)}
+                            >
+                              Ver
+                            </button>
+                            <button
+                              className="border rounded px-2 py-1 text-xs"
                               onClick={() => void loadRecipientPreview({ forCampaignId: campaign.id, channel: campaign.channel })}
                             >
                               Destinatarios
@@ -1305,6 +1320,139 @@ export default function AdminCommunicationsPage() {
               )}
             </section>
           )}
+
+          {/* Campaign detail modal */}
+          {detailCampaign && (() => {
+            let meta: Record<string, unknown> = {}
+            try { meta = JSON.parse(detailCampaign.metadata ?? '{}') } catch { /* ignore */ }
+            const contentMode = (meta.contentMode as string) || 'CUSTOM'
+            const isWa = contentMode === 'WA_TEMPLATE'
+            const waVars = (meta.waTemplateVariables as Record<string, string>) || {}
+            const waName = meta.waTemplateName as string | null
+            const waSid = meta.waContentSid as string | null
+            const mlUrl = meta.magicLinkRedirectUrl as string | null
+            const mlBanner = Boolean(meta.magicLinkRequirePasswordChange)
+            const body = detailCampaign.customBody || ''
+            const subject = detailCampaign.customSubject || ''
+            const usedVars = ['user_name', 'user_email', 'action_url'].filter(
+              (v) => body.includes(`{{${v}}}`) || subject.includes(`{{${v}}}`) || Object.values(waVars).some((val) => val.includes(v))
+            )
+            const usesActionUrl = usedVars.includes('action_url') || Object.values(waVars).some((v) => v.includes('action_url'))
+
+            return (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setDetailCampaign(null)}>
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-start justify-between gap-3 p-5 border-b">
+                    <div>
+                      <h2 className="text-base font-bold text-gray-900">{detailCampaign.name}</h2>
+                      <p className="text-xs text-gray-500 mt-0.5">{detailCampaign.channel} · {detailCampaign.status} · {detailCampaign.targetRole || 'MANUAL'}{detailCampaign.targetCity ? ` / ${detailCampaign.targetCity}` : ''}</p>
+                    </div>
+                    <button onClick={() => setDetailCampaign(null)} className="rounded-lg p-1.5 hover:bg-gray-100 transition text-gray-500">✕</button>
+                  </div>
+
+                  <div className="p-5 space-y-5">
+                    {/* Dates */}
+                    <div className="grid grid-cols-2 gap-3 text-xs text-gray-600">
+                      <div><span className="font-medium block text-gray-800">Creada</span>{formatDate(detailCampaign.createdAt)}</div>
+                      {detailCampaign.scheduledAt && <div><span className="font-medium block text-gray-800">Programada</span>{formatDate(detailCampaign.scheduledAt)}</div>}
+                      {detailCampaign.startedAt && <div><span className="font-medium block text-gray-800">Iniciada</span>{formatDate(detailCampaign.startedAt)}</div>}
+                      {detailCampaign.completedAt && <div><span className="font-medium block text-gray-800">Completada</span>{formatDate(detailCampaign.completedAt)}</div>}
+                    </div>
+
+                    {/* Stats */}
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { label: 'Destinatarios', value: detailCampaign.totalRecipients, color: 'gray' },
+                        { label: 'Enviados', value: detailCampaign.totalSent, color: 'emerald' },
+                        { label: 'Fallidos', value: detailCampaign.totalFailed, color: detailCampaign.totalFailed > 0 ? 'rose' : 'gray' },
+                      ].map((s) => (
+                        <div key={s.label} className={`rounded-lg border p-2.5 text-center bg-${s.color}-50 border-${s.color}-200`}>
+                          <p className={`text-lg font-bold text-${s.color}-700`}>{s.value}</p>
+                          <p className={`text-xs text-${s.color}-600`}>{s.label}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Content */}
+                    {isWa ? (
+                      <div className="space-y-2">
+                        <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Plantilla WhatsApp</p>
+                        {waName && <p className="text-sm text-gray-800 font-medium">{waName}</p>}
+                        {waSid && <p className="text-xs font-mono text-gray-500">{waSid}</p>}
+                        {Object.keys(waVars).length > 0 && (
+                          <div className="rounded border bg-gray-50 divide-y text-xs">
+                            {Object.entries(waVars).map(([k, v]) => (
+                              <div key={k} className="flex items-center gap-2 px-3 py-1.5">
+                                <span className="font-mono text-gray-500 w-8">{`{{${k}}}`}</span>
+                                <span className="text-gray-800">{v}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                          Contenido {detailCampaign.template ? `· Plantilla: ${detailCampaign.template.name}` : '· Personalizado'}
+                        </p>
+                        {subject && (
+                          <div>
+                            <p className="text-xs text-gray-500 mb-0.5">Asunto</p>
+                            <p className="text-sm text-gray-800 font-medium">{subject}</p>
+                          </div>
+                        )}
+                        {body && (
+                          <div className="rounded border bg-gray-50 px-3 py-2 text-sm text-gray-800 whitespace-pre-wrap">{body}</div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Variables used */}
+                    {usedVars.length > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Variables usadas</p>
+                        <div className="flex flex-wrap gap-2">
+                          {usedVars.map((v) => (
+                            <span key={v} className="rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-mono text-indigo-800">{`{{${v}}}`}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Magic link config */}
+                    {usesActionUrl && (
+                      <div className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-3 space-y-1 text-xs">
+                        <p className="font-semibold text-indigo-800 text-sm">Configuración del Magic Link</p>
+                        <p className="text-indigo-700"><span className="font-medium">Destino:</span> <span className="font-mono">{mlUrl || '/partner/dashboard'}</span></p>
+                        <p className="text-indigo-700"><span className="font-medium">Banner cambio de contraseña:</span> {mlBanner ? 'Sí' : 'No'}</p>
+                      </div>
+                    )}
+
+                    {/* A/B test */}
+                    {detailCampaign.abTestEnabled && detailCampaign.abTestConfig && (() => {
+                      try {
+                        const ab = JSON.parse(detailCampaign.abTestConfig!) as { variants?: Array<{ key: string; body: string; subject?: string; allocation: number }> }
+                        return (
+                          <div className="space-y-2">
+                            <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Prueba A/B</p>
+                            <div className="grid grid-cols-2 gap-2">
+                              {(ab.variants || []).map((v) => (
+                                <div key={v.key} className="rounded border p-2.5 bg-gray-50 space-y-1">
+                                  <p className="text-xs font-bold text-gray-700">Variante {v.key} · {v.allocation}%</p>
+                                  {v.subject && <p className="text-xs text-gray-500">Asunto: {v.subject}</p>}
+                                  <p className="text-xs text-gray-700 line-clamp-3 whitespace-pre-wrap">{v.body}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )
+                      } catch { return null }
+                    })()}
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
 
           {activePanel === 'CREATE' && (
             <section className="space-y-4">
