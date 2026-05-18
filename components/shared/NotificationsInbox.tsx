@@ -87,23 +87,10 @@ export default function NotificationsInbox({
   return (
     <div className="account-shell">
       <header className="account-header">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h1 className="panel-title">Notificaciones</h1>
-              <p className="panel-subtitle mt-1">{headerSubtitle}</p>
-            </div>
-
-            {unreadCount > 0 && (
-              <button
-                onClick={onMarkAllAsRead}
-                className="inline-flex items-center gap-1.5 sm:gap-2 rounded-xl bg-primary-600 px-3 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-primary-700 transition"
-              >
-                <CheckCheck className="h-4 w-4" />
-                <span className="hidden sm:inline">Marcar todas</span>
-                <span className="sm:hidden">Marcar</span>
-              </button>
-            )}
+        <div className="hidden sm:block max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
+          <div className="min-w-0">
+            <h1 className="panel-title">Notificaciones</h1>
+            <p className="panel-subtitle mt-1">{headerSubtitle}</p>
           </div>
         </div>
 
@@ -111,6 +98,17 @@ export default function NotificationsInbox({
       </header>
 
       <main className="account-main pb-24 md:pb-8">
+        {unreadCount > 0 && (
+          <div className="flex justify-end mb-4">
+            <button
+              onClick={onMarkAllAsRead}
+              className="inline-flex items-center gap-1.5 sm:gap-2 rounded-xl bg-primary-600 px-3 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-primary-700 transition"
+            >
+              <CheckCheck className="h-4 w-4" />
+              Marcar todas como leídas
+            </button>
+          </div>
+        )}
         <div className="surface-card overflow-hidden border border-gray-200/80 shadow-sm">
           {push.isSupported && !push.isSubscribed && push.permission !== 'denied' && (
             <div className="border-b border-blue-200 bg-gradient-to-r from-blue-50 via-indigo-50 to-cyan-50 p-4 sm:p-5">
