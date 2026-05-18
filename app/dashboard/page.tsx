@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import {
   MessageSquare, Calendar, Clock, MapPin, Package, CheckCircle, DollarSign,
@@ -137,6 +137,7 @@ const requestStatusLabels: Record<string, string> = {
 export default function DashboardPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const unreadNotifications = useNotificationUnreadCount(status === 'authenticated')
   const [bookings, setBookings] = useState<Booking[]>([])
   const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([])
@@ -265,6 +266,13 @@ export default function DashboardPage() {
       fetchFavorites()
     }
   }, [status])
+
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (tab && ['overview', 'bookings', 'requests', 'favorites'].includes(tab)) {
+      setActiveTab(tab as 'overview' | 'bookings' | 'requests' | 'favorites')
+    }
+  }, [searchParams])
 
   useEffect(() => {
     if (status === 'authenticated' && (bookings.length > 0 || serviceRequests.length > 0)) {

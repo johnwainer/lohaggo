@@ -1,31 +1,65 @@
 'use client'
 
+import { Suspense } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { Home, Calendar, User, Package, Bell, MessageSquare, Wallet, UserCircle, Heart } from 'lucide-react'
+import { Home, User, Package, Bell, MessageSquare, Wallet, UserCircle, Heart } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { usePartnerNavCounts } from '@/hooks/usePartnerNavCounts'
-import { useNotificationUnreadCount } from '@/hooks/useNotificationUnreadCount'
+import { useClientNavCounts } from '@/hooks/useClientNavCounts'
 
 const PARTNER_ACCOUNT_PATHS = ['/profile', '/partner/services', '/partner/verification', '/partner/bank-accounts', '/partner/achievements']
 
 const partnerNavItems = [
-  { id: 'overview', label: 'Inicio', icon: Home, path: '/partner', isTab: true },
-  { id: 'bookings', label: 'Reservas', icon: Package, path: '/partner?tab=bookings', isTab: true },
-  { id: 'my-requests', label: 'Solicitudes', icon: Bell, path: '/partner?tab=my-requests', isTab: true },
-  { id: 'messages', label: 'Mensajes', icon: MessageSquare, path: '/partner/messages', isTab: false },
-  { id: 'payments', label: 'Pagos', icon: Wallet, path: '/partner/payments', isTab: false },
-  { id: 'account', label: 'Cuenta', icon: UserCircle, path: '/profile', isTab: false },
+  { id: 'overview', label: 'Inicio', icon: Home, path: '/partner' },
+  { id: 'bookings', label: 'Reservas', icon: Package, path: '/partner?tab=bookings' },
+  { id: 'my-requests', label: 'Solicitudes', icon: Bell, path: '/partner?tab=my-requests' },
+  { id: 'messages', label: 'Mensajes', icon: MessageSquare, path: '/partner/messages' },
+  { id: 'payments', label: 'Pagos', icon: Wallet, path: '/partner/payments' },
+  { id: 'account', label: 'Cuenta', icon: UserCircle, path: '/profile' },
 ] as const
 
-function PartnerBar() {
+const clientNavItems = [
+  { id: 'overview', label: 'Resumen', icon: Home, path: '/dashboard' },
+  { id: 'bookings', label: 'Reservas', icon: Package, path: '/dashboard?tab=bookings' },
+  { id: 'requests', label: 'Solicitudes', icon: MessageSquare, path: '/dashboard?tab=requests' },
+  { id: 'favorites', label: 'Favoritos', icon: Heart, path: '/dashboard?tab=favorites' },
+  { id: 'notifications', label: 'Notifs', icon: Bell, path: '/notifications' },
+] as const
+
+function NavButton({ icon: Icon, label, isActive, badge, onClick }: {
+  icon: React.ElementType
+  label: string
+  isActive: boolean
+  badge?: number
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`relative flex min-h-[52px] flex-col items-center justify-center rounded-xl text-xs font-medium transition ${
+        isActive ? 'bg-primary-50 text-primary-700' : 'text-gray-600 active:scale-95'
+      }`}
+    >
+      <Icon className="h-5 w-5" />
+      <span className="text-[10px] mt-0.5">{label}</span>
+      {!!badge && badge > 0 && (
+        <span className="absolute right-1 top-1 inline-flex min-w-4 h-4 items-center justify-center rounded-full bg-primary-600 px-1 text-[9px] font-bold text-white">
+          {badge > 99 ? '99+' : badge}
+        </span>
+      )}
+    </button>
+  )
+}
+
+function PartnerBarInner() {
   const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const liveCounts = usePartnerNavCounts()
-
+  const counts = usePartnerNavCounts()
   const tab = searchParams.get('tab')
 
-  const isItemActive = (id: string) => {
+  const isActive = (id: string) => {
     if (id === 'overview') return pathname === '/partner' && (!tab || tab === 'overview')
     if (id === 'bookings') return pathname === '/partner' && tab === 'bookings'
     if (id === 'my-requests') return pathname === '/partner' && tab === 'my-requests'
@@ -35,60 +69,38 @@ function PartnerBar() {
     return false
   }
 
-  const getBadge = (id: string) => {
-    if (id === 'bookings') return liveCounts.bookings
-    if (id === 'messages') return liveCounts.messages
+  const badge = (id: string) => {
+    if (id === 'bookings') return counts.bookings
+    if (id === 'messages') return counts.messages
     return 0
   }
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)] md:hidden">
       <div className="mx-auto grid max-w-2xl grid-cols-6 gap-1 px-2 py-2">
-        {partnerNavItems.map((item) => {
-          const Icon = item.icon
-          const isActive = isItemActive(item.id)
-          const badge = getBadge(item.id)
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => router.push(item.path)}
-              className={`relative flex min-h-[52px] flex-col items-center justify-center rounded-xl text-xs font-medium transition ${
-                isActive ? 'bg-primary-50 text-primary-700' : 'text-gray-600 active:scale-95'
-              }`}
-            >
-              <Icon className="h-5 w-5" />
-              <span className="text-[10px] mt-0.5">{item.label}</span>
-              {badge > 0 && (
-                <span className="absolute right-1 top-1 inline-flex min-w-4 h-4 items-center justify-center rounded-full bg-primary-600 px-1 text-[9px] font-bold text-white">
-                  {badge > 99 ? '99+' : badge}
-                </span>
-              )}
-            </button>
-          )
-        })}
+        {partnerNavItems.map((item) => (
+          <NavButton
+            key={item.id}
+            icon={item.icon}
+            label={item.label}
+            isActive={isActive(item.id)}
+            badge={badge(item.id)}
+            onClick={() => router.push(item.path)}
+          />
+        ))}
       </div>
     </nav>
   )
 }
 
-const clientNavItems = [
-  { id: 'overview', label: 'Resumen', icon: Home, path: '/dashboard', isTab: true },
-  { id: 'bookings', label: 'Reservas', icon: Package, path: '/dashboard?tab=bookings', isTab: true },
-  { id: 'requests', label: 'Solicitudes', icon: MessageSquare, path: '/dashboard?tab=requests', isTab: true },
-  { id: 'favorites', label: 'Favoritos', icon: Heart, path: '/dashboard?tab=favorites', isTab: true },
-  { id: 'notifications', label: 'Notifs', icon: Bell, path: '/notifications', isTab: false },
-] as const
-
-function ClientBar() {
+function ClientBarInner() {
   const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const unreadNotifications = useNotificationUnreadCount(true)
-
+  const counts = useClientNavCounts()
   const tab = searchParams.get('tab')
 
-  const isItemActive = (id: string) => {
+  const isActive = (id: string) => {
     if (id === 'overview') return pathname === '/dashboard' && (!tab || tab === 'overview')
     if (id === 'bookings') return pathname === '/dashboard' && tab === 'bookings'
     if (id === 'requests') return pathname === '/dashboard' && tab === 'requests'
@@ -97,32 +109,27 @@ function ClientBar() {
     return false
   }
 
+  const badge = (id: string) => {
+    if (id === 'bookings') return counts.bookings
+    if (id === 'requests') return counts.requests
+    if (id === 'favorites') return counts.favorites
+    if (id === 'notifications') return counts.notifications
+    return 0
+  }
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)] md:hidden">
       <div className="mx-auto grid max-w-2xl grid-cols-5 gap-1 px-2 py-2">
-        {clientNavItems.map((item) => {
-          const Icon = item.icon
-          const isActive = isItemActive(item.id)
-          const badge = item.id === 'notifications' ? unreadNotifications : 0
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => router.push(item.path)}
-              className={`relative flex min-h-[52px] flex-col items-center justify-center rounded-xl text-xs font-medium transition ${
-                isActive ? 'bg-primary-50 text-primary-700' : 'text-gray-600 active:scale-95'
-              }`}
-            >
-              <Icon className="h-5 w-5" />
-              <span className="text-[10px] mt-0.5">{item.label}</span>
-              {badge > 0 && (
-                <span className="absolute right-1 top-1 inline-flex min-w-4 h-4 items-center justify-center rounded-full bg-primary-600 px-1 text-[9px] font-bold text-white">
-                  {badge > 99 ? '99+' : badge}
-                </span>
-              )}
-            </button>
-          )
-        })}
+        {clientNavItems.map((item) => (
+          <NavButton
+            key={item.id}
+            icon={item.icon}
+            label={item.label}
+            isActive={isActive(item.id)}
+            badge={badge(item.id)}
+            onClick={() => router.push(item.path)}
+          />
+        ))}
       </div>
     </nav>
   )
@@ -136,41 +143,44 @@ export function BottomNav() {
   const isPartner = session?.user?.role === 'PARTNER'
   const isClient = !!session && !isPartner
 
-  if (isPartner) return <PartnerBar />
-  if (isClient) return <ClientBar />
+  if (isPartner) {
+    return (
+      <Suspense fallback={null}>
+        <PartnerBarInner />
+      </Suspense>
+    )
+  }
+
+  if (isClient) {
+    return (
+      <Suspense fallback={null}>
+        <ClientBarInner />
+      </Suspense>
+    )
+  }
 
   // Logged-out visitors
-  const loggedOutTabs = [
-    { id: 'home', href: '/', icon: Home, label: 'Inicio' },
-    { id: 'profile', href: '/login', icon: User, label: 'Entrar' },
-  ]
-
-  const isTabActive = (href: string) => {
-    if (href === '/') return pathname === '/' || pathname.startsWith('/servicios')
-    return pathname === href
-  }
+  const isHomeActive = pathname === '/' || pathname.startsWith('/servicios')
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 safe-area-bottom md:hidden" data-tour="bottom-nav">
       <div className="grid h-16 grid-cols-2">
-        {loggedOutTabs.map((tab) => {
-          const isActive = isTabActive(tab.href)
-          const Icon = tab.icon
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => router.push(tab.href)}
-              className={`w-full h-full touch-manipulation flex flex-col items-center justify-center gap-1 px-2 py-2 transition-colors active:scale-95 ${
-                isActive ? 'text-primary-600' : 'text-gray-500 hover:text-gray-700'
-              }`}
-              aria-label={tab.label}
-            >
-              <Icon className="w-6 h-6" />
-              <span className="text-xs font-medium">{tab.label}</span>
-            </button>
-          )
-        })}
+        <button
+          type="button"
+          onClick={() => router.push('/')}
+          className={`touch-manipulation flex flex-col items-center justify-center gap-1 px-2 py-2 transition-colors active:scale-95 ${isHomeActive ? 'text-primary-600' : 'text-gray-500'}`}
+        >
+          <Home className="w-6 h-6" />
+          <span className="text-xs font-medium">Inicio</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => router.push('/login')}
+          className="touch-manipulation flex flex-col items-center justify-center gap-1 px-2 py-2 transition-colors active:scale-95 text-gray-500"
+        >
+          <User className="w-6 h-6" />
+          <span className="text-xs font-medium">Entrar</span>
+        </button>
       </div>
     </nav>
   )
