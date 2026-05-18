@@ -237,6 +237,8 @@ export default function AdminCommunicationsPage() {
     partnerFilterMode: 'ALL' as 'ALL' | 'CATEGORY' | 'SERVICE',
     partnerCategoryIds: [] as string[],
     partnerServiceIds: [] as string[],
+    partnerWithoutDocs: false,
+    partnerWithoutStudies: false,
     customSubject: '',
     customBody: '',
     templateId: '',
@@ -409,6 +411,8 @@ export default function AdminCommunicationsPage() {
           if (campForm.partnerFilterMode === 'SERVICE' && campForm.partnerServiceIds.length) {
             params.set('partnerServiceIds', campForm.partnerServiceIds.join(','))
           }
+          if (campForm.partnerWithoutDocs) params.set('partnerWithoutDocs', 'true')
+          if (campForm.partnerWithoutStudies) params.set('partnerWithoutStudies', 'true')
         }
         if (recipientIncludeIds.length) params.set('includeUserIds', recipientIncludeIds.join(','))
         if (recipientExcludeIds.length) params.set('excludeUserIds', recipientExcludeIds.join(','))
@@ -465,6 +469,8 @@ export default function AdminCommunicationsPage() {
     campForm.partnerFilterMode,
     campForm.partnerCategoryIds,
     campForm.partnerServiceIds,
+    campForm.partnerWithoutDocs,
+    campForm.partnerWithoutStudies,
     recipientIncludeIds,
     recipientExcludeIds,
     selectionMode,
@@ -479,9 +485,9 @@ export default function AdminCommunicationsPage() {
 
   useEffect(() => {
     if (campForm.targetRole === 'PARTNER') return
-    if (!campForm.partnerServiceIds.length && !campForm.partnerCategoryIds.length && campForm.partnerFilterMode === 'ALL') return
-    setCampForm((prev) => ({ ...prev, partnerFilterMode: 'ALL', partnerCategoryIds: [], partnerServiceIds: [] }))
-  }, [campForm.targetRole, campForm.partnerFilterMode, campForm.partnerCategoryIds.length, campForm.partnerServiceIds.length])
+    if (!campForm.partnerServiceIds.length && !campForm.partnerCategoryIds.length && campForm.partnerFilterMode === 'ALL' && !campForm.partnerWithoutDocs && !campForm.partnerWithoutStudies) return
+    setCampForm((prev) => ({ ...prev, partnerFilterMode: 'ALL', partnerCategoryIds: [], partnerServiceIds: [], partnerWithoutDocs: false, partnerWithoutStudies: false }))
+  }, [campForm.targetRole, campForm.partnerFilterMode, campForm.partnerCategoryIds.length, campForm.partnerServiceIds.length, campForm.partnerWithoutDocs, campForm.partnerWithoutStudies])
 
   useEffect(() => {
     if (campForm.targetRole !== 'PARTNER') return
@@ -618,6 +624,8 @@ export default function AdminCommunicationsPage() {
           selectionMode === 'SEGMENT' && campForm.targetRole === 'PARTNER' && campForm.partnerFilterMode === 'SERVICE'
             ? campForm.partnerServiceIds
             : [],
+        partnerWithoutDocs: selectionMode === 'SEGMENT' && campForm.targetRole === 'PARTNER' ? campForm.partnerWithoutDocs : false,
+        partnerWithoutStudies: selectionMode === 'SEGMENT' && campForm.targetRole === 'PARTNER' ? campForm.partnerWithoutStudies : false,
         customSubject: campForm.customSubject || null,
         templateId: isWaTemplate ? null : (campForm.templateId || null),
         status: campForm.scheduledAt ? 'SCHEDULED' : 'DRAFT',
@@ -668,6 +676,8 @@ export default function AdminCommunicationsPage() {
       partnerFilterMode: 'ALL',
       partnerCategoryIds: [],
       partnerServiceIds: [],
+      partnerWithoutDocs: false,
+      partnerWithoutStudies: false,
       customSubject: '',
       customBody: '',
       templateId: '',
@@ -1517,6 +1527,8 @@ export default function AdminCommunicationsPage() {
                             partnerFilterMode: 'ALL',
                             partnerCategoryIds: [],
                             partnerServiceIds: [],
+                            partnerWithoutDocs: false,
+                            partnerWithoutStudies: false,
                           }))
                         }
                         type="button"
@@ -1543,6 +1555,24 @@ export default function AdminCommunicationsPage() {
                           <option value="CATEGORY">Por categoría</option>
                           <option value="SERVICE">Por servicio específico</option>
                         </select>
+                      </label>
+                    </div>
+                    <div className="flex flex-wrap gap-4">
+                      <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={campForm.partnerWithoutDocs}
+                          onChange={(e) => setCampForm((prev) => ({ ...prev, partnerWithoutDocs: e.target.checked }))}
+                        />
+                        <span>Sin documentos verificados <span className="text-gray-400">(cédula/pasaporte/PEP)</span></span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={campForm.partnerWithoutStudies}
+                          onChange={(e) => setCampForm((prev) => ({ ...prev, partnerWithoutStudies: e.target.checked }))}
+                        />
+                        <span>Sin estudios verificados <span className="text-gray-400">(diplomas/certificados)</span></span>
                       </label>
                     </div>
                     {(campForm.partnerFilterMode === 'CATEGORY' || campForm.partnerFilterMode === 'SERVICE') && (

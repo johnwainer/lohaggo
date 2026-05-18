@@ -19,6 +19,8 @@ export type CampaignAudienceFilter = {
   partnerFilterMode?: 'ALL' | 'CATEGORY' | 'SERVICE'
   partnerCategoryIds: string[]
   partnerServiceIds: string[]
+  partnerWithoutDocs?: boolean
+  partnerWithoutStudies?: boolean
 }
 
 export type CampaignRecipient = BasicUser & {
@@ -55,7 +57,7 @@ export function parseRecipientControl(metadata: string | null | undefined): Reci
 
 export function parseCampaignAudience(metadata: string | null | undefined): CampaignAudienceFilter {
   const parsed = parseMetadataObject(metadata) as {
-    audience?: { partnerFilterMode?: unknown; partnerCategoryIds?: unknown; partnerServiceIds?: unknown }
+    audience?: { partnerFilterMode?: unknown; partnerCategoryIds?: unknown; partnerServiceIds?: unknown; partnerWithoutDocs?: unknown; partnerWithoutStudies?: unknown }
   }
   const modeRaw = String(parsed?.audience?.partnerFilterMode || 'ALL').toUpperCase()
   const partnerFilterMode: CampaignAudienceFilter['partnerFilterMode'] =
@@ -64,6 +66,8 @@ export function parseCampaignAudience(metadata: string | null | undefined): Camp
     partnerFilterMode,
     partnerCategoryIds: sanitizeIds(parsed?.audience?.partnerCategoryIds),
     partnerServiceIds: sanitizeIds(parsed?.audience?.partnerServiceIds),
+    partnerWithoutDocs: Boolean(parsed?.audience?.partnerWithoutDocs),
+    partnerWithoutStudies: Boolean(parsed?.audience?.partnerWithoutStudies),
   }
 }
 
@@ -91,6 +95,8 @@ export function mergeCampaignAudienceMetadata(
     partnerFilterMode: audience.partnerFilterMode || 'ALL',
     partnerCategoryIds: sanitizeIds(audience.partnerCategoryIds),
     partnerServiceIds: sanitizeIds(audience.partnerServiceIds),
+    partnerWithoutDocs: Boolean(audience.partnerWithoutDocs),
+    partnerWithoutStudies: Boolean(audience.partnerWithoutStudies),
   }
 
   return JSON.stringify(parsed)
@@ -133,8 +139,13 @@ export async function resolveCampaignRecipients(params: {
       }
     : {}
 
+  const partnerWithoutDocs = audience.partnerWithoutDocs ?? false
+  const partnerWithoutStudies = audience.partnerWithoutStudies ?? false
+
   const enforcePartnerRole =
-    partnerFilterMode === 'CATEGORY' || partnerFilterMode === 'SERVICE' || partnerCategoryIds.length > 0 || partnerServiceIds.length > 0
+    partnerFilterMode === 'CATEGORY' || partnerFilterMode === 'SERVICE' ||
+    partnerCategoryIds.length > 0 || partnerServiceIds.length > 0 ||
+    partnerWithoutDocs || partnerWithoutStudies
 
   const roleFilter = enforcePartnerRole ? 'PARTNER' : resolveRecipientRole(params.targetRole)
 
@@ -162,6 +173,33 @@ export async function resolveCampaignRecipients(params: {
         }
       : undefined
 
+  const IDENTITY_DOC_TYPES = ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP']
+  const STUDY_DOC_TYPES = ['DIPLOMA_BACHILLERATO', 'DIPLOMA_TECNICO', 'DIPLOMA_TECNOLOGO', 'DIPLOMA_PROFESIONAL', 'DIPLOMA_POSGRADO', 'CERTIFICADO_CURSO']
+
+  const partnerWithoutDocsWhere = partnerWithoutDocs
+    ? {
+        documents: {
+          none: {
+            type: { in: IDENTITY_DOC_TYPES as never[] },
+            status: 'APPROVED' as const,
+          },
+        },
+      }
+    : undefined
+
+  const partnerWithoutStudiesWhere = partnerWithoutStudies
+    ? {
+        documents: {
+          none: {
+            type: { in: STUDY_DOC_TYPES as never[] },
+            status: 'APPROVED' as const,
+          },
+        },
+      }
+    : undefined
+
+  const hasPartnerProfileFilter = partnerServiceWhere || partnerCategoryWhere || partnerWithoutDocsWhere || partnerWithoutStudiesWhere
+
   // When targetRole is null (manual-only mode), skip the segment query entirely.
   // Recipients come exclusively from includeUserIds + search results.
   const segmentUsers = params.targetRole
@@ -170,10 +208,12 @@ export async function resolveCampaignRecipients(params: {
           role: roleFilter,
           ...activeFilter,
           ...searchFilter,
-          ...((partnerServiceWhere || partnerCategoryWhere) && {
+          ...(hasPartnerProfileFilter && {
             partnerProfile: {
               ...(partnerServiceWhere || {}),
               ...(partnerCategoryWhere || {}),
+              ...(partnerWithoutDocsWhere || {}),
+              ...(partnerWithoutStudiesWhere || {}),
             },
           }),
           ...(params.targetCity
