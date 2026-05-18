@@ -1,13 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { Loader2, ShieldCheck, AlertCircle, KeyRound } from 'lucide-react'
 
 type State = 'loading' | 'error' | 'success'
 
 export default function MagicLinkPage() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const [state, setState] = useState<State>('loading')
   const [errorMsg, setErrorMsg] = useState('')
@@ -27,9 +26,9 @@ export default function MagicLinkPage() {
           throw new Error(data.error || 'Error al validar el enlace.')
         }
         setState('success')
-        // Brief success flash, then redirect
+        // Full page navigation so the new session cookie is picked up by NextAuth
         setTimeout(() => {
-          router.replace(data.redirectUrl || '/partner/verification')
+          window.location.href = data.redirectUrl || '/partner/verification'
         }, 1200)
       })
       .catch((err) => {
