@@ -129,33 +129,6 @@ export default function PartnerDashboardNav({
         </div>
       </div>
 
-      {/* Mobile — fixed bottom bar */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
-        <nav className="mx-auto grid max-w-2xl grid-cols-6 gap-1 px-2 py-2">
-          {navItems.map((item) => {
-            const Icon = item.icon
-            const isActive = isItemActive(item)
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => handleNav(item)}
-                className={`relative flex min-h-[52px] flex-col items-center justify-center rounded-xl text-xs font-medium transition ${
-                  isActive ? 'bg-primary-50 text-primary-700' : 'text-gray-600 active:scale-95'
-                }`}
-              >
-                <Icon className="h-5 w-5" />
-                <span className="text-[10px] mt-0.5">{item.label}</span>
-                {item.badge > 0 && (
-                  <span className="absolute right-1 top-1 inline-flex min-w-4 h-4 items-center justify-center rounded-full bg-primary-600 px-1 text-[9px] font-bold text-white">
-                    {item.badge > 99 ? '99+' : item.badge}
-                  </span>
-                )}
-              </button>
-            )
-          })}
-        </nav>
-      </div>
     </>
   )
 }
