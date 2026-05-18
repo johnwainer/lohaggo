@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { encode } from "next-auth/jwt"
 import { sendMessageViaProvider } from "@/lib/messaging/providers"
 import { getMessagingProviderRuntimeConfig } from "@/lib/messaging/provider-config"
+import { buildEmailHtml } from "@/lib/email-layout"
 import { createLogger } from "@/lib/logger"
 import { forgotPasswordRateLimiter } from "@/lib/rate-limit"
 
@@ -51,21 +52,17 @@ async function handlePOST(request: NextRequest) {
 
     const runtimeConfig = await getMessagingProviderRuntimeConfig()
 
-    const htmlBody = `
-      <div style="font-family: sans-serif; padding: 20px; background-color: #f9f9f9;">
-        <div style="background-color: white; padding: 30px; border-radius: 8px; max-width: 600px; margin: 0 auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-          <h1 style="color: #034f8e; margin-top: 0;">Recuperar contraseña</h1>
-          <p style="color: #333; font-size: 16px;">Hola ${user.name},</p>
-          <p style="color: #333; font-size: 16px;">Hemos recibido una solicitud para restablecer tu contraseña en LoHaggo. Puedes hacerlo haciendo clic en el siguiente botón:</p>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${resetLink}" style="background-color: #0a66c2; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">Restablecer mi contraseña</a>
-          </div>
-          <p style="color: #555; font-size: 14px;">Este enlace expirará en 1 hora por motivos de seguridad. Si no solicitaste este cambio, puedes ignorar este correo y tu cuenta seguirá segura.</p>
-          <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;" />
-          <p style="color: #888; font-size: 12px; margin-bottom: 0;">© ${new Date().getFullYear()} LoHaggo. Si el botón no funciona, copia y pega este enlace en tu navegador: <br/><br/><code style="word-break: break-all; color: #555;">${resetLink}</code></p>
-        </div>
-      </div>
-    `
+    const htmlBody = buildEmailHtml({
+      title: 'Recupera tu contraseña',
+      preheader: 'Restablece tu contraseña de LoHaggo — el enlace expira en 1 hora.',
+      body: `<p style="margin:0 0 14px;">Hola <strong>${user.name || user.email}</strong>,</p>
+<p style="margin:0 0 14px;">Recibimos una solicitud para restablecer la contraseña de tu cuenta en LoHaggo. Haz clic en el botón de abajo para continuar.</p>
+<p style="margin:0;">Si no solicitaste este cambio, puedes ignorar este correo — tu cuenta sigue segura.</p>`,
+      ctaLabel: 'Restablecer mi contraseña',
+      ctaUrl: resetLink,
+      footerNote: `El enlace expira en <strong>1 hora</strong>. Si el botón no funciona, copia este enlace:<br/>
+<span style="word-break:break-all;color:#64748b;font-size:12px;">${resetLink}</span>`,
+    })
 
     const emailResult = await sendMessageViaProvider({
       channel: 'EMAIL',

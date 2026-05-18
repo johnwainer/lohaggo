@@ -1,6 +1,7 @@
 import type { MessagingChannel, NotificationType, UserRole } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { renderTextTemplate } from '@/lib/messaging/template'
+import { buildEmailHtml } from '@/lib/email-layout'
 
 export type NotificationChannelTemplatePayload = {
   key: string
@@ -15,38 +16,16 @@ export type NotificationChannelTemplatePayload = {
   isActive: boolean
 }
 
-const BASE_EMAIL_LAYOUT = ({ title, message, ctaLabel }: { title: string; message: string; ctaLabel: string }) => `
-<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#f3f7fb;padding:24px 0;font-family:Arial,sans-serif;">
-  <tr>
-    <td align="center">
-      <table role="presentation" cellpadding="0" cellspacing="0" width="620" style="max-width:620px;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #dbe7f3;">
-        <tr>
-          <td style="background:linear-gradient(90deg,#0a66c2,#00bfa6);padding:22px 26px;color:#fff;">
-            <h1 style="margin:0;font-size:20px;line-height:1.2;">LoHaggo</h1>
-            <p style="margin:8px 0 0;font-size:13px;opacity:.95;">Notificación automática</p>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:26px;">
-            <p style="margin:0 0 12px;color:#334155;font-size:14px;">Hola {{user_name}},</p>
-            <h2 style="margin:0 0 12px;color:#0f172a;font-size:22px;line-height:1.25;">${title}</h2>
-            <p style="margin:0 0 18px;color:#334155;font-size:15px;line-height:1.55;">${message}</p>
-            <a href="{{notifications_url}}" style="display:inline-block;background:#0a66c2;color:#fff;text-decoration:none;padding:11px 18px;border-radius:9px;font-size:14px;font-weight:700;">${ctaLabel}</a>
-            <p style="margin:18px 0 0;color:#64748b;font-size:12px;line-height:1.5;">
-              Si no reconoces esta actividad, revisa tu cuenta en LoHaggo.
-            </p>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:16px 26px;border-top:1px solid #e2e8f0;color:#94a3b8;font-size:12px;">
-            © {{year}} LoHaggo · Medellín, Colombia
-          </td>
-        </tr>
-      </table>
-    </td>
-  </tr>
-</table>
-`
+const BASE_EMAIL_LAYOUT = ({ title, message, ctaLabel }: { title: string; message: string; ctaLabel: string }) =>
+  buildEmailHtml({
+    title,
+    preheader: message.replace(/<[^>]*>/g, '').slice(0, 120),
+    body: `<p style="margin:0 0 6px;color:#334155;font-size:14px;">Hola {{user_name}},</p>
+<p style="margin:0 0 0;color:#334155;font-size:15px;line-height:1.65;">${message}</p>`,
+    ctaLabel,
+    ctaUrl: '{{notifications_url}}',
+    footerNote: 'Si no reconoces esta actividad, <a href="https://www.lohaggo.com" style="color:#0a66c2;">revisa tu cuenta en LoHaggo</a>.',
+  })
 
 const NOTIFICATION_CATALOG: Array<{ type: NotificationType; name: string; role: UserRole | null; cta: string }> = [
   { type: 'BOOKING_CONFIRMED', name: 'Reserva confirmada', role: null, cta: 'Ver mis notificaciones' },

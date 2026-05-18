@@ -1,6 +1,7 @@
 import type { MessagingChannel } from '@prisma/client'
 import type { MessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
 import { sendPushToUser } from '@/lib/notifications/push-sender'
+import { wrapBodyInEmailLayout } from '@/lib/email-layout'
 
 type SendParams = {
   channel: MessagingChannel
@@ -161,7 +162,7 @@ async function sendBySendgridEmail(
       personalizations: [{ to: [{ email: to }] }],
       from: { email: conf.fromEmail },
       subject: subject || 'LoHaggo',
-      content: [{ type: 'text/html', value: body.replace(/\n/g, '<br/>') }],
+      content: [{ type: 'text/html', value: wrapBodyInEmailLayout(body, subject || 'LoHaggo') }],
     }),
   })
 
