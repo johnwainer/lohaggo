@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { Home, Package, Bell, MessageSquare, Wallet } from 'lucide-react'
+import { Home, Package, Bell, MessageSquare, Wallet, UserCircle } from 'lucide-react'
 import { useNotificationUnreadCount } from '@/hooks/useNotificationUnreadCount'
 
 interface PartnerDashboardNavProps {
@@ -68,9 +68,20 @@ export default function PartnerDashboardNav({
       badge: 0,
       isTab: false,
     },
+    {
+      id: 'account' as const,
+      label: 'Cuenta',
+      icon: UserCircle,
+      path: '/profile',
+      badge: 0,
+      isTab: false,
+    },
   ]), [bookingsCount, requestsCount, messagesCount])
 
+  const ACCOUNT_PATHS = ['/profile', '/partner/services', '/partner/verification', '/partner/bank-accounts', '/partner/achievements']
+
   const isItemActive = (item: (typeof navItems)[number]) => {
+    if (item.id === 'account') return ACCOUNT_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))
     if (item.isTab) return activeTab === item.id
     return pathname === item.path
   }
@@ -119,7 +130,7 @@ export default function PartnerDashboardNav({
 
       {/* Mobile: sticky bottom bar */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
-        <nav className="mx-auto grid max-w-lg grid-cols-5 gap-0 px-1 py-1">
+        <nav className="mx-auto grid max-w-lg grid-cols-6 gap-0 px-1 py-1">
           {navItems.map((item) => {
             const Icon = item.icon
             const isActive = isItemActive(item)
