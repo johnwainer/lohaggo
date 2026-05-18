@@ -15,23 +15,9 @@ import InactiveAccountBanner from './InactiveAccountBanner'
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const isAdmin = pathname.startsWith('/admin')
-  const isPartnerApp = pathname.startsWith('/partner')
 
   if (isAdmin) {
     return <>{children}</>
-  }
-
-  if (isPartnerApp) {
-    return (
-      <>
-        <TestModeBanner />
-        <InactiveAccountBanner />
-        {children}
-        <NotificationPermissionPrompt />
-        <PWAInstallPrompt />
-        <TermsBanner />
-      </>
-    )
   }
 
   return (
