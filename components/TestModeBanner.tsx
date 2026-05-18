@@ -24,24 +24,13 @@ export default function TestModeBanner() {
     checkPaymentMode()
   }, [])
 
-  useEffect(() => {
-    if (isTestMode && isVisible) {
-      document.body.style.paddingTop = '80px'
-    } else {
-      document.body.style.paddingTop = '0'
-    }
-
-    return () => {
-      document.body.style.paddingTop = '0'
-    }
-  }, [isTestMode, isVisible])
 
   if (isLoading || !isTestMode || !isVisible) {
     return null
   }
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-[9999] bg-gradient-to-r from-primary-400 via-primary-500 to-primary-600 text-white shadow-lg animate-pulse">
+    <div className="w-full bg-gradient-to-r from-primary-400 via-primary-500 to-primary-600 text-white shadow-lg animate-pulse">
       <div className="container mx-auto px-4 py-3">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 flex-1">
