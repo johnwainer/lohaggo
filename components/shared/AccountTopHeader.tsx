@@ -29,7 +29,7 @@ export default function AccountTopHeader({
 }: AccountTopHeaderProps) {
   return (
     <header className="account-header">
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
+      <div className="hidden sm:block max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
             <h1 className="panel-title truncate">{title}</h1>
