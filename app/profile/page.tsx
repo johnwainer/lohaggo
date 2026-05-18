@@ -664,7 +664,7 @@ export default function ProfilePage() {
 
             {/* ── Password section ── */}
             <AccountPanel>
-              <div id="password">
+              <div id="password" className="scroll-mt-20 md:scroll-mt-24">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="rounded-xl bg-amber-100 p-2.5 text-amber-700">
                     <KeyRound className="h-5 w-5" />
