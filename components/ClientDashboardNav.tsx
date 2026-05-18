@@ -76,33 +76,6 @@ export default function ClientDashboardNav({
         </div>
       </div>
 
-      <div className="md:hidden border-t border-gray-200 bg-white/95 backdrop-blur-md">
-        <nav className="mx-auto grid max-w-2xl grid-cols-5 gap-1 px-2 py-2">
-          {navItems.map((item) => {
-            const Icon = item.icon
-            const isActive = activeTab === item.id
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => handleNav(item)}
-                data-testid={`dashboard-tab-${item.id}`}
-                className={`relative flex min-h-[56px] flex-col items-center justify-center rounded-xl text-xs font-medium transition ${
-                  isActive ? 'bg-primary-50 text-primary-700' : 'text-gray-600 active:scale-95'
-                }`}
-              >
-                <Icon className="h-5 w-5" />
-                <span className="text-[10px] mt-0.5">{item.label}</span>
-                {item.badge > 0 && (
-                  <span className="absolute right-1 top-1 inline-flex min-w-4 h-4 items-center justify-center rounded-full bg-primary-600 px-1 text-[9px] font-bold text-white">
-                    {item.badge > 99 ? '99+' : item.badge}
-                  </span>
-                )}
-              </button>
-            )
-          })}
-        </nav>
-      </div>
     </>
   )
 }
