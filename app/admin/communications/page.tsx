@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 type Template = {
   id: string
@@ -132,7 +132,7 @@ type WaTemplate = {
   waCategory: string | null
 }
 
-type Panel = 'OVERVIEW' | 'CONFIG' | 'CAMPAIGNS' | 'CREATE' | 'ANALYTICS'
+type Panel = 'OVERVIEW' | 'CONFIG' | 'CAMPAIGNS' | 'CREATE' | 'ANALYTICS' | 'MAGIC_LINK'
 
 const PANEL_OPTIONS: Array<{ id: Panel; label: string }> = [
   { id: 'OVERVIEW', label: 'Resumen' },
@@ -140,9 +140,61 @@ const PANEL_OPTIONS: Array<{ id: Panel; label: string }> = [
   { id: 'CAMPAIGNS', label: 'Campañas' },
   { id: 'CREATE', label: 'Crear campaña' },
   { id: 'ANALYTICS', label: 'Analytics' },
+  { id: 'MAGIC_LINK', label: '🔗 Magic Link' },
 ]
 
 const CITY_OPTIONS = ['MEDELLIN', 'BOGOTA', 'CALI', 'BARRANQUILLA']
+
+// All template variables available in the notification engine
+const TEMPLATE_VARS: Array<{
+  group: string
+  badge: string
+  note: string
+  vars: Array<{ key: string; desc: string; example: string }>
+}> = [
+  {
+    group: 'Usuario / Perfil',
+    badge: 'bg-blue-100 text-blue-800',
+    note: 'Datos del destinatario del mensaje',
+    vars: [
+      { key: 'user_name',    desc: 'Nombre completo del destinatario',          example: 'Ana Torres' },
+      { key: 'client_name',  desc: 'Nombre del cliente en el evento',           example: 'Juan Pérez' },
+      { key: 'partner_name', desc: 'Nombre del socio en el evento',             example: 'Carlos García' },
+      { key: 'sender_name',  desc: 'La otra parte (quien envió el mensaje)',     example: 'María López' },
+    ],
+  },
+  {
+    group: 'Reserva',
+    badge: 'bg-emerald-100 text-emerald-800',
+    note: 'Disponible cuando la notificación está ligada a una reserva',
+    vars: [
+      { key: 'service_name', desc: 'Nombre del servicio contratado',            example: 'Plomería' },
+      { key: 'booking_date', desc: 'Fecha programada de la reserva',            example: '15 jun 2025' },
+      { key: 'booking_time', desc: 'Hora programada',                           example: '10:00 AM' },
+      { key: 'price',        desc: 'Precio de la reserva o propuesta',          example: '$120.000' },
+    ],
+  },
+  {
+    group: 'Solicitud de servicio',
+    badge: 'bg-violet-100 text-violet-800',
+    note: 'Disponible cuando hay una solicitud de servicio asociada',
+    vars: [
+      { key: 'service_name', desc: 'Servicio solicitado',                       example: 'Electricidad' },
+      { key: 'client_name',  desc: 'Cliente que hizo la solicitud',             example: 'Pedro Sánchez' },
+      { key: 'city',         desc: 'Ciudad de la solicitud',                    example: 'Medellín' },
+      { key: 'description',  desc: 'Descripción / notas de la solicitud',       example: 'Goteras en el baño' },
+    ],
+  },
+  {
+    group: 'Sistema',
+    badge: 'bg-amber-100 text-amber-800',
+    note: 'Generados automáticamente por el motor de notificaciones',
+    vars: [
+      { key: 'action_url',   desc: 'Enlace directo a la acción en la app',      example: 'https://lohaggo.com/partner?tab=bookings' },
+      { key: 'app_name',     desc: 'Nombre de la plataforma',                   example: 'LoHaggo' },
+    ],
+  },
+]
 
 function formatDate(value: string) {
   return new Date(value).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })
@@ -228,6 +280,16 @@ export default function AdminCommunicationsPage() {
   const [failedDeliveries, setFailedDeliveries] = useState<FailedDelivery[]>([])
   const [loadingFailedDeliveries, setLoadingFailedDeliveries] = useState(false)
   const [failedDeliveriesError, setFailedDeliveriesError] = useState<string | null>(null)
+
+  // Magic link state
+  const [mlGenerating, setMlGenerating] = useState(false)
+  const [mlResults, setMlResults] = useState<Array<{ userId: string; token: string; url: string }> | null>(null)
+  const [mlError, setMlError] = useState<string | null>(null)
+  const [mlCopied, setMlCopied] = useState<string | null>(null)
+  const [mlRedirectUrl, setMlRedirectUrl] = useState('/partner/verification')
+
+  // Ref for template body textarea — enables click-to-insert variables at cursor
+  const tplBodyRef = useRef<HTMLTextAreaElement>(null)
 
   const selectedCampaign = useMemo(
     () => campaigns.find((item) => item.id === selectedCampaignId) || null,
@@ -718,6 +780,47 @@ export default function AdminCommunicationsPage() {
     await load()
   }
 
+  // Insert {{variable}} at cursor position in the template body textarea
+  function insertVar(key: string) {
+    const el = tplBodyRef.current
+    if (!el) return
+    const start = el.selectionStart ?? el.value.length
+    const end = el.selectionEnd ?? el.value.length
+    const insert = `{{${key}}}`
+    const next = el.value.slice(0, start) + insert + el.value.slice(end)
+    setTplForm((p) => ({ ...p, body: next }))
+    requestAnimationFrame(() => {
+      el.focus()
+      el.setSelectionRange(start + insert.length, start + insert.length)
+    })
+  }
+
+  async function generateMagicLinks() {
+    setMlGenerating(true)
+    setMlError(null)
+    setMlResults(null)
+    try {
+      const res = await fetch('/api/auth/magic/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ redirectUrl: mlRedirectUrl }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error generando links')
+      setMlResults(data.tokens || [])
+    } catch (err: unknown) {
+      setMlError(err instanceof Error ? err.message : 'Error desconocido')
+    } finally {
+      setMlGenerating(false)
+    }
+  }
+
+  async function copyMagicLink(text: string, id: string) {
+    await navigator.clipboard.writeText(text)
+    setMlCopied(id)
+    setTimeout(() => setMlCopied(null), 2000)
+  }
+
   return (
     <div className="space-y-6">
       <div className="space-y-2">
@@ -1173,7 +1276,43 @@ export default function AdminCommunicationsPage() {
                     {templateEditingId ? 'Guardar cambios' : 'Crear plantilla'}
                   </button>
                 </div>
-                <textarea className="w-full border rounded px-2 py-2 text-sm min-h-[90px]" placeholder="body con variables: {{user_name}}" value={tplForm.body} onChange={(e) => setTplForm((p) => ({ ...p, body: e.target.value }))} />
+                <textarea
+                  ref={tplBodyRef}
+                  className="w-full border rounded px-2 py-2 text-sm min-h-[90px] font-mono"
+                  placeholder="Escribe el body. Haz clic en una variable de abajo para insertarla."
+                  value={tplForm.body}
+                  onChange={(e) => setTplForm((p) => ({ ...p, body: e.target.value }))}
+                />
+
+                {/* Variable reference panel */}
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-3">
+                  <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Variables disponibles — clic para insertar</p>
+                  {TEMPLATE_VARS.map((group) => (
+                    <div key={group.group}>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${group.badge}`}>{group.group}</span>
+                        <span className="text-[10px] text-slate-400">{group.note}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {group.vars.map((v) => (
+                          <button
+                            key={v.key}
+                            type="button"
+                            title={`${v.desc}\nEjemplo: ${v.example}`}
+                            onClick={() => insertVar(v.key)}
+                            className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2 py-1 text-[11px] font-mono text-slate-700 hover:bg-blue-50 hover:border-blue-400 hover:text-blue-800 transition cursor-pointer"
+                          >
+                            {'{{'}
+                            <span className="font-semibold">{v.key}</span>
+                            {'}}'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  <p className="text-[10px] text-slate-400 pt-1">Tip: posiciona el cursor en el texto y haz clic en la variable para insertarla exactamente ahí.</p>
+                </div>
+
                 {templateFeedback && (
                   <p className={`text-sm ${templateFeedback.type === 'ok' ? 'text-emerald-700' : 'text-rose-700'}`}>
                     {templateFeedback.message}
@@ -1796,6 +1935,167 @@ export default function AdminCommunicationsPage() {
                   </div>
                 )}
               </div>
+            </section>
+          )}
+
+          {activePanel === 'MAGIC_LINK' && (
+            <section className="space-y-5">
+
+              {/* Explanation */}
+              <div className="rounded-xl border bg-white p-5 space-y-4">
+                <h2 className="text-lg font-bold text-slate-900">¿Qué es el Magic Link?</h2>
+                <p className="text-sm text-slate-600">
+                  Un <strong>Magic Link</strong> es un enlace de acceso de un solo uso que permite a un socio iniciar sesión sin necesidad de recordar su contraseña.
+                  Es ideal para campañas donde los socios no completaron su verificación o se registraron pero nunca volvieron a entrar.
+                </p>
+
+                <div className="grid md:grid-cols-3 gap-3">
+                  {[
+                    {
+                      step: '1',
+                      color: 'blue',
+                      title: 'Generas los links',
+                      body: 'Desde aquí generas un link único por cada socio sin documentos aprobados. Cada link expira en 72 h y es de un solo uso.',
+                    },
+                    {
+                      step: '2',
+                      color: 'violet',
+                      title: 'Envías la campaña',
+                      body: 'Copia las URLs y pégalas en tu plantilla de WhatsApp, SMS o correo usando la variable {{action_url}}. Luego crea la campaña en "Crear campaña".',
+                    },
+                    {
+                      step: '3',
+                      color: 'emerald',
+                      title: 'El socio entra sin fricción',
+                      body: 'Al hacer clic queda logueado automáticamente y ve un banner para crear su contraseña. Es redirigido a la página de verificación de documentos.',
+                    },
+                  ].map((item) => (
+                    <div key={item.step} className={`rounded-lg border p-4 bg-${item.color}-50 border-${item.color}-200`}>
+                      <div className={`text-xs font-bold text-${item.color}-700 mb-1`}>Paso {item.step}</div>
+                      <div className={`text-sm font-semibold text-${item.color}-900 mb-1`}>{item.title}</div>
+                      <p className={`text-xs text-${item.color}-800`}>{item.body}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-900 space-y-1">
+                  <p className="font-semibold">Notas importantes</p>
+                  <ul className="list-disc list-inside space-y-0.5 text-xs">
+                    <li>Cada link es de <strong>un solo uso</strong> — si el socio lo abre dos veces, la segunda fallará.</li>
+                    <li>Los links expiran en <strong>72 horas</strong> desde su generación.</li>
+                    <li>El botón <em>Generar para socios sin documentos</em> genera un link para <strong>todos</strong> los socios que no tienen documentos aprobados.</li>
+                    <li>Después de usarlo, el socio ve un banner para crear su contraseña. Cuando la crea, el banner desaparece.</li>
+                    <li>El sistema registra qué tokens se generaron y cuándo se usaron en la tabla <code>MagicToken</code>.</li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* Generator */}
+              <div className="rounded-xl border bg-white p-5 space-y-4">
+                <h2 className="text-base font-bold text-slate-900">Generar Magic Links</h2>
+
+                <div className="flex flex-col sm:flex-row gap-3 items-end">
+                  <label className="flex-1 text-xs text-slate-600 space-y-1">
+                    <span className="font-medium">URL de destino después del login</span>
+                    <input
+                      className="border rounded px-3 py-2 text-sm w-full"
+                      value={mlRedirectUrl}
+                      onChange={(e) => setMlRedirectUrl(e.target.value)}
+                      placeholder="/partner/verification"
+                    />
+                  </label>
+                  <button
+                    onClick={generateMagicLinks}
+                    disabled={mlGenerating}
+                    className="shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition"
+                  >
+                    {mlGenerating ? 'Generando…' : 'Generar para socios sin documentos'}
+                  </button>
+                </div>
+
+                {mlError && (
+                  <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{mlError}</div>
+                )}
+
+                {mlResults !== null && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-slate-800">{mlResults.length} links generados</span>
+                      {mlResults.length === 0 && (
+                        <span className="text-xs text-slate-500">— No hay socios sin documentos aprobados.</span>
+                      )}
+                    </div>
+
+                    {mlResults.length > 0 && (
+                      <>
+                        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                          Copia cada URL e inclúyela en tu plantilla de WhatsApp/SMS. O exporta la lista para usarla con tu herramienta de envío.
+                        </div>
+                        <div className="overflow-x-auto rounded border">
+                          <table className="min-w-full text-sm">
+                            <thead className="bg-slate-50 text-slate-600 text-xs">
+                              <tr>
+                                <th className="px-3 py-2 text-left font-medium">#</th>
+                                <th className="px-3 py-2 text-left font-medium">User ID</th>
+                                <th className="px-3 py-2 text-left font-medium">URL (un solo uso · 72 h)</th>
+                                <th className="px-3 py-2 text-right font-medium">Copiar</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {mlResults.map((r, i) => (
+                                <tr key={r.token} className="border-t hover:bg-slate-50">
+                                  <td className="px-3 py-2 text-slate-400">{i + 1}</td>
+                                  <td className="px-3 py-2 font-mono text-xs text-slate-600">{r.userId}</td>
+                                  <td className="px-3 py-2 max-w-xs">
+                                    <span className="font-mono text-xs text-blue-700 break-all">{r.url}</span>
+                                  </td>
+                                  <td className="px-3 py-2 text-right">
+                                    <button
+                                      onClick={() => copyMagicLink(r.url, r.token)}
+                                      className="rounded border px-2 py-1 text-xs hover:bg-slate-100 transition"
+                                    >
+                                      {mlCopied === r.token ? '✓ Copiado' : 'Copiar'}
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            const csv = ['userId,url', ...mlResults.map((r) => `${r.userId},${r.url}`)].join('\n')
+                            const a = document.createElement('a')
+                            a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+                            a.download = `magic-links-${new Date().toISOString().slice(0, 10)}.csv`
+                            a.click()
+                          }}
+                          className="rounded border px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 transition"
+                        >
+                          Exportar CSV
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* How to use in a campaign */}
+              <div className="rounded-xl border bg-white p-5 space-y-3">
+                <h2 className="text-base font-bold text-slate-900">Cómo usar en una campaña de WhatsApp</h2>
+                <ol className="list-decimal list-inside space-y-2 text-sm text-slate-700">
+                  <li>Genera los links arriba y exporta el CSV.</li>
+                  <li>Ve a <strong>Crear campaña</strong> → elige canal <strong>WHATSAPP</strong> → elige una plantilla aprobada.</li>
+                  <li>En el cuerpo de la plantilla usa <code className="bg-slate-100 px-1 rounded text-xs">{'{{action_url}}'}</code> donde debe ir el link.</li>
+                  <li>En "Destinatarios individuales" sube o pega los IDs de los socios del CSV.</li>
+                  <li>El sistema reemplazará <code className="bg-slate-100 px-1 rounded text-xs">{'{{action_url}}'}</code> con el URL del magic link de cada socio al momento del envío.</li>
+                </ol>
+                <div className="rounded bg-slate-100 px-3 py-2 text-xs font-mono text-slate-600">
+                  {'Hola {{user_name}}, completa tu verificación en LoHaggo y empieza a recibir clientes: {{action_url}}'}
+                </div>
+              </div>
+
             </section>
           )}
         </>
