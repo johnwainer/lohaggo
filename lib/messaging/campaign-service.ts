@@ -262,6 +262,43 @@ export async function processCampaign(campaignId: string) {
       },
     })
 
+    // Track outbound campaign messages in the inbox conversation
+    if (result.ok && (campaign.channel === 'SMS' || campaign.channel === 'WHATSAPP')) {
+      try {
+        const messageBody = body || (waContentSid ? `[Plantilla WhatsApp: ${waContentSid}]` : '')
+        const conv = await prisma.conversation.upsert({
+          where: { channel_contactPhone: { channel: campaign.channel, contactPhone: destination } },
+          create: {
+            channel: campaign.channel,
+            contactPhone: destination,
+            userId: user.id,
+            contactName: user.name || null,
+            status: 'OPEN',
+            lastMessageAt: new Date(),
+            lastMessageBody: messageBody.slice(0, 200),
+            unreadCount: 0,
+          },
+          update: {
+            lastMessageAt: new Date(),
+            lastMessageBody: messageBody.slice(0, 200),
+            userId: user.id,
+            contactName: user.name || null,
+          },
+        })
+        await prisma.conversationMessage.create({
+          data: {
+            conversationId: conv.id,
+            direction: 'OUTBOUND',
+            body: messageBody,
+            providerMessageId: result.providerMessageId || null,
+            status: 'SENT',
+          },
+        })
+      } catch {
+        // Conversation tracking must not block campaign delivery
+      }
+    }
+
     if (result.ok) sent += 1
     else failed += 1
   }
