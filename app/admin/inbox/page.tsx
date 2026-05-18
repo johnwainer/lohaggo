@@ -4,12 +4,29 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   MessageSquare, Send, RefreshCw, Search, User, Phone,
   CheckCheck, AlertCircle, Clock, X, Users, Inbox,
-  ExternalLink,
+  ExternalLink, Star, MapPin, ShieldCheck, Calendar,
   StickyNote, Zap, Tag, ChevronDown, Plus, Trash2, LayoutTemplate,
   ChevronUp,
 } from 'lucide-react'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
+
+type QuickProfile = {
+  id: string; name: string; email: string; phone: string | null; image: string | null
+  role: string; isActive: boolean; createdAt: string
+  clientRating: number; clientTotalReviews: number; completedServicesCount: number
+  addresses: { label: string | null; street: string; neighborhood: string; city: string; isPrimary: boolean }[]
+  partnerProfile: {
+    bio: string | null; rating: number; totalReviews: number; completedServicesCount: number
+    verified: boolean; isActive: boolean; isAvailable: boolean; city: string | null
+    profileHeadline: string | null; slug: string | null
+    services: { service: { name: string } }[]
+    documents: { type: string; status: string }[]
+    bankAccounts: { bankName: string; accountType: string; accountHolderName: string; isDefault: boolean }[]
+  } | null
+  bookings: { id: string; status: string; totalPrice: number; scheduledDate: string; scheduledTime: string; createdAt: string; service: { name: string } }[]
+  _count: { bookings: number; serviceRequests: number; payments: number }
+}
 
 type Channel = 'SMS' | 'WHATSAPP'
 type ConvStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED'
@@ -421,10 +438,20 @@ export default function InboxPage() {
     }
   }
 
-  // ── Profile navigation ───────────────────────────────────────────────────
+  // ── Profile modal ────────────────────────────────────────────────────────
 
-  function openProfile(userId: string) {
-    window.location.assign(`/admin/users/${userId}`)
+  const [profileModal, setProfileModal] = useState<QuickProfile | null>(null)
+  const [profileLoading, setProfileLoading] = useState(false)
+
+  async function openProfile(userId: string) {
+    setProfileLoading(true)
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`)
+      const data = await res.json()
+      if (res.ok) setProfileModal(data.user)
+    } finally {
+      setProfileLoading(false)
+    }
   }
 
   // ── Derived values ────────────────────────────────────────────────────────
@@ -682,8 +709,10 @@ export default function InboxPage() {
                 {selected.user.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{selected.user.phone}</span>}
                 <button
                   onClick={() => openProfile(selected.user!.id)}
-                  className="ml-auto underline opacity-70 hover:opacity-100 flex items-center gap-1"
+                  disabled={profileLoading}
+                  className="ml-auto underline opacity-70 hover:opacity-100 flex items-center gap-1 disabled:opacity-40"
                 >
+                  {profileLoading ? <RefreshCw className="h-3 w-3 animate-spin" /> : null}
                   Ver perfil →
                 </button>
               </div>
@@ -950,6 +979,178 @@ export default function InboxPage() {
         )}
       </div>
 
+      {/* ── Quick Profile Modal ── */}
+      {profileModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setProfileModal(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-start gap-4 p-5 border-b">
+              <div className="h-14 w-14 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold text-xl shrink-0 overflow-hidden">
+                {profileModal.image
+                  ? <img src={profileModal.image} alt="" className="h-full w-full object-cover" />
+                  : profileModal.name.charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="font-bold text-gray-900 text-lg leading-tight">{profileModal.name}</h2>
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${profileModal.role === 'PARTNER' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                    {profileModal.role === 'PARTNER' ? 'Socio' : 'Cliente'}
+                  </span>
+                  {!profileModal.isActive && <span className="rounded-full px-2 py-0.5 text-xs font-medium bg-red-100 text-red-700">Inactivo</span>}
+                </div>
+                <p className="text-sm text-gray-500 mt-0.5">{profileModal.email}</p>
+                {profileModal.phone && (
+                  <p className="text-sm text-gray-500 flex items-center gap-1 mt-0.5">
+                    <Phone className="h-3 w-3" />{profileModal.phone}
+                  </p>
+                )}
+                <p className="text-xs text-gray-400 mt-1">
+                  Desde {new Date(profileModal.createdAt).toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' })}
+                </p>
+              </div>
+              <button
+                onClick={() => setProfileModal(null)}
+                className="rounded-lg p-1.5 hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition shrink-0"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-3 p-5 pb-0">
+              <div className="rounded-xl bg-gray-50 p-3 text-center">
+                <p className="text-lg font-bold text-gray-900">{profileModal._count.bookings}</p>
+                <p className="text-xs text-gray-500">Reservas</p>
+              </div>
+              <div className="rounded-xl bg-gray-50 p-3 text-center">
+                <p className="text-lg font-bold text-gray-900">{profileModal.completedServicesCount}</p>
+                <p className="text-xs text-gray-500">Completados</p>
+              </div>
+              <div className="rounded-xl bg-gray-50 p-3 text-center">
+                {profileModal.partnerProfile ? (
+                  <>
+                    <p className="text-lg font-bold text-gray-900 flex items-center justify-center gap-1">
+                      <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
+                      {profileModal.partnerProfile.rating.toFixed(1)}
+                    </p>
+                    <p className="text-xs text-gray-500">{profileModal.partnerProfile.totalReviews} reseñas</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-lg font-bold text-gray-900 flex items-center justify-center gap-1">
+                      <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
+                      {profileModal.clientRating.toFixed(1)}
+                    </p>
+                    <p className="text-xs text-gray-500">{profileModal.clientTotalReviews} reseñas</p>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="p-5 space-y-4">
+              {/* Partner info */}
+              {profileModal.partnerProfile && (
+                <div className="space-y-2">
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Perfil de Socio</h3>
+                  <div className="rounded-xl border p-3 space-y-2 text-sm">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <MapPin className="h-4 w-4 text-gray-400 shrink-0" />
+                      <span className="text-gray-700">{profileModal.partnerProfile.city || '—'}</span>
+                      {profileModal.partnerProfile.verified && (
+                        <span className="flex items-center gap-1 text-emerald-700 bg-emerald-50 rounded-full px-2 py-0.5 text-xs font-medium">
+                          <ShieldCheck className="h-3 w-3" />Verificado
+                        </span>
+                      )}
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${profileModal.partnerProfile.isAvailable ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                        {profileModal.partnerProfile.isAvailable ? 'Disponible' : 'No disponible'}
+                      </span>
+                    </div>
+                    {profileModal.partnerProfile.profileHeadline && (
+                      <p className="text-gray-600 italic">"{profileModal.partnerProfile.profileHeadline}"</p>
+                    )}
+                    {profileModal.partnerProfile.services.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-1">
+                        {profileModal.partnerProfile.services.map((s, i) => (
+                          <span key={i} className="rounded-full bg-primary-50 text-primary-700 px-2 py-0.5 text-xs">{s.service.name}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {profileModal.partnerProfile.documents.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {profileModal.partnerProfile.documents.map((doc, i) => (
+                        <span key={i} className={`rounded-full px-2 py-0.5 text-xs font-medium ${doc.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-700' : doc.status === 'PENDING' ? 'bg-yellow-50 text-yellow-700' : 'bg-red-50 text-red-700'}`}>
+                          {doc.type.replace(/_/g, ' ')} {doc.status === 'APPROVED' ? '✓' : doc.status === 'PENDING' ? '⏳' : '✗'}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Addresses */}
+              {profileModal.addresses.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Direcciones</h3>
+                  <div className="space-y-1.5">
+                    {profileModal.addresses.slice(0, 3).map((addr, i) => (
+                      <div key={i} className="flex items-start gap-2 text-sm rounded-lg border px-3 py-2">
+                        <MapPin className="h-3.5 w-3.5 text-gray-400 shrink-0 mt-0.5" />
+                        <div>
+                          {addr.label && <p className="font-medium text-gray-700">{addr.label}</p>}
+                          <p className="text-xs text-gray-500">{addr.street}, {addr.neighborhood} · {addr.city}</p>
+                        </div>
+                        {addr.isPrimary && <span className="ml-auto text-xs text-primary-600 font-medium">Principal</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Last bookings */}
+              {profileModal.bookings.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Últimas reservas</h3>
+                  <div className="space-y-1.5">
+                    {profileModal.bookings.slice(0, 4).map((b) => (
+                      <div key={b.id} className="flex items-center gap-2 text-sm rounded-lg border px-3 py-2">
+                        <Calendar className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-gray-700 truncate">{b.service.name}</p>
+                          <p className="text-xs text-gray-400">{new Date(b.scheduledDate).toLocaleDateString('es-CO')} {b.scheduledTime}</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-xs font-semibold text-gray-700">${b.totalPrice.toLocaleString('es-CO')}</p>
+                          <span className={`text-[10px] font-medium ${b.status === 'COMPLETED' ? 'text-emerald-600' : b.status === 'CANCELLED' ? 'text-red-500' : 'text-blue-600'}`}>
+                            {b.status === 'COMPLETED' ? 'Completado' : b.status === 'CANCELLED' ? 'Cancelado' : b.status === 'CONFIRMED' ? 'Confirmado' : 'Pendiente'}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer CTA */}
+            <div className="px-5 pb-5">
+              <a
+                href={`/admin/users/${profileModal.id}`}
+                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-gradient-to-r from-primary-500 to-secondary-500 text-white text-sm font-semibold hover:opacity-90 transition"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Ver perfil completo
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
