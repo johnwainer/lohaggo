@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Home, Package, MessageSquare, Bell } from 'lucide-react'
+import { Home, Package, MessageSquare, Bell, Globe } from 'lucide-react'
 import { useNotificationUnreadCount } from '@/hooks/useNotificationUnreadCount'
 
 interface PartnerDashboardNavProps {
@@ -10,7 +10,7 @@ interface PartnerDashboardNavProps {
   requestsCount?: number
   notificationsCount?: number
   activeTab?: string | null
-  onTabChange?: (tab: 'overview' | 'bookings' | 'my-requests' | 'notifications') => void
+  onTabChange?: (tab: 'overview' | 'bookings' | 'my-requests' | 'notifications' | 'public-profile') => void
 }
 
 export default function PartnerDashboardNav({
@@ -29,10 +29,11 @@ export default function PartnerDashboardNav({
     { id: 'bookings' as const, label: 'Reservas', icon: Package, path: '/partner?tab=bookings', badge: bookingsCount },
     { id: 'my-requests' as const, label: 'Para Mí', icon: MessageSquare, path: '/partner?tab=my-requests', badge: requestsCount },
     { id: 'notifications' as const, label: 'Notifs', icon: Bell, path: '/partner/notifications', badge: unreadNotifications },
+    { id: 'public-profile' as const, label: 'Mi perfil', icon: Globe, path: '/partner/public-profile', badge: 0 },
   ]), [bookingsCount, requestsCount, unreadNotifications])
 
   const handleNav = (item: (typeof navItems)[number]) => {
-    if (onTabChange && item.id !== 'notifications') {
+    if (onTabChange && item.id !== 'notifications' && item.id !== 'public-profile') {
       onTabChange(item.id)
       return
     }
@@ -74,7 +75,7 @@ export default function PartnerDashboardNav({
       </div>
 
       <div className="md:hidden border-t border-gray-200 bg-white/95 backdrop-blur-md">
-        <nav className="mx-auto grid max-w-2xl grid-cols-4 gap-1 px-2 py-2">
+        <nav className="mx-auto grid max-w-2xl grid-cols-5 gap-1 px-2 py-2">
           {navItems.map((item) => {
             const Icon = item.icon
             const isActive = activeTab === item.id
