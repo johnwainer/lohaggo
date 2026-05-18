@@ -92,9 +92,9 @@ export default function ClientDashboardNav({
                 }`}
               >
                 <Icon className="h-5 w-5" />
-                <span>{item.label}</span>
+                <span className="text-[10px] mt-0.5">{item.label}</span>
                 {item.badge > 0 && (
-                  <span className="absolute right-3 top-1 inline-flex min-w-5 h-5 items-center justify-center rounded-full bg-primary-600 px-1 text-[10px] font-bold text-white">
+                  <span className="absolute right-1 top-1 inline-flex min-w-4 h-4 items-center justify-center rounded-full bg-primary-600 px-1 text-[9px] font-bold text-white">
                     {item.badge > 99 ? '99+' : item.badge}
                   </span>
                 )}
