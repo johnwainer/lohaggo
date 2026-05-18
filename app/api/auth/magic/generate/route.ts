@@ -33,16 +33,20 @@ export async function POST(request: NextRequest) {
   if (Array.isArray(body.userIds) && body.userIds.length > 0) {
     userIds = body.userIds
   } else {
-    // All partners whose identity + background docs are NOT yet fully approved
-    const partners = await prisma.partnerProfile.findMany({
-      select: { userId: true },
+    // All partner users whose identity + background docs are NOT yet fully approved.
+    // Query from User (not partnerProfile) to include partners with missing/inactive profiles.
+    const allPartners = await prisma.user.findMany({
+      where: { role: 'PARTNER' },
+      select: { id: true },
     })
 
-    const verifiedPartnerIds = new Set(
+    const IDENTITY_TYPES = ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP']
+
+    const verifiedPartnerUserIds = new Set(
       (await prisma.partnerProfile.findMany({
         where: {
           AND: [
-            { documents: { some: { type: { in: ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE'] }, status: 'APPROVED' } } },
+            { documents: { some: { type: { in: IDENTITY_TYPES as any }, status: 'APPROVED' } } },
             { documents: { some: { type: 'ANTECEDENTES', status: 'APPROVED' } } },
           ],
         },
@@ -50,7 +54,7 @@ export async function POST(request: NextRequest) {
       })).map(p => p.userId)
     )
 
-    userIds = partners.map(p => p.userId).filter(id => !verifiedPartnerIds.has(id))
+    userIds = allPartners.map(p => p.id).filter(id => !verifiedPartnerUserIds.has(id))
   }
 
   const expiresAt = new Date(Date.now() + TTL_HOURS * 60 * 60 * 1000)

@@ -73,6 +73,7 @@ export async function GET(request: NextRequest) {
     controlOverride: hasOverride ? controlOverride : undefined,
     audienceOverride: hasAudienceOverride ? audienceOverride : campaignAudience || undefined,
     take: 2500,
+    includeInactive: true,
   })
 
   const withEligibility = recipients.users.map((user) => {

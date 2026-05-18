@@ -109,8 +109,10 @@ export async function resolveCampaignRecipients(params: {
   controlOverride?: RecipientControl
   audienceOverride?: CampaignAudienceFilter
   take?: number
+  includeInactive?: boolean
 }) {
   const take = Math.min(params.take || 2000, 10000)
+  const activeFilter = params.includeInactive ? {} : { isActive: true }
   const control = params.controlOverride || parseRecipientControl(params.metadata)
   const audience = params.audienceOverride || parseCampaignAudience(params.metadata)
   const partnerFilterMode = audience.partnerFilterMode || 'ALL'
@@ -154,7 +156,7 @@ export async function resolveCampaignRecipients(params: {
     ? await prisma.user.findMany({
         where: {
           role: roleFilter,
-          isActive: true,
+          ...activeFilter,
           ...((partnerServiceWhere || partnerCategoryWhere) && {
             partnerProfile: {
               ...(partnerServiceWhere || {}),
@@ -179,7 +181,7 @@ export async function resolveCampaignRecipients(params: {
     ? await prisma.user.findMany({
         where: {
           id: { in: Array.from(includeSet) },
-          isActive: true,
+          ...activeFilter,
         },
         select: { id: true, name: true, email: true, phone: true, pushSubscription: true, role: true },
         take,
