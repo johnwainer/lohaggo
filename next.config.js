@@ -35,7 +35,7 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "img-src 'self' data: https: blob: https://*.clarity.ms",
       "font-src 'self' data: https://fonts.gstatic.com",
-      "connect-src 'self' https://api.mercadopago.com https://api.cloudinary.com https://*.cloudinary.com https://www.google-analytics.com https://analytics.google.com https://www.google.com https://www.googletagmanager.com https://www.facebook.com https://connect.facebook.net https://*.clarity.ms https://*.bing.com",
+      "connect-src 'self' https://api.mercadopago.com https://api.cloudinary.com https://*.cloudinary.com https://www.google-analytics.com https://analytics.google.com https://www.google.com https://www.googletagmanager.com https://www.facebook.com https://connect.facebook.net https://*.clarity.ms https://*.bing.com https://*.on.aws",
       "frame-src 'self' https://www.mercadopago.com https://www.facebook.com",
       "object-src 'none'",
       "base-uri 'self'",
