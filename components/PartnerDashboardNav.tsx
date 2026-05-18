@@ -3,7 +3,7 @@
 import { useMemo } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { Home, Package, Bell, MessageSquare, Wallet, UserCircle } from 'lucide-react'
-import { useNotificationUnreadCount } from '@/hooks/useNotificationUnreadCount'
+import { usePartnerNavCounts } from '@/hooks/usePartnerNavCounts'
 
 interface PartnerDashboardNavProps {
   bookingsCount?: number
@@ -15,16 +15,19 @@ interface PartnerDashboardNavProps {
 }
 
 export default function PartnerDashboardNav({
-  bookingsCount = 0,
+  bookingsCount: bookingsCountProp = 0,
   requestsCount = 0,
-  messagesCount = 0,
-  notificationsCount,
+  messagesCount: messagesCountProp = 0,
   activeTab = null,
   onTabChange,
 }: PartnerDashboardNavProps) {
   const router = useRouter()
   const pathname = usePathname()
-  const liveNotificationsCount = useNotificationUnreadCount(true)
+  const liveCounts = usePartnerNavCounts()
+
+  // Prefer live counts fetched internally; fall back to props passed by the page
+  const bookingsCount = liveCounts.bookings || bookingsCountProp
+  const messagesCount = liveCounts.messages || messagesCountProp
 
   const navItems = useMemo(() => ([
     {
