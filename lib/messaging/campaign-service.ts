@@ -1,4 +1,5 @@
 import type { MessagingCampaign, MessagingCampaignStatus, MessagingChannel, UserRole } from '@prisma/client'
+import { randomBytes } from 'crypto'
 import { prisma } from '@/lib/prisma'
 import { renderTextTemplate } from '@/lib/messaging/template'
 import { sendMessageViaProvider, sendWhatsAppTemplate } from '@/lib/messaging/providers'
@@ -46,21 +47,50 @@ export async function processCampaign(campaignId: string) {
     } catch { /* ignore */ }
   }
 
-  // Batch-load valid (unused, non-expired) magic tokens so {{action_url}} resolves per user
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || ''
-  const rawTokens = await prisma.magicToken.findMany({
-    where: {
-      userId: { in: users.map((u) => u.id) },
-      usedAt: null,
-      expiresAt: { gt: new Date() },
-    },
-    orderBy: { createdAt: 'desc' },
-    select: { userId: true, token: true },
-  })
+
+  // Determine if this campaign needs {{action_url}} resolved per user.
+  const needsActionUrl =
+    (campaign.customBody || campaign.template?.body || '').includes('{{action_url}}') ||
+    (campaign.customSubject || campaign.template?.subject || '').includes('{{action_url}}') ||
+    Object.values(waTemplateVariables).some((v) => v.includes('action_url'))
+
   const magicUrlByUser = new Map<string, string>()
-  for (const t of rawTokens) {
-    if (!magicUrlByUser.has(t.userId)) {
-      magicUrlByUser.set(t.userId, `${appUrl}/auth/magic?token=${t.token}`)
+
+  if (needsActionUrl && users.length > 0) {
+    // Load existing valid (unused, non-expired) tokens.
+    const existingTokens = await prisma.magicToken.findMany({
+      where: {
+        userId: { in: users.map((u) => u.id) },
+        usedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { userId: true, token: true },
+    })
+    for (const t of existingTokens) {
+      if (!magicUrlByUser.has(t.userId)) {
+        magicUrlByUser.set(t.userId, `${appUrl}/auth/magic?token=${t.token}`)
+      }
+    }
+
+    // Auto-generate tokens for users who don't have a valid one.
+    const missingUserIds = users.map((u) => u.id).filter((id) => !magicUrlByUser.has(id))
+    if (missingUserIds.length > 0) {
+      const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000)
+      await Promise.all(
+        missingUserIds.map(async (userId) => {
+          try {
+            const token = randomBytes(32).toString('hex')
+            await prisma.magicToken.create({
+              data: { userId, token, redirectUrl: '/partner/dashboard', requirePasswordChange: false, expiresAt },
+            })
+            magicUrlByUser.set(userId, `${appUrl}/auth/magic?token=${token}`)
+          } catch {
+            // If auto-generation fails, the variable will be empty and caught below.
+          }
+        })
+      )
     }
   }
 
