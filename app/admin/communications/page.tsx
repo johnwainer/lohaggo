@@ -300,6 +300,8 @@ export default function AdminCommunicationsPage() {
 
   // Ref for template body textarea — enables click-to-insert variables at cursor
   const tplBodyRef = useRef<HTMLTextAreaElement>(null)
+  // Ref for campaign custom body textarea — same cursor-insert behaviour
+  const campBodyRef = useRef<HTMLTextAreaElement>(null)
 
   const selectedCampaign = useMemo(
     () => campaigns.find((item) => item.id === selectedCampaignId) || null,
@@ -866,6 +868,28 @@ export default function AdminCommunicationsPage() {
       el.focus()
       el.setSelectionRange(start + insert.length, start + insert.length)
     })
+  }
+
+  // Insert {{variable}} at cursor in the campaign custom body textarea
+  function insertCampVar(key: string) {
+    const el = campBodyRef.current
+    if (!el) return
+    const start = el.selectionStart ?? el.value.length
+    const end = el.selectionEnd ?? el.value.length
+    const insert = `{{${key}}}`
+    const next = el.value.slice(0, start) + insert + el.value.slice(end)
+    setCampForm((p) => ({ ...p, customBody: next }))
+    requestAnimationFrame(() => {
+      el.focus()
+      el.setSelectionRange(start + insert.length, start + insert.length)
+    })
+  }
+
+  function smsSegments(text: string) {
+    if (!text) return { chars: 0, segments: 0 }
+    const chars = text.length
+    const limit = chars > 160 ? 153 : 160
+    return { chars, segments: Math.ceil(chars / limit) }
   }
 
   const ML_PARTNER_SECTIONS = [
@@ -1877,15 +1901,75 @@ export default function AdminCommunicationsPage() {
                     </div>
                   </div>
                 ) : (
-                  <label className="text-xs text-gray-700 space-y-1 block">
-                    <span className="font-medium">Mensaje de la campaña</span>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-gray-700">Mensaje de la campaña</span>
+                      {campForm.channel === 'SMS' && (() => {
+                        const { chars, segments } = smsSegments(campForm.customBody || '')
+                        return (
+                          <span className={`text-[10px] font-mono ${segments > 1 ? 'text-orange-600' : 'text-gray-400'}`}>
+                            {chars} car. · {segments} segmento{segments !== 1 ? 's' : ''}
+                          </span>
+                        )
+                      })()}
+                    </div>
+
+                    {/* Variable chips */}
+                    <div className="flex flex-wrap gap-1.5 items-center">
+                      <span className="text-[10px] text-gray-400 shrink-0">Insertar:</span>
+                      {[
+                        { key: 'user_name', label: 'Nombre' },
+                        { key: 'user_email', label: 'Email' },
+                        { key: 'action_url', label: 'Magic link' },
+                      ].map(({ key, label }) => (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => insertCampVar(key)}
+                          className="rounded border border-dashed border-primary-300 bg-primary-50 px-2 py-0.5 text-[11px] font-mono text-primary-700 hover:bg-primary-100 transition"
+                        >
+                          {`{{${key}}}`}
+                          <span className="ml-1 font-sans text-gray-500 not-italic">{label}</span>
+                        </button>
+                      ))}
+                    </div>
+
                     <textarea
-                      className="w-full border rounded px-2 py-2 text-sm min-h-[90px]"
-                      placeholder="Escribe aquí el mensaje final..."
+                      ref={campBodyRef}
+                      className="w-full border rounded px-2 py-2 text-sm min-h-[100px] font-mono"
+                      placeholder={campForm.channel === 'SMS'
+                        ? 'Ej: Hola {{user_name}}, tienes una nueva reserva en LoHaggo. Ingresa aquí: {{action_url}}'
+                        : 'Escribe el mensaje. Usa {{user_name}}, {{user_email}}, {{action_url}} para personalizar.'}
                       value={campForm.customBody}
                       onChange={(e) => setCampForm((p) => ({ ...p, customBody: e.target.value }))}
                     />
-                  </label>
+
+                    {/* Live preview with sample data */}
+                    {campForm.customBody && (
+                      <div className="rounded border border-gray-200 bg-gray-50 p-2 space-y-1">
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Vista previa (datos de ejemplo)</p>
+                        <p className="text-xs text-gray-700 whitespace-pre-wrap break-words">
+                          {campForm.customBody
+                            .replace(/\{\{\s*user_name\s*\}\}/g, 'Carlos Rodríguez')
+                            .replace(/\{\{\s*user_email\s*\}\}/g, 'carlos@example.com')
+                            .replace(/\{\{\s*action_url\s*\}\}/g, 'https://lohaggo.com/auth/magic?token=abc123')}
+                        </p>
+                        {campForm.channel === 'SMS' && (() => {
+                          const rendered = campForm.customBody
+                            .replace(/\{\{\s*user_name\s*\}\}/g, 'Carlos Rodríguez')
+                            .replace(/\{\{\s*user_email\s*\}\}/g, 'carlos@example.com')
+                            .replace(/\{\{\s*action_url\s*\}\}/g, 'https://lohaggo.com/auth/magic?token=abc123')
+                          const { chars, segments } = smsSegments(rendered)
+                          return (
+                            <p className={`text-[10px] ${segments > 1 ? 'text-orange-600' : 'text-gray-400'}`}>
+                              Renderizado: {chars} car. · {segments} segmento{segments !== 1 ? 's' : ''}
+                              {segments > 1 && ' — se cobran múltiples SMS'}
+                            </p>
+                          )
+                        })()}
+                      </div>
+                    )}
+                  </div>
                 )}
                 {(() => {
                   const usesActionUrl =
