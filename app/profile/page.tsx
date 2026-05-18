@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { User, Mail, Camera, Save, AlertCircle, CheckCircle, Star, MapPin, Shield, Briefcase, ChevronRight, CreditCard, GraduationCap, Phone, Landmark, Bell, Globe, Eye, EyeOff, Copy, Check, MessageCircle, ExternalLink, Upload, Trash2, RefreshCw, Link2 } from 'lucide-react'
+import { User, Mail, Camera, Save, AlertCircle, CheckCircle, Star, MapPin, Shield, Briefcase, ChevronRight, CreditCard, GraduationCap, Phone, Landmark, Bell, Globe, Eye, EyeOff, Copy, Check, MessageCircle, ExternalLink, Upload, Trash2, RefreshCw, Link2, KeyRound, Lock } from 'lucide-react'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
 import AccountTopHeader from '@/components/shared/AccountTopHeader'
 import AccountPanel from '@/components/shared/AccountPanel'
@@ -38,6 +38,15 @@ export default function ProfilePage() {
   const [loadingPrefs, setLoadingPrefs] = useState(false)
   const [savingChannel, setSavingChannel] = useState<NotificationPreference['channel'] | null>(null)
   const [prefsMessage, setPrefsMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  // Password change state
+  const [pwCurrent, setPwCurrent] = useState('')
+  const [pwNew, setPwNew] = useState('')
+  const [pwConfirm, setPwConfirm] = useState('')
+  const [pwSaving, setPwSaving] = useState(false)
+  const [pwMessage, setPwMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [pwShowCurrent, setPwShowCurrent] = useState(false)
+  const [pwShowNew, setPwShowNew] = useState(false)
 
   // Public profile state (partners only)
   const [pubSlug, setPubSlug] = useState('')
@@ -390,6 +399,42 @@ export default function ProfilePage() {
     )
   }
 
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setPwMessage(null)
+    if (pwNew !== pwConfirm) {
+      setPwMessage({ type: 'error', text: 'Las contraseñas nuevas no coinciden.' })
+      return
+    }
+    if (pwNew.length < 8) {
+      setPwMessage({ type: 'error', text: 'La nueva contraseña debe tener al menos 8 caracteres.' })
+      return
+    }
+    setPwSaving(true)
+    try {
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword: pwCurrent || undefined, newPassword: pwNew }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setPwMessage({ type: 'error', text: data.error || 'Error al cambiar la contraseña.' })
+        return
+      }
+      setPwMessage({ type: 'success', text: '¡Contraseña actualizada con éxito!' })
+      setPwCurrent('')
+      setPwNew('')
+      setPwConfirm('')
+      // Clear the needsPasswordUpdate flag from the session
+      await update({ needsPasswordUpdate: false })
+    } catch {
+      setPwMessage({ type: 'error', text: 'Error de red. Intenta nuevamente.' })
+    } finally {
+      setPwSaving(false)
+    }
+  }
+
   return (
     <div className="account-shell">
       <AccountTopHeader
@@ -614,6 +659,136 @@ export default function ProfilePage() {
                     )}
                   </div>
                 </div>
+              </div>
+            </AccountPanel>
+
+            {/* ── Password section ── */}
+            <AccountPanel>
+              <div id="password">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="rounded-xl bg-amber-100 p-2.5 text-amber-700">
+                    <KeyRound className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {session?.user?.needsPasswordUpdate ? 'Crea tu contraseña' : 'Cambiar contraseña'}
+                    </h3>
+                    {session?.user?.needsPasswordUpdate && (
+                      <p className="text-xs text-amber-700 mt-0.5 font-medium">
+                        Estás usando un acceso temporal — crea tu contraseña para ingresar normalmente.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {pwMessage && (
+                  <div className={`mb-4 flex items-center gap-2 rounded-xl border px-4 py-3 text-sm ${
+                    pwMessage.type === 'success'
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                      : 'border-red-200 bg-red-50 text-red-700'
+                  }`}>
+                    {pwMessage.type === 'success'
+                      ? <CheckCircle className="h-4 w-4 flex-shrink-0" />
+                      : <AlertCircle className="h-4 w-4 flex-shrink-0" />}
+                    {pwMessage.text}
+                  </div>
+                )}
+
+                <form onSubmit={handlePasswordChange} className="space-y-4">
+                  {/* Current password — hidden for magic-link sessions */}
+                  {!session?.user?.needsPasswordUpdate && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Contraseña actual
+                      </label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <input
+                          type={pwShowCurrent ? 'text' : 'password'}
+                          value={pwCurrent}
+                          onChange={e => setPwCurrent(e.target.value)}
+                          required
+                          placeholder="Tu contraseña actual"
+                          className="w-full rounded-xl border border-gray-200 bg-gray-50 pl-10 pr-10 py-3 text-sm focus:border-primary-500 focus:bg-white focus:outline-none transition"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setPwShowCurrent(v => !v)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                          aria-label={pwShowCurrent ? 'Ocultar' : 'Mostrar'}
+                        >
+                          {pwShowCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* New password */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      Nueva contraseña
+                    </label>
+                    <div className="relative">
+                      <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <input
+                        type={pwShowNew ? 'text' : 'password'}
+                        value={pwNew}
+                        onChange={e => setPwNew(e.target.value)}
+                        required
+                        minLength={8}
+                        placeholder="Mínimo 8 caracteres"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 pl-10 pr-10 py-3 text-sm focus:border-primary-500 focus:bg-white focus:outline-none transition"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setPwShowNew(v => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        aria-label={pwShowNew ? 'Ocultar' : 'Mostrar'}
+                      >
+                        {pwShowNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Confirm */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      Confirmar nueva contraseña
+                    </label>
+                    <div className="relative">
+                      <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <input
+                        type="password"
+                        value={pwConfirm}
+                        onChange={e => setPwConfirm(e.target.value)}
+                        required
+                        minLength={8}
+                        placeholder="Repite la nueva contraseña"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 pl-10 pr-10 py-3 text-sm focus:border-primary-500 focus:bg-white focus:outline-none transition"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-1">
+                    <button
+                      type="submit"
+                      disabled={pwSaving}
+                      className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-5 py-3 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60 disabled:cursor-not-allowed transition w-full sm:w-auto justify-center"
+                    >
+                      {pwSaving ? (
+                        <>
+                          <div className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                          Guardando…
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-4 w-4" />
+                          {session?.user?.needsPasswordUpdate ? 'Crear contraseña' : 'Actualizar contraseña'}
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
               </div>
             </AccountPanel>
 

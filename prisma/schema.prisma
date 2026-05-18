@@ -53,6 +53,7 @@ model User {
   pwaTelemetryEvents     PwaTelemetryEvent[]
   pwaAdoptionProfile     PwaAdoptionProfile?
   notificationEmailTemplatesUpdated NotificationEmailTemplate[] @relation("NotificationEmailTemplateUpdatedBy")
+  magicTokens                MagicToken[]
 }
 
 model PartnerProfile {
@@ -1424,4 +1425,18 @@ enum MessagingDeliveryStatus {
 enum MessagingProvider {
   TWILIO
   SENDGRID
+}
+
+model MagicToken {
+  id          String    @id @default(cuid())
+  userId      String
+  token       String    @unique
+  redirectUrl String    @default("/partner/verification")
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
 }

@@ -11,6 +11,7 @@ import PWAOnboardingPrompt from './PWAOnboardingPrompt'
 import TermsBanner from './TermsBanner'
 import TestModeBanner from './TestModeBanner'
 import InactiveAccountBanner from './InactiveAccountBanner'
+import PasswordUpdateBanner from './shared/PasswordUpdateBanner'
 
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -25,6 +26,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
       <TestModeBanner />
       <InactiveAccountBanner />
       <Navbar />
+      <PasswordUpdateBanner />
       <main className="min-h-screen pb-24 md:pb-0">
         {children}
       </main>

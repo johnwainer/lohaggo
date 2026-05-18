@@ -11,6 +11,7 @@ declare module "next-auth" {
       clientRating?: number
       clientTotalReviews?: number
       isActive?: boolean
+      needsPasswordUpdate?: boolean
     } & DefaultSession["user"]
   }
 
@@ -22,6 +23,7 @@ declare module "next-auth" {
     clientRating?: number
     clientTotalReviews?: number
     isActive?: boolean
+    needsPasswordUpdate?: boolean
   }
 }
 
@@ -34,5 +36,6 @@ declare module "next-auth/jwt" {
     clientRating?: number
     clientTotalReviews?: number
     isActive?: boolean
+    needsPasswordUpdate?: boolean
   }
 }

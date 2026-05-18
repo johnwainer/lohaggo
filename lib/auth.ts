@@ -130,6 +130,7 @@ export const authOptions: NextAuthOptions = {
         token.clientRating = user.clientRating
         token.clientTotalReviews = user.clientTotalReviews
         token.isActive = user.isActive
+        token.needsPasswordUpdate = (user as any).needsPasswordUpdate ?? false
       }
       if (trigger === 'update' && session?.name) {
         token.name = session.name
@@ -139,6 +140,9 @@ export const authOptions: NextAuthOptions = {
       }
       if (trigger === 'update' && session?.phone !== undefined) {
         token.phone = session.phone
+      }
+      if (trigger === 'update' && session?.needsPasswordUpdate !== undefined) {
+        token.needsPasswordUpdate = session.needsPasswordUpdate
       }
       return token
     },
@@ -153,6 +157,7 @@ export const authOptions: NextAuthOptions = {
         session.user.clientRating = token.clientRating as number | undefined
         session.user.clientTotalReviews = token.clientTotalReviews as number | undefined
         session.user.isActive = token.isActive as boolean | undefined
+        session.user.needsPasswordUpdate = token.needsPasswordUpdate as boolean | undefined
       }
       return session
     }
