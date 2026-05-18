@@ -1,6 +1,6 @@
 'use client'
 
-import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, LogOut, Menu, X, Shield, DollarSign, Wallet, MapPin, CreditCard, ChevronDown, ChevronRight, Percent, Megaphone, Activity, Building2, BookOpen, Smartphone, MessageSquare, Link2, Zap } from 'lucide-react'
+import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, LogOut, Menu, X, Shield, DollarSign, Wallet, MapPin, CreditCard, ChevronDown, ChevronRight, Percent, Megaphone, Activity, Building2, BookOpen, Smartphone, MessageSquare, Inbox, Link2, Zap } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import { useEffect, useState } from 'react'
@@ -76,6 +76,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
       items: [
         { id: 'ads', label: 'Publicidad', icon: Megaphone, isLink: true, href: '/admin/ads' },
         { id: 'communications', label: 'Comunicaciones', icon: Bell, isLink: true, href: '/admin/communications' },
+        { id: 'inbox', label: 'Bandeja de entrada', icon: Inbox, isLink: true, href: '/admin/inbox' },
         { id: 'messaging', label: 'Mensajería', icon: MessageSquare, isLink: true, href: '/admin/messaging' },
         { id: 'search-analytics', label: 'Búsquedas', icon: BarChart3, isLink: true, href: '/admin/search-analytics' },
         { id: 'pwa-adoption', label: 'Adopción PWA', icon: Smartphone, isLink: true, href: '/admin/pwa-adoption' },

@@ -54,6 +54,9 @@ model User {
   pwaAdoptionProfile     PwaAdoptionProfile?
   notificationEmailTemplatesUpdated NotificationEmailTemplate[] @relation("NotificationEmailTemplateUpdatedBy")
   magicTokens                MagicToken[]
+  conversations              Conversation[]
+  assignedConversations      Conversation[]       @relation("AgentConversations")
+  sentMessages               ConversationMessage[] @relation("AgentMessages")
 }
 
 model PartnerProfile {
@@ -1425,6 +1428,58 @@ enum MessagingDeliveryStatus {
 enum MessagingProvider {
   TWILIO
   SENDGRID
+}
+
+enum ConversationStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+model Conversation {
+  id              String             @id @default(cuid())
+  channel         MessagingChannel
+  contactPhone    String
+  contactName     String?
+  userId          String?
+  assignedToId    String?
+  status          ConversationStatus @default(OPEN)
+  lastMessageAt   DateTime?
+  lastMessageBody String?
+  unreadCount     Int                @default(0)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  user            User?              @relation(fields: [userId], references: [id])
+  assignedTo      User?              @relation("AgentConversations", fields: [assignedToId], references: [id])
+  messages        ConversationMessage[]
+
+  @@unique([channel, contactPhone])
+  @@index([status, lastMessageAt(sort: Desc)])
+  @@index([assignedToId])
+}
+
+model ConversationMessage {
+  id                String                  @id @default(cuid())
+  conversationId    String
+  direction         MessageDirection
+  body              String
+  mediaUrl          String?
+  sentAt            DateTime                @default(now())
+  deliveredAt       DateTime?
+  status            MessagingDeliveryStatus @default(SENT)
+  providerMessageId String?                 @unique
+  sentById          String?
+  createdAt         DateTime                @default(now())
+  conversation      Conversation            @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sentBy            User?                   @relation("AgentMessages", fields: [sentById], references: [id])
+
+  @@index([conversationId, sentAt])
 }
 
 model MagicToken {
