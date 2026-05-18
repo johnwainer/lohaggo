@@ -652,105 +652,107 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                <div className="p-4 sm:p-6 space-y-5">
+                <div className="p-4 sm:p-6 space-y-6">
 
-                  {/* QR + share — mobile: full width card at top; desktop: floats right via grid */}
-                  {pubProfileUrl && (
-                    <div className="lg:float-right lg:ml-6 lg:mb-2 lg:w-64">
-                      <div className="bg-gray-50 rounded-2xl border border-gray-100 p-4 flex flex-col items-center gap-3">
-                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Tu código QR</p>
-                        <QrCode key={pubQrKey} url={pubProfileUrl} size={180} />
-                        <button
-                          onClick={() => setPubQrKey((k) => k + 1)}
-                          className="flex items-center gap-1 text-xs text-gray-400 hover:text-primary-600 transition-colors"
-                        >
-                          <RefreshCw className="w-3 h-3" /> Regenerar
-                        </button>
+                  {/* Two-column on desktop: form left, QR right */}
+                  <div className="flex flex-col lg:flex-row gap-6">
+
+                    {/* Form fields */}
+                    <div className="flex-1 space-y-4">
+                      <div className="space-y-1">
+                        <label className="text-sm font-medium text-gray-700">Titular</label>
+                        <input
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary-400 focus:border-primary-400 outline-none"
+                          placeholder="Ej: Electricista certificado con 10 años de experiencia"
+                          value={pubHeadline}
+                          maxLength={120}
+                          onChange={(e) => setPubHeadline(e.target.value)}
+                        />
+                        <p className="text-xs text-gray-400 text-right">{pubHeadline.length}/120</p>
                       </div>
 
-                      {/* Share actions */}
-                      <div className="mt-3 space-y-2">
-                        <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
-                          <Link2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                          <span className="flex-1 text-xs text-gray-700 truncate font-mono min-w-0">lohaggo.com/pro/{pubSlug}</span>
-                          <button onClick={copyPubLink} className="flex-shrink-0 flex items-center gap-1 text-xs font-semibold text-primary-600 hover:text-primary-700 ml-1">
-                            {pubCopied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                      <div className="space-y-1">
+                        <label className="text-sm font-medium text-gray-700">Sobre mí</label>
+                        <textarea
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary-400 focus:border-primary-400 outline-none resize-none min-h-[90px]"
+                          placeholder="Cuéntales sobre tu experiencia y especialidades…"
+                          value={pubBio}
+                          maxLength={800}
+                          onChange={(e) => setPubBio(e.target.value)}
+                        />
+                        <p className="text-xs text-gray-400 text-right">{pubBio.length}/800</p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-sm font-medium text-gray-700">URL personalizada</label>
+                        <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-primary-400 focus-within:border-primary-400">
+                          <span className="px-2.5 py-2.5 bg-gray-50 text-gray-500 text-xs border-r border-gray-200 select-none whitespace-nowrap">lohaggo.com/pro/</span>
+                          <input
+                            className="flex-1 px-3 py-2.5 text-sm outline-none bg-white min-w-0"
+                            placeholder="tu-nombre"
+                            value={pubSlug}
+                            onChange={(e) => { setPubSlug(e.target.value); setPubSlugError(null) }}
+                            onBlur={(e) => setPubSlug(normalizeSlug(e.target.value) || pubSlug)}
+                          />
+                          <button onClick={regeneratePubSlug} title="Generar URL automática" className="px-3 py-2.5 text-gray-400 hover:text-primary-600 transition-colors border-l border-gray-200">
+                            <RefreshCw className="w-4 h-4" />
                           </button>
                         </div>
-                        <a
-                          href={`https://wa.me/?text=${encodeURIComponent(`¡Mira mi perfil en LoHaggo y contrata mis servicios! ${pubProfileUrl}`)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#1ebe5d] text-white font-semibold py-2.5 rounded-xl text-sm transition-colors"
-                        >
-                          <MessageCircle className="w-4 h-4" /> WhatsApp
-                        </a>
+                        {pubSlugError && <p className="text-xs text-red-600">{pubSlugError}</p>}
                       </div>
-                    </div>
-                  )}
 
-                  {/* Form fields */}
-                  <div className="space-y-4">
-                    <div className="space-y-1">
-                      <label className="text-sm font-medium text-gray-700">Titular</label>
-                      <input
-                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary-400 focus:border-primary-400 outline-none"
-                        placeholder="Ej: Electricista certificado con 10 años de experiencia"
-                        value={pubHeadline}
-                        maxLength={120}
-                        onChange={(e) => setPubHeadline(e.target.value)}
-                      />
-                      <p className="text-xs text-gray-400 text-right">{pubHeadline.length}/120</p>
-                    </div>
+                      {pubFeedback && (
+                        <div className={`rounded-xl px-4 py-3 text-sm font-medium ${pubFeedback.type === 'ok' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                          {pubFeedback.msg}
+                        </div>
+                      )}
 
-                    <div className="space-y-1">
-                      <label className="text-sm font-medium text-gray-700">Sobre mí</label>
-                      <textarea
-                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary-400 focus:border-primary-400 outline-none resize-none min-h-[90px]"
-                        placeholder="Cuéntales sobre tu experiencia y especialidades…"
-                        value={pubBio}
-                        maxLength={800}
-                        onChange={(e) => setPubBio(e.target.value)}
-                      />
-                      <p className="text-xs text-gray-400 text-right">{pubBio.length}/800</p>
+                      <button
+                        onClick={savePubProfile}
+                        disabled={pubSaving}
+                        className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-500 to-primary-700 text-white font-semibold rounded-xl transition hover:shadow-lg disabled:opacity-50"
+                      >
+                        <Save className="w-4 h-4" />
+                        {pubSaving ? 'Guardando…' : 'Guardar perfil público'}
+                      </button>
                     </div>
 
-                    <div className="space-y-1">
-                      <label className="text-sm font-medium text-gray-700">URL personalizada</label>
-                      <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-primary-400 focus-within:border-primary-400">
-                        <span className="px-2.5 py-2.5 bg-gray-50 text-gray-500 text-xs border-r border-gray-200 select-none whitespace-nowrap">lohaggo.com/pro/</span>
-                        <input
-                          className="flex-1 px-3 py-2.5 text-sm outline-none bg-white min-w-0"
-                          placeholder="tu-nombre"
-                          value={pubSlug}
-                          onChange={(e) => { setPubSlug(e.target.value); setPubSlugError(null) }}
-                          onBlur={(e) => setPubSlug(normalizeSlug(e.target.value) || pubSlug)}
-                        />
-                        <button onClick={regeneratePubSlug} title="Generar URL automática" className="px-3 py-2.5 text-gray-400 hover:text-primary-600 transition-colors border-l border-gray-200">
-                          <RefreshCw className="w-4 h-4" />
-                        </button>
-                      </div>
-                      {pubSlugError && <p className="text-xs text-red-600">{pubSlugError}</p>}
-                    </div>
-
-                    {pubFeedback && (
-                      <div className={`rounded-xl px-4 py-3 text-sm font-medium ${pubFeedback.type === 'ok' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
-                        {pubFeedback.msg}
+                    {/* QR + share — right column on desktop, top on mobile */}
+                    {pubProfileUrl && (
+                      <div className="w-full lg:w-64 flex-shrink-0 order-first lg:order-last">
+                        <div className="bg-gray-50 rounded-2xl border border-gray-100 p-4 flex flex-col items-center gap-3">
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Tu código QR</p>
+                          <QrCode key={pubQrKey} url={pubProfileUrl} size={180} />
+                          <button
+                            onClick={() => setPubQrKey((k) => k + 1)}
+                            className="flex items-center gap-1 text-xs text-gray-400 hover:text-primary-600 transition-colors"
+                          >
+                            <RefreshCw className="w-3 h-3" /> Regenerar
+                          </button>
+                        </div>
+                        <div className="mt-3 space-y-2">
+                          <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
+                            <Link2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                            <span className="flex-1 text-xs text-gray-700 truncate font-mono min-w-0">lohaggo.com/pro/{pubSlug}</span>
+                            <button onClick={copyPubLink} className="flex-shrink-0 flex items-center gap-1 text-xs font-semibold text-primary-600 hover:text-primary-700 ml-1">
+                              {pubCopied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                            </button>
+                          </div>
+                          <a
+                            href={`https://wa.me/?text=${encodeURIComponent(`¡Mira mi perfil en LoHaggo y contrata mis servicios! ${pubProfileUrl}`)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#1ebe5d] text-white font-semibold py-2.5 rounded-xl text-sm transition-colors"
+                          >
+                            <MessageCircle className="w-4 h-4" /> WhatsApp
+                          </a>
+                        </div>
                       </div>
                     )}
-
-                    <button
-                      onClick={savePubProfile}
-                      disabled={pubSaving}
-                      className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-500 to-primary-700 text-white font-semibold rounded-xl transition hover:shadow-lg disabled:opacity-50"
-                    >
-                      <Save className="w-4 h-4" />
-                      {pubSaving ? 'Guardando…' : 'Guardar perfil público'}
-                    </button>
                   </div>
 
-                  {/* Work photos — full width below, clears float */}
-                  <div className="clear-both pt-4 border-t border-gray-100 space-y-3">
+                  {/* Work photos — full width below */}
+                  <div className="pt-4 border-t border-gray-100 space-y-3">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-semibold text-gray-700">
                         Fotos de mis trabajos <span className="text-gray-400 font-normal">({pubPhotos.length}/10)</span>
