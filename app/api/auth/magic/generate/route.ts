@@ -11,16 +11,14 @@ const logger = createLogger('magic-generate')
 
 const TTL_HOURS = 72
 
-const IDENTITY_TYPES = ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP']
-
 /**
  * POST /api/auth/magic/generate
  * Admin-only. Generates magic login tokens.
  * Body:
- *   userIds?:               string[]   — explicit list; omit for bulk audience
- *   audience?:              'PARTNERS_WITHOUT_DOCS' | 'ALL_PARTNERS' | 'ALL_CLIENTS' | 'ALL_USERS'
- *   redirectUrl?:           string     — where to send after login (default /partner/verification)
- *   requirePasswordChange?: boolean    — whether to show the change-password banner (default false)
+ *   userIds?:               string[]                            — explicit list; omit for bulk audience
+ *   audience?:              'ALL_PARTNERS' | 'ALL_CLIENTS' | 'ALL_USERS'
+ *   redirectUrl?:           string                              — where to send after login
+ *   requirePasswordChange?: boolean                             — show change-password banner (default false)
  */
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -29,9 +27,9 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
-  const redirectUrl: string = body.redirectUrl ?? '/partner/verification'
+  const redirectUrl: string = body.redirectUrl ?? '/partner/dashboard'
   const requirePasswordChange: boolean = Boolean(body.requirePasswordChange)
-  const audience: string = body.audience ?? 'PARTNERS_WITHOUT_DOCS'
+  const audience: string = body.audience ?? 'ALL_PARTNERS'
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || ''
 
   let userIds: string[] = []
@@ -39,39 +37,12 @@ export async function POST(request: NextRequest) {
   if (Array.isArray(body.userIds) && body.userIds.length > 0) {
     userIds = body.userIds
   } else {
-    switch (audience) {
-      case 'ALL_PARTNERS': {
-        const rows = await prisma.user.findMany({ where: { role: 'PARTNER' }, select: { id: true } })
-        userIds = rows.map(r => r.id)
-        break
-      }
-      case 'ALL_CLIENTS': {
-        const rows = await prisma.user.findMany({ where: { role: 'CLIENT' }, select: { id: true } })
-        userIds = rows.map(r => r.id)
-        break
-      }
-      case 'ALL_USERS': {
-        const rows = await prisma.user.findMany({ where: { role: { in: ['PARTNER', 'CLIENT'] } }, select: { id: true } })
-        userIds = rows.map(r => r.id)
-        break
-      }
-      default: { // PARTNERS_WITHOUT_DOCS
-        const allPartners = await prisma.user.findMany({ where: { role: 'PARTNER' }, select: { id: true } })
-        const verifiedIds = new Set(
-          (await prisma.partnerProfile.findMany({
-            where: {
-              AND: [
-                { documents: { some: { type: { in: IDENTITY_TYPES as any }, status: 'APPROVED' } } },
-                { documents: { some: { type: 'ANTECEDENTES', status: 'APPROVED' } } },
-              ],
-            },
-            select: { userId: true },
-          })).map(p => p.userId)
-        )
-        userIds = allPartners.map(p => p.id).filter(id => !verifiedIds.has(id))
-        break
-      }
-    }
+    const roleFilter =
+      audience === 'ALL_CLIENTS' ? { role: 'CLIENT' as const } :
+      audience === 'ALL_USERS'   ? { role: { in: ['PARTNER', 'CLIENT'] as ('PARTNER' | 'CLIENT')[] } } :
+                                   { role: 'PARTNER' as const }
+    const rows = await prisma.user.findMany({ where: roleFilter, select: { id: true } })
+    userIds = rows.map(r => r.id)
   }
 
   const expiresAt = new Date(Date.now() + TTL_HOURS * 60 * 60 * 1000)

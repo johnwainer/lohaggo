@@ -188,9 +188,9 @@ const TEMPLATE_VARS: Array<{
   {
     group: 'Sistema',
     badge: 'bg-amber-100 text-amber-800',
-    note: 'Generados automáticamente por el motor de notificaciones',
+    note: 'Generados automáticamente. action_url usa el Magic Link del usuario si fue pre-generado.',
     vars: [
-      { key: 'action_url',   desc: 'Enlace directo a la acción en la app',      example: 'https://lohaggo.com/partner?tab=bookings' },
+      { key: 'action_url',   desc: 'Magic Link personalizado del destinatario (genera los links antes de enviar la campaña)',  example: 'https://lohaggo.com/auth/magic?token=xxx' },
       { key: 'app_name',     desc: 'Nombre de la plataforma',                   example: 'LoHaggo' },
     ],
   },
@@ -287,9 +287,9 @@ export default function AdminCommunicationsPage() {
   const [mlResults, setMlResults] = useState<Array<{ userId: string; name: string; token: string; url: string }> | null>(null)
   const [mlError, setMlError] = useState<string | null>(null)
   const [mlCopied, setMlCopied] = useState<string | null>(null)
-  const [mlAudience, setMlAudience] = useState<'PARTNERS_WITHOUT_DOCS' | 'ALL_PARTNERS' | 'ALL_CLIENTS' | 'ALL_USERS'>('PARTNERS_WITHOUT_DOCS')
+  const [mlAudience, setMlAudience] = useState<'ALL_PARTNERS' | 'ALL_CLIENTS' | 'ALL_USERS'>('ALL_PARTNERS')
   const [mlRoleContext, setMlRoleContext] = useState<'partner' | 'client'>('partner')
-  const [mlSection, setMlSection] = useState('/partner/verification')
+  const [mlSection, setMlSection] = useState('/partner/dashboard')
   const [mlCustomUrl, setMlCustomUrl] = useState('')
   const [mlRequirePasswordChange, setMlRequirePasswordChange] = useState(false)
 
@@ -2074,17 +2074,20 @@ export default function AdminCommunicationsPage() {
                 {/* Step 1 — Audience */}
                 <div className="space-y-2">
                   <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide">1 · Audiencia</p>
-                  <div className="grid sm:grid-cols-2 gap-2">
+                  <div className="grid sm:grid-cols-3 gap-2">
                     {([
-                      { value: 'PARTNERS_WITHOUT_DOCS', label: 'Socios sin documentos aprobados', desc: 'Todos los socios que no tienen cédula + antecedentes aprobados', role: 'partner' },
-                      { value: 'ALL_PARTNERS', label: 'Todos los socios', desc: 'Incluye verificados y no verificados', role: 'partner' },
-                      { value: 'ALL_CLIENTS', label: 'Todos los clientes', desc: 'Todos los usuarios con rol CLIENT', role: 'client' },
-                      { value: 'ALL_USERS', label: 'Todos los usuarios', desc: 'Socios y clientes', role: 'partner' },
+                      { value: 'ALL_PARTNERS', label: 'Todos los socios', desc: 'Genera un link por cada socio registrado', role: 'partner', defaultSection: '/partner/dashboard' },
+                      { value: 'ALL_CLIENTS', label: 'Todos los clientes', desc: 'Genera un link por cada cliente registrado', role: 'client', defaultSection: '/client/dashboard' },
+                      { value: 'ALL_USERS', label: 'Socios y clientes', desc: 'Genera un link por cada usuario (ambos roles)', role: 'partner', defaultSection: '/partner/dashboard' },
                     ] as const).map((opt) => (
                       <button
                         key={opt.value}
                         type="button"
-                        onClick={() => { setMlAudience(opt.value); setMlRoleContext(opt.role) }}
+                        onClick={() => {
+                          setMlAudience(opt.value)
+                          setMlRoleContext(opt.role)
+                          setMlSection(opt.defaultSection)
+                        }}
                         className={`text-left rounded-lg border px-4 py-3 transition ${mlAudience === opt.value ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-400' : 'border-slate-200 hover:bg-slate-50'}`}
                       >
                         <p className={`text-sm font-semibold ${mlAudience === opt.value ? 'text-blue-800' : 'text-slate-800'}`}>{opt.label}</p>
@@ -2150,7 +2153,7 @@ export default function AdminCommunicationsPage() {
                 {/* Summary + Generate */}
                 <div className="rounded-lg bg-slate-50 border px-4 py-3 flex flex-wrap items-center gap-4">
                   <div className="flex-1 text-xs text-slate-600 space-y-0.5">
-                    <p><span className="font-medium">Audiencia:</span> {mlAudience === 'PARTNERS_WITHOUT_DOCS' ? 'Socios sin documentos' : mlAudience === 'ALL_PARTNERS' ? 'Todos los socios' : mlAudience === 'ALL_CLIENTS' ? 'Todos los clientes' : 'Todos los usuarios'}</p>
+                    <p><span className="font-medium">Audiencia:</span> {mlAudience === 'ALL_PARTNERS' ? 'Todos los socios' : mlAudience === 'ALL_CLIENTS' ? 'Todos los clientes' : 'Socios y clientes'}</p>
                     <p><span className="font-medium">Destino:</span> <span className="font-mono">{mlRedirectUrl || '—'}</span></p>
                     <p><span className="font-medium">Banner contraseña:</span> {mlRequirePasswordChange ? 'Sí' : 'No'}</p>
                   </div>

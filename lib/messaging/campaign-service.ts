@@ -46,6 +46,24 @@ export async function processCampaign(campaignId: string) {
     } catch { /* ignore */ }
   }
 
+  // Batch-load valid (unused, non-expired) magic tokens so {{action_url}} resolves per user
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || ''
+  const rawTokens = await prisma.magicToken.findMany({
+    where: {
+      userId: { in: users.map((u) => u.id) },
+      usedAt: null,
+      expiresAt: { gt: new Date() },
+    },
+    orderBy: { createdAt: 'desc' },
+    select: { userId: true, token: true },
+  })
+  const magicUrlByUser = new Map<string, string>()
+  for (const t of rawTokens) {
+    if (!magicUrlByUser.has(t.userId)) {
+      magicUrlByUser.set(t.userId, `${appUrl}/auth/magic?token=${t.token}`)
+    }
+  }
+
   let sent = 0
   let failed = 0
 
@@ -140,21 +158,21 @@ export async function processCampaign(campaignId: string) {
       (contentMode === 'CUSTOM'
         ? campaign.customSubject
         : campaign.template?.subject || campaign.customSubject)
-    const body = renderTextTemplate(bodyTemplate, {
+    const userVars = {
       user_name: user.name,
       user_email: user.email,
-    })
+      action_url: magicUrlByUser.get(user.id) ?? '',
+    }
+    const body = renderTextTemplate(bodyTemplate, userVars)
     const subject = subjectTemplate
-      ? renderTextTemplate(subjectTemplate, { user_name: user.name, user_email: user.email })
+      ? renderTextTemplate(subjectTemplate, userVars)
       : null
 
     let result: Awaited<ReturnType<typeof sendMessageViaProvider>>
     if (campaign.channel === 'WHATSAPP' && waContentSid) {
       const resolvedVars: Record<string, string> = {}
       for (const [key, val] of Object.entries(waTemplateVariables)) {
-        resolvedVars[key] = val
-          .replace(/\{\{user_name\}\}/g, user.name || user.email)
-          .replace(/\{\{user_email\}\}/g, user.email)
+        resolvedVars[key] = renderTextTemplate(val, userVars)
       }
       result = await sendWhatsAppTemplate(destination, waContentSid, resolvedVars, runtimeConfig.twilio)
     } else {
