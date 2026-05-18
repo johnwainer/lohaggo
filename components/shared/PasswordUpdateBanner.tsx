@@ -35,7 +35,7 @@ export default function PasswordUpdateBanner() {
 
           {/* CTA */}
           <button
-            onClick={() => router.push('/profile?section=password')}
+            onClick={() => router.push('/profile#password')}
             className="flex-shrink-0 inline-flex items-center gap-1 rounded-lg bg-amber-600 px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-semibold text-white hover:bg-amber-700 active:scale-95 transition whitespace-nowrap"
           >
             <KeyRound className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
