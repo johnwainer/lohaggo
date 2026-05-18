@@ -47,6 +47,7 @@ export async function GET(
               city: cityEnum as any,
               isActive: true,
               verified: true,
+              isAvailable: true,
             }
           },
           include: {

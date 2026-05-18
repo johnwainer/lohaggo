@@ -29,6 +29,7 @@ type Partner = {
   cityName: string
   bio: string | null
   profileHeadline: string | null
+  isAvailable: boolean
   rating: number
   totalReviews: number
   completedServicesCount: number
@@ -192,6 +193,14 @@ const ratingDist = [5, 4, 3, 2, 1].map((stars) => ({
                     <CheckCircle className="w-3 h-3" /> Verificado
                   </span>
                 )}
+                <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                  partner.isAvailable
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                    : 'bg-gray-500/20 text-gray-300 border border-gray-500/30'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${partner.isAvailable ? 'bg-emerald-400' : 'bg-gray-400'}`} />
+                  {partner.isAvailable ? 'Disponible' : 'No disponible'}
+                </span>
               </div>
               <h1 className="text-3xl sm:text-4xl font-black text-white mb-2">{partner.name}</h1>
               {partner.profileHeadline && (

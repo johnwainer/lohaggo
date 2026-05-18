@@ -8,7 +8,8 @@ import dynamic from 'next/dynamic'
 import {
   Calendar, Clock, MapPin, DollarSign, Package, User, CheckCircle, XCircle,
   Send, AlertCircle, TrendingUp, Activity, Filter, Search, Menu, X,
-  Home, Briefcase, Bell, Settings, LogOut, ChevronRight, Eye, MessageSquare, Shield, Star, MessageCircle, UserPlus
+  Home, Briefcase, Bell, Settings, LogOut, ChevronRight, Eye, MessageSquare, Shield, Star, MessageCircle, UserPlus,
+  Zap, WifiOff, ArrowRight, Timer
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { DESIGN_SYSTEM, getStatusClasses, getStatusLabel } from '@/lib/design-system'
@@ -102,6 +103,35 @@ interface ServiceRequest {
   }
 }
 
+function RequestCountdown({ expiresAt }: { expiresAt: string }) {
+  const [remaining, setRemaining] = useState('')
+  const [urgent, setUrgent] = useState(false)
+
+  useEffect(() => {
+    const calc = () => {
+      const diff = new Date(expiresAt).getTime() - Date.now()
+      if (diff <= 0) { setRemaining('Expirada'); return }
+      const h = Math.floor(diff / 3600000)
+      const m = Math.floor((diff % 3600000) / 60000)
+      setUrgent(diff < 3600000)
+      setRemaining(h > 0 ? `${h}h ${m}m` : `${m} min`)
+    }
+    calc()
+    const id = setInterval(calc, 30000)
+    return () => clearInterval(id)
+  }, [expiresAt])
+
+  if (!remaining) return null
+  return (
+    <span className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full ${
+      urgent ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'
+    }`}>
+      <Timer className="w-3 h-3" />
+      {remaining}
+    </span>
+  )
+}
+
 function PartnerDashboardContent() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -114,6 +144,10 @@ function PartnerDashboardContent() {
   const [searchTerm, setSearchTerm] = useState('')
   const [mobileStatusSheetOpen, setMobileStatusSheetOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<'overview' | 'bookings' | 'my-requests'>('overview')
+  const [isAvailable, setIsAvailable] = useState(true)
+  const [availabilityLoading, setAvailabilityLoading] = useState(false)
+  const [showPwaBanner, setShowPwaBanner] = useState(false)
+  const [pwaDeferredPrompt, setPwaDeferredPrompt] = useState<any>(null)
   const [showProposalModal, setShowProposalModal] = useState(false)
   const [selectedRequest, setSelectedRequest] = useState<ServiceRequest | null>(null)
   const [proposalPrice, setProposalPrice] = useState('')
@@ -193,6 +227,44 @@ function PartnerDashboardContent() {
     missingEducation: false
   })
 
+  useEffect(() => {
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone
+    const dismissed = localStorage.getItem('partner-pwa-banner-dismissed')
+    if (isStandalone || dismissed) return
+    const handler = (e: Event) => {
+      e.preventDefault()
+      setPwaDeferredPrompt(e)
+      setShowPwaBanner(true)
+    }
+    window.addEventListener('beforeinstallprompt', handler)
+    return () => window.removeEventListener('beforeinstallprompt', handler)
+  }, [])
+
+  const fetchAvailability = async () => {
+    try {
+      const res = await fetch('/api/partner/public-profile')
+      if (res.ok) {
+        const data = await res.json()
+        setIsAvailable(data.partner?.isAvailable ?? true)
+      }
+    } catch {}
+  }
+
+  const toggleAvailability = async () => {
+    setAvailabilityLoading(true)
+    try {
+      const next = !isAvailable
+      const res = await fetch('/api/partner/availability', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isAvailable: next }),
+      })
+      if (res.ok) setIsAvailable(next)
+    } finally {
+      setAvailabilityLoading(false)
+    }
+  }
+
   const fetchVerificationStatus = async () => {
     try {
       const res = await fetch('/api/partner/documents')
@@ -256,6 +328,7 @@ function PartnerDashboardContent() {
         fetchBookings()
         fetchServiceRequests()
         fetchVerificationStatus()
+        fetchAvailability()
       }
     }
   }, [status, session, activeTab])
@@ -573,150 +646,219 @@ function PartnerDashboardContent() {
         <main className={`${DESIGN_SYSTEM.layout.container} ${DESIGN_SYSTEM.spacing.container} ${DESIGN_SYSTEM.spacing.section}`}>
           {/* Overview Tab */}
           {activeTab === 'overview' && (
-            <div className="space-y-6 sm:space-y-8 mt-6">
-              <PlatformTrustBanner
-                variant="info"
-                context="partner"
-                className="mb-6"
-              />
-              {/* Stats Grid */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg border border-gray-200 p-4 sm:p-6 hover:shadow-xl transition-all">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl p-3 shadow-md">
-                      <Package className="text-white" size={24} />
-                    </div>
-                    <TrendingUp className="text-emerald-500" size={20} />
-                  </div>
-                  <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">{bookings.length}</p>
-                  <p className="text-sm text-gray-600 font-medium">Total Reservas</p>
-                </div>
+            <div className="space-y-4 mt-4 pb-24 md:pb-6">
 
-                <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg border border-gray-200 p-4 sm:p-6 hover:shadow-xl transition-all">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="bg-gray-600 rounded-xl p-3 shadow-md">
-                      <Clock className="text-white" size={24} />
-                    </div>
+              {/* ── Availability toggle ── */}
+              <div className={`rounded-2xl p-4 flex items-center justify-between gap-4 border-2 transition-all ${
+                isAvailable
+                  ? 'bg-emerald-50 border-emerald-200'
+                  : 'bg-gray-50 border-gray-200'
+              }`}>
+                <div className="flex items-center gap-3">
+                  <div className={`w-3 h-3 rounded-full flex-shrink-0 ${isAvailable ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`} />
+                  <div>
+                    <p className={`font-bold text-base ${isAvailable ? 'text-emerald-800' : 'text-gray-700'}`}>
+                      {isAvailable ? 'Estás disponible' : 'No estás disponible'}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {isAvailable ? 'Recibirás solicitudes de clientes' : 'No apareces en búsquedas de clientes'}
+                    </p>
                   </div>
-                  <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">{pendingCount}</p>
-                  <p className="text-sm text-gray-600 font-medium">Pendientes</p>
                 </div>
+                <button
+                  onClick={toggleAvailability}
+                  disabled={availabilityLoading}
+                  className={`relative inline-flex h-7 w-12 flex-shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-60 ${
+                    isAvailable ? 'bg-emerald-500' : 'bg-gray-300'
+                  }`}
+                >
+                  <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform duration-200 ${isAvailable ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                </button>
+              </div>
 
-                <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg border border-gray-200 p-4 sm:p-6 hover:shadow-xl transition-all">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="bg-gray-600 rounded-xl p-3 shadow-md">
-                      <Activity className="text-white" size={24} />
-                    </div>
+              {/* ── Earnings hero ── */}
+              <div className="bg-gradient-to-br from-primary-600 to-primary-800 rounded-2xl p-5 text-white">
+                <p className="text-white/70 text-xs font-semibold uppercase tracking-wide mb-1">Ganancias totales</p>
+                <p className="text-3xl sm:text-4xl font-black mb-4">{formatCurrency(partnerTotalEarnings)}</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-white/10 rounded-xl p-3 text-center">
+                    <p className="text-lg font-bold">{bookings.length}</p>
+                    <p className="text-white/70 text-xs">Reservas</p>
                   </div>
-                  <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">{inProgressCount}</p>
-                  <p className="text-sm text-gray-600 font-medium">En Progreso</p>
-                </div>
-
-                <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg border border-gray-200 p-4 sm:p-6 hover:shadow-xl transition-all">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-3 shadow-md">
-                      <DollarSign className="text-white" size={24} />
-                    </div>
+                  <div className="bg-white/10 rounded-xl p-3 text-center">
+                    <p className="text-lg font-bold">{inProgressCount}</p>
+                    <p className="text-white/70 text-xs">En progreso</p>
                   </div>
-                  <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">{formatCurrency(partnerTotalEarnings)}</p>
-                  <p className="text-sm text-gray-600 font-medium">Ganancias</p>
+                  <div className="bg-white/10 rounded-xl p-3 text-center">
+                    <p className="text-lg font-bold">{completedCount}</p>
+                    <p className="text-white/70 text-xs">Completados</p>
+                  </div>
                 </div>
               </div>
 
-              {/* Quick Actions */}
-              <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg border border-gray-100 p-6 sm:p-8">
-                <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-                  <div className="bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl p-2 shadow-md">
-                    <Activity className="text-white" size={24} />
+              {/* ── Urgent: new requests ── */}
+              {serviceRequests.length > 0 && (
+                <div className="bg-orange-50 border-2 border-orange-200 rounded-2xl p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Zap className="w-5 h-5 text-orange-500" />
+                      <span className="font-bold text-orange-800">
+                        {serviceRequests.length} {serviceRequests.length === 1 ? 'solicitud nueva' : 'solicitudes nuevas'}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => setActiveTab('my-requests')}
+                      className="text-xs font-bold text-orange-600 flex items-center gap-1"
+                    >
+                      Ver todas <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-                  Acciones Rápidas
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <button
-                    onClick={() => setActiveTab('bookings')}
-                    className="bg-white rounded-2xl p-5 flex items-center gap-4 border-2 border-gray-200 hover:border-primary-500 hover:shadow-lg transition-all group"
-                  >
-                    <div className="bg-gray-100 rounded-xl p-3 group-hover:bg-primary-100 transition-colors">
-                      <Package className="text-gray-600 group-hover:text-primary-600 transition-colors" size={24} />
-                    </div>
-                    <div className="text-left flex-1">
-                      <p className="font-bold text-base text-gray-900 mb-1">Ver Reservas</p>
-                      <p className="text-sm text-gray-600">{bookings.length} activas</p>
-                    </div>
-                    <ChevronRight className="text-gray-400 group-hover:text-primary-600 transition-colors hidden sm:block" size={20} />
-                  </button>
-
-                  <button
-                    onClick={() => setActiveTab('my-requests')}
-                    className="bg-white rounded-2xl p-5 flex items-center gap-4 border-2 border-gray-200 hover:border-primary-500 hover:shadow-lg transition-all group"
-                  >
-                    <div className="bg-gray-100 rounded-xl p-3 group-hover:bg-primary-100 transition-colors">
-                      <Bell className="text-gray-600 group-hover:text-primary-600 transition-colors" size={24} />
-                    </div>
-                    <div className="text-left flex-1">
-                      <p className="font-bold text-base text-gray-900 mb-1">Solicitudes</p>
-                      <p className="text-sm text-gray-600">{serviceRequests.length} nuevas</p>
-                    </div>
-                    <ChevronRight className="text-gray-400 group-hover:text-primary-600 transition-colors hidden sm:block" size={20} />
-                  </button>
-
-                  <button
-                    onClick={() => router.push('/partner/services')}
-                    data-testid="partner-cta-services"
-                    className="bg-white rounded-2xl p-5 flex items-center gap-4 border-2 border-gray-200 hover:border-primary-500 hover:shadow-lg transition-all group"
-                  >
-                    <div className="bg-gray-100 rounded-xl p-3 group-hover:bg-primary-100 transition-colors">
-                      <Briefcase className="text-gray-600 group-hover:text-primary-600 transition-colors" size={24} />
-                    </div>
-                    <div className="text-left flex-1">
-                      <p className="font-bold text-base text-gray-900 mb-1">Mis Servicios</p>
-                      <p className="text-sm text-gray-600">Gestionar</p>
-                    </div>
-                    <ChevronRight className="text-gray-400 group-hover:text-primary-600 transition-colors hidden sm:block" size={20} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Recent Activity */}
-              <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg border border-gray-100 p-6 sm:p-8">
-                <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-                  <div className="bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl p-2 shadow-md">
-                    <Clock className="text-white" size={24} />
-                  </div>
-                  Actividad Reciente
-                </h3>
-                {bookings.slice(0, 5).length === 0 ? (
-                  <div className="bg-gradient-to-br from-gray-50 to-white rounded-2xl p-12 text-center border-2 border-gray-200">
-                    <div className="bg-gray-200 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
-                      <Package className="text-gray-400" size={40} />
-                    </div>
-                    <p className="text-gray-900 text-lg font-bold mb-2">No hay actividad reciente</p>
-                    <p className="text-gray-500">Cuando tengas reservas, aparecerán aquí</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {bookings.slice(0, 5).map((booking) => (
-                      <div key={booking.id} className="bg-gray-50 rounded-xl p-4 flex items-center gap-4 border border-gray-200 hover:border-orange-400 hover:shadow-md transition-all">
-                        <div className="text-4xl">{booking.service.icon}</div>
+                  <div className="space-y-2">
+                    {serviceRequests.slice(0, 2).map((req) => (
+                      <button
+                        key={req.id}
+                        onClick={() => setActiveTab('my-requests')}
+                        className="w-full bg-white rounded-xl p-3 flex items-center gap-3 border border-orange-100 hover:border-orange-300 transition text-left"
+                      >
+                        <span className="text-2xl">{req.service.icon}</span>
                         <div className="flex-1 min-w-0">
-                          <p className="font-bold text-base text-gray-900 truncate">{booking.service.name}</p>
-                          <p className="text-sm text-gray-600 truncate">{booking.user.name}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold text-sm text-gray-900 truncate">{req.service.name}</p>
+                            {req.isUrgent && (
+                              <span className="flex-shrink-0 text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded-full">URGENTE</span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 truncate">{req.address}</p>
                         </div>
-                        <span className={`${getStatusClasses(booking.status)} px-3 py-1.5 rounded-full text-xs font-semibold border-2 whitespace-nowrap`}>
-                          {getStatusLabel(booking.status)}
-                        </span>
-                        <p className="font-bold text-base text-primary-600 whitespace-nowrap hidden sm:block">{formatCurrency(booking.totalPrice)}</p>
-                      </div>
+                        <p className="text-sm font-bold text-emerald-600 whitespace-nowrap">{formatCurrency(req.service.basePrice)}</p>
+                      </button>
                     ))}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
+
+              {/* ── Active bookings ── */}
+              {inProgressCount > 0 && (
+                <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Activity className="w-5 h-5 text-blue-600" />
+                    <span className="font-bold text-blue-800">En progreso ahora</span>
+                  </div>
+                  <div className="space-y-2">
+                    {bookings.filter(b => b.status === 'IN_PROGRESS').map((booking) => (
+                      <button
+                        key={booking.id}
+                        onClick={() => setActiveTab('bookings')}
+                        className="w-full bg-white rounded-xl p-3 flex items-center gap-3 border border-blue-100 hover:border-blue-300 transition text-left"
+                      >
+                        <span className="text-2xl">{booking.service.icon}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm text-gray-900 truncate">{booking.service.name}</p>
+                          <p className="text-xs text-gray-500 truncate">{booking.user.name}</p>
+                        </div>
+                        <span className="text-xs font-bold bg-blue-600 text-white px-2 py-1 rounded-full">En curso</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Pending confirmations ── */}
+              {pendingCount > 0 && (
+                <div className="bg-yellow-50 border-2 border-yellow-200 rounded-2xl p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-5 h-5 text-yellow-600" />
+                      <span className="font-bold text-yellow-800">{pendingCount} {pendingCount === 1 ? 'reserva por confirmar' : 'reservas por confirmar'}</span>
+                    </div>
+                    <button onClick={() => setActiveTab('bookings')} className="text-xs font-bold text-yellow-700 flex items-center gap-1">
+                      Ver <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Upcoming bookings ── */}
+              {bookings.filter(b => ['CONFIRMED'].includes(b.status)).length > 0 && (
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+                  <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-primary-600" />
+                    Próximas reservas
+                  </h3>
+                  <div className="space-y-2">
+                    {bookings.filter(b => b.status === 'CONFIRMED').slice(0, 3).map((booking) => (
+                      <button
+                        key={booking.id}
+                        onClick={() => setActiveTab('bookings')}
+                        className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 transition text-left"
+                      >
+                        <span className="text-xl">{booking.service.icon}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm text-gray-900 truncate">{booking.service.name}</p>
+                          <p className="text-xs text-gray-500">{booking.scheduledDate} · {booking.scheduledTime}</p>
+                        </div>
+                        <p className="text-sm font-bold text-primary-600 whitespace-nowrap">{formatCurrency(booking.totalPrice)}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Empty state ── */}
+              {bookings.length === 0 && serviceRequests.length === 0 && (
+                <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Package className="text-gray-400" size={32} />
+                  </div>
+                  <p className="font-bold text-gray-900 mb-1">Todo tranquilo por ahora</p>
+                  <p className="text-sm text-gray-500 mb-4">Cuando lleguen solicitudes o reservas aparecerán aquí</p>
+                  <button
+                    onClick={() => router.push('/partner/services')}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-semibold rounded-xl hover:bg-primary-700 transition"
+                  >
+                    <Briefcase className="w-4 h-4" /> Configurar servicios
+                  </button>
+                </div>
+              )}
+
+              {/* PWA install banner */}
+              {showPwaBanner && (
+                <div className="bg-gradient-to-r from-primary-600 to-primary-800 rounded-2xl p-4 flex items-center gap-3">
+                  <img src="/icon-512.png" alt="LoHaggo" className="w-10 h-10 rounded-xl flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-white text-sm">Instala la app</p>
+                    <p className="text-white/70 text-xs">Recibe solicitudes al instante, incluso con el navegador cerrado</p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      if (pwaDeferredPrompt) {
+                        pwaDeferredPrompt.prompt()
+                        await pwaDeferredPrompt.userChoice
+                      }
+                      setShowPwaBanner(false)
+                      localStorage.setItem('partner-pwa-banner-dismissed', '1')
+                    }}
+                    className="flex-shrink-0 bg-white text-primary-700 text-xs font-bold px-3 py-2 rounded-lg hover:bg-white/90 transition whitespace-nowrap"
+                  >
+                    Instalar
+                  </button>
+                  <button
+                    onClick={() => { setShowPwaBanner(false); localStorage.setItem('partner-pwa-banner-dismissed', '1') }}
+                    className="flex-shrink-0 text-white/60 hover:text-white transition"
+                    aria-label="Cerrar"
+                  >
+                    <XCircle className="w-5 h-5" />
+                  </button>
+                </div>
+              )}
+
+              <PlatformTrustBanner variant="info" context="partner" />
             </div>
           )}
 
           {/* Bookings Tab */}
           {activeTab === 'bookings' && (
-            <div className="space-y-4 sm:space-y-6">
+            <div className="space-y-4 sm:space-y-6 pb-24 md:pb-6">
               {/* Search and Filters */}
               <div className="sticky top-14 sm:top-16 z-20 bg-white rounded-2xl sm:rounded-3xl shadow-lg p-3 sm:p-6 border border-gray-100">
                 <div className="hidden sm:flex sm:flex-row gap-3 sm:gap-4">
@@ -966,7 +1108,7 @@ function PartnerDashboardContent() {
 
           {/* My Requests Tab */}
           {activeTab === 'my-requests' && (
-            <div className="space-y-4 sm:space-y-6">
+            <div className="space-y-4 sm:space-y-6 pb-24 md:pb-6">
               <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg p-4 sm:p-6 border border-gray-100">
                 <div className="relative">
                   <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
@@ -999,16 +1141,17 @@ function PartnerDashboardContent() {
                             <h3 className="font-bold text-lg sm:text-xl text-gray-900 mb-2">{request.service.name}</h3>
                             <div className="flex items-center gap-2 flex-wrap">
                               {request.isUrgent && (
-                                <span className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">
+                                <span className="bg-gradient-to-r from-red-500 to-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md animate-pulse">
                                   ⚡ URGENTE
                                 </span>
                               )}
                               {request.partnerId && (
-                                <span className="bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 text-xs font-bold px-3 py-1.5 rounded-full border-2 border-purple-300 flex items-center gap-1.5">
-                                  <UserPlus size={14} />
-                                  SOLICITUD DIRECTA
+                                <span className="bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 text-xs font-bold px-3 py-1 rounded-full border border-purple-300 flex items-center gap-1">
+                                  <UserPlus size={12} />
+                                  DIRECTA
                                 </span>
                               )}
+                              {request.expiresAt && <RequestCountdown expiresAt={request.expiresAt} />}
                             </div>
                             <p className="text-sm text-gray-600 mt-2">{request.service.category.name}</p>
                           </div>

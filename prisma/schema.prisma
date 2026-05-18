@@ -70,6 +70,7 @@ model PartnerProfile {
   slug                   String?                @unique
   isPublicProfile        Boolean                @default(true)
   profileHeadline        String?
+  isAvailable            Boolean                @default(true)
   workPhotos             PartnerWorkPhoto[]
   availability           Availability[]
   bookings               Booking[]

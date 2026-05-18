@@ -54,6 +54,7 @@ export async function GET(_req: NextRequest, context: RouteContext) {
       city: partner.city,
       bio: partner.bio,
       profileHeadline: partner.profileHeadline,
+      isAvailable: partner.isAvailable,
       rating: partner.rating,
       totalReviews: partner.totalReviews,
       completedServicesCount: partner.completedServicesCount,

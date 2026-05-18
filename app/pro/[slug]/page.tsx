@@ -55,6 +55,7 @@ async function fetchPartner(slug: string) {
     cityName: CITY_NAMES[partner.city] ?? partner.city,
     bio: partner.bio,
     profileHeadline: partner.profileHeadline,
+    isAvailable: partner.isAvailable,
     rating: partner.rating,
     totalReviews: partner.totalReviews,
     completedServicesCount: partner.completedServicesCount,

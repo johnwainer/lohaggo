@@ -43,6 +43,7 @@ interface Service {
       }>
       slug?: string | null
       isPublicProfile?: boolean
+      isAvailable?: boolean
     }
   }>
 }
@@ -802,6 +803,16 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                             <h3 className="font-bold text-lg md:text-xl text-gray-900 truncate">
                               {partnerService.partner.user.name}
                             </h3>
+                          </div>
+                          <div className="mb-1.5">
+                            <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${
+                              partnerService.partner.isAvailable !== false
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : 'bg-gray-100 text-gray-500'
+                            }`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${partnerService.partner.isAvailable !== false ? 'bg-emerald-500' : 'bg-gray-400'}`} />
+                              {partnerService.partner.isAvailable !== false ? 'Disponible' : 'No disponible'}
+                            </span>
                           </div>
 
                           <div className="flex items-center gap-2 mb-2">

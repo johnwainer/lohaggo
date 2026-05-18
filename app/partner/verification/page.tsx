@@ -433,25 +433,36 @@ export default function VerificationPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Archivo (PDF o imagen)</label>
-              <input
-                type="file"
-                accept=".pdf,application/pdf,image/*"
-                onChange={handleFileSelect}
-                className="w-full px-4 py-2 border border-gray-300 rounded-xl text-sm"
-              />
-              <p className="mt-1 text-xs text-gray-400">PDF o imagen (JPG, PNG). Máx. 10 MB.</p>
-              {previewUrl && (
-                <div className="mt-3">
-                  {selectedFile?.type.startsWith('image/') ? (
-                    <img src={previewUrl} alt="Vista previa" className="max-h-48 mx-auto rounded-lg object-contain border" />
-                  ) : (
-                    <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border">
-                      <FileText className="w-5 h-5 text-gray-400" />
-                      <span className="text-sm text-gray-600 truncate">{selectedFile?.name}</span>
-                    </div>
-                  )}
-                </div>
-              )}
+              <label
+                className={`flex flex-col items-center justify-center w-full border-2 border-dashed rounded-xl py-6 px-4 cursor-pointer transition-colors ${
+                  selectedFile ? 'border-blue-400 bg-blue-50' : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50/30'
+                }`}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  const file = e.dataTransfer.files[0]
+                  if (file) handleFileSelect({ target: { files: [file] } } as any)
+                }}
+              >
+                <input type="file" accept=".pdf,application/pdf,image/*" onChange={handleFileSelect} className="hidden" />
+                {selectedFile ? (
+                  <div className="text-center">
+                    {selectedFile.type.startsWith('image/') && previewUrl ? (
+                      <img src={previewUrl} alt="Vista previa" className="max-h-36 mx-auto rounded-lg object-contain mb-2" />
+                    ) : (
+                      <FileText className="w-10 h-10 text-blue-400 mx-auto mb-2" />
+                    )}
+                    <p className="text-sm font-semibold text-blue-700 truncate max-w-xs">{selectedFile.name}</p>
+                    <p className="text-xs text-blue-500 mt-0.5">Toca para cambiar</p>
+                  </div>
+                ) : (
+                  <div className="text-center">
+                    <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm font-semibold text-gray-700">Arrastra aquí o toca para seleccionar</p>
+                    <p className="text-xs text-gray-400 mt-1">PDF o imagen · Máx. 10 MB</p>
+                  </div>
+                )}
+              </label>
             </div>
 
             <div className="flex gap-3 pt-1">
@@ -532,10 +543,13 @@ function StepCard({ step, icon, iconColor, title, description, approved, pending
           {isRejected && <span className="text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">Rechazado</span>}
         </div>
         <p className="font-bold text-gray-900 text-sm mt-0.5">{title}</p>
-        {isRejected && rejectionReason
-          ? <p className="text-xs text-red-500 mt-0.5">Razón: {rejectionReason}</p>
-          : <p className="text-xs text-gray-500 mt-0.5">{description}</p>
-        }
+        <p className="text-xs text-gray-500 mt-0.5">{description}</p>
+        {isRejected && rejectionReason && (
+          <div className="mt-1.5 flex items-start gap-1.5 bg-red-100 rounded-lg px-2 py-1.5">
+            <AlertCircle className="w-3.5 h-3.5 text-red-500 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-red-700 font-medium">{rejectionReason}</p>
+          </div>
+        )}
         {adminManaged && !approved && !pending && (
           <p className="text-xs text-gray-400 mt-0.5 italic">El equipo de LoHaggo lo gestiona</p>
         )}
