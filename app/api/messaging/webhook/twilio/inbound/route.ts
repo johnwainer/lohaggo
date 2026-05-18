@@ -8,8 +8,11 @@ export const dynamic = 'force-dynamic'
 const logger = createLogger('twilio-inbound')
 
 function normalizePhone(raw: string): string {
-  // Strip "whatsapp:" prefix Twilio adds for WA numbers
-  return raw.replace(/^whatsapp:/i, '').trim()
+  const stripped = raw.replace(/^whatsapp:/i, '').trim()
+  const clean = stripped.replace(/[^\d+]/g, '')
+  if (clean.startsWith('+')) return clean
+  if (clean.startsWith('57')) return `+${clean}`
+  return `+57${clean}`
 }
 
 export async function POST(request: NextRequest) {

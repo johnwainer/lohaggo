@@ -266,11 +266,17 @@ export async function processCampaign(campaignId: string) {
     if (result.ok && (campaign.channel === 'SMS' || campaign.channel === 'WHATSAPP')) {
       try {
         const messageBody = body || (waContentSid ? `[Plantilla WhatsApp: ${waContentSid}]` : '')
+        const normalizedPhone = (() => {
+          const clean = (destination ?? '').replace(/[^\d+]/g, '')
+          if (clean.startsWith('+')) return clean
+          if (clean.startsWith('57')) return `+${clean}`
+          return `+57${clean}`
+        })()
         const conv = await prisma.conversation.upsert({
-          where: { channel_contactPhone: { channel: campaign.channel, contactPhone: destination } },
+          where: { channel_contactPhone: { channel: campaign.channel, contactPhone: normalizedPhone } },
           create: {
             channel: campaign.channel,
-            contactPhone: destination,
+            contactPhone: normalizedPhone,
             userId: user.id,
             contactName: user.name || null,
             status: 'OPEN',
