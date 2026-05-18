@@ -1713,9 +1713,16 @@ export default function AdminCommunicationsPage() {
                           <div className="rounded border p-3 space-y-2">
                             <p className="text-xs font-medium text-gray-700">Variables de la plantilla</p>
                             <p className="text-xs text-gray-500">
-                              Usa <code className="bg-gray-100 px-1 rounded">{'{{user_name}}'}</code> para el nombre del destinatario,{' '}
-                              <code className="bg-gray-100 px-1 rounded">{'{{user_email}}'}</code> para su correo.
+                              Variables disponibles:{' '}
+                              <code className="bg-gray-100 px-1 rounded">{'{{user_name}}'}</code> nombre,{' '}
+                              <code className="bg-gray-100 px-1 rounded">{'{{user_email}}'}</code> correo,{' '}
+                              <code className="bg-gray-100 px-1 rounded">{'{{action_url}}'}</code> magic link personalizado.
                             </p>
+                            {Object.values(campForm.waTemplateVariables).some((v) => v.includes('action_url')) && (
+                              <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                                <b>Importante:</b> estás usando <code>{'{{action_url}}'}</code>. Debes generar los magic links para los destinatarios <b>antes</b> de enviar la campaña (panel Magic Link). Si un usuario no tiene token activo, su mensaje fallará.
+                              </div>
+                            )}
                             <div className="space-y-1.5">
                               {Object.entries(campForm.waTemplateVariables).map(([key, val]) => (
                                 <div key={key} className="flex items-center gap-2">

@@ -174,7 +174,23 @@ export async function processCampaign(campaignId: string) {
       for (const [key, val] of Object.entries(waTemplateVariables)) {
         resolvedVars[key] = renderTextTemplate(val, userVars)
       }
-      result = await sendWhatsAppTemplate(destination, waContentSid, resolvedVars, runtimeConfig.twilio)
+
+      // Twilio rejects ContentVariables with empty strings — catch it before the API call
+      // and give a clear error (most common cause: {{action_url}} with no magic token).
+      const emptyKey = Object.entries(resolvedVars).find(([, v]) => !v.trim())
+      if (emptyKey) {
+        const isActionUrl = String(waTemplateVariables[emptyKey[0]] || '').includes('action_url')
+        result = {
+          ok: false,
+          provider: 'twilio-whatsapp',
+          errorCode: 'EMPTY_VARIABLE',
+          errorMessage: isActionUrl
+            ? `La variable {{${emptyKey[0]}}} (action_url) está vacía: genera magic links para este usuario antes de enviar.`
+            : `La variable {{${emptyKey[0]}}} está vacía. Revisa las variables de la plantilla.`,
+        }
+      } else {
+        result = await sendWhatsAppTemplate(destination, waContentSid, resolvedVars, runtimeConfig.twilio)
+      }
     } else {
       result = await sendMessageViaProvider(
         {
