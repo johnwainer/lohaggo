@@ -6,6 +6,7 @@ import {
   MapPin, Star, CheckCircle, Share2, Copy, Check, MessageCircle,
   Briefcase, Calendar, X, ChevronRight, ExternalLink,
 } from 'lucide-react'
+import QrCode from '@/components/QrCode'
 
 type Service = { id: string; name: string; icon: string; slug: string; price: number }
 type WorkPhoto = { id: string; url: string; caption: string | null }
@@ -130,11 +131,7 @@ export default function ProfileClient({ partner }: { partner: Partner }) {
   const waLink = `https://wa.me/?text=${encodeURIComponent(
     `¡Mira el perfil de ${partner.name} en LoHaggo! ${profileUrl}`
   )}`
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(
-    profileUrl
-  )}&bgcolor=ffffff&color=1d4ed8&margin=10`
-
-  const ratingDist = [5, 4, 3, 2, 1].map((stars) => ({
+const ratingDist = [5, 4, 3, 2, 1].map((stars) => ({
     stars,
     count: partner.reviews.filter((r) => r.rating === stars).length,
   }))
@@ -461,19 +458,8 @@ export default function ProfileClient({ partner }: { partner: Partner }) {
                 Comparte tu perfil y atrae nuevos clientes directamente
               </p>
             </div>
-            <div className="flex flex-col items-center gap-2 flex-shrink-0">
-              <img
-                src={qrUrl}
-                alt="QR Code"
-                className="w-32 h-32 rounded-xl border border-gray-200"
-              />
-              <a
-                href={qrUrl}
-                download={`qr-${partner.slug}.png`}
-                className="text-xs font-semibold text-primary-600 hover:text-primary-700 transition-colors"
-              >
-                Descargar QR
-              </a>
+            <div className="flex flex-col items-center gap-1 flex-shrink-0">
+              <QrCode url={profileUrl} size={128} className="rounded-xl border border-gray-200 overflow-hidden" />
             </div>
           </div>
         </section>
@@ -562,14 +548,7 @@ export default function ProfileClient({ partner }: { partner: Partner }) {
               </button>
             </div>
             <div className="flex flex-col items-center gap-2 pt-2">
-              <img src={qrUrl} alt="QR" className="w-36 h-36 rounded-xl border" />
-              <a
-                href={qrUrl}
-                download={`qr-${partner.slug}.png`}
-                className="text-xs font-semibold text-primary-600"
-              >
-                Descargar QR
-              </a>
+              <QrCode url={profileUrl} size={144} className="rounded-xl border border-gray-200 overflow-hidden" />
             </div>
           </div>
         </div>
