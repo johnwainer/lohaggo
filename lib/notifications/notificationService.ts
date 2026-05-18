@@ -75,6 +75,138 @@ export async function sendDirectPushToUser(userId: string, payload: PushPayload)
   return sendPushToUser(userId, payload)
 }
 
+function computeActionUrl(type: NotificationType, role: UserRole, appUrl: string): string {
+  switch (type) {
+    case 'BOOKING_CONFIRMED':
+    case 'BOOKING_CANCELLED':
+    case 'BOOKING_IN_PROGRESS':
+    case 'BOOKING_COMPLETED':
+      return role === 'PARTNER' ? `${appUrl}/partner?tab=bookings` : `${appUrl}/dashboard?tab=bookings`
+    case 'NEW_SERVICE_REQUEST':
+      return `${appUrl}/partner?tab=my-requests`
+    case 'NEW_PROPOSAL':
+      return `${appUrl}/dashboard?tab=requests`
+    case 'PROPOSAL_ACCEPTED':
+      return `${appUrl}/partner?tab=bookings`
+    case 'PROPOSAL_REJECTED':
+      return `${appUrl}/partner?tab=my-requests`
+    case 'NEW_MESSAGE':
+      return role === 'PARTNER' ? `${appUrl}/partner/messages` : `${appUrl}/dashboard`
+    case 'DOCUMENT_APPROVED':
+    case 'DOCUMENT_REJECTED':
+      return `${appUrl}/partner/verification`
+    case 'ACHIEVEMENT_UNLOCKED':
+      return `${appUrl}/partner/achievements`
+    default:
+      return `${appUrl}/notifications`
+  }
+}
+
+async function buildEnrichedVars(
+  data: unknown,
+  type: NotificationType,
+  role: UserRole,
+  appUrl: string
+): Promise<Record<string, string | number>> {
+  const vars: Record<string, string | number> = {
+    action_url: computeActionUrl(type, role, appUrl),
+    service_name: '',
+    partner_name: '',
+    client_name: '',
+    city: '',
+    price: '',
+    booking_date: '',
+    booking_time: '',
+  }
+
+  const d = (typeof data === 'object' && data !== null) ? data as Record<string, unknown> : {}
+
+  try {
+    if (typeof d.bookingId === 'string') {
+      const booking = await prisma.booking.findUnique({
+        where: { id: d.bookingId },
+        select: {
+          service: { select: { name: true } },
+          user: { select: { name: true } },
+          partner: { select: { user: { select: { name: true } } } },
+          scheduledDate: true,
+          scheduledTime: true,
+          totalPrice: true,
+        },
+      })
+      if (booking) {
+        vars.service_name = booking.service.name
+        vars.client_name = booking.user.name
+        vars.partner_name = booking.partner?.user.name ?? ''
+        vars.booking_date = booking.scheduledDate
+          ? new Date(booking.scheduledDate).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
+          : ''
+        vars.booking_time = booking.scheduledTime ?? ''
+        vars.price = booking.totalPrice ? `$${Math.round(booking.totalPrice).toLocaleString('es-CO')}` : ''
+      }
+    }
+
+    if (typeof d.serviceRequestId === 'string') {
+      const sr = await prisma.serviceRequest.findUnique({
+        where: { id: d.serviceRequestId },
+        select: {
+          service: { select: { name: true } },
+          user: { select: { name: true } },
+          city: true,
+          notes: true,
+        },
+      })
+      if (sr) {
+        if (!vars.service_name) vars.service_name = sr.service.name
+        if (!vars.client_name) vars.client_name = sr.user.name
+        vars.city = String(sr.city ?? '').replace(/_/g, ' ').toLowerCase()
+        vars.description = sr.notes ? sr.notes.slice(0, 120) : ''
+      }
+    }
+
+    if (typeof d.proposalId === 'string') {
+      const proposal = await prisma.proposal.findUnique({
+        where: { id: d.proposalId },
+        select: {
+          price: true,
+          partner: { select: { user: { select: { name: true } } } },
+          serviceRequest: { select: { service: { select: { name: true } } } },
+        },
+      })
+      if (proposal) {
+        if (!vars.partner_name) vars.partner_name = proposal.partner.user.name
+        if (!vars.service_name) vars.service_name = proposal.serviceRequest.service.name
+        if (proposal.price) vars.price = `$${Math.round(Number(proposal.price)).toLocaleString('es-CO')}`
+      }
+    }
+
+    if (typeof d.chatId === 'string') {
+      const chat = await prisma.chat.findUnique({
+        where: { id: d.chatId },
+        select: {
+          client: { select: { name: true } },
+          partner: { select: { user: { select: { name: true } } } },
+          serviceRequest: { select: { service: { select: { name: true } } } },
+        },
+      })
+      if (chat) {
+        if (!vars.client_name) vars.client_name = chat.client?.name ?? ''
+        if (!vars.partner_name) vars.partner_name = chat.partner?.user.name ?? ''
+        if (!vars.service_name) vars.service_name = chat.serviceRequest?.service?.name ?? ''
+      }
+    }
+  } catch {
+    // enrichment is best-effort
+  }
+
+  // sender_name = the other party (whoever sent the message to this recipient)
+  vars.sender_name = role === 'CLIENT'
+    ? (vars.partner_name || '')
+    : (vars.client_name || '')
+
+  return vars
+}
+
 async function dispatchAutomaticNotificationChannels(params: {
   notificationId: string
   user: {
@@ -172,15 +304,19 @@ async function dispatchAutomaticNotificationChannels(params: {
       continue
     }
 
+    const appUrl = env.NEXT_PUBLIC_APP_URL || env.NEXTAUTH_URL || ''
+    const enriched = await buildEnrichedVars(params.data, params.type, params.user.role, appUrl)
+
     const baseVars = {
       user_name: params.user.name || 'Usuario',
       user_email: params.user.email,
       title: params.title,
       message: params.message,
       notification_type: params.type,
-      notifications_url: `${env.NEXT_PUBLIC_APP_URL || env.NEXTAUTH_URL || ''}/notifications`,
-      app_url: env.NEXT_PUBLIC_APP_URL || env.NEXTAUTH_URL || '',
+      notifications_url: `${appUrl}/notifications`,
+      app_url: appUrl,
       year: new Date().getFullYear(),
+      ...enriched,
     }
 
     let subject = params.title
