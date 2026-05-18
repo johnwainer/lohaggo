@@ -53,15 +53,17 @@ export async function createNotification({
         notificationsSmsEnabled: true,
       },
     })
+
+    // Dispatch is fire-and-forget — never let it block saving the notification
     if (user) {
-      await dispatchAutomaticNotificationChannels({
+      dispatchAutomaticNotificationChannels({
         notificationId: notification.id,
         user,
         type,
         title,
         message,
         data,
-      })
+      }).catch((err) => logger.error('Dispatch error (non-fatal):', err))
     }
 
     return notification

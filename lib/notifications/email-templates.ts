@@ -335,36 +335,44 @@ function buildDefaults(): NotificationChannelTemplatePayload[] {
 export const DEFAULT_NOTIFICATION_CHANNEL_TEMPLATES = buildDefaults()
 
 let _templatesEnsured = false
+export function resetTemplatesCache() { _templatesEnsured = false }
 
 export async function ensureDefaultNotificationEmailTemplates() {
   if (_templatesEnsured) return
-  _templatesEnsured = true
   const defaults = DEFAULT_NOTIFICATION_CHANNEL_TEMPLATES
 
   for (const tpl of defaults) {
-    await (prisma as any).notificationEmailTemplate.upsert({
-      where: { key: tpl.key },
-      update: {
-        bodyTemplate: tpl.bodyTemplate,
-        bodyHtmlTemplate: tpl.bodyHtmlTemplate,
-        bodyTextTemplate: tpl.bodyTextTemplate,
-        subjectTemplate: tpl.subjectTemplate,
-        isActive: tpl.isActive,
-      },
-      create: {
-        key: tpl.key,
-        name: tpl.name,
-        notificationType: tpl.notificationType,
-        channel: tpl.channel,
-        role: tpl.role,
-        subjectTemplate: tpl.subjectTemplate,
-        bodyTemplate: tpl.bodyTemplate,
-        bodyHtmlTemplate: tpl.bodyHtmlTemplate,
-        bodyTextTemplate: tpl.bodyTextTemplate,
-        isActive: tpl.isActive,
-      },
-    })
+    try {
+      await (prisma as any).notificationEmailTemplate.upsert({
+        where: { key: tpl.key },
+        update: {
+          bodyTemplate: tpl.bodyTemplate,
+          bodyHtmlTemplate: tpl.bodyHtmlTemplate,
+          bodyTextTemplate: tpl.bodyTextTemplate,
+          subjectTemplate: tpl.subjectTemplate,
+          isActive: tpl.isActive,
+        },
+        create: {
+          key: tpl.key,
+          name: tpl.name,
+          notificationType: tpl.notificationType,
+          channel: tpl.channel,
+          role: tpl.role,
+          subjectTemplate: tpl.subjectTemplate,
+          bodyTemplate: tpl.bodyTemplate,
+          bodyHtmlTemplate: tpl.bodyHtmlTemplate,
+          bodyTextTemplate: tpl.bodyTextTemplate,
+          isActive: tpl.isActive,
+        },
+      })
+    } catch (err) {
+      // Log but continue — one bad template must not block the rest
+      console.error(`[notifications] Failed to upsert template "${tpl.key}":`, err)
+    }
   }
+
+  // Only mark as done after the full loop so errors on cold start are retried
+  _templatesEnsured = true
 }
 
 export async function resolveNotificationChannelTemplate(
