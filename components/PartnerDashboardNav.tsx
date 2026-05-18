@@ -31,6 +31,7 @@ export default function PartnerDashboardNav({
     {
       id: 'overview' as const,
       label: 'Inicio',
+      shortLabel: 'Inicio',
       icon: Home,
       path: '/partner',
       badge: 0,
@@ -39,6 +40,7 @@ export default function PartnerDashboardNav({
     {
       id: 'bookings' as const,
       label: 'Reservas',
+      shortLabel: 'Reservas',
       icon: Package,
       path: '/partner?tab=bookings',
       badge: bookingsCount,
@@ -47,6 +49,7 @@ export default function PartnerDashboardNav({
     {
       id: 'my-requests' as const,
       label: 'Solicitudes',
+      shortLabel: 'Pedidos',
       icon: Bell,
       path: '/partner?tab=my-requests',
       badge: requestsCount,
@@ -55,6 +58,7 @@ export default function PartnerDashboardNav({
     {
       id: 'messages' as const,
       label: 'Mensajes',
+      shortLabel: 'Chats',
       icon: MessageSquare,
       path: '/partner/messages',
       badge: messagesCount,
@@ -63,6 +67,7 @@ export default function PartnerDashboardNav({
     {
       id: 'payments' as const,
       label: 'Pagos',
+      shortLabel: 'Pagos',
       icon: Wallet,
       path: '/partner/payments',
       badge: 0,
@@ -71,6 +76,7 @@ export default function PartnerDashboardNav({
     {
       id: 'account' as const,
       label: 'Cuenta',
+      shortLabel: 'Cuenta',
       icon: UserCircle,
       path: '/profile',
       badge: 0,
@@ -130,7 +136,7 @@ export default function PartnerDashboardNav({
 
       {/* Mobile: sticky bottom bar */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
-        <nav className="mx-auto grid max-w-lg grid-cols-6 gap-0 px-1 py-1">
+        <nav className="mx-auto grid max-w-lg grid-cols-6 gap-0">
           {navItems.map((item) => {
             const Icon = item.icon
             const isActive = isItemActive(item)
@@ -139,19 +145,19 @@ export default function PartnerDashboardNav({
                 key={item.id}
                 type="button"
                 onClick={() => handleNav(item)}
-                className={`relative flex min-h-[52px] flex-col items-center justify-center rounded-xl text-[10px] font-medium transition gap-0.5 ${
+                className={`relative flex min-h-[50px] flex-col items-center justify-center text-[9px] font-medium transition gap-0.5 px-0.5 py-1 ${
                   isActive ? 'text-primary-700' : 'text-gray-500 active:scale-95'
                 }`}
               >
-                <div className={`relative flex items-center justify-center w-8 h-8 rounded-xl transition ${isActive ? 'bg-primary-100' : ''}`}>
-                  <Icon className={`h-5 w-5 ${isActive ? 'text-primary-700' : 'text-gray-500'}`} />
+                <div className={`relative flex items-center justify-center w-7 h-7 rounded-lg transition ${isActive ? 'bg-primary-100' : ''}`}>
+                  <Icon className={`h-4 w-4 ${isActive ? 'text-primary-700' : 'text-gray-500'}`} />
                   {item.badge > 0 && (
-                    <span className="absolute -top-1 -right-1 inline-flex min-w-4 h-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+                    <span className="absolute -top-1 -right-1 inline-flex min-w-3.5 h-3.5 items-center justify-center rounded-full bg-red-500 px-0.5 text-[8px] font-bold text-white">
                       {item.badge > 99 ? '99+' : item.badge}
                     </span>
                   )}
                 </div>
-                <span>{item.label}</span>
+                <span className="truncate w-full text-center leading-tight">{item.shortLabel}</span>
               </button>
             )
           })}

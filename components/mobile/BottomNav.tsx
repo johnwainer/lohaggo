@@ -11,6 +11,9 @@ export function BottomNav() {
 
   const isPartner = session?.user?.role === 'PARTNER'
 
+  // Partner pages have their own PartnerDashboardNav — hide the global bottom nav
+  if (isPartner && (pathname.startsWith('/partner') || pathname === '/profile')) return null
+
   const handleNavigation = (href: string, requiresAuth: boolean) => {
     if (requiresAuth && !session) {
       router.push(`/login?callbackUrl=${encodeURIComponent(href)}`)
