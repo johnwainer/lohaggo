@@ -25,7 +25,6 @@ export default function PartnerDashboardNav({
   const pathname = usePathname()
   const liveCounts = usePartnerNavCounts()
 
-  // Prefer live counts fetched internally; fall back to props passed by the page
   const bookingsCount = liveCounts.bookings || bookingsCountProp
   const messagesCount = liveCounts.messages || messagesCountProp
 
@@ -97,35 +96,66 @@ export default function PartnerDashboardNav({
   }
 
   return (
-    <div className="border-t border-gray-200 bg-white">
-      <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
-      <nav className="flex overflow-x-auto scrollbar-hide snap-x snap-mandatory">
-        {navItems.map((item) => {
-          const Icon = item.icon
-          const isActive = isItemActive(item)
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => handleNav(item)}
-              className={`snap-start flex-shrink-0 flex items-center gap-1.5 px-3 py-3 text-xs font-medium border-b-2 transition whitespace-nowrap ${
-                isActive
-                  ? 'border-primary-600 text-primary-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
-              }`}
-            >
-              <Icon className="w-4 h-4 flex-shrink-0" />
-              <span>{item.label}</span>
-              {item.badge > 0 && (
-                <span className="bg-primary-600 text-white text-[9px] px-1.5 py-0.5 rounded-full leading-none">
-                  {item.badge > 99 ? '99+' : item.badge}
-                </span>
-              )}
-            </button>
-          )
-        })}
-      </nav>
+    <>
+      {/* Desktop — same look as ClientDashboardNav */}
+      <div className="hidden md:block border-t border-gray-200 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
+          <nav className="flex gap-1 overflow-x-auto scrollbar-hide snap-x snap-mandatory">
+            {navItems.map((item) => {
+              const Icon = item.icon
+              const isActive = isItemActive(item)
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => handleNav(item)}
+                  className={`snap-start flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${
+                    isActive
+                      ? 'border-primary-600 text-primary-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span>{item.label}</span>
+                  {item.badge > 0 && (
+                    <span className="bg-primary-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">
+                      {item.badge > 99 ? '99+' : item.badge}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </nav>
+        </div>
       </div>
-    </div>
+
+      {/* Mobile — inline grid, same look as ClientDashboardNav */}
+      <div className="md:hidden border-t border-gray-200 bg-white/95 backdrop-blur-md">
+        <nav className="mx-auto grid max-w-2xl grid-cols-6 gap-1 px-2 py-2">
+          {navItems.map((item) => {
+            const Icon = item.icon
+            const isActive = isItemActive(item)
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => handleNav(item)}
+                className={`relative flex min-h-[56px] flex-col items-center justify-center rounded-xl text-xs font-medium transition ${
+                  isActive ? 'bg-primary-50 text-primary-700' : 'text-gray-600 active:scale-95'
+                }`}
+              >
+                <Icon className="h-5 w-5" />
+                <span className="text-[10px] mt-0.5">{item.label}</span>
+                {item.badge > 0 && (
+                  <span className="absolute right-1 top-1 inline-flex min-w-4 h-4 items-center justify-center rounded-full bg-primary-600 px-1 text-[9px] font-bold text-white">
+                    {item.badge > 99 ? '99+' : item.badge}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </nav>
+      </div>
+    </>
   )
 }
