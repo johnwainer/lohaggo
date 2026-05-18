@@ -142,14 +142,13 @@ export default function OnboardingTour() {
   }, [])
 
   useEffect(() => {
-    const tourCompleted = localStorage.getItem('onboarding-tour-completed')
-    const dontShowAgain = localStorage.getItem('onboarding-tour-dont-show')
-
-    if (!tourCompleted && !dontShowAgain) {
-      setShowFloatingButton(true)
-    } else {
-      setShowFloatingButton(true)
-    }
+    fetch('/api/public/floating-buttons')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        const enabled = d?.help_float_button?.enabled ?? true
+        setShowFloatingButton(enabled)
+      })
+      .catch(() => setShowFloatingButton(true))
   }, [])
 
   useEffect(() => {

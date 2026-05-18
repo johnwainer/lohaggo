@@ -272,12 +272,15 @@ export default function AdminPlatformControlPage() {
           </button>
         </div>
 
-        {/* Help */}
+        {/* Help / Tutorial */}
         <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-lg">❓</span>
-              <h3 className="font-semibold text-gray-800">Botón de Ayuda</h3>
+              <div>
+                <h3 className="font-semibold text-gray-800">Botón de Tutorial</h3>
+                <p className="text-xs text-gray-500">Muestra u oculta el botón flotante del tutorial interactivo</p>
+              </div>
             </div>
             <label className="flex items-center gap-2 cursor-pointer">
               <span className="text-sm text-gray-600">{helpBtn.enabled ? 'Visible' : 'Oculto'}</span>
@@ -289,32 +292,12 @@ export default function AdminPlatformControlPage() {
               </div>
             </label>
           </div>
-          <div className="grid sm:grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-medium text-gray-600 block mb-1">URL de ayuda</label>
-              <input
-                value={helpBtn.url}
-                onChange={e => setHelpBtn(b => ({ ...b, url: e.target.value }))}
-                placeholder="/how-it-works o https://..."
-                className="w-full border rounded-lg px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-gray-600 block mb-1">Etiqueta del tooltip</label>
-              <input
-                value={helpBtn.label}
-                onChange={e => setHelpBtn(b => ({ ...b, label: e.target.value }))}
-                placeholder="Centro de ayuda"
-                className="w-full border rounded-lg px-3 py-2 text-sm"
-              />
-            </div>
-          </div>
           <button
-            onClick={() => saveFloat('help_float_button', helpBtn, { url: helpBtn.url, label: helpBtn.label })}
+            onClick={() => saveFloat('help_float_button', helpBtn, {})}
             disabled={savingFloat}
             className="px-4 py-2 rounded-lg bg-gray-700 text-white text-sm font-medium hover:bg-gray-800 disabled:opacity-50"
           >
-            {savingFloat ? 'Guardando…' : 'Guardar Ayuda'}
+            {savingFloat ? 'Guardando…' : 'Guardar'}
           </button>
         </div>
       </div>
