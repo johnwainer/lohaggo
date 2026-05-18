@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Shield, Mail, Phone, Calendar, Trash2 } from 'lucide-react'
+import { Shield, Mail, Phone, Calendar, Trash2, ExternalLink } from 'lucide-react'
 import DataTable from '@/components/admin/DataTable'
 import ConfirmModal from '@/components/ConfirmModal'
 
@@ -211,6 +211,13 @@ export default function UsersSection() {
       label: 'Acciones',
       render: (_: any, row: User) => (
         <div className="flex items-center gap-2">
+          <a
+            href={`/admin/users/${row.id}`}
+            className="text-xs px-2 py-1 rounded-lg font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors flex items-center gap-1"
+            title="Ver perfil completo"
+          >
+            <ExternalLink size={12} /> Perfil
+          </a>
           <select
             onChange={(e) => handleRoleChange(row.id, e.target.value)}
             value={row.role}

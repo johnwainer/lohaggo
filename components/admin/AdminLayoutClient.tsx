@@ -32,6 +32,7 @@ export default function AdminLayoutClient({
       return sectionFromQuery
     }
     if (pathname === '/admin') return 'dashboard'
+    if (pathname.startsWith('/admin/users/')) return 'users'
     if (pathname.startsWith('/admin/monitoring')) return 'monitoring'
     if (pathname.startsWith('/admin/operations')) return 'operations'
     if (pathname.startsWith('/admin/training')) return 'training'
