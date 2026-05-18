@@ -1450,6 +1450,7 @@ model Conversation {
   userId          String?
   assignedToId    String?
   status          ConversationStatus @default(OPEN)
+  tags            String[]           @default([])
   lastMessageAt   DateTime?
   lastMessageBody String?
   unreadCount     Int                @default(0)
@@ -1470,6 +1471,7 @@ model ConversationMessage {
   direction         MessageDirection
   body              String
   mediaUrl          String?
+  isInternal        Boolean                 @default(false)
   sentAt            DateTime                @default(now())
   deliveredAt       DateTime?
   status            MessagingDeliveryStatus @default(SENT)
@@ -1480,6 +1482,17 @@ model ConversationMessage {
   sentBy            User?                   @relation("AgentMessages", fields: [sentById], references: [id])
 
   @@index([conversationId, sentAt])
+}
+
+model CannedResponse {
+  id        String   @id @default(cuid())
+  title     String
+  body      String
+  category  String?
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model MagicToken {

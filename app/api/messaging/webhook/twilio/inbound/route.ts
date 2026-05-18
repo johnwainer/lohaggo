@@ -1,9 +1,12 @@
+export const dynamic = 'force-dynamic'
+
+import { createHmac } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { env } from '@/lib/env'
 import { createLogger } from '@/lib/logger'
-
-export const dynamic = 'force-dynamic'
+import { emitInboxEvent } from '@/lib/messaging/inbox-emitter'
+import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
 
 const logger = createLogger('twilio-inbound')
 
@@ -15,11 +18,40 @@ function normalizePhone(raw: string): string {
   return `+57${clean}`
 }
 
+async function validateTwilioSignature(request: NextRequest, authToken: string): Promise<boolean> {
+  const signature = request.headers.get('x-twilio-signature')
+  if (!signature) return false
+
+  const url = request.url
+  const body = await request.clone().formData()
+  const params: Record<string, string> = {}
+  body.forEach((value, key) => { params[key] = String(value) })
+
+  const sortedKeys = Object.keys(params).sort()
+  const paramString = sortedKeys.map((k) => `${k}${params[k]}`).join('')
+  const expected = createHmac('sha1', authToken).update(url + paramString).digest('base64')
+
+  return expected === signature
+}
+
+const STOP_KEYWORDS = new Set(['stop', 'baja', 'cancelar', 'unsubscribe', 'salir', 'para'])
+
 export async function POST(request: NextRequest) {
-  // Validate Twilio token if configured
+  // Token fallback for non-HMAC callers (internal testing)
   const token = request.nextUrl.searchParams.get('token')
-  if (env.SECURITY_INTERNAL_TOKEN && token !== env.SECURITY_INTERNAL_TOKEN) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const skipHmac = env.SECURITY_INTERNAL_TOKEN && token === env.SECURITY_INTERNAL_TOKEN
+
+  if (!skipHmac) {
+    // Validate Twilio HMAC signature
+    const runtimeConfig = await getMessagingProviderRuntimeConfig()
+    const authToken = runtimeConfig.twilio?.config?.authToken
+    if (authToken) {
+      const valid = await validateTwilioSignature(request, authToken)
+      if (!valid) {
+        logger.warn('Invalid Twilio signature on inbound webhook')
+        return new NextResponse('Forbidden', { status: 403 })
+      }
+    }
   }
 
   const formData = await request.formData()
@@ -29,21 +61,50 @@ export async function POST(request: NextRequest) {
   const numMedia = parseInt(String(formData.get('NumMedia') || '0'), 10)
   const mediaUrl = numMedia > 0 ? String(formData.get('MediaUrl0') || '') : undefined
 
-  if (!from) {
-    return new NextResponse('<?xml version="1.0"?><Response/>', { headers: { 'Content-Type': 'text/xml' } })
-  }
+  if (!from) return twiml()
 
   const isWhatsApp = from.toLowerCase().startsWith('whatsapp:')
-  const channel = isWhatsApp ? 'WHATSAPP' : 'SMS'
+  const channel: 'WHATSAPP' | 'SMS' = isWhatsApp ? 'WHATSAPP' : 'SMS'
   const contactPhone = normalizePhone(from)
 
-  // Try to identify the user by phone number
+  // STOP / opt-out detection
+  const trimmedBody = body.trim().toLowerCase()
+  if (STOP_KEYWORDS.has(trimmedBody)) {
+    await prisma.messagingOptOut.upsert({
+      where: { channel_destination: { channel, destination: contactPhone } },
+      create: { channel, destination: contactPhone, isActive: true },
+      update: { isActive: true },
+    })
+    logger.info('Opt-out registered', { channel, contactPhone })
+    return twiml()
+  }
+
+  // Identify user
   const user = await prisma.user.findFirst({
     where: { phone: contactPhone },
     select: { id: true, name: true },
   })
 
-  // Find or create conversation
+  // Auto-assign: find admin with fewest active IN_PROGRESS conversations
+  const agentCounts = await prisma.conversation.groupBy({
+    by: ['assignedToId'],
+    where: { status: 'IN_PROGRESS', assignedToId: { not: null } },
+    _count: { _all: true },
+  })
+
+  const adminUsers = await prisma.user.findMany({
+    where: { role: 'ADMIN', isActive: true },
+    select: { id: true },
+  })
+
+  let autoAssignId: string | null = null
+  if (adminUsers.length > 0) {
+    const countMap = new Map(agentCounts.map((r) => [r.assignedToId!, r._count._all]))
+    const sorted = adminUsers.sort((a, b) => (countMap.get(a.id) ?? 0) - (countMap.get(b.id) ?? 0))
+    autoAssignId = sorted[0]?.id ?? null
+  }
+
+  // Upsert conversation
   let conversation = await prisma.conversation.findUnique({
     where: { channel_contactPhone: { channel, contactPhone } },
   })
@@ -55,15 +116,15 @@ export async function POST(request: NextRequest) {
         contactPhone,
         contactName: user?.name || null,
         userId: user?.id || null,
+        assignedToId: autoAssignId,
         status: 'OPEN',
         lastMessageAt: new Date(),
         lastMessageBody: body.slice(0, 200),
         unreadCount: 1,
       },
     })
-    logger.info('New conversation created', { conversationId: conversation.id, channel, contactPhone })
+    logger.info('New conversation', { id: conversation.id, channel, contactPhone })
   } else {
-    // Re-open closed conversations when they write again
     await prisma.conversation.update({
       where: { id: conversation.id },
       data: {
@@ -71,13 +132,16 @@ export async function POST(request: NextRequest) {
         lastMessageAt: new Date(),
         lastMessageBody: body.slice(0, 200),
         unreadCount: { increment: 1 },
-        userId: user?.id || conversation.userId,
-        contactName: user?.name || conversation.contactName,
+        userId: user?.id ?? conversation.userId,
+        contactName: user?.name ?? conversation.contactName,
+        // Only auto-assign if currently unassigned
+        ...(conversation.assignedToId == null && autoAssignId
+          ? { assignedToId: autoAssignId }
+          : {}),
       },
     })
   }
 
-  // Save the inbound message
   await prisma.conversationMessage.create({
     data: {
       conversationId: conversation.id,
@@ -90,9 +154,13 @@ export async function POST(request: NextRequest) {
     },
   })
 
-  logger.info('Inbound message saved', { conversationId: conversation.id, messageSid })
+  logger.info('Inbound saved', { conversationId: conversation.id, messageSid })
+  emitInboxEvent({ type: 'new-message', conversationId: conversation.id })
 
-  // Respond with empty TwiML so Twilio doesn't auto-reply
+  return twiml()
+}
+
+function twiml() {
   return new NextResponse('<?xml version="1.0"?><Response/>', {
     headers: { 'Content-Type': 'text/xml' },
   })

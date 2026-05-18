@@ -5,6 +5,26 @@ import { usePathname, useRouter } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import { useEffect, useState } from 'react'
 
+function useInboxUnread() {
+  const [count, setCount] = useState(0)
+  useEffect(() => {
+    let active = true
+    async function fetch_() {
+      try {
+        const res = await fetch('/api/admin/inbox/unread-count')
+        if (res.ok && active) {
+          const data = await res.json()
+          setCount(data.count ?? 0)
+        }
+      } catch { /* ignore */ }
+    }
+    fetch_()
+    const id = setInterval(fetch_, 30000)
+    return () => { active = false; clearInterval(id) }
+  }, [])
+  return count
+}
+
 interface SidebarProps {
   activeSection: string
   onSectionChange?: (section: string) => void
@@ -29,6 +49,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null)
   const pathname = usePathname()
   const router = useRouter()
+  const inboxUnread = useInboxUnread()
 
   const menuGroups: MenuGroup[] = [
     {
@@ -224,7 +245,12 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
                           }`}
                         >
                           <Icon size={18} className="sm:w-5 sm:h-5 flex-shrink-0" />
-                          <span>{item.label}</span>
+                          <span className="flex-1">{item.label}</span>
+                          {item.id === 'inbox' && inboxUnread > 0 && (
+                            <span className="rounded-full bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 leading-none">
+                              {inboxUnread > 99 ? '99+' : inboxUnread}
+                            </span>
+                          )}
                         </button>
                       )
                     })}
