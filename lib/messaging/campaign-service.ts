@@ -201,9 +201,12 @@ export async function processCampaign(campaignId: string) {
       ? renderTextTemplate(subjectTemplate, userVars)
       : null
 
+    // For WA Content Templates the body uses Twilio numbered vars ({{1}}, {{2}}).
+    // Hoist resolvedVars so the inbox can render the body with merged keys.
+    let resolvedVars: Record<string, string> = {}
+
     let result: Awaited<ReturnType<typeof sendMessageViaProvider>>
     if (campaign.channel === 'WHATSAPP' && waContentSid) {
-      const resolvedVars: Record<string, string> = {}
       for (const [key, val] of Object.entries(waTemplateVariables)) {
         resolvedVars[key] = renderTextTemplate(val, userVars)
       }
@@ -265,7 +268,9 @@ export async function processCampaign(campaignId: string) {
     // Track outbound campaign messages in the inbox conversation
     if (result.ok && (campaign.channel === 'SMS' || campaign.channel === 'WHATSAPP')) {
       try {
-        const messageBody = body || (waContentSid ? `[Plantilla WhatsApp: ${waContentSid}]` : '')
+        // Re-render with merged vars so {{1}}/{{2}} WA template vars are also resolved
+        const mergedBody = renderTextTemplate(bodyTemplate, { ...userVars, ...resolvedVars })
+        const messageBody = mergedBody || (waContentSid ? `[Plantilla WhatsApp: ${waContentSid}]` : '')
         const normalizedPhone = (() => {
           const clean = (destination ?? '').replace(/[^\d+]/g, '')
           if (clean.startsWith('+')) return clean
