@@ -12,6 +12,7 @@ import TermsBanner from './TermsBanner'
 import TestModeBanner from './TestModeBanner'
 import InactiveAccountBanner from './InactiveAccountBanner'
 import PasswordUpdateBanner from './shared/PasswordUpdateBanner'
+import FloatingButtons from './FloatingButtons'
 
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -33,6 +34,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
       <AppDownloadBanner />
       <Footer />
       <BottomNav />
+      <FloatingButtons />
       <NotificationPermissionPrompt />
       <PWAInstallPrompt />
       <PWAOnboardingPrompt />

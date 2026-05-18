@@ -101,7 +101,14 @@ function ClientBarInner() {
   const tab = searchParams.get('tab')
 
   const isActive = (id: string) => {
-    if (id === 'overview') return pathname === '/dashboard' && (!tab || tab === 'overview')
+    if (id === 'overview') {
+      if (pathname === '/dashboard' && (!tab || tab === 'overview')) return true
+      if (pathname === '/') return true
+      if (pathname.startsWith('/servicios')) return true
+      if (pathname.startsWith('/socios')) return true
+      if (pathname.startsWith('/reservar')) return true
+      return false
+    }
     if (id === 'bookings') return pathname === '/dashboard' && tab === 'bookings'
     if (id === 'requests') return pathname === '/dashboard' && tab === 'requests'
     if (id === 'favorites') return pathname === '/dashboard' && tab === 'favorites'
