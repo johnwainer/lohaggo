@@ -11,6 +11,10 @@ export function BottomNav() {
 
   const isPartner = session?.user?.role === 'PARTNER'
 
+  // Partner pages have their own PartnerDashboardNav under the header — no bottom bar needed
+  const isPartnerPage = isPartner && (pathname.startsWith('/partner') || pathname === '/profile')
+  if (isPartnerPage) return null
+
   const handleNavigation = (href: string, requiresAuth: boolean) => {
     if (requiresAuth && !session) {
       router.push(`/login?callbackUrl=${encodeURIComponent(href)}`)
