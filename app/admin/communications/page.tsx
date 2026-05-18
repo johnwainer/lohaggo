@@ -392,12 +392,15 @@ export default function AdminCommunicationsPage() {
     }
   }
 
+  const campaignRecipientPreviewRef = useRef<HTMLDivElement>(null)
+
   const loadRecipientPreview = async (options?: { forCampaignId?: string; channel?: Campaign['channel'] }) => {
     setLoadingRecipients(true)
     try {
       const params = new URLSearchParams()
       params.set('channel', options?.channel || campForm.channel)
-      params.set('search', recipientSearch)
+      // Don't send recipientSearch when loading a saved campaign — the search is only for the CREATE panel.
+      if (!options?.forCampaignId) params.set('search', recipientSearch)
       if (options?.forCampaignId) {
         params.set('campaignId', options.forCampaignId)
       } else {
@@ -428,6 +431,7 @@ export default function AdminCommunicationsPage() {
           recipients: data.recipients || [],
           summary: data.summary || null,
         })
+        setTimeout(() => campaignRecipientPreviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
       } else {
         setRecipientPreview(data.recipients || [])
         setRecipientSummary(data.summary || null)
@@ -1160,7 +1164,7 @@ export default function AdminCommunicationsPage() {
               </div>
 
               {campaignRecipientPreview && (
-                <div className="rounded-lg border bg-gray-50 p-3 space-y-3">
+                <div ref={campaignRecipientPreviewRef} className="rounded-lg border bg-gray-50 p-3 space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <h3 className="font-semibold text-gray-900">Vista de destinatarios de campaña</h3>
                     <button

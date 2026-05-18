@@ -81,18 +81,24 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  const includeUserIds = Array.isArray(body.includeUserIds) ? body.includeUserIds : []
+  const excludeUserIds = Array.isArray(body.excludeUserIds) ? body.excludeUserIds : []
+  const isManualMode = !body.targetRole
+
   const metadataWithControl = mergeRecipientControlMetadata(
     body.metadata ? JSON.stringify(body.metadata) : null,
-    {
-      includeUserIds: Array.isArray(body.includeUserIds) ? body.includeUserIds : [],
-      excludeUserIds: Array.isArray(body.excludeUserIds) ? body.excludeUserIds : [],
-    }
+    { includeUserIds, excludeUserIds }
   )
   const metadata = mergeCampaignAudienceMetadata(metadataWithControl, {
     partnerFilterMode,
     partnerCategoryIds,
     partnerServiceIds,
+    partnerWithoutDocs: Boolean(body.partnerWithoutDocs),
+    partnerWithoutStudies: Boolean(body.partnerWithoutStudies),
   })
+
+  // For manual campaigns, set totalRecipients at creation time since we know the exact list.
+  const initialTotalRecipients = isManualMode ? includeUserIds.length : 0
 
   const campaign = await prisma.messagingCampaign.create({
     data: {
@@ -109,6 +115,7 @@ export async function POST(request: NextRequest) {
       scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : null,
       createdById: admin.id,
       metadata,
+      totalRecipients: initialTotalRecipients,
     },
   })
 
