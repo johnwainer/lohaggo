@@ -717,7 +717,30 @@ export default function AdminCommunicationsPage() {
       setCampaignFeedback({ type: 'error', message: data?.error || 'No se pudo enviar la campaña' })
       return
     }
-    setCampaignFeedback({ type: 'ok', message: 'Campaña enviada correctamente' })
+    const campaign = data?.campaign
+    const failureSample: Array<{ errorCode: string | null; errorMessage: string | null; destination: string }> = data?.failureSample || []
+    const status = campaign?.status as string | undefined
+    const sent = campaign?.totalSent ?? 0
+    const failed = campaign?.totalFailed ?? 0
+    const total = campaign?.totalRecipients ?? 0
+
+    if (status === 'FAILED') {
+      const firstError = failureSample[0]
+      const detail = firstError?.errorMessage || firstError?.errorCode || 'Sin detalle del proveedor'
+      setCampaignFeedback({
+        type: 'error',
+        message: `Campaña fallida (${failed}/${total} fallaron). Error: ${detail}`,
+      })
+    } else if (status === 'PARTIAL') {
+      const firstError = failureSample[0]
+      const detail = firstError?.errorMessage || firstError?.errorCode || ''
+      setCampaignFeedback({
+        type: 'error',
+        message: `Envío parcial: ${sent} enviados, ${failed} fallaron.${detail ? ` Error: ${detail}` : ''}`,
+      })
+    } else {
+      setCampaignFeedback({ type: 'ok', message: `Campaña enviada: ${sent} mensajes entregados.` })
+    }
     await load()
     await loadMetrics(campaignId)
   }
@@ -1097,6 +1120,12 @@ export default function AdminCommunicationsPage() {
                   </button>
                 </div>
               </div>
+              {campaignFeedback && (
+                <div className={`rounded-lg px-4 py-3 text-sm ${campaignFeedback.type === 'ok' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'}`}>
+                  {campaignFeedback.message}
+                  <button className="ml-3 text-xs underline opacity-70 hover:opacity-100" onClick={() => setCampaignFeedback(null)}>Cerrar</button>
+                </div>
+              )}
               <div className="overflow-x-auto">
                 <table className="min-w-full text-sm">
                   <thead className="bg-gray-50 text-gray-600">

@@ -50,6 +50,16 @@ export async function POST(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: message }, { status: 500 })
   }
 
+  // Fetch a sample of failure reasons so the client can show actionable detail.
+  const failureSample = processed.totalFailed > 0
+    ? await prisma.messagingDelivery.findMany({
+        where: { campaignId: id, status: 'FAILED' },
+        select: { errorCode: true, errorMessage: true, destination: true },
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+      })
+    : []
+
   await auditAdminAction({
     actorId: admin.id,
     actorEmail: admin.email,
@@ -61,5 +71,5 @@ export async function POST(request: NextRequest, context: RouteContext) {
     request,
   })
 
-  return NextResponse.json({ campaign: processed })
+  return NextResponse.json({ campaign: processed, failureSample })
 }
