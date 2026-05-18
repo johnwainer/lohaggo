@@ -98,7 +98,8 @@ export default function PartnerDashboardNav({
 
   return (
     <div className="border-t border-gray-200 bg-white">
-      <nav className="flex overflow-x-auto scrollbar-hide snap-x snap-mandatory px-1">
+      <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
+      <nav className="flex overflow-x-auto scrollbar-hide snap-x snap-mandatory">
         {navItems.map((item) => {
           const Icon = item.icon
           const isActive = isItemActive(item)
@@ -124,6 +125,7 @@ export default function PartnerDashboardNav({
           )
         })}
       </nav>
+      </div>
     </div>
   )
 }

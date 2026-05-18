@@ -59,7 +59,7 @@ export default function PartnerMessagesPage() {
         showNavigation
       />
 
-      <main className="max-w-2xl mx-auto px-4 py-4 pb-28 md:pb-8">
+      <main className="max-w-2xl md:max-w-3xl mx-auto px-4 md:px-6 py-4 pb-8">
         {/* Search */}
         <div className="relative mb-4">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
