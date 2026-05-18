@@ -1428,14 +1428,15 @@ enum MessagingProvider {
 }
 
 model MagicToken {
-  id          String    @id @default(cuid())
-  userId      String
-  token       String    @unique
-  redirectUrl String    @default("/partner/verification")
-  expiresAt   DateTime
-  usedAt      DateTime?
-  createdAt   DateTime  @default(now())
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                    String    @id @default(cuid())
+  userId                String
+  token                 String    @unique
+  redirectUrl           String    @default("/partner/verification")
+  requirePasswordChange Boolean   @default(false)
+  expiresAt             DateTime
+  usedAt                DateTime?
+  createdAt             DateTime  @default(now())
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([token])
   @@index([userId])

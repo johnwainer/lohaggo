@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
       partnerId: magic.user.partnerProfile?.id,
       phone: magic.user.phone,
       isActive: magic.user.isActive,
-      needsPasswordUpdate: true,
+      needsPasswordUpdate: magic.requirePasswordChange,
       iat: Math.floor(Date.now() / 1000),
       exp: Math.floor(Date.now() / 1000) + maxAge,
     },

@@ -284,10 +284,14 @@ export default function AdminCommunicationsPage() {
 
   // Magic link state
   const [mlGenerating, setMlGenerating] = useState(false)
-  const [mlResults, setMlResults] = useState<Array<{ userId: string; token: string; url: string }> | null>(null)
+  const [mlResults, setMlResults] = useState<Array<{ userId: string; name: string; token: string; url: string }> | null>(null)
   const [mlError, setMlError] = useState<string | null>(null)
   const [mlCopied, setMlCopied] = useState<string | null>(null)
-  const [mlRedirectUrl, setMlRedirectUrl] = useState('/partner/verification')
+  const [mlAudience, setMlAudience] = useState<'PARTNERS_WITHOUT_DOCS' | 'ALL_PARTNERS' | 'ALL_CLIENTS' | 'ALL_USERS'>('PARTNERS_WITHOUT_DOCS')
+  const [mlRoleContext, setMlRoleContext] = useState<'partner' | 'client'>('partner')
+  const [mlSection, setMlSection] = useState('/partner/verification')
+  const [mlCustomUrl, setMlCustomUrl] = useState('')
+  const [mlRequirePasswordChange, setMlRequirePasswordChange] = useState(false)
 
   // Ref for template body textarea — enables click-to-insert variables at cursor
   const tplBodyRef = useRef<HTMLTextAreaElement>(null)
@@ -802,7 +806,31 @@ export default function AdminCommunicationsPage() {
     })
   }
 
+  const ML_PARTNER_SECTIONS = [
+    { value: '/partner/verification', label: 'Verificación de documentos' },
+    { value: '/partner/dashboard', label: 'Panel principal' },
+    { value: '/partner/services', label: 'Mis servicios' },
+    { value: '/partner/bookings', label: 'Reservas' },
+    { value: '/partner/profile', label: 'Perfil' },
+    { value: '/partner/bank-accounts', label: 'Cuenta bancaria' },
+    { value: '__custom__', label: 'URL personalizada…' },
+  ]
+
+  const ML_CLIENT_SECTIONS = [
+    { value: '/client/dashboard', label: 'Panel principal' },
+    { value: '/bookings', label: 'Mis reservas' },
+    { value: '/profile', label: 'Perfil' },
+    { value: '__custom__', label: 'URL personalizada…' },
+  ]
+
+  const mlSections = mlRoleContext === 'partner' ? ML_PARTNER_SECTIONS : ML_CLIENT_SECTIONS
+  const mlRedirectUrl = mlSection === '__custom__' ? mlCustomUrl : mlSection
+
   async function generateMagicLinks() {
+    if (mlSection === '__custom__' && !mlCustomUrl.trim()) {
+      setMlError('Ingresa una URL de destino personalizada.')
+      return
+    }
     setMlGenerating(true)
     setMlError(null)
     setMlResults(null)
@@ -810,7 +838,11 @@ export default function AdminCommunicationsPage() {
       const res = await fetch('/api/auth/magic/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ redirectUrl: mlRedirectUrl }),
+        body: JSON.stringify({
+          audience: mlAudience,
+          redirectUrl: mlRedirectUrl,
+          requirePasswordChange: mlRequirePasswordChange,
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Error generando links')
@@ -2007,32 +2039,16 @@ export default function AdminCommunicationsPage() {
 
               {/* Explanation */}
               <div className="rounded-xl border bg-white p-5 space-y-4">
-                <h2 className="text-lg font-bold text-slate-900">¿Qué es el Magic Link?</h2>
+                <h2 className="text-lg font-bold text-slate-900">Magic Link — acceso sin contraseña</h2>
                 <p className="text-sm text-slate-600">
-                  Un <strong>Magic Link</strong> es un enlace de acceso de un solo uso que permite a un socio iniciar sesión sin necesidad de recordar su contraseña.
-                  Es ideal para campañas donde los socios no completaron su verificación o se registraron pero nunca volvieron a entrar.
+                  Genera enlaces de un solo uso para que socios o clientes entren directamente a cualquier sección del panel sin necesidad de recordar su contraseña.
+                  Ideal para reactivación, incorporación, campañas de verificación, o soporte.
                 </p>
-
                 <div className="grid md:grid-cols-3 gap-3">
                   {[
-                    {
-                      step: '1',
-                      color: 'blue',
-                      title: 'Generas los links',
-                      body: 'Desde aquí generas un link único por cada socio sin documentos aprobados. Cada link expira en 72 h y es de un solo uso.',
-                    },
-                    {
-                      step: '2',
-                      color: 'violet',
-                      title: 'Envías la campaña',
-                      body: 'Copia las URLs y pégalas en tu plantilla de WhatsApp, SMS o correo usando la variable {{action_url}}. Luego crea la campaña en "Crear campaña".',
-                    },
-                    {
-                      step: '3',
-                      color: 'emerald',
-                      title: 'El socio entra sin fricción',
-                      body: 'Al hacer clic queda logueado automáticamente y ve un banner para crear su contraseña. Es redirigido a la página de verificación de documentos.',
-                    },
+                    { step: '1', color: 'blue', title: 'Configuras el link', body: 'Elige a quién va dirigido, a qué sección del panel lo llevas, y si quieres que vea el banner de crear contraseña.' },
+                    { step: '2', color: 'violet', title: 'Envías la campaña', body: 'Copia las URLs o exporta el CSV. Úsalas en WhatsApp, SMS o email con la variable {{action_url}}.' },
+                    { step: '3', color: 'emerald', title: 'El usuario entra sin fricción', body: 'Al hacer clic queda logueado automáticamente y aterriza en la sección que configuraste. 72 h de validez, un solo uso.' },
                   ].map((item) => (
                     <div key={item.step} className={`rounded-lg border p-4 bg-${item.color}-50 border-${item.color}-200`}>
                       <div className={`text-xs font-bold text-${item.color}-700 mb-1`}>Paso {item.step}</div>
@@ -2041,39 +2057,109 @@ export default function AdminCommunicationsPage() {
                     </div>
                   ))}
                 </div>
-
-                <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-900 space-y-1">
-                  <p className="font-semibold">Notas importantes</p>
-                  <ul className="list-disc list-inside space-y-0.5 text-xs">
-                    <li>Cada link es de <strong>un solo uso</strong> — si el socio lo abre dos veces, la segunda fallará.</li>
-                    <li>Los links expiran en <strong>72 horas</strong> desde su generación.</li>
-                    <li>El botón <em>Generar para socios sin documentos</em> genera un link para <strong>todos</strong> los socios que no tienen documentos aprobados.</li>
-                    <li>Después de usarlo, el socio ve un banner para crear su contraseña. Cuando la crea, el banner desaparece.</li>
-                    <li>El sistema registra qué tokens se generaron y cuándo se usaron en la tabla <code>MagicToken</code>.</li>
+                <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-xs text-amber-900 space-y-1">
+                  <p className="font-semibold text-sm">Notas</p>
+                  <ul className="list-disc list-inside space-y-0.5">
+                    <li>Cada link es de <strong>un solo uso</strong> — el segundo intento falla.</li>
+                    <li>Expiran en <strong>72 horas</strong> desde su generación.</li>
+                    <li>El banner de cambio de contraseña es opcional y configurable por lote.</li>
                   </ul>
                 </div>
               </div>
 
               {/* Generator */}
-              <div className="rounded-xl border bg-white p-5 space-y-4">
+              <div className="rounded-xl border bg-white p-5 space-y-5">
                 <h2 className="text-base font-bold text-slate-900">Generar Magic Links</h2>
 
-                <div className="flex flex-col sm:flex-row gap-3 items-end">
-                  <label className="flex-1 text-xs text-slate-600 space-y-1">
-                    <span className="font-medium">URL de destino después del login</span>
+                {/* Step 1 — Audience */}
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide">1 · Audiencia</p>
+                  <div className="grid sm:grid-cols-2 gap-2">
+                    {([
+                      { value: 'PARTNERS_WITHOUT_DOCS', label: 'Socios sin documentos aprobados', desc: 'Todos los socios que no tienen cédula + antecedentes aprobados', role: 'partner' },
+                      { value: 'ALL_PARTNERS', label: 'Todos los socios', desc: 'Incluye verificados y no verificados', role: 'partner' },
+                      { value: 'ALL_CLIENTS', label: 'Todos los clientes', desc: 'Todos los usuarios con rol CLIENT', role: 'client' },
+                      { value: 'ALL_USERS', label: 'Todos los usuarios', desc: 'Socios y clientes', role: 'partner' },
+                    ] as const).map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => { setMlAudience(opt.value); setMlRoleContext(opt.role) }}
+                        className={`text-left rounded-lg border px-4 py-3 transition ${mlAudience === opt.value ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-400' : 'border-slate-200 hover:bg-slate-50'}`}
+                      >
+                        <p className={`text-sm font-semibold ${mlAudience === opt.value ? 'text-blue-800' : 'text-slate-800'}`}>{opt.label}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">{opt.desc}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Step 2 — Destination */}
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide">2 · Destino dentro del panel</p>
+                  <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-2">
+                    {mlSections.map((sec) => (
+                      <button
+                        key={sec.value}
+                        type="button"
+                        onClick={() => setMlSection(sec.value)}
+                        className={`text-left rounded-lg border px-3 py-2.5 transition text-sm ${mlSection === sec.value ? 'border-violet-500 bg-violet-50 ring-1 ring-violet-400 font-semibold text-violet-800' : 'border-slate-200 hover:bg-slate-50 text-slate-700'}`}
+                      >
+                        {sec.label}
+                        {sec.value !== '__custom__' && (
+                          <span className="block text-xs font-mono text-slate-400 mt-0.5">{sec.value}</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                  {mlSection === '__custom__' && (
                     <input
-                      className="border rounded px-3 py-2 text-sm w-full"
-                      value={mlRedirectUrl}
-                      onChange={(e) => setMlRedirectUrl(e.target.value)}
-                      placeholder="/partner/verification"
+                      className="border rounded px-3 py-2 text-sm w-full mt-1"
+                      placeholder="Ej: /partner/profile o /client/dashboard"
+                      value={mlCustomUrl}
+                      onChange={(e) => setMlCustomUrl(e.target.value)}
+                      autoFocus
                     />
-                  </label>
+                  )}
+                  {mlSection !== '__custom__' && (
+                    <p className="text-xs text-slate-500">Destino seleccionado: <span className="font-mono text-slate-700">{mlSection}</span></p>
+                  )}
+                </div>
+
+                {/* Step 3 — Password change banner */}
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide">3 · Banner de cambio de contraseña</p>
+                  <div className="flex gap-3">
+                    {([
+                      { value: false, label: 'No mostrar', desc: 'El usuario entra al panel sin ningún aviso adicional' },
+                      { value: true, label: 'Mostrar banner', desc: 'Aparece un aviso persistente invitando a crear o actualizar la contraseña' },
+                    ] as const).map((opt) => (
+                      <button
+                        key={String(opt.value)}
+                        type="button"
+                        onClick={() => setMlRequirePasswordChange(opt.value)}
+                        className={`flex-1 text-left rounded-lg border px-4 py-3 transition ${mlRequirePasswordChange === opt.value ? 'border-emerald-500 bg-emerald-50 ring-1 ring-emerald-400' : 'border-slate-200 hover:bg-slate-50'}`}
+                      >
+                        <p className={`text-sm font-semibold ${mlRequirePasswordChange === opt.value ? 'text-emerald-800' : 'text-slate-800'}`}>{opt.label}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">{opt.desc}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Summary + Generate */}
+                <div className="rounded-lg bg-slate-50 border px-4 py-3 flex flex-wrap items-center gap-4">
+                  <div className="flex-1 text-xs text-slate-600 space-y-0.5">
+                    <p><span className="font-medium">Audiencia:</span> {mlAudience === 'PARTNERS_WITHOUT_DOCS' ? 'Socios sin documentos' : mlAudience === 'ALL_PARTNERS' ? 'Todos los socios' : mlAudience === 'ALL_CLIENTS' ? 'Todos los clientes' : 'Todos los usuarios'}</p>
+                    <p><span className="font-medium">Destino:</span> <span className="font-mono">{mlRedirectUrl || '—'}</span></p>
+                    <p><span className="font-medium">Banner contraseña:</span> {mlRequirePasswordChange ? 'Sí' : 'No'}</p>
+                  </div>
                   <button
                     onClick={generateMagicLinks}
-                    disabled={mlGenerating}
-                    className="shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition"
+                    disabled={mlGenerating || (mlSection === '__custom__' && !mlCustomUrl.trim())}
+                    className="shrink-0 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition"
                   >
-                    {mlGenerating ? 'Generando…' : 'Generar para socios sin documentos'}
+                    {mlGenerating ? 'Generando…' : 'Generar links'}
                   </button>
                 </div>
 
@@ -2081,27 +2167,42 @@ export default function AdminCommunicationsPage() {
                   <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{mlError}</div>
                 )}
 
+                {/* Results */}
                 {mlResults !== null && (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap items-center gap-3">
                       <span className="text-sm font-semibold text-slate-800">{mlResults.length} links generados</span>
                       {mlResults.length === 0 && (
-                        <span className="text-xs text-slate-500">— No hay socios sin documentos aprobados.</span>
+                        <span className="text-xs text-slate-500">— No hay usuarios en esta audiencia.</span>
+                      )}
+                      {mlResults.length > 0 && (
+                        <button
+                          onClick={() => {
+                            const csv = ['userId,url', ...mlResults!.map((r) => `${r.userId},${r.url}`)].join('\n')
+                            const a = document.createElement('a')
+                            a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+                            a.download = `magic-links-${new Date().toISOString().slice(0, 10)}.csv`
+                            a.click()
+                          }}
+                          className="rounded border px-3 py-1 text-xs text-slate-700 hover:bg-slate-50 transition"
+                        >
+                          Exportar CSV
+                        </button>
                       )}
                     </div>
 
                     {mlResults.length > 0 && (
                       <>
                         <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
-                          Copia cada URL e inclúyela en tu plantilla de WhatsApp/SMS. O exporta la lista para usarla con tu herramienta de envío.
+                          Copia cada URL e inclúyela en tu plantilla usando <code className="bg-emerald-100 px-1 rounded">{'{{action_url}}'}</code>. Los links son de un solo uso y expiran en 72 h.
                         </div>
-                        <div className="overflow-x-auto rounded border">
+                        <div className="overflow-x-auto rounded border max-h-96 overflow-y-auto">
                           <table className="min-w-full text-sm">
-                            <thead className="bg-slate-50 text-slate-600 text-xs">
+                            <thead className="bg-slate-50 text-slate-600 text-xs sticky top-0">
                               <tr>
                                 <th className="px-3 py-2 text-left font-medium">#</th>
                                 <th className="px-3 py-2 text-left font-medium">User ID</th>
-                                <th className="px-3 py-2 text-left font-medium">URL (un solo uso · 72 h)</th>
+                                <th className="px-3 py-2 text-left font-medium">URL</th>
                                 <th className="px-3 py-2 text-right font-medium">Copiar</th>
                               </tr>
                             </thead>
@@ -2126,37 +2227,24 @@ export default function AdminCommunicationsPage() {
                             </tbody>
                           </table>
                         </div>
-
-                        <button
-                          onClick={() => {
-                            const csv = ['userId,url', ...mlResults.map((r) => `${r.userId},${r.url}`)].join('\n')
-                            const a = document.createElement('a')
-                            a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
-                            a.download = `magic-links-${new Date().toISOString().slice(0, 10)}.csv`
-                            a.click()
-                          }}
-                          className="rounded border px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 transition"
-                        >
-                          Exportar CSV
-                        </button>
                       </>
                     )}
                   </div>
                 )}
               </div>
 
-              {/* How to use in a campaign */}
+              {/* How to use */}
               <div className="rounded-xl border bg-white p-5 space-y-3">
                 <h2 className="text-base font-bold text-slate-900">Cómo usar en una campaña de WhatsApp</h2>
                 <ol className="list-decimal list-inside space-y-2 text-sm text-slate-700">
                   <li>Genera los links arriba y exporta el CSV.</li>
-                  <li>Ve a <strong>Crear campaña</strong> → elige canal <strong>WHATSAPP</strong> → elige una plantilla aprobada.</li>
-                  <li>En el cuerpo de la plantilla usa <code className="bg-slate-100 px-1 rounded text-xs">{'{{action_url}}'}</code> donde debe ir el link.</li>
-                  <li>En "Destinatarios individuales" sube o pega los IDs de los socios del CSV.</li>
-                  <li>El sistema reemplazará <code className="bg-slate-100 px-1 rounded text-xs">{'{{action_url}}'}</code> con el URL del magic link de cada socio al momento del envío.</li>
+                  <li>Ve a <strong>Crear campaña</strong> → canal <strong>WHATSAPP</strong> → plantilla aprobada.</li>
+                  <li>Usa <code className="bg-slate-100 px-1 rounded text-xs">{'{{action_url}}'}</code> en el cuerpo donde irá el link.</li>
+                  <li>En "Selección manual" busca los usuarios por ID o email y agrégalos.</li>
+                  <li>El sistema reemplaza <code className="bg-slate-100 px-1 rounded text-xs">{'{{action_url}}'}</code> con el URL del magic link de cada usuario al enviar.</li>
                 </ol>
                 <div className="rounded bg-slate-100 px-3 py-2 text-xs font-mono text-slate-600">
-                  {'Hola {{user_name}}, completa tu verificación en LoHaggo y empieza a recibir clientes: {{action_url}}'}
+                  {'Hola {{user_name}}, entra a tu panel LoHaggo con un clic: {{action_url}}'}
                 </div>
               </div>
 
