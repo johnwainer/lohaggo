@@ -1,6 +1,7 @@
 'use client'
 
 import { use, useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { flushSync } from 'react-dom'
 import { DollarSign, Clock, Star, CheckCircle, MapPin, Plus, Calendar, X, ChevronRight, Camera, Upload, Trash2, Shield, CreditCard, GraduationCap, ShieldCheck, UserPlus, Bell, Briefcase, TrendingUp, Users, Sparkles, Heart } from 'lucide-react'
@@ -40,6 +41,8 @@ interface Service {
         type: string
         status: string
       }>
+      slug?: string | null
+      isPublicProfile?: boolean
     }
   }>
 }
@@ -849,6 +852,14 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                           </>
                         )}
                       </button>
+                      {partnerService.partner.slug && partnerService.partner.isPublicProfile && (
+                        <Link
+                          href={`/pro/${partnerService.partner.slug}`}
+                          className="mt-2 w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-colors"
+                        >
+                          Ver perfil
+                        </Link>
+                      )}
                     </div>
                   )
                 })}
