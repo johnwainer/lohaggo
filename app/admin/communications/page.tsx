@@ -132,7 +132,7 @@ type WaTemplate = {
   waCategory: string | null
 }
 
-type Panel = 'OVERVIEW' | 'CONFIG' | 'CAMPAIGNS' | 'CREATE' | 'ANALYTICS' | 'MAGIC_LINK'
+type Panel = 'OVERVIEW' | 'CONFIG' | 'CAMPAIGNS' | 'CREATE' | 'ANALYTICS'
 
 const PANEL_OPTIONS: Array<{ id: Panel; label: string }> = [
   { id: 'OVERVIEW', label: 'Resumen' },
@@ -140,7 +140,6 @@ const PANEL_OPTIONS: Array<{ id: Panel; label: string }> = [
   { id: 'CAMPAIGNS', label: 'Campañas' },
   { id: 'CREATE', label: 'Crear campaña' },
   { id: 'ANALYTICS', label: 'Analytics' },
-  { id: 'MAGIC_LINK', label: '🔗 Magic Link' },
 ]
 
 const CITY_OPTIONS = ['MEDELLIN', 'BOGOTA', 'CALI', 'BARRANQUILLA']
@@ -188,9 +187,9 @@ const TEMPLATE_VARS: Array<{
   {
     group: 'Sistema',
     badge: 'bg-amber-100 text-amber-800',
-    note: 'Generados automáticamente. action_url usa el Magic Link del usuario si fue pre-generado.',
+    note: 'Generados automáticamente. action_url genera un magic link único por destinatario al enviar la campaña.',
     vars: [
-      { key: 'action_url',   desc: 'Magic Link personalizado del destinatario (genera los links antes de enviar la campaña)',  example: 'https://lohaggo.com/auth/magic?token=xxx' },
+      { key: 'action_url',   desc: 'Magic Link único por destinatario — se genera automáticamente al enviar. Configura destino y banner en la sección "Magic Link" de la campaña.',  example: 'https://lohaggo.com/auth/magic?token=xxx' },
       { key: 'app_name',     desc: 'Nombre de la plataforma',                   example: 'LoHaggo' },
     ],
   },
@@ -289,15 +288,6 @@ export default function AdminCommunicationsPage() {
   const [failedDeliveriesError, setFailedDeliveriesError] = useState<string | null>(null)
 
   // Magic link state
-  const [mlGenerating, setMlGenerating] = useState(false)
-  const [mlResults, setMlResults] = useState<Array<{ userId: string; name: string; token: string; url: string }> | null>(null)
-  const [mlError, setMlError] = useState<string | null>(null)
-  const [mlCopied, setMlCopied] = useState<string | null>(null)
-  const [mlAudience, setMlAudience] = useState<'ALL_PARTNERS' | 'ALL_CLIENTS' | 'ALL_USERS'>('ALL_PARTNERS')
-  const [mlRoleContext, setMlRoleContext] = useState<'partner' | 'client'>('partner')
-  const [mlSection, setMlSection] = useState('/partner/dashboard')
-  const [mlCustomUrl, setMlCustomUrl] = useState('')
-  const [mlRequirePasswordChange, setMlRequirePasswordChange] = useState(false)
 
   // Ref for template body textarea — enables click-to-insert variables at cursor
   const tplBodyRef = useRef<HTMLTextAreaElement>(null)
@@ -886,42 +876,6 @@ export default function AdminCommunicationsPage() {
     { value: '__custom__', label: 'URL personalizada…' },
   ]
 
-  const mlSections = mlRoleContext === 'partner' ? ML_PARTNER_SECTIONS : ML_CLIENT_SECTIONS
-  const mlRedirectUrl = mlSection === '__custom__' ? mlCustomUrl : mlSection
-
-  async function generateMagicLinks() {
-    if (mlSection === '__custom__' && !mlCustomUrl.trim()) {
-      setMlError('Ingresa una URL de destino personalizada.')
-      return
-    }
-    setMlGenerating(true)
-    setMlError(null)
-    setMlResults(null)
-    try {
-      const res = await fetch('/api/auth/magic/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          audience: mlAudience,
-          redirectUrl: mlRedirectUrl,
-          requirePasswordChange: mlRequirePasswordChange,
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Error generando links')
-      setMlResults(data.tokens || [])
-    } catch (err: unknown) {
-      setMlError(err instanceof Error ? err.message : 'Error desconocido')
-    } finally {
-      setMlGenerating(false)
-    }
-  }
-
-  async function copyMagicLink(text: string, id: string) {
-    await navigator.clipboard.writeText(text)
-    setMlCopied(id)
-    setTimeout(() => setMlCopied(null), 2000)
-  }
 
   return (
     <div className="space-y-6">
@@ -2201,225 +2155,6 @@ export default function AdminCommunicationsPage() {
             </section>
           )}
 
-          {activePanel === 'MAGIC_LINK' && (
-            <section className="space-y-5">
-
-              {/* Explanation */}
-              <div className="rounded-xl border bg-white p-5 space-y-4">
-                <h2 className="text-lg font-bold text-slate-900">Magic Link — acceso sin contraseña</h2>
-                <p className="text-sm text-slate-600">
-                  Genera enlaces de un solo uso para que socios o clientes entren directamente a cualquier sección del panel sin necesidad de recordar su contraseña.
-                  Ideal para reactivación, incorporación, campañas de verificación, o soporte.
-                </p>
-                <div className="grid md:grid-cols-3 gap-3">
-                  {[
-                    { step: '1', color: 'blue', title: 'Configuras el link', body: 'Elige a quién va dirigido, a qué sección del panel lo llevas, y si quieres que vea el banner de crear contraseña.' },
-                    { step: '2', color: 'violet', title: 'Envías la campaña', body: 'Copia las URLs o exporta el CSV. Úsalas en WhatsApp, SMS o email con la variable {{action_url}}.' },
-                    { step: '3', color: 'emerald', title: 'El usuario entra sin fricción', body: 'Al hacer clic queda logueado automáticamente y aterriza en la sección que configuraste. 72 h de validez, un solo uso.' },
-                  ].map((item) => (
-                    <div key={item.step} className={`rounded-lg border p-4 bg-${item.color}-50 border-${item.color}-200`}>
-                      <div className={`text-xs font-bold text-${item.color}-700 mb-1`}>Paso {item.step}</div>
-                      <div className={`text-sm font-semibold text-${item.color}-900 mb-1`}>{item.title}</div>
-                      <p className={`text-xs text-${item.color}-800`}>{item.body}</p>
-                    </div>
-                  ))}
-                </div>
-                <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-xs text-amber-900 space-y-1">
-                  <p className="font-semibold text-sm">Notas</p>
-                  <ul className="list-disc list-inside space-y-0.5">
-                    <li>Cada link es de <strong>un solo uso</strong> — el segundo intento falla.</li>
-                    <li>Expiran en <strong>72 horas</strong> desde su generación.</li>
-                    <li>El banner de cambio de contraseña es opcional y configurable por lote.</li>
-                  </ul>
-                </div>
-              </div>
-
-              {/* Generator */}
-              <div className="rounded-xl border bg-white p-5 space-y-5">
-                <h2 className="text-base font-bold text-slate-900">Generar Magic Links</h2>
-
-                {/* Step 1 — Audience */}
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide">1 · Audiencia</p>
-                  <div className="grid sm:grid-cols-3 gap-2">
-                    {([
-                      { value: 'ALL_PARTNERS', label: 'Todos los socios', desc: 'Genera un link por cada socio registrado', role: 'partner', defaultSection: '/partner/dashboard' },
-                      { value: 'ALL_CLIENTS', label: 'Todos los clientes', desc: 'Genera un link por cada cliente registrado', role: 'client', defaultSection: '/client/dashboard' },
-                      { value: 'ALL_USERS', label: 'Socios y clientes', desc: 'Genera un link por cada usuario (ambos roles)', role: 'partner', defaultSection: '/partner/dashboard' },
-                    ] as const).map((opt) => (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => {
-                          setMlAudience(opt.value)
-                          setMlRoleContext(opt.role)
-                          setMlSection(opt.defaultSection)
-                        }}
-                        className={`text-left rounded-lg border px-4 py-3 transition ${mlAudience === opt.value ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-400' : 'border-slate-200 hover:bg-slate-50'}`}
-                      >
-                        <p className={`text-sm font-semibold ${mlAudience === opt.value ? 'text-blue-800' : 'text-slate-800'}`}>{opt.label}</p>
-                        <p className="text-xs text-slate-500 mt-0.5">{opt.desc}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Step 2 — Destination */}
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide">2 · Destino dentro del panel</p>
-                  <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-2">
-                    {mlSections.map((sec) => (
-                      <button
-                        key={sec.value}
-                        type="button"
-                        onClick={() => setMlSection(sec.value)}
-                        className={`text-left rounded-lg border px-3 py-2.5 transition text-sm ${mlSection === sec.value ? 'border-violet-500 bg-violet-50 ring-1 ring-violet-400 font-semibold text-violet-800' : 'border-slate-200 hover:bg-slate-50 text-slate-700'}`}
-                      >
-                        {sec.label}
-                        {sec.value !== '__custom__' && (
-                          <span className="block text-xs font-mono text-slate-400 mt-0.5">{sec.value}</span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                  {mlSection === '__custom__' && (
-                    <input
-                      className="border rounded px-3 py-2 text-sm w-full mt-1"
-                      placeholder="Ej: /partner/profile o /client/dashboard"
-                      value={mlCustomUrl}
-                      onChange={(e) => setMlCustomUrl(e.target.value)}
-                      autoFocus
-                    />
-                  )}
-                  {mlSection !== '__custom__' && (
-                    <p className="text-xs text-slate-500">Destino seleccionado: <span className="font-mono text-slate-700">{mlSection}</span></p>
-                  )}
-                </div>
-
-                {/* Step 3 — Password change banner */}
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide">3 · Banner de cambio de contraseña</p>
-                  <div className="flex gap-3">
-                    {([
-                      { value: false, label: 'No mostrar', desc: 'El usuario entra al panel sin ningún aviso adicional' },
-                      { value: true, label: 'Mostrar banner', desc: 'Aparece un aviso persistente invitando a crear o actualizar la contraseña' },
-                    ] as const).map((opt) => (
-                      <button
-                        key={String(opt.value)}
-                        type="button"
-                        onClick={() => setMlRequirePasswordChange(opt.value)}
-                        className={`flex-1 text-left rounded-lg border px-4 py-3 transition ${mlRequirePasswordChange === opt.value ? 'border-emerald-500 bg-emerald-50 ring-1 ring-emerald-400' : 'border-slate-200 hover:bg-slate-50'}`}
-                      >
-                        <p className={`text-sm font-semibold ${mlRequirePasswordChange === opt.value ? 'text-emerald-800' : 'text-slate-800'}`}>{opt.label}</p>
-                        <p className="text-xs text-slate-500 mt-0.5">{opt.desc}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Summary + Generate */}
-                <div className="rounded-lg bg-slate-50 border px-4 py-3 flex flex-wrap items-center gap-4">
-                  <div className="flex-1 text-xs text-slate-600 space-y-0.5">
-                    <p><span className="font-medium">Audiencia:</span> {mlAudience === 'ALL_PARTNERS' ? 'Todos los socios' : mlAudience === 'ALL_CLIENTS' ? 'Todos los clientes' : 'Socios y clientes'}</p>
-                    <p><span className="font-medium">Destino:</span> <span className="font-mono">{mlRedirectUrl || '—'}</span></p>
-                    <p><span className="font-medium">Banner contraseña:</span> {mlRequirePasswordChange ? 'Sí' : 'No'}</p>
-                  </div>
-                  <button
-                    onClick={generateMagicLinks}
-                    disabled={mlGenerating || (mlSection === '__custom__' && !mlCustomUrl.trim())}
-                    className="shrink-0 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition"
-                  >
-                    {mlGenerating ? 'Generando…' : 'Generar links'}
-                  </button>
-                </div>
-
-                {mlError && (
-                  <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{mlError}</div>
-                )}
-
-                {/* Results */}
-                {mlResults !== null && (
-                  <div className="space-y-3">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <span className="text-sm font-semibold text-slate-800">{mlResults.length} links generados</span>
-                      {mlResults.length === 0 && (
-                        <span className="text-xs text-slate-500">— No hay usuarios en esta audiencia.</span>
-                      )}
-                      {mlResults.length > 0 && (
-                        <button
-                          onClick={() => {
-                            const csv = ['userId,url', ...mlResults!.map((r) => `${r.userId},${r.url}`)].join('\n')
-                            const a = document.createElement('a')
-                            a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
-                            a.download = `magic-links-${new Date().toISOString().slice(0, 10)}.csv`
-                            a.click()
-                          }}
-                          className="rounded border px-3 py-1 text-xs text-slate-700 hover:bg-slate-50 transition"
-                        >
-                          Exportar CSV
-                        </button>
-                      )}
-                    </div>
-
-                    {mlResults.length > 0 && (
-                      <>
-                        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
-                          Copia cada URL e inclúyela en tu plantilla usando <code className="bg-emerald-100 px-1 rounded">{'{{action_url}}'}</code>. Los links son de un solo uso y expiran en 72 h.
-                        </div>
-                        <div className="overflow-x-auto rounded border max-h-96 overflow-y-auto">
-                          <table className="min-w-full text-sm">
-                            <thead className="bg-slate-50 text-slate-600 text-xs sticky top-0">
-                              <tr>
-                                <th className="px-3 py-2 text-left font-medium">#</th>
-                                <th className="px-3 py-2 text-left font-medium">User ID</th>
-                                <th className="px-3 py-2 text-left font-medium">URL</th>
-                                <th className="px-3 py-2 text-right font-medium">Copiar</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {mlResults.map((r, i) => (
-                                <tr key={r.token} className="border-t hover:bg-slate-50">
-                                  <td className="px-3 py-2 text-slate-400">{i + 1}</td>
-                                  <td className="px-3 py-2 font-mono text-xs text-slate-600">{r.userId}</td>
-                                  <td className="px-3 py-2 max-w-xs">
-                                    <span className="font-mono text-xs text-blue-700 break-all">{r.url}</span>
-                                  </td>
-                                  <td className="px-3 py-2 text-right">
-                                    <button
-                                      onClick={() => copyMagicLink(r.url, r.token)}
-                                      className="rounded border px-2 py-1 text-xs hover:bg-slate-100 transition"
-                                    >
-                                      {mlCopied === r.token ? '✓ Copiado' : 'Copiar'}
-                                    </button>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* How to use */}
-              <div className="rounded-xl border bg-white p-5 space-y-3">
-                <h2 className="text-base font-bold text-slate-900">Cómo usar en una campaña de WhatsApp</h2>
-                <ol className="list-decimal list-inside space-y-2 text-sm text-slate-700">
-                  <li>Genera los links arriba y exporta el CSV.</li>
-                  <li>Ve a <strong>Crear campaña</strong> → canal <strong>WHATSAPP</strong> → plantilla aprobada.</li>
-                  <li>Usa <code className="bg-slate-100 px-1 rounded text-xs">{'{{action_url}}'}</code> en el cuerpo donde irá el link.</li>
-                  <li>En "Selección manual" busca los usuarios por ID o email y agrégalos.</li>
-                  <li>El sistema reemplaza <code className="bg-slate-100 px-1 rounded text-xs">{'{{action_url}}'}</code> con el URL del magic link de cada usuario al enviar.</li>
-                </ol>
-                <div className="rounded bg-slate-100 px-3 py-2 text-xs font-mono text-slate-600">
-                  {'Hola {{user_name}}, entra a tu panel LoHaggo con un clic: {{action_url}}'}
-                </div>
-              </div>
-
-            </section>
-          )}
         </>
       )}
     </div>

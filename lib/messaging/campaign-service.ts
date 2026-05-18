@@ -59,12 +59,14 @@ export async function processCampaign(campaignId: string) {
   const magicUrlByUser = new Map<string, string>()
 
   if (needsActionUrl && users.length > 0) {
-    // Load existing valid (unused, non-expired) tokens.
+    // Reuse existing valid tokens only when they match this campaign's redirect and banner config.
     const existingTokens = await prisma.magicToken.findMany({
       where: {
         userId: { in: users.map((u) => u.id) },
         usedAt: null,
         expiresAt: { gt: new Date() },
+        redirectUrl: magicLinkRedirectUrl,
+        requirePasswordChange: magicLinkRequirePasswordChange,
       },
       orderBy: { createdAt: 'desc' },
       select: { userId: true, token: true },
@@ -75,7 +77,7 @@ export async function processCampaign(campaignId: string) {
       }
     }
 
-    // Auto-generate tokens for users who don't have a valid one.
+    // Auto-generate tokens for users who don't have a matching valid one.
     const missingUserIds = users.map((u) => u.id).filter((id) => !magicUrlByUser.has(id))
     if (missingUserIds.length > 0) {
       const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000)
