@@ -51,6 +51,7 @@ export default function AdminLayoutClient({
     if (pathname.startsWith('/admin/documents')) return 'documents'
     if (pathname.startsWith('/admin/risk-control')) return 'risk-control'
     if (pathname.startsWith('/admin/messaging')) return 'messaging'
+    if (pathname.startsWith('/admin/inbox')) return 'inbox'
     if (pathname.startsWith('/admin/connections')) return 'connections'
     if (pathname.startsWith('/admin/automations')) return 'automations'
     if (pathname.startsWith('/admin/payment-config')) return 'connections'
@@ -59,15 +60,22 @@ export default function AdminLayoutClient({
 
   const activeSection = getActiveSectionFromPath()
 
+  // Full-bleed pages need no padding or max-width wrapper
+  const isFullBleed = pathname.startsWith('/admin/inbox')
+
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar activeSection={activeSection} />
-      <main className="flex-1 overflow-auto ml-0 lg:ml-64">
-        <div className="p-3 sm:p-6 lg:p-8">
-          <div className="mx-auto w-full max-w-7xl">
-            {children}
+      <main className={`flex-1 ml-0 lg:ml-64 ${isFullBleed ? 'overflow-hidden flex flex-col' : 'overflow-auto'}`}>
+        {isFullBleed ? (
+          children
+        ) : (
+          <div className="p-3 sm:p-6 lg:p-8">
+            <div className="mx-auto w-full max-w-7xl">
+              {children}
+            </div>
           </div>
-        </div>
+        )}
       </main>
     </div>
   )
