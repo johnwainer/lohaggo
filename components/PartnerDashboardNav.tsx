@@ -129,8 +129,8 @@ export default function PartnerDashboardNav({
         </div>
       </div>
 
-      {/* Mobile — inline grid, same look as ClientDashboardNav */}
-      <div className="md:hidden border-t border-gray-200 bg-white/95 backdrop-blur-md">
+      {/* Mobile — fixed bottom bar */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
         <nav className="mx-auto grid max-w-2xl grid-cols-6 gap-1 px-2 py-2">
           {navItems.map((item) => {
             const Icon = item.icon
@@ -140,7 +140,7 @@ export default function PartnerDashboardNav({
                 key={item.id}
                 type="button"
                 onClick={() => handleNav(item)}
-                className={`relative flex min-h-[56px] flex-col items-center justify-center rounded-xl text-xs font-medium transition ${
+                className={`relative flex min-h-[52px] flex-col items-center justify-center rounded-xl text-xs font-medium transition ${
                   isActive ? 'bg-primary-50 text-primary-700' : 'text-gray-600 active:scale-95'
                 }`}
               >
