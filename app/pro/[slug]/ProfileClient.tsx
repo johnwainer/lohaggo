@@ -179,11 +179,9 @@ const ratingDist = [5, 4, 3, 2, 1].map((stars) => ({
                   </div>
                 )}
               </div>
-              {partner.verified && (
-                <div className="absolute -bottom-1 -right-1 bg-emerald-500 rounded-full p-1.5 ring-2 ring-primary-800">
-                  <CheckCircle className="w-4 h-4 text-white fill-white" />
-                </div>
-              )}
+              <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 ring-2 ring-primary-800">
+                <img src="/icon-512.png" alt="LoHaggo" className="w-7 h-7 rounded-full" />
+              </div>
             </div>
 
             {/* Info */}
