@@ -1,5 +1,6 @@
 import type { City, MessagingChannel, UserRole } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { normalizePhone } from '@/lib/phone'
 
 type BasicUser = {
   id: string
@@ -105,7 +106,7 @@ export function mergeCampaignAudienceMetadata(
 export function resolveDestination(channel: MessagingChannel, user: { id: string; email: string; phone: string | null }) {
   if (channel === 'PUSH') return (user as { pushSubscription?: string | null }).pushSubscription ? `user:${user.id}` : null
   if (channel === 'EMAIL') return user.email
-  return user.phone
+  return normalizePhone(user.phone)
 }
 
 export async function resolveCampaignRecipients(params: {

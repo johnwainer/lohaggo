@@ -13,6 +13,7 @@ import {
 } from '@/lib/security/bot-protection'
 import { sendWelcomePartner } from '@/lib/messaging/whatsapp-templates'
 import { scheduleAutomationsForUser } from '@/lib/messaging/automation-service'
+import { normalizePhone } from '@/lib/phone'
 
 const logger = createLogger('register')
 
@@ -137,7 +138,7 @@ async function handlePOST(request: NextRequest) {
       email,
       password: hashedPassword,
       name,
-      phone,
+      phone: normalizePhone(phone),
       role: role || "CLIENT"
     }
 

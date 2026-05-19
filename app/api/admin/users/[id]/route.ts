@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/admin-utils'
+import { normalizePhone } from '@/lib/phone'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -283,7 +284,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   const data: Record<string, unknown> = {}
   if (body.isActive !== undefined) data.isActive = Boolean(body.isActive)
   if (body.name !== undefined) data.name = String(body.name).trim()
-  if (body.phone !== undefined) data.phone = body.phone || null
+  if (body.phone !== undefined) data.phone = normalizePhone(body.phone) ?? null
   if (body.notes !== undefined) data.notes = body.notes
 
   const user = await prisma.user.update({ where: { id }, data, select: { id: true, isActive: true, name: true } })

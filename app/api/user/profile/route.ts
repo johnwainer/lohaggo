@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
 import { userProfileSchema, validateRequest, sanitizeUrl } from '@/lib/validation'
+import { normalizePhone } from '@/lib/phone'
 
 
 const logger = createLogger('user-profile')
@@ -28,7 +29,7 @@ export async function PUT(request: Request) {
     const updateData: any = { name }
 
     if (phone) {
-      updateData.phone = phone
+      updateData.phone = normalizePhone(phone)
     }
 
     if (body.image !== undefined) {
