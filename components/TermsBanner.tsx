@@ -48,12 +48,7 @@ export default function TermsBanner() {
     }
 
     return (
-        <>
-            {/* Backdrop */}
-            <div className="fixed inset-0 bg-black/50 z-40" onClick={handleClose} />
-
-            {/* Banner */}
-            <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t-2 border-primary-500 shadow-2xl">
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t-2 border-primary-500 shadow-2xl">
                 <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                         {/* Close button */}
@@ -126,7 +121,6 @@ export default function TermsBanner() {
                         </div>
                     </div>
                 </div>
-            </div>
-        </>
+        </div>
     )
 }
