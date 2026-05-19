@@ -290,6 +290,7 @@ export default function AdminCommunicationsPage() {
   } | null>(null)
   const [loadingRecipients, setLoadingRecipients] = useState(false)
   const [campaignFeedback, setCampaignFeedback] = useState<{ type: 'ok' | 'error'; message: string } | null>(null)
+  const [sendingIds, setSendingIds] = useState<Set<string>>(new Set())
   const [failedDeliveriesCampaign, setFailedDeliveriesCampaign] = useState<Campaign | null>(null)
   const [failedDeliveries, setFailedDeliveries] = useState<FailedDelivery[]>([])
   const [loadingFailedDeliveries, setLoadingFailedDeliveries] = useState(false)
@@ -448,6 +449,19 @@ export default function AdminCommunicationsPage() {
   useEffect(() => {
     load()
   }, [])
+
+  // Auto-refresh while any campaign is processing
+  useEffect(() => {
+    const hasProcessing = campaigns.some((c) => c.status === 'PROCESSING')
+    if (!hasProcessing) return
+    const timer = setInterval(async () => {
+      const res = await fetch('/api/admin/messaging/campaigns', { cache: 'no-store' })
+      if (!res.ok) return
+      const data = await res.json()
+      setCampaigns(data.campaigns || [])
+    }, 4000)
+    return () => clearInterval(timer)
+  }, [campaigns])
 
   useEffect(() => {
     if (!providers) return
@@ -721,39 +735,48 @@ export default function AdminCommunicationsPage() {
   }
 
   const sendCampaign = async (campaignId: string) => {
-    setCampaignFeedback(null)
-    const response = await fetch(`/api/admin/messaging/campaigns/${campaignId}/send`, { method: 'POST' })
-    const data = await response.json().catch(() => null)
-    if (!response.ok) {
-      setCampaignFeedback({ type: 'error', message: data?.error || 'No se pudo enviar la campaña' })
-      return
-    }
-    const campaign = data?.campaign
-    const failureSample: Array<{ errorCode: string | null; errorMessage: string | null; destination: string }> = data?.failureSample || []
-    const status = campaign?.status as string | undefined
-    const sent = campaign?.totalSent ?? 0
-    const failed = campaign?.totalFailed ?? 0
-    const total = campaign?.totalRecipients ?? 0
+    const campaign = campaigns.find((c) => c.id === campaignId)
+    if (!campaign) return
 
-    if (status === 'FAILED') {
-      const firstError = failureSample[0]
-      const detail = firstError?.errorMessage || firstError?.errorCode || 'Sin detalle del proveedor'
-      setCampaignFeedback({
-        type: 'error',
-        message: `Campaña fallida (${failed}/${total} fallaron). Error: ${detail}`,
-      })
-    } else if (status === 'PARTIAL') {
-      const firstError = failureSample[0]
-      const detail = firstError?.errorMessage || firstError?.errorCode || ''
-      setCampaignFeedback({
-        type: 'error',
-        message: `Envío parcial: ${sent} enviados, ${failed} fallaron.${detail ? ` Error: ${detail}` : ''}`,
-      })
-    } else {
-      setCampaignFeedback({ type: 'ok', message: `Campaña enviada: ${sent} mensajes entregados.` })
+    const isSent = campaign.status === 'SENT'
+    const confirmMsg = isSent
+      ? `Esta campaña ya fue enviada (${campaign.totalSent} mensajes). ¿Enviar de nuevo a todos los destinatarios?`
+      : `¿Confirmas el envío de "${campaign.name}"? Esta acción no se puede deshacer.`
+    if (!window.confirm(confirmMsg)) return
+
+    setCampaignFeedback(null)
+    setSendingIds((prev) => new Set(prev).add(campaignId))
+
+    try {
+      const response = await fetch(`/api/admin/messaging/campaigns/${campaignId}/send`, { method: 'POST' })
+      const data = await response.json().catch(() => null)
+      if (!response.ok) {
+        setCampaignFeedback({ type: 'error', message: data?.error || 'No se pudo enviar la campaña' })
+        return
+      }
+      const result = data?.campaign
+      const failureSample: Array<{ errorCode: string | null; errorMessage: string | null; destination: string }> = data?.failureSample || []
+      const status = result?.status as string | undefined
+      const sent = result?.totalSent ?? 0
+      const failed = result?.totalFailed ?? 0
+      const total = result?.totalRecipients ?? 0
+
+      if (status === 'FAILED') {
+        const firstError = failureSample[0]
+        const detail = firstError?.errorMessage || firstError?.errorCode || 'Sin detalle del proveedor'
+        setCampaignFeedback({ type: 'error', message: `Campaña fallida (${failed}/${total} fallaron). Error: ${detail}` })
+      } else if (status === 'PARTIAL') {
+        const firstError = failureSample[0]
+        const detail = firstError?.errorMessage || firstError?.errorCode || ''
+        setCampaignFeedback({ type: 'error', message: `Envío parcial: ${sent} enviados, ${failed} fallaron.${detail ? ` Error: ${detail}` : ''}` })
+      } else {
+        setCampaignFeedback({ type: 'ok', message: `✓ Campaña enviada: ${sent} de ${total} mensajes entregados.` })
+      }
+      await load()
+      await loadMetrics(campaignId)
+    } finally {
+      setSendingIds((prev) => { const next = new Set(prev); next.delete(campaignId); return next })
     }
-    await load()
-    await loadMetrics(campaignId)
   }
 
   const loadFailedDeliveries = async (campaign: Campaign) => {
@@ -1144,7 +1167,22 @@ export default function AdminCommunicationsPage() {
                         <td className="px-3 py-2 font-medium text-gray-900">{campaign.name}</td>
                         <td className="px-3 py-2">{campaign.channel}</td>
                         <td className="px-3 py-2">{campaign.targetRole || 'ALL'} {campaign.targetCity ? `/${campaign.targetCity}` : ''}</td>
-                        <td className="px-3 py-2">{campaign.status}</td>
+                        <td className="px-3 py-2">
+                          {(() => {
+                            const s = campaign.status
+                            const cfg: Record<string, { label: string; cls: string }> = {
+                              DRAFT:      { label: 'Borrador',    cls: 'bg-gray-100 text-gray-600' },
+                              SCHEDULED:  { label: 'Programada',  cls: 'bg-blue-100 text-blue-700' },
+                              PROCESSING: { label: 'Procesando…', cls: 'bg-yellow-100 text-yellow-700 animate-pulse' },
+                              SENT:       { label: 'Enviada',     cls: 'bg-emerald-100 text-emerald-700' },
+                              PARTIAL:    { label: 'Parcial',     cls: 'bg-orange-100 text-orange-700' },
+                              FAILED:     { label: 'Fallida',     cls: 'bg-rose-100 text-rose-700' },
+                              CANCELLED:  { label: 'Cancelada',   cls: 'bg-gray-100 text-gray-500' },
+                            }
+                            const { label, cls } = cfg[s] || { label: s, cls: 'bg-gray-100 text-gray-600' }
+                            return <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${cls}`}>{label}</span>
+                          })()}
+                        </td>
                         <td className="px-3 py-2">{campaign.totalRecipients}</td>
                         <td className="px-3 py-2">{campaign.totalSent}</td>
                         <td className="px-3 py-2">
@@ -1177,9 +1215,41 @@ export default function AdminCommunicationsPage() {
                             <button className="border rounded px-2 py-1 text-xs" onClick={() => loadMetrics(campaign.id, true)}>
                               Métricas
                             </button>
-                            <button className="bg-primary-600 text-white rounded px-2 py-1 text-xs" onClick={() => sendCampaign(campaign.id)}>
-                              Enviar
-                            </button>
+                            {(() => {
+                              const isSending = sendingIds.has(campaign.id)
+                              const isProcessing = campaign.status === 'PROCESSING'
+                              const isSent = campaign.status === 'SENT'
+                              if (isSending) {
+                                return (
+                                  <span className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs bg-primary-100 text-primary-700 font-semibold">
+                                    <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none">
+                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                                    </svg>
+                                    Enviando…
+                                  </span>
+                                )
+                              }
+                              if (isProcessing) {
+                                return (
+                                  <span className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs bg-yellow-100 text-yellow-700 font-semibold animate-pulse">
+                                    <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none">
+                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                                    </svg>
+                                    Procesando…
+                                  </span>
+                                )
+                              }
+                              return (
+                                <button
+                                  className={`rounded px-2 py-1 text-xs font-semibold text-white transition ${isSent ? 'bg-gray-400 hover:bg-primary-600' : 'bg-primary-600 hover:bg-primary-700'}`}
+                                  onClick={() => void sendCampaign(campaign.id)}
+                                >
+                                  {isSent ? 'Reenviar' : 'Enviar'}
+                                </button>
+                              )
+                            })()}
                           </div>
                         </td>
                       </tr>
