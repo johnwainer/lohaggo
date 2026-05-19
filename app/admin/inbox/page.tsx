@@ -183,6 +183,7 @@ export default function InboxPage() {
   const [showTemplatePicker, setShowTemplatePicker] = useState(false)
   const [templateVars, setTemplateVars] = useState<Record<string, string>>({})
   const [selectedTemplate, setSelectedTemplate] = useState<WaTemplate | null>(null)
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -474,6 +475,19 @@ export default function InboxPage() {
     acc[cat].push(r)
     return acc
   }, {})
+
+  function insertEmoji(emoji: string) {
+    const el = inputRef.current
+    if (!el) { setMessageText((prev) => prev + emoji); return }
+    const start = el.selectionStart ?? messageText.length
+    const end = el.selectionEnd ?? messageText.length
+    const next = messageText.slice(0, start) + emoji + messageText.slice(end)
+    setMessageText(next)
+    requestAnimationFrame(() => {
+      el.focus()
+      el.setSelectionRange(start + emoji.length, start + emoji.length)
+    })
+  }
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
@@ -925,7 +939,26 @@ export default function InboxPage() {
                     <span className="text-xs font-medium text-yellow-700">Nota interna — no se envía al contacto</span>
                   </div>
                 )}
-                <div className={`flex items-end gap-2 rounded-2xl border px-4 py-2 ${isInternalNote ? 'bg-yellow-50 border-yellow-200' : 'bg-gray-50'}`}>
+
+                {/* WA window blocked notice */}
+                {windowClosed && !isInternalNote && (
+                  <div className="mb-2 flex items-center gap-2 rounded-xl border border-yellow-200 bg-yellow-50 px-3 py-2 text-xs text-yellow-800">
+                    <Clock className="h-3.5 w-3.5 shrink-0 text-yellow-600" />
+                    <span className="flex-1">Chat bloqueado — ventana de 24h cerrada. Debes usar una plantilla de WhatsApp para retomar.</span>
+                    <button
+                      onClick={loadWaTemplates}
+                      className="shrink-0 rounded-lg bg-yellow-600 px-3 py-1 text-xs font-semibold text-white hover:bg-yellow-700 transition"
+                    >
+                      Usar plantilla
+                    </button>
+                  </div>
+                )}
+
+                <div className={`relative flex items-end gap-2 rounded-2xl border px-4 py-2 transition ${
+                  windowClosed && !isInternalNote
+                    ? 'bg-gray-100 border-gray-200 opacity-60 pointer-events-none select-none'
+                    : isInternalNote ? 'bg-yellow-50 border-yellow-200' : 'bg-gray-50'
+                }`}>
                   {/* Canned responses */}
                   <button
                     onClick={() => setShowCannedPicker((v) => !v)}
@@ -944,6 +977,41 @@ export default function InboxPage() {
                     <StickyNote className="h-4 w-4" />
                   </button>
 
+                  {/* Emoji picker button */}
+                  <div className="relative shrink-0">
+                    <button
+                      onClick={() => setShowEmojiPicker((v) => !v)}
+                      className={`rounded-lg p-1.5 transition text-base leading-none ${showEmojiPicker ? 'bg-primary-100' : 'text-gray-400 hover:bg-gray-100'}`}
+                      title="Emojis"
+                    >
+                      😊
+                    </button>
+                    {showEmojiPicker && (
+                      <div className="absolute bottom-10 left-0 z-30 w-72 rounded-2xl border bg-white shadow-xl p-3">
+                        <div className="grid grid-cols-8 gap-1 max-h-52 overflow-y-auto">
+                          {[
+                            '😊','😄','😂','🤣','😍','🥰','😘','🤩',
+                            '👍','👏','🙌','🙏','💪','✅','🔥','⭐',
+                            '❤️','💙','💚','💛','🧡','💜','🖤','🤍',
+                            '😅','😬','🤔','😮','😱','😢','😭','🥺',
+                            '🎉','🎊','🎁','🏆','🥇','💯','✨','🌟',
+                            '📞','📱','💬','📩','📋','📌','🔔','⏰',
+                            '👋','🤝','💼','🏠','🚗','🛒','💰','💳',
+                            '✔️','❌','⚠️','ℹ️','🔒','🔓','📊','📈',
+                          ].map((emoji) => (
+                            <button
+                              key={emoji}
+                              onClick={() => { insertEmoji(emoji); setShowEmojiPicker(false) }}
+                              className="flex items-center justify-center h-8 w-8 rounded-lg text-lg hover:bg-gray-100 transition"
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="shrink-0 flex items-center gap-1.5 text-xs text-gray-500 pb-1">
                     <span className={`rounded-full w-2 h-2 ${CHANNEL_COLOR[selected.channel]}`} />
                     {selected.channel}
@@ -952,9 +1020,10 @@ export default function InboxPage() {
                   <textarea
                     ref={inputRef}
                     className="flex-1 bg-transparent resize-none text-sm outline-none min-h-[36px] max-h-32 py-1"
-                    placeholder={isInternalNote ? 'Escribe una nota interna…' : `Escribe un mensaje por ${selected.channel === 'WHATSAPP' ? 'WhatsApp' : 'SMS'}…`}
+                    placeholder={isInternalNote ? 'Escribe una nota interna…' : windowClosed ? 'Ventana cerrada — usa una plantilla' : `Escribe un mensaje por ${selected.channel === 'WHATSAPP' ? 'WhatsApp' : 'SMS'}…`}
                     value={messageText}
                     rows={1}
+                    disabled={windowClosed && !isInternalNote}
                     onChange={(e) => {
                       setMessageText(e.target.value)
                       e.target.style.height = 'auto'
@@ -966,7 +1035,7 @@ export default function InboxPage() {
                   />
                   <button
                     onClick={sendMessage}
-                    disabled={!messageText.trim() || sending}
+                    disabled={!messageText.trim() || sending || (windowClosed && !isInternalNote)}
                     className="shrink-0 rounded-xl bg-primary-600 p-2 text-white hover:bg-primary-700 disabled:opacity-40 transition"
                   >
                     {sending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
