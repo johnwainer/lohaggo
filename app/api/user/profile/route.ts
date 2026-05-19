@@ -29,7 +29,7 @@ export async function PUT(request: Request) {
     const updateData: any = { name }
 
     if (phone) {
-      updateData.phone = normalizePhone(phone)
+      updateData.phone = normalizePhone(phone as string)
     }
 
     if (body.image !== undefined) {
