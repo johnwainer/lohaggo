@@ -1011,17 +1011,19 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
         )}
       </div>
 
-      <div className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] left-0 right-0 z-30 px-4 md:hidden">
-        <button
-          type="button"
-          onClick={() => setShowRefineSheet(true)}
-          className="mx-auto flex w-full max-w-sm items-center justify-center gap-2 rounded-full bg-primary-600 px-5 py-3 text-sm font-bold text-white shadow-xl hover:bg-primary-700 md:w-auto"
-        >
-          <SlidersHorizontal className="h-4 w-4" />
-          Filtrar resultados
-          <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs">{activeRefinementCount}</span>
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={() => setShowRefineSheet(true)}
+        className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-4 z-30 flex items-center gap-1.5 rounded-full bg-primary-600 px-3 py-2.5 text-white shadow-xl active:scale-95 transition-transform md:hidden"
+        aria-label="Filtrar resultados"
+      >
+        <SlidersHorizontal className="h-4 w-4" />
+        {activeRefinementCount > 0 && (
+          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white text-[10px] font-bold text-primary-600">
+            {activeRefinementCount}
+          </span>
+        )}
+      </button>
 
       {showRefineSheet && (
         <div className="fixed inset-0 z-[80]">
