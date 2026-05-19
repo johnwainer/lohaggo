@@ -732,73 +732,6 @@ export default function InboxPage() {
               </div>
             )}
 
-            {/* WhatsApp 24h window warning */}
-            {windowClosed && !showTemplatePicker && (
-              <div className="mx-5 mt-3 flex items-center gap-3 rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-2.5 text-sm text-yellow-800">
-                <Clock className="h-4 w-4 shrink-0 text-yellow-600" />
-                <span className="flex-1">Ventana de 24h cerrada. Solo puedes enviar plantillas aprobadas de WhatsApp.</span>
-                <button
-                  onClick={loadWaTemplates}
-                  className="shrink-0 rounded-lg bg-yellow-600 px-3 py-1 text-xs font-semibold text-white hover:bg-yellow-700 transition flex items-center gap-1"
-                >
-                  <LayoutTemplate className="h-3.5 w-3.5" />
-                  Usar plantilla
-                </button>
-              </div>
-            )}
-
-            {/* WA Template picker */}
-            {showTemplatePicker && (
-              <div className="mx-5 mt-3 rounded-xl border bg-white shadow-sm">
-                <div className="flex items-center justify-between px-4 py-2 border-b">
-                  <span className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
-                    <LayoutTemplate className="h-4 w-4" /> Plantillas de WhatsApp
-                  </span>
-                  <button onClick={() => { setShowTemplatePicker(false); setSelectedTemplate(null) }} className="text-gray-400 hover:text-gray-600">
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-                <div className="p-3 max-h-64 overflow-y-auto space-y-2">
-                  {waTemplates.length === 0 && (
-                    <p className="text-sm text-gray-400 text-center py-4">No hay plantillas aprobadas</p>
-                  )}
-                  {waTemplates.map((t) => (
-                    <button
-                      key={t.sid}
-                      onClick={() => { setSelectedTemplate(t); setTemplateVars({}) }}
-                      className={`w-full text-left rounded-lg border p-3 text-sm transition ${selectedTemplate?.sid === t.sid ? 'border-primary-400 bg-primary-50' : 'hover:border-gray-300 hover:bg-gray-50'}`}
-                    >
-                      <p className="font-medium text-gray-800">{t.name}</p>
-                      <p className="text-gray-500 text-xs mt-0.5 line-clamp-2">{t.body}</p>
-                    </button>
-                  ))}
-                </div>
-                {selectedTemplate && (
-                  <div className="px-4 pb-4 space-y-2 border-t pt-3">
-                    <p className="text-xs font-semibold text-gray-600">Variables de la plantilla</p>
-                    {Object.keys(selectedTemplate.variables).map((key) => (
-                      <div key={key} className="flex items-center gap-2">
-                        <span className="text-xs text-gray-500 w-8">{`{{${key}}}`}</span>
-                        <input
-                          className="flex-1 border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500"
-                          placeholder={`Valor para ${key}`}
-                          value={templateVars[key] || ''}
-                          onChange={(e) => setTemplateVars((prev) => ({ ...prev, [key]: e.target.value }))}
-                        />
-                      </div>
-                    ))}
-                    <button
-                      onClick={sendTemplate}
-                      disabled={sending}
-                      className="w-full rounded-lg bg-green-600 py-1.5 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-40 transition"
-                    >
-                      {sending ? 'Enviando…' : 'Enviar plantilla'}
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
             {/* Messages */}
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
               {/* Load more */}
@@ -941,16 +874,69 @@ export default function InboxPage() {
                 )}
 
                 {/* WA window blocked notice */}
-                {windowClosed && !isInternalNote && (
+                {windowClosed && !isInternalNote && !showTemplatePicker && (
                   <div className="mb-2 flex items-center gap-2 rounded-xl border border-yellow-200 bg-yellow-50 px-3 py-2 text-xs text-yellow-800">
                     <Clock className="h-3.5 w-3.5 shrink-0 text-yellow-600" />
-                    <span className="flex-1">Chat bloqueado — ventana de 24h cerrada. Debes usar una plantilla de WhatsApp para retomar.</span>
+                    <span className="flex-1">Ventana de 24h cerrada. Debes usar una plantilla de WhatsApp para retomar.</span>
                     <button
                       onClick={loadWaTemplates}
-                      className="shrink-0 rounded-lg bg-yellow-600 px-3 py-1 text-xs font-semibold text-white hover:bg-yellow-700 transition"
+                      className="shrink-0 rounded-lg bg-yellow-600 px-3 py-1 text-xs font-semibold text-white hover:bg-yellow-700 transition flex items-center gap-1"
                     >
+                      <LayoutTemplate className="h-3 w-3" />
                       Usar plantilla
                     </button>
+                  </div>
+                )}
+
+                {/* WA Template picker — only here, at the bottom */}
+                {showTemplatePicker && (
+                  <div className="mb-2 rounded-xl border bg-white shadow-sm">
+                    <div className="flex items-center justify-between px-3 py-2 border-b">
+                      <span className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
+                        <LayoutTemplate className="h-4 w-4" /> Plantillas de WhatsApp
+                      </span>
+                      <button onClick={() => { setShowTemplatePicker(false); setSelectedTemplate(null) }} className="text-gray-400 hover:text-gray-600">
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <div className="p-3 max-h-48 overflow-y-auto space-y-1.5">
+                      {waTemplates.length === 0 && (
+                        <p className="text-sm text-gray-400 text-center py-3">No hay plantillas aprobadas</p>
+                      )}
+                      {waTemplates.map((t) => (
+                        <button
+                          key={t.sid}
+                          onClick={() => { setSelectedTemplate(t); setTemplateVars({}) }}
+                          className={`w-full text-left rounded-lg border p-2.5 text-sm transition ${selectedTemplate?.sid === t.sid ? 'border-primary-400 bg-primary-50' : 'hover:border-gray-300 hover:bg-gray-50'}`}
+                        >
+                          <p className="font-medium text-gray-800">{t.name}</p>
+                          <p className="text-gray-500 text-xs mt-0.5 line-clamp-1">{t.body}</p>
+                        </button>
+                      ))}
+                    </div>
+                    {selectedTemplate && (
+                      <div className="px-3 pb-3 space-y-2 border-t pt-3">
+                        <p className="text-xs font-semibold text-gray-600">Variables</p>
+                        {Object.keys(selectedTemplate.variables).map((key) => (
+                          <div key={key} className="flex items-center gap-2">
+                            <span className="text-xs text-gray-500 w-8 shrink-0">{`{{${key}}}`}</span>
+                            <input
+                              className="flex-1 border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500"
+                              placeholder={`Valor para ${key}`}
+                              value={templateVars[key] || ''}
+                              onChange={(e) => setTemplateVars((prev) => ({ ...prev, [key]: e.target.value }))}
+                            />
+                          </div>
+                        ))}
+                        <button
+                          onClick={sendTemplate}
+                          disabled={sending}
+                          className="w-full rounded-lg bg-green-600 py-1.5 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-40 transition"
+                        >
+                          {sending ? 'Enviando…' : 'Enviar plantilla'}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -987,8 +973,8 @@ export default function InboxPage() {
                       😊
                     </button>
                     {showEmojiPicker && (
-                      <div className="absolute bottom-10 left-0 z-30 w-72 rounded-2xl border bg-white shadow-xl p-3">
-                        <div className="grid grid-cols-8 gap-1 max-h-52 overflow-y-auto">
+                      <div className="absolute bottom-10 left-0 z-30 w-64 rounded-2xl border bg-white shadow-xl p-2 overflow-hidden">
+                        <div className="flex flex-wrap max-h-52 overflow-y-auto overflow-x-hidden">
                           {[
                             '😊','😄','😂','🤣','😍','🥰','😘','🤩',
                             '👍','👏','🙌','🙏','💪','✅','🔥','⭐',
@@ -1002,7 +988,7 @@ export default function InboxPage() {
                             <button
                               key={emoji}
                               onClick={() => { insertEmoji(emoji); setShowEmojiPicker(false) }}
-                              className="flex items-center justify-center h-8 w-8 rounded-lg text-lg hover:bg-gray-100 transition"
+                              className="flex items-center justify-center h-8 w-8 rounded-lg text-xl hover:bg-gray-100 transition shrink-0"
                             >
                               {emoji}
                             </button>
