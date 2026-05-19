@@ -9,7 +9,6 @@ import NotificationPermissionPrompt from './NotificationPermissionPrompt'
 import PWAInstallPrompt from './PWAInstallPrompt'
 import PWAOnboardingPrompt from './PWAOnboardingPrompt'
 import TermsBanner from './TermsBanner'
-import TestModeBanner from './TestModeBanner'
 import InactiveAccountBanner from './InactiveAccountBanner'
 import PasswordUpdateBanner from './shared/PasswordUpdateBanner'
 import FloatingButtons from './FloatingButtons'
@@ -24,7 +23,6 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
 
   return (
     <>
-      <TestModeBanner />
       <InactiveAccountBanner />
       <Navbar />
       <PasswordUpdateBanner />

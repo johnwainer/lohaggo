@@ -1,31 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { AlertTriangle, X } from 'lucide-react'
 
-export default function TestModeBanner() {
-  const [isTestMode, setIsTestMode] = useState(false)
+export default function TestModeBanner({ isTestMode }: { isTestMode: boolean }) {
   const [isVisible, setIsVisible] = useState(true)
-  const [isLoading, setIsLoading] = useState(true)
 
-  useEffect(() => {
-    const checkPaymentMode = async () => {
-      try {
-        const response = await fetch('/api/payment-mode')
-        const data = await response.json()
-        setIsTestMode(data.isTestMode)
-      } catch (error) {
-        setIsTestMode(false)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    checkPaymentMode()
-  }, [])
-
-
-  if (isLoading || !isTestMode || !isVisible) {
+  if (!isTestMode || !isVisible) {
     return null
   }
 

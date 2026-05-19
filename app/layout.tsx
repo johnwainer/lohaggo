@@ -5,10 +5,12 @@ import './globals.css'
 import { Providers } from './providers'
 import PWARegister from '@/components/PWARegister'
 import PublicLayout from '@/components/PublicLayout'
+import TestModeBanner from '@/components/TestModeBanner'
 import MetaPixel from '@/components/analytics/MetaPixel'
 import GoogleAnalytics from '@/components/analytics/GoogleAnalytics'
 import MicrosoftClarity from '@/components/analytics/MicrosoftClarity'
 import ChunkErrorHandler from '@/components/ChunkErrorHandler'
+import { prisma } from '@/lib/prisma'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -129,11 +131,17 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  let isTestMode = true
+  try {
+    const config = await prisma.paymentConfig.findFirst()
+    isTestMode = !config || config.environment === 'TEST'
+  } catch { /* default to true if DB unreachable */ }
+
   return (
     <html lang="es-CO" translate="no">
       <head>
@@ -320,6 +328,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         <Providers>
           <ChunkErrorHandler />
           <PWARegister />
+          <TestModeBanner isTestMode={isTestMode} />
           <PublicLayout>
             {children}
           </PublicLayout>
