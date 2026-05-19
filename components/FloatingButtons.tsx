@@ -22,7 +22,7 @@ export default function FloatingButtons() {
   const waHref = `https://wa.me/${wa.config.phone.replace(/\D/g, '')}${wa.config.message ? `?text=${encodeURIComponent(wa.config.message)}` : ''}`
 
   return (
-    <div className="fixed bottom-20 right-4 z-40 md:bottom-6 md:right-6">
+    <div className="fixed bottom-28 right-4 z-40 md:bottom-6 md:right-6">
       <a
         href={waHref}
         target="_blank"
