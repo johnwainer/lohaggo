@@ -21,7 +21,7 @@ const partnerNavItems = [
 const clientNavItems = [
   { id: 'overview', label: 'Resumen', icon: Home, path: '/dashboard' },
   { id: 'bookings', label: 'Reservas', icon: Package, path: '/dashboard?tab=bookings' },
-  { id: 'solicitar', label: 'Solicitar', icon: Search, path: '/servicios' },
+  { id: 'solicitar', label: 'Solicitar', icon: Search, path: '/' },
   { id: 'favorites', label: 'Favoritos', icon: Heart, path: '/dashboard?tab=favorites' },
   { id: 'notifications', label: 'Notifs', icon: Bell, path: '/notifications' },
 ] as const
@@ -108,7 +108,7 @@ function ClientBarInner() {
       if (pathname.startsWith('/reservar')) return true
       return false
     }
-    if (id === 'solicitar') return pathname.startsWith('/servicios')
+    if (id === 'solicitar') return pathname === '/'
     if (id === 'bookings') return pathname === '/dashboard' && tab === 'bookings'
     if (id === 'favorites') return pathname === '/dashboard' && tab === 'favorites'
     if (id === 'notifications') return pathname.startsWith('/notifications')
@@ -131,7 +131,7 @@ function ClientBarInner() {
               <button
                 key="solicitar"
                 type="button"
-                onClick={() => router.push('/servicios')}
+                onClick={() => router.push('/')}
                 className="relative flex flex-col items-center justify-end pb-1"
               >
                 <div className={`-mt-5 flex h-14 w-14 items-center justify-center rounded-full shadow-lg active:scale-95 transition-transform ${
