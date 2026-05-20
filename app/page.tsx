@@ -8,22 +8,19 @@ import { ServiciosContent } from './servicios/page'
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
-  title: 'LoHaggo - Servicios Profesionales en Colombia | Plomeros, Electricistas y Más',
-  description: 'Contrata servicios profesionales en Colombia: plomeros, electricistas, limpieza, carpinteros, jardineros y más. Expertos verificados en Medellín con precios transparentes. ¡Reserva en minutos!',
+  title: 'LoHaggo – Contrata Servicios Profesionales en Medellín | Plomeros, Electricistas y Más',
+  description: 'LoHaggo: contrata plomeros, electricistas, limpieza, carpinteros, jardineros y más en Medellín. Profesionales verificados con precios transparentes. ¡Reserva en minutos y paga al finalizar!',
   keywords: [
-    'servicios a domicilio Colombia',
-    'servicios profesionales Medellín',
-    'contratar plomero Medellín',
-    'electricista Medellín',
-    'carpintero profesional',
-    'servicio de limpieza',
-    'jardinería Medellín',
-    'reparaciones del hogar',
-    'profesionales verificados',
-    'servicios del hogar Colombia',
-    'mantenimiento del hogar',
-    'lohaggo',
-    'expertos verificados Colombia'
+    // Marca y variaciones
+    'LoHaggo', 'Lo Haggo', 'lohaggo', 'lo haggo', 'lo hago', 'lohago', 'lohaggo.com',
+    // Servicios Medellín
+    'plomero Medellín', 'electricista Medellín', 'limpieza hogar Medellín',
+    'carpintero Medellín', 'pintor Medellín', 'jardinero Medellín',
+    'cerrajero Medellín', 'fumigación Medellín', 'reparaciones hogar Medellín',
+    // Categorías
+    'servicios a domicilio Medellín', 'servicios profesionales Colombia',
+    'contratar servicios del hogar', 'profesionales verificados Colombia',
+    'mantenimiento hogar Medellín', 'expertos verificados Medellín',
   ],
   openGraph: {
     title: 'LoHaggo - Servicios Profesionales en Colombia',
@@ -38,41 +35,18 @@ export const metadata: Metadata = {
   },
 }
 
-const organizationSchema = {
+const homePageSchema = {
   '@context': 'https://schema.org',
-  '@type': 'Organization',
-  name: 'LoHaggo',
+  '@type': 'WebPage',
+  name: 'LoHaggo – Servicios Profesionales en Medellín',
   url: 'https://www.lohaggo.com',
-  logo: 'https://www.lohaggo.com/icon-512.png',
-  description: 'Plataforma de servicios profesionales en Colombia. Conectamos clientes con profesionales verificados en Medellín.',
-  address: {
-    '@type': 'PostalAddress',
-    addressLocality: 'Medellín',
-    addressRegion: 'Antioquia',
-    addressCountry: 'CO'
+  description: 'Contrata plomeros, electricistas, limpieza y más en Medellín. Profesionales verificados con LoHaggo.',
+  breadcrumb: {
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Inicio', item: 'https://www.lohaggo.com' },
+    ],
   },
-  contactPoint: {
-    '@type': 'ContactPoint',
-    email: 'hola@lohaggo.com',
-    contactType: 'customer service',
-    availableLanguage: 'Spanish'
-  },
-  sameAs: [
-    'https://www.facebook.com/lohaggo',
-    'https://www.instagram.com/lohaggo_'
-  ]
-}
-
-const websiteSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'WebSite',
-  name: 'LoHaggo',
-  url: 'https://www.lohaggo.com',
-  potentialAction: {
-    '@type': 'SearchAction',
-    target: 'https://www.lohaggo.com/?search={search_term_string}',
-    'query-input': 'required name=search_term_string'
-  }
 }
 
 const testimonials = [
@@ -98,11 +72,7 @@ export default function Home() {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(homePageSchema) }}
       />
       <HomeClientWrapper>
       <div className="min-h-screen bg-gray-50">
