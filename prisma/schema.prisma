@@ -445,6 +445,7 @@ model AutomationExecution {
   userId      String
   channel     MessagingChannel
   status      String            @default("PENDING")
+  contextId   String?           // booking ID, conversation ID, etc. for repeatable triggers
   scheduledAt DateTime
   executedAt  DateTime?
   error       String?
@@ -452,18 +453,33 @@ model AutomationExecution {
   rule        AutomationRule    @relation(fields: [ruleId], references: [id], onDelete: Cascade)
   user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([ruleId, userId, channel])
+  @@unique([ruleId, userId, channel, contextId])
   @@index([scheduledAt, status])
   @@index([userId, status])
 }
 
 enum AutomationTrigger {
+  // Registration
   PARTNER_REGISTERED
   CLIENT_REGISTERED
+  // Reminders (scheduled at sign-up)
   PARTNER_DOCS_REMINDER
   PARTNER_REFERRAL_REMINDER
   CLIENT_FIRST_BOOKING_NUDGE
   CLIENT_REFERRAL_REMINDER
+  // Documents
+  PARTNER_DOCS_APPROVED
+  PARTNER_DOCS_REJECTED
+  PARTNER_ACTIVATED
+  // Bookings
+  BOOKING_CREATED
+  BOOKING_CONFIRMED
+  BOOKING_COMPLETED
+  BOOKING_CANCELLED
+  // Reviews
+  REVIEW_RECEIVED
+  // Messaging / chat
+  INBOUND_MESSAGE
 }
 
 model PwaTelemetryEvent {

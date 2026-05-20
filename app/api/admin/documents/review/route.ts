@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
 import { createNotification } from '@/lib/notifications/notificationService'
+import { scheduleAutomationsForUser } from '@/lib/messaging/automation-service'
 
 async function checkAndUnlockAchievements(partnerId: string) {
   const documents = await prisma.verificationDocument.findMany({
@@ -129,6 +130,8 @@ export async function POST(req: NextRequest) {
       data: { documentId }
     })
 
+    const partnerId = document.partner.userId
+
     if (status === 'APPROVED') {
       await checkAndUnlockAchievements(document.partnerId)
 
@@ -143,7 +146,11 @@ export async function POST(req: NextRequest) {
           where: { partnerId: document.partnerId },
           data: { active: true },
         })
+        scheduleAutomationsForUser(partnerId, 'PARTNER_ACTIVATED', { contextId: document.id }).catch(() => null)
       }
+      scheduleAutomationsForUser(partnerId, 'PARTNER_DOCS_APPROVED', { contextId: document.id }).catch(() => null)
+    } else if (status === 'REJECTED') {
+      scheduleAutomationsForUser(partnerId, 'PARTNER_DOCS_REJECTED', { contextId: document.id }).catch(() => null)
     }
 
     return NextResponse.json(updatedDocument)

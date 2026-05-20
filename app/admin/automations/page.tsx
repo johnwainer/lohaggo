@@ -5,7 +5,8 @@ import {
   Zap, Plus, Pencil, Trash2, ToggleLeft, ToggleRight,
   CheckCircle2, XCircle, Clock, Mail, Phone, MessageSquare,
   Bell, RefreshCw, Loader2, AlertCircle, ChevronDown, ChevronUp,
-  Users, UserCheck, Info,
+  Users, UserCheck, Info, FileCheck, FileX, CalendarCheck,
+  CalendarX, Star, MessageCircle, ShieldCheck,
 } from 'lucide-react'
 
 type AutomationTrigger =
@@ -15,6 +16,15 @@ type AutomationTrigger =
   | 'PARTNER_REFERRAL_REMINDER'
   | 'CLIENT_FIRST_BOOKING_NUDGE'
   | 'CLIENT_REFERRAL_REMINDER'
+  | 'PARTNER_DOCS_APPROVED'
+  | 'PARTNER_DOCS_REJECTED'
+  | 'PARTNER_ACTIVATED'
+  | 'BOOKING_CREATED'
+  | 'BOOKING_CONFIRMED'
+  | 'BOOKING_COMPLETED'
+  | 'BOOKING_CANCELLED'
+  | 'REVIEW_RECEIVED'
+  | 'INBOUND_MESSAGE'
 
 type Channel = 'SMS' | 'WHATSAPP' | 'EMAIL' | 'PUSH'
 
@@ -26,6 +36,7 @@ interface WaTemplate {
   waCategory: string | null
   source: 'meta' | 'twilio'
   body: string
+  variables?: Record<string, string>
 }
 
 interface AutomationRule {
@@ -39,6 +50,7 @@ interface AutomationRule {
   waTemplateFn: string | null
   customBody: string | null
   subject: string | null
+  metadata: string | null
   isActive: boolean
   stats: { total: number; sent: number; failed: number; pending: number; skipped: number }
   createdAt: string
@@ -48,16 +60,77 @@ interface AutomationRule {
 const TRIGGER_LABELS: Record<AutomationTrigger, string> = {
   PARTNER_REGISTERED: 'Socio registrado',
   CLIENT_REGISTERED: 'Cliente registrado',
-  PARTNER_DOCS_REMINDER: 'Recordatorio documentos (socio)',
+  PARTNER_DOCS_REMINDER: 'Recordatorio documentos pendientes',
   PARTNER_REFERRAL_REMINDER: 'Recordatorio referidos (socio)',
-  CLIENT_FIRST_BOOKING_NUDGE: 'Primer servicio (cliente)',
+  CLIENT_FIRST_BOOKING_NUDGE: 'Nudge primer servicio (cliente)',
   CLIENT_REFERRAL_REMINDER: 'Recordatorio referidos (cliente)',
+  PARTNER_DOCS_APPROVED: 'Documento aprobado',
+  PARTNER_DOCS_REJECTED: 'Documento rechazado',
+  PARTNER_ACTIVATED: 'Socio activado',
+  BOOKING_CREATED: 'Reserva creada',
+  BOOKING_CONFIRMED: 'Reserva confirmada',
+  BOOKING_COMPLETED: 'Reserva completada',
+  BOOKING_CANCELLED: 'Reserva cancelada',
+  REVIEW_RECEIVED: 'Reseña recibida',
+  INBOUND_MESSAGE: 'Mensaje entrante (WhatsApp/chat)',
 }
 
-const TRIGGER_GROUPS = {
-  Socios: ['PARTNER_REGISTERED', 'PARTNER_DOCS_REMINDER', 'PARTNER_REFERRAL_REMINDER'] as AutomationTrigger[],
-  Clientes: ['CLIENT_REGISTERED', 'CLIENT_FIRST_BOOKING_NUDGE', 'CLIENT_REFERRAL_REMINDER'] as AutomationTrigger[],
+const TRIGGER_ICONS: Record<AutomationTrigger, React.ReactNode> = {
+  PARTNER_REGISTERED: <UserCheck size={13} />,
+  CLIENT_REGISTERED: <Users size={13} />,
+  PARTNER_DOCS_REMINDER: <Clock size={13} />,
+  PARTNER_REFERRAL_REMINDER: <Clock size={13} />,
+  CLIENT_FIRST_BOOKING_NUDGE: <Clock size={13} />,
+  CLIENT_REFERRAL_REMINDER: <Clock size={13} />,
+  PARTNER_DOCS_APPROVED: <FileCheck size={13} />,
+  PARTNER_DOCS_REJECTED: <FileX size={13} />,
+  PARTNER_ACTIVATED: <ShieldCheck size={13} />,
+  BOOKING_CREATED: <CalendarCheck size={13} />,
+  BOOKING_CONFIRMED: <CalendarCheck size={13} />,
+  BOOKING_COMPLETED: <CalendarCheck size={13} />,
+  BOOKING_CANCELLED: <CalendarX size={13} />,
+  REVIEW_RECEIVED: <Star size={13} />,
+  INBOUND_MESSAGE: <MessageCircle size={13} />,
 }
+
+type TriggerGroup = {
+  label: string
+  icon: React.ReactNode
+  triggers: AutomationTrigger[]
+}
+
+const TRIGGER_GROUPS: TriggerGroup[] = [
+  {
+    label: 'Registro',
+    icon: <UserCheck size={13} />,
+    triggers: ['PARTNER_REGISTERED', 'CLIENT_REGISTERED'],
+  },
+  {
+    label: 'Recordatorios programados',
+    icon: <Clock size={13} />,
+    triggers: ['PARTNER_DOCS_REMINDER', 'PARTNER_REFERRAL_REMINDER', 'CLIENT_FIRST_BOOKING_NUDGE', 'CLIENT_REFERRAL_REMINDER'],
+  },
+  {
+    label: 'Documentos y verificación',
+    icon: <FileCheck size={13} />,
+    triggers: ['PARTNER_DOCS_APPROVED', 'PARTNER_DOCS_REJECTED', 'PARTNER_ACTIVATED'],
+  },
+  {
+    label: 'Reservas',
+    icon: <CalendarCheck size={13} />,
+    triggers: ['BOOKING_CREATED', 'BOOKING_CONFIRMED', 'BOOKING_COMPLETED', 'BOOKING_CANCELLED'],
+  },
+  {
+    label: 'Reseñas',
+    icon: <Star size={13} />,
+    triggers: ['REVIEW_RECEIVED'],
+  },
+  {
+    label: 'Mensajería',
+    icon: <MessageCircle size={13} />,
+    triggers: ['INBOUND_MESSAGE'],
+  },
+]
 
 const CHANNEL_ICONS: Record<Channel, React.ReactNode> = {
   EMAIL: <Mail size={13} />,
@@ -83,13 +156,21 @@ function waTemplateName(sid: string | null, waTemplates: WaTemplate[]): string {
   if (!sid) return '—'
   const found = waTemplates.find(t => t.sid === sid)
   if (found) return `${found.name} (${found.language}) [${found.source === 'meta' ? 'Meta' : 'Twilio'}]`
-  // Legacy function names
   const legacyMap: Record<string, string> = {
     sendWelcomePartner: 'Bienvenida Socio',
     sendVerificationReminder: 'Verificación Documentos',
     sendReferralInvite: 'Invitación Referidos',
   }
   return legacyMap[sid] ?? sid
+}
+
+/** Extract {{N}} variable placeholders from a template body, sorted numerically */
+function extractVarNumbers(body: string): number[] {
+  const nums = new Set<number>()
+  let m: RegExpExecArray | null
+  const re = /\{\{(\d+)\}\}/g
+  while ((m = re.exec(body)) !== null) nums.add(Number(m[1]))
+  return Array.from(nums).sort((a, b) => a - b)
 }
 
 function RuleCard({
@@ -106,6 +187,10 @@ function RuleCard({
   onDelete: (id: string) => void
 }) {
   const [expanded, setExpanded] = useState(false)
+  const waTemplate = rule.waTemplateFn ? waTemplates.find(t => t.sid === rule.waTemplateFn) : null
+
+  let extraVars: Record<string, string> = {}
+  try { if (rule.metadata) extraVars = JSON.parse(rule.metadata)?.waVars ?? {} } catch { /* */ }
 
   return (
     <div className={`bg-white rounded-2xl border-2 transition-all ${rule.isActive ? 'border-gray-100' : 'border-dashed border-gray-200 opacity-60'}`}>
@@ -120,12 +205,18 @@ function RuleCard({
 
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2 mb-1">
-            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${rule.targetRole === 'PARTNER' ? 'bg-amber-100 text-amber-700' : 'bg-sky-100 text-sky-700'}`}>
-              {rule.targetRole === 'PARTNER'
-                ? <><UserCheck size={10} className="inline mr-1" />Socio</>
-                : <><Users size={10} className="inline mr-1" />Cliente</>}
+            {rule.targetRole && (
+              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${rule.targetRole === 'PARTNER' ? 'bg-amber-100 text-amber-700' : 'bg-sky-100 text-sky-700'}`}>
+                {rule.targetRole === 'PARTNER'
+                  ? <><UserCheck size={10} className="inline mr-1" />Socio</>
+                  : <><Users size={10} className="inline mr-1" />Cliente</>}
+              </span>
+            )}
+            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+              {TRIGGER_ICONS[rule.trigger]}
+              {TRIGGER_LABELS[rule.trigger]}
             </span>
-            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+            <span className="text-xs text-gray-400 bg-gray-50 border border-gray-100 px-2 py-0.5 rounded-full">
               <Clock size={10} className="inline mr-1" />{delayLabel(rule.delayHours)}
             </span>
             {rule.channels.map(ch => (
@@ -160,23 +251,31 @@ function RuleCard({
       {expanded && (
         <div className="px-5 pb-5 pt-0 border-t border-gray-50 mt-2">
           <div className="space-y-2 text-xs text-gray-600 mt-3">
-            <div><span className="font-semibold text-gray-700">Trigger:</span> {TRIGGER_LABELS[rule.trigger]}</div>
             {rule.channels.includes('WHATSAPP') && (
               <div>
                 <span className="font-semibold text-gray-700">Plantilla WA:</span>{' '}
                 {waTemplateName(rule.waTemplateFn, waTemplates)}
               </div>
             )}
-            {rule.channels.includes('WHATSAPP') && rule.waTemplateFn && (
-              (() => {
-                const t = waTemplates.find(w => w.sid === rule.waTemplateFn)
-                return t?.body ? (
-                  <div>
-                    <span className="font-semibold text-gray-700 block mb-1">Vista previa:</span>
-                    <pre className="bg-emerald-50 border border-emerald-100 rounded-lg p-3 whitespace-pre-wrap font-sans text-gray-600 text-[11px]">{t.body}</pre>
-                  </div>
-                ) : null
-              })()
+            {waTemplate?.body && (
+              <div>
+                <span className="font-semibold text-gray-700 block mb-1">Vista previa:</span>
+                <pre className="bg-emerald-50 border border-emerald-100 rounded-lg p-3 whitespace-pre-wrap font-sans text-gray-600 text-[11px]">
+                  {waTemplate.body.replace(/\{\{1\}\}/g, '[nombre]').replace(/\{\{(\d+)\}\}/g, (_, n) => extraVars[n] ? `[${extraVars[n]}]` : `[var${n}]`)}
+                </pre>
+              </div>
+            )}
+            {Object.keys(extraVars).length > 0 && (
+              <div>
+                <span className="font-semibold text-gray-700">Variables configuradas:</span>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {Object.entries(extraVars).map(([k, v]) => (
+                    <span key={k} className="bg-gray-100 text-gray-600 rounded px-2 py-0.5 text-[10px] font-mono">
+                      {`{{${k}}}`} = {v}
+                    </span>
+                  ))}
+                </div>
+              </div>
             )}
             {rule.subject && <div><span className="font-semibold text-gray-700">Asunto:</span> {rule.subject}</div>}
             {rule.customBody && (
@@ -202,10 +301,16 @@ function RuleModal({
   onClose: () => void
 }) {
   const isNew = !rule?.id
+
+  // Parse existing waVars from metadata
+  let initialWaVars: Record<string, string> = {}
+  try { if (rule?.metadata) initialWaVars = JSON.parse(rule.metadata)?.waVars ?? {} } catch { /* */ }
+
   const [form, setForm] = useState({
     name: rule?.name ?? '',
     description: rule?.description ?? '',
     trigger: rule?.trigger ?? 'PARTNER_REGISTERED' as AutomationTrigger,
+    targetRole: rule?.targetRole ?? null as 'PARTNER' | 'CLIENT' | null,
     delayHours: rule?.delayHours ?? 0,
     channels: rule?.channels ?? [] as Channel[],
     waTemplateFn: rule?.waTemplateFn ?? '',
@@ -213,37 +318,52 @@ function RuleModal({
     subject: rule?.subject ?? '',
     isActive: rule?.isActive ?? true,
   })
+  const [waVars, setWaVars] = useState<Record<string, string>>(initialWaVars)
   const [saving, setSaving] = useState(false)
   const [waTemplates, setWaTemplates] = useState<WaTemplate[]>([])
   const [waLoading, setWaLoading] = useState(false)
 
+  const hasWhatsApp = form.channels.includes('WHATSAPP')
+
   useEffect(() => {
-    if (!form.channels.includes('WHATSAPP')) return
+    if (!hasWhatsApp) return
     setWaLoading(true)
     fetch('/api/admin/messaging/wa-templates')
       .then(r => r.json())
       .then(d => setWaTemplates((d.templates ?? []).filter((t: WaTemplate) => t.waStatus === 'approved')))
       .catch(() => {})
       .finally(() => setWaLoading(false))
-  }, [form.channels.includes('WHATSAPP')])
+  }, [hasWhatsApp])
 
   const toggleChannel = (ch: Channel) => {
     setForm(f => ({
       ...f,
       channels: f.channels.includes(ch) ? f.channels.filter(c => c !== ch) : [...f.channels, ch],
-      // Clear WA template when removing WHATSAPP
       waTemplateFn: ch === 'WHATSAPP' && f.channels.includes(ch) ? '' : f.waTemplateFn,
     }))
+    if (ch === 'WHATSAPP' && form.channels.includes('WHATSAPP')) setWaVars({})
+  }
+
+  const selectedTemplate = waTemplates.find(t => t.sid === form.waTemplateFn)
+
+  // Get variable numbers from selected template body, excluding {{1}} (auto-filled)
+  const extraVarNums = selectedTemplate?.body
+    ? extractVarNumbers(selectedTemplate.body).filter(n => n !== 1)
+    : []
+
+  // When template changes, reset vars
+  const handleTemplateChange = (sid: string) => {
+    setForm(f => ({ ...f, waTemplateFn: sid }))
+    setWaVars({})
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
-    await onSave({ ...form, id: rule?.id })
+    const metadata = Object.keys(waVars).length > 0 ? JSON.stringify({ waVars }) : null
+    await onSave({ ...form, id: rule?.id, metadata })
     setSaving(false)
   }
-
-  const selectedTemplate = waTemplates.find(t => t.sid === form.waTemplateFn)
 
   const metaTemplates = waTemplates.filter(t => t.source === 'meta')
   const twilioTemplates = waTemplates.filter(t => t.source === 'twilio')
@@ -279,16 +399,41 @@ function RuleModal({
 
           {/* Trigger */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Disparador (Trigger) *</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Evento (Trigger) *</label>
             <select
               value={form.trigger}
               onChange={e => setForm(f => ({ ...f, trigger: e.target.value as AutomationTrigger }))}
               className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none"
             >
-              {Object.entries(TRIGGER_LABELS).map(([val, label]) => (
-                <option key={val} value={val}>{label}</option>
+              {TRIGGER_GROUPS.map(group => (
+                <optgroup key={group.label} label={group.label}>
+                  {group.triggers.map(t => (
+                    <option key={t} value={t}>{TRIGGER_LABELS[t]}</option>
+                  ))}
+                </optgroup>
               ))}
             </select>
+          </div>
+
+          {/* Target role */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Dirigido a</label>
+            <div className="flex gap-2">
+              {([null, 'PARTNER', 'CLIENT'] as const).map(role => (
+                <button
+                  key={String(role)}
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, targetRole: role }))}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-semibold border-2 transition-all ${
+                    form.targetRole === role
+                      ? 'border-primary-500 bg-primary-50 text-primary-700'
+                      : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                  }`}
+                >
+                  {role === null ? 'Todos' : role === 'PARTNER' ? 'Socios' : 'Clientes'}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Delay */}
@@ -325,9 +470,9 @@ function RuleModal({
             </div>
           </div>
 
-          {/* WhatsApp template picker */}
-          {form.channels.includes('WHATSAPP') && (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-3">
+          {/* WhatsApp template section */}
+          {hasWhatsApp && (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-4">
               <div className="flex items-center gap-2">
                 <MessageSquare size={15} className="text-emerald-600" />
                 <span className="text-sm font-semibold text-emerald-800">Plantilla WhatsApp</span>
@@ -339,12 +484,12 @@ function RuleModal({
                 </div>
               ) : waTemplates.length === 0 ? (
                 <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                  No hay plantillas aprobadas. Verifica la configuración en Configuración → Proveedores.
+                  No hay plantillas aprobadas. Verifica la configuración de proveedores.
                 </p>
               ) : (
                 <select
                   value={form.waTemplateFn}
-                  onChange={e => setForm(f => ({ ...f, waTemplateFn: e.target.value }))}
+                  onChange={e => handleTemplateChange(e.target.value)}
                   className="w-full border border-emerald-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-400 outline-none bg-white"
                 >
                   <option value="">— Selecciona una plantilla —</option>
@@ -372,14 +517,47 @@ function RuleModal({
               {/* Body preview */}
               {selectedTemplate?.body && (
                 <div>
-                  <p className="text-xs font-semibold text-emerald-700 mb-1">Vista previa del mensaje:</p>
+                  <p className="text-xs font-semibold text-emerald-700 mb-1">Vista previa:</p>
                   <pre className="bg-white border border-emerald-200 rounded-xl p-3 text-[11px] text-gray-700 whitespace-pre-wrap font-sans leading-relaxed">
-                    {selectedTemplate.body.replace(/\{\{1\}\}/g, '[nombre]')}
+                    {selectedTemplate.body
+                      .replace(/\{\{1\}\}/g, '[nombre auto]')
+                      .replace(/\{\{(\d+)\}\}/g, (_, n) => waVars[n] ? `[${waVars[n]}]` : `{{${n}}}`)}
                   </pre>
-                  <p className="text-[10px] text-emerald-600 mt-1">
-                    <code className="bg-emerald-100 px-1 rounded">{'{{1}}'}</code> se reemplazará con el nombre real del usuario al enviar.
-                  </p>
                 </div>
+              )}
+
+              {/* Extra variable inputs ({{2}}, {{3}}, etc.) */}
+              {extraVarNums.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800">
+                    <Info size={13} className="flex-shrink-0 mt-0.5" />
+                    <div>
+                      <strong>Variables de la plantilla:</strong>{' '}
+                      <code className="bg-amber-100 px-1 rounded">{'{{1}}'}</code> se rellena automáticamente con el nombre del usuario.
+                      Configura los demás valores estáticos aquí.
+                    </div>
+                  </div>
+                  {extraVarNums.map(n => (
+                    <div key={n}>
+                      <label className="block text-xs font-semibold text-emerald-700 mb-1">
+                        Variable <code className="bg-emerald-100 px-1 rounded">{`{{${n}}}`}</code>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder={`Valor para {{${n}}}…`}
+                        value={waVars[String(n)] ?? ''}
+                        onChange={e => setWaVars(v => ({ ...v, [String(n)]: e.target.value }))}
+                        className="w-full border border-emerald-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-400 outline-none bg-white"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {form.waTemplateFn && (
+                <p className="text-[10px] text-emerald-600">
+                  <code className="bg-emerald-100 px-1 rounded">{'{{1}}'}</code> = nombre real del usuario al enviar.
+                </p>
               )}
             </div>
           )}
@@ -401,7 +579,10 @@ function RuleModal({
           {(form.channels.includes('EMAIL') || form.channels.includes('SMS')) && (
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Mensaje {form.channels.includes('EMAIL') && form.channels.includes('SMS') ? '(SMS y Email)' : form.channels.includes('SMS') ? '(SMS)' : '(Email)'}
+                Mensaje{' '}
+                {form.channels.includes('EMAIL') && form.channels.includes('SMS')
+                  ? '(SMS y Email)'
+                  : form.channels.includes('SMS') ? '(SMS)' : '(Email)'}
               </label>
               <textarea
                 rows={4}
@@ -413,7 +594,7 @@ function RuleModal({
             </div>
           )}
 
-          {/* Active toggle */}
+          {/* Active */}
           <div className="flex items-center gap-2 pt-1">
             <input
               type="checkbox"
@@ -500,10 +681,11 @@ export default function AutomationsPage() {
     await load()
   }
 
-  const grouped = Object.entries(TRIGGER_GROUPS).map(([group, triggers]) => ({
-    group,
-    rules: rules.filter(r => triggers.includes(r.trigger)),
-  }))
+  // Group rules by trigger group
+  const grouped = TRIGGER_GROUPS.map(group => ({
+    ...group,
+    rules: rules.filter(r => group.triggers.includes(r.trigger)),
+  })).filter(g => g.rules.length > 0)
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -537,8 +719,9 @@ export default function AutomationsPage() {
         <div>
           <p className="font-semibold mb-0.5">¿Cómo funciona?</p>
           <p>
-            Cuando un socio o cliente cumple un trigger, se crean ejecuciones programadas por canal. Un cron las procesa cada hora.
-            Para WhatsApp, selecciona una plantilla aprobada por Meta. Para SMS/Email usa texto libre con <code className="bg-blue-100 px-1 rounded">{'{{name}}'}</code>.
+            Al ocurrir un evento (registro, aprobación de documentos, reserva completada, mensaje entrante, etc.)
+            el sistema crea ejecuciones para cada canal activo. Un cron las procesa cada hora.
+            Para WhatsApp selecciona una plantilla aprobada. <code className="bg-blue-100 px-1 rounded">{'{{1}}'}</code> siempre es el nombre del usuario.
           </p>
         </div>
       </div>
@@ -561,11 +744,11 @@ export default function AutomationsPage() {
         </div>
       ) : (
         <div className="space-y-8">
-          {grouped.map(({ group, rules: groupRules }) => groupRules.length > 0 && (
-            <div key={group}>
+          {grouped.map(({ label, icon, rules: groupRules }) => (
+            <div key={label}>
               <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3 flex items-center gap-2">
-                {group === 'Socios' ? <UserCheck size={13} /> : <Users size={13} />}
-                {group}
+                {icon}
+                {label}
                 <span className="bg-gray-100 text-gray-500 rounded-full px-2 py-0.5 text-[10px] font-bold">{groupRules.length}</span>
               </h2>
               <div className="space-y-3">

@@ -10,50 +10,73 @@ import {
 
 const logger = createLogger('automation-service')
 
-type AutomationTrigger =
+export type AutomationTrigger =
   | 'PARTNER_REGISTERED'
   | 'CLIENT_REGISTERED'
   | 'PARTNER_DOCS_REMINDER'
   | 'PARTNER_REFERRAL_REMINDER'
   | 'CLIENT_FIRST_BOOKING_NUDGE'
   | 'CLIENT_REFERRAL_REMINDER'
+  | 'PARTNER_DOCS_APPROVED'
+  | 'PARTNER_DOCS_REJECTED'
+  | 'PARTNER_ACTIVATED'
+  | 'BOOKING_CREATED'
+  | 'BOOKING_CONFIRMED'
+  | 'BOOKING_COMPLETED'
+  | 'BOOKING_CANCELLED'
+  | 'REVIEW_RECEIVED'
+  | 'INBOUND_MESSAGE'
 
 /**
- * Called on user registration. Finds all active rules for the trigger
- * and creates pending AutomationExecution rows scheduled at now + delayHours.
+ * Schedule automations for a user event.
+ * contextId makes executions unique per event (booking ID, conversation ID, etc.)
+ * so the same user can trigger the same rule multiple times for different contexts.
  */
 export async function scheduleAutomationsForUser(
   userId: string,
-  trigger: AutomationTrigger
+  trigger: AutomationTrigger,
+  opts: { targetRole?: 'PARTNER' | 'CLIENT'; contextId?: string } = {}
 ) {
   try {
     const rules = await prisma.automationRule.findMany({
-      where: { trigger, isActive: true },
+      where: {
+        trigger,
+        isActive: true,
+        ...(opts.targetRole ? { targetRole: opts.targetRole } : {}),
+      },
     })
     if (!rules.length) return
 
-    const channels: { ruleId: string; channel: string; scheduledAt: Date }[] = []
+    const executions: {
+      ruleId: string
+      userId: string
+      channel: any
+      status: string
+      contextId: string | null
+      scheduledAt: Date
+    }[] = []
 
     for (const rule of rules) {
       const parsedChannels: string[] = JSON.parse(rule.channels)
       const scheduledAt = new Date(Date.now() + rule.delayHours * 3_600_000)
       for (const channel of parsedChannels) {
-        channels.push({ ruleId: rule.id, channel, scheduledAt })
+        executions.push({
+          ruleId: rule.id,
+          userId,
+          channel,
+          status: 'PENDING',
+          contextId: opts.contextId ?? null,
+          scheduledAt,
+        })
       }
     }
 
     await prisma.automationExecution.createMany({
-      data: channels.map((c) => ({
-        ruleId: c.ruleId,
-        userId,
-        channel: c.channel as any,
-        status: 'PENDING',
-        scheduledAt: c.scheduledAt,
-      })),
+      data: executions,
       skipDuplicates: true,
     })
 
-    logger.info('Automations scheduled', { userId, trigger, count: channels.length })
+    logger.info('Automations scheduled', { userId, trigger, count: executions.length })
   } catch (err) {
     logger.error('scheduleAutomationsForUser failed', { userId, trigger, err })
   }
@@ -61,7 +84,6 @@ export async function scheduleAutomationsForUser(
 
 /**
  * Processes due AutomationExecution rows. Called by cron every hour.
- * Returns counts of sent / failed / skipped.
  */
 export async function processDueAutomations(limit = 100) {
   const due = await prisma.automationExecution.findMany({
@@ -82,7 +104,6 @@ export async function processDueAutomations(limit = 100) {
   for (const execution of due) {
     const { rule, user } = execution
 
-    // Check opt-out
     const destination = execution.channel === 'EMAIL' ? user.email : user.phone
     if (!destination) {
       await prisma.automationExecution.update({
@@ -108,11 +129,17 @@ export async function processDueAutomations(limit = 100) {
     try {
       let result: { ok: boolean; errorCode?: string; errorMessage?: string }
 
-      // WhatsApp: use typed template functions
       if (execution.channel === 'WHATSAPP' && rule.waTemplateFn && user.phone) {
-        result = await dispatchWaTemplate(rule.waTemplateFn, user.phone, user.name)
+        // Read extra static variables from rule metadata
+        let extraVars: Record<string, string> = {}
+        if (rule.metadata) {
+          try {
+            const meta = JSON.parse(rule.metadata)
+            if (meta.waVars) extraVars = meta.waVars
+          } catch { /* ignore */ }
+        }
+        result = await dispatchWaTemplate(rule.waTemplateFn, user.phone, user.name, extraVars)
       } else {
-        // SMS / EMAIL: use customBody (supports {{name}} interpolation)
         const body = (rule.customBody ?? '').replace(/\{\{name\}\}/g, user.name)
         const subject = (rule.subject ?? '').replace(/\{\{name\}\}/g, user.name)
 
@@ -161,26 +188,29 @@ export async function processDueAutomations(limit = 100) {
 async function dispatchWaTemplate(
   fn: string,
   phone: string,
-  name: string
+  name: string,
+  extraVars: Record<string, string> = {}
 ): Promise<{ ok: boolean; errorCode?: string; errorMessage?: string }> {
   const cfg = await getMessagingProviderRuntimeConfig()
+  // {{1}} is always the user name; extra vars override or supplement
+  const vars = { '1': name, ...extraVars }
 
-  // meta:{templateName}:{language} — send via Meta WhatsApp API
+  // meta:{templateName}:{language} → Meta WhatsApp API
   if (fn.startsWith('meta:')) {
     const parts = fn.split(':')
     const templateName = parts[1]
     const language = parts[2] ?? 'es_CO'
-    return sendMetaWhatsAppTemplate(phone, templateName, language, { '1': name }, cfg.metaWhatsApp)
+    return sendMetaWhatsAppTemplate(phone, templateName, language, vars, cfg.metaWhatsApp)
   }
 
-  // HXxxxxxxx — Twilio Content SID
+  // HXxxxxxxx → Twilio Content SID
   if (fn.startsWith('HX')) {
-    return sendWhatsAppTemplate(phone, fn, { '1': name }, cfg.twilio)
+    return sendWhatsAppTemplate(phone, fn, vars, cfg.twilio)
   }
 
   // Legacy function names (backward compat)
   switch (fn) {
-    case 'sendWelcomePartner':      return sendWelcomePartner(phone, name)
+    case 'sendWelcomePartner':       return sendWelcomePartner(phone, name)
     case 'sendVerificationReminder': return sendVerificationReminder(phone, name)
     case 'sendReferralInvite':       return sendReferralInvite(phone, name)
     default:
@@ -190,7 +220,7 @@ async function dispatchWaTemplate(
 
 /** Default rules to seed when none exist */
 export const DEFAULT_AUTOMATION_RULES = [
-  // ── PARTNERS ──────────────────────────────────────────
+  // ── REGISTRO ──────────────────────────────────────────
   {
     name: 'Bienvenida Socio (Email)',
     description: 'Email de bienvenida inmediato cuando un socio se registra.',
@@ -203,6 +233,19 @@ export const DEFAULT_AUTOMATION_RULES = [
     customBody: `Hola {{name}},\n\nBienvenido a LoHaggo. Estás a un paso de recibir solicitudes de clientes.\n\nCompleta tu verificación subiendo tus documentos de identidad y certificados de estudios en:\nhttps://lohaggo.com/partner/verification\n\n¡Ya puedes empezar a ganar!\n\nEquipo LoHaggo`,
     isActive: true,
   },
+  {
+    name: 'Bienvenida Cliente (Email)',
+    description: 'Email de bienvenida inmediato cuando un cliente se registra.',
+    trigger: 'CLIENT_REGISTERED' as AutomationTrigger,
+    targetRole: 'CLIENT' as const,
+    delayHours: 0,
+    channels: JSON.stringify(['EMAIL']),
+    waTemplateFn: null,
+    subject: '¡Bienvenido a LoHaggo, {{name}}!',
+    customBody: `Hola {{name}},\n\nBienvenido a LoHaggo. Encuentra el profesional ideal para cualquier servicio del hogar en minutos.\n\n👉 Busca un servicio ahora: https://lohaggo.com/buscar\n\n¡Estamos para ayudarte!\nEquipo LoHaggo`,
+    isActive: true,
+  },
+  // ── RECORDATORIOS ──────────────────────────────────────────
   {
     name: 'Verificación Documentos Socio (WhatsApp)',
     description: 'Recordatorio WhatsApp a las 24h si el socio aún no ha verificado sus documentos.',
@@ -239,19 +282,6 @@ export const DEFAULT_AUTOMATION_RULES = [
     customBody: 'LoHaggo: Hola {{name}}, ¿conoces a alguien que quiera ganar dinero con sus habilidades? Refiere amigos a LoHaggo: https://lohaggo.com/unete',
     isActive: true,
   },
-  // ── CLIENTES ──────────────────────────────────────────
-  {
-    name: 'Bienvenida Cliente (Email)',
-    description: 'Email de bienvenida inmediato cuando un cliente se registra.',
-    trigger: 'CLIENT_REGISTERED' as AutomationTrigger,
-    targetRole: 'CLIENT' as const,
-    delayHours: 0,
-    channels: JSON.stringify(['EMAIL']),
-    waTemplateFn: null,
-    subject: '¡Bienvenido a LoHaggo, {{name}}!',
-    customBody: `Hola {{name}},\n\nBienvenido a LoHaggo. Encuentra el profesional ideal para cualquier servicio del hogar en minutos.\n\n👉 Busca un servicio ahora: https://lohaggo.com/buscar\n\n¡Estamos para ayudarte!\nEquipo LoHaggo`,
-    isActive: true,
-  },
   {
     name: 'Primer Servicio Cliente (Email + SMS)',
     description: 'Recordatorio a los 3 días si el cliente aún no ha solicitado su primer servicio.',
@@ -275,5 +305,68 @@ export const DEFAULT_AUTOMATION_RULES = [
     subject: '¿Conoces a alguien que necesite un profesional?',
     customBody: 'Hola {{name}},\n\n¿Tienes amigos o familiares que necesiten servicios del hogar? Recomiéndales LoHaggo.\n\nComparte el enlace: https://lohaggo.com\n\nEquipo LoHaggo',
     isActive: true,
+  },
+  // ── DOCUMENTOS ──────────────────────────────────────────
+  {
+    name: 'Documentos Aprobados (WhatsApp)',
+    description: 'Felicitación inmediata al socio cuando sus documentos son aprobados.',
+    trigger: 'PARTNER_DOCS_APPROVED' as AutomationTrigger,
+    targetRole: 'PARTNER' as const,
+    delayHours: 0,
+    channels: JSON.stringify(['WHATSAPP']),
+    waTemplateFn: null,
+    subject: null,
+    customBody: null,
+    isActive: false,
+  },
+  {
+    name: 'Socio Activado (WhatsApp)',
+    description: 'Notificación cuando el perfil del socio es activado y puede recibir clientes.',
+    trigger: 'PARTNER_ACTIVATED' as AutomationTrigger,
+    targetRole: 'PARTNER' as const,
+    delayHours: 0,
+    channels: JSON.stringify(['WHATSAPP', 'EMAIL']),
+    waTemplateFn: null,
+    subject: '¡Ya puedes recibir clientes en LoHaggo!',
+    customBody: 'LoHaggo: Hola {{name}}, tu perfil fue activado. ¡Ya puedes recibir solicitudes de clientes! Entra y activa tu disponibilidad: https://lohaggo.com/app',
+    isActive: false,
+  },
+  // ── RESERVAS ──────────────────────────────────────────
+  {
+    name: 'Reserva Completada — Pide reseña (Cliente)',
+    description: 'Mensaje al cliente 1h después de completar una reserva pidiéndole que deje una reseña.',
+    trigger: 'BOOKING_COMPLETED' as AutomationTrigger,
+    targetRole: 'CLIENT' as const,
+    delayHours: 1,
+    channels: JSON.stringify(['SMS']),
+    waTemplateFn: null,
+    subject: null,
+    customBody: 'LoHaggo: Hola {{name}}, ¿cómo fue tu servicio? Deja tu reseña aquí: https://lohaggo.com/mis-reservas',
+    isActive: false,
+  },
+  {
+    name: 'Reserva Completada — Felicitación Socio',
+    description: 'Mensaje al socio cuando completa una reserva.',
+    trigger: 'BOOKING_COMPLETED' as AutomationTrigger,
+    targetRole: 'PARTNER' as const,
+    delayHours: 0,
+    channels: JSON.stringify(['SMS']),
+    waTemplateFn: null,
+    subject: null,
+    customBody: 'LoHaggo: ¡Excelente trabajo, {{name}}! Tu servicio fue marcado como completado. Sigue así 💪',
+    isActive: false,
+  },
+  // ── MENSAJERÍA INBOUND ──────────────────────────────────────────
+  {
+    name: 'Auto-respuesta Mensaje Entrante (WhatsApp)',
+    description: 'Respuesta automática cuando un usuario envía un mensaje por WhatsApp por primera vez.',
+    trigger: 'INBOUND_MESSAGE' as AutomationTrigger,
+    targetRole: null,
+    delayHours: 0,
+    channels: JSON.stringify(['WHATSAPP']),
+    waTemplateFn: null,
+    subject: null,
+    customBody: null,
+    isActive: false,
   },
 ]

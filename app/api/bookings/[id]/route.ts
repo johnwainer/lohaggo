@@ -5,6 +5,7 @@ import { notifyBookingStatusChange } from "@/lib/notifications/notificationServi
 import { createLogger } from '@/lib/logger'
 import { computeRefundPolicy, calculateSlaDueAt } from '@/lib/launch-ops'
 import { recordPromptContext } from '@/lib/pwa/adoption-strategy'
+import { scheduleAutomationsForUser } from '@/lib/messaging/automation-service'
 
 export const dynamic = 'force-dynamic'
 
@@ -84,6 +85,34 @@ export async function PATCH(
         bookingId: id,
         status,
       }).catch(() => undefined)
+    }
+
+    // Dispatch automation triggers per booking status change
+    const triggerMap: Record<string, 'BOOKING_CONFIRMED' | 'BOOKING_COMPLETED' | 'BOOKING_CANCELLED'> = {
+      CONFIRMED: 'BOOKING_CONFIRMED',
+      COMPLETED: 'BOOKING_COMPLETED',
+      CANCELLED: 'BOOKING_CANCELLED',
+    }
+    const automationTrigger = triggerMap[status]
+    if (automationTrigger) {
+      // Fire for the client
+      scheduleAutomationsForUser(updatedBooking.userId, automationTrigger, {
+        targetRole: 'CLIENT',
+        contextId: id,
+      }).catch(() => null)
+      // Fire for the partner if known
+      if (updatedBooking.partnerId) {
+        const partnerUser = await prisma.partnerProfile.findUnique({
+          where: { id: updatedBooking.partnerId },
+          select: { userId: true },
+        })
+        if (partnerUser) {
+          scheduleAutomationsForUser(partnerUser.userId, automationTrigger, {
+            targetRole: 'PARTNER',
+            contextId: id,
+          }).catch(() => null)
+        }
+      }
     }
 
     return NextResponse.json(updatedBooking)

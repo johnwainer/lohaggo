@@ -40,6 +40,7 @@ export async function GET() {
     waTemplateFn: r.waTemplateFn,
     customBody: r.customBody,
     subject: r.subject,
+    metadata: r.metadata,
     isActive: r.isActive,
     stats: {
       total: r._count.executions,
@@ -79,7 +80,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Create new rule
-  const { name, description, trigger, targetRole, delayHours, channels, waTemplateFn, customBody, subject, isActive } = body
+  const { name, description, trigger, targetRole, delayHours, channels, waTemplateFn, customBody, subject, isActive, metadata } = body
 
   if (!name || !trigger || !channels?.length) {
     return NextResponse.json({ error: 'name, trigger y channels son requeridos' }, { status: 400 })
@@ -96,6 +97,7 @@ export async function POST(request: NextRequest) {
       waTemplateFn: waTemplateFn ?? null,
       customBody: customBody ?? null,
       subject: subject ?? null,
+      metadata: metadata ?? null,
       isActive: Boolean(isActive ?? true),
     },
   })
@@ -121,6 +123,8 @@ export async function PATCH(request: NextRequest) {
   if ('waTemplateFn' in updates) data.waTemplateFn = updates.waTemplateFn ?? null
   if ('customBody' in updates) data.customBody = updates.customBody ?? null
   if ('subject' in updates) data.subject = updates.subject ?? null
+  if ('metadata' in updates) data.metadata = updates.metadata ?? null
+  if ('targetRole' in updates) data.targetRole = updates.targetRole ?? null
 
   const rule = await prisma.automationRule.update({ where: { id }, data })
   return NextResponse.json({ rule })
