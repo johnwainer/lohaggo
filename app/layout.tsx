@@ -137,10 +137,23 @@ export default async function RootLayout({
   children: React.ReactNode
 }) {
   let isTestMode = true
+  let avgRating = '4.8'
+  let reviewCount = 1250
   try {
     const config = await prisma.paymentConfig.findFirst()
     isTestMode = !config || config.environment === 'TEST'
   } catch { /* default to true if DB unreachable */ }
+  try {
+    const ratingAgg = await prisma.partnerProfile.aggregate({
+      where: { isActive: true, totalReviews: { gt: 0 } },
+      _avg: { rating: true },
+      _sum: { totalReviews: true },
+    })
+    const avg = ratingAgg._avg?.rating
+    const sum = ratingAgg._sum?.totalReviews
+    if (avg) avgRating = avg.toFixed(1)
+    if (sum) reviewCount = sum
+  } catch { /* keep defaults */ }
 
   return (
     <html lang="es-CO" translate="no">
@@ -166,11 +179,10 @@ export default async function RootLayout({
               "@context": "https://schema.org",
               "@type": "LocalBusiness",
               "name": "LoHaggo",
-              "description": "Professional services platform in Colombia. Connect with verified experts in plumbing, electrical work, cleaning, repairs and more in Medellín.",
+              "description": "Plataforma de servicios profesionales en Colombia. Conecta con expertos verificados en plomería, electricidad, limpieza, reparaciones y más en Medellín.",
               "url": "https://www.lohaggo.com",
               "logo": "https://www.lohaggo.com/icon-512.png",
               "image": "https://www.lohaggo.com/icon-512.png",
-              "telephone": "+57-4-123-4567",
               "email": "contacto@lohaggo.com",
               "address": {
                 "@type": "PostalAddress",
@@ -186,15 +198,7 @@ export default async function RootLayout({
               "priceRange": "$$",
               "openingHoursSpecification": {
                 "@type": "OpeningHoursSpecification",
-                "dayOfWeek": [
-                  "Monday",
-                  "Tuesday",
-                  "Wednesday",
-                  "Thursday",
-                  "Friday",
-                  "Saturday",
-                  "Sunday"
-                ],
+                "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],
                 "opens": "00:00",
                 "closes": "23:59"
               },
@@ -205,16 +209,15 @@ export default async function RootLayout({
               ],
               "aggregateRating": {
                 "@type": "AggregateRating",
-                "ratingValue": "4.8",
-                "reviewCount": "1250"
+                "ratingValue": avgRating,
+                "reviewCount": reviewCount.toString(),
+                "bestRating": "5",
+                "worstRating": "1"
               },
               "areaServed": {
                 "@type": "City",
                 "name": "Medellín",
-                "containedIn": {
-                  "@type": "Country",
-                  "name": "Colombia"
-                }
+                "containedIn": { "@type": "Country", "name": "Colombia" }
               }
             })
           }}
@@ -260,50 +263,14 @@ export default async function RootLayout({
               },
               "contactPoint": {
                 "@type": "ContactPoint",
-                "telephone": "+57-4-123-4567",
                 "contactType": "customer service",
                 "email": "contacto@lohaggo.com",
-                "availableLanguage": ["Spanish", "English"]
+                "availableLanguage": ["Spanish"]
               },
               "sameAs": [
                 "https://facebook.com/lohaggo",
                 "https://twitter.com/lohaggo",
                 "https://instagram.com/lohaggo"
-              ]
-            })
-          }}
-        />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "BreadcrumbList",
-              "itemListElement": [
-                {
-                  "@type": "ListItem",
-                  "position": 1,
-                  "name": "Home",
-                  "item": "https://www.lohaggo.com"
-                },
-                {
-                  "@type": "ListItem",
-                  "position": 2,
-                  "name": "Services",
-                  "item": "https://www.lohaggo.com/servicios"
-                },
-                {
-                  "@type": "ListItem",
-                  "position": 3,
-                  "name": "How It Works",
-                  "item": "https://www.lohaggo.com/how-it-works"
-                },
-                {
-                  "@type": "ListItem",
-                  "position": 4,
-                  "name": "Join as Professional",
-                  "item": "https://www.lohaggo.com/partner"
-                }
               ]
             })
           }}

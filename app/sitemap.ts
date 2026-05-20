@@ -82,40 +82,41 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ]
 
   try {
-    const services = await prisma.service.findMany({
-      select: {
-        slug: true,
-        updatedAt: true,
-      },
-    })
+    const [services, cities, partners] = await Promise.all([
+      prisma.service.findMany({ select: { slug: true, updatedAt: true } }),
+      prisma.cityConfig.findMany({ select: { slug: true, updatedAt: true } }),
+      prisma.partnerProfile.findMany({
+        where: { isPublicProfile: true, isActive: true, slug: { not: null } },
+        select: { slug: true, updatedAt: true },
+      }),
+    ])
 
-    const servicePages: MetadataRoute.Sitemap = services.map((service) => ({
-      url: `${baseUrl}/servicios/${service.slug}`,
-      lastModified: service.updatedAt,
+    const servicePages: MetadataRoute.Sitemap = services.map((s) => ({
+      url: `${baseUrl}/servicios/${s.slug}`,
+      lastModified: s.updatedAt,
       changeFrequency: 'weekly',
       priority: 0.85,
     }))
 
-    const cities = await prisma.cityConfig.findMany({
-      where: {
-        status: 'ACTIVE',
-      },
-      select: {
-        slug: true,
-        updatedAt: true,
-      },
-    })
-
-    const cityPages: MetadataRoute.Sitemap = cities.map((city) => ({
-      url: `${baseUrl}/ciudad/${city.slug}`,
-      lastModified: city.updatedAt,
+    const cityPages: MetadataRoute.Sitemap = cities.map((c) => ({
+      url: `${baseUrl}/ciudad/${c.slug}`,
+      lastModified: c.updatedAt,
       changeFrequency: 'weekly',
       priority: 0.75,
     }))
 
+    const partnerPages: MetadataRoute.Sitemap = partners
+      .filter((p) => p.slug)
+      .map((p) => ({
+        url: `${baseUrl}/pro/${p.slug}`,
+        lastModified: p.updatedAt,
+        changeFrequency: 'weekly' as const,
+        priority: 0.8,
+      }))
+
     await prisma.$disconnect()
 
-    return [...staticPages, ...servicePages, ...cityPages]
+    return [...staticPages, ...servicePages, ...cityPages, ...partnerPages]
   } catch (error) {
     console.error('Error generating sitemap:', error)
     await prisma.$disconnect()

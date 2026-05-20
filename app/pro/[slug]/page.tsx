@@ -132,5 +132,41 @@ export default async function ProProfilePage({ params }: Props) {
   const { slug } = await params
   const partner = await fetchPartner(slug)
   if (!partner) notFound()
-  return <ProfileClient partner={partner} />
+
+  const BASE_URL = 'https://www.lohaggo.com'
+  const url = `${BASE_URL}/pro/${partner!.slug}`
+  const jsonLd: Record<string, unknown> = {
+    '@context': 'https://schema.org',
+    '@type': 'Person',
+    name: partner!.name,
+    url,
+    image: partner!.image ?? undefined,
+    description: partner!.profileHeadline ?? partner!.bio ?? undefined,
+    jobTitle: partner!.services.map((s) => s.name).join(', '),
+    worksFor: { '@type': 'Organization', name: 'LoHaggo', url: BASE_URL },
+    address: {
+      '@type': 'PostalAddress',
+      addressLocality: partner!.cityName,
+      addressCountry: 'CO',
+    },
+  }
+  if (partner!.totalReviews > 0) {
+    jsonLd.aggregateRating = {
+      '@type': 'AggregateRating',
+      ratingValue: partner!.rating.toFixed(1),
+      reviewCount: partner!.totalReviews.toString(),
+      bestRating: '5',
+      worstRating: '1',
+    }
+  }
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <ProfileClient partner={partner!} />
+    </>
+  )
 }
