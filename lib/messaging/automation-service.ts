@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
-import { sendMessageViaProvider } from '@/lib/messaging/providers'
+import { sendMessageViaProvider, sendMetaWhatsAppTemplate, sendWhatsAppTemplate } from '@/lib/messaging/providers'
 import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
 import {
   sendWelcomePartner,
@@ -163,15 +163,28 @@ async function dispatchWaTemplate(
   phone: string,
   name: string
 ): Promise<{ ok: boolean; errorCode?: string; errorMessage?: string }> {
+  const cfg = await getMessagingProviderRuntimeConfig()
+
+  // meta:{templateName}:{language} — send via Meta WhatsApp API
+  if (fn.startsWith('meta:')) {
+    const parts = fn.split(':')
+    const templateName = parts[1]
+    const language = parts[2] ?? 'es_CO'
+    return sendMetaWhatsAppTemplate(phone, templateName, language, { '1': name }, cfg.metaWhatsApp)
+  }
+
+  // HXxxxxxxx — Twilio Content SID
+  if (fn.startsWith('HX')) {
+    return sendWhatsAppTemplate(phone, fn, { '1': name }, cfg.twilio)
+  }
+
+  // Legacy function names (backward compat)
   switch (fn) {
-    case 'sendWelcomePartner':
-      return sendWelcomePartner(phone, name)
-    case 'sendVerificationReminder':
-      return sendVerificationReminder(phone, name)
-    case 'sendReferralInvite':
-      return sendReferralInvite(phone, name)
+    case 'sendWelcomePartner':      return sendWelcomePartner(phone, name)
+    case 'sendVerificationReminder': return sendVerificationReminder(phone, name)
+    case 'sendReferralInvite':       return sendReferralInvite(phone, name)
     default:
-      return { ok: false, errorCode: 'UNKNOWN_TEMPLATE_FN', errorMessage: `No WA function: ${fn}` }
+      return { ok: false, errorCode: 'UNKNOWN_TEMPLATE_FN', errorMessage: `No WA template: ${fn}` }
   }
 }
 

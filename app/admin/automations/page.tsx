@@ -18,6 +18,16 @@ type AutomationTrigger =
 
 type Channel = 'SMS' | 'WHATSAPP' | 'EMAIL' | 'PUSH'
 
+interface WaTemplate {
+  sid: string
+  name: string
+  language: string
+  waStatus: string
+  waCategory: string | null
+  source: 'meta' | 'twilio'
+  body: string
+}
+
 interface AutomationRule {
   id: string
   name: string
@@ -49,12 +59,6 @@ const TRIGGER_GROUPS = {
   Clientes: ['CLIENT_REGISTERED', 'CLIENT_FIRST_BOOKING_NUDGE', 'CLIENT_REFERRAL_REMINDER'] as AutomationTrigger[],
 }
 
-const WA_TEMPLATE_OPTIONS = [
-  { value: 'sendWelcomePartner', label: 'Bienvenida Socio' },
-  { value: 'sendVerificationReminder', label: 'Verificación Documentos' },
-  { value: 'sendReferralInvite', label: 'Invitación Referidos' },
-]
-
 const CHANNEL_ICONS: Record<Channel, React.ReactNode> = {
   EMAIL: <Mail size={13} />,
   SMS: <Phone size={13} />,
@@ -75,13 +79,28 @@ function delayLabel(hours: number) {
   return `${hours / 24}d después`
 }
 
+function waTemplateName(sid: string | null, waTemplates: WaTemplate[]): string {
+  if (!sid) return '—'
+  const found = waTemplates.find(t => t.sid === sid)
+  if (found) return `${found.name} (${found.language}) [${found.source === 'meta' ? 'Meta' : 'Twilio'}]`
+  // Legacy function names
+  const legacyMap: Record<string, string> = {
+    sendWelcomePartner: 'Bienvenida Socio',
+    sendVerificationReminder: 'Verificación Documentos',
+    sendReferralInvite: 'Invitación Referidos',
+  }
+  return legacyMap[sid] ?? sid
+}
+
 function RuleCard({
   rule,
+  waTemplates,
   onToggle,
   onEdit,
   onDelete,
 }: {
   rule: AutomationRule
+  waTemplates: WaTemplate[]
   onToggle: (id: string, val: boolean) => void
   onEdit: (rule: AutomationRule) => void
   onDelete: (id: string) => void
@@ -91,7 +110,6 @@ function RuleCard({
   return (
     <div className={`bg-white rounded-2xl border-2 transition-all ${rule.isActive ? 'border-gray-100' : 'border-dashed border-gray-200 opacity-60'}`}>
       <div className="p-5 flex items-start gap-4">
-        {/* Toggle */}
         <button
           onClick={() => onToggle(rule.id, !rule.isActive)}
           className={`mt-0.5 flex-shrink-0 transition-colors ${rule.isActive ? 'text-primary-600' : 'text-gray-300'}`}
@@ -103,7 +121,9 @@ function RuleCard({
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2 mb-1">
             <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${rule.targetRole === 'PARTNER' ? 'bg-amber-100 text-amber-700' : 'bg-sky-100 text-sky-700'}`}>
-              {rule.targetRole === 'PARTNER' ? <><UserCheck size={10} className="inline mr-1" />Socio</> : <><Users size={10} className="inline mr-1" />Cliente</>}
+              {rule.targetRole === 'PARTNER'
+                ? <><UserCheck size={10} className="inline mr-1" />Socio</>
+                : <><Users size={10} className="inline mr-1" />Cliente</>}
             </span>
             <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
               <Clock size={10} className="inline mr-1" />{delayLabel(rule.delayHours)}
@@ -117,7 +137,6 @@ function RuleCard({
           <h3 className="font-bold text-gray-900 text-sm">{rule.name}</h3>
           {rule.description && <p className="text-xs text-gray-500 mt-0.5">{rule.description}</p>}
 
-          {/* Stats */}
           <div className="mt-3 flex items-center gap-4 text-xs text-gray-500">
             <span className="flex items-center gap-1"><CheckCircle2 size={12} className="text-green-500" />{rule.stats.sent} enviados</span>
             <span className="flex items-center gap-1"><Clock size={12} className="text-yellow-500" />{rule.stats.pending} pendientes</span>
@@ -142,11 +161,27 @@ function RuleCard({
         <div className="px-5 pb-5 pt-0 border-t border-gray-50 mt-2">
           <div className="space-y-2 text-xs text-gray-600 mt-3">
             <div><span className="font-semibold text-gray-700">Trigger:</span> {TRIGGER_LABELS[rule.trigger]}</div>
-            {rule.waTemplateFn && <div><span className="font-semibold text-gray-700">Plantilla WA:</span> {WA_TEMPLATE_OPTIONS.find(o => o.value === rule.waTemplateFn)?.label ?? rule.waTemplateFn}</div>}
+            {rule.channels.includes('WHATSAPP') && (
+              <div>
+                <span className="font-semibold text-gray-700">Plantilla WA:</span>{' '}
+                {waTemplateName(rule.waTemplateFn, waTemplates)}
+              </div>
+            )}
+            {rule.channels.includes('WHATSAPP') && rule.waTemplateFn && (
+              (() => {
+                const t = waTemplates.find(w => w.sid === rule.waTemplateFn)
+                return t?.body ? (
+                  <div>
+                    <span className="font-semibold text-gray-700 block mb-1">Vista previa:</span>
+                    <pre className="bg-emerald-50 border border-emerald-100 rounded-lg p-3 whitespace-pre-wrap font-sans text-gray-600 text-[11px]">{t.body}</pre>
+                  </div>
+                ) : null
+              })()
+            )}
             {rule.subject && <div><span className="font-semibold text-gray-700">Asunto:</span> {rule.subject}</div>}
             {rule.customBody && (
               <div>
-                <span className="font-semibold text-gray-700 block mb-1">Mensaje:</span>
+                <span className="font-semibold text-gray-700 block mb-1">Mensaje (SMS/Email):</span>
                 <pre className="bg-gray-50 rounded-lg p-3 whitespace-pre-wrap font-sans text-gray-600">{rule.customBody}</pre>
               </div>
             )}
@@ -179,11 +214,25 @@ function RuleModal({
     isActive: rule?.isActive ?? true,
   })
   const [saving, setSaving] = useState(false)
+  const [waTemplates, setWaTemplates] = useState<WaTemplate[]>([])
+  const [waLoading, setWaLoading] = useState(false)
+
+  useEffect(() => {
+    if (!form.channels.includes('WHATSAPP')) return
+    setWaLoading(true)
+    fetch('/api/admin/messaging/wa-templates')
+      .then(r => r.json())
+      .then(d => setWaTemplates((d.templates ?? []).filter((t: WaTemplate) => t.waStatus === 'approved')))
+      .catch(() => {})
+      .finally(() => setWaLoading(false))
+  }, [form.channels.includes('WHATSAPP')])
 
   const toggleChannel = (ch: Channel) => {
     setForm(f => ({
       ...f,
       channels: f.channels.includes(ch) ? f.channels.filter(c => c !== ch) : [...f.channels, ch],
+      // Clear WA template when removing WHATSAPP
+      waTemplateFn: ch === 'WHATSAPP' && f.channels.includes(ch) ? '' : f.waTemplateFn,
     }))
   }
 
@@ -194,76 +243,203 @@ function RuleModal({
     setSaving(false)
   }
 
+  const selectedTemplate = waTemplates.find(t => t.sid === form.waTemplateFn)
+
+  const metaTemplates = waTemplates.filter(t => t.source === 'meta')
+  const twilioTemplates = waTemplates.filter(t => t.source === 'twilio')
+
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-gray-100">
-          <h2 className="text-lg font-bold text-gray-900">{isNew ? 'Nueva regla' : 'Editar regla'}</h2>
+          <h2 className="text-lg font-bold text-gray-900">{isNew ? 'Nueva regla de automatización' : 'Editar regla'}</h2>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+
+          {/* Name */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">Nombre *</label>
-            <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none" />
+            <input
+              value={form.name}
+              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+              required
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+            />
           </div>
+
+          {/* Description */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">Descripción</label>
-            <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none" />
+            <input
+              value={form.description}
+              onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none"
+            />
           </div>
+
+          {/* Trigger */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">Disparador (Trigger) *</label>
-            <select value={form.trigger} onChange={e => setForm(f => ({ ...f, trigger: e.target.value as AutomationTrigger }))} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none">
+            <select
+              value={form.trigger}
+              onChange={e => setForm(f => ({ ...f, trigger: e.target.value as AutomationTrigger }))}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none"
+            >
               {Object.entries(TRIGGER_LABELS).map(([val, label]) => (
                 <option key={val} value={val}>{label}</option>
               ))}
             </select>
           </div>
+
+          {/* Delay */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Demora (horas después del trigger)</label>
-            <input type="number" min={0} value={form.delayHours} onChange={e => setForm(f => ({ ...f, delayHours: Number(e.target.value) }))} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none" />
-            <p className="text-xs text-gray-400 mt-1">0 = inmediato. 24 = 1 día. 168 = 7 días.</p>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Demora</label>
+            <input
+              type="number"
+              min={0}
+              value={form.delayHours}
+              onChange={e => setForm(f => ({ ...f, delayHours: Number(e.target.value) }))}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none"
+            />
+            <p className="text-xs text-gray-400 mt-1">0 = inmediato · 24 = 1 día · 168 = 7 días</p>
           </div>
+
+          {/* Channels */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Canales *</label>
             <div className="flex flex-wrap gap-2">
               {(['EMAIL', 'SMS', 'WHATSAPP', 'PUSH'] as Channel[]).map(ch => (
-                <button key={ch} type="button" onClick={() => toggleChannel(ch)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border-2 transition-all ${form.channels.includes(ch) ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                <button
+                  key={ch}
+                  type="button"
+                  onClick={() => toggleChannel(ch)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border-2 transition-all ${
+                    form.channels.includes(ch)
+                      ? 'border-primary-500 bg-primary-50 text-primary-700'
+                      : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                  }`}
+                >
                   {CHANNEL_ICONS[ch]}{ch}
                 </button>
               ))}
             </div>
           </div>
+
+          {/* WhatsApp template picker */}
           {form.channels.includes('WHATSAPP') && (
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Plantilla WhatsApp</label>
-              <select value={form.waTemplateFn} onChange={e => setForm(f => ({ ...f, waTemplateFn: e.target.value }))} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none">
-                <option value="">— Sin plantilla WA —</option>
-                {WA_TEMPLATE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </div>
-          )}
-          {(form.channels.includes('EMAIL') || form.channels.includes('SMS')) && (
-            <>
-              {form.channels.includes('EMAIL') && (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <MessageSquare size={15} className="text-emerald-600" />
+                <span className="text-sm font-semibold text-emerald-800">Plantilla WhatsApp</span>
+              </div>
+
+              {waLoading ? (
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <Loader2 size={13} className="animate-spin" /> Cargando plantillas…
+                </div>
+              ) : waTemplates.length === 0 ? (
+                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  No hay plantillas aprobadas. Verifica la configuración en Configuración → Proveedores.
+                </p>
+              ) : (
+                <select
+                  value={form.waTemplateFn}
+                  onChange={e => setForm(f => ({ ...f, waTemplateFn: e.target.value }))}
+                  className="w-full border border-emerald-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-400 outline-none bg-white"
+                >
+                  <option value="">— Selecciona una plantilla —</option>
+                  {metaTemplates.length > 0 && (
+                    <optgroup label="Meta (WhatsApp Business)">
+                      {metaTemplates.map(t => (
+                        <option key={t.sid} value={t.sid}>
+                          {t.name} · {t.language} · {t.waCategory ?? ''}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {twilioTemplates.length > 0 && (
+                    <optgroup label="Twilio Content">
+                      {twilioTemplates.map(t => (
+                        <option key={t.sid} value={t.sid}>
+                          {t.name} · {t.language}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+              )}
+
+              {/* Body preview */}
+              {selectedTemplate?.body && (
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Asunto (Email)</label>
-                  <input value={form.subject} onChange={e => setForm(f => ({ ...f, subject: e.target.value }))} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none" placeholder="Usa {{name}} para el nombre" />
+                  <p className="text-xs font-semibold text-emerald-700 mb-1">Vista previa del mensaje:</p>
+                  <pre className="bg-white border border-emerald-200 rounded-xl p-3 text-[11px] text-gray-700 whitespace-pre-wrap font-sans leading-relaxed">
+                    {selectedTemplate.body.replace(/\{\{1\}\}/g, '[nombre]')}
+                  </pre>
+                  <p className="text-[10px] text-emerald-600 mt-1">
+                    <code className="bg-emerald-100 px-1 rounded">{'{{1}}'}</code> se reemplazará con el nombre real del usuario al enviar.
+                  </p>
                 </div>
               )}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Mensaje (SMS / Email)</label>
-                <textarea rows={4} value={form.customBody} onChange={e => setForm(f => ({ ...f, customBody: e.target.value }))} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none resize-none" placeholder="Usa {{name}} para el nombre del usuario" />
-              </div>
-            </>
+            </div>
           )}
-          <div className="flex items-center gap-2">
-            <input type="checkbox" id="isActive" checked={form.isActive} onChange={e => setForm(f => ({ ...f, isActive: e.target.checked }))} className="w-4 h-4 rounded" />
-            <label htmlFor="isActive" className="text-sm font-medium text-gray-700">Activa</label>
+
+          {/* Email subject */}
+          {form.channels.includes('EMAIL') && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Asunto (Email)</label>
+              <input
+                value={form.subject}
+                onChange={e => setForm(f => ({ ...f, subject: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none"
+                placeholder="Usa {{name}} para el nombre"
+              />
+            </div>
+          )}
+
+          {/* SMS / Email body */}
+          {(form.channels.includes('EMAIL') || form.channels.includes('SMS')) && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                Mensaje {form.channels.includes('EMAIL') && form.channels.includes('SMS') ? '(SMS y Email)' : form.channels.includes('SMS') ? '(SMS)' : '(Email)'}
+              </label>
+              <textarea
+                rows={4}
+                value={form.customBody}
+                onChange={e => setForm(f => ({ ...f, customBody: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none resize-none"
+                placeholder="Usa {{name}} para el nombre del usuario"
+              />
+            </div>
+          )}
+
+          {/* Active toggle */}
+          <div className="flex items-center gap-2 pt-1">
+            <input
+              type="checkbox"
+              id="isActive"
+              checked={form.isActive}
+              onChange={e => setForm(f => ({ ...f, isActive: e.target.checked }))}
+              className="w-4 h-4 rounded accent-primary-600"
+            />
+            <label htmlFor="isActive" className="text-sm font-medium text-gray-700">Regla activa</label>
           </div>
+
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-all">Cancelar</button>
-            <button type="submit" disabled={saving || !form.channels.length} className="flex-1 py-2.5 rounded-xl bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 transition-all disabled:opacity-50">
-              {saving ? <Loader2 size={16} className="animate-spin mx-auto" /> : isNew ? 'Crear regla' : 'Guardar'}
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-all"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={saving || !form.channels.length}
+              className="flex-1 py-2.5 rounded-xl bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {saving ? <Loader2 size={16} className="animate-spin" /> : null}
+              {saving ? 'Guardando…' : isNew ? 'Crear regla' : 'Guardar cambios'}
             </button>
           </div>
         </form>
@@ -274,6 +450,7 @@ function RuleModal({
 
 export default function AutomationsPage() {
   const [rules, setRules] = useState<AutomationRule[]>([])
+  const [waTemplates, setWaTemplates] = useState<WaTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [seeding, setSeeding] = useState(false)
   const [editRule, setEditRule] = useState<Partial<AutomationRule> | null | false>(false)
@@ -282,11 +459,15 @@ export default function AutomationsPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/admin/automations')
-      const data = await res.json()
-      setRules(data.rules ?? [])
+      const [rulesRes, waRes] = await Promise.all([
+        fetch('/api/admin/automations'),
+        fetch('/api/admin/messaging/wa-templates'),
+      ])
+      const [rulesData, waData] = await Promise.all([rulesRes.json(), waRes.json()])
+      setRules(rulesData.rules ?? [])
+      setWaTemplates(waData.templates ?? [])
     } catch {
-      setError('Error cargando reglas')
+      setError('Error cargando automatizaciones')
     } finally {
       setLoading(false)
     }
@@ -355,7 +536,10 @@ export default function AutomationsPage() {
         <Info size={18} className="flex-shrink-0 mt-0.5" />
         <div>
           <p className="font-semibold mb-0.5">¿Cómo funciona?</p>
-          <p>Cuando un socio o cliente se registra, el sistema crea ejecuciones programadas para cada regla activa. Un cron job las procesa cada hora. Usa <code className="bg-blue-100 px-1 rounded">{"{{name}}"}</code> en el texto para personalizar el nombre del usuario.</p>
+          <p>
+            Cuando un socio o cliente cumple un trigger, se crean ejecuciones programadas por canal. Un cron las procesa cada hora.
+            Para WhatsApp, selecciona una plantilla aprobada por Meta. Para SMS/Email usa texto libre con <code className="bg-blue-100 px-1 rounded">{'{{name}}'}</code>.
+          </p>
         </div>
       </div>
 
@@ -389,8 +573,9 @@ export default function AutomationsPage() {
                   <RuleCard
                     key={rule.id}
                     rule={rule}
+                    waTemplates={waTemplates}
                     onToggle={handleToggle}
-                    onEdit={(r) => setEditRule(r)}
+                    onEdit={r => setEditRule(r)}
                     onDelete={handleDelete}
                   />
                 ))}
