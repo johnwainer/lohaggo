@@ -195,6 +195,48 @@ export default async function ServiceSlugLayout({ params, children }: Props) {
         </div>
       </section>
       {children}
+      {/* Rich server-rendered content block — ensures Google never sees a thin page */}
+      <section style={{ background: '#f9fafb', borderTop: '1px solid #e5e7eb', padding: '2.5rem 1.5rem' }}>
+        <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#111827', marginBottom: '1rem' }}>
+            ¿Por qué contratar {service.name.toLowerCase()} con LoHaggo?
+          </h2>
+          <p style={{ color: '#374151', lineHeight: 1.7, marginBottom: '1.5rem' }}>
+            En LoHaggo conectamos a clientes con profesionales de {service.name.toLowerCase()} en Medellín
+            que han pasado por un riguroso proceso de verificación. Todos nuestros socios tienen
+            experiencia comprobada, documentos en regla y calificaciones reales de otros clientes.
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+            {[
+              { icon: '✅', title: 'Profesionales verificados', desc: 'Identidad y antecedentes comprobados' },
+              { icon: '💰', title: 'Precio transparente', desc: `Desde $${Math.round(service.basePrice).toLocaleString('es-CO')} COP` },
+              { icon: '⭐', title: `${avgRating}/5 calificación`, desc: `Basada en ${reviewCount} reseñas reales` },
+              { icon: '📅', title: 'Reserva en minutos', desc: 'Sin llamadas ni esperas innecesarias' },
+              { icon: '🔒', title: 'Pago seguro', desc: 'Solo pagas cuando termina el servicio' },
+              { icon: '📍', title: 'Medellín y área metropolitana', desc: 'Cobertura en toda la ciudad' },
+            ].map(item => (
+              <div key={item.title} style={{ background: 'white', padding: '1rem', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>{item.icon}</div>
+                <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#111827', marginBottom: '0.25rem' }}>{item.title}</div>
+                <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>{item.desc}</div>
+              </div>
+            ))}
+          </div>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#111827', marginBottom: '0.75rem' }}>
+            Sobre el servicio de {service.name.toLowerCase()} en Medellín
+          </h2>
+          <p style={{ color: '#374151', lineHeight: 1.7, marginBottom: '1rem' }}>
+            {service.description} Contamos con {service._count.partners} profesionales verificados
+            en la categoría {service.category.name} disponibles en Medellín.
+            Puedes reservar en minutos y recibir atención el mismo día o cuando lo prefieras.
+          </p>
+          <p style={{ color: '#374151', lineHeight: 1.7 }}>
+            LoHaggo es la plataforma líder de servicios profesionales en Colombia. Cada profesional
+            es seleccionado tras verificación de identidad, revisión de antecedentes y evaluación
+            de su experiencia. Las calificaciones son 100% de clientes reales que ya usaron el servicio.
+          </p>
+        </div>
+      </section>
     </>
   )
 }
