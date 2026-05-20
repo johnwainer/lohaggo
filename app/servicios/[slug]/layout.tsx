@@ -111,7 +111,7 @@ export default async function ServiceSlugLayout({ params, children }: Props) {
 
   const jsonLd = {
     '@context': 'https://schema.org',
-    '@type': schemaType,
+    '@type': schemaType === 'HomeAndConstructionBusiness' ? 'LocalBusiness' : [schemaType, 'LocalBusiness'],
     name: `${service.name} en Medellín – LoHaggo`,
     description: service.description,
     url,
