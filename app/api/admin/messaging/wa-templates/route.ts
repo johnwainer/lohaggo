@@ -45,48 +45,58 @@ export async function GET() {
   const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const runtimeConfig = await getMessagingProviderRuntimeConfig()
+  try {
+    const runtimeConfig = await getMessagingProviderRuntimeConfig()
 
-  const twilioTemplates: any[] = []
-  const conf = runtimeConfig.twilio.config
-  if (conf?.accountSid && conf?.authToken) {
-    const { accountSid, authToken } = conf
-    const contentData = await twilioFetch('/v1/Content?PageSize=50', accountSid, authToken)
-    for (const c of contentData?.contents ?? []) {
-      const approvalData = await twilioFetch(
-        `/v1/Content/${c.sid}/ApprovalRequests`,
-        accountSid,
-        authToken
-      )
-      const wa = approvalData?.whatsapp ?? {}
-      twilioTemplates.push({
-        sid: c.sid,
-        name: c.friendly_name,
-        language: c.language,
-        types: Object.keys(c.types ?? {}),
-        body: (Object.values(c.types ?? {}) as any[])[0]?.body ?? '',
-        variables: c.variables ?? {},
-        waStatus: wa.status ?? 'unsubmitted',
-        waName: wa.name ?? null,
-        waCategory: wa.category ?? null,
-        waRejectionReason: wa.rejection_reason ?? null,
-        source: 'twilio' as const,
-      })
+    const twilioTemplates: any[] = []
+    const conf = runtimeConfig.twilio.config
+    if (conf?.accountSid && conf?.authToken) {
+      try {
+        const { accountSid, authToken } = conf
+        const contentData = await twilioFetch('/v1/Content?PageSize=50', accountSid, authToken)
+        await Promise.all(
+          (contentData?.contents ?? []).map(async (c: any) => {
+            try {
+              const approvalData = await twilioFetch(
+                `/v1/Content/${c.sid}/ApprovalRequests`,
+                accountSid,
+                authToken
+              )
+              const wa = approvalData?.whatsapp ?? {}
+              twilioTemplates.push({
+                sid: c.sid,
+                name: c.friendly_name,
+                language: c.language,
+                types: Object.keys(c.types ?? {}),
+                body: (Object.values(c.types ?? {}) as any[])[0]?.body ?? '',
+                variables: c.variables ?? {},
+                waStatus: wa.status ?? 'unsubmitted',
+                waName: wa.name ?? null,
+                waCategory: wa.category ?? null,
+                waRejectionReason: wa.rejection_reason ?? null,
+                source: 'twilio' as const,
+              })
+            } catch { /* skip this template on error */ }
+          })
+        )
+      } catch { /* Twilio unavailable — continue */ }
     }
+
+    const metaTemplates: any[] = []
+    const metaConf = runtimeConfig.metaWhatsApp.config
+    if (runtimeConfig.metaWhatsApp.active && metaConf?.accessToken && metaConf?.wabaId) {
+      try {
+        const fetched = await fetchMetaTemplates(metaConf.accessToken, metaConf.wabaId)
+        metaTemplates.push(...fetched)
+      } catch { /* Meta unavailable — continue */ }
+    }
+
+    // Merge: Meta templates take precedence; skip Twilio duplicates by waName match
+    const metaNames = new Set(metaTemplates.map((t) => t.waName))
+    const filteredTwilio = twilioTemplates.filter((t) => !metaNames.has(t.waName))
+
+    return NextResponse.json({ templates: [...metaTemplates, ...filteredTwilio] })
+  } catch {
+    return NextResponse.json({ templates: [] })
   }
-
-  const metaTemplates: any[] = []
-  const metaConf = runtimeConfig.metaWhatsApp.config
-  if (runtimeConfig.metaWhatsApp.active && metaConf?.accessToken && metaConf?.wabaId) {
-    const fetched = await fetchMetaTemplates(metaConf.accessToken, metaConf.wabaId)
-    metaTemplates.push(...fetched)
-  }
-
-  // Merge: Meta templates take precedence; skip Twilio duplicates by waName match
-  const metaNames = new Set(metaTemplates.map((t) => t.waName))
-  const filteredTwilio = twilioTemplates.filter((t) => !metaNames.has(t.waName))
-
-  const templates = [...metaTemplates, ...filteredTwilio]
-
-  return NextResponse.json({ templates })
 }

@@ -373,21 +373,21 @@ export default function AdminCommunicationsPage() {
   const load = async () => {
     setLoading(true)
     try {
-      const [tplRes, campRes, ovRes, pvRes, waRes] = await Promise.all([
+      const [tplRes, campRes, ovRes, pvRes, waRes, svcRes] = await Promise.all([
         fetch('/api/admin/messaging/templates', { cache: 'no-store' }),
         fetch('/api/admin/messaging/campaigns', { cache: 'no-store' }),
         fetch('/api/admin/messaging/overview', { cache: 'no-store' }),
         fetch('/api/admin/messaging/providers', { cache: 'no-store' }),
         fetch('/api/admin/messaging/wa-templates', { cache: 'no-store' }),
+        fetch('/api/admin/messaging/services', { cache: 'no-store' }),
       ])
-      const svcRes = await fetch('/api/admin/messaging/services', { cache: 'no-store' })
       const [tplData, campData, ovData, pvData, waData, svcData] = await Promise.all([
-        tplRes.json(),
-        campRes.json(),
-        ovRes.json(),
-        pvRes.json(),
-        waRes.json(),
-        svcRes.json(),
+        tplRes.json().catch(() => ({ templates: [] })),
+        campRes.json().catch(() => ({ campaigns: [] })),
+        ovRes.json().catch(() => null),
+        pvRes.json().catch(() => ({ providers: null })),
+        waRes.json().catch(() => ({ templates: [] })),
+        svcRes.json().catch(() => ({ services: [] })),
       ])
       setTemplates(tplData.templates || [])
       setWaTemplates(waData.templates || [])
