@@ -29,7 +29,8 @@ export async function getMessagingProviderRuntimeConfig(): Promise<MessagingProv
   const [twilio, sendgrid, metaWa] = await Promise.all([
     prisma.messagingProviderConfig.findUnique({ where: { provider: 'TWILIO' } }),
     prisma.messagingProviderConfig.findUnique({ where: { provider: 'SENDGRID' } }),
-    prisma.messagingProviderConfig.findUnique({ where: { provider: 'META_WHATSAPP' } }),
+    // META_WHATSAPP may not exist in the DB enum on older deployments — catch gracefully
+    prisma.messagingProviderConfig.findUnique({ where: { provider: 'META_WHATSAPP' } }).catch(() => null),
   ])
 
   const tryDecrypt = <T>(blob: string | null | undefined): T | null => {
