@@ -62,6 +62,62 @@ async function sendByTwilioSms(to: string, body: string, cfg: MessagingProviderR
   return { ok: true, provider: 'twilio-sms', providerMessageId: data?.sid }
 }
 
+export async function sendMetaWhatsAppTemplate(
+  to: string,
+  templateName: string,
+  language: string,
+  variables: Record<string, string>,
+  cfg: MessagingProviderRuntimeConfig['metaWhatsApp']
+): Promise<SendResult> {
+  const conf = cfg.config
+  if (!cfg.active || !conf?.accessToken || !conf?.phoneNumberId) {
+    return { ok: false, provider: 'meta-whatsapp', errorCode: 'CONFIG', errorMessage: 'Meta WhatsApp not configured' }
+  }
+
+  const phoneE164 = normalizePhone(to)
+
+  // Build body parameter components from numbered variables {"1": "val", "2": "val"}
+  const sortedKeys = Object.keys(variables).sort((a, b) => Number(a) - Number(b))
+  const bodyParameters = sortedKeys.map((k) => ({ type: 'text', text: variables[k] }))
+
+  const components = bodyParameters.length
+    ? [{ type: 'body', parameters: bodyParameters }]
+    : []
+
+  const payload = {
+    messaging_product: 'whatsapp',
+    to: phoneE164.replace('+', ''),
+    type: 'template',
+    template: {
+      name: templateName,
+      language: { code: language },
+      components,
+    },
+  }
+
+  const endpoint = `https://graph.facebook.com/v18.0/${conf.phoneNumberId}/messages`
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${conf.accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    return {
+      ok: false,
+      provider: 'meta-whatsapp',
+      errorCode: String(data?.error?.code || response.status),
+      errorMessage: String(data?.error?.message || 'Meta WhatsApp error'),
+    }
+  }
+
+  return { ok: true, provider: 'meta-whatsapp', providerMessageId: data?.messages?.[0]?.id }
+}
+
 export async function sendWhatsAppTemplate(
   to: string,
   contentSid: string,

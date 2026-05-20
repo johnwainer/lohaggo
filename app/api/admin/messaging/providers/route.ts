@@ -30,6 +30,12 @@ export async function GET() {
         apiKey: maskSecret(config.sendgrid.config?.apiKey),
         hasApiKey: Boolean(config.sendgrid.config?.apiKey),
       },
+      metaWhatsApp: {
+        active: config.metaWhatsApp.active,
+        wabaId: config.metaWhatsApp.config?.wabaId || '',
+        phoneNumberId: config.metaWhatsApp.config?.phoneNumberId || '',
+        hasAccessToken: Boolean(config.metaWhatsApp.config?.accessToken),
+      },
       push: {
         configured: isPushConfigured(),
         hasVapidPublicKey: Boolean(env.NEXT_PUBLIC_VAPID_PUBLIC_KEY),
@@ -76,6 +82,21 @@ export async function PATCH(request: NextRequest) {
     }
     await upsertProviderConfig({
       provider: 'SENDGRID',
+      isActive: body.isActive ?? true,
+      config: merged,
+      updatedByEmail: admin.email,
+    })
+  } else if (body.provider === 'META_WHATSAPP') {
+    const merged = {
+      accessToken: body.accessToken ? String(body.accessToken) : current.metaWhatsApp.config?.accessToken,
+      wabaId: body.wabaId ? String(body.wabaId) : current.metaWhatsApp.config?.wabaId,
+      phoneNumberId: body.phoneNumberId ? String(body.phoneNumberId) : current.metaWhatsApp.config?.phoneNumberId,
+    }
+    if (!merged.accessToken || !merged.wabaId || !merged.phoneNumberId) {
+      return NextResponse.json({ error: 'accessToken, wabaId y phoneNumberId son requeridos para Meta WhatsApp' }, { status: 400 })
+    }
+    await upsertProviderConfig({
+      provider: 'META_WHATSAPP',
       isActive: body.isActive ?? true,
       config: merged,
       updatedByEmail: admin.email,

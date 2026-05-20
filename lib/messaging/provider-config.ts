@@ -13,15 +13,23 @@ export type SendgridProviderConfig = {
   fromEmail: string
 }
 
+export type MetaWhatsAppProviderConfig = {
+  accessToken: string
+  wabaId: string
+  phoneNumberId: string
+}
+
 export type MessagingProviderRuntimeConfig = {
   twilio: { active: boolean; config: TwilioProviderConfig | null }
   sendgrid: { active: boolean; config: SendgridProviderConfig | null }
+  metaWhatsApp: { active: boolean; config: MetaWhatsAppProviderConfig | null }
 }
 
 export async function getMessagingProviderRuntimeConfig(): Promise<MessagingProviderRuntimeConfig> {
-  const [twilio, sendgrid] = await Promise.all([
+  const [twilio, sendgrid, metaWa] = await Promise.all([
     prisma.messagingProviderConfig.findUnique({ where: { provider: 'TWILIO' } }),
     prisma.messagingProviderConfig.findUnique({ where: { provider: 'SENDGRID' } }),
+    prisma.messagingProviderConfig.findUnique({ where: { provider: 'META_WHATSAPP' } }),
   ])
 
   const tryDecrypt = <T>(blob: string | null | undefined): T | null => {
@@ -38,11 +46,15 @@ export async function getMessagingProviderRuntimeConfig(): Promise<MessagingProv
       active: Boolean(sendgrid?.isActive),
       config: tryDecrypt<SendgridProviderConfig>(sendgrid?.configEncrypted),
     },
+    metaWhatsApp: {
+      active: Boolean(metaWa?.isActive),
+      config: tryDecrypt<MetaWhatsAppProviderConfig>(metaWa?.configEncrypted),
+    },
   }
 }
 
 export async function upsertProviderConfig(params: {
-  provider: 'TWILIO' | 'SENDGRID'
+  provider: 'TWILIO' | 'SENDGRID' | 'META_WHATSAPP'
   isActive: boolean
   config: unknown
   updatedByEmail?: string | null

@@ -2,7 +2,7 @@ import type { MessagingCampaign, MessagingCampaignStatus, MessagingChannel, User
 import { randomBytes } from 'crypto'
 import { prisma } from '@/lib/prisma'
 import { renderTextTemplate } from '@/lib/messaging/template'
-import { sendMessageViaProvider, sendWhatsAppTemplate } from '@/lib/messaging/providers'
+import { sendMessageViaProvider, sendWhatsAppTemplate, sendMetaWhatsAppTemplate } from '@/lib/messaging/providers'
 import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
 import { resolveCampaignRecipients, resolveDestination } from '@/lib/messaging/campaign-recipients'
 
@@ -224,6 +224,12 @@ export async function processCampaign(campaignId: string) {
             ? `La variable {{${emptyKey[0]}}} (action_url) está vacía: genera magic links para este usuario antes de enviar.`
             : `La variable {{${emptyKey[0]}}} está vacía. Revisa las variables de la plantilla.`,
         }
+      } else if (waContentSid.startsWith('meta:')) {
+        // Format: meta:{templateName}:{language}
+        const parts = waContentSid.split(':')
+        const templateName = parts[1] ?? ''
+        const language = parts[2] ?? 'es'
+        result = await sendMetaWhatsAppTemplate(destination, templateName, language, resolvedVars, runtimeConfig.metaWhatsApp)
       } else {
         result = await sendWhatsAppTemplate(destination, waContentSid, resolvedVars, runtimeConfig.twilio)
       }

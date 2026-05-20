@@ -121,6 +121,12 @@ type ProviderState = {
     apiKey: string
     hasApiKey?: boolean
   }
+  metaWhatsApp?: {
+    active: boolean
+    wabaId: string
+    phoneNumberId: string
+    hasAccessToken?: boolean
+  }
   push?: {
     configured: boolean
     hasVapidPublicKey?: boolean
@@ -138,6 +144,7 @@ type WaTemplate = {
   waStatus: string
   waName: string | null
   waCategory: string | null
+  source?: 'meta' | 'twilio'
 }
 
 type Panel = 'OVERVIEW' | 'CONFIG' | 'CAMPAIGNS' | 'CREATE' | 'ANALYTICS'
@@ -275,6 +282,12 @@ export default function AdminCommunicationsPage() {
     isActive: true,
     fromEmail: '',
     apiKey: '',
+  })
+  const [metaForm, setMetaForm] = useState({
+    isActive: true,
+    accessToken: '',
+    wabaId: '',
+    phoneNumberId: '',
   })
   const [recipientSearch, setRecipientSearch] = useState('')
   const [recipientIncludeIds, setRecipientIncludeIds] = useState<string[]>([])
@@ -477,6 +490,14 @@ export default function AdminCommunicationsPage() {
       isActive: providers.sendgrid.active,
       fromEmail: providers.sendgrid.fromEmail || '',
     }))
+    if (providers.metaWhatsApp) {
+      setMetaForm((prev) => ({
+        ...prev,
+        isActive: providers.metaWhatsApp!.active,
+        wabaId: providers.metaWhatsApp!.wabaId || '',
+        phoneNumberId: providers.metaWhatsApp!.phoneNumberId || '',
+      }))
+    }
   }, [providers])
 
   useEffect(() => {
@@ -878,6 +899,24 @@ export default function AdminCommunicationsPage() {
     await load()
   }
 
+  const saveMetaWhatsApp = async () => {
+    const payload: Record<string, unknown> = {
+      provider: 'META_WHATSAPP',
+      isActive: metaForm.isActive,
+      wabaId: metaForm.wabaId || null,
+      phoneNumberId: metaForm.phoneNumberId || null,
+    }
+    if (metaForm.accessToken.trim()) payload.accessToken = metaForm.accessToken.trim()
+
+    await fetch('/api/admin/messaging/providers', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    setMetaForm((prev) => ({ ...prev, accessToken: '' }))
+    await load()
+  }
+
   // Insert {{variable}} at cursor position in the template body textarea
   function insertVar(key: string) {
     const el = tplBodyRef.current
@@ -1100,6 +1139,37 @@ export default function AdminCommunicationsPage() {
                   </button>
                 </div>
               </div>
+
+              <div className="border rounded-lg p-4 space-y-2">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold">Meta WhatsApp (Cloud API)</h3>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                        providers?.metaWhatsApp?.active && providers?.metaWhatsApp?.hasAccessToken
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : 'bg-amber-100 text-amber-700'
+                      }`}
+                    >
+                      {providers?.metaWhatsApp?.active && providers?.metaWhatsApp?.hasAccessToken ? 'Configurado' : 'Incompleto'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    WABA ID: {providers?.metaWhatsApp?.wabaId || 'n/a'} · Phone ID: {providers?.metaWhatsApp?.phoneNumberId || 'n/a'} · Token: {providers?.metaWhatsApp?.hasAccessToken ? 'OK' : 'Falta'}
+                  </p>
+                </div>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={metaForm.isActive} onChange={(e) => setMetaForm((p) => ({ ...p, isActive: e.target.checked }))} />
+                  Activar Meta WhatsApp
+                </label>
+                <input className="border rounded px-2 py-2 text-sm w-full" placeholder="WABA ID (WhatsApp Business Account ID)" value={metaForm.wabaId} onChange={(e) => setMetaForm((p) => ({ ...p, wabaId: e.target.value }))} />
+                <input className="border rounded px-2 py-2 text-sm w-full" placeholder="Phone Number ID" value={metaForm.phoneNumberId} onChange={(e) => setMetaForm((p) => ({ ...p, phoneNumberId: e.target.value }))} />
+                <input className="border rounded px-2 py-2 text-sm w-full" placeholder="Access Token (déjalo vacío para mantener el actual)" type="password" value={metaForm.accessToken} onChange={(e) => setMetaForm((p) => ({ ...p, accessToken: e.target.value }))} />
+                <button className="bg-primary-600 text-white rounded px-3 py-2 text-sm" onClick={saveMetaWhatsApp}>
+                  Guardar Meta WhatsApp
+                </button>
+              </div>
+
               <div className="border rounded-lg p-4 space-y-2">
                 <div className="flex items-center gap-2">
                   <h3 className="font-semibold">PUSH (Web Push / PWA)</h3>
@@ -1882,7 +1952,7 @@ export default function AdminCommunicationsPage() {
                       {approvedWaTemplates.length === 0 ? (
                         <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                           {waTemplates.length === 0
-                            ? 'No se encontraron plantillas en Twilio. Verifica las credenciales en Configuración.'
+                            ? 'No se encontraron plantillas. Verifica las credenciales de Meta o Twilio en Configuración.'
                             : 'No hay plantillas aprobadas por Meta. Solo se pueden enviar plantillas con estado "approved".'}
                         </p>
                       ) : (
@@ -1893,10 +1963,12 @@ export default function AdminCommunicationsPage() {
                             const sid = e.target.value
                             const tpl = waTemplates.find((t) => t.sid === sid)
                             const vars: Record<string, string> = {}
-                            if (tpl?.variables) {
-                              for (const key of Object.keys(tpl.variables)) {
-                                vars[key] = key === '1' ? '{{user_name}}' : ''
-                              }
+                            // Twilio templates carry a variables dict; Meta templates need body parsing
+                            const varKeys = tpl?.variables && Object.keys(tpl.variables).length > 0
+                              ? Object.keys(tpl.variables)
+                              : Array.from(new Set(Array.from(tpl?.body?.matchAll(/\{\{(\d+)\}\}/g) ?? []).map((m) => m[1]))).sort()
+                            for (const key of varKeys) {
+                              vars[key] = key === '1' ? '{{user_name}}' : ''
                             }
                             setCampForm((p) => ({ ...p, waContentSid: sid, waTemplateVariables: vars }))
                           }}
@@ -1904,7 +1976,7 @@ export default function AdminCommunicationsPage() {
                           <option value="">Selecciona una plantilla WA…</option>
                           {approvedWaTemplates.map((tpl) => (
                             <option key={tpl.sid} value={tpl.sid}>
-                              {tpl.name} ({tpl.language}){tpl.waCategory ? ` · ${tpl.waCategory}` : ''}
+                              {tpl.name} ({tpl.language}){tpl.waCategory ? ` · ${tpl.waCategory}` : ''}{tpl.source === 'meta' ? ' [Meta]' : tpl.source === 'twilio' ? ' [Twilio]' : ''}
                             </option>
                           ))}
                         </select>

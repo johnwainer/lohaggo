@@ -1428,6 +1428,7 @@ enum MessagingDeliveryStatus {
 enum MessagingProvider {
   TWILIO
   SENDGRID
+  META_WHATSAPP
 }
 
 enum ConversationStatus {
