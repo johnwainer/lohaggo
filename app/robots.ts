@@ -22,6 +22,7 @@ export default function robots(): MetadataRoute.Robots {
           '/registro-socios',
           '/notifications',
           '/my-ratings',
+          '/servicios?',
         ],
       },
       {
@@ -43,6 +44,7 @@ export default function robots(): MetadataRoute.Robots {
           '/registro-socios',
           '/notifications',
           '/my-ratings',
+          '/servicios?',
         ],
         crawlDelay: 0,
       },

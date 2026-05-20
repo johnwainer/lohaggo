@@ -230,11 +230,6 @@ export default async function RootLayout({
               "@type": "WebSite",
               "name": "LoHaggo",
               "url": "https://www.lohaggo.com",
-              "potentialAction": {
-                "@type": "SearchAction",
-                "target": "https://www.lohaggo.com/servicios?q={search_term_string}",
-                "query-input": "required name=search_term_string"
-              }
             })
           }}
         />
