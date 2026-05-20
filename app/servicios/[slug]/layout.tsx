@@ -158,27 +158,42 @@ export default async function ServiceSlugLayout({ params, children }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      {/* Server-rendered content for search engines — always visible in HTML */}
-      <div className="sr-only" aria-hidden="false">
-        <h1>{service.name} en Medellín – LoHaggo</h1>
-        <p>
-          Contrata {service.name.toLowerCase()} en Medellín con LoHaggo.
-          {' '}{service.description}
-        </p>
-        <ul>
-          <li>Categoría: {service.category.name}</li>
-          <li>Precio base desde ${priceFormatted} COP</li>
-          <li>{service._count.partners} profesionales verificados disponibles</li>
-          <li>Calificación promedio: {avgRating} / 5 basada en {reviewCount} reseñas</li>
-          <li>Área de servicio: Medellín, Antioquia, Colombia</li>
-          <li>Reserva en minutos — paga al finalizar el servicio</li>
-        </ul>
-        <p>
-          LoHaggo conecta clientes con profesionales verificados en Medellín.
-          Todos nuestros socios pasan por verificación de identidad y antecedentes.
-          Solicita {service.name.toLowerCase()} hoy y recibe atención en tu hogar.
-        </p>
-      </div>
+      {/*
+        Server-rendered SEO header — visible to Google crawlers and users during hydration.
+        Provides real text content so the page is never seen as a Soft 404.
+        This section renders server-side before any client JS runs.
+      */}
+      <section
+        style={{
+          background: 'linear-gradient(135deg, #0066CC 0%, #0052a3 100%)',
+          color: 'white',
+          padding: '2rem 1.5rem 1.5rem',
+        }}
+        aria-label={`Información sobre ${service.name}`}
+      >
+        <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+          <p style={{ fontSize: '0.8rem', opacity: 0.8, marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            {service.category.name} · Medellín, Colombia
+          </p>
+          <h1 style={{ fontSize: 'clamp(1.4rem, 4vw, 2rem)', fontWeight: 800, marginBottom: '0.75rem', lineHeight: 1.2 }}>
+            {service.name} en Medellín
+          </h1>
+          <p style={{ fontSize: '0.95rem', opacity: 0.9, marginBottom: '1.25rem', maxWidth: '600px', lineHeight: 1.5 }}>
+            {service.description}
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', fontSize: '0.85rem' }}>
+            <span style={{ background: 'rgba(255,255,255,0.15)', padding: '0.35rem 0.75rem', borderRadius: '999px' }}>
+              ⭐ {avgRating}/5 · {reviewCount} reseñas
+            </span>
+            <span style={{ background: 'rgba(255,255,255,0.15)', padding: '0.35rem 0.75rem', borderRadius: '999px' }}>
+              👷 {service._count.partners} profesionales verificados
+            </span>
+            <span style={{ background: 'rgba(255,255,255,0.15)', padding: '0.35rem 0.75rem', borderRadius: '999px' }}>
+              💰 Desde ${priceFormatted} COP
+            </span>
+          </div>
+        </div>
+      </section>
       {children}
     </>
   )
