@@ -6,6 +6,7 @@ import { createLogger } from '@/lib/logger'
 import { cloudinaryService } from '@/lib/cloudinary'
 import { handleApiError } from '@/lib/errors'
 import { createNotification } from '@/lib/notifications/notificationService'
+import { scheduleAutomationsForUser } from '@/lib/messaging/automation-service'
 
 const logger = createLogger('admin-documents-background')
 
@@ -72,6 +73,8 @@ export async function POST(req: NextRequest) {
       title: 'Antecedentes aprobados',
       message: 'Tus antecedentes han sido verificados y aprobados'
     })
+
+    scheduleAutomationsForUser(partnerProfile.userId, 'PARTNER_DOCS_APPROVED', { contextId: document.id }).catch(() => null)
 
     const backgroundAchievement = await prisma.achievement.findUnique({
       where: { type: 'BACKGROUND_CHECK_VERIFIED' }
