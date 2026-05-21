@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import {
   FileText, CheckCircle, XCircle, Clock, Eye, User,
-  Search, CreditCard, GraduationCap, Shield, Zap
+  Search, CreditCard, GraduationCap, Shield, Zap, Building2
 } from 'lucide-react'
 import Modal from '@/components/Modal'
 
@@ -51,7 +51,8 @@ const DOCUMENT_LABELS: Record<string, string> = {
   DIPLOMA_PROFESIONAL: 'Diploma Profesional',
   DIPLOMA_POSGRADO: 'Diploma de Posgrado',
   CERTIFICADO_CURSO: 'Certificado de Curso',
-  ANTECEDENTES: 'Antecedentes'
+  ANTECEDENTES: 'Antecedentes',
+  CAMARA_COMERCIO: 'Cámara de Comercio',
 }
 
 export default function AdminDocumentsPage() {
@@ -262,6 +263,9 @@ export default function AdminDocumentsPage() {
     }
     if (type === 'ANTECEDENTES') {
       return <Shield className="w-5 h-5 text-green-600" />
+    }
+    if (type === 'CAMARA_COMERCIO') {
+      return <Building2 className="w-5 h-5 text-indigo-600" />
     }
     return <GraduationCap className="w-5 h-5 text-purple-600" />
   }
