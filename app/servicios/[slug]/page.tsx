@@ -607,10 +607,10 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
         tooltip: 'Documento de identidad aprobado',
       },
       hasBackground && {
-        icon: <Shield size={13} />,
+        icon: <ShieldCheck size={13} />,
         label: 'Sin antecedentes',
-        bg: 'bg-green-50 border-green-200 text-green-700',
-        tooltip: 'Verificación de antecedentes aprobada',
+        bg: 'bg-teal-50 border-teal-400 text-teal-700 font-bold',
+        tooltip: 'Verificación de antecedentes penales aprobada',
       },
       hasEducation && {
         icon: <GraduationCap size={13} />,

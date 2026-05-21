@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import {
   FileText, CheckCircle, XCircle, Clock, Eye, User,
-  Search, CreditCard, GraduationCap, Shield, Upload, Zap
+  Search, CreditCard, GraduationCap, Shield, Zap
 } from 'lucide-react'
 import Modal from '@/components/Modal'
 
@@ -30,6 +30,15 @@ interface Document {
   }
 }
 
+interface PendingPartner {
+  id: string
+  slug: string
+  isActive: boolean
+  verified: boolean
+  user: { name: string; email: string; image: string | null }
+  services: { service: { name: string } }[]
+}
+
 const DOCUMENT_LABELS: Record<string, string> = {
   CEDULA_CIUDADANIA: 'Cédula de Ciudadanía',
   CEDULA_EXTRANJERIA: 'Cédula de Extranjería',
@@ -47,6 +56,7 @@ const DOCUMENT_LABELS: Record<string, string> = {
 export default function AdminDocumentsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const [activeTab, setActiveTab] = useState<'documents' | 'pending-background'>('documents')
   const [documents, setDocuments] = useState<Document[]>([])
   const [filteredDocuments, setFilteredDocuments] = useState<Document[]>([])
   const [loading, setLoading] = useState(true)
@@ -59,10 +69,12 @@ export default function AdminDocumentsPage() {
   const [reviewing, setReviewing] = useState(false)
   const [activatingPartnerId, setActivatingPartnerId] = useState<string | null>(null)
   const [showBackgroundModal, setShowBackgroundModal] = useState(false)
-  const [selectedPartner, setSelectedPartner] = useState<any>(null)
+  const [selectedPartner, setSelectedPartner] = useState<PendingPartner | null>(null)
   const [backgroundFile, setBackgroundFile] = useState<File | null>(null)
   const [uploadingBackground, setUploadingBackground] = useState(false)
-  const [partners, setPartners] = useState<any[]>([])
+  const [pendingPartners, setPendingPartners] = useState<PendingPartner[]>([])
+  const [pendingSearch, setPendingSearch] = useState('')
+  const [pendingLoading, setPendingLoading] = useState(false)
 
   useEffect(() => {
     if (status === 'loading') return
@@ -77,7 +89,7 @@ export default function AdminDocumentsPage() {
 
   useEffect(() => {
     fetchDocuments()
-    fetchPartners()
+    fetchPendingBackground()
   }, [])
 
   useEffect(() => {
@@ -98,15 +110,18 @@ export default function AdminDocumentsPage() {
     }
   }
 
-  const fetchPartners = async () => {
+  const fetchPendingBackground = async (search = '') => {
+    setPendingLoading(true)
     try {
-      const res = await fetch('/api/admin/partners/list')
+      const res = await fetch(`/api/admin/documents/pending-background?search=${encodeURIComponent(search)}`)
       if (res.ok) {
         const data = await res.json()
-        setPartners(data)
+        setPendingPartners(data.partners)
       }
     } catch (error) {
-      console.error('Error fetching partners:', error)
+      console.error('Error fetching pending background partners:', error)
+    } finally {
+      setPendingLoading(false)
     }
   }
 
@@ -196,10 +211,13 @@ export default function AdminDocumentsPage() {
       })
 
       if (res.ok) {
-        await fetchDocuments()
+        await Promise.all([fetchDocuments(), fetchPendingBackground(pendingSearch)])
         setShowBackgroundModal(false)
         setSelectedPartner(null)
         setBackgroundFile(null)
+      } else {
+        const data = await res.json()
+        alert(data.error || 'Error al subir antecedentes')
       }
     } catch (error) {
       console.error('Error uploading background check:', error)
@@ -266,6 +284,46 @@ export default function AdminDocumentsPage() {
         </p>
       </div>
 
+      {/* Tabs */}
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex gap-6">
+          <button
+            onClick={() => setActiveTab('documents')}
+            className={`flex items-center gap-2 py-3 px-1 border-b-2 text-sm font-medium transition-colors ${
+              activeTab === 'documents'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+            Documentos
+            {pendingCount > 0 && (
+              <span className="bg-yellow-100 text-yellow-800 text-xs font-semibold px-2 py-0.5 rounded-full">
+                {pendingCount}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('pending-background')}
+            className={`flex items-center gap-2 py-3 px-1 border-b-2 text-sm font-medium transition-colors ${
+              activeTab === 'pending-background'
+                ? 'border-green-600 text-green-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <Shield className="w-4 h-4" />
+            Pendiente antecedentes
+            {pendingPartners.length > 0 && (
+              <span className="bg-green-100 text-green-800 text-xs font-semibold px-2 py-0.5 rounded-full">
+                {pendingPartners.length}
+              </span>
+            )}
+          </button>
+        </nav>
+      </div>
+
+      {activeTab === 'documents' && (
+        <>
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
@@ -322,13 +380,6 @@ export default function AdminDocumentsPage() {
                 <option value="APPROVED">Aprobados</option>
                 <option value="REJECTED">Rechazados</option>
               </select>
-              <button
-                onClick={() => setShowBackgroundModal(true)}
-                className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
-              >
-                <Shield className="w-5 h-5" />
-                Subir Antecedentes
-              </button>
             </div>
           </div>
 
@@ -451,6 +502,114 @@ export default function AdminDocumentsPage() {
               </div>
             )}
           </div>
+        </>
+      )}
+
+      {activeTab === 'pending-background' && (
+        <div className="space-y-4">
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Socios sin antecedentes</h2>
+                <p className="text-sm text-gray-500">
+                  Socios con identidad verificada que aún no tienen antecedentes subidos
+                </p>
+              </div>
+              <button
+                onClick={() => setShowBackgroundModal(true)}
+                className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors shrink-0"
+              >
+                <Shield className="w-5 h-5" />
+                Subir Antecedentes
+              </button>
+            </div>
+
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                placeholder="Buscar por nombre o email..."
+                value={pendingSearch}
+                onChange={(e) => {
+                  setPendingSearch(e.target.value)
+                  fetchPendingBackground(e.target.value)
+                }}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+
+          {pendingLoading ? (
+            <div className="flex justify-center py-12">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-green-600" />
+            </div>
+          ) : pendingPartners.length === 0 ? (
+            <div className="bg-white rounded-lg shadow-md text-center py-12">
+              <Shield className="w-16 h-16 text-green-300 mx-auto mb-4" />
+              <p className="text-gray-500 font-medium">¡Todos los socios verificados tienen antecedentes!</p>
+            </div>
+          ) : (
+            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Socio
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Servicio
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Estado
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Acción
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {pendingPartners.map((partner) => (
+                    <tr key={partner.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-3">
+                          <div className="h-9 w-9 bg-gray-200 rounded-full flex items-center justify-center shrink-0">
+                            <User className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">{partner.user.name}</div>
+                            <div className="text-xs text-gray-500">{partner.user.email}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        {partner.services[0]?.service.name ?? '—'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {partner.isActive
+                          ? <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">Activo</span>
+                          : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium">Inactivo</span>
+                        }
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <button
+                          onClick={() => {
+                            setSelectedPartner(partner)
+                            setShowBackgroundModal(true)
+                          }}
+                          className="flex items-center gap-1.5 text-xs font-semibold bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg transition-colors"
+                        >
+                          <Shield className="w-3.5 h-3.5" />
+                          Subir antecedentes
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {showReviewModal && selectedDocument && (
         <Modal
@@ -532,25 +691,25 @@ export default function AdminDocumentsPage() {
               <select
                 value={selectedPartner?.id || ''}
                 onChange={(e) => {
-                  const partner = partners.find(p => p.id === e.target.value)
+                  const partner = pendingPartners.find(p => p.id === e.target.value) ?? null
                   setSelectedPartner(partner)
                 }}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">Selecciona un socio</option>
-                {partners.map((partner) => (
+                {pendingPartners.map((partner) => (
                   <option key={partner.id} value={partner.id}>
                     {partner.user.name} - {partner.user.email}
                   </option>
                 ))}
               </select>
+              <p className="mt-1 text-xs text-gray-500">Solo se muestran socios con identidad verificada sin antecedentes</p>
             </div>
 
             {selectedPartner && (
-              <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-sm text-gray-600 mb-2">Socio seleccionado</p>
-                <p className="font-medium">{selectedPartner.user.name}</p>
-                <p className="text-sm text-gray-600">{selectedPartner.user.email}</p>
+              <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                <p className="text-sm text-green-700 font-medium mb-1">{selectedPartner.user.name}</p>
+                <p className="text-xs text-green-600">{selectedPartner.user.email}</p>
               </div>
             )}
 
@@ -564,7 +723,6 @@ export default function AdminDocumentsPage() {
                 onChange={(e) => setBackgroundFile(e.target.files?.[0] || null)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
-              <p className="mt-1 text-xs text-gray-500">Solo se permiten archivos PDF</p>
             </div>
 
             <div className="flex gap-4 pt-4">

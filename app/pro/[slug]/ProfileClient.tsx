@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import {
   MapPin, Star, CheckCircle, Share2, Copy, Check, MessageCircle,
-  Briefcase, Calendar, X, ChevronRight, ExternalLink,
+  Briefcase, Calendar, X, ChevronRight, ExternalLink, ShieldCheck,
 } from 'lucide-react'
 import QrCode from '@/components/QrCode'
 
@@ -34,6 +34,7 @@ type Partner = {
   totalReviews: number
   completedServicesCount: number
   verified: boolean
+  hasBackgroundCheck: boolean
   createdAt: string
   services: Service[]
   workPhotos: WorkPhoto[]
@@ -191,6 +192,11 @@ const ratingDist = [5, 4, 3, 2, 1].map((stars) => ({
                 {partner.verified && (
                   <span className="inline-flex items-center gap-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full px-2.5 py-0.5 text-xs font-semibold">
                     <CheckCircle className="w-3 h-3" /> Verificado
+                  </span>
+                )}
+                {partner.hasBackgroundCheck && (
+                  <span className="inline-flex items-center gap-1 bg-blue-500/20 text-blue-200 border border-blue-400/40 rounded-full px-2.5 py-0.5 text-xs font-semibold">
+                    <ShieldCheck className="w-3 h-3" /> Sin antecedentes
                   </span>
                 )}
                 <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${

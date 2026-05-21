@@ -32,6 +32,11 @@ async function fetchPartner(slug: string) {
   })
   if (!partner || !partner.isPublicProfile) return null
 
+  const backgroundDoc = await prisma.verificationDocument.findFirst({
+    where: { partnerId: partner.id, type: 'ANTECEDENTES' as any, status: 'APPROVED' },
+    select: { id: true },
+  })
+
   const reviews = await prisma.review.findMany({
     where: { clientToPartnerRating: { not: null }, booking: { partnerId: partner.id } },
     include: {
@@ -60,6 +65,7 @@ async function fetchPartner(slug: string) {
     totalReviews: partner.totalReviews,
     completedServicesCount: partner.completedServicesCount,
     verified: partner.verified,
+    hasBackgroundCheck: !!backgroundDoc,
     createdAt: partner.createdAt.toISOString(),
     services: partner.services.map((ps) => ({
       id: ps.id,

@@ -40,6 +40,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Socio no encontrado' }, { status: 404 })
     }
 
+    const IDENTITY_TYPES = ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP']
+    const hasApprovedIdentity = await prisma.verificationDocument.findFirst({
+      where: { partnerId, type: { in: IDENTITY_TYPES as any }, status: 'APPROVED' }
+    })
+    if (!hasApprovedIdentity) {
+      return NextResponse.json(
+        { error: 'El socio debe tener documento de identidad verificado primero' },
+        { status: 400 }
+      )
+    }
+
     const resourceType = isPdf ? 'raw' : 'image'
     const { url, publicId } = await cloudinaryService.upload(file, 'lohaggo/documents/background', resourceType)
 
