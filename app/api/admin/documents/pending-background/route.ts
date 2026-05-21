@@ -61,7 +61,30 @@ export async function GET(req: NextRequest) {
       orderBy: { user: { name: 'asc' } },
     })
 
-    return NextResponse.json({ partners, total: partners.length })
+    // Fetch the approved identity document for each partner
+    const identityDocs = await prisma.verificationDocument.findMany({
+      where: {
+        partnerId: { in: partners.map(p => p.id) },
+        type: { in: IDENTITY_TYPES as any },
+        status: 'APPROVED',
+      },
+      select: { partnerId: true, id: true, type: true, documentUrl: true },
+      orderBy: { reviewedAt: 'desc' },
+    })
+
+    const identityDocByPartner = new Map<string, typeof identityDocs[0]>()
+    for (const doc of identityDocs) {
+      if (!identityDocByPartner.has(doc.partnerId)) {
+        identityDocByPartner.set(doc.partnerId, doc)
+      }
+    }
+
+    const result = partners.map(p => ({
+      ...p,
+      identityDoc: identityDocByPartner.get(p.id) ?? null,
+    }))
+
+    return NextResponse.json({ partners: result, total: result.length })
   } catch (error) {
     return handleApiError(error, 'admin-documents-pending-background')
   }

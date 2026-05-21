@@ -37,6 +37,7 @@ interface PendingPartner {
   verified: boolean
   user: { name: string; email: string; image: string | null }
   services: { service: { name: string } }[]
+  identityDoc: { id: string; type: string; documentUrl: string } | null
 }
 
 const DOCUMENT_LABELS: Record<string, string> = {
@@ -560,6 +561,9 @@ export default function AdminDocumentsPage() {
                       Servicio
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Doc. identidad
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Estado
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -583,6 +587,21 @@ export default function AdminDocumentsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                         {partner.services[0]?.service.name ?? '—'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {partner.identityDoc ? (
+                          <a
+                            href={partner.identityDoc.documentUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            {DOCUMENT_LABELS[partner.identityDoc.type] ?? partner.identityDoc.type}
+                          </a>
+                        ) : (
+                          <span className="text-xs text-gray-400">—</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {partner.isActive
@@ -707,9 +726,20 @@ export default function AdminDocumentsPage() {
             </div>
 
             {selectedPartner && (
-              <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-                <p className="text-sm text-green-700 font-medium mb-1">{selectedPartner.user.name}</p>
+              <div className="bg-green-50 rounded-lg p-4 border border-green-200 space-y-2">
+                <p className="text-sm text-green-700 font-medium">{selectedPartner.user.name}</p>
                 <p className="text-xs text-green-600">{selectedPartner.user.email}</p>
+                {selectedPartner.identityDoc && (
+                  <a
+                    href={selectedPartner.identityDoc.documentUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-800 bg-white border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    Ver {DOCUMENT_LABELS[selectedPartner.identityDoc.type] ?? 'doc. identidad'}
+                  </a>
+                )}
               </div>
             )}
 
