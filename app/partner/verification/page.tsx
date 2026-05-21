@@ -347,163 +347,197 @@ export default function VerificationPage() {
 
         {/* ── Company section ── */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-5">
-          <div className="px-4 py-4 border-b border-gray-100">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isCompany && companyDocApproved ? 'bg-indigo-100' : 'bg-gray-100'}`}>
-                  <Building2 className={`w-5 h-5 ${isCompany && companyDocApproved ? 'text-indigo-600' : 'text-gray-500'}`} />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-gray-900">¿Eres empresa?</p>
-                  <p className="text-xs text-gray-500">Activa esto si operas como empresa registrada</p>
-                </div>
-              </div>
-              {/* Toggle */}
-              <button
-                onClick={() => {
-                  const next = !isCompany
-                  setIsCompany(next)
-                  saveCompanyInfo(next)
-                }}
-                disabled={savingCompany}
-                className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${isCompany ? 'bg-indigo-600' : 'bg-gray-200'}`}
-                aria-label="Soy empresa"
-              >
-                <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform duration-200 ${isCompany ? 'translate-x-5' : 'translate-x-0'}`} />
-              </button>
-            </div>
-          </div>
 
-          {isCompany && (
-            <div className="px-4 py-4 space-y-4">
-              {/* Company name + NIT */}
+          {/* Verified state: read-only display */}
+          {isCompany && companyDocApproved ? (
+            <div className="px-4 py-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                  <Building2 className="w-5 h-5 text-indigo-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-gray-900">Empresa verificada</p>
+                  <p className="text-xs text-gray-500">Tu empresa está registrada y activa en LoHaggo</p>
+                </div>
+                <span className="flex items-center gap-1 text-xs font-bold text-green-600 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full shrink-0">
+                  <CheckCircle className="w-3.5 h-3.5" /> Activa
+                </span>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">Nombre de la empresa</label>
-                  <input
-                    type="text"
-                    value={companyName}
-                    onChange={e => setCompanyName(e.target.value)}
-                    placeholder="Ej. Servicios ABC S.A.S."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                  />
+                <div className="bg-gray-50 rounded-lg px-3 py-2.5">
+                  <p className="text-xs text-gray-400 font-medium mb-0.5">Nombre de la empresa</p>
+                  <p className="text-sm font-bold text-gray-900">{companyName || '—'}</p>
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">NIT</label>
-                  <input
-                    type="text"
-                    value={companyNit}
-                    onChange={e => setCompanyNit(e.target.value)}
-                    placeholder="Ej. 900123456-7"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                  />
+                <div className="bg-gray-50 rounded-lg px-3 py-2.5">
+                  <p className="text-xs text-gray-400 font-medium mb-0.5">NIT</p>
+                  <p className="text-sm font-bold text-gray-900">{companyNit || '—'}</p>
+                </div>
+              </div>
+              {companyDoc && (
+                <button
+                  onClick={() => window.open(`/api/documents/view/${companyDoc.id}`, '_blank')}
+                  className="flex items-center gap-1 text-xs text-gray-400 hover:text-indigo-600 transition mt-3"
+                >
+                  <Eye className="w-3.5 h-3.5" /> Ver Cámara de Comercio
+                </button>
+              )}
+            </div>
+          ) : (
+            <>
+              {/* Header with toggle */}
+              <div className="px-4 py-4 border-b border-gray-100">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
+                      <Building2 className="w-5 h-5 text-gray-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-gray-900">¿Eres empresa?</p>
+                      <p className="text-xs text-gray-500">Activa esto si operas como empresa registrada</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const next = !isCompany
+                      setIsCompany(next)
+                      saveCompanyInfo(next)
+                    }}
+                    disabled={savingCompany}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${isCompany ? 'bg-indigo-600' : 'bg-gray-200'}`}
+                    aria-label="Soy empresa"
+                  >
+                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform duration-200 ${isCompany ? 'translate-x-5' : 'translate-x-0'}`} />
+                  </button>
                 </div>
               </div>
 
-              <button
-                onClick={() => saveCompanyInfo()}
-                disabled={savingCompany}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition disabled:opacity-50"
-              >
-                {savingCompany ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : null}
-                Guardar información
-              </button>
-
-              {companyMsg && (
-                <p className={`text-xs font-medium flex items-center gap-1 ${companyMsg.type === 'ok' ? 'text-green-600' : 'text-red-600'}`}>
-                  {companyMsg.type === 'ok' ? <CheckCircle className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
-                  {companyMsg.text}
-                </p>
-              )}
-
-              {/* Cámara de Comercio upload */}
-              <div className="border-t border-gray-100 pt-4">
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <p className="text-sm font-bold text-gray-800">Cámara de Comercio</p>
-                    <p className="text-xs text-gray-500">Sube el certificado de tu empresa para verificar el registro</p>
-                  </div>
-                  {companyDocApproved && (
-                    <span className="flex items-center gap-1 text-xs font-bold text-green-600 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full">
-                      <CheckCircle className="w-3.5 h-3.5" /> Verificada
-                    </span>
-                  )}
-                  {companyDocPending && (
-                    <span className="flex items-center gap-1 text-xs font-bold text-yellow-700 bg-yellow-50 border border-yellow-200 px-2.5 py-1 rounded-full">
-                      <Clock className="w-3.5 h-3.5" /> En revisión
-                    </span>
-                  )}
-                  {companyDocRejected && (
-                    <span className="flex items-center gap-1 text-xs font-bold text-red-600 bg-red-50 border border-red-200 px-2.5 py-1 rounded-full">
-                      <XCircle className="w-3.5 h-3.5" /> Rechazado
-                    </span>
-                  )}
-                </div>
-
-                {companyDocRejected && companyDoc?.rejectionReason && (
-                  <div className="mb-3 flex items-start gap-1.5 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                    <AlertCircle className="w-3.5 h-3.5 text-red-500 flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-red-700">{companyDoc.rejectionReason}</p>
-                  </div>
-                )}
-
-                {!companyDocApproved && !companyDocPending && (
-                  <div className="space-y-3">
-                    <label className={`flex flex-col items-center justify-center w-full border-2 border-dashed rounded-xl py-5 px-4 cursor-pointer transition-colors ${companyFile ? 'border-indigo-400 bg-indigo-50' : 'border-gray-300 hover:border-indigo-400 hover:bg-indigo-50/30'}`}>
+              {isCompany && (
+                <div className="px-4 py-4 space-y-4">
+                  {/* Company name + NIT */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1.5">Nombre de la empresa</label>
                       <input
-                        type="file"
-                        accept=".pdf,application/pdf,image/*"
-                        className="hidden"
-                        onChange={e => setCompanyFile(e.target.files?.[0] ?? null)}
+                        type="text"
+                        value={companyName}
+                        onChange={e => setCompanyName(e.target.value)}
+                        placeholder="Ej. Servicios ABC S.A.S."
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
                       />
-                      {companyFile ? (
-                        <div className="text-center">
-                          <FileText className="w-8 h-8 text-indigo-500 mx-auto mb-1" />
-                          <p className="text-sm font-semibold text-indigo-700 truncate max-w-xs">{companyFile.name}</p>
-                          <p className="text-xs text-indigo-500">Toca para cambiar</p>
-                        </div>
-                      ) : (
-                        <div className="text-center">
-                          <Upload className="w-7 h-7 text-gray-400 mx-auto mb-1" />
-                          <p className="text-sm font-semibold text-gray-700">Arrastra o toca para seleccionar</p>
-                          <p className="text-xs text-gray-400 mt-0.5">PDF o imagen · Máx. 10 MB</p>
-                        </div>
-                      )}
-                    </label>
-                    <button
-                      onClick={handleCompanyDocUpload}
-                      disabled={!companyFile || uploadingCompanyDoc}
-                      className="w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed"
-                    >
-                      {uploadingCompanyDoc ? (
-                        <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Subiendo…</>
-                      ) : (
-                        <><Upload className="w-4 h-4" /> Enviar para revisión</>
-                      )}
-                    </button>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1.5">NIT</label>
+                      <input
+                        type="text"
+                        value={companyNit}
+                        onChange={e => setCompanyNit(e.target.value)}
+                        placeholder="Ej. 900123456-7"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+                      />
+                    </div>
                   </div>
-                )}
 
-                {companyDoc && (
-                  <div className="flex items-center gap-2 mt-2">
-                    <button
-                      onClick={() => window.open(`/api/documents/view/${companyDoc.id}`, '_blank')}
-                      className="flex items-center gap-1 text-xs text-gray-500 hover:text-indigo-600 transition"
-                    >
-                      <Eye className="w-3.5 h-3.5" /> Ver documento
-                    </button>
-                    {companyDocRejected && (
-                      <button
-                        onClick={() => handleDelete(companyDoc.id)}
-                        className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 transition"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" /> Eliminar y re-subir
-                      </button>
+                  <button
+                    onClick={() => saveCompanyInfo()}
+                    disabled={savingCompany}
+                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition disabled:opacity-50"
+                  >
+                    {savingCompany ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : null}
+                    Guardar información
+                  </button>
+
+                  {companyMsg && (
+                    <p className={`text-xs font-medium flex items-center gap-1 ${companyMsg.type === 'ok' ? 'text-green-600' : 'text-red-600'}`}>
+                      {companyMsg.type === 'ok' ? <CheckCircle className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
+                      {companyMsg.text}
+                    </p>
+                  )}
+
+                  {/* Cámara de Comercio upload */}
+                  <div className="border-t border-gray-100 pt-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <p className="text-sm font-bold text-gray-800">Cámara de Comercio</p>
+                        <p className="text-xs text-gray-500">Sube el certificado de tu empresa para verificar el registro</p>
+                      </div>
+                      {companyDocPending && (
+                        <span className="flex items-center gap-1 text-xs font-bold text-yellow-700 bg-yellow-50 border border-yellow-200 px-2.5 py-1 rounded-full">
+                          <Clock className="w-3.5 h-3.5" /> En revisión
+                        </span>
+                      )}
+                      {companyDocRejected && (
+                        <span className="flex items-center gap-1 text-xs font-bold text-red-600 bg-red-50 border border-red-200 px-2.5 py-1 rounded-full">
+                          <XCircle className="w-3.5 h-3.5" /> Rechazado
+                        </span>
+                      )}
+                    </div>
+
+                    {companyDocRejected && companyDoc?.rejectionReason && (
+                      <div className="mb-3 flex items-start gap-1.5 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                        <AlertCircle className="w-3.5 h-3.5 text-red-500 flex-shrink-0 mt-0.5" />
+                        <p className="text-xs text-red-700">{companyDoc.rejectionReason}</p>
+                      </div>
+                    )}
+
+                    {!companyDocPending && (
+                      <div className="space-y-3">
+                        <label className={`flex flex-col items-center justify-center w-full border-2 border-dashed rounded-xl py-5 px-4 cursor-pointer transition-colors ${companyFile ? 'border-indigo-400 bg-indigo-50' : 'border-gray-300 hover:border-indigo-400 hover:bg-indigo-50/30'}`}>
+                          <input
+                            type="file"
+                            accept=".pdf,application/pdf,image/*"
+                            className="hidden"
+                            onChange={e => setCompanyFile(e.target.files?.[0] ?? null)}
+                          />
+                          {companyFile ? (
+                            <div className="text-center">
+                              <FileText className="w-8 h-8 text-indigo-500 mx-auto mb-1" />
+                              <p className="text-sm font-semibold text-indigo-700 truncate max-w-xs">{companyFile.name}</p>
+                              <p className="text-xs text-indigo-500">Toca para cambiar</p>
+                            </div>
+                          ) : (
+                            <div className="text-center">
+                              <Upload className="w-7 h-7 text-gray-400 mx-auto mb-1" />
+                              <p className="text-sm font-semibold text-gray-700">Arrastra o toca para seleccionar</p>
+                              <p className="text-xs text-gray-400 mt-0.5">PDF o imagen · Máx. 10 MB</p>
+                            </div>
+                          )}
+                        </label>
+                        <button
+                          onClick={handleCompanyDocUpload}
+                          disabled={!companyFile || uploadingCompanyDoc}
+                          className="w-full flex items-center justify-center gap-2 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed"
+                        >
+                          {uploadingCompanyDoc ? (
+                            <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Subiendo…</>
+                          ) : (
+                            <><Upload className="w-4 h-4" /> Enviar para revisión</>
+                          )}
+                        </button>
+                      </div>
+                    )}
+
+                    {companyDoc && (
+                      <div className="flex items-center gap-2 mt-2">
+                        <button
+                          onClick={() => window.open(`/api/documents/view/${companyDoc.id}`, '_blank')}
+                          className="flex items-center gap-1 text-xs text-gray-500 hover:text-indigo-600 transition"
+                        >
+                          <Eye className="w-3.5 h-3.5" /> Ver documento
+                        </button>
+                        {companyDocRejected && (
+                          <button
+                            onClick={() => handleDelete(companyDoc.id)}
+                            className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 transition"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" /> Eliminar y re-subir
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
-                )}
-              </div>
-            </div>
+                </div>
+              )}
+            </>
           )}
         </div>
 
