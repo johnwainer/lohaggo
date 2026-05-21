@@ -37,25 +37,29 @@ async function handlePOST(request: NextRequest) {
     }
 
     const email = decoded.email as string
-    const user = await prisma.user.findUnique({ where: { email } })
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, email: true, updatedAt: true },
+    })
 
     if (!user) {
       return NextResponse.json({ error: 'El enlace ha caducado o no es válido.' }, { status: 400 })
     }
 
-    // Single-use check: token embeds first 30 chars of hash; changes when password is reset
-    if (decoded.hash !== user.password.substring(0, 30)) {
+    // Single-use check: token embeds updatedAt ms; changes whenever the user record is updated
+    if (decoded.ts !== user.updatedAt.getTime()) {
       return NextResponse.json(
         { error: 'El enlace ya fue utilizado o no es válido.' },
         { status: 400 }
       )
     }
 
-    const hashedPassword = await bcrypt.hash(newPassword, 10)
+    const hashedPassword = await bcrypt.hash(newPassword, 12)
 
     await prisma.user.update({
       where: { email },
-      data: { password: hashedPassword }
+      data: { password: hashedPassword },
+      select: { id: true },
     })
 
     return NextResponse.json({ success: true, message: 'Contraseña actualizada con éxito.' })

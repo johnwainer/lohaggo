@@ -7,6 +7,7 @@ import { cloudinaryService } from '@/lib/cloudinary'
 import { handleApiError } from '@/lib/errors'
 import { createNotification } from '@/lib/notifications/notificationService'
 import { scheduleAutomationsForUser } from '@/lib/messaging/automation-service'
+import { validateUploadedFile } from '@/lib/file-validation'
 
 const logger = createLogger('admin-documents-background')
 
@@ -26,11 +27,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Archivo, tipo y partnerId son requeridos' }, { status: 400 })
     }
 
-    const isImage = file.type.startsWith('image/')
-    const isPdf = file.type === 'application/pdf'
-    if (!isImage && !isPdf) {
-      return NextResponse.json({ error: 'Solo se permiten archivos PDF o imágenes (JPG, PNG)' }, { status: 400 })
+    const fileCheck = await validateUploadedFile(file)
+    if (!fileCheck.ok) {
+      return NextResponse.json({ error: fileCheck.error }, { status: 400 })
     }
+    const { isPdf } = fileCheck
 
     const partnerProfile = await prisma.partnerProfile.findUnique({
       where: { id: partnerId },

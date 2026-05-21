@@ -22,7 +22,13 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const role = searchParams.get('role')
 
-    const where = role ? { role: role as any } : {}
+    const VALID_ROLES = ['ADMIN', 'PARTNER', 'CLIENT'] as const
+    type ValidRole = typeof VALID_ROLES[number]
+    if (role && !VALID_ROLES.includes(role as ValidRole)) {
+      return NextResponse.json({ error: 'Rol inválido' }, { status: 400 })
+    }
+
+    const where = role ? { role: role as ValidRole } : {}
 
     const users = await prisma.user.findMany({
       where,

@@ -6,6 +6,7 @@ import { createLogger } from '@/lib/logger'
 import { cloudinaryService } from '@/lib/cloudinary'
 import { handleApiError } from '@/lib/errors'
 import { createNotification } from '@/lib/notifications/notificationService'
+import { validateUploadedFile } from '@/lib/file-validation'
 
 const logger = createLogger('partner-documents')
 
@@ -59,11 +60,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Archivo y tipo son requeridos' }, { status: 400 })
     }
 
-    const isImage = file.type.startsWith('image/')
-    const isPdf = file.type === 'application/pdf'
-    if (!isImage && !isPdf) {
-      return NextResponse.json({ error: 'Solo se permiten archivos PDF o imágenes (JPG, PNG)' }, { status: 400 })
+    const fileCheck = await validateUploadedFile(file)
+    if (!fileCheck.ok) {
+      return NextResponse.json({ error: fileCheck.error }, { status: 400 })
     }
+    const { isPdf } = fileCheck
 
     // Validate partnerServiceId belongs to this partner if provided
     if (partnerServiceId) {

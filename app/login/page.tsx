@@ -9,6 +9,17 @@ import TurnstileWidget from '@/components/security/TurnstileWidget'
 import { trackPwaEvent } from '@/lib/pwa/telemetry-client'
 import { PWA_EVENTS } from '@/lib/pwa/events'
 
+function safeRedirect(url: string | null, fallback: string): string {
+  if (!url) return fallback
+  try {
+    // Allow relative paths only (no protocol-relative URLs like //evil.com)
+    if (url.startsWith('/') && !url.startsWith('//')) return url
+    // Allow same-origin absolute URLs
+    if (typeof window !== 'undefined' && new URL(url).origin === window.location.origin) return url
+  } catch { /* invalid URL */ }
+  return fallback
+}
+
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -39,16 +50,15 @@ function LoginForm() {
 
   useEffect(() => {
     if (status === 'authenticated' && session?.user) {
-      const targetRedirect = searchParams.get('redirect')
-
+      const raw = searchParams.get('redirect')
       if (session.user.role === 'ADMIN') {
-        router.push(targetRedirect || '/admin')
+        router.push(safeRedirect(raw, '/admin'))
         router.refresh()
       } else if (session.user.role === 'PARTNER') {
-        router.push(targetRedirect || '/partner')
+        router.push(safeRedirect(raw, '/partner'))
         router.refresh()
       } else {
-        router.push(targetRedirect || '/dashboard')
+        router.push(safeRedirect(raw, '/dashboard'))
         router.refresh()
       }
     }
@@ -166,11 +176,11 @@ function LoginForm() {
         })
 
         if (sessionData?.user?.role === 'ADMIN') {
-          window.location.href = searchParams.get('redirect') || '/admin'
+          window.location.href = safeRedirect(searchParams.get('redirect'), '/admin')
         } else if (sessionData?.user?.role === 'PARTNER') {
-          window.location.href = searchParams.get('redirect') || '/partner'
+          window.location.href = safeRedirect(searchParams.get('redirect'), '/partner')
         } else {
-          window.location.href = searchParams.get('redirect') || '/dashboard'
+          window.location.href = safeRedirect(searchParams.get('redirect'), '/dashboard')
         }
       }
     } catch (error) {

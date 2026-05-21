@@ -22,7 +22,7 @@ async function handlePOST(request: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where: { email },
-      select: { id: true, email: true, name: true, password: true, phone: true }
+      select: { id: true, email: true, name: true, updatedAt: true, phone: true }
     })
 
     if (!user) {
@@ -39,9 +39,11 @@ async function handlePOST(request: NextRequest) {
     const token = await encode({
       token: {
         email: user.email,
-        intent: "reset",
-        hash: user.password.substring(0, 30),
-        role: "CLIENT" as any
+        intent: 'reset',
+        // updatedAt changes whenever the user record changes (password reset, profile update)
+        // making the token single-use and automatically invalidated after use
+        ts: user.updatedAt.getTime(),
+        role: 'CLIENT' as const,
       },
       secret,
       maxAge: 3600 // 1 hour
