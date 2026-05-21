@@ -6,7 +6,8 @@ import {
   ArrowLeft, User, Phone, Mail, MapPin, Calendar, Star, Shield,
   CreditCard, FileText, MessageSquare, AlertTriangle, Package,
   Wallet, CheckCircle, XCircle, Clock, ExternalLink, Tag,
-  Building2, Camera, Award, Key, Eye, EyeOff, ToggleLeft, ToggleRight
+  Building2, Camera, Award, Key, Eye, EyeOff, ToggleLeft, ToggleRight,
+  Link2, Copy, Check, X
 } from 'lucide-react'
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -254,6 +255,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ id: stri
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('resumen')
   const [togglingActive, setTogglingActive] = useState(false)
+  const [showMagicModal, setShowMagicModal] = useState(false)
 
   useEffect(() => {
     fetch(`/api/admin/users/${id}`)
@@ -261,6 +263,10 @@ export default function UserProfilePage({ params }: { params: Promise<{ id: stri
       .then(d => setUser(d.user))
       .finally(() => setLoading(false))
   }, [id])
+
+  const handleMagicTokenCreated = (token: MagicToken) => {
+    setUser(u => u ? { ...u, magicTokens: [token, ...u.magicTokens] } : u)
+  }
 
   const toggleActive = async () => {
     if (!user) return
@@ -334,6 +340,12 @@ export default function UserProfilePage({ params }: { params: Promise<{ id: stri
               <ExternalLink size={14} /> Ver perfil público
             </a>
           )}
+          <button
+            onClick={() => setShowMagicModal(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            <Link2 size={14} /> Magic Link
+          </button>
           <a
             href={`/admin/inbox?contactPhone=${encodeURIComponent(user.phone ?? '')}`}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
@@ -397,6 +409,185 @@ export default function UserProfilePage({ params }: { params: Promise<{ id: stri
       {tab === 'soporte' && <TabSoporte cases={user.supportCases} />}
       {tab === 'actividad' && <TabActividad fraudSignals={user.fraudSignals} magicTokens={user.magicTokens} optOuts={user.messagingOptOuts} />}
       {tab === 'socio' && isPartner && <TabSocio profile={user.partnerProfile!} />}
+
+      {showMagicModal && (
+        <MagicLinkModal
+          userId={user.id}
+          userName={user.name}
+          isPartner={isPartner}
+          onClose={() => setShowMagicModal(false)}
+          onCreated={handleMagicTokenCreated}
+        />
+      )}
+    </div>
+  )
+}
+
+// ── Magic Link Modal ──────────────────────────────────────────────────────────
+
+const REDIRECT_OPTIONS = [
+  { value: '/partner/dashboard', label: 'Inicio del socio' },
+  { value: '/partner/verification', label: 'Verificación de documentos' },
+  { value: '/app', label: 'App del socio' },
+  { value: '/dashboard', label: 'Inicio del cliente' },
+  { value: '/', label: 'Inicio (homepage)' },
+  { value: '__custom__', label: 'URL personalizada…' },
+]
+
+function MagicLinkModal({
+  userId, userName, isPartner, onClose, onCreated,
+}: {
+  userId: string
+  userName: string
+  isPartner: boolean
+  onClose: () => void
+  onCreated: (token: MagicToken) => void
+}) {
+  const defaultRedirect = isPartner ? '/partner/dashboard' : '/dashboard'
+  const [redirectUrl, setRedirectUrl] = useState(defaultRedirect)
+  const [customUrl, setCustomUrl] = useState('')
+  const [requirePasswordChange, setRequirePasswordChange] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [generatedUrl, setGeneratedUrl] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const finalUrl = redirectUrl === '__custom__' ? customUrl : redirectUrl
+
+  const generate = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/auth/magic/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userIds: [userId], redirectUrl: finalUrl, requirePasswordChange }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.tokens?.length) {
+        setError(data.error ?? 'Error al generar el enlace')
+        return
+      }
+      const t = data.tokens[0]
+      setGeneratedUrl(t.url)
+      const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString()
+      onCreated({ id: t.token, redirectUrl: finalUrl, expiresAt, usedAt: null, createdAt: new Date().toISOString() })
+    } catch {
+      setError('Error de conexión')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const copy = async () => {
+    if (!generatedUrl) return
+    await navigator.clipboard.writeText(generatedUrl)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <Link2 size={18} className="text-primary-600" />
+            <h2 className="font-semibold text-gray-900">Generar Magic Link</h2>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100">
+            <X size={18} className="text-gray-500" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          <p className="text-sm text-gray-500">
+            Genera un enlace de ingreso único para <span className="font-medium text-gray-800">{userName}</span>. Expira en 72 horas.
+          </p>
+
+          {!generatedUrl ? (
+            <>
+              {/* Redirect URL */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Destino después del login</label>
+                <select
+                  value={redirectUrl}
+                  onChange={e => setRedirectUrl(e.target.value)}
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
+                >
+                  {REDIRECT_OPTIONS.map(o => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+                {redirectUrl === '__custom__' && (
+                  <input
+                    type="text"
+                    placeholder="ej. /partner/services"
+                    value={customUrl}
+                    onChange={e => setCustomUrl(e.target.value)}
+                    className="mt-2 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
+                  />
+                )}
+              </div>
+
+              {/* Password change */}
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={requirePasswordChange}
+                  onChange={e => setRequirePasswordChange(e.target.checked)}
+                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-300"
+                />
+                <span className="text-sm text-gray-700">Pedir cambio de contraseña al ingresar</span>
+              </label>
+
+              {error && <p className="text-sm text-red-600">{error}</p>}
+
+              <button
+                onClick={generate}
+                disabled={loading || (redirectUrl === '__custom__' && !customUrl.trim())}
+                className="w-full py-2.5 rounded-xl bg-primary-600 text-white text-sm font-medium hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                ) : (
+                  <Link2 size={15} />
+                )}
+                {loading ? 'Generando…' : 'Generar enlace'}
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="rounded-xl bg-green-50 border border-green-200 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <CheckCircle size={16} className="text-green-600" />
+                  <span className="text-sm font-medium text-green-800">Enlace generado</span>
+                </div>
+                <p className="text-xs font-mono text-green-700 break-all">{generatedUrl}</p>
+              </div>
+
+              <button
+                onClick={copy}
+                className={`w-full py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                  copied
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-gray-900 text-white hover:bg-gray-800'
+                }`}
+              >
+                {copied ? <Check size={15} /> : <Copy size={15} />}
+                {copied ? '¡Copiado!' : 'Copiar enlace'}
+              </button>
+
+              <button
+                onClick={() => { setGeneratedUrl(null); setError(null) }}
+                className="w-full py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Generar otro
+              </button>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
