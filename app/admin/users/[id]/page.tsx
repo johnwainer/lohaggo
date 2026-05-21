@@ -332,7 +332,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ id: stri
         <div className="flex items-center gap-2">
           {isPartner && user.partnerProfile?.slug && (
             <a
-              href={`/socios/${user.partnerProfile.slug}`}
+              href={`/pro/${user.partnerProfile.slug}`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
