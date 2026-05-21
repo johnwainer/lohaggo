@@ -212,6 +212,52 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// PATCH - Actualizar precio y ciudad de un servicio del partner
+export async function PATCH(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    }
+
+    const { partnerServiceId, price, city } = await req.json()
+
+    if (!partnerServiceId) {
+      return NextResponse.json({ error: 'partnerServiceId requerido' }, { status: 400 })
+    }
+
+    const partnerProfile = await prisma.partnerProfile.findUnique({
+      where: { userId: session.user.id },
+    })
+
+    if (!partnerProfile) {
+      return NextResponse.json({ error: 'Perfil de partner no encontrado' }, { status: 404 })
+    }
+
+    const existing = await prisma.partnerService.findUnique({
+      where: { id: partnerServiceId },
+    })
+
+    if (!existing || existing.partnerId !== partnerProfile.id) {
+      return NextResponse.json({ error: 'Servicio no encontrado' }, { status: 404 })
+    }
+
+    const updated = await prisma.partnerService.update({
+      where: { id: partnerServiceId },
+      data: {
+        ...(price !== undefined && price !== null ? { price: parseFloat(price) } : {}),
+        ...(city && city.trim() ? { city: city.trim() } : {}),
+      },
+      include: { service: { include: { category: true } } },
+    })
+
+    return NextResponse.json(updated)
+  } catch (error) {
+    logger.error('Error updating service:', error)
+    return NextResponse.json({ error: 'Error al actualizar servicio' }, { status: 500 })
+  }
+}
+
 // DELETE - Eliminar un servicio del partner
 export async function DELETE(req: NextRequest) {
   try {
