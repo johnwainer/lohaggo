@@ -309,6 +309,8 @@ export default function AdminCommunicationsPage() {
   const [loadingFailedDeliveries, setLoadingFailedDeliveries] = useState(false)
   const [failedDeliveriesError, setFailedDeliveriesError] = useState<string | null>(null)
   const [detailCampaign, setDetailCampaign] = useState<Campaign | null>(null)
+  const [syncingTemplates, setSyncingTemplates] = useState(false)
+  const [syncFeedback, setSyncFeedback] = useState<string | null>(null)
 
   // Magic link state
 
@@ -397,6 +399,26 @@ export default function AdminCommunicationsPage() {
       setServiceOptions(svcData.services || [])
     } finally {
       setLoading(false)
+    }
+  }
+
+  const syncWaTemplates = async () => {
+    setSyncingTemplates(true)
+    setSyncFeedback(null)
+    try {
+      const res = await fetch('/api/admin/messaging/wa-templates/sync', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error al sincronizar')
+      setSyncFeedback(`✓ ${data.count} plantillas sincronizadas`)
+      // Reload WA templates into state
+      const waRes = await fetch('/api/admin/messaging/wa-templates', { cache: 'no-store' })
+      const waData = await waRes.json().catch(() => ({ templates: [] }))
+      setWaTemplates(waData.templates || [])
+    } catch (e: any) {
+      setSyncFeedback(`Error: ${e.message}`)
+    } finally {
+      setSyncingTemplates(false)
+      setTimeout(() => setSyncFeedback(null), 5000)
     }
   }
 
@@ -1947,12 +1969,37 @@ export default function AdminCommunicationsPage() {
                 )}
                 {campForm.channel === 'WHATSAPP' && campForm.contentMode === 'TEMPLATE' ? (
                   <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <span className="text-xs font-medium text-gray-700">Plantilla WhatsApp (aprobadas por Meta)</span>
+                      <div className="flex items-center gap-2">
+                        {syncFeedback && (
+                          <span className={`text-xs ${syncFeedback.startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>
+                            {syncFeedback}
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={syncWaTemplates}
+                          disabled={syncingTemplates}
+                          className="flex items-center gap-1 text-xs font-medium text-primary-600 hover:text-primary-700 px-2.5 py-1 rounded-lg border border-primary-200 hover:bg-primary-50 transition-colors disabled:opacity-50"
+                        >
+                          {syncingTemplates ? (
+                            <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                            </svg>
+                          ) : (
+                            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                          )}
+                          Sincronizar con Meta
+                        </button>
+                      </div>
+                    </div>
                     <label className="text-xs text-gray-700 space-y-1 block">
-                      <span className="font-medium">Plantilla WhatsApp (aprobadas por Meta)</span>
                       {approvedWaTemplates.length === 0 ? (
                         <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                           {waTemplates.length === 0
-                            ? 'No se encontraron plantillas. Verifica las credenciales de Meta o Twilio en Configuración.'
+                            ? 'No se encontraron plantillas. Usa "Sincronizar con Meta" para cargarlas.'
                             : 'No hay plantillas aprobadas por Meta. Solo se pueden enviar plantillas con estado "approved".'}
                         </p>
                       ) : (

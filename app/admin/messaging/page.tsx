@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   MessageSquare, Phone, Key, CheckCircle2, XCircle, Eye, EyeOff,
   Send, Loader2, RefreshCw, Wifi, WifiOff, AlertTriangle, ChevronDown,
-  FileText, Clock, Search, User, X, ShieldCheck, Zap,
+  FileText, Clock, Search, User, X, ShieldCheck, Zap, Plus,
 } from 'lucide-react'
 
 type TwilioProvider = {
@@ -108,6 +108,10 @@ export default function MessagingPage() {
 
   const [waTemplates, setWaTemplates] = useState<WATemplate[]>([])
   const [templatesLoading, setTemplatesLoading] = useState(false)
+  const [syncingTemplates, setSyncingTemplates] = useState(false)
+  const [syncMsg, setSyncMsg] = useState<string | null>(null)
+  const [creatingAppTemplate, setCreatingAppTemplate] = useState(false)
+  const [createAppMsg, setCreateAppMsg] = useState<string | null>(null)
 
   const [accountSid, setAccountSid] = useState('')
   const [authToken, setAuthToken] = useState('')
@@ -204,6 +208,40 @@ export default function MessagingPage() {
       setTemplatesLoading(false)
     }
   }, [])
+
+  const syncWaTemplates = async () => {
+    setSyncingTemplates(true)
+    setSyncMsg(null)
+    try {
+      const res = await fetch('/api/admin/messaging/wa-templates/sync', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error al sincronizar')
+      setSyncMsg(`✓ ${data.count} plantillas sincronizadas con Meta`)
+      await fetchWaTemplates()
+    } catch (e: any) {
+      setSyncMsg(`Error: ${e.message}`)
+    } finally {
+      setSyncingTemplates(false)
+      setTimeout(() => setSyncMsg(null), 6000)
+    }
+  }
+
+  const createAppTemplate = async () => {
+    setCreatingAppTemplate(true)
+    setCreateAppMsg(null)
+    try {
+      const res = await fetch('/api/admin/messaging/wa-templates/create-app', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.details?.error?.message || data.error || 'Error al crear')
+      setCreateAppMsg('✓ Plantilla invitacion_app enviada a Meta — pendiente aprobación')
+      setTimeout(() => syncWaTemplates(), 2000)
+    } catch (e: any) {
+      setCreateAppMsg(`Error: ${e.message}`)
+    } finally {
+      setCreatingAppTemplate(false)
+      setTimeout(() => setCreateAppMsg(null), 8000)
+    }
+  }
 
   const fetchStatus = useCallback(async () => {
     setLoading(true)
@@ -745,17 +783,33 @@ export default function MessagingPage() {
       {/* ── TAB: PLANTILLAS WA ── */}
       {activeTab === 'plantillas' && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100 font-semibold text-gray-800 text-sm flex items-center gap-2">
+          <div className="px-5 py-4 border-b border-gray-100 font-semibold text-gray-800 text-sm flex items-center gap-2 flex-wrap">
             <FileText size={15} className="text-gray-400" />
             Plantillas WhatsApp
             <span className="ml-1 text-xs font-normal text-gray-400">({waTemplates.length} total · {approvedTemplates.length} aprobadas)</span>
-            {templatesLoading
-              ? <Loader2 size={13} className="animate-spin text-gray-400 ml-auto" />
-              : <button onClick={fetchWaTemplates} className="ml-auto text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-colors"><RefreshCw size={13} /></button>
-            }
+            <div className="ml-auto flex items-center gap-2 flex-wrap">
+              {syncMsg && <span className={`text-xs font-normal ${syncMsg.startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>{syncMsg}</span>}
+              {createAppMsg && <span className={`text-xs font-normal ${createAppMsg.startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>{createAppMsg}</span>}
+              <button
+                onClick={createAppTemplate}
+                disabled={creatingAppTemplate || syncingTemplates}
+                className="flex items-center gap-1.5 text-xs font-semibold bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {creatingAppTemplate ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+                Crear plantilla app
+              </button>
+              <button
+                onClick={syncWaTemplates}
+                disabled={syncingTemplates || templatesLoading}
+                className="flex items-center gap-1.5 text-xs font-semibold border border-gray-200 hover:bg-gray-50 text-gray-600 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {syncingTemplates ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                Sincronizar Meta
+              </button>
+            </div>
           </div>
           {waTemplates.length === 0 && !templatesLoading ? (
-            <p className="px-5 py-8 text-sm text-gray-500 text-center">No hay plantillas en Twilio Content API.</p>
+            <p className="px-5 py-8 text-sm text-gray-500 text-center">No hay plantillas. Usa "Sincronizar Meta" para cargarlas.</p>
           ) : (
             <div className="divide-y divide-gray-50">
               {waTemplates.map(t => {
