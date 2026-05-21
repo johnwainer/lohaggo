@@ -75,6 +75,9 @@ model PartnerProfile {
   isPublicProfile        Boolean                @default(true)
   profileHeadline        String?
   isAvailable            Boolean                @default(true)
+  isCompany              Boolean                @default(false)
+  companyName            String?
+  companyNit             String?
   workPhotos             PartnerWorkPhoto[]
   availability           Availability[]
   bookings               Booking[]
@@ -816,6 +819,7 @@ enum DocumentType {
   DIPLOMA_POSGRADO
   CERTIFICADO_CURSO
   ANTECEDENTES
+  CAMARA_COMERCIO
 }
 
 enum DocumentStatus {

@@ -135,7 +135,6 @@ export async function POST(req: NextRequest) {
     if (status === 'APPROVED') {
       await checkAndUnlockAchievements(document.partnerId)
 
-      // Auto-activate partner when an identity document is approved
       const IDENTITY_TYPES = ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP']
       if (IDENTITY_TYPES.includes(document.type)) {
         await prisma.partnerProfile.update({
@@ -148,6 +147,15 @@ export async function POST(req: NextRequest) {
         })
         scheduleAutomationsForUser(partnerId, 'PARTNER_ACTIVATED', { contextId: document.id }).catch(() => null)
       }
+
+      // Auto-activate isCompany when Cámara de Comercio is approved
+      if (document.type === 'CAMARA_COMERCIO') {
+        await prisma.partnerProfile.update({
+          where: { id: document.partnerId },
+          data: { isCompany: true },
+        })
+      }
+
       scheduleAutomationsForUser(partnerId, 'PARTNER_DOCS_APPROVED', { contextId: document.id }).catch(() => null)
     } else if (status === 'REJECTED') {
       scheduleAutomationsForUser(partnerId, 'PARTNER_DOCS_REJECTED', { contextId: document.id }).catch(() => null)

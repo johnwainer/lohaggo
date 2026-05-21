@@ -4,7 +4,7 @@ import { use, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { flushSync } from 'react-dom'
-import { DollarSign, Clock, Star, CheckCircle, MapPin, Plus, Calendar, X, ChevronRight, Camera, Upload, Trash2, Shield, CreditCard, GraduationCap, ShieldCheck, UserPlus, Bell, Briefcase, TrendingUp, Users, Sparkles, Heart } from 'lucide-react'
+import { DollarSign, Clock, Star, CheckCircle, MapPin, Plus, Calendar, X, ChevronRight, Camera, Upload, Trash2, Shield, CreditCard, GraduationCap, ShieldCheck, UserPlus, Bell, Briefcase, TrendingUp, Users, Sparkles, Heart, Building2 } from 'lucide-react'
 import { useSession, signOut } from 'next-auth/react'
 import { formatCurrency } from '@/lib/utils'
 import { useCity } from '@/lib/city-context'
@@ -32,6 +32,8 @@ interface Service {
       totalReviews: number
       completedServicesCount: number
       verified: boolean
+      isCompany?: boolean
+      companyName?: string | null
       user: {
         name: string
         phone: string
@@ -799,10 +801,17 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                         </div>
 
                         <div className="flex-1 min-w-0 pr-8">
-                          <div className="flex items-center gap-2 mb-1.5">
+                          <div className="flex items-center gap-2 flex-wrap mb-1.5">
                             <h3 className="font-bold text-lg md:text-xl text-gray-900 truncate">
-                              {partnerService.partner.user.name}
+                              {partnerService.partner.isCompany && partnerService.partner.companyName
+                                ? partnerService.partner.companyName
+                                : partnerService.partner.user.name}
                             </h3>
+                            {partnerService.partner.isCompany && (
+                              <span className="flex items-center gap-1 text-xs font-bold bg-indigo-100 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-full shrink-0">
+                                <Building2 size={11} /> Empresa
+                              </span>
+                            )}
                           </div>
                           <div className="mb-1.5">
                             <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${

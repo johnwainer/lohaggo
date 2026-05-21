@@ -65,6 +65,8 @@ async function fetchPartner(slug: string) {
     totalReviews: partner.totalReviews,
     completedServicesCount: partner.completedServicesCount,
     verified: partner.verified,
+    isCompany: partner.isCompany,
+    companyName: partner.companyName,
     hasBackgroundCheck: !!backgroundDoc,
     createdAt: partner.createdAt.toISOString(),
     services: partner.services.map((ps) => ({

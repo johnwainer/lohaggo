@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import {
   MapPin, Star, CheckCircle, Share2, Copy, Check, MessageCircle,
-  Briefcase, Calendar, X, ChevronRight, ExternalLink, ShieldCheck,
+  Briefcase, Calendar, X, ChevronRight, ExternalLink, ShieldCheck, Building2,
 } from 'lucide-react'
 import QrCode from '@/components/QrCode'
 
@@ -34,6 +34,8 @@ type Partner = {
   totalReviews: number
   completedServicesCount: number
   verified: boolean
+  isCompany: boolean
+  companyName: string | null
   hasBackgroundCheck: boolean
   createdAt: string
   services: Service[]
@@ -208,7 +210,16 @@ const ratingDist = [5, 4, 3, 2, 1].map((stars) => ({
                   {partner.isAvailable ? 'Disponible' : 'No disponible'}
                 </span>
               </div>
-              <h1 className="text-3xl sm:text-4xl font-black text-white mb-2">{partner.name}</h1>
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-2">
+                <h1 className="text-3xl sm:text-4xl font-black text-white">
+                  {partner.isCompany && partner.companyName ? partner.companyName : partner.name}
+                </h1>
+                {partner.isCompany && (
+                  <span className="inline-flex items-center gap-1 bg-indigo-500/20 text-indigo-200 border border-indigo-400/40 rounded-full px-2.5 py-1 text-xs font-semibold self-center">
+                    <Building2 className="w-3 h-3" /> Empresa
+                  </span>
+                )}
+              </div>
               {partner.profileHeadline && (
                 <p className="text-primary-200 text-lg mb-3 font-medium">
                   {partner.profileHeadline}
