@@ -73,6 +73,7 @@ export default function VerificationPage() {
   const [companyMsg, setCompanyMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
   const [uploadingCompanyDoc, setUploadingCompanyDoc] = useState(false)
   const [companyFile, setCompanyFile] = useState<File | null>(null)
+  const [editingCompanyInfo, setEditingCompanyInfo] = useState(false)
 
   useEffect(() => {
     if (status === 'authenticated' && session?.user?.role !== 'PARTNER') {
@@ -348,7 +349,7 @@ export default function VerificationPage() {
         {/* ── Company section ── */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-5">
 
-          {/* Verified state: read-only display */}
+          {/* Verified state: read-only display (with optional edit) */}
           {isCompany && companyDocApproved ? (
             <div className="px-4 py-4">
               <div className="flex items-center gap-3 mb-4">
@@ -363,24 +364,85 @@ export default function VerificationPage() {
                   <CheckCircle className="w-3.5 h-3.5" /> Activa
                 </span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="bg-gray-50 rounded-lg px-3 py-2.5">
-                  <p className="text-xs text-gray-400 font-medium mb-0.5">Nombre de la empresa</p>
-                  <p className="text-sm font-bold text-gray-900">{companyName || '—'}</p>
+
+              {editingCompanyInfo ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1.5">Nombre de la empresa</label>
+                      <input
+                        type="text"
+                        value={companyName}
+                        onChange={e => setCompanyName(e.target.value)}
+                        placeholder="Ej. Servicios ABC S.A.S."
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1.5">NIT</label>
+                      <input
+                        type="text"
+                        value={companyNit}
+                        onChange={e => setCompanyNit(e.target.value)}
+                        placeholder="Ej. 900123456-7"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={async () => { await saveCompanyInfo(); setEditingCompanyInfo(false) }}
+                      disabled={savingCompany}
+                      className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition disabled:opacity-50"
+                    >
+                      {savingCompany ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : null}
+                      Guardar
+                    </button>
+                    <button
+                      onClick={() => setEditingCompanyInfo(false)}
+                      className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                  {companyMsg && (
+                    <p className={`text-xs font-medium flex items-center gap-1 ${companyMsg.type === 'ok' ? 'text-green-600' : 'text-red-600'}`}>
+                      {companyMsg.type === 'ok' ? <CheckCircle className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
+                      {companyMsg.text}
+                    </p>
+                  )}
                 </div>
-                <div className="bg-gray-50 rounded-lg px-3 py-2.5">
-                  <p className="text-xs text-gray-400 font-medium mb-0.5">NIT</p>
-                  <p className="text-sm font-bold text-gray-900">{companyNit || '—'}</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="bg-gray-50 rounded-lg px-3 py-2.5">
+                    <p className="text-xs text-gray-400 font-medium mb-0.5">Nombre de la empresa</p>
+                    <p className="text-sm font-bold text-gray-900">{companyName || '—'}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg px-3 py-2.5">
+                    <p className="text-xs text-gray-400 font-medium mb-0.5">NIT</p>
+                    <p className="text-sm font-bold text-gray-900">{companyNit || '—'}</p>
+                  </div>
                 </div>
-              </div>
-              {companyDoc && (
-                <button
-                  onClick={() => window.open(`/api/documents/view/${companyDoc.id}`, '_blank')}
-                  className="flex items-center gap-1 text-xs text-gray-400 hover:text-indigo-600 transition mt-3"
-                >
-                  <Eye className="w-3.5 h-3.5" /> Ver Cámara de Comercio
-                </button>
               )}
+
+              <div className="flex items-center gap-3 mt-3">
+                {!editingCompanyInfo && (
+                  <button
+                    onClick={() => setEditingCompanyInfo(true)}
+                    className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 font-semibold transition"
+                  >
+                    Editar información
+                  </button>
+                )}
+                {companyDoc && (
+                  <button
+                    onClick={() => window.open(`/api/documents/view/${companyDoc.id}`, '_blank')}
+                    className="flex items-center gap-1 text-xs text-gray-400 hover:text-indigo-600 transition"
+                  >
+                    <Eye className="w-3.5 h-3.5" /> Ver Cámara de Comercio
+                  </button>
+                )}
+              </div>
             </div>
           ) : (
             <>
