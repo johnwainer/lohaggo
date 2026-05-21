@@ -607,9 +607,21 @@ export default function InboxPage() {
       <div className={`flex flex-col flex-1 min-w-0 ${mobileView === 'list' ? 'hidden md:flex' : 'flex'}`}>
 
         {!selected ? (
-          <div className="flex flex-col items-center justify-center flex-1 text-gray-400 gap-3">
-            <MessageSquare className="h-16 w-16 opacity-20" />
-            <p className="text-sm">Selecciona una conversación para comenzar</p>
+          <div className="flex flex-col flex-1">
+            {/* Back button for mobile loading state */}
+            <div className="md:hidden flex items-center gap-2 px-3 py-3 border-b bg-white">
+              <button
+                onClick={() => setMobileView('list')}
+                className="shrink-0 rounded-lg p-1.5 hover:bg-gray-100 text-gray-500"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </button>
+              <span className="text-sm text-gray-500">Volver</span>
+            </div>
+            <div className="flex flex-col items-center justify-center flex-1 text-gray-400 gap-3">
+              <MessageSquare className="h-16 w-16 opacity-20" />
+              <p className="text-sm">Cargando conversación…</p>
+            </div>
           </div>
         ) : (
           <>
@@ -619,7 +631,8 @@ export default function InboxPage() {
                 {/* Back button — mobile only */}
                 <button
                   onClick={() => setMobileView('list')}
-                  className="md:hidden shrink-0 rounded-lg p-1.5 hover:bg-gray-100 text-gray-500"
+                  className="md:hidden shrink-0 rounded-lg p-2 bg-gray-100 active:bg-gray-200 text-gray-700"
+                  aria-label="Volver a conversaciones"
                 >
                   <ArrowLeft className="h-5 w-5" />
                 </button>

@@ -67,7 +67,7 @@ export default function AdminLayoutClient({
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar activeSection={activeSection} />
-      <main className={`flex-1 ml-0 lg:ml-64 ${isFullBleed ? 'overflow-hidden flex flex-col' : 'overflow-auto'}`}>
+      <main className={isFullBleed ? 'fixed inset-0 lg:left-64 overflow-hidden flex flex-col' : 'flex-1 ml-0 lg:ml-64 overflow-auto'}>
         {isFullBleed ? (
           children
         ) : (
