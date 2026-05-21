@@ -6,7 +6,7 @@ import {
   CheckCheck, AlertCircle, Clock, X, Users, Inbox,
   ExternalLink, Star, MapPin, ShieldCheck, Calendar,
   StickyNote, Zap, Tag, ChevronDown, Plus, Trash2, LayoutTemplate,
-  ChevronUp, Link2, Copy, Check,
+  ChevronUp, Link2, Copy, Check, ArrowLeft,
 } from 'lucide-react'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -159,6 +159,7 @@ export default function InboxPage() {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [agents, setAgents] = useState<Agent[]>([])
   const [selected, setSelected] = useState<Conversation | null>(null)
+  const [mobileView, setMobileView] = useState<'list' | 'chat'>('list')
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [messageText, setMessageText] = useState('')
@@ -309,6 +310,7 @@ export default function InboxPage() {
     setIsInternalNote(false)
     setShowTemplatePicker(false)
     setSelectedTemplate(null)
+    setMobileView('chat')
     loadConversationDetail(conv.id)
   }
 
@@ -493,10 +495,10 @@ export default function InboxPage() {
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
+    <div className="flex h-[100dvh] bg-gray-50 overflow-hidden">
 
       {/* ── Left sidebar: conversation list ── */}
-      <aside className="flex flex-col w-80 shrink-0 border-r bg-white">
+      <aside className={`flex flex-col w-full md:w-80 shrink-0 border-r bg-white ${mobileView === 'chat' ? 'hidden md:flex' : 'flex'}`}>
 
         {/* Header */}
         <div className="px-4 py-3 border-b">
@@ -602,7 +604,7 @@ export default function InboxPage() {
       </aside>
 
       {/* ── Right: chat view ── */}
-      <div className="flex flex-col flex-1 min-w-0">
+      <div className={`flex flex-col flex-1 min-w-0 ${mobileView === 'list' ? 'hidden md:flex' : 'flex'}`}>
 
         {!selected ? (
           <div className="flex flex-col items-center justify-center flex-1 text-gray-400 gap-3">
@@ -612,8 +614,15 @@ export default function InboxPage() {
         ) : (
           <>
             {/* Chat header */}
-            <div className="px-5 py-3 border-b bg-white space-y-2">
-              <div className="flex items-center gap-3">
+            <div className="px-3 md:px-5 py-3 border-b bg-white space-y-2">
+              <div className="flex items-center gap-2 md:gap-3">
+                {/* Back button — mobile only */}
+                <button
+                  onClick={() => setMobileView('list')}
+                  className="md:hidden shrink-0 rounded-lg p-1.5 hover:bg-gray-100 text-gray-500"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </button>
                 <div className="flex-shrink-0 h-9 w-9 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold text-sm">
                   {displayName(selected).charAt(0).toUpperCase()}
                 </div>
@@ -636,7 +645,7 @@ export default function InboxPage() {
                 </button>
 
                 {/* Agent selector */}
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="hidden sm:flex items-center gap-1 shrink-0">
                   <Users className="h-3.5 w-3.5 text-gray-400" />
                   <select className="border rounded-lg px-2 py-1 text-xs" value={selected.assignedToId || ''} onChange={(e) => assignAgent(e.target.value)}>
                     <option value="">Sin asignar</option>
@@ -644,8 +653,19 @@ export default function InboxPage() {
                   </select>
                 </div>
 
-                {/* Status */}
-                <div className="flex items-center gap-1 shrink-0">
+                {/* Status — dropdown on mobile, buttons on desktop */}
+                <div className="shrink-0 sm:hidden">
+                  <select
+                    value={selected.status}
+                    onChange={(e) => updateStatus(e.target.value as ConvStatus)}
+                    className="border rounded-lg px-2 py-1 text-xs"
+                  >
+                    {(Object.keys(STATUS_LABELS) as ConvStatus[]).map((s) => (
+                      <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="hidden sm:flex items-center gap-1 shrink-0">
                   {(Object.keys(STATUS_LABELS) as ConvStatus[]).map((s) => (
                     <button
                       key={s}
@@ -659,7 +679,7 @@ export default function InboxPage() {
               </div>
 
               {/* Tags row */}
-              <div className="flex items-center gap-1.5 flex-wrap pl-12">
+              <div className="flex items-center gap-1.5 flex-wrap pl-2 md:pl-12">
                 {(selected.tags || []).map((tag) => (
                   <button
                     key={tag}
@@ -696,7 +716,7 @@ export default function InboxPage() {
 
               {/* In-conversation search bar */}
               {showMsgSearch && (
-                <div className="flex items-center gap-2 pl-12">
+                <div className="flex items-center gap-2 pl-2 md:pl-12">
                   <div className="relative flex-1 max-w-xs">
                     <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-gray-400" />
                     <input
@@ -718,10 +738,10 @@ export default function InboxPage() {
 
             {/* User info bar */}
             {selected.user && (
-              <div className="flex items-center gap-4 px-5 py-2 bg-amber-50 border-b text-xs text-amber-800">
+              <div className="flex flex-wrap items-center gap-2 px-3 md:px-5 py-2 bg-amber-50 border-b text-xs text-amber-800">
                 <User className="h-3.5 w-3.5 shrink-0" />
-                <span><b>{selected.user.name}</b> · {selected.user.email} · {selected.user.role}</span>
-                {selected.user.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{selected.user.phone}</span>}
+                <span className="truncate max-w-[200px] md:max-w-none"><b>{selected.user.name}</b> · {selected.user.email} · {selected.user.role}</span>
+                {selected.user.phone && <span className="hidden sm:flex items-center gap-1"><Phone className="h-3 w-3" />{selected.user.phone}</span>}
                 <div className="ml-auto flex items-center gap-2">
                   <button
                     onClick={() => setMagicLinkTarget({
@@ -746,7 +766,7 @@ export default function InboxPage() {
             )}
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+            <div className="flex-1 overflow-y-auto px-3 md:px-5 py-4 space-y-4">
               {/* Load more */}
               {hasMore && (
                 <div className="flex justify-center">
@@ -825,7 +845,7 @@ export default function InboxPage() {
 
             {/* Error banner */}
             {error && (
-              <div className="mx-5 mb-2 flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+              <div className="mx-3 md:mx-5 mb-2 flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
                 <AlertCircle className="h-4 w-4 shrink-0" />
                 <span className="flex-1">{error}</span>
                 <button onClick={() => setError(null)}><X className="h-4 w-4" /></button>
@@ -834,7 +854,7 @@ export default function InboxPage() {
 
             {/* Canned responses picker */}
             {showCannedPicker && (
-              <div className="mx-5 mb-2 rounded-xl border bg-white shadow-lg max-h-60 overflow-hidden flex flex-col">
+              <div className="mx-3 md:mx-5 mb-2 rounded-xl border bg-white shadow-lg max-h-60 overflow-hidden flex flex-col">
                 <div className="flex items-center gap-2 px-3 py-2 border-b">
                   <Search className="h-3.5 w-3.5 text-gray-400" />
                   <input
@@ -871,13 +891,13 @@ export default function InboxPage() {
 
             {/* Closed notice */}
             {selected.status === 'CLOSED' ? (
-              <div className="mx-5 mb-4 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500 text-center">
+              <div className="mx-3 md:mx-5 mb-4 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500 text-center">
                 Conversación cerrada.{' '}
                 <button className="underline text-primary-600" onClick={() => updateStatus('OPEN')}>Reabrir</button>
               </div>
             ) : (
               /* Message input */
-              <div className="px-5 pb-4 pt-2 border-t bg-white">
+              <div className="px-3 md:px-5 pb-4 pt-2 border-t bg-white">
                 {/* Mode indicator */}
                 {isInternalNote && (
                   <div className="flex items-center gap-1.5 mb-1.5">
@@ -986,7 +1006,7 @@ export default function InboxPage() {
                       😊
                     </button>
                     {showEmojiPicker && (
-                      <div className="absolute bottom-10 left-0 z-30 w-64 rounded-2xl border bg-white shadow-xl p-2 overflow-hidden">
+                      <div className="absolute bottom-10 left-0 z-30 w-64 max-w-[85vw] rounded-2xl border bg-white shadow-xl p-2 overflow-hidden">
                         <div className="flex flex-wrap max-h-52 overflow-y-auto overflow-x-hidden">
                           {[
                             '😊','😄','😂','🤣','😍','🥰','😘','🤩',

@@ -723,7 +723,7 @@ export default function MessagingPage() {
                   </div>
                   <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Variables</p>
                   {varNums.map(num => (
-                    <div key={num} className="grid grid-cols-[80px_1fr] gap-2 items-start">
+                    <div key={num} className="flex flex-col sm:grid sm:grid-cols-[80px_1fr] gap-2 items-start">
                       <span className="text-xs font-mono font-bold text-primary-600 bg-primary-50 border border-primary-200 rounded-lg px-2 py-1.5 text-center">
                         {`{{${num}}}`}
                       </span>
