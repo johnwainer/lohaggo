@@ -923,14 +923,7 @@ export default function InboxPage() {
                 {windowClosed && !isInternalNote && !showTemplatePicker && (
                   <div className="mb-2 flex items-center gap-2 rounded-xl border border-yellow-200 bg-yellow-50 px-3 py-2 text-xs text-yellow-800">
                     <Clock className="h-3.5 w-3.5 shrink-0 text-yellow-600" />
-                    <span className="flex-1">Ventana de 24h cerrada. Debes usar una plantilla de WhatsApp para retomar.</span>
-                    <button
-                      onClick={loadWaTemplates}
-                      className="shrink-0 rounded-lg bg-yellow-600 px-3 py-1 text-xs font-semibold text-white hover:bg-yellow-700 transition flex items-center gap-1"
-                    >
-                      <LayoutTemplate className="h-3 w-3" />
-                      Usar plantilla
-                    </button>
+                    <span>Ventana de 24h cerrada. Usa la plantilla <LayoutTemplate className="inline h-3 w-3 mx-0.5" /> del toolbar para retomar.</span>
                   </div>
                 )}
 
@@ -986,94 +979,113 @@ export default function InboxPage() {
                   </div>
                 )}
 
-                <div className={`relative flex items-end gap-2 rounded-2xl border px-4 py-2 transition ${
+                {/* ── Compose box ── */}
+                <div className={`rounded-2xl border transition ${
                   windowClosed && !isInternalNote
                     ? 'bg-gray-100 border-gray-200 opacity-60 pointer-events-none select-none'
-                    : isInternalNote ? 'bg-yellow-50 border-yellow-200' : 'bg-gray-50'
+                    : isInternalNote ? 'bg-yellow-50 border-yellow-200' : 'bg-gray-50 border-gray-200'
                 }`}>
-                  {/* Canned responses */}
-                  <button
-                    onClick={() => setShowCannedPicker((v) => !v)}
-                    className={`shrink-0 rounded-lg p-1.5 transition ${showCannedPicker ? 'bg-primary-100 text-primary-600' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
-                    title="Respuestas rápidas"
-                  >
-                    <Zap className="h-4 w-4" />
-                  </button>
-
-                  {/* Internal note toggle */}
-                  <button
-                    onClick={() => setIsInternalNote((v) => !v)}
-                    className={`shrink-0 rounded-lg p-1.5 transition ${isInternalNote ? 'bg-yellow-100 text-yellow-700' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
-                    title="Nota interna"
-                  >
-                    <StickyNote className="h-4 w-4" />
-                  </button>
-
-                  {/* Emoji picker button */}
-                  <div className="relative shrink-0">
+                  {/* Row 1: action toolbar */}
+                  <div className="flex items-center gap-1 px-2 pt-2 pb-1">
+                    {/* Canned responses */}
                     <button
-                      onClick={() => setShowEmojiPicker((v) => !v)}
-                      className={`rounded-lg p-1.5 transition text-base leading-none ${showEmojiPicker ? 'bg-primary-100' : 'text-gray-400 hover:bg-gray-100'}`}
-                      title="Emojis"
+                      onClick={() => setShowCannedPicker((v) => !v)}
+                      className={`rounded-lg p-2 transition ${showCannedPicker ? 'bg-primary-100 text-primary-600' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
+                      title="Respuestas rápidas"
                     >
-                      😊
+                      <Zap className="h-4 w-4" />
                     </button>
-                    {showEmojiPicker && (
-                      <div className="absolute bottom-10 left-0 z-30 w-64 max-w-[85vw] rounded-2xl border bg-white shadow-xl p-2 overflow-hidden">
-                        <div className="flex flex-wrap max-h-52 overflow-y-auto overflow-x-hidden">
-                          {[
-                            '😊','😄','😂','🤣','😍','🥰','😘','🤩',
-                            '👍','👏','🙌','🙏','💪','✅','🔥','⭐',
-                            '❤️','💙','💚','💛','🧡','💜','🖤','🤍',
-                            '😅','😬','🤔','😮','😱','😢','😭','🥺',
-                            '🎉','🎊','🎁','🏆','🥇','💯','✨','🌟',
-                            '📞','📱','💬','📩','📋','📌','🔔','⏰',
-                            '👋','🤝','💼','🏠','🚗','🛒','💰','💳',
-                            '✔️','❌','⚠️','ℹ️','🔒','🔓','📊','📈',
-                          ].map((emoji) => (
-                            <button
-                              key={emoji}
-                              onClick={() => { insertEmoji(emoji); setShowEmojiPicker(false) }}
-                              className="flex items-center justify-center h-8 w-8 rounded-lg text-xl hover:bg-gray-100 transition shrink-0"
-                            >
-                              {emoji}
-                            </button>
-                          ))}
+
+                    {/* Internal note */}
+                    <button
+                      onClick={() => setIsInternalNote((v) => !v)}
+                      className={`rounded-lg p-2 transition ${isInternalNote ? 'bg-yellow-100 text-yellow-700' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
+                      title="Nota interna"
+                    >
+                      <StickyNote className="h-4 w-4" />
+                    </button>
+
+                    {/* Emoji */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowEmojiPicker((v) => !v)}
+                        className={`rounded-lg p-2 transition text-base leading-none ${showEmojiPicker ? 'bg-primary-100' : 'text-gray-400 hover:bg-gray-100'}`}
+                        title="Emojis"
+                      >
+                        😊
+                      </button>
+                      {showEmojiPicker && (
+                        <div className="absolute bottom-10 left-0 z-30 w-64 max-w-[85vw] rounded-2xl border bg-white shadow-xl p-2 overflow-hidden">
+                          <div className="flex flex-wrap max-h-52 overflow-y-auto overflow-x-hidden">
+                            {[
+                              '😊','😄','😂','🤣','😍','🥰','😘','🤩',
+                              '👍','👏','🙌','🙏','💪','✅','🔥','⭐',
+                              '❤️','💙','💚','💛','🧡','💜','🖤','🤍',
+                              '😅','😬','🤔','😮','😱','😢','😭','🥺',
+                              '🎉','🎊','🎁','🏆','🥇','💯','✨','🌟',
+                              '📞','📱','💬','📩','📋','📌','🔔','⏰',
+                              '👋','🤝','💼','🏠','🚗','🛒','💰','💳',
+                              '✔️','❌','⚠️','ℹ️','🔒','🔓','📊','📈',
+                            ].map((emoji) => (
+                              <button
+                                key={emoji}
+                                onClick={() => { insertEmoji(emoji); setShowEmojiPicker(false) }}
+                                className="flex items-center justify-center h-8 w-8 rounded-lg text-xl hover:bg-gray-100 transition shrink-0"
+                              >
+                                {emoji}
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
+                      )}
+                    </div>
+
+                    {/* WA Templates button (only for WA channel) */}
+                    {selected.channel === 'WHATSAPP' && (
+                      <button
+                        onClick={loadWaTemplates}
+                        className={`rounded-lg p-2 transition ${showTemplatePicker ? 'bg-green-100 text-green-700' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
+                        title="Plantillas WhatsApp"
+                      >
+                        <LayoutTemplate className="h-4 w-4" />
+                      </button>
                     )}
+
+                    {/* Channel badge — pushed to right */}
+                    <div className="ml-auto flex items-center gap-1.5 px-2 text-xs text-gray-400">
+                      <span className={`rounded-full w-2 h-2 shrink-0 ${CHANNEL_COLOR[selected.channel]}`} />
+                      <span className="hidden sm:inline">{selected.channel}</span>
+                    </div>
                   </div>
 
-                  <div className="shrink-0 flex items-center gap-1.5 text-xs text-gray-500 pb-1">
-                    <span className={`rounded-full w-2 h-2 ${CHANNEL_COLOR[selected.channel]}`} />
-                    {selected.channel}
+                  {/* Row 2: textarea + send */}
+                  <div className="flex items-end gap-2 px-3 pb-3 pt-1">
+                    <textarea
+                      ref={inputRef}
+                      className="flex-1 bg-transparent resize-none text-sm outline-none min-h-[40px] max-h-32 py-1 placeholder:text-gray-400"
+                      placeholder={isInternalNote ? 'Escribe una nota interna…' : windowClosed ? 'Ventana cerrada — usa una plantilla' : `Escribe un mensaje…`}
+                      value={messageText}
+                      rows={1}
+                      disabled={windowClosed && !isInternalNote}
+                      onChange={(e) => {
+                        setMessageText(e.target.value)
+                        e.target.style.height = 'auto'
+                        e.target.style.height = `${Math.min(e.target.scrollHeight, 128)}px`
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
+                      }}
+                    />
+                    <button
+                      onClick={sendMessage}
+                      disabled={!messageText.trim() || sending || (windowClosed && !isInternalNote)}
+                      className="shrink-0 rounded-xl bg-primary-600 p-2.5 text-white hover:bg-primary-700 disabled:opacity-40 transition"
+                    >
+                      {sending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    </button>
                   </div>
-
-                  <textarea
-                    ref={inputRef}
-                    className="flex-1 bg-transparent resize-none text-sm outline-none min-h-[36px] max-h-32 py-1"
-                    placeholder={isInternalNote ? 'Escribe una nota interna…' : windowClosed ? 'Ventana cerrada — usa una plantilla' : `Escribe un mensaje por ${selected.channel === 'WHATSAPP' ? 'WhatsApp' : 'SMS'}…`}
-                    value={messageText}
-                    rows={1}
-                    disabled={windowClosed && !isInternalNote}
-                    onChange={(e) => {
-                      setMessageText(e.target.value)
-                      e.target.style.height = 'auto'
-                      e.target.style.height = `${Math.min(e.target.scrollHeight, 128)}px`
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
-                    }}
-                  />
-                  <button
-                    onClick={sendMessage}
-                    disabled={!messageText.trim() || sending || (windowClosed && !isInternalNote)}
-                    className="shrink-0 rounded-xl bg-primary-600 p-2 text-white hover:bg-primary-700 disabled:opacity-40 transition"
-                  >
-                    {sending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  </button>
                 </div>
-                <p className="text-[11px] text-gray-400 mt-1 text-right">Enter para enviar · Shift+Enter para nueva línea</p>
+                <p className="hidden sm:block text-[11px] text-gray-400 mt-1 text-right">Enter para enviar · Shift+Enter para nueva línea</p>
               </div>
             )}
           </>
