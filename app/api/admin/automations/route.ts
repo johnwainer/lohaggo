@@ -79,6 +79,35 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ seeded: created.count })
   }
 
+  // Reseed — upsert todos los defaults por nombre (actualiza mensajes/canales existentes)
+  if (body.action === 'reseed') {
+    let updated = 0, inserted = 0
+    for (const rule of DEFAULT_AUTOMATION_RULES) {
+      const existing = await prisma.automationRule.findFirst({ where: { name: rule.name } })
+      if (existing) {
+        await prisma.automationRule.update({
+          where: { id: existing.id },
+          data: {
+            description: rule.description,
+            trigger: rule.trigger,
+            targetRole: rule.targetRole ?? null,
+            delayHours: rule.delayHours,
+            channels: rule.channels,
+            waTemplateFn: rule.waTemplateFn,
+            subject: rule.subject,
+            customBody: rule.customBody,
+          },
+        })
+        updated++
+      } else {
+        await prisma.automationRule.create({ data: { ...rule, targetRole: rule.targetRole ?? null } })
+        inserted++
+      }
+    }
+    logger.info('Reseeded automation rules', { updated, inserted, adminId: admin.id })
+    return NextResponse.json({ updated, inserted })
+  }
+
   // Create new rule
   const { name, description, trigger, targetRole, delayHours, channels, waTemplateFn, customBody, subject, isActive, metadata } = body
 

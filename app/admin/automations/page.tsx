@@ -663,6 +663,16 @@ export default function AutomationsPage() {
     setSeeding(false)
   }
 
+  const reseed = async () => {
+    if (!confirm('¿Actualizar los mensajes y canales de todas las reglas por defecto? Esto sobreescribe el contenido actual de las reglas estándar.')) return
+    setSeeding(true)
+    const res = await fetch('/api/admin/automations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reseed' }) })
+    const data = await res.json()
+    await load()
+    setSeeding(false)
+    alert(`Actualizado: ${data.updated} reglas actualizadas, ${data.inserted} nuevas insertadas.`)
+  }
+
   const handleToggle = async (id: string, val: boolean) => {
     await fetch('/api/admin/automations', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, isActive: val }) })
     setRules(r => r.map(rule => rule.id === id ? { ...rule, isActive: val } : rule))
@@ -706,6 +716,10 @@ export default function AutomationsPage() {
           <button onClick={seed} disabled={seeding} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 transition-all disabled:opacity-50">
             {seeding ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
             Cargar reglas por defecto
+          </button>
+          <button onClick={reseed} disabled={seeding} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-all disabled:opacity-50">
+            {seeding ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+            Actualizar mensajes
           </button>
           <button onClick={() => setEditRule({})} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 transition-all">
             <Plus size={15} /> Nueva regla
