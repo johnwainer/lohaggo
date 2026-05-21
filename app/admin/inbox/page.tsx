@@ -501,7 +501,7 @@ export default function InboxPage() {
       <aside className={`flex flex-col w-full md:w-80 shrink-0 border-r bg-white ${mobileView === 'chat' ? 'hidden md:flex' : 'flex'}`}>
 
         {/* Header */}
-        <div className="px-4 py-3 border-b">
+        <div className="pl-16 pr-4 md:px-4 py-3 border-b">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Inbox className="h-5 w-5 text-gray-700" />
@@ -609,7 +609,7 @@ export default function InboxPage() {
         {!selected ? (
           <div className="flex flex-col flex-1">
             {/* Back button for mobile loading state */}
-            <div className="md:hidden flex items-center gap-2 px-3 py-3 border-b bg-white">
+            <div className="md:hidden flex items-center gap-2 pl-16 pr-3 py-3 border-b bg-white">
               <button
                 onClick={() => setMobileView('list')}
                 className="shrink-0 rounded-lg p-1.5 hover:bg-gray-100 text-gray-500"
@@ -626,7 +626,7 @@ export default function InboxPage() {
         ) : (
           <>
             {/* Chat header */}
-            <div className="px-3 md:px-5 py-3 border-b bg-white space-y-2">
+            <div className="pl-16 pr-3 md:px-5 py-3 border-b bg-white space-y-2">
               <div className="flex items-center gap-2 md:gap-3">
                 {/* Back button — mobile only */}
                 <button
