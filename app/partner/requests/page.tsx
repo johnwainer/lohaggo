@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { MapPin, User, DollarSign, Send, MessageSquare } from 'lucide-react'
+import ServiceIcon from '@/components/ServiceIcon'
 import PlatformTrustBanner from '@/components/PlatformTrustBanner'
 import AccountTopHeader from '@/components/shared/AccountTopHeader'
 import AccountPanel from '@/components/shared/AccountPanel'
@@ -20,6 +21,7 @@ interface ServiceRequest {
   service: {
     id: string
     name: string
+    slug: string
     icon: string
     basePrice: number
     category: {
@@ -244,7 +246,7 @@ export default function PartnerRequestsPage() {
               <div key={request.id} className="surface-card p-6">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-start gap-4">
-                    <div className="text-3xl">{request.service.icon}</div>
+                    <ServiceIcon slug={request.service.slug} size="md" />
                     <div>
                       <h3 className="panel-card-title">{request.service.name}</h3>
                       <p className="panel-caption">{request.service.category.name}</p>

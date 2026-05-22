@@ -17,6 +17,7 @@ import ConfirmModal from '@/components/ConfirmModal'
 import ImageGalleryModal from '@/components/ImageGalleryModal'
 import RatingModal from '@/components/RatingModal'
 import UnifiedBookingCard from '@/components/shared/UnifiedBookingCard'
+import ServiceIcon from '@/components/ServiceIcon'
 import ClientDashboardNav from '@/components/ClientDashboardNav'
 import { getBookingVisualState, type BookingVisualState } from '@/lib/booking-status'
 import { useNotificationUnreadCount } from '@/hooks/useNotificationUnreadCount'
@@ -38,6 +39,7 @@ interface Booking {
   proposalId?: string
   service: {
     name: string
+    slug: string
     icon: string
     category: {
       name: string
@@ -74,6 +76,7 @@ interface ServiceRequest {
   budget?: number
   service: {
     name: string
+    slug: string
     icon: string
     category: {
       name: string
@@ -1107,7 +1110,7 @@ export default function DashboardPage() {
                         <div className="space-y-3">
                           {bookings.slice(0, 4).map((booking) => (
                             <div key={booking.id} className="group flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl bg-gray-50 hover:bg-gradient-to-r hover:from-primary-50 hover:to-transparent border border-gray-100 hover:border-primary-200 transition-all cursor-pointer">
-                              <div className="text-3xl sm:text-4xl flex-shrink-0 group-hover:scale-110 transition-transform">{booking.service.icon}</div>
+                              <ServiceIcon slug={booking.service.slug} size="lg" animate />
                               <div className="flex-1 min-w-0">
                                 <p className="font-semibold text-gray-900 text-sm sm:text-base truncate group-hover:text-primary-700 transition-colors">{booking.service.name}</p>
                                 <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -1461,6 +1464,7 @@ export default function DashboardPage() {
                         role="CLIENT"
                         serviceName={booking.service.name}
                         serviceIcon={booking.service.icon}
+                        serviceSlug={booking.service.slug}
                         counterpartName={booking.partner?.user.name || 'Socio'}
                         counterpartLabel="Socio"
                         visualState={visualState}
@@ -1614,8 +1618,8 @@ export default function DashboardPage() {
                         <div key={favorite.id} className="bg-white border border-gray-200 rounded-2xl p-3.5 sm:p-4 shadow-sm">
                           <div className="flex items-start justify-between gap-3 mb-2">
                             <div className="flex items-start gap-3 min-w-0">
-                              <div className="w-12 h-12 rounded-xl bg-primary-50 border border-primary-100 text-2xl flex items-center justify-center shrink-0">
-                                {service.icon}
+                              <div className="w-12 h-12 rounded-xl bg-primary-50 border border-primary-100 flex items-center justify-center shrink-0">
+                                <ServiceIcon slug={service.slug} size="sm" />
                               </div>
                               <div className="min-w-0">
                                 <p className="font-semibold text-sm sm:text-base text-gray-900 truncate">{service.name}</p>
@@ -1754,8 +1758,8 @@ export default function DashboardPage() {
                         </div>
 
                         <div className="flex items-start gap-3 mb-3">
-                          <div className="w-11 h-11 rounded-xl bg-primary-50 border border-primary-100 flex items-center justify-center text-2xl shrink-0">
-                            {request.service.icon}
+                          <div className="w-11 h-11 rounded-xl bg-primary-50 border border-primary-100 flex items-center justify-center shrink-0">
+                            <ServiceIcon slug={request.service.slug} size="sm" />
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="font-semibold text-gray-900 text-sm sm:text-base truncate">{request.service.name}</p>
@@ -2012,8 +2016,8 @@ export default function DashboardPage() {
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-lg bg-primary-50 border border-primary-100 flex items-center justify-center text-xl shrink-0">
-                        {service.icon}
+                      <div className="w-10 h-10 rounded-lg bg-primary-50 border border-primary-100 flex items-center justify-center shrink-0">
+                        <ServiceIcon slug={service.slug} size="sm" />
                       </div>
                       <div className="min-w-0">
                         <p className="font-semibold text-sm sm:text-base text-gray-900 truncate">{service.name}</p>

@@ -105,16 +105,18 @@ export async function GET() {
 
     const metaTemplates: any[] = []
     const metaConf = runtimeConfig.metaWhatsApp.config as any
-    if (metaConf?.accessToken && metaConf?.wabaId) {
+    // Only load Meta templates when Meta is active — prevents hiding Twilio templates
+    // and sending campaigns through a broken/unconfigured Meta provider
+    if (runtimeConfig.metaWhatsApp.active && metaConf?.accessToken && metaConf?.wabaId) {
       try {
         const fetched = await fetchMetaTemplates(metaConf.accessToken, metaConf.wabaId)
         metaTemplates.push(...fetched)
       } catch { /* Meta API unavailable — continue */ }
-    }
 
-    // Fall back to cached templates if live API returned nothing
-    if (metaTemplates.length === 0 && Array.isArray(metaConf?.cachedTemplates)) {
-      metaTemplates.push(...cachedTemplatesToResponse(metaConf.cachedTemplates))
+      // Fall back to cached templates if live API returned nothing
+      if (metaTemplates.length === 0 && Array.isArray(metaConf?.cachedTemplates)) {
+        metaTemplates.push(...cachedTemplatesToResponse(metaConf.cachedTemplates))
+      }
     }
 
     // Merge: Meta templates take precedence; skip Twilio duplicates by waName match

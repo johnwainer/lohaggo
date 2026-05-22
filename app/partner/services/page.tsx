@@ -12,6 +12,7 @@ import {
 import { formatCurrency } from '@/lib/utils'
 import AccountTopHeader from '@/components/shared/AccountTopHeader'
 import AccountPanel from '@/components/shared/AccountPanel'
+import ServiceIcon from '@/components/ServiceIcon'
 
 interface ApprovedDoc {
   id: string
@@ -22,6 +23,7 @@ interface ApprovedDoc {
 interface Service {
   id: string
   name: string
+  slug: string
   description: string
   icon: string
   basePrice: number
@@ -305,7 +307,7 @@ export default function ServicesManagementPage() {
                       <div className="p-6">
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex items-start gap-4">
-                            <div className="text-4xl emoji-icon">{service.icon}</div>
+                            <ServiceIcon slug={service.slug} size="lg" />
                             <div>
                               <h3 className="text-lg font-semibold text-gray-900">{service.name}</h3>
                               <p className="text-sm text-gray-600 mt-1">{service.description}</p>
@@ -478,7 +480,7 @@ export default function ServicesManagementPage() {
                                   : 'active:bg-gray-50 cursor-pointer hover:bg-gray-50'
                               }`}
                             >
-                              <span className="text-2xl flex-shrink-0 emoji-icon">{service.icon}</span>
+                              <ServiceIcon slug={service.slug} size="sm" />
                               <div className="flex-1 min-w-0">
                                 <p className="font-semibold text-gray-900 text-sm leading-tight">{service.name}</p>
                                 <p className="text-xs text-gray-500 mt-0.5">{service.category.name} · {service.duration} min</p>

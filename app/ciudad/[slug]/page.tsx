@@ -4,6 +4,7 @@ import { use, useEffect, useState } from 'react'
 import { useCity } from '@/lib/city-context'
 import { useRouter } from 'next/navigation'
 import { MapPin, Sparkles, Clock, Shield, Star, CheckCircle, Zap, Users, Award, TrendingUp, ArrowRight, Bell, Heart, Rocket, Gift, Calendar, Phone, Mail, MessageCircle } from 'lucide-react'
+import ServiceIcon from '@/components/ServiceIcon'
 import Link from 'next/link'
 
 export default function CityComingSoonPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -86,18 +87,18 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
   ]
 
   const services = [
-    { name: "Plomería", icon: "🔧" },
-    { name: "Electricidad", icon: "⚡" },
-    { name: "Limpieza", icon: "🧹" },
-    { name: "Belleza", icon: "💅" },
-    { name: "Carpintería", icon: "🪚" },
-    { name: "Pintura", icon: "🎨" },
-    { name: "Jardinería", icon: "🌱" },
-    { name: "Mudanzas", icon: "📦" },
-    { name: "Masajes", icon: "💆" },
-    { name: "Cerrajería", icon: "🔑" },
-    { name: "Aire Acondicionado", icon: "❄️" },
-    { name: "Tecnología", icon: "💻" }
+    { name: "Plomería", slug: "plomeria", icon: "🔧" },
+    { name: "Electricidad", slug: "electricidad", icon: "⚡" },
+    { name: "Limpieza", slug: "limpieza-hogar", icon: "🧹" },
+    { name: "Belleza", slug: "manicure-pedicure", icon: "💅" },
+    { name: "Carpintería", slug: "carpinteria", icon: "🪚" },
+    { name: "Pintura", slug: "pintura", icon: "🎨" },
+    { name: "Jardinería", slug: "jardineria", icon: "🌱" },
+    { name: "Mudanzas", slug: "mudanzas", icon: "📦" },
+    { name: "Masajes", slug: "masajes", icon: "💆" },
+    { name: "Cerrajería", slug: "cerrajeria", icon: "🔑" },
+    { name: "Aire Acondicionado", slug: "reparacion-aires", icon: "❄️" },
+    { name: "Tecnología", slug: "soporte-tecnico", icon: "💻" }
   ]
 
   const steps = [
@@ -320,7 +321,7 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
                     key={index}
                     className="bg-gradient-to-br from-primary-50 to-secondary-50 rounded-xl p-4 text-center hover:shadow-lg transition-all transform hover:scale-105 border-2 border-primary-100 hover:border-primary-300"
                   >
-                    <div className="text-4xl mb-2">{service.icon}</div>
+                    <div className="flex justify-center mb-2"><ServiceIcon slug={service.slug} size="lg" /></div>
                     <div className="text-sm font-bold text-gray-700">{service.name}</div>
                   </div>
                 ))}

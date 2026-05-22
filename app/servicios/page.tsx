@@ -7,6 +7,7 @@ import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { Search, Filter, X, Star, Lightbulb, Clock, Trash2, Heart, SlidersHorizontal, ChevronDown } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
+import ServiceIcon from '@/components/ServiceIcon'
 
 const ServicesTour = dynamic(() => import('@/components/ServicesTour'), {
   ssr: false,
@@ -590,7 +591,7 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
                         href={`/servicios/${service.slug}`}
                         className="flex items-center gap-3 p-3 hover:bg-gradient-to-r hover:from-primary-50 hover:to-secondary-50 transition-all duration-200 border-b border-gray-100 last:border-0 group"
                       >
-                        <span className="text-2xl group-hover:scale-110 transition-transform duration-200">{service.icon}</span>
+                        <ServiceIcon slug={service.slug} size="sm" animate />
                         <div className="flex-1">
                           <p className="font-bold text-sm text-gray-900 group-hover:text-primary-600 transition-colors">{service.name}</p>
                           <p className="text-xs text-gray-500">{service.category.name}</p>
@@ -651,7 +652,7 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
                   }`}
                 >
-                  <span className="emoji-icon" style={{ fontSize: '3em' }}>{category.icon}</span>
+                  <ServiceIcon slug={category.slug} isCategory size="md" animate />
                   <span className="hidden sm:inline">{category.name}</span>
                 </button>
               ))}
@@ -778,7 +779,7 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
                           className="bg-gray-50 rounded-xl p-4 hover:shadow-lg transition border-2 border-gray-100 hover:border-primary-500/30"
                         >
                           <div className="flex items-center gap-3 mb-2">
-                            <span className="text-3xl">{service.icon}</span>
+                            <ServiceIcon slug={service.slug} size="md" animate />
                             <div className="flex-1">
                               <h4 className="font-bold text-sm text-gray-900">{service.name}</h4>
                               <p className="text-xs text-gray-500">{service.category.name}</p>
@@ -802,7 +803,7 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
                           className="bg-gray-50 rounded-xl p-4 hover:shadow-lg transition border-2 border-gray-100 hover:border-primary-500/30"
                         >
                           <div className="flex items-center gap-3 mb-2">
-                            <span className="text-3xl">{service.icon}</span>
+                            <ServiceIcon slug={service.slug} size="md" animate />
                             <div className="flex-1">
                               <h4 className="font-bold text-sm text-gray-900">{service.name}</h4>
                               <p className="text-xs text-gray-500">{service.category.name}</p>
@@ -859,9 +860,7 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
                 >
                   <div className="p-4 md:p-6">
                     <div className="flex items-start justify-between mb-3 md:mb-4">
-                      <span className="emoji-icon group-hover:scale-110 transition-transform inline-block" style={{ fontSize: '3em' }}>
-                        {service.icon}
-                      </span>
+                      <ServiceIcon slug={service.slug} size="lg" animate />
                       <div className="flex items-center gap-2">
                         {service.slug === 'lohaggo-ya' && (
                           <span className="bg-gradient-to-r from-primary-500 to-secondary-500 text-white text-xs font-bold px-3 md:px-4 py-1.5 md:py-2 rounded-full">
@@ -950,9 +949,7 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
                       >
                         <div className="p-4 md:p-5">
                           <div className="flex items-start justify-between mb-3">
-                            <span className="emoji-icon group-hover:scale-110 transition-transform inline-block" style={{ fontSize: '2.5em' }}>
-                              {service.icon}
-                            </span>
+                            <ServiceIcon slug={service.slug} size="md" animate />
                             <div className="flex items-center gap-2">
                               <span className="bg-primary-50 text-primary-600 text-xs font-bold px-3 py-1.5 rounded-full">
                                 {service.category.name}

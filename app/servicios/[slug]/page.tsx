@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { flushSync } from 'react-dom'
 import { DollarSign, Clock, Star, CheckCircle, MapPin, Plus, Calendar, X, ChevronRight, Camera, Upload, Trash2, Shield, CreditCard, GraduationCap, ShieldCheck, UserPlus, Bell, Briefcase, TrendingUp, Users, Sparkles, Heart, Building2 } from 'lucide-react'
+import ServiceIcon from '@/components/ServiceIcon'
 import { useSession, signOut } from 'next-auth/react'
 import { formatCurrency } from '@/lib/utils'
 import { useCity } from '@/lib/city-context'
@@ -16,6 +17,7 @@ import PlatformTrustBanner from '@/components/PlatformTrustBanner'
 interface Service {
   id: string
   name: string
+  slug: string
   description: string
   icon: string
   basePrice: number
@@ -646,7 +648,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
         {/* Service Header */}
         <div className="bg-white rounded-xl shadow-md p-4 md:p-8 mb-6 md:mb-8" data-tour="service-header">
           <div className="flex flex-col sm:flex-row items-start gap-4 md:gap-6">
-            <div className="emoji-icon" style={{ fontSize: '3em' }}>{service.icon}</div>
+            <ServiceIcon slug={service.slug} size="lg" />
             <div className="flex-1 w-full">
               <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3 md:mb-2">
                 <h1 className="text-2xl md:text-3xl font-bold">{service.name}</h1>

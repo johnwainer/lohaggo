@@ -7,6 +7,7 @@ import {
   Briefcase, Calendar, X, ChevronRight, ExternalLink, ShieldCheck, Building2,
 } from 'lucide-react'
 import QrCode from '@/components/QrCode'
+import ServiceIcon from '@/components/ServiceIcon'
 
 type Service = { id: string; name: string; icon: string; slug: string; price: number }
 type WorkPhoto = { id: string; url: string; caption: string | null }
@@ -293,7 +294,7 @@ const ratingDist = [5, 4, 3, 2, 1].map((stars) => ({
                   href={`/servicios/${s.slug}`}
                   className="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:border-primary-200 hover:bg-primary-50 transition-all group"
                 >
-                  <span className="text-2xl">{s.icon}</span>
+                  <ServiceIcon slug={s.slug} size="sm" />
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-gray-900 truncate">{s.name}</p>
                     <p className="text-primary-600 font-bold text-sm">desde {formatPrice(s.price)}</p>

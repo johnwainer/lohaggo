@@ -1,6 +1,6 @@
 'use client'
 
-import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, LogOut, Menu, X, Shield, DollarSign, Wallet, MapPin, CreditCard, ChevronDown, ChevronRight, Percent, Megaphone, Activity, Building2, BookOpen, Smartphone, MessageSquare, Inbox, Link2, Zap } from 'lucide-react'
+import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, LogOut, Menu, X, Shield, DollarSign, Wallet, MapPin, CreditCard, ChevronDown, ChevronRight, Percent, Megaphone, Activity, Building2, BookOpen, Smartphone, MessageSquare, Inbox, Link2, Zap, Palette } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import { useEffect, useState } from 'react'
@@ -115,6 +115,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
         { id: 'security', label: 'Seguridad', icon: Shield, isLink: true, href: '/admin/security' },
         { id: 'risk-control', label: 'Riesgo y Cohortes', icon: Shield, isLink: true, href: '/admin/risk-control' },
         { id: 'platform-control', label: 'Control Plataforma', icon: Settings, isLink: true, href: '/admin/platform-control' },
+        { id: 'appearance', label: 'Apariencia', icon: Palette, isLink: true, href: '/admin/appearance' },
         { id: 'training', label: 'Entrenamiento', icon: BookOpen, isLink: true, href: '/admin/training' },
         { id: 'settings', label: 'Ajustes', icon: Settings },
       ]

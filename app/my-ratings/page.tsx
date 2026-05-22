@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { Star, Calendar, MessageSquare } from 'lucide-react'
+import ServiceIcon from '@/components/ServiceIcon'
 import { formatCurrency } from '@/lib/utils'
 import AccountTopHeader from '@/components/shared/AccountTopHeader'
 import AccountPanel from '@/components/shared/AccountPanel'
@@ -15,6 +16,7 @@ interface Review {
     totalPrice: number
     service: {
       name: string
+      slug: string
       icon: string
     }
     user: {
@@ -277,7 +279,7 @@ export default function MyRatingsPage() {
 
                   <div className="bg-gray-50 rounded-xl p-4 mb-4">
                     <div className="flex items-center gap-2 text-gray-700 mb-2">
-                      <span className="text-2xl">{review.booking.service.icon}</span>
+                      <ServiceIcon slug={review.booking.service.slug} size="sm" />
                       <div>
                         <p className="font-medium">{review.booking.service.name}</p>
                         <p className="text-sm text-gray-500">

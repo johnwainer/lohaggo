@@ -5,9 +5,10 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import {
   Upload, FileText, CheckCircle, XCircle, Clock, Shield,
-  GraduationCap, CreditCard, AlertCircle, Trash2, Eye, ChevronRight, Plus, Building2
+  GraduationCap, CreditCard, AlertCircle, Trash2, Eye, ChevronRight, Plus, Building2,
 } from 'lucide-react'
 import Modal from '@/components/Modal'
+import ServiceIcon from '@/components/ServiceIcon'
 import AccountTopHeader from '@/components/shared/AccountTopHeader'
 
 interface Document {
@@ -23,7 +24,7 @@ interface Document {
 
 interface PartnerService {
   id: string
-  service: { name: string; icon: string }
+  service: { name: string; slug: string; icon: string }
 }
 
 const DOCUMENT_TYPES = {
@@ -678,7 +679,7 @@ export default function VerificationPage() {
                     <p className="text-sm font-medium text-gray-900 truncate">{getDocumentLabel(doc.type)}</p>
                     {linkedService && (
                       <p className="text-xs text-purple-600 font-medium mt-0.5 flex items-center gap-1">
-                        <span>{linkedService.service.icon}</span>{linkedService.service.name}
+                        <ServiceIcon slug={linkedService.service.slug} size="sm" />{linkedService.service.name}
                       </p>
                     )}
                     <p className="text-xs text-gray-400">{new Date(doc.createdAt).toLocaleDateString('es-CO')}</p>

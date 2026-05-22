@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { Wallet, Clock, CheckCircle, TrendingUp, DollarSign, ChevronRight } from 'lucide-react'
+import ServiceIcon from '@/components/ServiceIcon'
 import { formatCurrency } from '@/lib/utils'
 import PartnerHeader from '@/components/partner/PartnerHeader'
 
@@ -18,7 +19,7 @@ interface PayoutItem {
   payment: {
     booking: {
       scheduledDate: string
-      service: { name: string; icon: string }
+      service: { name: string; slug: string; icon: string }
       user: { name: string }
     }
   }
@@ -119,7 +120,7 @@ export default function PartnerPaymentsPage() {
             <div className="divide-y divide-gray-50">
               {payouts.map((payout) => (
                 <div key={payout.id} className="px-4 py-3 flex items-center gap-3">
-                  <div className="text-2xl flex-shrink-0">{payout.payment.booking.service.icon}</div>
+                  <ServiceIcon slug={payout.payment.booking.service.slug} size="sm" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-900 truncate">{payout.payment.booking.service.name}</p>
                     <p className="text-xs text-gray-500 truncate">{payout.payment.booking.user.name} · {payout.payment.booking.scheduledDate}</p>

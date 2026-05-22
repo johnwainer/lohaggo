@@ -1,6 +1,7 @@
 'use client'
 
 import { Calendar, CheckCircle2, ChevronDown, Clock, Loader2, MapPin, MessageCircle, Star, User } from 'lucide-react'
+import ServiceIcon from '@/components/ServiceIcon'
 import { useMemo, useState, type ReactNode } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -20,6 +21,7 @@ interface UnifiedBookingCardProps {
   role: 'CLIENT' | 'PARTNER'
   serviceName: string
   serviceIcon: string
+  serviceSlug?: string
   counterpartName: string
   counterpartLabel: string
   visualState: BookingVisualState
@@ -45,6 +47,7 @@ export default function UnifiedBookingCard({
   role,
   serviceName,
   serviceIcon,
+  serviceSlug,
   counterpartName,
   counterpartLabel,
   visualState,
@@ -112,7 +115,10 @@ export default function UnifiedBookingCard({
         </div>
 
         <div className="mb-3 flex items-start gap-3">
-          <div className="text-4xl leading-none">{serviceIcon}</div>
+          {serviceSlug
+            ? <ServiceIcon slug={serviceSlug} size="lg" />
+            : <div className="text-4xl leading-none">{serviceIcon}</div>
+          }
           <div className="min-w-0 flex-1">
             <h3 className="truncate text-base font-bold text-gray-900 md:text-lg">{serviceName}</h3>
             <p className="mt-0.5 flex items-center gap-1 text-xs text-gray-600 md:text-sm">

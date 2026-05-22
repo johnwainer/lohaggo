@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { MessageSquare, Search } from 'lucide-react'
+import ServiceIcon from '@/components/ServiceIcon'
 import PartnerHeader from '@/components/partner/PartnerHeader'
 
 const ChatModal = dynamic(() => import('@/components/ChatModal'), { ssr: false, loading: () => null })
@@ -13,7 +14,7 @@ interface ConversationItem {
   id: string
   proposalId: string
   client: { name: string; image: string | null }
-  service: { name: string; icon: string }
+  service: { name: string; slug: string; icon: string }
   lastMessage: { content: string; senderId: string; createdAt: string } | null
   unreadCount: number
   updatedAt: string
@@ -128,7 +129,7 @@ export default function PartnerMessagesPage() {
                       {new Date(conv.updatedAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
                     </p>
                   </div>
-                  <p className="text-xs text-gray-500 truncate">{conv.service.icon} {conv.service.name}</p>
+                  <p className="text-xs text-gray-500 truncate flex items-center gap-1"><ServiceIcon slug={conv.service.slug} size="sm" /> {conv.service.name}</p>
                   {conv.lastMessage && (
                     <p className={`text-xs truncate mt-0.5 ${conv.unreadCount > 0 ? 'text-gray-800 font-medium' : 'text-gray-400'}`}>
                       {conv.lastMessage.content}
