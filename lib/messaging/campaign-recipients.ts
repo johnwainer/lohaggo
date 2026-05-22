@@ -22,6 +22,7 @@ export type CampaignAudienceFilter = {
   partnerServiceIds: string[]
   partnerWithoutDocs?: boolean
   partnerWithoutStudies?: boolean
+  partnerWithoutServices?: boolean
 }
 
 export type CampaignRecipient = BasicUser & {
@@ -58,7 +59,7 @@ export function parseRecipientControl(metadata: string | null | undefined): Reci
 
 export function parseCampaignAudience(metadata: string | null | undefined): CampaignAudienceFilter {
   const parsed = parseMetadataObject(metadata) as {
-    audience?: { partnerFilterMode?: unknown; partnerCategoryIds?: unknown; partnerServiceIds?: unknown; partnerWithoutDocs?: unknown; partnerWithoutStudies?: unknown }
+    audience?: { partnerFilterMode?: unknown; partnerCategoryIds?: unknown; partnerServiceIds?: unknown; partnerWithoutDocs?: unknown; partnerWithoutStudies?: unknown; partnerWithoutServices?: unknown }
   }
   const modeRaw = String(parsed?.audience?.partnerFilterMode || 'ALL').toUpperCase()
   const partnerFilterMode: CampaignAudienceFilter['partnerFilterMode'] =
@@ -69,6 +70,7 @@ export function parseCampaignAudience(metadata: string | null | undefined): Camp
     partnerServiceIds: sanitizeIds(parsed?.audience?.partnerServiceIds),
     partnerWithoutDocs: Boolean(parsed?.audience?.partnerWithoutDocs),
     partnerWithoutStudies: Boolean(parsed?.audience?.partnerWithoutStudies),
+    partnerWithoutServices: Boolean(parsed?.audience?.partnerWithoutServices),
   }
 }
 
@@ -98,6 +100,7 @@ export function mergeCampaignAudienceMetadata(
     partnerServiceIds: sanitizeIds(audience.partnerServiceIds),
     partnerWithoutDocs: Boolean(audience.partnerWithoutDocs),
     partnerWithoutStudies: Boolean(audience.partnerWithoutStudies),
+    partnerWithoutServices: Boolean(audience.partnerWithoutServices),
   }
 
   return JSON.stringify(parsed)
@@ -142,11 +145,12 @@ export async function resolveCampaignRecipients(params: {
 
   const partnerWithoutDocs = audience.partnerWithoutDocs ?? false
   const partnerWithoutStudies = audience.partnerWithoutStudies ?? false
+  const partnerWithoutServices = audience.partnerWithoutServices ?? false
 
   const enforcePartnerRole =
     partnerFilterMode === 'CATEGORY' || partnerFilterMode === 'SERVICE' ||
     partnerCategoryIds.length > 0 || partnerServiceIds.length > 0 ||
-    partnerWithoutDocs || partnerWithoutStudies
+    partnerWithoutDocs || partnerWithoutStudies || partnerWithoutServices
 
   const roleFilter = enforcePartnerRole ? 'PARTNER' : resolveRecipientRole(params.targetRole)
 
@@ -199,7 +203,15 @@ export async function resolveCampaignRecipients(params: {
       }
     : undefined
 
-  const hasPartnerProfileFilter = partnerServiceWhere || partnerCategoryWhere || partnerWithoutDocsWhere || partnerWithoutStudiesWhere
+  const partnerWithoutServicesWhere = partnerWithoutServices
+    ? {
+        services: {
+          none: { active: true },
+        },
+      }
+    : undefined
+
+  const hasPartnerProfileFilter = partnerServiceWhere || partnerCategoryWhere || partnerWithoutDocsWhere || partnerWithoutStudiesWhere || partnerWithoutServicesWhere
 
   // When targetRole is null (manual-only mode), skip the segment query entirely.
   // Recipients come exclusively from includeUserIds + search results.
@@ -215,6 +227,7 @@ export async function resolveCampaignRecipients(params: {
               ...(partnerCategoryWhere || {}),
               ...(partnerWithoutDocsWhere || {}),
               ...(partnerWithoutStudiesWhere || {}),
+              ...(partnerWithoutServicesWhere || {}),
             },
           }),
           ...(params.targetCity

@@ -112,6 +112,8 @@ export default function MessagingPage() {
   const [syncMsg, setSyncMsg] = useState<string | null>(null)
   const [creatingAppTemplate, setCreatingAppTemplate] = useState(false)
   const [createAppMsg, setCreateAppMsg] = useState<string | null>(null)
+  const [creatingSinServiciosTemplate, setCreatingSinServiciosTemplate] = useState(false)
+  const [createSinServiciosMsg, setCreateSinServiciosMsg] = useState<string | null>(null)
 
   const [accountSid, setAccountSid] = useState('')
   const [authToken, setAuthToken] = useState('')
@@ -240,6 +242,23 @@ export default function MessagingPage() {
     } finally {
       setCreatingAppTemplate(false)
       setTimeout(() => setCreateAppMsg(null), 8000)
+    }
+  }
+
+  const createSinServiciosTemplate = async () => {
+    setCreatingSinServiciosTemplate(true)
+    setCreateSinServiciosMsg(null)
+    try {
+      const res = await fetch('/api/admin/messaging/wa-templates/create-sin-servicios', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.details?.error?.message || data.error || 'Error al crear')
+      setCreateSinServiciosMsg('✓ Plantilla socios_sin_servicios enviada a Meta — pendiente aprobación')
+      setTimeout(() => syncWaTemplates(), 2000)
+    } catch (e: any) {
+      setCreateSinServiciosMsg(`Error: ${e.message}`)
+    } finally {
+      setCreatingSinServiciosTemplate(false)
+      setTimeout(() => setCreateSinServiciosMsg(null), 8000)
     }
   }
 
@@ -790,6 +809,15 @@ export default function MessagingPage() {
             <div className="ml-auto flex items-center gap-2 flex-wrap">
               {syncMsg && <span className={`text-xs font-normal ${syncMsg.startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>{syncMsg}</span>}
               {createAppMsg && <span className={`text-xs font-normal ${createAppMsg.startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>{createAppMsg}</span>}
+              {createSinServiciosMsg && <span className={`text-xs font-normal ${createSinServiciosMsg.startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>{createSinServiciosMsg}</span>}
+              <button
+                onClick={createSinServiciosTemplate}
+                disabled={creatingSinServiciosTemplate || syncingTemplates}
+                className="flex items-center gap-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {creatingSinServiciosTemplate ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+                Crear plantilla sin servicios
+              </button>
               <button
                 onClick={createAppTemplate}
                 disabled={creatingAppTemplate || syncingTemplates}

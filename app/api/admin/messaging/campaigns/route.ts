@@ -95,6 +95,7 @@ export async function POST(request: NextRequest) {
     partnerServiceIds,
     partnerWithoutDocs: Boolean(body.partnerWithoutDocs),
     partnerWithoutStudies: Boolean(body.partnerWithoutStudies),
+    partnerWithoutServices: Boolean(body.partnerWithoutServices),
   })
 
   // For manual campaigns, set totalRecipients at creation time since we know the exact list.
