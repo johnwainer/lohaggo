@@ -24,9 +24,9 @@ const THEMES: { id: IconTheme; label: string; description: string; experimental?
     description: 'Solo el ícono en color, sin fondo. Look ultra-clean.',
   },
   {
-    id: 'rappi',
-    label: 'Rappi',
-    description: 'Gradiente circular vivo con ícono blanco. Estilo app móvil.',
+    id: 'vivo',
+    label: 'Vivo',
+    description: 'Gradiente circular con ícono blanco. Estilo app móvil.',
     experimental: true,
   },
 ]

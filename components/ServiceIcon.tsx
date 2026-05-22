@@ -52,9 +52,12 @@ export default function ServiceIcon({ slug, size = 'md', isCategory = false, cla
     )
   }
 
-  if (theme === 'rappi') {
+  if (theme === 'vivo') {
     return (
-      <span className={`inline-flex items-center justify-center ${s.wrap} rounded-full bg-gradient-to-br ${colors.gradient} ${animClass} flex-shrink-0 shadow-sm ${className}`}>
+      <span
+        className={`inline-flex items-center justify-center ${s.wrap} rounded-full ${animClass} flex-shrink-0 shadow-sm ${className}`}
+        style={{ background: `linear-gradient(135deg, ${colors.gradientFrom}, ${colors.gradientTo})` }}
+      >
         <Icon size={s.icon} className="text-white" strokeWidth={2} />
       </span>
     )
