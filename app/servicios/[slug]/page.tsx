@@ -297,7 +297,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     await handleBooking(event)
   }
 
-  const handleRequestToPartner = async (partnerId: string, event?: React.MouseEvent<HTMLButtonElement>) => {
+  const handleRequestToPartner = async (partnerId: string, event?: React.MouseEvent<HTMLElement>) => {
     event?.preventDefault()
     event?.stopPropagation()
     const startedAt = Date.now()
@@ -629,12 +629,9 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     return (
       <div className="flex items-center gap-1.5 mt-2 flex-wrap">
         {badges.map((b) => (
-          <div key={b.label} className={`group relative flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${b.bg}`}>
+          <div key={b.label} className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${b.bg}`}>
             {b.icon}
             <span>{b.label}</span>
-            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-lg z-10">
-              {b.tooltip}
-            </span>
           </div>
         ))}
       </div>
@@ -765,10 +762,14 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                   return (
                     <div
                       key={partnerService.id}
-                      className={`group relative rounded-xl p-5 md:p-6 transition-all duration-300 hover:shadow-xl ${tier.card}`}
+                      role="button"
+                      tabIndex={0}
+                      onClick={(event) => void handleRequestToPartner(partnerService.partner.id, event)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') void handleRequestToPartner(partnerService.partner.id) }}
+                      className={`group relative rounded-xl p-5 md:p-6 transition-all duration-300 hover:shadow-xl cursor-pointer ${tier.card}`}
                     >
                       <button
-                        onClick={() => toggleFavorite(partnerService.partner.id)}
+                        onClick={(e) => { e.stopPropagation(); toggleFavorite(partnerService.partner.id) }}
                         disabled={loadingFavorite === partnerService.partner.id}
                         className={`absolute top-4 right-4 p-2.5 rounded-full transition-all duration-200 z-10 shadow-sm hover:shadow-md ${favoritePartners.has(partnerService.partner.id)
                           ? 'bg-red-500 text-white hover:bg-red-600 scale-110'
@@ -857,7 +858,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
 
                       <button
                         type="button"
-                        onClick={(event) => void handleRequestToPartner(partnerService.partner.id, event)}
+                        onClick={(event) => { event.stopPropagation(); void handleRequestToPartner(partnerService.partner.id, event) }}
                         disabled={requestActionLoading !== null}
                         className={`w-full font-bold py-3.5 px-4 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2 group/btn bg-gradient-to-r ${tier.buttonBg} text-white`}
                       >
@@ -877,6 +878,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                       {partnerService.partner.slug && partnerService.partner.isPublicProfile && (
                         <Link
                           href={`/pro/${partnerService.partner.slug}`}
+                          onClick={(e) => e.stopPropagation()}
                           className="mt-2 w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-colors"
                         >
                           Ver perfil
