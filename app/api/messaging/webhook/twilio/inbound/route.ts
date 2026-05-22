@@ -61,6 +61,7 @@ export async function POST(request: NextRequest) {
   const messageSid = String(formData.get('MessageSid') || '')
   const numMedia = parseInt(String(formData.get('NumMedia') || '0'), 10)
   const mediaUrl = numMedia > 0 ? String(formData.get('MediaUrl0') || '') : undefined
+  const mediaContentType = numMedia > 0 ? String(formData.get('MediaContentType0') || '') : undefined
 
   if (!from) return twiml()
 
@@ -149,6 +150,7 @@ export async function POST(request: NextRequest) {
       direction: 'INBOUND',
       body,
       mediaUrl: mediaUrl || null,
+      mediaContentType: mediaContentType || null,
       providerMessageId: messageSid || null,
       status: 'DELIVERED',
       deliveredAt: new Date(),

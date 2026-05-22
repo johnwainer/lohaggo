@@ -1492,6 +1492,7 @@ model ConversationMessage {
   direction         MessageDirection
   body              String
   mediaUrl          String?
+  mediaContentType  String?
   isInternal        Boolean                 @default(false)
   sentAt            DateTime                @default(now())
   deliveredAt       DateTime?

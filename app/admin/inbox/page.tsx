@@ -41,6 +41,7 @@ type Message = {
   direction: Direction
   body: string
   mediaUrl?: string | null
+  mediaContentType?: string | null
   isInternal: boolean
   sentAt: string
   status: MsgStatus
@@ -820,9 +821,22 @@ export default function InboxPage() {
                           </div>
                         ) : (
                           <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${msg.direction === 'OUTBOUND' ? 'bg-primary-600 text-white rounded-br-sm' : 'bg-white border text-gray-800 rounded-bl-sm shadow-sm'}`}>
-                            {msg.mediaUrl && (
-                              <a href={msg.mediaUrl} target="_blank" rel="noopener noreferrer" className="block mb-1 underline text-xs opacity-80">Ver adjunto</a>
-                            )}
+                            {msg.mediaUrl && (() => {
+                              const proxyUrl = `/api/admin/inbox/media?url=${encodeURIComponent(msg.mediaUrl)}`
+                              const isImage = msg.mediaContentType?.startsWith('image/')
+                              return isImage ? (
+                                <div className="mb-2">
+                                  <a href={`${proxyUrl}&download=1`} target="_blank" rel="noopener noreferrer">
+                                    <img src={proxyUrl} alt="adjunto" className="max-w-[220px] rounded-lg cursor-pointer hover:opacity-90" />
+                                  </a>
+                                </div>
+                              ) : (
+                                <a href={`${proxyUrl}&download=1`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 mb-1.5 text-xs underline opacity-80">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                  Descargar adjunto
+                                </a>
+                              )
+                            })()}
                             <p className="text-sm whitespace-pre-wrap break-words">{msg.body}</p>
                             <div className={`flex items-center gap-1 mt-1 ${msg.direction === 'OUTBOUND' ? 'justify-end' : 'justify-start'}`}>
                               <span className={`text-[11px] ${msg.direction === 'OUTBOUND' ? 'text-primary-200' : 'text-gray-400'}`}>
