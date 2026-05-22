@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, Suspense, useCallback, useMemo, useRef } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
@@ -67,6 +67,7 @@ type SortBy =
 
 export function ServiciosContent({ showHeading = true }: { showHeading?: boolean }) {
   const searchParams = useSearchParams()
+  const pathname = usePathname()
   const { data: session } = useSession()
   const [services, setServices] = useState<Service[]>([])
   const [relatedServices, setRelatedServices] = useState<Service[]>([])
@@ -486,7 +487,7 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <ServicesTour />
+      {pathname === '/servicios' && <ServicesTour />}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
         {showHeading && (
           <div className="mb-6 md:mb-8">
