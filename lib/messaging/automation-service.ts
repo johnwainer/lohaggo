@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
 import { sendMessageViaProvider, sendMetaWhatsAppTemplate, sendWhatsAppTemplate } from '@/lib/messaging/providers'
 import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
+import { emitInboxEvent } from '@/lib/messaging/inbox-emitter'
 import {
   sendWelcomePartner,
   sendVerificationReminder,
@@ -9,6 +10,52 @@ import {
 } from '@/lib/messaging/whatsapp-templates'
 
 const logger = createLogger('automation-service')
+
+async function saveAutomationMessageToInbox(params: {
+  channel: 'WHATSAPP' | 'SMS'
+  contactPhone: string
+  userId: string | null
+  contactName: string | null
+  body: string
+}) {
+  try {
+    const { channel, contactPhone, userId, contactName, body } = params
+    const snippet = body.slice(0, 200)
+
+    const conversation = await prisma.conversation.upsert({
+      where: { channel_contactPhone: { channel, contactPhone } },
+      create: {
+        channel,
+        contactPhone,
+        contactName,
+        userId,
+        status: 'OPEN',
+        lastMessageAt: new Date(),
+        lastMessageBody: snippet,
+        unreadCount: 0,
+      },
+      update: {
+        lastMessageAt: new Date(),
+        lastMessageBody: snippet,
+        ...(userId ? { userId } : {}),
+        ...(contactName ? { contactName } : {}),
+      },
+    })
+
+    await prisma.conversationMessage.create({
+      data: {
+        conversationId: conversation.id,
+        direction: 'OUTBOUND',
+        body,
+        status: 'SENT',
+      },
+    })
+
+    emitInboxEvent({ type: 'new-message', conversationId: conversation.id })
+  } catch (err) {
+    logger.error('saveAutomationMessageToInbox failed', { err })
+  }
+}
 
 export type AutomationTrigger =
   | 'PARTNER_REGISTERED'
@@ -161,6 +208,20 @@ export async function processDueAutomations(limit = 100) {
           data: { status: 'SENT', executedAt: new Date() },
         })
         sent++
+
+        // Mirror outbound message to inbox for WhatsApp and SMS
+        if ((execution.channel === 'WHATSAPP' || execution.channel === 'SMS') && user.phone) {
+          const sentBody = execution.channel === 'WHATSAPP' && rule.waTemplateFn
+            ? `[Plantilla: ${rule.waTemplateFn}]`
+            : (rule.customBody ?? '').replace(/\{\{name\}\}/g, user.name)
+          await saveAutomationMessageToInbox({
+            channel: execution.channel as 'WHATSAPP' | 'SMS',
+            contactPhone: user.phone,
+            userId: user.id,
+            contactName: user.name,
+            body: sentBody,
+          })
+        }
       } else {
         await prisma.automationExecution.update({
           where: { id: execution.id },
