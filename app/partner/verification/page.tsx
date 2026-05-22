@@ -347,10 +347,26 @@ export default function VerificationPage() {
         </div>
 
         {/* ── Company section ── */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-5">
+        <div className={`bg-white rounded-xl border overflow-hidden mb-5 ${!identityApproved ? 'border-gray-200 opacity-70' : 'border-gray-200'}`}>
+
+          {/* Locked: identity not verified yet */}
+          {!identityApproved && (
+            <div className="px-4 py-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
+                <Building2 className="w-5 h-5 text-gray-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-gray-500">¿Eres empresa?</p>
+                <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  Primero debes verificar tu identidad (Paso 1) para activar esta opción
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Verified state: read-only display (with optional edit) */}
-          {isCompany && companyDocApproved ? (
+          {identityApproved && isCompany && companyDocApproved ? (
             <div className="px-4 py-4">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
@@ -444,7 +460,7 @@ export default function VerificationPage() {
                 )}
               </div>
             </div>
-          ) : (
+          ) : identityApproved ? (
             <>
               {/* Header with toggle */}
               <div className="px-4 py-4 border-b border-gray-100">
@@ -600,7 +616,7 @@ export default function VerificationPage() {
                 </div>
               )}
             </>
-          )}
+          ) : null}
         </div>
 
         {/* Banner: education docs approved without service linked */}
