@@ -185,7 +185,7 @@ export async function processDueAutomations(limit = 100) {
             if (meta.waVars) extraVars = meta.waVars
           } catch { /* ignore */ }
         }
-        result = await dispatchWaTemplate(rule.waTemplateFn, user.phone, user.name, extraVars)
+        result = await dispatchWaTemplate(rule.waTemplateFn, user.phone, user.name, extraVars, execution.contextId ?? undefined)
       } else {
         const body = (rule.customBody ?? '').replace(/\{\{name\}\}/g, user.name)
         const subject = (rule.subject ?? '').replace(/\{\{name\}\}/g, user.name)
@@ -250,7 +250,8 @@ async function dispatchWaTemplate(
   fn: string,
   phone: string,
   name: string,
-  extraVars: Record<string, string> = {}
+  extraVars: Record<string, string> = {},
+  contextId?: string
 ): Promise<{ ok: boolean; errorCode?: string; errorMessage?: string }> {
   const cfg = await getMessagingProviderRuntimeConfig()
   // {{1}} is always the user name; extra vars override or supplement
@@ -269,11 +270,54 @@ async function dispatchWaTemplate(
     return sendWhatsAppTemplate(phone, fn, vars, cfg.twilio)
   }
 
-  // Legacy function names (backward compat)
+  // Booking-contextual functions — look up booking data by contextId
+  if (
+    fn === 'sendPropuestaAceptadaSocio' ||
+    fn === 'sendReservaConfirmadaCliente' ||
+    fn === 'sendReservaCancelada' ||
+    fn === 'sendReservaCompletadaCliente' ||
+    fn === 'sendReservaCompletadaSocio'
+  ) {
+    const {
+      sendPropuestaAceptadaSocio, sendReservaConfirmadaCliente, sendReservaCancelada,
+      sendReservaCompletadaCliente, sendReservaCompletadaSocio,
+    } = await import('@/lib/messaging/whatsapp-templates')
+
+    let serviceName = extraVars['2'] ?? 'servicio'
+    let when = extraVars['3'] ?? 'fecha acordada'
+
+    if (contextId) {
+      try {
+        const booking = await prisma.booking.findUnique({
+          where: { id: contextId },
+          include: { service: true },
+        })
+        if (booking) {
+          serviceName = booking.service.name
+          const d = new Date(booking.scheduledDate)
+          when = d.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })
+          if (booking.scheduledTime) when += ` a las ${booking.scheduledTime}`
+        }
+      } catch { /* use fallback values */ }
+    }
+
+    switch (fn) {
+      case 'sendPropuestaAceptadaSocio':   return sendPropuestaAceptadaSocio(phone, name, serviceName, when)
+      case 'sendReservaConfirmadaCliente': return sendReservaConfirmadaCliente(phone, name, serviceName, when)
+      case 'sendReservaCancelada':         return sendReservaCancelada(phone, name, serviceName)
+      case 'sendReservaCompletadaCliente': return sendReservaCompletadaCliente(phone, name, serviceName)
+      case 'sendReservaCompletadaSocio':   return sendReservaCompletadaSocio(phone, name, serviceName)
+    }
+  }
+
+  // Named functions (no booking context needed)
   switch (fn) {
-    case 'sendWelcomePartner':       return sendWelcomePartner(phone, name)
-    case 'sendVerificationReminder': return sendVerificationReminder(phone, name)
-    case 'sendReferralInvite':       return sendReferralInvite(phone, name)
+    case 'sendWelcomePartner':        return sendWelcomePartner(phone, name)
+    case 'sendVerificationReminder':  return sendVerificationReminder(phone, name)
+    case 'sendReferralInvite':        return sendReferralInvite(phone, name)
+    case 'sendDocumentosAprobados':   return (await import('@/lib/messaging/whatsapp-templates')).sendDocumentosAprobados(phone, name)
+    case 'sendDocumentosRechazados':  return (await import('@/lib/messaging/whatsapp-templates')).sendDocumentosRechazados(phone, name)
+    case 'sendSocioActivado':         return (await import('@/lib/messaging/whatsapp-templates')).sendSocioActivado(phone, name)
     default:
       return { ok: false, errorCode: 'UNKNOWN_TEMPLATE_FN', errorMessage: `No WA template: ${fn}` }
   }
@@ -375,7 +419,7 @@ export const DEFAULT_AUTOMATION_RULES = [
     targetRole: 'PARTNER' as const,
     delayHours: 0,
     channels: JSON.stringify(['WHATSAPP', 'SMS']),
-    waTemplateFn: null,
+    waTemplateFn: 'sendDocumentosAprobados',
     subject: null,
     customBody: '✅ LoHaggo: ¡Hola {{name}}! Tu documento fue aprobado. Sube los documentos que faltan para completar tu verificación y activar tu perfil:\nhttps://www.lohaggo.com/partner/verification',
     isActive: true,
@@ -387,7 +431,7 @@ export const DEFAULT_AUTOMATION_RULES = [
     targetRole: 'PARTNER' as const,
     delayHours: 0,
     channels: JSON.stringify(['WHATSAPP', 'SMS']),
-    waTemplateFn: null,
+    waTemplateFn: 'sendDocumentosRechazados',
     subject: null,
     customBody: '❌ LoHaggo: Hola {{name}}, tu documento fue rechazado. Revisa el motivo en tu panel de verificación y vuelve a subirlo:\nhttps://www.lohaggo.com/partner/verification',
     isActive: true,
@@ -399,35 +443,83 @@ export const DEFAULT_AUTOMATION_RULES = [
     targetRole: 'PARTNER' as const,
     delayHours: 0,
     channels: JSON.stringify(['WHATSAPP', 'SMS', 'EMAIL']),
-    waTemplateFn: null,
+    waTemplateFn: 'sendSocioActivado',
     subject: '🎉 ¡Ya puedes recibir clientes en LoHaggo!',
     customBody: '🎉 LoHaggo: ¡Felicitaciones {{name}}! Tu perfil de socio está verificado y activo. Ya puedes recibir solicitudes de clientes.\n\nActiva tu disponibilidad y revisa tus servicios:\nhttps://www.lohaggo.com/partner\n\n¡Mucho éxito!\nEquipo LoHaggo',
     isActive: true,
   },
   // ── RESERVAS ──────────────────────────────────────────
   {
+    name: 'Reserva Creada — Confirmación Cliente (WhatsApp)',
+    description: 'WA al cliente cuando acepta una propuesta y se crea la reserva.',
+    trigger: 'BOOKING_CREATED' as AutomationTrigger,
+    targetRole: 'CLIENT' as const,
+    delayHours: 0,
+    channels: JSON.stringify(['WHATSAPP']),
+    waTemplateFn: 'sendReservaConfirmadaCliente',
+    subject: null,
+    customBody: null,
+    isActive: true,
+  },
+  {
+    name: 'Reserva Creada — Aviso Socio (WhatsApp)',
+    description: 'WA al socio cuando su propuesta es aceptada y se crea la reserva.',
+    trigger: 'BOOKING_CREATED' as AutomationTrigger,
+    targetRole: 'PARTNER' as const,
+    delayHours: 0,
+    channels: JSON.stringify(['WHATSAPP']),
+    waTemplateFn: 'sendPropuestaAceptadaSocio',
+    subject: null,
+    customBody: null,
+    isActive: true,
+  },
+  {
+    name: 'Reserva Confirmada — Aviso Cliente (WhatsApp)',
+    description: 'WA al cliente cuando el socio confirma asistencia a la reserva.',
+    trigger: 'BOOKING_CONFIRMED' as AutomationTrigger,
+    targetRole: 'CLIENT' as const,
+    delayHours: 0,
+    channels: JSON.stringify(['WHATSAPP']),
+    waTemplateFn: 'sendReservaConfirmadaCliente',
+    subject: null,
+    customBody: null,
+    isActive: true,
+  },
+  {
+    name: 'Reserva Cancelada — Aviso (WhatsApp + SMS)',
+    description: 'Notificación a cliente y socio cuando una reserva es cancelada.',
+    trigger: 'BOOKING_CANCELLED' as AutomationTrigger,
+    targetRole: null,
+    delayHours: 0,
+    channels: JSON.stringify(['WHATSAPP', 'SMS']),
+    waTemplateFn: 'sendReservaCancelada',
+    subject: null,
+    customBody: 'LoHaggo: Hola {{name}}, tu reserva fue cancelada. Si tienes preguntas contáctanos desde la app.',
+    isActive: true,
+  },
+  {
     name: 'Reserva Completada — Pide reseña (Cliente)',
-    description: 'Mensaje al cliente 1h después de completar una reserva pidiéndole que deje una reseña.',
+    description: 'WhatsApp al cliente 1h después de completar una reserva pidiéndole que deje una reseña.',
     trigger: 'BOOKING_COMPLETED' as AutomationTrigger,
     targetRole: 'CLIENT' as const,
     delayHours: 1,
-    channels: JSON.stringify(['SMS']),
-    waTemplateFn: null,
+    channels: JSON.stringify(['WHATSAPP', 'SMS']),
+    waTemplateFn: 'sendReservaCompletadaCliente',
     subject: null,
     customBody: 'LoHaggo: Hola {{name}}, ¿cómo fue tu servicio? Deja tu reseña aquí: https://lohaggo.com/mis-reservas',
-    isActive: false,
+    isActive: true,
   },
   {
     name: 'Reserva Completada — Felicitación Socio',
-    description: 'Mensaje al socio cuando completa una reserva.',
+    description: 'WhatsApp al socio cuando completa una reserva.',
     trigger: 'BOOKING_COMPLETED' as AutomationTrigger,
     targetRole: 'PARTNER' as const,
     delayHours: 0,
-    channels: JSON.stringify(['SMS']),
-    waTemplateFn: null,
+    channels: JSON.stringify(['WHATSAPP', 'SMS']),
+    waTemplateFn: 'sendReservaCompletadaSocio',
     subject: null,
     customBody: 'LoHaggo: ¡Excelente trabajo, {{name}}! Tu servicio fue marcado como completado. Sigue así 💪',
-    isActive: false,
+    isActive: true,
   },
   // ── MENSAJERÍA INBOUND ──────────────────────────────────────────
   {

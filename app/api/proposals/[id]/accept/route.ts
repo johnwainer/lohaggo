@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { notifyProposalAccepted, notifyProposalRejected } from '@/lib/notifications/notificationService'
+import { scheduleAutomationsForUser } from '@/lib/messaging/automation-service'
 import { createLogger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
@@ -119,6 +120,7 @@ export async function POST(
             include: {
               user: {
                 select: {
+                  id: true,
                   name: true,
                   phone: true
                 }
@@ -136,6 +138,13 @@ export async function POST(
     })
 
     await notifyProposalAccepted(proposalId)
+
+    // Fire BOOKING_CREATED automation for both client and partner
+    const bookingId = result.id
+    scheduleAutomationsForUser(result.userId, 'BOOKING_CREATED', { targetRole: 'CLIENT', contextId: bookingId }).catch(() => null)
+    if (result.partner?.user?.id) {
+      scheduleAutomationsForUser(result.partner.user.id, 'BOOKING_CREATED', { targetRole: 'PARTNER', contextId: bookingId }).catch(() => null)
+    }
 
     return NextResponse.json({
       message: 'Propuesta aceptada exitosamente',

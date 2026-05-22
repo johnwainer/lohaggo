@@ -14,6 +14,14 @@ export const WA_TEMPLATE_SIDS = {
   referir_socios:              'HXfbedddc80b9a6b67318d979bb8d0e5ca',
   nueva_solicitud_socio:       'HXe18c06820756acaa4c0e7429afa615b5',
   solicitud_enviada_cliente:   'HX0e5c753b79f2bae5d43e47cfa8bc653a',
+  propuesta_aceptada_socio:    'HX776080bcaaf2bb8df475d545d33b6317',
+  reserva_confirmada_cliente:  'HXcc25c4075a6e0673ceb19d4b638e6e29',
+  reserva_cancelada:           'HXaea27fe8e72b1566ec5863a717fd33fc',
+  reserva_completada_cliente:  'HXbf5623b3a4a150f4f50ffabd5f8d3840',
+  reserva_completada_socio:    'HXa55523c6a595e03a93b36b734fb4030e',
+  documentos_aprobados_wa:     'HX884290f9a4feb91eb95b8d4b018e6d32',
+  documentos_rechazados_wa:    'HX362e6f86f1ff4e2fed5c82056fd90148',
+  socio_activado_wa:           'HX7078001d6609526ee800dfe4483a6735',
 } as const
 
 async function getTwilioCfg() {
@@ -151,6 +159,88 @@ export async function sendSolicitudEnviadaCliente(phone: string, clientName: str
     )
   } catch (err) {
     logger.error('sendSolicitudEnviadaCliente failed', { phone, err })
+    return { ok: false, provider: 'twilio-whatsapp', errorCode: 'EXCEPTION' }
+  }
+}
+
+/** Simple one-var WA sends — name only */
+export async function sendDocumentosAprobados(phone: string, name: string) {
+  try {
+    const cfg = await getTwilioCfg()
+    return await sendWhatsAppTemplate(phone, WA_TEMPLATE_SIDS.documentos_aprobados_wa, { '1': name }, cfg)
+  } catch (err) {
+    logger.error('sendDocumentosAprobados failed', { phone, err })
+    return { ok: false, provider: 'twilio-whatsapp', errorCode: 'EXCEPTION' }
+  }
+}
+
+export async function sendDocumentosRechazados(phone: string, name: string) {
+  try {
+    const cfg = await getTwilioCfg()
+    return await sendWhatsAppTemplate(phone, WA_TEMPLATE_SIDS.documentos_rechazados_wa, { '1': name }, cfg)
+  } catch (err) {
+    logger.error('sendDocumentosRechazados failed', { phone, err })
+    return { ok: false, provider: 'twilio-whatsapp', errorCode: 'EXCEPTION' }
+  }
+}
+
+export async function sendSocioActivado(phone: string, name: string) {
+  try {
+    const cfg = await getTwilioCfg()
+    return await sendWhatsAppTemplate(phone, WA_TEMPLATE_SIDS.socio_activado_wa, { '1': name }, cfg)
+  } catch (err) {
+    logger.error('sendSocioActivado failed', { phone, err })
+    return { ok: false, provider: 'twilio-whatsapp', errorCode: 'EXCEPTION' }
+  }
+}
+
+/** Booking-contextual sends — require service + date */
+export async function sendPropuestaAceptadaSocio(phone: string, name: string, service: string, when: string) {
+  try {
+    const cfg = await getTwilioCfg()
+    return await sendWhatsAppTemplate(phone, WA_TEMPLATE_SIDS.propuesta_aceptada_socio, { '1': name, '2': service, '3': when }, cfg)
+  } catch (err) {
+    logger.error('sendPropuestaAceptadaSocio failed', { phone, err })
+    return { ok: false, provider: 'twilio-whatsapp', errorCode: 'EXCEPTION' }
+  }
+}
+
+export async function sendReservaConfirmadaCliente(phone: string, name: string, service: string, when: string) {
+  try {
+    const cfg = await getTwilioCfg()
+    return await sendWhatsAppTemplate(phone, WA_TEMPLATE_SIDS.reserva_confirmada_cliente, { '1': name, '2': service, '3': when }, cfg)
+  } catch (err) {
+    logger.error('sendReservaConfirmadaCliente failed', { phone, err })
+    return { ok: false, provider: 'twilio-whatsapp', errorCode: 'EXCEPTION' }
+  }
+}
+
+export async function sendReservaCancelada(phone: string, name: string, service: string) {
+  try {
+    const cfg = await getTwilioCfg()
+    return await sendWhatsAppTemplate(phone, WA_TEMPLATE_SIDS.reserva_cancelada, { '1': name, '2': service }, cfg)
+  } catch (err) {
+    logger.error('sendReservaCancelada failed', { phone, err })
+    return { ok: false, provider: 'twilio-whatsapp', errorCode: 'EXCEPTION' }
+  }
+}
+
+export async function sendReservaCompletadaCliente(phone: string, name: string, service: string) {
+  try {
+    const cfg = await getTwilioCfg()
+    return await sendWhatsAppTemplate(phone, WA_TEMPLATE_SIDS.reserva_completada_cliente, { '1': name, '2': service }, cfg)
+  } catch (err) {
+    logger.error('sendReservaCompletadaCliente failed', { phone, err })
+    return { ok: false, provider: 'twilio-whatsapp', errorCode: 'EXCEPTION' }
+  }
+}
+
+export async function sendReservaCompletadaSocio(phone: string, name: string, service: string) {
+  try {
+    const cfg = await getTwilioCfg()
+    return await sendWhatsAppTemplate(phone, WA_TEMPLATE_SIDS.reserva_completada_socio, { '1': name, '2': service }, cfg)
+  } catch (err) {
+    logger.error('sendReservaCompletadaSocio failed', { phone, err })
     return { ok: false, provider: 'twilio-whatsapp', errorCode: 'EXCEPTION' }
   }
 }
