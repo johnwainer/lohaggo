@@ -445,6 +445,7 @@ export default function InboxPage() {
 
   const [profileModal, setProfileModal] = useState<QuickProfile | null>(null)
   const [profileLoading, setProfileLoading] = useState(false)
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
   const [magicLinkTarget, setMagicLinkTarget] = useState<{ id: string; name: string; isPartner: boolean } | null>(null)
 
   async function openProfile(userId: string) {
@@ -832,7 +833,7 @@ export default function InboxPage() {
                                       const parent = (e.target as HTMLImageElement).parentElement!
                                       parent.innerHTML = `<a href="${proxyUrl}&download=1" target="_blank" rel="noopener noreferrer" class="flex items-center gap-1.5 text-xs underline opacity-80"><svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Descargar adjunto</a>`
                                     }}
-                                    onClick={() => window.open(`${proxyUrl}&download=1`, '_blank')}
+                                    onClick={() => setLightboxUrl(proxyUrl)}
                                   />
                                 </div>
                               )
@@ -1287,6 +1288,35 @@ export default function InboxPage() {
               </a>
             </div>
           </div>
+        </div>
+      )}
+
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <button
+            className="absolute top-4 right-4 text-white bg-black/40 hover:bg-black/60 rounded-full p-2"
+            onClick={() => setLightboxUrl(null)}
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <a
+            href={`${lightboxUrl}&download=1`}
+            download
+            className="absolute bottom-4 right-4 text-white bg-black/40 hover:bg-black/60 rounded-full px-3 py-2 text-xs flex items-center gap-1.5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Descargar
+          </a>
+          <img
+            src={lightboxUrl}
+            alt="adjunto"
+            className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
       )}
 
