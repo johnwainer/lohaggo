@@ -62,6 +62,15 @@ export function Navbar() {
     setUserMenuOpen(false)
   }, [pathname])
 
+  useEffect(() => {
+    const handler = () => {
+      setMobileMenuOpen(false)
+      setMobileCityDropdownOpen(false)
+    }
+    window.addEventListener('bottom-nav-navigate', handler)
+    return () => window.removeEventListener('bottom-nav-navigate', handler)
+  }, [])
+
   function CitySelector() {
     const [open, setOpen] = useState(false)
     const dropdownRef = useRef<HTMLDivElement>(null)
@@ -175,6 +184,16 @@ export function Navbar() {
   return (
     <>
       <CityModal />
+      {mobileMenuOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-40 bg-black/20"
+          aria-hidden="true"
+          onClick={() => {
+            setMobileMenuOpen(false)
+            setMobileCityDropdownOpen(false)
+          }}
+        />
+      )}
       <nav className="bg-white shadow-md sticky top-0 z-50 border-b border-gray-200" data-tour="navbar">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-20">
@@ -380,14 +399,6 @@ export function Navbar() {
       {/* Mobile Menu */}
       {mobileMenuOpen && (
         <>
-          <div
-            className="md:hidden fixed inset-0 z-40 bg-black/20"
-            aria-hidden="true"
-            onClick={() => {
-              setMobileMenuOpen(false)
-              setMobileCityDropdownOpen(false)
-            }}
-          />
           <div className="md:hidden relative z-50 bg-white border-t border-gray-200 animate-slide-down shadow-lg max-h-[calc(100vh-5rem)] overflow-y-auto">
             <div className="px-4 pt-2 pb-4 space-y-2">
             {/* City Selector - Mobile */}

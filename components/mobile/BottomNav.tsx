@@ -36,7 +36,7 @@ function NavButton({ icon: Icon, label, isActive, badge, onClick }: {
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => { window.dispatchEvent(new Event('bottom-nav-navigate')); onClick() }}
       className={`relative flex min-h-[52px] flex-col items-center justify-center rounded-xl text-xs font-medium transition ${
         isActive ? 'bg-primary-50 text-primary-700' : 'text-gray-600 active:scale-95'
       }`}
@@ -131,7 +131,7 @@ function ClientBarInner() {
               <button
                 key="solicitar"
                 type="button"
-                onClick={() => router.push('/')}
+                onClick={() => { window.dispatchEvent(new Event('bottom-nav-navigate')); router.push('/') }}
                 className="relative flex flex-col items-center justify-end pb-1"
               >
                 <div className={`-mt-5 flex h-14 w-14 items-center justify-center rounded-full shadow-lg active:scale-95 transition-transform ${
@@ -193,7 +193,7 @@ export function BottomNav() {
       <div className="grid h-16 grid-cols-2">
         <button
           type="button"
-          onClick={() => router.push('/')}
+          onClick={() => { window.dispatchEvent(new Event('bottom-nav-navigate')); router.push('/') }}
           className={`touch-manipulation flex flex-col items-center justify-center gap-1 px-2 py-2 transition-colors active:scale-95 ${isHomeActive ? 'text-primary-600' : 'text-gray-500'}`}
         >
           <Home className="w-6 h-6" />
@@ -201,7 +201,7 @@ export function BottomNav() {
         </button>
         <button
           type="button"
-          onClick={() => router.push('/login')}
+          onClick={() => { window.dispatchEvent(new Event('bottom-nav-navigate')); router.push('/login') }}
           className="touch-manipulation flex flex-col items-center justify-center gap-1 px-2 py-2 transition-colors active:scale-95 text-gray-500"
         >
           <User className="w-6 h-6" />
