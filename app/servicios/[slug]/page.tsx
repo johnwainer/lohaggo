@@ -846,7 +846,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                           </span>
                         </div>
                         <div className="flex items-baseline gap-2">
-                          <span className="text-gray-600 text-sm font-medium">Precio:</span>
+                          <span className="text-gray-600 text-sm font-medium">Desde:</span>
                           <p className={`font-bold text-2xl md:text-3xl ${tier.priceColor}`}>
                             {formatCurrency(partnerService.price)}
                           </p>

@@ -595,7 +595,7 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
                           <p className="font-bold text-sm text-gray-900 group-hover:text-primary-600 transition-colors">{service.name}</p>
                           <p className="text-xs text-gray-500">{service.category.name}</p>
                         </div>
-                        <p className="text-sm font-bold text-primary-600">{formatCurrency(service.basePrice)}</p>
+                        <p className="text-sm font-bold text-primary-600"><span className="font-normal text-gray-400 text-xs">desde </span>{formatCurrency(service.basePrice)}</p>
                       </Link>
                     ))}
                   </div>
@@ -784,7 +784,7 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
                               <p className="text-xs text-gray-500">{service.category.name}</p>
                             </div>
                           </div>
-                          <p className="text-sm font-bold text-primary-600">{formatCurrency(service.basePrice)}</p>
+                          <p className="text-sm font-bold text-primary-600"><span className="font-normal text-gray-400 text-xs">desde </span>{formatCurrency(service.basePrice)}</p>
                         </Link>
                       ))}
                     </div>
@@ -808,7 +808,7 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
                               <p className="text-xs text-gray-500">{service.category.name}</p>
                             </div>
                           </div>
-                          <p className="text-sm font-bold text-primary-600">{formatCurrency(service.basePrice)}</p>
+                          <p className="text-sm font-bold text-primary-600"><span className="font-normal text-gray-400 text-xs">desde </span>{formatCurrency(service.basePrice)}</p>
                         </Link>
                       ))}
                     </div>
