@@ -246,7 +246,7 @@ export default function PartnerRequestsPage() {
               <div key={request.id} className="surface-card p-6">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-start gap-4">
-                    <ServiceIcon slug={request.service.slug} size="md" />
+                    <ServiceIcon slug={request.service.slug} emoji={request.service.icon} size="md" />
                     <div>
                       <h3 className="panel-card-title">{request.service.name}</h3>
                       <p className="panel-caption">{request.service.category.name}</p>

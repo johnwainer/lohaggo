@@ -22,7 +22,7 @@ export async function GET() {
       proposal: {
         include: {
           serviceRequest: {
-            include: { service: { select: { name: true, icon: true } } },
+            include: { service: { select: { name: true, slug: true, icon: true } } },
           },
         },
       },

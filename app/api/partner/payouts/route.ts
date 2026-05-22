@@ -22,7 +22,7 @@ export async function GET() {
         include: {
           booking: {
             include: {
-              service: { select: { name: true, icon: true } },
+              service: { select: { name: true, slug: true, icon: true } },
               user: { select: { name: true } },
             },
           },

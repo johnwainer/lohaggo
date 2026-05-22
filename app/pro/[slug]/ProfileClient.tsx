@@ -294,7 +294,7 @@ const ratingDist = [5, 4, 3, 2, 1].map((stars) => ({
                   href={`/servicios/${s.slug}`}
                   className="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:border-primary-200 hover:bg-primary-50 transition-all group"
                 >
-                  <ServiceIcon slug={s.slug} size="sm" />
+                  <ServiceIcon slug={s.slug} emoji={s.icon} size="sm" />
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-gray-900 truncate">{s.name}</p>
                     <p className="text-primary-600 font-bold text-sm">desde {formatPrice(s.price)}</p>

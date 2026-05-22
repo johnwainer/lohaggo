@@ -307,7 +307,7 @@ export default function ServicesManagementPage() {
                       <div className="p-6">
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex items-start gap-4">
-                            <ServiceIcon slug={service.slug} size="lg" />
+                            <ServiceIcon slug={service.slug} emoji={service.icon} size="lg" />
                             <div>
                               <h3 className="text-lg font-semibold text-gray-900">{service.name}</h3>
                               <p className="text-sm text-gray-600 mt-1">{service.description}</p>
@@ -480,7 +480,7 @@ export default function ServicesManagementPage() {
                                   : 'active:bg-gray-50 cursor-pointer hover:bg-gray-50'
                               }`}
                             >
-                              <ServiceIcon slug={service.slug} size="sm" />
+                              <ServiceIcon slug={service.slug} emoji={service.icon} size="sm" />
                               <div className="flex-1 min-w-0">
                                 <p className="font-semibold text-gray-900 text-sm leading-tight">{service.name}</p>
                                 <p className="text-xs text-gray-500 mt-0.5">{service.category.name} · {service.duration} min</p>

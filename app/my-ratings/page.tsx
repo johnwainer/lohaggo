@@ -279,7 +279,7 @@ export default function MyRatingsPage() {
 
                   <div className="bg-gray-50 rounded-xl p-4 mb-4">
                     <div className="flex items-center gap-2 text-gray-700 mb-2">
-                      <ServiceIcon slug={review.booking.service.slug} size="sm" />
+                      <ServiceIcon slug={review.booking.service.slug} emoji={review.booking.service.icon} size="sm" />
                       <div>
                         <p className="font-medium">{review.booking.service.name}</p>
                         <p className="text-sm text-gray-500">

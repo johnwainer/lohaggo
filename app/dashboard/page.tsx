@@ -1110,7 +1110,7 @@ export default function DashboardPage() {
                         <div className="space-y-3">
                           {bookings.slice(0, 4).map((booking) => (
                             <div key={booking.id} className="group flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl bg-gray-50 hover:bg-gradient-to-r hover:from-primary-50 hover:to-transparent border border-gray-100 hover:border-primary-200 transition-all cursor-pointer">
-                              <ServiceIcon slug={booking.service.slug} size="lg" animate />
+                              <ServiceIcon slug={booking.service.slug} emoji={booking.service.icon} size="lg" animate />
                               <div className="flex-1 min-w-0">
                                 <p className="font-semibold text-gray-900 text-sm sm:text-base truncate group-hover:text-primary-700 transition-colors">{booking.service.name}</p>
                                 <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -1619,7 +1619,7 @@ export default function DashboardPage() {
                           <div className="flex items-start justify-between gap-3 mb-2">
                             <div className="flex items-start gap-3 min-w-0">
                               <div className="w-12 h-12 rounded-xl bg-primary-50 border border-primary-100 flex items-center justify-center shrink-0">
-                                <ServiceIcon slug={service.slug} size="sm" />
+                                <ServiceIcon slug={service.slug} emoji={service.icon} size="sm" />
                               </div>
                               <div className="min-w-0">
                                 <p className="font-semibold text-sm sm:text-base text-gray-900 truncate">{service.name}</p>
@@ -1759,7 +1759,7 @@ export default function DashboardPage() {
 
                         <div className="flex items-start gap-3 mb-3">
                           <div className="w-11 h-11 rounded-xl bg-primary-50 border border-primary-100 flex items-center justify-center shrink-0">
-                            <ServiceIcon slug={request.service.slug} size="sm" />
+                            <ServiceIcon slug={request.service.slug} emoji={request.service.icon} size="sm" />
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="font-semibold text-gray-900 text-sm sm:text-base truncate">{request.service.name}</p>
@@ -2017,7 +2017,7 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-10 h-10 rounded-lg bg-primary-50 border border-primary-100 flex items-center justify-center shrink-0">
-                        <ServiceIcon slug={service.slug} size="sm" />
+                        <ServiceIcon slug={service.slug} emoji={service.icon} size="sm" />
                       </div>
                       <div className="min-w-0">
                         <p className="font-semibold text-sm sm:text-base text-gray-900 truncate">{service.name}</p>

@@ -120,7 +120,7 @@ export default function PartnerPaymentsPage() {
             <div className="divide-y divide-gray-50">
               {payouts.map((payout) => (
                 <div key={payout.id} className="px-4 py-3 flex items-center gap-3">
-                  <ServiceIcon slug={payout.payment.booking.service.slug} size="sm" />
+                  <ServiceIcon slug={payout.payment.booking.service.slug} emoji={payout.payment.booking.service.icon} size="sm" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-900 truncate">{payout.payment.booking.service.name}</p>
                     <p className="text-xs text-gray-500 truncate">{payout.payment.booking.user.name} · {payout.payment.booking.scheduledDate}</p>

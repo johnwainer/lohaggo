@@ -116,7 +116,7 @@ export default function UnifiedBookingCard({
 
         <div className="mb-3 flex items-start gap-3">
           {serviceSlug
-            ? <ServiceIcon slug={serviceSlug} size="lg" />
+            ? <ServiceIcon slug={serviceSlug} emoji={serviceIcon} size="lg" />
             : <div className="text-4xl leading-none">{serviceIcon}</div>
           }
           <div className="min-w-0 flex-1">

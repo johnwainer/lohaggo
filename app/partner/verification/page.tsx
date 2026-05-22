@@ -679,7 +679,7 @@ export default function VerificationPage() {
                     <p className="text-sm font-medium text-gray-900 truncate">{getDocumentLabel(doc.type)}</p>
                     {linkedService && (
                       <p className="text-xs text-purple-600 font-medium mt-0.5 flex items-center gap-1">
-                        <ServiceIcon slug={linkedService.service.slug} size="sm" />{linkedService.service.name}
+                        <ServiceIcon slug={linkedService.service.slug} emoji={linkedService.service.icon} size="sm" />{linkedService.service.name}
                       </p>
                     )}
                     <p className="text-xs text-gray-400">{new Date(doc.createdAt).toLocaleDateString('es-CO')}</p>

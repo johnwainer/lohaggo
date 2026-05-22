@@ -129,7 +129,7 @@ export default function PartnerMessagesPage() {
                       {new Date(conv.updatedAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
                     </p>
                   </div>
-                  <p className="text-xs text-gray-500 truncate flex items-center gap-1"><ServiceIcon slug={conv.service.slug} size="sm" /> {conv.service.name}</p>
+                  <p className="text-xs text-gray-500 truncate flex items-center gap-1"><ServiceIcon slug={conv.service.slug} emoji={conv.service.icon} size="sm" /> {conv.service.name}</p>
                   {conv.lastMessage && (
                     <p className={`text-xs truncate mt-0.5 ${conv.unreadCount > 0 ? 'text-gray-800 font-medium' : 'text-gray-400'}`}>
                       {conv.lastMessage.content}

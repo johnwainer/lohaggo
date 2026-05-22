@@ -723,7 +723,7 @@ function PartnerDashboardContent() {
                         onClick={() => setActiveTab('my-requests')}
                         className="w-full bg-white rounded-xl p-3 flex items-center gap-3 border border-orange-100 hover:border-orange-300 transition text-left"
                       >
-                        <ServiceIcon slug={req.service.slug} size="sm" />
+                        <ServiceIcon slug={req.service.slug} emoji={req.service.icon} size="sm" />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <p className="font-semibold text-sm text-gray-900 truncate">{req.service.name}</p>
@@ -754,7 +754,7 @@ function PartnerDashboardContent() {
                         onClick={() => setActiveTab('bookings')}
                         className="w-full bg-white rounded-xl p-3 flex items-center gap-3 border border-blue-100 hover:border-blue-300 transition text-left"
                       >
-                        <ServiceIcon slug={booking.service.slug} size="sm" />
+                        <ServiceIcon slug={booking.service.slug} emoji={booking.service.icon} size="sm" />
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold text-sm text-gray-900 truncate">{booking.service.name}</p>
                           <p className="text-xs text-gray-500 truncate">{booking.user.name}</p>
@@ -795,7 +795,7 @@ function PartnerDashboardContent() {
                         onClick={() => setActiveTab('bookings')}
                         className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 transition text-left"
                       >
-                        <ServiceIcon slug={booking.service.slug} size="sm" />
+                        <ServiceIcon slug={booking.service.slug} emoji={booking.service.icon} size="sm" />
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold text-sm text-gray-900 truncate">{booking.service.name}</p>
                           <p className="text-xs text-gray-500">{booking.scheduledDate} · {booking.scheduledTime}</p>
@@ -1140,7 +1140,7 @@ function PartnerDashboardContent() {
                     <div key={request.id} className="bg-white rounded-2xl sm:rounded-3xl shadow-lg hover:shadow-xl transition-all overflow-hidden border border-gray-100">
                       <div className="p-5 sm:p-6">
                         <div className="flex items-start gap-4 mb-5">
-                          <ServiceIcon slug={request.service.slug} size="xl" />
+                          <ServiceIcon slug={request.service.slug} emoji={request.service.icon} size="xl" />
                           <div className="flex-1 min-w-0">
                             <h3 className="font-bold text-lg sm:text-xl text-gray-900 mb-2">{request.service.name}</h3>
                             <div className="flex items-center gap-2 flex-wrap">
@@ -1318,7 +1318,7 @@ function PartnerDashboardContent() {
             <div className={`${DESIGN_SYSTEM.spacing.card} ${DESIGN_SYSTEM.spacing.gap}`}>
               <div className={`${DESIGN_SYSTEM.components.card.base} bg-gray-50 ${DESIGN_SYSTEM.spacing.cardSmall}`}>
                 <div className="flex items-center gap-3 mb-3">
-                  <ServiceIcon slug={selectedRequest.service.slug} size="md" />
+                  <ServiceIcon slug={selectedRequest.service.slug} emoji={selectedRequest.service.icon} size="md" />
                   <div className="min-w-0 flex-1">
                     <h4 className={`${DESIGN_SYSTEM.typography.h4} truncate`}>{selectedRequest.service.name}</h4>
                     <p className={`${DESIGN_SYSTEM.typography.bodySmall} truncate`}>{selectedRequest.service.category.name}</p>

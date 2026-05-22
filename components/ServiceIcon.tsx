@@ -15,6 +15,8 @@ const SIZE_MAP: Record<Size, { wrap: string; icon: number; emoji: string }> = {
 
 type Props = {
   slug: string
+  /** Emoji string from the DB — used as fallback when slug is not in the registry */
+  emoji?: string
   size?: Size
   isCategory?: boolean
   className?: string
@@ -22,22 +24,43 @@ type Props = {
   themeOverride?: IconTheme
 }
 
-export default function ServiceIcon({ slug, size = 'md', isCategory = false, className = '', animate = false, themeOverride }: Props) {
+export default function ServiceIcon({
+  slug,
+  emoji,
+  size = 'md',
+  isCategory = false,
+  className = '',
+  animate = false,
+  themeOverride,
+}: Props) {
   const { theme: ctxTheme } = useIconTheme()
   const theme = themeOverride ?? ctxTheme
 
-  const config = isCategory
-    ? (CATEGORY_ICONS[slug] ?? DEFAULT_CATEGORY_ICON)
-    : (SERVICE_ICONS[slug] ?? DEFAULT_ICON)
+  const registry = isCategory ? CATEGORY_ICONS : SERVICE_ICONS
+  const fallback = isCategory ? DEFAULT_CATEGORY_ICON : DEFAULT_ICON
+  const config = registry[slug] ?? fallback
+  const hasRegistryEntry = Boolean(registry[slug])
 
   const s = SIZE_MAP[size]
   const colors = COLOR_CLASSES[config.color] ?? COLOR_CLASSES['gray']
   const animClass = animate ? 'group-hover:scale-110 transition-transform duration-200' : ''
 
+  // For emoji theme: prefer DB emoji when slug is not in registry
   if (theme === 'emoji') {
+    const display = hasRegistryEntry ? config.emoji : (emoji ?? config.emoji)
     return (
       <span className={`inline-block ${s.emoji} ${animClass} ${className}`}>
-        {config.emoji}
+        {display}
+      </span>
+    )
+  }
+
+  // For SVG themes: if slug is not in registry and we have a DB emoji, render that instead
+  // so unknown services don't show a random wrench icon
+  if (!hasRegistryEntry && emoji) {
+    return (
+      <span className={`inline-block ${s.emoji} ${animClass} ${className}`}>
+        {emoji}
       </span>
     )
   }

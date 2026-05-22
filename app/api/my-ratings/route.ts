@@ -43,6 +43,7 @@ export async function GET() {
               service: {
                 select: {
                   name: true,
+                  slug: true,
                   icon: true
                 }
               },
@@ -88,6 +89,7 @@ export async function GET() {
               service: {
                 select: {
                   name: true,
+                  slug: true,
                   icon: true
                 }
               },
