@@ -2,6 +2,7 @@
 
 import { useIconTheme } from '@/lib/icon-theme-context'
 import { SERVICE_ICONS, CATEGORY_ICONS, COLOR_CLASSES, DEFAULT_ICON, DEFAULT_CATEGORY_ICON } from '@/lib/icon-themes'
+import type { IconTheme } from '@/lib/icon-themes'
 
 type Size = 'sm' | 'md' | 'lg' | 'xl'
 
@@ -18,10 +19,13 @@ type Props = {
   isCategory?: boolean
   className?: string
   animate?: boolean
+  themeOverride?: IconTheme
 }
 
-export default function ServiceIcon({ slug, size = 'md', isCategory = false, className = '', animate = false }: Props) {
-  const { theme } = useIconTheme()
+export default function ServiceIcon({ slug, size = 'md', isCategory = false, className = '', animate = false, themeOverride }: Props) {
+  const { theme: ctxTheme } = useIconTheme()
+  const theme = themeOverride ?? ctxTheme
+
   const config = isCategory
     ? (CATEGORY_ICONS[slug] ?? DEFAULT_CATEGORY_ICON)
     : (SERVICE_ICONS[slug] ?? DEFAULT_ICON)
@@ -44,6 +48,14 @@ export default function ServiceIcon({ slug, size = 'md', isCategory = false, cla
     return (
       <span className={`inline-flex items-center justify-center ${s.wrap} rounded-2xl ${colors.bgLight} ${animClass} flex-shrink-0 ${className}`}>
         <Icon size={s.icon} className={colors.text} strokeWidth={1.75} />
+      </span>
+    )
+  }
+
+  if (theme === 'rappi') {
+    return (
+      <span className={`inline-flex items-center justify-center ${s.wrap} rounded-full bg-gradient-to-br ${colors.gradient} ${animClass} flex-shrink-0 shadow-sm ${className}`}>
+        <Icon size={s.icon} className="text-white" strokeWidth={2} />
       </span>
     )
   }

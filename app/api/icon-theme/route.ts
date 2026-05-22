@@ -4,7 +4,7 @@ import { requireAdmin } from '@/lib/admin-utils'
 import type { IconTheme } from '@/lib/icon-themes'
 
 const FLAG_KEY = 'icon_theme'
-const VALID_THEMES: IconTheme[] = ['emoji', 'moderno', 'minimal']
+const VALID_THEMES: IconTheme[] = ['emoji', 'moderno', 'minimal', 'rappi']
 
 export async function GET() {
   const flag = await prisma.featureFlag.findUnique({ where: { key: FLAG_KEY } })

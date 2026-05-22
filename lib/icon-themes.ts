@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
-export type IconTheme = 'emoji' | 'moderno' | 'minimal'
+export type IconTheme = 'emoji' | 'moderno' | 'minimal' | 'rappi'
 
 export type IconConfig = {
   icon: LucideIcon
@@ -120,23 +120,23 @@ export const CATEGORY_ICONS: Record<string, IconConfig> = {
 }
 
 // Tailwind bg/text color pairs per color name
-export const COLOR_CLASSES: Record<string, { bg: string; text: string; bgLight: string }> = {
-  blue:   { bg: 'bg-blue-500',   text: 'text-blue-600',   bgLight: 'bg-blue-50' },
-  sky:    { bg: 'bg-sky-500',    text: 'text-sky-600',    bgLight: 'bg-sky-50' },
-  green:  { bg: 'bg-green-500',  text: 'text-green-600',  bgLight: 'bg-green-50' },
-  teal:   { bg: 'bg-teal-500',   text: 'text-teal-600',   bgLight: 'bg-teal-50' },
-  cyan:   { bg: 'bg-cyan-500',   text: 'text-cyan-600',   bgLight: 'bg-cyan-50' },
-  yellow: { bg: 'bg-yellow-400', text: 'text-yellow-500', bgLight: 'bg-yellow-50' },
-  amber:  { bg: 'bg-amber-500',  text: 'text-amber-600',  bgLight: 'bg-amber-50' },
-  orange: { bg: 'bg-orange-500', text: 'text-orange-600', bgLight: 'bg-orange-50' },
-  red:    { bg: 'bg-red-500',    text: 'text-red-600',    bgLight: 'bg-red-50' },
-  rose:   { bg: 'bg-rose-500',   text: 'text-rose-600',   bgLight: 'bg-rose-50' },
-  pink:   { bg: 'bg-pink-500',   text: 'text-pink-600',   bgLight: 'bg-pink-50' },
-  violet: { bg: 'bg-violet-500', text: 'text-violet-600', bgLight: 'bg-violet-50' },
-  purple: { bg: 'bg-purple-500', text: 'text-purple-600', bgLight: 'bg-purple-50' },
-  indigo: { bg: 'bg-indigo-500', text: 'text-indigo-600', bgLight: 'bg-indigo-50' },
-  slate:  { bg: 'bg-slate-500',  text: 'text-slate-600',  bgLight: 'bg-slate-50' },
-  gray:   { bg: 'bg-gray-500',   text: 'text-gray-600',   bgLight: 'bg-gray-50' },
+export const COLOR_CLASSES: Record<string, { bg: string; text: string; bgLight: string; gradient: string }> = {
+  blue:   { bg: 'bg-blue-500',   text: 'text-blue-600',   bgLight: 'bg-blue-50',   gradient: 'from-blue-400 to-blue-600' },
+  sky:    { bg: 'bg-sky-500',    text: 'text-sky-600',    bgLight: 'bg-sky-50',    gradient: 'from-sky-400 to-cyan-500' },
+  green:  { bg: 'bg-green-500',  text: 'text-green-600',  bgLight: 'bg-green-50',  gradient: 'from-green-400 to-emerald-600' },
+  teal:   { bg: 'bg-teal-500',   text: 'text-teal-600',   bgLight: 'bg-teal-50',   gradient: 'from-teal-400 to-teal-600' },
+  cyan:   { bg: 'bg-cyan-500',   text: 'text-cyan-600',   bgLight: 'bg-cyan-50',   gradient: 'from-cyan-400 to-blue-500' },
+  yellow: { bg: 'bg-yellow-400', text: 'text-yellow-500', bgLight: 'bg-yellow-50', gradient: 'from-yellow-300 to-amber-500' },
+  amber:  { bg: 'bg-amber-500',  text: 'text-amber-600',  bgLight: 'bg-amber-50',  gradient: 'from-amber-400 to-orange-500' },
+  orange: { bg: 'bg-orange-500', text: 'text-orange-600', bgLight: 'bg-orange-50', gradient: 'from-orange-400 to-red-500' },
+  red:    { bg: 'bg-red-500',    text: 'text-red-600',    bgLight: 'bg-red-50',    gradient: 'from-red-400 to-rose-600' },
+  rose:   { bg: 'bg-rose-500',   text: 'text-rose-600',   bgLight: 'bg-rose-50',   gradient: 'from-rose-400 to-pink-600' },
+  pink:   { bg: 'bg-pink-500',   text: 'text-pink-600',   bgLight: 'bg-pink-50',   gradient: 'from-pink-400 to-rose-500' },
+  violet: { bg: 'bg-violet-500', text: 'text-violet-600', bgLight: 'bg-violet-50', gradient: 'from-violet-400 to-purple-600' },
+  purple: { bg: 'bg-purple-500', text: 'text-purple-600', bgLight: 'bg-purple-50', gradient: 'from-purple-400 to-indigo-600' },
+  indigo: { bg: 'bg-indigo-500', text: 'text-indigo-600', bgLight: 'bg-indigo-50', gradient: 'from-indigo-400 to-blue-600' },
+  slate:  { bg: 'bg-slate-500',  text: 'text-slate-600',  bgLight: 'bg-slate-50',  gradient: 'from-slate-400 to-gray-600' },
+  gray:   { bg: 'bg-gray-500',   text: 'text-gray-600',   bgLight: 'bg-gray-50',   gradient: 'from-gray-400 to-slate-600' },
 }
 
 export const DEFAULT_ICON: IconConfig = I(Wrench, 'gray', '🔧')
