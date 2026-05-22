@@ -394,27 +394,19 @@ export async function notifyNewServiceRequest(serviceRequestId: string) {
               include: {
                 partner: {
                   include: {
-                    user: true,
-                    documents: {
-                      where: {
-                        status: 'APPROVED'
-                      }
-                    }
+                    user: { select: { id: true, name: true, phone: true } },
+                    documents: { where: { status: 'APPROVED' } }
                   }
                 }
               }
             }
           }
         },
-        user: true,
+        user: { select: { id: true, name: true, phone: true } },
         partner: {
           include: {
-            user: true,
-            documents: {
-              where: {
-                status: 'APPROVED'
-              }
-            }
+            user: { select: { id: true, name: true, phone: true } },
+            documents: { where: { status: 'APPROVED' } }
           }
         }
       }
@@ -422,55 +414,58 @@ export async function notifyNewServiceRequest(serviceRequestId: string) {
 
     if (!serviceRequest) return
 
-    // If partnerId is specified, only notify that specific partner
-    if (serviceRequest.partnerId && serviceRequest.partner) {
-      const hasIdentityDoc = serviceRequest.partner.documents.some(
-        doc => ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE'].includes(doc.type)
-      )
-      const hasBackgroundCheck = serviceRequest.partner.documents.some(
-        doc => doc.type === 'ANTECEDENTES'
-      )
+    const { sendNuevaSolicitudSocio, sendSolicitudEnviadaCliente } = await import('@/lib/messaging/whatsapp-templates')
+    const serviceName = serviceRequest.service.name
 
-      if (hasIdentityDoc && hasBackgroundCheck) {
-        await createNotification({
-          userId: serviceRequest.partner.user.id,
-          type: "NEW_SERVICE_REQUEST",
-          title: "Nueva solicitud directa",
-          message: `${serviceRequest.user.name} te ha solicitado ${serviceRequest.service.name}`,
-          data: {
-            serviceRequestId: serviceRequest.id,
-            serviceId: serviceRequest.serviceId,
-            isDirect: true
-          }
-        })
+    // Format the "when" string for the partner notification
+    let when = 'A definir'
+    if (serviceRequest.isUrgent) {
+      when = 'Urgente'
+    } else if (serviceRequest.preferredDate) {
+      const d = new Date(serviceRequest.preferredDate)
+      when = d.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })
+      if (serviceRequest.preferredTime) when += ` a las ${serviceRequest.preferredTime}`
+    }
+
+    const notifyPartner = async (partner: { user: { id: string; name: string; phone: string | null } }, isDirect: boolean) => {
+      await createNotification({
+        userId: partner.user.id,
+        type: "NEW_SERVICE_REQUEST",
+        title: isDirect ? "Nueva solicitud directa" : "Nueva solicitud de servicio",
+        message: isDirect
+          ? `${serviceRequest.user.name} te ha solicitado ${serviceName}`
+          : `${serviceRequest.user.name} solicita ${serviceName}`,
+        data: { serviceRequestId: serviceRequest.id, serviceId: serviceRequest.serviceId, isDirect }
+      })
+      if (partner.user.phone) {
+        sendNuevaSolicitudSocio(partner.user.phone, partner.user.name ?? 'Socio', serviceName, when)
+          .catch(err => logger.error('WA nueva_solicitud_socio failed', { err }))
+      }
+    }
+
+    const isVerified = (docs: { type: string }[]) =>
+      docs.some(d => ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE'].includes(d.type)) &&
+      docs.some(d => d.type === 'ANTECEDENTES')
+
+    if (serviceRequest.partnerId && serviceRequest.partner) {
+      if (isVerified(serviceRequest.partner.documents)) {
+        await notifyPartner(serviceRequest.partner, true)
       }
     } else {
-      // Otherwise, notify all partners offering this service in the city
       const partners = serviceRequest.service.partners.filter(
         ps => ps.partner.city === serviceRequest.city
       )
-
-      for (const partnerService of partners) {
-        const hasIdentityDoc = partnerService.partner.documents.some(
-          doc => ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE'].includes(doc.type)
-        )
-        const hasBackgroundCheck = partnerService.partner.documents.some(
-          doc => doc.type === 'ANTECEDENTES'
-        )
-
-        if (hasIdentityDoc && hasBackgroundCheck) {
-          await createNotification({
-            userId: partnerService.partner.user.id,
-            type: "NEW_SERVICE_REQUEST",
-            title: "Nueva solicitud de servicio",
-            message: `${serviceRequest.user.name} solicita ${serviceRequest.service.name}`,
-            data: {
-              serviceRequestId: serviceRequest.id,
-              serviceId: serviceRequest.serviceId
-            }
-          })
+      for (const { partner } of partners) {
+        if (isVerified(partner.documents)) {
+          await notifyPartner(partner, false)
         }
       }
+    }
+
+    // Notify the client that their request has been submitted
+    if (serviceRequest.user.phone) {
+      sendSolicitudEnviadaCliente(serviceRequest.user.phone, serviceRequest.user.name ?? 'Cliente', serviceName)
+        .catch(err => logger.error('WA solicitud_enviada_cliente failed', { err }))
     }
   } catch (error) {
     console.error("Error notifying new service request:", error)

@@ -12,6 +12,8 @@ export const WA_TEMPLATE_SIDS = {
   recordatorio_inicio_sesion:  'HX1c79ad25a0166eaf2555372d35e0aa6e',
   verificacion_documentos:     'HX817a31ef8bdd44f9203c3b44d8eaa630',
   referir_socios:              'HXfbedddc80b9a6b67318d979bb8d0e5ca',
+  nueva_solicitud_socio:       'HXe18c06820756acaa4c0e7429afa615b5',
+  solicitud_enviada_cliente:   'HX0e5c753b79f2bae5d43e47cfa8bc653a',
 } as const
 
 async function getTwilioCfg() {
@@ -112,6 +114,43 @@ export async function sendVerificationReminder(phone: string, name: string) {
     )
   } catch (err) {
     logger.error('sendVerificationReminder failed', { phone, err })
+    return { ok: false, provider: 'twilio-whatsapp', errorCode: 'EXCEPTION' }
+  }
+}
+
+/** New service request alert to a partner — includes date and link to requests */
+export async function sendNuevaSolicitudSocio(
+  phone: string,
+  partnerName: string,
+  serviceType: string,
+  when: string
+) {
+  try {
+    const cfg = await getTwilioCfg()
+    return await sendWhatsAppTemplate(
+      phone,
+      WA_TEMPLATE_SIDS.nueva_solicitud_socio,
+      { '1': partnerName, '2': serviceType, '3': when },
+      cfg
+    )
+  } catch (err) {
+    logger.error('sendNuevaSolicitudSocio failed', { phone, err })
+    return { ok: false, provider: 'twilio-whatsapp', errorCode: 'EXCEPTION' }
+  }
+}
+
+/** Confirmation to the client that their request has been submitted */
+export async function sendSolicitudEnviadaCliente(phone: string, clientName: string, serviceType: string) {
+  try {
+    const cfg = await getTwilioCfg()
+    return await sendWhatsAppTemplate(
+      phone,
+      WA_TEMPLATE_SIDS.solicitud_enviada_cliente,
+      { '1': clientName, '2': serviceType },
+      cfg
+    )
+  } catch (err) {
+    logger.error('sendSolicitudEnviadaCliente failed', { phone, err })
     return { ok: false, provider: 'twilio-whatsapp', errorCode: 'EXCEPTION' }
   }
 }
