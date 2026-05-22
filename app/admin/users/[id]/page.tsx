@@ -330,15 +330,21 @@ export default function UserProfilePage({ params }: { params: Promise<{ id: stri
           <p className="text-gray-500 text-sm mt-0.5">{user.email} · ID: {user.id}</p>
         </div>
         <div className="flex items-center gap-2">
-          {isPartner && user.partnerProfile?.slug && (
-            <a
-              href={`/pro/${user.partnerProfile.slug}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
-            >
-              <ExternalLink size={14} /> Ver perfil público
-            </a>
+          {isPartner && (
+            user.partnerProfile?.slug ? (
+              <a
+                href={`/pro/${user.partnerProfile.slug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                <ExternalLink size={14} /> Ver perfil público
+              </a>
+            ) : (
+              <span className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-400 cursor-not-allowed" title="El socio aún no tiene slug generado">
+                <ExternalLink size={14} /> Sin perfil público
+              </span>
+            )
           )}
           <button
             onClick={() => setShowMagicModal(true)}
