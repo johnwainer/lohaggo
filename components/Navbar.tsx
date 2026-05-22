@@ -201,14 +201,10 @@ export function Navbar() {
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center space-x-2">
             <Link
-              href="/"
-              className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                pathname === '/'
-                  ? 'text-primary-600 bg-primary-500/5'
-                  : 'text-gray-700 hover:text-primary-600 hover:bg-primary-500/5'
-              }`}
+              href="/buscar"
+              className="px-5 py-2.5 rounded-xl text-sm font-bold bg-primary-600 text-white hover:bg-primary-700 transition-all shadow-sm"
             >
-              Inicio
+              Solicitar servicio
             </Link>
             <Link
               href="/faq"
