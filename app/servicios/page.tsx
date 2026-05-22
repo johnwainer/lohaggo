@@ -652,7 +652,7 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
                   }`}
                 >
-                  <ServiceIcon slug={category.slug} emoji={category.icon} isCategory size="md" animate />
+                  <ServiceIcon slug={category.slug} emoji={category.icon} isCategory size="lg" animate />
                   <span className="hidden sm:inline">{category.name}</span>
                 </button>
               ))}
