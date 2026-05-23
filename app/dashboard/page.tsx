@@ -290,7 +290,7 @@ export default function DashboardPage() {
     }
 
     tick()
-    intervalId = setInterval(tick, 30000)
+    intervalId = setInterval(tick, 10000)
 
     const onVisibility = () => {
       if (!document.hidden) tick()
@@ -306,43 +306,29 @@ export default function DashboardPage() {
 
   const fetchUnreadCounts = async (signal?: AbortSignal) => {
     try {
-      const counts: Record<string, number> = {}
+      const proposalIds = [
+        ...bookings.map((b) => b.proposalId).filter((id): id is string => !!id),
+        ...serviceRequests.flatMap((r) => (r.proposals || []).map((p) => p.id)),
+      ]
 
-      // Get unread counts for bookings
-      const bookingsWithProposals = bookings.filter(b => b.proposalId)
-      await Promise.all(
-        bookingsWithProposals.map(async (booking) => {
-          try {
-            const res = await fetch(`/api/chat/unread-count?proposalId=${booking.proposalId}`, { signal })
-            if (res.ok) {
-              const data = await res.json()
-              counts[booking.proposalId!] = data.count || 0
-            }
-          } catch {
-            // aborted or network error — silent
-          }
-        })
-      )
+      if (proposalIds.length === 0) {
+        if (!signal?.aborted) setUnreadCounts({})
+        return
+      }
 
-      // Get unread counts for proposals
-      const allProposals = serviceRequests.flatMap(request => request.proposals || [])
-      await Promise.all(
-        allProposals.map(async (proposal) => {
-          try {
-            const res = await fetch(`/api/chat/unread-count?proposalId=${proposal.id}`, { signal })
-            if (res.ok) {
-              const data = await res.json()
-              counts[proposal.id] = data.count || 0
-            }
-          } catch {
-            // aborted or network error — silent
-          }
-        })
-      )
+      const res = await fetch('/api/chat/unread-counts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ proposalIds }),
+        signal,
+      })
 
-      if (!signal?.aborted) setUnreadCounts(counts)
+      if (!res.ok) return
+
+      const data = await res.json()
+      if (!signal?.aborted) setUnreadCounts(data.counts || {})
     } catch {
-      // silent
+      // aborted or network error — silent
     }
   }
 

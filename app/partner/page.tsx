@@ -344,51 +344,59 @@ function PartnerDashboardContent() {
   }, [searchParams])
 
   useEffect(() => {
-    if (status === 'authenticated' && (bookings.length > 0 || serviceRequests.length > 0)) {
-      fetchUnreadCounts()
-      const interval = setInterval(fetchUnreadCounts, 5000)
-      return () => clearInterval(interval)
+    if (status !== 'authenticated') return
+    if (bookings.length === 0 && serviceRequests.length === 0) return
+
+    const controller = new AbortController()
+    let intervalId: ReturnType<typeof setInterval> | null = null
+
+    const tick = () => {
+      if (document.hidden) return
+      fetchUnreadCounts(controller.signal)
+    }
+
+    tick()
+    intervalId = setInterval(tick, 10000)
+
+    const onVisibility = () => {
+      if (!document.hidden) tick()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+
+    return () => {
+      if (intervalId) clearInterval(intervalId)
+      document.removeEventListener('visibilitychange', onVisibility)
+      controller.abort()
     }
   }, [status, bookings, serviceRequests])
 
-  const fetchUnreadCounts = async () => {
+  const fetchUnreadCounts = async (signal?: AbortSignal) => {
     try {
-      const bookingsWithProposals = bookings.filter(b => b.proposalId)
-      const proposalsFromRequests = serviceRequests
-        .filter(r => r.proposals && r.proposals.length > 0)
-        .map(r => r.proposals[0].id)
-
-      const allProposalIds = [
-        ...bookingsWithProposals.map(b => b.proposalId!),
-        ...proposalsFromRequests
+      const proposalIds = [
+        ...bookings.map((b) => b.proposalId).filter((id): id is string => !!id),
+        ...serviceRequests
+          .filter((r) => r.proposals && r.proposals.length > 0)
+          .map((r) => r.proposals[0].id),
       ]
 
-      const counts: Record<string, number> = {}
+      if (proposalIds.length === 0) {
+        if (!signal?.aborted) setUnreadCounts({})
+        return
+      }
 
-      await Promise.all(
-        allProposalIds.map(async (proposalId) => {
-          try {
-            const res = await fetch(`/api/chat/unread-count?proposalId=${proposalId}`)
-            if (res.ok) {
-              const data = await res.json()
-              counts[proposalId] = data.count || 0
-            } else {
-              try {
-                const text = await res.text()
-                console.error(`[PARTNER] Error response for ${proposalId}:`, res.status, text)
-              } catch (readErr) {
-                console.error(`[PARTNER] Error response for ${proposalId}:`, res.status, 'and failed to read body', readErr)
-              }
-            }
-          } catch (error) {
-            console.error(`[PARTNER] Error fetching unread count for ${proposalId}:`, error)
-          }
-        })
-      )
+      const res = await fetch('/api/chat/unread-counts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ proposalIds }),
+        signal,
+      })
 
-      setUnreadCounts(counts)
-    } catch (error) {
-      console.error('[PARTNER] Error fetching unread counts:', error)
+      if (!res.ok) return
+
+      const data = await res.json()
+      if (!signal?.aborted) setUnreadCounts(data.counts || {})
+    } catch {
+      // aborted or network error — silent
     }
   }
 
