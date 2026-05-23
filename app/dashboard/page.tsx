@@ -843,35 +843,35 @@ export default function DashboardPage() {
       />
 
       {paymentModal.isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Pagar Servicio</h3>
-            <p className="text-gray-600 mb-4">Servicio: <span className="font-semibold">{paymentModal.serviceName}</span></p>
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl shadow-cardHover max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-slate-900 mb-4">Pagar servicio</h3>
+            <p className="text-slate-600 mb-4">Servicio: <span className="font-semibold text-slate-900">{paymentModal.serviceName}</span></p>
 
             {loadingBreakdown ? (
-              <div className="bg-gray-50 rounded-xl p-6 mb-6 flex items-center justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+              <div className="bg-slate-50 rounded-2xl p-6 mb-6 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary-600 border-t-transparent"></div>
               </div>
             ) : paymentBreakdown ? (
-              <div className="bg-gray-50 rounded-xl p-4 mb-6 space-y-3">
+              <div className="bg-slate-50 rounded-2xl p-4 mb-6 space-y-3">
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-600">Precio del servicio</span>
-                  <span className="font-medium text-gray-900">
+                  <span className="text-slate-600">Precio del servicio</span>
+                  <span className="font-medium text-slate-900">
                     ${paymentBreakdown.serviceAmount.toLocaleString('es-CO')} COP
                   </span>
                 </div>
 
-                <div className="flex justify-between items-center text-sm pb-3 border-b border-gray-200">
-                  <span className="text-gray-600">
+                <div className="flex justify-between items-center text-sm pb-3 border-b border-slate-200">
+                  <span className="text-slate-600">
                     Tarifa de servicio ({paymentBreakdown.clientCommissionRate}%)
                   </span>
-                  <span className="font-medium text-gray-600">
+                  <span className="font-medium text-slate-600">
                     +${paymentBreakdown.clientCommission.toLocaleString('es-CO')} COP
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center pt-2">
-                  <span className="text-lg font-bold text-gray-900">Total a Pagar</span>
+                  <span className="text-base font-bold text-slate-900">Total a pagar</span>
                   <span className="text-2xl font-bold text-primary-600">
                     ${paymentBreakdown.totalAmount.toLocaleString('es-CO')} COP
                   </span>
@@ -883,11 +883,11 @@ export default function DashboardPage() {
 
             {paymentMethods.length > 0 ? (
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Método de Pago</label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Método de pago</label>
                 <select
                   value={selectedPaymentMethod}
                   onChange={(e) => setSelectedPaymentMethod(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 bg-slate-50 focus:bg-white"
                 >
                   {paymentMethods.map((method) => (
                     <option key={method.id} value={method.id}>
@@ -897,8 +897,8 @@ export default function DashboardPage() {
                 </select>
               </div>
             ) : (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
-                <p className="text-sm text-secondary-800">No tienes métodos de pago guardados. Se procesará con Mercado Pago.</p>
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6">
+                <p className="text-sm text-amber-800">No tienes métodos de pago guardados. Se procesará con Mercado Pago.</p>
               </div>
             )}
 
@@ -909,18 +909,18 @@ export default function DashboardPage() {
                   setPaymentBreakdown(null)
                 }}
                 disabled={processingPayment}
-                className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition font-medium disabled:opacity-50"
+                className="flex-1 px-4 py-3 border border-slate-200 text-slate-700 rounded-full hover:bg-slate-50 transition-colors font-medium disabled:opacity-50"
               >
                 Cancelar
               </button>
               <button
                 onClick={processPayment}
                 disabled={processingPayment || loadingBreakdown}
-                className="flex-1 bg-primary-600 text-white px-4 py-3 rounded-xl hover:bg-primary-700 transition font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 bg-primary-600 text-white px-4 py-3 rounded-full hover:bg-primary-700 transition-colors font-semibold disabled:opacity-50 flex items-center justify-center gap-2 shadow-card"
               >
                 {processingPayment ? (
                   <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
                     Procesando...
                   </>
                 ) : (
@@ -971,170 +971,148 @@ export default function DashboardPage() {
         <main className="account-main">
           {activeTab === 'overview' && (
             <div className="space-y-4 sm:space-y-6">
-              <div className="bg-gradient-to-br from-primary-600 via-primary-700 to-primary-800 rounded-2xl sm:rounded-3xl shadow-2xl p-6 sm:p-8 text-white relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32"></div>
-                <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full -ml-24 -mb-24"></div>
-                <div className="relative z-10">
-                  <div className="flex items-start justify-between mb-6">
-                    <div>
-                      <p className="text-primary-100 text-sm sm:text-base mb-2">Bienvenido de nuevo</p>
-                      <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2">{session?.user?.name || 'Usuario'}</h2>
-                      <p className="text-primary-100 text-sm sm:text-base">Aquí está tu resumen de actividad</p>
-                    </div>
-                    <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-3 sm:p-4">
-                      <User className="w-8 h-8 sm:w-10 sm:h-10" />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mt-6">
-                    <div className="bg-white/10 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-white/20">
-                      <Package className="w-6 h-6 sm:w-8 sm:h-8 mb-2 opacity-90" />
-                      <p className="text-2xl sm:text-3xl font-bold mb-1">{bookings.length}</p>
-                      <p className="text-xs sm:text-sm text-primary-100">Reservas</p>
-                    </div>
-                    <div className="bg-white/10 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-white/20">
-                      <MessageSquare className="w-6 h-6 sm:w-8 sm:h-8 mb-2 opacity-90" />
-                      <p className="text-2xl sm:text-3xl font-bold mb-1">{serviceRequests.length}</p>
-                      <p className="text-xs sm:text-sm text-primary-100">Solicitudes</p>
-                    </div>
-                    <div className="bg-white/10 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-white/20">
-                      <Heart className="w-6 h-6 sm:w-8 sm:h-8 mb-2 opacity-90" />
-                      <p className="text-2xl sm:text-3xl font-bold mb-1">{favoritePartners.length}</p>
-                      <p className="text-xs sm:text-sm text-primary-100">Favoritos</p>
-                    </div>
-                    <div className="bg-white/10 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-white/20">
-                      <DollarSign className="w-6 h-6 sm:w-8 sm:h-8 mb-2 opacity-90" />
-                      <p className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1">{formatCurrency(totalSpent)}</p>
-                      <p className="text-xs sm:text-sm text-primary-100">Gastado</p>
-                    </div>
-                  </div>
+              <div>
+                <p className="text-sm text-slate-500">Hola,</p>
+                <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+                  {session?.user?.name || 'Usuario'}
+                </h2>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                <div className="rounded-2xl bg-white border border-slate-100 shadow-card p-4 sm:p-5">
+                  <span className="inline-flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-primary-100 text-primary-700 mb-2 sm:mb-3">
+                    <Package className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </span>
+                  <p className="text-2xl sm:text-3xl font-bold text-slate-900 leading-none">{bookings.length}</p>
+                  <p className="text-xs sm:text-sm text-slate-500 mt-1">Reservas</p>
+                </div>
+                <div className="rounded-2xl bg-white border border-slate-100 shadow-card p-4 sm:p-5">
+                  <span className="inline-flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-secondary-100 text-secondary-700 mb-2 sm:mb-3">
+                    <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </span>
+                  <p className="text-2xl sm:text-3xl font-bold text-slate-900 leading-none">{serviceRequests.length}</p>
+                  <p className="text-xs sm:text-sm text-slate-500 mt-1">Solicitudes</p>
+                </div>
+                <div className="rounded-2xl bg-white border border-slate-100 shadow-card p-4 sm:p-5">
+                  <span className="inline-flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-accent-100 text-accent-700 mb-2 sm:mb-3">
+                    <Heart className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </span>
+                  <p className="text-2xl sm:text-3xl font-bold text-slate-900 leading-none">{favoritePartners.length}</p>
+                  <p className="text-xs sm:text-sm text-slate-500 mt-1">Favoritos</p>
+                </div>
+                <div className="rounded-2xl bg-white border border-slate-100 shadow-card p-4 sm:p-5">
+                  <span className="inline-flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 mb-2 sm:mb-3">
+                    <DollarSign className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </span>
+                  <p className="text-lg sm:text-2xl font-bold text-slate-900 leading-none">{formatCurrency(totalSpent)}</p>
+                  <p className="text-xs sm:text-sm text-slate-500 mt-1">Gastado</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
                 <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-                  <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
-                    <div className="bg-gradient-to-r from-gray-50 to-white p-4 sm:p-6 border-b border-gray-100">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2">
-                            <Activity className="text-primary-600 w-5 h-5 sm:w-6 sm:h-6" />
-                            Estado de Reservas
-                          </h3>
-                          <p className="text-sm text-gray-600 mt-1">Resumen de tus servicios</p>
-                        </div>
-                      </div>
+                  <div className="bg-white rounded-2xl shadow-card border border-slate-100 overflow-hidden">
+                    <div className="px-4 sm:px-6 py-4 border-b border-slate-100">
+                      <h3 className="text-base sm:text-lg font-semibold text-slate-900 flex items-center gap-2">
+                        <Activity className="text-primary-600 w-5 h-5" />
+                        Estado de reservas
+                      </h3>
+                      <p className="text-xs sm:text-sm text-slate-500 mt-0.5">Resumen de tus servicios</p>
                     </div>
                     <div className="p-4 sm:p-6">
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-                        <div className="group hover:scale-105 transition-transform">
-                          <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-5 border-2 border-gray-200 hover:border-gray-300 transition-colors shadow-sm">
-                            <div className="flex items-center justify-between mb-3">
-                              <div className="bg-gray-600 rounded-lg p-2">
-                                <Clock className="text-white w-4 h-4 sm:w-5 sm:h-5" />
-                              </div>
-                              <span className="text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-1 rounded-full">Activas</span>
-                            </div>
-                            <p className="text-3xl sm:text-4xl font-bold text-gray-900 mb-1">{pendingCount}</p>
-                            <p className="text-xs sm:text-sm text-gray-600 font-medium">Pendientes</p>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3 sm:p-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                              <Clock className="w-3.5 h-3.5" />
+                            </span>
                           </div>
+                          <p className="text-2xl sm:text-3xl font-bold text-slate-900 leading-none">{pendingCount}</p>
+                          <p className="text-xs text-slate-500 mt-1">Pendientes</p>
                         </div>
-                        <div className="group hover:scale-105 transition-transform">
-                          <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-5 border-2 border-gray-200 hover:border-gray-300 transition-colors shadow-sm">
-                            <div className="flex items-center justify-between mb-3">
-                              <div className="bg-gradient-to-br from-primary-500 to-primary-600 rounded-lg p-2">
-                                <CheckCircle className="text-white w-4 h-4 sm:w-5 sm:h-5" />
-                              </div>
-                              <span className="text-xs font-semibold text-primary-600 bg-primary-100 px-2 py-1 rounded-full">OK</span>
-                            </div>
-                            <p className="text-3xl sm:text-4xl font-bold text-gray-900 mb-1">{confirmedCount}</p>
-                            <p className="text-xs sm:text-sm text-gray-600 font-medium">Confirmadas</p>
+                        <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3 sm:p-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary-100 text-primary-700">
+                              <CheckCircle className="w-3.5 h-3.5" />
+                            </span>
                           </div>
+                          <p className="text-2xl sm:text-3xl font-bold text-slate-900 leading-none">{confirmedCount}</p>
+                          <p className="text-xs text-slate-500 mt-1">Confirmadas</p>
                         </div>
-                        <div className="group hover:scale-105 transition-transform">
-                          <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-5 border-2 border-gray-200 hover:border-gray-300 transition-colors shadow-sm">
-                            <div className="flex items-center justify-between mb-3">
-                              <div className="bg-gray-600 rounded-lg p-2">
-                                <Activity className="text-white w-4 h-4 sm:w-5 sm:h-5" />
-                              </div>
-                              <span className="text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-1 rounded-full">En curso</span>
-                            </div>
-                            <p className="text-3xl sm:text-4xl font-bold text-gray-900 mb-1">{bookings.filter(b => b.status === 'IN_PROGRESS').length}</p>
-                            <p className="text-xs sm:text-sm text-gray-600 font-medium">En Progreso</p>
+                        <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3 sm:p-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-secondary-100 text-secondary-700">
+                              <Activity className="w-3.5 h-3.5" />
+                            </span>
                           </div>
+                          <p className="text-2xl sm:text-3xl font-bold text-slate-900 leading-none">{bookings.filter(b => b.status === 'IN_PROGRESS').length}</p>
+                          <p className="text-xs text-slate-500 mt-1">En progreso</p>
                         </div>
-                        <div className="group hover:scale-105 transition-transform">
-                          <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-5 border-2 border-gray-200 hover:border-gray-300 transition-colors shadow-sm">
-                            <div className="flex items-center justify-between mb-3">
-                              <div className="bg-gradient-to-br from-primary-500 to-primary-600 rounded-lg p-2">
-                                <Star className="text-white w-4 h-4 sm:w-5 sm:h-5" />
-                              </div>
-                              <span className="text-xs font-semibold text-primary-600 bg-primary-100 px-2 py-1 rounded-full">Listo</span>
-                            </div>
-                            <p className="text-3xl sm:text-4xl font-bold text-gray-900 mb-1">{bookings.filter(b => b.status === 'COMPLETED').length}</p>
-                            <p className="text-xs sm:text-sm text-gray-600 font-medium">Completadas</p>
+                        <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3 sm:p-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                              <Star className="w-3.5 h-3.5" />
+                            </span>
                           </div>
+                          <p className="text-2xl sm:text-3xl font-bold text-slate-900 leading-none">{bookings.filter(b => b.status === 'COMPLETED').length}</p>
+                          <p className="text-xs text-slate-500 mt-1">Completadas</p>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
-                    <div className="bg-gradient-to-r from-gray-50 to-white p-4 sm:p-6 border-b border-gray-100">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2">
-                            <Clock className="text-primary-600 w-5 h-5 sm:w-6 sm:h-6" />
-                            Actividad Reciente
-                          </h3>
-                          <p className="text-sm text-gray-600 mt-1">Últimas reservas y solicitudes</p>
-                        </div>
-                        <button
-                          onClick={() => setActiveTab('bookings')}
-                          className="text-primary-600 hover:text-primary-700 text-sm font-semibold flex items-center gap-1 hover:gap-2 transition-all"
-                        >
-                          Ver todo
-                          <ChevronRight className="w-4 h-4" />
-                        </button>
+                  <div className="bg-white rounded-2xl shadow-card border border-slate-100 overflow-hidden">
+                    <div className="px-4 sm:px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                      <div>
+                        <h3 className="text-base sm:text-lg font-semibold text-slate-900 flex items-center gap-2">
+                          <Clock className="text-primary-600 w-5 h-5" />
+                          Actividad reciente
+                        </h3>
+                        <p className="text-xs sm:text-sm text-slate-500 mt-0.5">Últimas reservas</p>
                       </div>
+                      <button
+                        onClick={() => setActiveTab('bookings')}
+                        className="inline-flex items-center gap-1 text-sm font-semibold text-primary-700 hover:text-primary-800 transition-colors"
+                      >
+                        Ver todo
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
                     </div>
-                    <div className="p-4 sm:p-6">
+                    <div className="p-3 sm:p-4">
                       {bookings.slice(0, 4).length === 0 ? (
-                        <div className="text-center py-12">
-                          <div className="bg-gray-100 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
-                            <Package className="text-gray-400 w-10 h-10" />
+                        <div className="text-center py-10">
+                          <div className="bg-slate-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-3">
+                            <Package className="text-slate-400 w-7 h-7" />
                           </div>
-                          <p className="text-gray-500 font-medium mb-2">No hay actividad reciente</p>
-                          <p className="text-sm text-gray-400">Tus reservas aparecerán aquí</p>
+                          <p className="text-slate-700 font-semibold mb-1">No hay actividad reciente</p>
+                          <p className="text-sm text-slate-500">Tus reservas aparecerán aquí</p>
                         </div>
                       ) : (
-                        <div className="space-y-3">
+                        <div className="space-y-2">
                           {bookings.slice(0, 4).map((booking) => (
-                            <div key={booking.id} className="group flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl bg-gray-50 hover:bg-gradient-to-r hover:from-primary-50 hover:to-transparent border border-gray-100 hover:border-primary-200 transition-all cursor-pointer">
+                            <div key={booking.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer">
                               <ServiceIcon slug={booking.service.slug} emoji={booking.service.icon} size="lg" animate />
                               <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-gray-900 text-sm sm:text-base truncate group-hover:text-primary-700 transition-colors">{booking.service.name}</p>
-                                <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                  <span className="text-xs text-gray-600 flex items-center gap-1">
+                                <p className="font-semibold text-slate-900 text-sm truncate">{booking.service.name}</p>
+                                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                  <span className="text-xs text-slate-500 flex items-center gap-1">
                                     <Calendar className="w-3 h-3" />
                                     {new Date(booking.scheduledDate).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}
                                   </span>
-                                  <span className="text-xs text-gray-400">•</span>
-                                  <span className="text-xs text-gray-600 flex items-center gap-1">
-                                    <Clock className="w-3 h-3" />
-                                    {booking.scheduledTime}
-                                  </span>
+                                  <span className="text-xs text-slate-400">·</span>
+                                  <span className="text-xs text-slate-500">{booking.scheduledTime}</span>
                                 </div>
                               </div>
-                              <div className="flex flex-col items-end gap-2">
-                                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${
+                              <div className="flex flex-col items-end gap-1.5">
+                                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${
                                   booking.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' :
-                                  booking.status === 'CONFIRMED' ? 'bg-blue-100 text-blue-700' :
-                                  booking.status === 'IN_PROGRESS' ? 'bg-purple-100 text-purple-700' :
-                                  'bg-gray-100 text-gray-700'
+                                  booking.status === 'CONFIRMED' ? 'bg-primary-100 text-primary-700' :
+                                  booking.status === 'IN_PROGRESS' ? 'bg-secondary-100 text-secondary-700' :
+                                  'bg-slate-100 text-slate-700'
                                 }`}>
                                   {statusLabels[booking.status]}
                                 </span>
-                                <p className="text-sm font-bold text-gray-900">{formatCurrency(booking.totalPrice)}</p>
+                                <p className="text-sm font-bold text-slate-900">{formatCurrency(booking.totalPrice)}</p>
                               </div>
                             </div>
                           ))}
@@ -1145,105 +1123,105 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="space-y-4 sm:space-y-6">
-                  <div className="bg-gradient-to-br from-primary-500 via-primary-600 to-primary-700 rounded-2xl sm:rounded-3xl shadow-xl p-5 sm:p-6 text-white relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
-                    <div className="relative z-10">
-                      <div className="bg-white/20 backdrop-blur-sm rounded-xl p-3 w-fit mb-4">
-                        <MessageSquare className="w-6 h-6" />
+                  <div className="bg-white rounded-2xl shadow-card border border-slate-100 p-5 sm:p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary-100 text-primary-700">
+                          <MessageSquare className="w-5 h-5" />
+                        </span>
+                        <h3 className="text-base sm:text-lg font-semibold text-slate-900">Solicitudes</h3>
                       </div>
-                      <h3 className="text-xl sm:text-2xl font-bold mb-2">Solicitudes</h3>
-                      <p className="text-primary-100 text-sm mb-4">Gestiona tus peticiones</p>
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-primary-100">Activas</span>
-                          <span className="text-2xl font-bold">{activeRequestsCount}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-primary-100">Propuestas</span>
-                          <span className="text-2xl font-bold">{totalProposals}</span>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setActiveTab('requests')}
-                        className="mt-4 w-full bg-white text-primary-600 font-semibold py-3 rounded-xl hover:bg-primary-50 transition-colors flex items-center justify-center gap-2"
-                      >
-                        Ver Solicitudes
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
                     </div>
+                    <div className="space-y-2.5 mb-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-slate-500">Activas</span>
+                        <span className="text-xl font-bold text-slate-900">{activeRequestsCount}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-slate-500">Propuestas</span>
+                        <span className="text-xl font-bold text-slate-900">{totalProposals}</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setActiveTab('requests')}
+                      className="w-full bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white font-semibold py-3 rounded-full transition-colors flex items-center justify-center gap-2"
+                    >
+                      Ver solicitudes
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
                   </div>
 
-                  <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg border border-gray-100 p-4 sm:p-5">
+                  <div className="bg-white rounded-2xl shadow-card border border-slate-100 p-5 sm:p-6">
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
-                        <Heart className="text-primary-500 w-5 h-5" />
-                        <span>Favoritos</span>
-                      </h3>
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-accent-100 text-accent-700">
+                          <Heart className="w-5 h-5" />
+                        </span>
+                        <h3 className="text-base sm:text-lg font-semibold text-slate-900">Favoritos</h3>
+                      </div>
                       <button
                         onClick={() => setActiveTab('favorites')}
-                        className="text-sm text-primary-600 hover:text-primary-700 font-semibold"
+                        className="text-sm font-semibold text-primary-700 hover:text-primary-800"
                       >
                         Ver todo
                       </button>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-3">
-                        <p className="text-xs text-gray-500 mb-1">Socios</p>
-                        <p className="text-xl font-bold text-gray-900">{favoritePartners.length}</p>
+                    <div className="grid grid-cols-2 gap-3 mb-3">
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-3">
+                        <p className="text-xs text-slate-500 mb-1">Socios</p>
+                        <p className="text-xl font-bold text-slate-900">{favoritePartners.length}</p>
                       </div>
-                      <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-3">
-                        <p className="text-xs text-gray-500 mb-1">Servicios</p>
-                        <p className="text-xl font-bold text-gray-900">{favoriteServices.length}</p>
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-3">
+                        <p className="text-xs text-slate-500 mb-1">Servicios</p>
+                        <p className="text-xl font-bold text-slate-900">{favoriteServices.length}</p>
                       </div>
                     </div>
-                    <p className="text-xs text-gray-500 mt-3">
+                    <p className="text-xs text-slate-500">
                       Accede a tus favoritos para solicitar más rápido.
                     </p>
                   </div>
 
-                  <div className="bg-gradient-to-br from-primary-500 via-primary-600 to-primary-700 rounded-2xl sm:rounded-3xl shadow-xl p-5 sm:p-6 text-white relative overflow-hidden">
-                    <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/10 rounded-full -ml-16 -mb-16"></div>
-                    <div className="relative z-10">
-                      <div className="bg-white/20 backdrop-blur-sm rounded-xl p-3 w-fit mb-4">
-                        <Plus className="w-6 h-6" />
-                      </div>
-                      <h3 className="text-xl sm:text-2xl font-bold mb-2">Acciones Rápidas</h3>
-                      <p className="text-primary-100 text-sm mb-4">Gestiona tu cuenta</p>
-                      <div className="space-y-2">
-                        <button
-                          onClick={() => router.push('/servicios')}
-                          data-testid="dashboard-cta-search-services"
-                          className="w-full bg-white/20 backdrop-blur-sm hover:bg-white/30 border border-white/30 text-white font-medium py-3 rounded-xl transition-all flex items-center justify-between px-4"
-                        >
-                          <span className="flex items-center gap-2">
-                            <Search className="w-4 h-4" />
-                            Buscar Servicios
-                          </span>
-                          <ChevronRight className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => router.push('/profile')}
-                          data-testid="dashboard-cta-profile"
-                          className="w-full bg-white/20 backdrop-blur-sm hover:bg-white/30 border border-white/30 text-white font-medium py-3 rounded-xl transition-all flex items-center justify-between px-4"
-                        >
-                          <span className="flex items-center gap-2">
-                            <User className="w-4 h-4" />
-                            Mi Perfil
-                          </span>
-                          <ChevronRight className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => router.push('/dashboard/addresses')}
-                          data-testid="dashboard-cta-addresses"
-                          className="w-full bg-white/20 backdrop-blur-sm hover:bg-white/30 border border-white/30 text-white font-medium py-3 rounded-xl transition-all flex items-center justify-between px-4"
-                        >
-                          <span className="flex items-center gap-2">
-                            <MapPin className="w-4 h-4" />
-                            Direcciones
-                          </span>
-                          <ChevronRight className="w-4 h-4" />
-                        </button>
-                      </div>
+                  <div className="bg-white rounded-2xl shadow-card border border-slate-100 p-5 sm:p-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-secondary-100 text-secondary-700">
+                        <Plus className="w-5 h-5" />
+                      </span>
+                      <h3 className="text-base sm:text-lg font-semibold text-slate-900">Acciones rápidas</h3>
+                    </div>
+                    <div className="space-y-2">
+                      <button
+                        onClick={() => router.push('/servicios')}
+                        data-testid="dashboard-cta-search-services"
+                        className="w-full bg-slate-50 hover:bg-slate-100 border border-slate-100 text-slate-900 font-medium py-3 rounded-xl transition-colors flex items-center justify-between px-4"
+                      >
+                        <span className="flex items-center gap-2 text-sm">
+                          <Search className="w-4 h-4 text-slate-500" />
+                          Buscar servicios
+                        </span>
+                        <ChevronRight className="w-4 h-4 text-slate-400" />
+                      </button>
+                      <button
+                        onClick={() => router.push('/profile')}
+                        data-testid="dashboard-cta-profile"
+                        className="w-full bg-slate-50 hover:bg-slate-100 border border-slate-100 text-slate-900 font-medium py-3 rounded-xl transition-colors flex items-center justify-between px-4"
+                      >
+                        <span className="flex items-center gap-2 text-sm">
+                          <User className="w-4 h-4 text-slate-500" />
+                          Mi perfil
+                        </span>
+                        <ChevronRight className="w-4 h-4 text-slate-400" />
+                      </button>
+                      <button
+                        onClick={() => router.push('/dashboard/addresses')}
+                        data-testid="dashboard-cta-addresses"
+                        className="w-full bg-slate-50 hover:bg-slate-100 border border-slate-100 text-slate-900 font-medium py-3 rounded-xl transition-colors flex items-center justify-between px-4"
+                      >
+                        <span className="flex items-center gap-2 text-sm">
+                          <MapPin className="w-4 h-4 text-slate-500" />
+                          Direcciones
+                        </span>
+                        <ChevronRight className="w-4 h-4 text-slate-400" />
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -1253,25 +1231,25 @@ export default function DashboardPage() {
 
           {activeTab === 'bookings' && (
             <div className="space-y-4 sm:space-y-6">
-              <div className="sticky top-14 sm:top-16 z-20 bg-gradient-to-r from-primary-50 via-white to-primary-50 rounded-2xl sm:rounded-3xl shadow-lg border border-primary-100 p-3 sm:p-6">
-                <div className="hidden sm:flex sm:flex-row gap-3 sm:gap-4">
+              <div className="sticky top-14 sm:top-16 z-20 bg-white rounded-2xl shadow-card border border-slate-100 p-3 sm:p-4">
+                <div className="hidden sm:flex sm:flex-row gap-3">
                   <div className="flex-1 relative">
-                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
                     <input
                       type="text"
                       placeholder="Buscar por servicio o dirección..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white"
+                      className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-full focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 transition-all bg-slate-50 focus:bg-white text-sm"
                     />
                   </div>
                   <div className="flex gap-2 flex-wrap items-center">
                     <button
                       onClick={() => setFilter('')}
-                      className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                      className={`px-4 py-2.5 rounded-full text-sm font-semibold transition-colors ${
                         filter === ''
-                          ? 'bg-gradient-to-r from-primary-600 to-primary-700 text-white shadow-lg shadow-primary-200'
-                          : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200'
+                          ? 'bg-primary-600 text-white shadow-card'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                       }`}
                     >
                       Todas ({bookings.length})
@@ -1280,10 +1258,10 @@ export default function DashboardPage() {
                       <button
                         key={key}
                         onClick={() => setFilter(key)}
-                        className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                        className={`px-4 py-2.5 rounded-full text-sm font-semibold transition-colors ${
                           filter === key
-                            ? 'bg-gradient-to-r from-primary-600 to-primary-700 text-white shadow-lg shadow-primary-200'
-                            : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200'
+                            ? 'bg-primary-600 text-white shadow-card'
+                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                         }`}
                       >
                         {statusLabels[key]} ({bookingFilterCounts[key] || 0})
@@ -1294,23 +1272,23 @@ export default function DashboardPage() {
 
                 <div className="sm:hidden space-y-2">
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <input
                       type="text"
                       placeholder="Buscar servicio o dirección..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-3 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-500"
+                      className="w-full rounded-full border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-500/30 focus:bg-white"
                     />
                   </div>
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs font-semibold text-gray-600">
+                    <p className="text-xs font-semibold text-slate-600">
                       {filteredBookings.length} resultados {filter ? `· ${statusLabels[filter]}` : '· Todas'}
                     </p>
                     <button
                       type="button"
                       onClick={() => setMobileStatusSheetOpen(true)}
-                      className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl border border-primary-200 bg-white px-3 text-xs font-semibold text-primary-700"
+                      className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700"
                     >
                       <Filter className="h-4 w-4" />
                       Estados
@@ -1325,28 +1303,31 @@ export default function DashboardPage() {
                     type="button"
                     aria-label="Cerrar filtros"
                     onClick={() => setMobileStatusSheetOpen(false)}
-                    className="absolute inset-0 bg-black/40"
+                    className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
                   />
-                  <div className="absolute bottom-0 left-0 right-0 rounded-t-2xl bg-white p-4 shadow-2xl">
+                  <div className="absolute bottom-0 left-0 right-0 rounded-t-3xl bg-white p-4 shadow-sheet pb-[env(safe-area-inset-bottom)]">
+                    <div className="flex justify-center pt-1 pb-2" aria-hidden="true">
+                      <span className="h-1.5 w-12 rounded-full bg-slate-200" />
+                    </div>
                     <div className="mb-3 flex items-center justify-between">
-                      <h4 className="text-sm font-bold text-gray-900">Filtrar por estado</h4>
+                      <h4 className="text-sm font-semibold text-slate-900">Filtrar por estado</h4>
                       <button
                         type="button"
                         onClick={() => setMobileStatusSheetOpen(false)}
-                        className="rounded-lg px-2 py-1 text-xs font-semibold text-gray-600"
+                        className="rounded-lg px-2 py-1 text-xs font-semibold text-slate-600"
                       >
                         Cerrar
                       </button>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">
+                    <div className="grid grid-cols-2 gap-2 pb-2">
                       <button
                         type="button"
                         onClick={() => {
                           setFilter('')
                           setMobileStatusSheetOpen(false)
                         }}
-                        className={`rounded-xl px-3 py-2 text-xs font-semibold ${
-                          filter === '' ? 'bg-primary-600 text-white' : 'border border-gray-200 bg-gray-50 text-gray-700'
+                        className={`rounded-full px-3 py-2 text-xs font-semibold transition-colors ${
+                          filter === '' ? 'bg-primary-600 text-white' : 'bg-slate-100 text-slate-700'
                         }`}
                       >
                         Todas ({bookings.length})
@@ -1359,8 +1340,8 @@ export default function DashboardPage() {
                             setFilter(key)
                             setMobileStatusSheetOpen(false)
                           }}
-                          className={`rounded-xl px-3 py-2 text-xs font-semibold ${
-                            filter === key ? 'bg-primary-600 text-white' : 'border border-gray-200 bg-gray-50 text-gray-700'
+                          className={`rounded-full px-3 py-2 text-xs font-semibold transition-colors ${
+                            filter === key ? 'bg-primary-600 text-white' : 'bg-slate-100 text-slate-700'
                           }`}
                         >
                           {statusLabels[key]} ({bookingFilterCounts[key] || 0})
@@ -1372,16 +1353,16 @@ export default function DashboardPage() {
               )}
 
               {filteredBookings.length === 0 ? (
-                <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg p-12 sm:p-16 text-center border border-gray-100">
-                  <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6">
-                    <Package className="text-gray-400 w-12 h-12" />
+                <div className="bg-white rounded-2xl shadow-card p-10 sm:p-14 text-center border border-slate-100">
+                  <div className="bg-slate-100 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
+                    <Package className="text-slate-400 w-9 h-9" />
                   </div>
-                  <p className="text-gray-900 text-xl font-bold mb-2">No hay reservas</p>
-                  <p className="text-gray-500 text-base">Aquí aparecerán tus reservas cuando realices alguna</p>
+                  <p className="text-slate-900 text-lg font-bold mb-1">No hay reservas</p>
+                  <p className="text-slate-500 text-sm">Aquí aparecerán tus reservas cuando realices alguna</p>
                   <button
                     type="button"
                     onClick={() => router.push('/servicios')}
-                    className="mt-5 inline-flex min-h-[44px] items-center justify-center rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-700"
+                    className="mt-5 inline-flex min-h-[44px] items-center justify-center rounded-full bg-primary-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-primary-700 shadow-card"
                   >
                     Explorar servicios
                   </button>
@@ -1487,36 +1468,36 @@ export default function DashboardPage() {
 
           {activeTab === 'favorites' && (
             <div className="space-y-4 sm:space-y-6">
-              <div className="bg-white rounded-2xl sm:rounded-3xl shadow-sm border border-gray-200 p-3 sm:p-4">
+              <div className="bg-white rounded-2xl shadow-card border border-slate-100 p-3 sm:p-4">
                 <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between mb-3">
-                  <div className="inline-flex rounded-xl bg-gray-100 p-1 w-fit">
+                  <div className="inline-flex rounded-full bg-slate-100 p-1 w-fit">
                     <button
                       onClick={() => setFavoritesView('partners')}
-                      className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
+                      className={`px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold transition-colors ${
                         favoritesView === 'partners'
-                          ? 'bg-white text-primary-700 shadow-sm'
-                          : 'text-gray-600'
+                          ? 'bg-white text-primary-700 shadow-card'
+                          : 'text-slate-600'
                       }`}
                     >
                       Socios ({favoritePartners.length})
                     </button>
                     <button
                       onClick={() => setFavoritesView('services')}
-                      className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
+                      className={`px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold transition-colors ${
                         favoritesView === 'services'
-                          ? 'bg-white text-primary-700 shadow-sm'
-                          : 'text-gray-600'
+                          ? 'bg-white text-primary-700 shadow-card'
+                          : 'text-slate-600'
                       }`}
                     >
                       Servicios ({favoriteServices.length})
                     </button>
                   </div>
                   <div className="flex items-center gap-2">
-                    <label className="text-xs text-gray-500">Ordenar</label>
+                    <label className="text-xs text-slate-500">Ordenar</label>
                     <select
                       value={favoritesSort}
                       onChange={(e) => setFavoritesSort(e.target.value as 'recent' | 'rating' | 'name')}
-                      className="text-xs sm:text-sm border border-gray-200 rounded-lg px-2 py-1.5 bg-white"
+                      className="text-xs sm:text-sm border border-slate-200 rounded-full px-3 py-1.5 bg-white"
                     >
                       <option value="recent">Recientes</option>
                       <option value="rating">Mejor valorados</option>
@@ -1525,28 +1506,28 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                   <input
                     type="text"
                     value={favoritesSearch}
                     onChange={(e) => setFavoritesSearch(e.target.value)}
                     placeholder={favoritesView === 'partners' ? 'Buscar socio o servicio...' : 'Buscar servicio o categoría...'}
-                    className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    className="w-full pl-9 pr-3 py-2.5 text-sm border border-slate-200 rounded-full bg-slate-50 focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 focus:bg-white"
                   />
                 </div>
               </div>
 
               {favoritesView === 'partners' ? (
                 filteredFavoritePartners.length === 0 ? (
-                  <div className="bg-white rounded-2xl sm:rounded-3xl shadow-sm p-10 sm:p-14 text-center border border-gray-200">
-                    <div className="bg-primary-50 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
-                      <Heart size={34} className="text-primary-500" />
+                  <div className="bg-white rounded-2xl shadow-card p-10 sm:p-14 text-center border border-slate-100">
+                    <div className="bg-accent-100 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
+                      <Heart size={32} className="text-accent-600" />
                     </div>
-                    <p className="text-gray-900 text-lg font-bold mb-1">No tienes socios favoritos</p>
-                    <p className="text-gray-500 text-sm sm:text-base mb-5">Guarda profesionales para contratarlos más rápido.</p>
+                    <p className="text-slate-900 text-lg font-bold mb-1">No tienes socios favoritos</p>
+                    <p className="text-slate-500 text-sm sm:text-base mb-5">Guarda profesionales para contratarlos más rápido.</p>
                     <button
                       onClick={() => router.push('/servicios')}
-                      className="bg-primary-600 text-white px-6 py-2.5 rounded-xl hover:bg-primary-700 transition-all font-semibold"
+                      className="bg-primary-600 text-white px-6 py-2.5 rounded-full hover:bg-primary-700 transition-colors font-semibold shadow-card"
                     >
                       Explorar servicios
                     </button>
@@ -1556,22 +1537,22 @@ export default function DashboardPage() {
                     {filteredFavoritePartners.map((favorite) => {
                       const partner = favorite.partner
                       return (
-                        <div key={favorite.id} className="bg-white border border-gray-200 rounded-2xl p-3.5 sm:p-4 shadow-sm">
+                        <div key={favorite.id} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-card">
                           <div className="flex items-start gap-3">
-                            <div className="w-12 h-12 rounded-xl bg-primary-50 border border-primary-100 flex items-center justify-center font-bold text-primary-700 text-lg shrink-0">
+                            <div className="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center font-bold text-primary-700 text-lg shrink-0">
                               {partner.user.name?.charAt(0) || 'P'}
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2 mb-1">
-                                <p className="font-semibold text-sm sm:text-base text-gray-900 truncate">{partner.user.name}</p>
+                                <p className="font-semibold text-sm sm:text-base text-slate-900 truncate">{partner.user.name}</p>
                                 {partner.verified && <ShieldCheck size={14} className="text-emerald-600 shrink-0" />}
                               </div>
-                              <div className="flex items-center gap-1.5 text-xs sm:text-sm text-gray-600 mb-2">
-                                <Star size={14} className="text-yellow-500 fill-yellow-500" />
+                              <div className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-600 mb-2">
+                                <Star size={14} className="text-amber-500 fill-amber-500" />
                                 <span>{partner.rating.toFixed(1)}</span>
-                                <span>({partner.totalReviews})</span>
+                                <span className="text-slate-400">({partner.totalReviews})</span>
                               </div>
-                              <p className="text-xs text-gray-500 truncate">
+                              <p className="text-xs text-slate-500 truncate">
                                 {(partner.services || []).slice(0, 2).map((ps: any) => ps.service.name).join(' · ') || 'Sin servicios visibles'}
                               </p>
                             </div>
@@ -1579,13 +1560,13 @@ export default function DashboardPage() {
                           <div className="mt-3 grid grid-cols-2 gap-2">
                             <button
                               onClick={() => handleFavoritePartnerRequest(partner)}
-                              className="w-full bg-primary-600 text-white px-3 py-2.5 rounded-xl hover:bg-primary-700 transition-all text-sm font-semibold disabled:opacity-50"
+                              className="w-full bg-primary-600 text-white px-3 py-2.5 rounded-full hover:bg-primary-700 transition-colors text-sm font-semibold disabled:opacity-50"
                             >
                               Solicitar
                             </button>
                             <button
                               onClick={() => removeFavorite(partner.id)}
-                              className="w-full bg-white border border-gray-300 text-gray-700 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-all text-sm font-medium"
+                              className="w-full bg-white border border-slate-200 text-slate-700 px-3 py-2.5 rounded-full hover:bg-slate-50 transition-colors text-sm font-medium"
                             >
                               Quitar
                             </button>
@@ -1597,15 +1578,15 @@ export default function DashboardPage() {
                 )
               ) : (
                 filteredFavoriteServices.length === 0 ? (
-                  <div className="bg-white rounded-2xl sm:rounded-3xl shadow-sm p-10 sm:p-14 text-center border border-gray-200">
-                    <div className="bg-primary-50 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
-                      <Heart size={34} className="text-primary-500" />
+                  <div className="bg-white rounded-2xl shadow-card p-10 sm:p-14 text-center border border-slate-100">
+                    <div className="bg-accent-100 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
+                      <Heart size={32} className="text-accent-600" />
                     </div>
-                    <p className="text-gray-900 text-lg font-bold mb-1">No tienes servicios favoritos</p>
-                    <p className="text-gray-500 text-sm sm:text-base mb-5">Marca servicios para volver a contratarlos en segundos.</p>
+                    <p className="text-slate-900 text-lg font-bold mb-1">No tienes servicios favoritos</p>
+                    <p className="text-slate-500 text-sm sm:text-base mb-5">Marca servicios para volver a contratarlos en segundos.</p>
                     <button
                       onClick={() => router.push('/servicios')}
-                      className="bg-primary-600 text-white px-6 py-2.5 rounded-xl hover:bg-primary-700 transition-all font-semibold"
+                      className="bg-primary-600 text-white px-6 py-2.5 rounded-full hover:bg-primary-700 transition-colors font-semibold shadow-card"
                     >
                       Explorar servicios
                     </button>
@@ -1615,31 +1596,31 @@ export default function DashboardPage() {
                     {filteredFavoriteServices.map((favorite) => {
                       const service = favorite.service
                       return (
-                        <div key={favorite.id} className="bg-white border border-gray-200 rounded-2xl p-3.5 sm:p-4 shadow-sm">
+                        <div key={favorite.id} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-card">
                           <div className="flex items-start justify-between gap-3 mb-2">
                             <div className="flex items-start gap-3 min-w-0">
-                              <div className="w-12 h-12 rounded-xl bg-primary-50 border border-primary-100 flex items-center justify-center shrink-0">
+                              <div className="w-12 h-12 rounded-2xl bg-primary-50 flex items-center justify-center shrink-0">
                                 <ServiceIcon slug={service.slug} emoji={service.icon} size="sm" />
                               </div>
                               <div className="min-w-0">
-                                <p className="font-semibold text-sm sm:text-base text-gray-900 truncate">{service.name}</p>
-                                <p className="text-xs text-gray-500">{service.category.name}</p>
+                                <p className="font-semibold text-sm sm:text-base text-slate-900 truncate">{service.name}</p>
+                                <p className="text-xs text-slate-500">{service.category.name}</p>
                               </div>
                             </div>
                             <button
                               onClick={() => removeFavoriteService(service.id)}
-                              className="shrink-0 p-2 rounded-lg bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
+                              className="shrink-0 p-2 rounded-full bg-accent-50 text-accent-600 hover:bg-accent-100 transition-colors"
                               title="Quitar de favoritos"
                             >
                               <Heart size={16} fill="currentColor" />
                             </button>
                           </div>
-                          <p className="text-xs text-gray-500 mb-3">
+                          <p className="text-xs text-slate-500 mb-3">
                             {favorite.partners?.length || 0} {(favorite.partners?.length || 0) === 1 ? 'socio disponible' : 'socios disponibles'}
                           </p>
                           <button
                             onClick={() => router.push(`/servicios/${service.slug}`)}
-                            className="w-full bg-primary-600 text-white px-3 py-2.5 rounded-xl hover:bg-primary-700 transition-all text-sm font-semibold"
+                            className="w-full bg-primary-600 text-white px-3 py-2.5 rounded-full hover:bg-primary-700 transition-colors text-sm font-semibold"
                           >
                             Ver servicio
                           </button>
@@ -1654,15 +1635,15 @@ export default function DashboardPage() {
 
           {activeTab === 'requests' && (
             <div className="space-y-4 sm:space-y-6">
-              <div className="bg-white rounded-2xl sm:rounded-3xl shadow-sm border border-gray-200 p-3 sm:p-4">
+              <div className="bg-white rounded-2xl shadow-card border border-slate-100 p-3 sm:p-4">
                 <div className="relative mb-3">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input
                     type="text"
                     placeholder="Buscar por servicio o dirección..."
                     value={requestSearchTerm}
                     onChange={(e) => setRequestSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 text-sm sm:text-base border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-gray-50"
+                    className="w-full pl-10 pr-4 py-2.5 text-sm sm:text-base border border-slate-200 rounded-full focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 transition-all bg-slate-50 focus:bg-white"
                   />
                 </div>
                 <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
@@ -1678,15 +1659,15 @@ export default function DashboardPage() {
                       <button
                         key={option.value}
                         onClick={() => setRequestStatusFilter(option.value)}
-                        className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs sm:text-sm border transition-all ${
+                        className={`shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs sm:text-sm font-semibold transition-colors ${
                           isActive
-                            ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
-                            : 'bg-white text-gray-700 border-gray-200 hover:border-primary-200'
+                            ? 'bg-primary-600 text-white shadow-card'
+                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                         }`}
                       >
                         <span>{option.label}</span>
                         <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${
-                          isActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+                          isActive ? 'bg-white/20 text-white' : 'bg-white text-slate-600'
                         }`}>
                           {option.count}
                         </span>
@@ -1697,12 +1678,12 @@ export default function DashboardPage() {
               </div>
 
               {filteredRequests.length === 0 ? (
-                <div className="bg-white rounded-2xl sm:rounded-3xl shadow-sm p-10 sm:p-14 text-center border border-gray-200">
-                  <div className="bg-primary-50 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
-                    <AlertCircle className="text-primary-500 w-10 h-10" />
+                <div className="bg-white rounded-2xl shadow-card p-10 sm:p-14 text-center border border-slate-100">
+                  <div className="bg-primary-100 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
+                    <AlertCircle className="text-primary-600 w-9 h-9" />
                   </div>
-                  <p className="text-gray-900 text-lg font-bold mb-1">No hay solicitudes para este filtro</p>
-                  <p className="text-gray-500 text-sm sm:text-base">Prueba con otro estado o crea una nueva solicitud.</p>
+                  <p className="text-slate-900 text-lg font-bold mb-1">No hay solicitudes para este filtro</p>
+                  <p className="text-slate-500 text-sm">Prueba con otro estado o crea una nueva solicitud.</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-3 sm:gap-4">
@@ -1741,7 +1722,7 @@ export default function DashboardPage() {
                     return (
                       <div
                         key={request.id}
-                        className="bg-white rounded-2xl sm:rounded-3xl border border-gray-200 shadow-sm p-4 sm:p-5"
+                        className="bg-white rounded-2xl border border-slate-100 shadow-card p-4 sm:p-5"
                       >
                         <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                           <div className="flex items-center gap-2">
@@ -1901,7 +1882,7 @@ export default function DashboardPage() {
                                       <button
                                         onClick={() => acceptProposal(proposal.id, proposal.partner.user.name, proposal.price)}
                                         disabled={session?.user?.isActive === false}
-                                        className="w-full sm:flex-1 bg-secondary-500 text-white px-3 py-2.5 rounded-xl hover:bg-secondary-600 transition-all font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="w-full sm:flex-1 bg-emerald-600 text-white px-3 py-2.5 rounded-full hover:bg-emerald-700 transition-colors font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-card"
                                       >
                                         <CheckCircle size={16} />
                                         Aceptar propuesta
@@ -1916,7 +1897,7 @@ export default function DashboardPage() {
                                           serviceName: request.service.name
                                         })}
                                         disabled={session?.user?.isActive === false}
-                                        className={`w-full ${canAccept ? 'sm:flex-1' : ''} bg-white border border-primary-300 text-primary-700 px-3 py-2.5 rounded-xl hover:bg-primary-50 transition-all font-medium text-sm flex items-center justify-center gap-2 relative disabled:opacity-50 disabled:cursor-not-allowed`}
+                                        className={`w-full ${canAccept ? 'sm:flex-1' : ''} bg-white border border-primary-200 text-primary-700 px-3 py-2.5 rounded-full hover:bg-primary-50 transition-colors font-medium text-sm flex items-center justify-center gap-2 relative disabled:opacity-50 disabled:cursor-not-allowed`}
                                       >
                                         <MessageCircle size={16} />
                                         Chat
