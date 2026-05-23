@@ -18,9 +18,17 @@
 - **Smoke 3 paneles**: `/test-panels` (Playwright MCP).
 
 ### 3. Deploy
-- `git push origin main` → Vercel auto-deploya (proyecto `haggo`).
-- `vercel.json` tiene `ignoreCommand`: builds se **saltan automáticamente** si solo cambian `.claude/`, `.github/`, `.vscode/`, `*.md` o `.gitignore`. Así no se desperdician deploys cuando solo se ajusta tooling.
+- `git push origin main` → Vercel auto-deploya. **Proyecto correcto**: `https://vercel.com/johns-projects-f95052f7/lohaggo` (NO `pasos-al-exitos-projects/haggo`, ese es viejo).
+- `vercel.json` tiene `ignoreCommand` (`scripts/vercel-should-build.sh`): builds se **saltan automáticamente** si solo cambian `.claude/`, `.github/`, `.vscode/`, `*.md`, `.gitignore` o el propio script.
+- **`.vercelignore` y `vercel.json` SÍ disparan build** (cambian build env / config). Cambios ahí deben ser pequeños y verificados antes de pushear.
 - **Nunca** `git push --force` a `main` (bloqueado por hook).
+
+#### Reglas duras aprendidas (incidente del 2026-05-23 — build falló por `.vercelignore` mal configurado)
+- ❌ **NUNCA** poner `*.sql` ni `prisma/` en `.vercelignore`. Las migraciones de Prisma deben llegar al build environment de Vercel; excluirlas rompe el deploy.
+- ❌ **NUNCA** poner `scripts/vercel-should-build.sh` (o cualquier script que Vercel ejecute como `ignoreCommand` / `buildCommand`) en `.vercelignore`. Se eliminaría a sí mismo antes de ejecutarse.
+- ✅ Cuando edites `scripts/vercel-should-build.sh` o `.vercelignore`, **siempre** correr `bash scripts/vercel-should-build.sh` localmente antes de pushear, y verificar exit code esperado (0 = skip, 1 = build).
+- ✅ Si un commit de tooling-only se debe saltar, validar con `git diff --name-only HEAD^ HEAD` que solo aparecen archivos en la lista de skip.
+- ✅ Tras un push, si quieres confirmar que el build se completó/saltó: `curl -s "https://api.github.com/repos/johnwainer/lohaggo/commits/<sha>/status"` muestra el estado de Vercel sin necesidad del dashboard.
 
 ### 4. Dirección de diseño y producto
 
