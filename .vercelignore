@@ -21,5 +21,4 @@ test-results/
 *.sql
 sql-migrations/
 
-# Local scripts that should never run in build
-scripts/vercel-should-build.sh
+# NOTE: scripts/vercel-should-build.sh is NOT ignored — Vercel's ignoreCommand needs it.
