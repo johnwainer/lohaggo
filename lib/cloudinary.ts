@@ -112,28 +112,38 @@ class CloudinaryService {
   }
 
   /**
-   * Build a signed delivery URL from a stored Cloudinary documentUrl.
-   * Required for accounts that restrict PDF/raw delivery to signed URLs only.
-   * Returns the original URL untouched if it can't be parsed.
+   * Returns an admin-signed download URL for a stored asset. Bypasses delivery
+   * restrictions (e.g. PDF/raw block) because it hits the authenticated admin
+   * API, not the public CDN. URL expires after `expiresInSeconds`.
+   * Returns null if Cloudinary isn't configured or the URL can't be parsed.
    */
-  public getSignedDeliveryUrl(documentUrl: string): string {
-    if (!this.isEnabled() || !this.config) return documentUrl
+  public getPrivateDownloadUrl(
+    documentUrl: string,
+    publicId: string,
+    expiresInSeconds = 300
+  ): string | null {
+    if (!this.isEnabled() || !this.config) return null
 
     const match = documentUrl.match(
-      /^(https:\/\/res\.cloudinary\.com\/[^/]+\/(?:image|raw|video)\/upload\/)(v\d+\/.+)$/
+      /^https:\/\/res\.cloudinary\.com\/[^/]+\/(image|raw|video)\/upload\//
     )
-    if (!match) return documentUrl
+    if (!match) return null
 
-    const [, prefix, tail] = match
-    if (tail.startsWith('s--')) return documentUrl
+    const resourceType = match[1]
+    const expiresAt = Math.floor(Date.now() / 1000) + expiresInSeconds
 
-    const sig = crypto
-      .createHash('sha1')
-      .update(tail + this.config.apiSecret)
-      .digest('hex')
-      .substring(0, 8)
+    const params: Record<string, string | number> = {
+      expires_at: expiresAt,
+      public_id: publicId,
+    }
+    const signature = this.generateSignature(params)
 
-    return `${prefix}s--${sig}--/${tail}`
+    const u = new URL(`https://api.cloudinary.com/v1_1/${this.config.cloudName}/${resourceType}/download`)
+    u.searchParams.set('api_key', this.config.apiKey)
+    u.searchParams.set('expires_at', String(expiresAt))
+    u.searchParams.set('public_id', publicId)
+    u.searchParams.set('signature', signature)
+    return u.toString()
   }
 
   public async delete(publicId: string): Promise<void> {

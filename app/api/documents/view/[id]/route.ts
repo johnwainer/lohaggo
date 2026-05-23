@@ -31,9 +31,14 @@ export async function GET(
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
-  // Sign delivery URL — required for accounts that restrict PDF/raw to signed URLs.
-  // No-op when the URL already has a signature or signing isn't configured.
-  let fetchUrl = cloudinaryService.getSignedDeliveryUrl(document.documentUrl)
+  // For PDFs use the authenticated admin download endpoint — bypasses
+  // Cloudinary's "Restricted media types" block. For images use the CDN URL.
+  const isPdfUrl = document.documentUrl.endsWith('.pdf')
+  let fetchUrl = document.documentUrl
+  if (isPdfUrl && document.publicId) {
+    const privateUrl = cloudinaryService.getPrivateDownloadUrl(document.documentUrl, document.publicId)
+    if (privateUrl) fetchUrl = privateUrl
+  }
 
   try {
     const response = await fetch(fetchUrl)
