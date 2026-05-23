@@ -10,6 +10,7 @@ if ! git rev-parse HEAD^ >/dev/null 2>&1; then
 fi
 
 # Check if there are changes OUTSIDE the ignored paths.
+# Important: .vercelignore and vercel.json affect build config — they DO trigger a build.
 # git diff exits 0 = no diff, 1 = diff found.
 if git diff --quiet HEAD^ HEAD -- \
   ':!.claude' \
@@ -17,11 +18,10 @@ if git diff --quiet HEAD^ HEAD -- \
   ':!.vscode' \
   ':!*.md' \
   ':!.gitignore' \
-  ':!.vercelignore' \
   ':!scripts/vercel-should-build.sh' ; then
   echo "[vercel-should-build] only tooling/docs changed — skipping build"
   exit 0
 else
-  echo "[vercel-should-build] app code changed — proceeding with build"
+  echo "[vercel-should-build] app/build config changed — proceeding with build"
   exit 1
 fi

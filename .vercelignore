@@ -17,8 +17,8 @@ CLAUDE.md
 playwright-report/
 test-results/
 
-# Local SQL scratch files
-*.sql
+# Local SQL scratch files (but NOT prisma migrations — those must stay in build env)
+docs/sql/
 sql-migrations/
 
 # NOTE: scripts/vercel-should-build.sh is NOT ignored — Vercel's ignoreCommand needs it.
