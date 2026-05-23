@@ -130,11 +130,13 @@ class CloudinaryService {
     if (!match) return null
 
     const resourceType = match[1]
-    const expiresAt = Math.floor(Date.now() / 1000) + expiresInSeconds
+    const timestamp = Math.floor(Date.now() / 1000)
+    const expiresAt = timestamp + expiresInSeconds
 
     const params: Record<string, string | number> = {
       expires_at: expiresAt,
       public_id: publicId,
+      timestamp,
     }
     const signature = this.generateSignature(params)
 
@@ -142,6 +144,7 @@ class CloudinaryService {
     u.searchParams.set('api_key', this.config.apiKey)
     u.searchParams.set('expires_at', String(expiresAt))
     u.searchParams.set('public_id', publicId)
+    u.searchParams.set('timestamp', String(timestamp))
     u.searchParams.set('signature', signature)
     return u.toString()
   }
