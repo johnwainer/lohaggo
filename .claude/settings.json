@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'CMD=\"$CLAUDE_TOOL_INPUT\"; if echo \"$CMD\" | grep -qE \"prisma[[:space:]]+(migrate|db[[:space:]]+push)\"; then echo \"BLOCKED: prisma migrate/db push contra prod no permitido. Usa /sql-migration para SQL manual.\" >&2; exit 2; fi; if echo \"$CMD\" | grep -qE \"git[[:space:]]+push[[:space:]]+.*--force|git[[:space:]]+push[[:space:]]+-f([[:space:]]|$)\"; then echo \"BLOCKED: force-push requiere autorización explícita del usuario.\" >&2; exit 2; fi'"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'INPUT=\"$CLAUDE_TOOL_INPUT\"; if echo \"$INPUT\" | grep -q \"prisma/schema.prisma\"; then echo \"⚠️  schema.prisma cambió — genera SQL standalone con /sql-migration y entrégalo al usuario para Supabase.\" >&2; fi; if echo \"$INPUT\" | grep -qE \"app/api/(bookings|proposals|service-requests|payments)|lib/auth\\.ts\"; then echo \"⚠️  API/auth compartida tocada — considera correr el subagent panel-impact-reviewer antes de cerrar.\" >&2; fi'"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "osascript -e 'display notification \"Tarea terminada\" with title \"Haggo · Claude\" sound name \"Glass\"' 2>/dev/null || true"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(npx prisma format)",
+      "Bash(npx prisma generate)",
+      "Bash(npx tsc *)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)",
+      "Bash(git branch*)",
+      "Bash(git stash*)",
+      "Bash(git add *)",
+      "Bash(git check-ignore *)",
+      "Bash(ls*)",
+      "Bash(grep*)",
+      "Bash(find*)",
+      "Bash(wc*)",
+      "Bash(chmod +x *)",
+      "Bash(mkdir -p *)"
+    ],
+    "deny": [
+      "Bash(npx prisma migrate *)",
+      "Bash(npx prisma db push *)",
+      "Bash(prisma migrate *)",
+      "Bash(prisma db push *)",
+      "Bash(git push --force*)",
+      "Bash(git push -f *)",
+      "Bash(git reset --hard *)",
+      "Bash(rm -rf /*)"
+    ],
+    "ask": [
+      "Read(.env)",
+      "Read(.env.production)",
+      "Read(.env.local)"
+    ]
+  }
+}

@@ -77,7 +77,7 @@
 - **Panel de Seguridad Admin**: Gestión en `/admin/security` con eventos y estado de bloqueos
 
 ### Diseño y UX
-- **Diseño Moderno** inspirado en Uber y Rappi
+- **Diseño Moderno** inspirado en Rappi (catálogo + cards + bottom nav, mobile-first)
 - **Responsive**: Funciona perfectamente en móviles, tablets y escritorio
 - **Interfaz Intuitiva**: Navegación clara y simple
 - **Retroalimentación Visual**: Estados de carga, confirmaciones y errores claros

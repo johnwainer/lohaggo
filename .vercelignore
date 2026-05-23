@@ -1,0 +1,25 @@
+# Files NOT uploaded to Vercel build environment (saves bandwidth + avoids leaking dev config).
+# Note: .gitignore already excludes these from the repo, but defense in depth.
+
+# Claude Code local config (subagents, slash commands, hooks)
+.claude/
+
+# IDE config
+.vscode/
+.idea/
+
+# Local documentation (contains test credentials)
+PROJECT.md
+CLAUDE.md
+
+# Test artifacts
+.playwright-mcp/
+playwright-report/
+test-results/
+
+# Local SQL scratch files
+*.sql
+sql-migrations/
+
+# Local scripts that should never run in build
+scripts/vercel-should-build.sh

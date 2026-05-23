@@ -1,0 +1,55 @@
+name: Claude PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  issue_comment:
+    types: [created]
+
+# Allow Claude to comment on PRs and read repo contents.
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  id-token: write
+
+jobs:
+  claude-review:
+    # Run on PRs OR when someone mentions @claude in a comment.
+    if: |
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Claude Code review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Optional: pin model. Omit to use action default.
+          # model: claude-opus-4-7
+          # Pre-defined review prompt tuned for Haggo.
+          prompt: |
+            You are reviewing a PR for the Haggo / LoHaggo project (Next.js + Prisma + Supabase marketplace).
+
+            CRITICAL RULES of this project:
+            1. Never approve `prisma migrate` or `prisma db push` against prod. DB changes need a manual SQL script.
+            2. Three panels share one DB (CLIENT /dashboard, PARTNER /partner, ADMIN /admin). Verify role-based filtering in any shared API.
+            3. Sensitive: payments (MercadoPago), KYC documents, bank accounts, PII (cédula, phone).
+
+            Review priorities:
+            - Security: auth gate present, role check matches panel, ownership filter on resources, no hardcoded secrets, no PII in logs.
+            - Cross-panel impact: changes to `app/api/bookings`, `/proposals`, `/service-requests`, `/payments`, `lib/auth.ts`, or `prisma/schema.prisma` must consider all 3 panels.
+            - DB safety: schema changes must have a matching `migrations/*.sql` file (idempotent + rollback).
+            - Type safety: surface any TS issues, missing await, missing error handling on critical paths.
+
+            Be concise. Use file:line references. Comment only on real issues — do not nitpick style.
+
+            If you find a CRITICAL or HIGH issue, explicitly say "REQUEST CHANGES" at the top of the review.
+            If everything is fine, say "LGTM" with a one-line summary.

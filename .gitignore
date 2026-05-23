@@ -71,3 +71,11 @@ ios/App/App/public/
 docs/sql/
 sql-migrations/
 .playwright-mcp/
+
+# Local project documentation (contains test credentials — do not commit)
+# Note: CLAUDE.md IS committed (it's the rules file Claude Code loads; no secrets in it)
+PROJECT.md
+
+# Claude Code local overrides (contain personal tokens/permissions)
+.claude/settings.local.json
+.claude/worktrees/
