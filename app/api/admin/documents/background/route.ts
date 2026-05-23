@@ -31,7 +31,6 @@ export async function POST(req: NextRequest) {
     if (!fileCheck.ok) {
       return NextResponse.json({ error: fileCheck.error }, { status: 400 })
     }
-    const { isPdf } = fileCheck
 
     const partnerProfile = await prisma.partnerProfile.findUnique({
       where: { id: partnerId },
@@ -53,8 +52,9 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const resourceType = isPdf ? 'raw' : 'image'
-    const { url, publicId } = await cloudinaryService.upload(file, 'lohaggo/documents/background', resourceType)
+    // Always use image resource_type so PDFs can be transformed (pg_1.jpg)
+    // to bypass Cloudinary's restricted-PDF delivery block.
+    const { url, publicId } = await cloudinaryService.upload(file, 'lohaggo/documents/background', 'image')
 
     const document = await prisma.verificationDocument.create({
       data: {

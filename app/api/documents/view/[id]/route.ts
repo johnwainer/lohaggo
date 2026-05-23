@@ -30,15 +30,31 @@ export async function GET(
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
-  const fetchUrl = document.documentUrl
+  // PDFs hosted under /image/upload/ can be served as JPG via the pg_1
+  // transform, which bypasses Cloudinary's "Restricted media types: PDF"
+  // block. Old raw-uploaded PDFs (/raw/upload/) cannot be transformed and
+  // require either a re-upload or the Cloudinary dashboard toggle.
+  const url = new URL(req.url)
+  const requestedPage = Math.max(1, Math.min(20, Number(url.searchParams.get('page') || '1') || 1))
+  const isImagePdf = document.documentUrl.includes('/image/upload/') && document.documentUrl.endsWith('.pdf')
+  const isRawPdf = document.documentUrl.includes('/raw/upload/') && document.documentUrl.endsWith('.pdf')
+
+  let fetchUrl = document.documentUrl
+  let forcePdfHeader = false
+
+  if (isImagePdf) {
+    fetchUrl = document.documentUrl
+      .replace('/image/upload/', `/image/upload/pg_${requestedPage}/`)
+      .replace(/\.pdf$/, '.jpg')
+  }
 
   try {
     const response = await fetch(fetchUrl)
     if (!response.ok) {
-      if (response.status === 401 && fetchUrl.endsWith('.pdf')) {
+      if (response.status === 401 && isRawPdf) {
         return NextResponse.json(
           {
-            error: 'Cloudinary está bloqueando la entrega de PDFs. Activa "Allow delivery of PDF and ZIP files" en Settings → Security del dashboard de Cloudinary.',
+            error: 'PDF antiguo subido como "raw" — Cloudinary bloquea su entrega y no se puede transformar. El socio debe re-subirlo (los uploads nuevos ya usan formato compatible) o activa el toggle "Allow delivery of PDF and ZIP files" en el dashboard de Cloudinary.',
           },
           { status: 502 }
         )
@@ -48,9 +64,8 @@ export async function GET(
 
     const buffer = await response.arrayBuffer()
 
-    // Detect content type: prefer what Cloudinary returns, fallback by URL
     const upstreamType = response.headers.get('content-type') || ''
-    const isPdf = fetchUrl.endsWith('.pdf') || fetchUrl.includes('/raw/upload/') || upstreamType.includes('pdf')
+    const isPdf = forcePdfHeader || (!isImagePdf && (fetchUrl.endsWith('.pdf') || fetchUrl.includes('/raw/upload/') || upstreamType.includes('pdf')))
     const contentType = isPdf ? 'application/pdf' : upstreamType || 'image/jpeg'
     const filename = isPdf ? 'documento.pdf' : 'documento.jpg'
 

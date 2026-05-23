@@ -64,7 +64,6 @@ export async function POST(req: NextRequest) {
     if (!fileCheck.ok) {
       return NextResponse.json({ error: fileCheck.error }, { status: 400 })
     }
-    const { isPdf } = fileCheck
 
     // Validate partnerServiceId belongs to this partner if provided
     if (partnerServiceId) {
@@ -74,8 +73,10 @@ export async function POST(req: NextRequest) {
       if (!ps) return NextResponse.json({ error: 'Servicio inválido' }, { status: 400 })
     }
 
-    const resourceType = isPdf ? 'raw' : 'image'
-    const { url, publicId } = await cloudinaryService.upload(file, 'lohaggo/documents', resourceType)
+    // Use image resource_type for everything (including PDFs) so we can apply
+    // transformations (e.g. pg_1.jpg) to serve PDFs as images and bypass
+    // Cloudinary's "Restricted media types: PDF" delivery block.
+    const { url, publicId } = await cloudinaryService.upload(file, 'lohaggo/documents', 'image')
 
     const document = await prisma.verificationDocument.create({
       data: {
