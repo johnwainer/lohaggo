@@ -111,6 +111,31 @@ class CloudinaryService {
     }
   }
 
+  /**
+   * Build a signed delivery URL from a stored Cloudinary documentUrl.
+   * Required for accounts that restrict PDF/raw delivery to signed URLs only.
+   * Returns the original URL untouched if it can't be parsed.
+   */
+  public getSignedDeliveryUrl(documentUrl: string): string {
+    if (!this.isEnabled() || !this.config) return documentUrl
+
+    const match = documentUrl.match(
+      /^(https:\/\/res\.cloudinary\.com\/[^/]+\/(?:image|raw|video)\/upload\/)(v\d+\/.+)$/
+    )
+    if (!match) return documentUrl
+
+    const [, prefix, tail] = match
+    if (tail.startsWith('s--')) return documentUrl
+
+    const sig = crypto
+      .createHash('sha1')
+      .update(tail + this.config.apiSecret)
+      .digest('hex')
+      .substring(0, 8)
+
+    return `${prefix}s--${sig}--/${tail}`
+  }
+
   public async delete(publicId: string): Promise<void> {
     if (!this.isEnabled() || !this.config) {
       throw new Error('Cloudinary service is not configured')

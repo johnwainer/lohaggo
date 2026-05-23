@@ -10,6 +10,20 @@ import {
 import Modal from '@/components/Modal'
 import ServiceIcon from '@/components/ServiceIcon'
 import AccountTopHeader from '@/components/shared/AccountTopHeader'
+import { compressImageIfNeeded } from '@/lib/client-image-compress'
+
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024 // Vercel serverless body limit (~4.5MB), leave headroom for multipart boundaries
+
+async function parseUploadError(res: Response): Promise<string> {
+  if (res.status === 413) return 'El archivo es demasiado grande. Máx. 4 MB para PDF (las imágenes se comprimen automáticamente).'
+  try {
+    const data = await res.json()
+    if (data?.error) return String(data.error)
+  } catch {
+    // not JSON
+  }
+  return `Error al subir el documento (código ${res.status}). Intenta de nuevo.`
+}
 
 interface Document {
   id: string
@@ -75,6 +89,7 @@ export default function VerificationPage() {
   const [uploadingCompanyDoc, setUploadingCompanyDoc] = useState(false)
   const [companyFile, setCompanyFile] = useState<File | null>(null)
   const [editingCompanyInfo, setEditingCompanyInfo] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
 
   useEffect(() => {
     if (status === 'authenticated' && session?.user?.role !== 'PARTNER') {
@@ -161,9 +176,15 @@ export default function VerificationPage() {
   const handleCompanyDocUpload = async () => {
     if (!companyFile) return
     setUploadingCompanyDoc(true)
+    setCompanyMsg(null)
     try {
+      const compressed = await compressImageIfNeeded(companyFile)
+      if (compressed.size > MAX_UPLOAD_BYTES) {
+        setCompanyMsg({ type: 'err', text: 'El archivo es demasiado grande. Máx. 4 MB para PDF.' })
+        return
+      }
       const formData = new FormData()
-      formData.append('file', companyFile)
+      formData.append('file', compressed)
       formData.append('type', 'CAMARA_COMERCIO')
       const res = await fetch('/api/partner/documents', { method: 'POST', body: formData })
       if (res.ok) {
@@ -171,8 +192,12 @@ export default function VerificationPage() {
         setCompanyFile(null)
         setCompanyMsg({ type: 'ok', text: 'Documento enviado — el equipo lo revisará pronto' })
         setTimeout(() => setCompanyMsg(null), 4000)
+      } else {
+        setCompanyMsg({ type: 'err', text: await parseUploadError(res) })
       }
-    } catch { /* silent */ } finally {
+    } catch {
+      setCompanyMsg({ type: 'err', text: 'Error de red. Verifica tu conexión e intenta de nuevo.' })
+    } finally {
       setUploadingCompanyDoc(false)
     }
   }
@@ -192,6 +217,7 @@ export default function VerificationPage() {
     setSelectedServiceId('')
     setSelectedFile(null)
     setPreviewUrl(null)
+    setUploadError(null)
     setShowUploadModal(true)
   }
 
@@ -207,9 +233,15 @@ export default function VerificationPage() {
   const handleUpload = async () => {
     if (!selectedFile || !selectedType) return
     setUploading(true)
+    setUploadError(null)
     try {
+      const compressed = await compressImageIfNeeded(selectedFile)
+      if (compressed.size > MAX_UPLOAD_BYTES) {
+        setUploadError('El archivo es demasiado grande. Máx. 4 MB para PDF (las imágenes se comprimen automáticamente).')
+        return
+      }
       const formData = new FormData()
-      formData.append('file', selectedFile)
+      formData.append('file', compressed)
       formData.append('type', selectedType)
       if (selectedServiceId) formData.append('partnerServiceId', selectedServiceId)
       const res = await fetch('/api/partner/documents', { method: 'POST', body: formData })
@@ -219,8 +251,12 @@ export default function VerificationPage() {
         setSelectedFile(null)
         setPreviewUrl(null)
         setSelectedType('')
+      } else {
+        setUploadError(await parseUploadError(res))
       }
-    } catch { /* silent */ } finally {
+    } catch {
+      setUploadError('Error de red. Verifica tu conexión e intenta de nuevo.')
+    } finally {
       setUploading(false)
     }
   }
@@ -810,6 +846,13 @@ export default function VerificationPage() {
                 )}
               </label>
             </div>
+
+            {uploadError && (
+              <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5">
+                <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-red-700 leading-relaxed">{uploadError}</p>
+              </div>
+            )}
 
             <div className="flex gap-3 pt-1">
               <button

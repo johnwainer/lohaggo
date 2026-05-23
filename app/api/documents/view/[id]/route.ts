@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { cloudinaryService } from '@/lib/cloudinary'
 
 export async function GET(
   req: NextRequest,
@@ -30,11 +31,9 @@ export async function GET(
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
-  // For image/upload PDFs: force original file serving
-  let fetchUrl = document.documentUrl
-  if (fetchUrl.includes('/image/upload/') && fetchUrl.endsWith('.pdf')) {
-    fetchUrl = fetchUrl.replace('/image/upload/', '/image/upload/fl_attachment:false/')
-  }
+  // Sign delivery URL — required for accounts that restrict PDF/raw to signed URLs.
+  // No-op when the URL already has a signature or signing isn't configured.
+  let fetchUrl = cloudinaryService.getSignedDeliveryUrl(document.documentUrl)
 
   try {
     const response = await fetch(fetchUrl)
