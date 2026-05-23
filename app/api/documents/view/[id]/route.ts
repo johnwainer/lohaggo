@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { cloudinaryService } from '@/lib/cloudinary'
 
 export async function GET(
   req: NextRequest,
@@ -31,29 +30,20 @@ export async function GET(
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
-  // For PDFs use the authenticated admin download endpoint — bypasses
-  // Cloudinary's "Restricted media types" block. For images use the CDN URL.
-  const isPdfUrl = document.documentUrl.endsWith('.pdf')
-  let fetchUrl = document.documentUrl
-  if (isPdfUrl && document.publicId) {
-    const privateUrl = cloudinaryService.getPrivateDownloadUrl(document.documentUrl, document.publicId)
-    if (privateUrl) fetchUrl = privateUrl
-  }
+  const fetchUrl = document.documentUrl
 
   try {
     const response = await fetch(fetchUrl)
     if (!response.ok) {
-      let upstreamBody: string | null = null
-      try { upstreamBody = (await response.text()).slice(0, 300) } catch {}
-      return NextResponse.json(
-        {
-          error: 'No se pudo obtener el documento',
-          upstreamStatus: response.status,
-          upstreamUrl: fetchUrl.replace(/signature=[^&]+/, 'signature=REDACTED').slice(0, 200),
-          upstreamBody,
-        },
-        { status: 502 }
-      )
+      if (response.status === 401 && fetchUrl.endsWith('.pdf')) {
+        return NextResponse.json(
+          {
+            error: 'Cloudinary está bloqueando la entrega de PDFs. Activa "Allow delivery of PDF and ZIP files" en Settings → Security del dashboard de Cloudinary.',
+          },
+          { status: 502 }
+        )
+      }
+      return NextResponse.json({ error: 'No se pudo obtener el documento' }, { status: 502 })
     }
 
     const buffer = await response.arrayBuffer()

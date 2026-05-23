@@ -111,44 +111,6 @@ class CloudinaryService {
     }
   }
 
-  /**
-   * Returns an admin-signed download URL for a stored asset. Bypasses delivery
-   * restrictions (e.g. PDF/raw block) because it hits the authenticated admin
-   * API, not the public CDN. URL expires after `expiresInSeconds`.
-   * Returns null if Cloudinary isn't configured or the URL can't be parsed.
-   */
-  public getPrivateDownloadUrl(
-    documentUrl: string,
-    publicId: string,
-    expiresInSeconds = 300
-  ): string | null {
-    if (!this.isEnabled() || !this.config) return null
-
-    const match = documentUrl.match(
-      /^https:\/\/res\.cloudinary\.com\/[^/]+\/(image|raw|video)\/upload\//
-    )
-    if (!match) return null
-
-    const resourceType = match[1]
-    const timestamp = Math.floor(Date.now() / 1000)
-    const expiresAt = timestamp + expiresInSeconds
-
-    const params: Record<string, string | number> = {
-      expires_at: expiresAt,
-      public_id: publicId,
-      timestamp,
-    }
-    const signature = this.generateSignature(params)
-
-    const u = new URL(`https://api.cloudinary.com/v1_1/${this.config.cloudName}/${resourceType}/download`)
-    u.searchParams.set('api_key', this.config.apiKey)
-    u.searchParams.set('expires_at', String(expiresAt))
-    u.searchParams.set('public_id', publicId)
-    u.searchParams.set('timestamp', String(timestamp))
-    u.searchParams.set('signature', signature)
-    return u.toString()
-  }
-
   public async delete(publicId: string): Promise<void> {
     if (!this.isEnabled() || !this.config) {
       throw new Error('Cloudinary service is not configured')
