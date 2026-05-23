@@ -8,6 +8,7 @@ import { getNotificationAutomationSnapshot, isNotificationChannelEnabled } from 
 import { renderNotificationChannelTemplate, resolveNotificationChannelTemplate } from '@/lib/notifications/email-templates'
 import { mapUserChannelPreference } from '@/lib/notifications/user-preferences'
 import { env } from '@/lib/env'
+import { emitUserNotificationBroadcast } from '@/lib/supabase-admin'
 
 const logger = createLogger('notification-service')
 
@@ -38,6 +39,8 @@ export async function createNotification({
         data: data ? JSON.stringify(data) : null
       }
     })
+
+    void emitUserNotificationBroadcast(userId)
 
     const user = await (prisma as any).user.findUnique({
       where: { id: userId },

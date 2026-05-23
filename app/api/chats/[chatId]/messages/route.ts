@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
 import { chatMessageSchema, validateRequest } from '@/lib/validation'
 import { createNotification } from '@/lib/notifications/notificationService'
-import { emitProposalBroadcast } from '@/lib/supabase-admin'
+import { emitProposalBroadcast, emitProposalReadBroadcast } from '@/lib/supabase-admin'
 
 function detectContactInfo(message: string): { isValid: boolean; reason?: string } {
   const lowerMessage = message.toLowerCase()
@@ -369,7 +369,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     }
 
-    await prisma.chatMessage.updateMany({
+    const updated = await prisma.chatMessage.updateMany({
       where: {
         chatId: chatId,
         senderId: { not: session.user.id },
@@ -377,6 +377,10 @@ export async function PATCH(
       },
       data: { read: true }
     })
+
+    if (updated.count > 0) {
+      void emitProposalReadBroadcast(chat.proposalId)
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {

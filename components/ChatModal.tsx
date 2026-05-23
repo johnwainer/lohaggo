@@ -6,6 +6,7 @@ import { Send, X, MessageCircle, Loader2 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
 import PlatformTrustBanner from './PlatformTrustBanner'
+import { useProposalRealtime } from '@/hooks/useChatRealtime'
 
 interface ChatMessage {
   id: string
@@ -64,7 +65,7 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
 
       pollingIntervalRef.current = setInterval(() => {
         fetchMessages()
-      }, 3000)
+      }, 30000)
 
       return () => {
         if (pollingIntervalRef.current) {
@@ -73,6 +74,13 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
       }
     }
   }, [loading, chat])
+
+  useProposalRealtime(chat ? proposalId : null, (event) => {
+    fetchMessages()
+    if (event === 'message') {
+      markMessagesAsRead()
+    }
+  })
 
   const fetchMessages = async () => {
     if (!chat) return

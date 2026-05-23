@@ -1,35 +1,42 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useSession } from 'next-auth/react'
+import { useNotificationRealtime } from './useNotificationRealtime'
 
-export function useNotificationUnreadCount(enabled = true, intervalMs = 15000) {
+export function useNotificationUnreadCount(enabled = true, intervalMs = 60000) {
+  const { data: session } = useSession()
+  const userId = session?.user?.id
   const [count, setCount] = useState(0)
+  const mountedRef = useRef(true)
+
+  const fetchCount = useCallback(async () => {
+    try {
+      const res = await fetch('/api/notifications/unread-count', { cache: 'no-store' })
+      if (!res.ok) return
+      const data = await res.json()
+      if (mountedRef.current) {
+        setCount(typeof data?.count === 'number' ? data.count : 0)
+      }
+    } catch {
+      // silent
+    }
+  }, [])
 
   useEffect(() => {
+    mountedRef.current = true
     if (!enabled) return
-    let mounted = true
-
-    const fetchCount = async () => {
-      try {
-        const res = await fetch('/api/notifications/unread-count', { cache: 'no-store' })
-        if (!res.ok) return
-        const data = await res.json()
-        if (mounted) {
-          setCount(typeof data?.count === 'number' ? data.count : 0)
-        }
-      } catch {
-        // silent
-      }
-    }
 
     fetchCount()
     const timer = setInterval(fetchCount, intervalMs)
 
     return () => {
-      mounted = false
+      mountedRef.current = false
       clearInterval(timer)
     }
-  }, [enabled, intervalMs])
+  }, [enabled, intervalMs, fetchCount])
+
+  useNotificationRealtime(enabled ? userId : null, fetchCount)
 
   return count
 }
