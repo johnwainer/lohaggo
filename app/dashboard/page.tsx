@@ -278,14 +278,33 @@ export default function DashboardPage() {
   }, [searchParams])
 
   useEffect(() => {
-    if (status === 'authenticated' && (bookings.length > 0 || serviceRequests.length > 0)) {
-      fetchUnreadCounts()
-      const interval = setInterval(fetchUnreadCounts, 5000)
-      return () => clearInterval(interval)
+    if (status !== 'authenticated') return
+    if (bookings.length === 0 && serviceRequests.length === 0) return
+
+    const controller = new AbortController()
+    let intervalId: ReturnType<typeof setInterval> | null = null
+
+    const tick = () => {
+      if (document.hidden) return
+      fetchUnreadCounts(controller.signal)
+    }
+
+    tick()
+    intervalId = setInterval(tick, 30000)
+
+    const onVisibility = () => {
+      if (!document.hidden) tick()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+
+    return () => {
+      if (intervalId) clearInterval(intervalId)
+      document.removeEventListener('visibilitychange', onVisibility)
+      controller.abort()
     }
   }, [status, bookings, serviceRequests])
 
-  const fetchUnreadCounts = async () => {
+  const fetchUnreadCounts = async (signal?: AbortSignal) => {
     try {
       const counts: Record<string, number> = {}
 
@@ -294,13 +313,13 @@ export default function DashboardPage() {
       await Promise.all(
         bookingsWithProposals.map(async (booking) => {
           try {
-            const res = await fetch(`/api/chat/unread-count?proposalId=${booking.proposalId}`)
+            const res = await fetch(`/api/chat/unread-count?proposalId=${booking.proposalId}`, { signal })
             if (res.ok) {
               const data = await res.json()
               counts[booking.proposalId!] = data.count || 0
             }
-          } catch (error) {
-            // Handle error silently
+          } catch {
+            // aborted or network error — silent
           }
         })
       )
@@ -310,20 +329,20 @@ export default function DashboardPage() {
       await Promise.all(
         allProposals.map(async (proposal) => {
           try {
-            const res = await fetch(`/api/chat/unread-count?proposalId=${proposal.id}`)
+            const res = await fetch(`/api/chat/unread-count?proposalId=${proposal.id}`, { signal })
             if (res.ok) {
               const data = await res.json()
               counts[proposal.id] = data.count || 0
             }
-          } catch (error) {
-            // Handle error silently
+          } catch {
+            // aborted or network error — silent
           }
         })
       )
 
-      setUnreadCounts(counts)
-    } catch (error) {
-      // Handle error silently
+      if (!signal?.aborted) setUnreadCounts(counts)
+    } catch {
+      // silent
     }
   }
 
