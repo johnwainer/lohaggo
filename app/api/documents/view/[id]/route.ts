@@ -43,7 +43,17 @@ export async function GET(
   try {
     const response = await fetch(fetchUrl)
     if (!response.ok) {
-      return NextResponse.json({ error: 'No se pudo obtener el documento' }, { status: 502 })
+      let upstreamBody: string | null = null
+      try { upstreamBody = (await response.text()).slice(0, 300) } catch {}
+      return NextResponse.json(
+        {
+          error: 'No se pudo obtener el documento',
+          upstreamStatus: response.status,
+          upstreamUrl: fetchUrl.replace(/signature=[^&]+/, 'signature=REDACTED').slice(0, 200),
+          upstreamBody,
+        },
+        { status: 502 }
+      )
     }
 
     const buffer = await response.arrayBuffer()
