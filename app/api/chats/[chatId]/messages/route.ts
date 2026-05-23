@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
 import { chatMessageSchema, validateRequest } from '@/lib/validation'
 import { createNotification } from '@/lib/notifications/notificationService'
+import { emitProposalBroadcast } from '@/lib/supabase-admin'
 
 function detectContactInfo(message: string): { isValid: boolean; reason?: string } {
   const lowerMessage = message.toLowerCase()
@@ -214,6 +215,8 @@ export async function POST(
         data: { updatedAt: new Date() }
       })
 
+      void emitProposalBroadcast(chat.proposalId)
+
       let recipientUserId: string | null = null
 
       if (chat.clientId === session.user.id) {
@@ -295,6 +298,8 @@ export async function POST(
       where: { id: chatId },
       data: { updatedAt: new Date() }
     })
+
+    void emitProposalBroadcast(chat.proposalId)
 
     let recipientUserId: string | null = null
 

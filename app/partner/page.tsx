@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useMemo, useState, Suspense } from 'react'
+import { useChatRealtime } from '@/hooks/useChatRealtime'
 import type { ReactNode } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -356,7 +357,7 @@ function PartnerDashboardContent() {
     }
 
     tick()
-    intervalId = setInterval(tick, 10000)
+    intervalId = setInterval(tick, 60000)
 
     const onVisibility = () => {
       if (!document.hidden) tick()
@@ -369,6 +370,20 @@ function PartnerDashboardContent() {
       controller.abort()
     }
   }, [status, bookings, serviceRequests])
+
+  const proposalIdsForRealtime = useMemo(
+    () => [
+      ...bookings.map((b) => b.proposalId).filter((id): id is string => !!id),
+      ...serviceRequests
+        .filter((r) => r.proposals && r.proposals.length > 0)
+        .map((r) => r.proposals[0].id),
+    ],
+    [bookings, serviceRequests]
+  )
+
+  useChatRealtime(proposalIdsForRealtime, () => {
+    fetchUnreadCounts()
+  })
 
   const fetchUnreadCounts = async (signal?: AbortSignal) => {
     try {
