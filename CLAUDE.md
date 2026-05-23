@@ -63,6 +63,81 @@ Tres paneles, una DB. Las APIs filtran por `session.user.role`.
 - Lectura de `.env*` pide confirmación al usuario (configurado en `permissions.ask`).
 - Credenciales de prueba viven en `PROJECT.md` (local).
 
+### 7. Gestión de contexto y tokens
+
+Esta sección define cómo se debe trabajar en cada sesión para **mantener la calidad de las respuestas y controlar costos**. Las violaciones generan respuestas genéricas, instrucciones olvidadas y gastos 10x más altos sin razón.
+
+#### Cómo funciona el contexto
+
+Claude 4.7 tiene ~200K tokens de ventana. **El límite no es el problema — la degradación lo es.**
+
+| Llenado | Calidad |
+| ------- | ------- |
+| 0-30% | Óptima |
+| 30-60% | Sutil "lost in the middle": olvida detalles del medio del historial |
+| 60-85% | Notable: ignora instrucciones del principio, repite preguntas, hace cambios fuera de scope |
+| 85-100% | Crítica: errores de razonamiento, alucinaciones, ignora reglas de CLAUDE.md |
+
+**Prompt caching** (Anthropic): los primeros bloques estáticos (system prompt + tools + CLAUDE.md + historial) se reutilizan a 90% de descuento, **siempre que el cache esté caliente** (TTL: 5 min sin actividad → se evapora).
+
+Costo de Claude 4.7 (Opus) referencia:
+- Input no cacheado: ~$15 / M tokens
+- Input cacheado: ~$1.50 / M tokens (10x menos)
+- Output: ~$75 / M tokens
+
+Sesión típica sin disciplina: **$3-8 / hora**. Con disciplina: **$0.50-1.50 / hora** y mejor calidad.
+
+#### Síntomas de degradación que el usuario debe vigilar
+
+Cuando empiece a ver alguno de estos en mis respuestas, es señal de **compactar o empezar fresco**:
+
+- Te pregunto algo que ya respondiste hace varios turnos.
+- Cito un archivo con nombre ligeramente mal.
+- Olvido aplicar una regla dura de este CLAUDE.md.
+- Doy respuestas más genéricas que al principio de la sesión.
+- "Resumo" sin que me pidas.
+
+#### Reglas duras para el USUARIO
+
+1. **Una sesión = una tarea coherente.** No usar una sola sesión todo el día. Cerrar al terminar Sprint/feature y abrir fresco para el siguiente.
+2. **Usar `/clear` al cambiar de tema.** Mantiene memoria y CLAUDE.md, borra historial. Recupera calidad instantáneamente.
+3. **Usar `/compact` cuando lleves >50 mensajes** y el siguiente paso esté bien definido. Claude resume conservando lo esencial.
+4. **No pegar archivos completos cuando una ruta basta.** "Mira `lib/auth.ts`" en vez de copiar 200 líneas. Yo leo solo lo que necesito.
+5. **Plan Mode (`shift+tab`) para tareas grandes.** Yo planifico sin tocar nada, tú apruebas, luego ejecuto. Evita rounds inútiles.
+6. **Delegar investigaciones broad a subagents.** "Investiga cómo funciona X en el repo" → pídeme usar `Explore` o un agent específico, no me dejes hacerlo en la sesión principal.
+7. **No volver a la misma sesión después de >5 min de inactividad.** El cache murió. Abrir nueva sesión con `/clear` cuesta lo mismo y rinde mejor.
+
+#### Reglas duras para CLAUDE (yo)
+
+1. **Leer mínimo, no maximalista.** `Read offset=X limit=N` para una función específica, no el archivo entero.
+2. **Grep/Glob antes de Read.** "¿Dónde está X?" → grep, no abrir 10 archivos a ver.
+3. **Subagents para búsquedas broad.** "¿Cómo se usa este símbolo en todo el repo?" → delegar a `Explore` o subagent custom. Su contexto muere con ellos.
+4. **No re-leer archivos que acabo de editar.** El `Edit` tool ya garantiza el cambio.
+5. **No echo de la pregunta del usuario.** Voy directo a la acción.
+6. **Avisar proactivamente al 60% de llenado.** "Llevamos contexto pesado, sugiero `/compact` antes de continuar."
+7. **Guardar decisiones a memoria, no al historial.** Decisiones importantes a `~/.claude/projects/.../memory/`, sobreviven entre sesiones.
+8. **Tool calls en paralelo cuando son independientes.** 3 cosas independientes (git status + ls + cat) → 1 turno, no 3.
+9. **No sugerir tareas tangenciales.** Si el usuario pide X, hago X. No "ya que estoy, te arreglo Y".
+
+#### Señales y acciones rápidas
+
+| Señal | Acción |
+| ----- | ------ |
+| Sesión > 50 mensajes | `/compact` |
+| Cambio de tema/feature | `/clear` o sesión nueva |
+| Yo olvido reglas de CLAUDE.md | `/compact` urgente |
+| Investigación grande inminente | Delegar a subagent |
+| Edición de muchos archivos sin scope claro | Plan Mode primero |
+| >5 min de inactividad | Asumir cache frío en próxima |
+
+#### Lo que el USUARIO NO debe hacer
+
+- ❌ Sesión "para todo" toda la semana.
+- ❌ Pegar logs gigantes cuando un grep basta.
+- ❌ "Léete todo el repo y dime…" en la sesión principal (eso es para subagent).
+- ❌ Repetir reglas que ya están en CLAUDE.md (yo las cargo solo).
+- ❌ Usar conversación larga para cosas que se resuelven con un slash command.
+
 ---
 
 ## Tooling disponible
