@@ -1,7 +1,8 @@
 'use client'
 
 import { Suspense } from 'react'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { Home, User, Package, Bell, MessageSquare, Wallet, UserCircle, Heart } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { usePartnerNavCounts } from '@/hooks/usePartnerNavCounts'
@@ -26,17 +27,17 @@ const clientNavItems = [
   { id: 'profile', label: 'Perfil', icon: UserCircle, path: '/profile' },
 ] as const
 
-function NavButton({ icon: Icon, label, isActive, badge, onClick }: {
+function NavLink({ icon: Icon, label, isActive, badge, href }: {
   icon: React.ElementType
   label: string
   isActive: boolean
   badge?: number
-  onClick: () => void
+  href: string
 }) {
   return (
-    <button
-      type="button"
-      onClick={() => { window.dispatchEvent(new Event('bottom-nav-navigate')); onClick() }}
+    <Link
+      href={href}
+      onClick={() => window.dispatchEvent(new Event('bottom-nav-navigate'))}
       className={`relative flex min-h-[52px] flex-col items-center justify-center rounded-xl text-xs font-medium transition ${
         isActive ? 'bg-primary-50 text-primary-700' : 'text-gray-600 active:scale-95'
       }`}
@@ -48,13 +49,21 @@ function NavButton({ icon: Icon, label, isActive, badge, onClick }: {
           {badge > 99 ? '99+' : badge}
         </span>
       )}
-    </button>
+    </Link>
+  )
+}
+
+function BottomNavSkeleton() {
+  return (
+    <div
+      aria-hidden="true"
+      className="fixed bottom-0 left-0 right-0 z-50 h-16 border-t border-gray-200 bg-white/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)] md:hidden"
+    />
   )
 }
 
 function PartnerBarInner() {
   const pathname = usePathname()
-  const router = useRouter()
   const searchParams = useSearchParams()
   const counts = usePartnerNavCounts()
   const tab = searchParams.get('tab')
@@ -79,13 +88,13 @@ function PartnerBarInner() {
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)] md:hidden">
       <div className="mx-auto grid max-w-2xl grid-cols-6 gap-1 px-2 py-2">
         {partnerNavItems.map((item) => (
-          <NavButton
+          <NavLink
             key={item.id}
             icon={item.icon}
             label={item.label}
             isActive={isActive(item.id)}
             badge={badge(item.id)}
-            onClick={() => router.push(item.path)}
+            href={item.path}
           />
         ))}
       </div>
@@ -95,7 +104,6 @@ function PartnerBarInner() {
 
 function ClientBarInner() {
   const pathname = usePathname()
-  const router = useRouter()
   const searchParams = useSearchParams()
   const counts = useClientNavCounts()
   const tab = searchParams.get('tab')
@@ -126,13 +134,13 @@ function ClientBarInner() {
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)] md:hidden">
       <div className="mx-auto grid max-w-2xl grid-cols-5 gap-1 px-2 py-2">
         {clientNavItems.map((item) => (
-          <NavButton
+          <NavLink
             key={item.id}
             icon={item.icon}
             label={item.label}
             isActive={isActive(item.id)}
             badge={badge(item.id)}
-            onClick={() => router.push(item.path)}
+            href={item.path}
           />
         ))}
       </div>
@@ -142,7 +150,6 @@ function ClientBarInner() {
 
 export function BottomNav() {
   const { data: session } = useSession()
-  const router = useRouter()
   const pathname = usePathname()
 
   const isPartner = session?.user?.role === 'PARTNER'
@@ -150,7 +157,7 @@ export function BottomNav() {
 
   if (isPartner) {
     return (
-      <Suspense fallback={null}>
+      <Suspense fallback={<BottomNavSkeleton />}>
         <PartnerBarInner />
       </Suspense>
     )
@@ -158,7 +165,7 @@ export function BottomNav() {
 
   if (isClient) {
     return (
-      <Suspense fallback={null}>
+      <Suspense fallback={<BottomNavSkeleton />}>
         <ClientBarInner />
       </Suspense>
     )
@@ -170,22 +177,22 @@ export function BottomNav() {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 safe-area-bottom md:hidden" data-tour="bottom-nav">
       <div className="grid h-16 grid-cols-2">
-        <button
-          type="button"
-          onClick={() => { window.dispatchEvent(new Event('bottom-nav-navigate')); router.push('/') }}
+        <Link
+          href="/"
+          onClick={() => window.dispatchEvent(new Event('bottom-nav-navigate'))}
           className={`touch-manipulation flex flex-col items-center justify-center gap-1 px-2 py-2 transition-colors active:scale-95 ${isHomeActive ? 'text-primary-600' : 'text-gray-500'}`}
         >
           <Home className="w-6 h-6" />
           <span className="text-xs font-medium">Inicio</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => { window.dispatchEvent(new Event('bottom-nav-navigate')); router.push('/login') }}
+        </Link>
+        <Link
+          href="/login"
+          onClick={() => window.dispatchEvent(new Event('bottom-nav-navigate'))}
           className="touch-manipulation flex flex-col items-center justify-center gap-1 px-2 py-2 transition-colors active:scale-95 text-gray-500"
         >
           <User className="w-6 h-6" />
           <span className="text-xs font-medium">Entrar</span>
-        </button>
+        </Link>
       </div>
     </nav>
   )

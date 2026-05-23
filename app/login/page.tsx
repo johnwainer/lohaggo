@@ -353,33 +353,35 @@ function LoginForm() {
                       />
                     </div>
                     <span className="text-sm text-gray-700 leading-relaxed">
-                      He leído y acepto los{' '}
-                      <Link
-                        href="/terms"
-                        target="_blank"
-                        className="text-primary-600 font-semibold hover:underline"
-                      >
-                        Términos y Condiciones
-                      </Link>
-                      , la{' '}
-                      <Link
-                        href="/privacy"
-                        target="_blank"
-                        className="text-primary-600 font-semibold hover:underline"
-                      >
-                        Política de Privacidad
-                      </Link>
-                      {' '}y la{' '}
-                      <Link
-                        href="/cookies"
-                        target="_blank"
-                        className="text-primary-600 font-semibold hover:underline"
-                      >
-                        Política de Cookies
-                      </Link>
-                      .
+                      He leído y acepto los términos del servicio.
                     </span>
                   </label>
+                  <p className="ml-8 mt-1.5 text-xs text-gray-500 leading-relaxed">
+                    Ver{' '}
+                    <Link
+                      href="/terms"
+                      target="_blank"
+                      className="text-primary-600 font-semibold hover:underline"
+                    >
+                      Términos
+                    </Link>
+                    {' · '}
+                    <Link
+                      href="/privacy"
+                      target="_blank"
+                      className="text-primary-600 font-semibold hover:underline"
+                    >
+                      Privacidad
+                    </Link>
+                    {' · '}
+                    <Link
+                      href="/cookies"
+                      target="_blank"
+                      className="text-primary-600 font-semibold hover:underline"
+                    >
+                      Cookies
+                    </Link>
+                  </p>
                 </div>
 
                 {isBotProtectionEnabled && (

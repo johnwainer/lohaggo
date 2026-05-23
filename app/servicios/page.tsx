@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, Suspense, useCallback, useMemo, useRef } from 'react'
+import { useEffect, useState, Suspense, useCallback, useMemo, useRef, memo } from 'react'
 import { useSearchParams, usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
@@ -64,6 +64,94 @@ type SortBy =
   | 'PARTNERS_DESC'
   | 'PRICE_ASC'
   | 'PRICE_DESC'
+
+interface ServiceCardProps {
+  service: Service
+  isFavorite: boolean
+  isFavoriteLoading: boolean
+  isLoggedIn: boolean
+  onToggleFavorite: (e: React.MouseEvent, serviceId: string) => void
+}
+
+const ServiceCard = memo(function ServiceCard({
+  service,
+  isFavorite,
+  isFavoriteLoading,
+  isLoggedIn,
+  onToggleFavorite,
+}: ServiceCardProps) {
+  const isFeatured = service.slug === 'lohaggo-ya'
+  return (
+    <Link
+      href={`/servicios/${service.slug}`}
+      className={`bg-white rounded-2xl shadow-card hover:shadow-cardHover transition-shadow overflow-hidden group border active:scale-[0.99] ${
+        isFeatured ? 'border-primary-200 ring-1 ring-primary-100' : 'border-slate-100'
+      }`}
+    >
+      <div className="p-4 md:p-6">
+        <div className="flex items-start justify-between mb-3 md:mb-4">
+          <ServiceIcon slug={service.slug} emoji={service.icon} size="lg" animate />
+          <div className="flex items-center gap-2">
+            {isFeatured && (
+              <span className="bg-gradient-to-r from-primary-500 to-secondary-500 text-white text-xs font-bold px-3 md:px-4 py-1.5 md:py-2 rounded-full">
+                Destacado
+              </span>
+            )}
+            <span className="bg-gradient-to-r from-primary-500/10 to-secondary-500/10 text-primary-600 text-xs font-bold px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-primary-500/20">
+              {service.category.name}
+            </span>
+            <button
+              onClick={(e) => onToggleFavorite(e, service.id)}
+              disabled={isFavoriteLoading || !isLoggedIn}
+              className={`p-2 md:p-2.5 rounded-lg md:rounded-xl transition-all shadow-md hover:shadow-lg ${
+                isFavorite
+                  ? 'bg-gradient-to-br from-primary-100 to-amber-100 text-primary-600 hover:from-orange-200 hover:to-amber-200'
+                  : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+              } ${isFavoriteLoading || !isLoggedIn ? 'opacity-50 cursor-not-allowed' : ''}`}
+              title={!isLoggedIn ? 'Inicia sesión para agregar a favoritos' : isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+            >
+              <Heart className="w-5 h-5 md:w-5 md:h-5" fill={isFavorite ? 'currentColor' : 'none'} />
+            </button>
+          </div>
+        </div>
+        <h3 className="font-bold text-lg md:text-xl mb-2 md:mb-3 group-hover:text-primary-600 transition text-gray-900">
+          {service.name}
+        </h3>
+        {isFeatured && (
+          <p className="mb-2 inline-flex items-center rounded-full bg-primary-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-primary-700">
+            Encargos y diligencias express
+          </p>
+        )}
+        <p className="text-gray-600 text-xs md:text-sm mb-3 md:mb-4 line-clamp-2 font-medium">
+          {service.description}
+        </p>
+        <div className="flex items-center justify-between pt-3 md:pt-4 border-t border-slate-100">
+          <div className="text-left">
+            <p className="text-gray-500 text-xs font-medium mb-1">Desde</p>
+            <p className="text-primary-600 text-base md:text-lg font-black">
+              {formatCurrency(service.basePrice)}
+            </p>
+          </div>
+          <div className="text-right">
+            {service.showAvgRating !== false && (
+              <div className="flex items-center gap-1 mb-1">
+                <Star className="w-3.5 h-3.5 md:w-4 md:h-4 text-yellow-500 fill-yellow-500" />
+                <span className="text-xs md:text-sm font-bold text-gray-900">
+                  {(service.partnerStats?.avgRating ?? 0).toFixed(1)}
+                </span>
+              </div>
+            )}
+            {service.showPartnerCount !== false && (
+              <p className="text-gray-500 text-xs font-medium">
+                {service.partnerStats?.availableCount ?? service._count.partners} disponibles
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    </Link>
+  )
+})
 
 export function ServiciosContent({ showHeading = true }: { showHeading?: boolean }) {
   const searchParams = useSearchParams()
@@ -351,11 +439,17 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
     }
   }
 
-  const toggleFavoriteService = async (e: React.MouseEvent, serviceId: string) => {
+  const favoriteServicesRef = useRef(favoriteServices)
+  useEffect(() => {
+    favoriteServicesRef.current = favoriteServices
+  }, [favoriteServices])
+
+  const sessionUserId = session?.user?.id
+  const toggleFavoriteService = useCallback(async (e: React.MouseEvent, serviceId: string) => {
     e.preventDefault()
     e.stopPropagation()
 
-    if (!session?.user) {
+    if (!sessionUserId) {
       window.location.href = '/login'
       return
     }
@@ -363,7 +457,7 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
     setLoadingFavorite(serviceId)
 
     try {
-      const isFavorite = favoriteServices.has(serviceId)
+      const isFavorite = favoriteServicesRef.current.has(serviceId)
 
       let res
       if (isFavorite) {
@@ -388,15 +482,13 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
           }
           return newSet
         })
-
-        await fetchFavoriteServices()
       }
     } catch (error) {
       console.error('Error toggling favorite service:', error)
     } finally {
       setLoadingFavorite(null)
     }
-  }
+  }, [sessionUserId])
 
   useEffect(() => {
     const init = async () => {
@@ -850,77 +942,14 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
             ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6" data-tour="services-grid">
               {orderedServices.map((service) => (
-                <Link
+                <ServiceCard
                   key={service.id}
-                  href={`/servicios/${service.slug}`}
-                  className={`bg-white rounded-2xl shadow-card hover:shadow-cardHover transition-shadow overflow-hidden group border active:scale-[0.99] ${
-                    service.slug === 'lohaggo-ya'
-                      ? 'border-primary-200 ring-1 ring-primary-100'
-                      : 'border-slate-100'
-                  }`}
-                >
-                  <div className="p-4 md:p-6">
-                    <div className="flex items-start justify-between mb-3 md:mb-4">
-                      <ServiceIcon slug={service.slug} emoji={service.icon} size="lg" animate />
-                      <div className="flex items-center gap-2">
-                        {service.slug === 'lohaggo-ya' && (
-                          <span className="bg-gradient-to-r from-primary-500 to-secondary-500 text-white text-xs font-bold px-3 md:px-4 py-1.5 md:py-2 rounded-full">
-                            Destacado
-                          </span>
-                        )}
-                        <span className="bg-gradient-to-r from-primary-500/10 to-secondary-500/10 text-primary-600 text-xs font-bold px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-primary-500/20">
-                          {service.category.name}
-                        </span>
-                        <button
-                          onClick={(e) => toggleFavoriteService(e, service.id)}
-                          disabled={loadingFavorite === service.id || !session?.user}
-                          className={`p-2 md:p-2.5 rounded-lg md:rounded-xl transition-all shadow-md hover:shadow-lg ${
-                            favoriteServices.has(service.id)
-                              ? 'bg-gradient-to-br from-primary-100 to-amber-100 text-primary-600 hover:from-orange-200 hover:to-amber-200'
-                              : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-                          } ${loadingFavorite === service.id || !session?.user ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          title={!session?.user ? 'Inicia sesión para agregar a favoritos' : favoriteServices.has(service.id) ? 'Quitar de favoritos' : 'Agregar a favoritos'}
-                        >
-                          <Heart className="w-5 h-5 md:w-5 md:h-5" fill={favoriteServices.has(service.id) ? 'currentColor' : 'none'} />
-                        </button>
-                      </div>
-                    </div>
-                    <h3 className="font-bold text-lg md:text-xl mb-2 md:mb-3 group-hover:text-primary-600 transition text-gray-900">
-                      {service.name}
-                    </h3>
-                    {service.slug === 'lohaggo-ya' && (
-                      <p className="mb-2 inline-flex items-center rounded-full bg-primary-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-primary-700">
-                        Encargos y diligencias express
-                      </p>
-                    )}
-                    <p className="text-gray-600 text-xs md:text-sm mb-3 md:mb-4 line-clamp-2 font-medium">
-                      {service.description}
-                    </p>
-                    <div className="flex items-center justify-between pt-3 md:pt-4 border-t border-slate-100">
-                      <div className="text-left">
-                        <p className="text-gray-500 text-xs font-medium mb-1">Desde</p>
-                        <p className="text-primary-600 text-base md:text-lg font-black">
-                          {formatCurrency(service.basePrice)}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        {service.showAvgRating !== false && (
-                          <div className="flex items-center gap-1 mb-1">
-                            <Star className="w-3.5 h-3.5 md:w-4 md:h-4 text-yellow-500 fill-yellow-500" />
-                            <span className="text-xs md:text-sm font-bold text-gray-900">
-                              {(service.partnerStats?.avgRating ?? 0).toFixed(1)}
-                            </span>
-                          </div>
-                        )}
-                        {service.showPartnerCount !== false && (
-                          <p className="text-gray-500 text-xs font-medium">
-                            {service.partnerStats?.availableCount ?? service._count.partners} disponibles
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </Link>
+                  service={service}
+                  isFavorite={favoriteServices.has(service.id)}
+                  isFavoriteLoading={loadingFavorite === service.id}
+                  isLoggedIn={!!sessionUserId}
+                  onToggleFavorite={toggleFavoriteService}
+                />
               ))}
             </div>
             )}
