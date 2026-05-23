@@ -2,7 +2,7 @@
 
 import { Suspense } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { Home, User, Package, Bell, MessageSquare, Wallet, UserCircle, Heart, Search } from 'lucide-react'
+import { Home, User, Package, Bell, MessageSquare, Wallet, UserCircle, Heart } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { usePartnerNavCounts } from '@/hooks/usePartnerNavCounts'
 import { useClientNavCounts } from '@/hooks/useClientNavCounts'
@@ -19,11 +19,11 @@ const partnerNavItems = [
 ] as const
 
 const clientNavItems = [
-  { id: 'overview', label: 'Resumen', icon: Home, path: '/dashboard' },
+  { id: 'home', label: 'Inicio', icon: Home, path: '/' },
   { id: 'bookings', label: 'Reservas', icon: Package, path: '/dashboard?tab=bookings' },
-  { id: 'solicitar', label: 'Solicitar', icon: Search, path: '/' },
+  { id: 'requests', label: 'Solicitudes', icon: Bell, path: '/dashboard?tab=requests' },
   { id: 'favorites', label: 'Favoritos', icon: Heart, path: '/dashboard?tab=favorites' },
-  { id: 'notifications', label: 'Notifs', icon: Bell, path: '/notifications' },
+  { id: 'profile', label: 'Perfil', icon: UserCircle, path: '/profile' },
 ] as const
 
 function NavButton({ icon: Icon, label, isActive, badge, onClick }: {
@@ -101,61 +101,40 @@ function ClientBarInner() {
   const tab = searchParams.get('tab')
 
   const isActive = (id: string) => {
-    if (id === 'overview') {
-      if (pathname === '/dashboard' && (!tab || tab === 'overview')) return true
+    if (id === 'home') {
       if (pathname === '/') return true
+      if (pathname.startsWith('/servicios')) return true
       if (pathname.startsWith('/socios')) return true
       if (pathname.startsWith('/reservar')) return true
       return false
     }
-    if (id === 'solicitar') return pathname === '/'
     if (id === 'bookings') return pathname === '/dashboard' && tab === 'bookings'
+    if (id === 'requests') return pathname === '/dashboard' && tab === 'requests'
     if (id === 'favorites') return pathname === '/dashboard' && tab === 'favorites'
-    if (id === 'notifications') return pathname.startsWith('/notifications')
+    if (id === 'profile') return pathname === '/profile' || pathname.startsWith('/profile/')
     return false
   }
 
   const badge = (id: string) => {
     if (id === 'bookings') return counts.bookings
+    if (id === 'requests') return counts.requests
     if (id === 'favorites') return counts.favorites
-    if (id === 'notifications') return counts.notifications
     return 0
   }
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)] md:hidden">
-      <div className="mx-auto grid max-w-2xl grid-cols-5 gap-1 px-2 py-1">
-        {clientNavItems.map((item) => {
-          if (item.id === 'solicitar') {
-            return (
-              <button
-                key="solicitar"
-                type="button"
-                onClick={() => { window.dispatchEvent(new Event('bottom-nav-navigate')); router.push('/') }}
-                className="relative flex flex-col items-center justify-end pb-1"
-              >
-                <div className={`-mt-5 flex h-14 w-14 items-center justify-center rounded-full shadow-lg active:scale-95 transition-transform ${
-                  isActive('solicitar')
-                    ? 'bg-gradient-to-br from-primary-600 to-secondary-600'
-                    : 'bg-gradient-to-br from-primary-500 to-secondary-500'
-                }`}>
-                  <Search className="h-6 w-6 text-white" />
-                </div>
-                <span className="text-[10px] mt-1 font-semibold text-primary-600">Solicitar</span>
-              </button>
-            )
-          }
-          return (
-            <NavButton
-              key={item.id}
-              icon={item.icon}
-              label={item.label}
-              isActive={isActive(item.id)}
-              badge={badge(item.id)}
-              onClick={() => router.push(item.path)}
-            />
-          )
-        })}
+      <div className="mx-auto grid max-w-2xl grid-cols-5 gap-1 px-2 py-2">
+        {clientNavItems.map((item) => (
+          <NavButton
+            key={item.id}
+            icon={item.icon}
+            label={item.label}
+            isActive={isActive(item.id)}
+            badge={badge(item.id)}
+            onClick={() => router.push(item.path)}
+          />
+        ))}
       </div>
     </nav>
   )

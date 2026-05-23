@@ -486,9 +486,9 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
   }, [services.length])
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       {pathname === '/servicios' && <ServicesTour />}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 md:py-8">
         {showHeading && (
           <div className="mb-6 md:mb-8">
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-black mb-2 md:mb-3 text-gray-900">
@@ -500,10 +500,10 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
           </div>
         )}
 
-        <div className="bg-white rounded-2xl md:rounded-3xl shadow-xl p-4 md:p-6 mb-4 md:mb-6 border-2 border-primary-200 transition">
+        <div className="bg-white rounded-2xl md:rounded-3xl shadow-card p-4 md:p-6 mb-4 md:mb-6 border border-slate-100 transition">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative" data-tour="services-search">
-              <Search className="absolute left-3 md:left-4 top-1/2 transform -translate-y-1/2 text-primary-400" size={22} />
+              <Search className="absolute left-3 md:left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={22} />
               <input
                 type="text"
                 placeholder={placeholder}
@@ -534,7 +534,7 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
                     setShowHistory(false)
                   }, 150)
                 }}
-                className="w-full pl-11 md:pl-13 pr-4 py-3.5 md:py-4 border-2 border-primary-300 rounded-xl md:rounded-2xl focus:ring-4 focus:ring-primary-100 focus:border-primary-500 outline-none text-gray-800 font-medium transition text-sm md:text-base placeholder:text-gray-400 shadow-sm"
+                className="w-full pl-11 md:pl-13 pr-4 py-3.5 md:py-4 border border-slate-200 rounded-full focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 outline-none text-slate-900 font-medium transition text-sm md:text-base placeholder:text-slate-400 bg-slate-50 focus:bg-white"
               />
 
               {showHistory && searchHistory.length > 0 && !searchTerm && session?.user && (
@@ -633,10 +633,10 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
             <div className="grid grid-cols-4 md:flex md:flex-wrap gap-2 md:gap-3">
               <button
                 onClick={() => setSelectedCategory('')}
-                className={`px-4 md:px-6 py-2 md:py-3 rounded-xl md:rounded-2xl transition-all font-bold shadow-md text-sm md:text-base ${
+                className={`px-4 md:px-6 py-2.5 md:py-3 rounded-2xl transition-colors font-semibold text-sm md:text-base ${
                   selectedCategory === ''
-                    ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white scale-105'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
+                    ? 'bg-primary-600 text-white shadow-card'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 }`}
               >
                 Todos
@@ -645,12 +645,12 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
                 <button
                   key={category.id}
                   onClick={() => setSelectedCategory(category.slug)}
-                  className={`px-4 md:px-6 py-2 md:py-3 rounded-xl md:rounded-2xl transition-all flex items-center gap-2 font-bold shadow-md text-sm md:text-base ${
+                  className={`px-4 md:px-6 py-2.5 md:py-3 rounded-2xl transition-colors flex items-center gap-2 font-semibold text-sm md:text-base ${
                     selectedCategory === category.slug
-                      ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white scale-105'
+                      ? 'bg-primary-600 text-white shadow-card'
                       : category.slug === 'favor'
-                        ? 'bg-gradient-to-r from-primary-50 to-secondary-50 text-primary-700 hover:from-primary-100 hover:to-secondary-100 hover:scale-105 border border-primary-200'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
+                        ? 'bg-secondary-50 text-secondary-700 hover:bg-secondary-100 border border-secondary-200'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   }`}
                 >
                   <ServiceIcon slug={category.slug} emoji={category.icon} isCategory size="lg" animate />
@@ -661,7 +661,7 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
           </div>
         </div>
 
-        <div className="sticky top-20 z-20 mb-4 rounded-xl border border-gray-200 bg-white/95 p-3 shadow-sm backdrop-blur md:top-24">
+        <div className="sticky top-20 z-20 mb-4 rounded-2xl border border-slate-100 bg-white/95 p-3 shadow-card backdrop-blur md:top-24">
           <div className="flex items-center justify-between gap-2">
             <p className="text-sm font-bold text-gray-800 md:text-base">
               {filteredServices.length} {filteredServices.length === 1 ? 'servicio' : 'servicios'}
@@ -853,10 +853,10 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
                 <Link
                   key={service.id}
                   href={`/servicios/${service.slug}`}
-                  className={`bg-white rounded-xl md:rounded-2xl shadow-md hover:shadow-2xl transition-all overflow-hidden group border-2 transform hover:scale-105 ${
+                  className={`bg-white rounded-2xl shadow-card hover:shadow-cardHover transition-shadow overflow-hidden group border active:scale-[0.99] ${
                     service.slug === 'lohaggo-ya'
-                      ? 'border-primary-300 ring-2 ring-primary-100'
-                      : 'border-gray-100 hover:border-primary-500/30'
+                      ? 'border-primary-200 ring-1 ring-primary-100'
+                      : 'border-slate-100'
                   }`}
                 >
                   <div className="p-4 md:p-6">
@@ -896,7 +896,7 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
                     <p className="text-gray-600 text-xs md:text-sm mb-3 md:mb-4 line-clamp-2 font-medium">
                       {service.description}
                     </p>
-                    <div className="flex items-center justify-between pt-3 md:pt-4 border-t-2 border-gray-100">
+                    <div className="flex items-center justify-between pt-3 md:pt-4 border-t border-slate-100">
                       <div className="text-left">
                         <p className="text-gray-500 text-xs font-medium mb-1">Desde</p>
                         <p className="text-primary-600 text-base md:text-lg font-black">
@@ -946,7 +946,7 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
                       <Link
                         key={service.id}
                         href={`/servicios/${service.slug}`}
-                        className="bg-white rounded-xl md:rounded-2xl shadow-md hover:shadow-xl transition-all overflow-hidden group border-2 border-gray-100 hover:border-primary-500/30 transform hover:scale-105"
+                        className="bg-white rounded-2xl shadow-card hover:shadow-cardHover transition-shadow overflow-hidden group border border-slate-100 active:scale-[0.99]"
                       >
                         <div className="p-4 md:p-5">
                           <div className="flex items-start justify-between mb-3">
