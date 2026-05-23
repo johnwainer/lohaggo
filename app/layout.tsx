@@ -12,7 +12,7 @@ import MicrosoftClarity from '@/components/analytics/MicrosoftClarity'
 import ChunkErrorHandler from '@/components/ChunkErrorHandler'
 import { prisma } from '@/lib/prisma'
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' })
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.lohaggo.com'),
@@ -129,8 +129,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#0066CC' },
-    { media: '(prefers-color-scheme: dark)', color: '#0066CC' },
+    { media: '(prefers-color-scheme: light)', color: '#2563eb' },
+    { media: '(prefers-color-scheme: dark)', color: '#2563eb' },
   ],
   width: 'device-width',
   initialScale: 1,
@@ -164,7 +164,7 @@ export default async function RootLayout({
   } catch { /* keep defaults */ }
 
   return (
-    <html lang="es-CO" translate="no">
+    <html lang="es-CO" translate="no" className={inter.variable}>
       <head>
         <meta name="google" content="notranslate" />
         <link rel="manifest" href="/manifest.json" />
@@ -177,7 +177,7 @@ export default async function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="LoHaggo" />
         <meta name="application-name" content="LoHaggo" />
-        <meta name="msapplication-TileColor" content="#0066CC" />
+        <meta name="msapplication-TileColor" content="#2563eb" />
         <meta name="msapplication-config" content="/browserconfig.xml" />
         <meta name="format-detection" content="telephone=yes" />
         <script
@@ -280,7 +280,7 @@ export default async function RootLayout({
           }}
         />
       </head>
-      <body className={inter.className}>
+      <body className="font-sans">
         <Script id="gtm-loader" strategy="lazyOnload">
           {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
 new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],

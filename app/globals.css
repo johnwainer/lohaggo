@@ -3,9 +3,9 @@
 @tailwind utilities;
 
 :root {
-  --primary: #0066CC;
-  --secondary: #00B894;
-  --accent: #FF6B6B;
+  --primary: #2563eb;
+  --secondary: #f97316;
+  --accent: #f43f5e;
   --neutral-dark: #2D3436;
   --neutral-light: #DFE6E9;
   --background: #FFFFFF;
@@ -22,9 +22,6 @@ html {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--background);
@@ -48,7 +45,7 @@ body {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #0052a3;
+  background: #1d4ed8;
 }
 
 ::selection {
