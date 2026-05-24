@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
-import { Send, X, MessageCircle, Loader2 } from 'lucide-react'
+import { Send, X, MessageCircle, Loader2, Lock } from 'lucide-react'
+import type { BookingStatus } from '@prisma/client'
+import { chatStatusLabel } from '@/lib/chat-status'
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
 import PlatformTrustBanner from './PlatformTrustBanner'
@@ -21,6 +23,8 @@ interface Chat {
   clientId: string
   partnerId: string
   messages: ChatMessage[]
+  isActive?: boolean
+  bookingStatus?: BookingStatus | null
 }
 
 interface ChatModalProps {
@@ -274,37 +278,53 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
           <div ref={messagesEndRef} />
         </div>
 
-        <form
-          onSubmit={sendMessage}
-          className="border-t border-gray-200 bg-white px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+4.75rem)] sm:rounded-b-2xl sm:px-6 sm:py-4 sm:pb-4"
-        >
-          <div className="flex gap-2 md:gap-3">
-            <input
-              ref={inputRef}
-              type="text"
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              placeholder="Escribe un mensaje..."
-              disabled={loading || sending}
-              autoFocus
-              className="flex-1 rounded-xl border-2 border-gray-200 px-4 py-3 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500 disabled:cursor-not-allowed disabled:bg-gray-100 md:text-base"
-            />
-            <button
-              type="submit"
-              disabled={!newMessage.trim() || loading || sending}
-              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary-500 to-secondary-500 px-4 py-3 font-bold text-white transition-all hover:from-primary-600 hover:to-secondary-600 disabled:cursor-not-allowed disabled:opacity-50 md:px-6"
-            >
-              {sending ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <>
-                  <Send size={18} className="md:w-5 md:h-5" />
-                  <span className="hidden md:inline">Enviar</span>
-                </>
-              )}
-            </button>
+        {chat && chat.isActive === false ? (
+          <div className="border-t border-gray-200 bg-gray-50 px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+4.75rem)] sm:rounded-b-2xl sm:px-6 sm:py-5 sm:pb-5">
+            <div className="flex items-start gap-3 rounded-xl bg-white p-3 ring-1 ring-gray-200">
+              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500">
+                <Lock className="h-4 w-4" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-gray-900">Conversación cerrada</p>
+                <p className="mt-0.5 text-xs text-gray-500">
+                  {chatStatusLabel(chat.bookingStatus ?? null)}. Ya no se pueden enviar mensajes en este chat.
+                </p>
+              </div>
+            </div>
           </div>
-        </form>
+        ) : (
+          <form
+            onSubmit={sendMessage}
+            className="border-t border-gray-200 bg-white px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+4.75rem)] sm:rounded-b-2xl sm:px-6 sm:py-4 sm:pb-4"
+          >
+            <div className="flex gap-2 md:gap-3">
+              <input
+                ref={inputRef}
+                type="text"
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                placeholder="Escribe un mensaje..."
+                disabled={loading || sending}
+                autoFocus
+                className="flex-1 rounded-xl border-2 border-gray-200 px-4 py-3 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500 disabled:cursor-not-allowed disabled:bg-gray-100 md:text-base"
+              />
+              <button
+                type="submit"
+                disabled={!newMessage.trim() || loading || sending}
+                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary-500 to-secondary-500 px-4 py-3 font-bold text-white transition-all hover:from-primary-600 hover:to-secondary-600 disabled:cursor-not-allowed disabled:opacity-50 md:px-6"
+              >
+                {sending ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <>
+                    <Send size={18} className="md:w-5 md:h-5" />
+                    <span className="hidden md:inline">Enviar</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   )

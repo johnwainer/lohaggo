@@ -4,9 +4,11 @@ import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
-import { MessageSquare, Search } from 'lucide-react'
+import { MessageSquare, Search, Archive, Lock } from 'lucide-react'
 import ServiceIcon from '@/components/ServiceIcon'
 import PartnerHeader from '@/components/partner/PartnerHeader'
+import type { BookingStatus } from '@prisma/client'
+import { chatStatusLabel } from '@/lib/chat-status'
 
 const ChatModal = dynamic(() => import('@/components/ChatModal'), { ssr: false, loading: () => null })
 
@@ -18,6 +20,8 @@ interface ConversationItem {
   lastMessage: { content: string; senderId: string; createdAt: string } | null
   unreadCount: number
   updatedAt: string
+  isActive: boolean
+  bookingStatus: BookingStatus | null
 }
 
 export default function PartnerMessagesPage() {
@@ -45,12 +49,18 @@ export default function PartnerMessagesPage() {
 
   useEffect(() => { if (status === 'authenticated') fetchConversations() }, [status])
 
-  const filtered = conversations.filter(c =>
-    c.client.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.service.name.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = conversations
+    .filter(c =>
+      c.client.name.toLowerCase().includes(search.toLowerCase()) ||
+      c.service.name.toLowerCase().includes(search.toLowerCase())
+    )
+    .sort((a, b) => {
+      if (a.isActive !== b.isActive) return a.isActive ? -1 : 1
+      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    })
 
   const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0)
+  const archivedCount = conversations.filter(c => !c.isActive).length
 
   return (
     <div className="account-shell">
@@ -97,47 +107,75 @@ export default function PartnerMessagesPage() {
           </div>
         ) : (
           <div className="space-y-2">
-            {filtered.map((conv) => (
-              <button
-                key={conv.id}
-                onClick={() => setChatModal({ isOpen: true, proposalId: conv.proposalId, clientName: conv.client.name, serviceName: conv.service.name })}
-                className="w-full bg-white rounded-2xl p-4 border border-gray-100 hover:border-primary-200 hover:shadow-sm transition-all flex items-center gap-3 text-left"
-              >
-                {/* Avatar */}
-                <div className="relative flex-shrink-0">
-                  {conv.client.image ? (
-                    <img src={conv.client.image} alt={conv.client.name} className="w-12 h-12 rounded-full object-cover" />
-                  ) : (
-                    <div className="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold text-lg">
-                      {conv.client.name.charAt(0).toUpperCase()}
+            {filtered.map((conv, idx) => {
+              const prev = filtered[idx - 1]
+              const showArchivedHeader = !conv.isActive && (idx === 0 || (prev && prev.isActive))
+              return (
+                <div key={conv.id}>
+                  {showArchivedHeader && (
+                    <div className="mb-2 mt-4 flex items-center gap-2 px-1 first:mt-0">
+                      <Archive className="h-3.5 w-3.5 text-gray-400" />
+                      <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Archivados ({archivedCount})
+                      </span>
                     </div>
                   )}
-                  {conv.unreadCount > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                      {conv.unreadCount > 9 ? '9+' : conv.unreadCount}
-                    </span>
-                  )}
-                </div>
+                  <button
+                    onClick={() => setChatModal({ isOpen: true, proposalId: conv.proposalId, clientName: conv.client.name, serviceName: conv.service.name })}
+                    className={`w-full rounded-2xl p-4 border transition-all flex items-center gap-3 text-left active:scale-[0.99] ${
+                      conv.isActive
+                        ? 'bg-white border-gray-100 hover:border-primary-200 hover:shadow-sm'
+                        : 'bg-gray-50/70 border-gray-100 opacity-80 hover:opacity-100'
+                    }`}
+                  >
+                    <div className="relative flex-shrink-0">
+                      {conv.client.image ? (
+                        <img src={conv.client.image} alt={conv.client.name} className={`w-12 h-12 rounded-full object-cover ${!conv.isActive ? 'grayscale' : ''}`} />
+                      ) : (
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg ${
+                          conv.isActive ? 'bg-primary-100 text-primary-700' : 'bg-gray-200 text-gray-500'
+                        }`}>
+                          {conv.client.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      {conv.unreadCount > 0 && conv.isActive && (
+                        <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                          {conv.unreadCount > 9 ? '9+' : conv.unreadCount}
+                        </span>
+                      )}
+                    </div>
 
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-0.5">
-                    <p className={`text-sm truncate ${conv.unreadCount > 0 ? 'font-bold text-gray-900' : 'font-semibold text-gray-800'}`}>
-                      {conv.client.name}
-                    </p>
-                    <p className="text-[10px] text-gray-400 flex-shrink-0 ml-2">
-                      {new Date(conv.updatedAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
-                    </p>
-                  </div>
-                  <p className="text-xs text-gray-500 truncate flex items-center gap-1"><ServiceIcon slug={conv.service.slug} emoji={conv.service.icon} size="sm" /> {conv.service.name}</p>
-                  {conv.lastMessage && (
-                    <p className={`text-xs truncate mt-0.5 ${conv.unreadCount > 0 ? 'text-gray-800 font-medium' : 'text-gray-400'}`}>
-                      {conv.lastMessage.content}
-                    </p>
-                  )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-0.5 gap-2">
+                        <p className={`text-sm truncate ${
+                          conv.unreadCount > 0 && conv.isActive
+                            ? 'font-bold text-gray-900'
+                            : conv.isActive
+                              ? 'font-semibold text-gray-800'
+                              : 'font-medium text-gray-600'
+                        }`}>
+                          {conv.client.name}
+                        </p>
+                        <p className="text-[10px] text-gray-400 flex-shrink-0">
+                          {new Date(conv.updatedAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+                        </p>
+                      </div>
+                      <p className="text-xs text-gray-500 truncate flex items-center gap-1"><ServiceIcon slug={conv.service.slug} emoji={conv.service.icon} size="sm" /> {conv.service.name}</p>
+                      {!conv.isActive ? (
+                        <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-semibold text-gray-600">
+                          <Lock className="h-2.5 w-2.5" />
+                          {chatStatusLabel(conv.bookingStatus)}
+                        </p>
+                      ) : conv.lastMessage ? (
+                        <p className={`text-xs truncate mt-0.5 ${conv.unreadCount > 0 ? 'text-gray-800 font-medium' : 'text-gray-400'}`}>
+                          {conv.lastMessage.content}
+                        </p>
+                      ) : null}
+                    </div>
+                  </button>
                 </div>
-              </button>
-            ))}
+              )
+            })}
           </div>
         )}
       </main>

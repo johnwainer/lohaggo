@@ -5,9 +5,11 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
-import { MessageSquare, Search, ShieldCheck, Package } from 'lucide-react'
+import { MessageSquare, Search, ShieldCheck, Package, Archive, Lock } from 'lucide-react'
 import ServiceIcon from '@/components/ServiceIcon'
 import AccountTopHeader from '@/components/shared/AccountTopHeader'
+import type { BookingStatus } from '@prisma/client'
+import { chatStatusLabel } from '@/lib/chat-status'
 
 const ChatModal = dynamic(() => import('@/components/ChatModal'), { ssr: false, loading: () => null })
 
@@ -19,6 +21,8 @@ interface ConversationItem {
   lastMessage: { content: string; senderId: string; createdAt: string } | null
   unreadCount: number
   updatedAt: string
+  isActive: boolean
+  bookingStatus: BookingStatus | null
 }
 
 function formatRelativeDate(iso: string) {
@@ -64,10 +68,17 @@ export default function ClientMessagesPage() {
     if (status === 'authenticated') fetchConversations()
   }, [status])
 
-  const filtered = conversations.filter(c =>
-    c.partner.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.service.name.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = conversations
+    .filter(c =>
+      c.partner.name.toLowerCase().includes(search.toLowerCase()) ||
+      c.service.name.toLowerCase().includes(search.toLowerCase())
+    )
+    .sort((a, b) => {
+      if (a.isActive !== b.isActive) return a.isActive ? -1 : 1
+      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    })
+
+  const archivedCount = conversations.filter(c => !c.isActive).length
 
   return (
     <div className="min-h-screen bg-slate-50 pb-24">
@@ -124,62 +135,92 @@ export default function ClientMessagesPage() {
           </div>
         ) : (
           <div className="space-y-2">
-            {filtered.map((conv) => (
-              <button
-                key={conv.id}
-                onClick={() => setChatModal({
-                  isOpen: true,
-                  proposalId: conv.proposalId,
-                  partnerName: conv.partner.name,
-                  serviceName: conv.service.name,
-                })}
-                className="flex w-full items-center gap-3 rounded-2xl border border-gray-100 bg-white p-4 text-left transition-all hover:border-primary-200 hover:shadow-sm active:scale-[0.99]"
-              >
-                <div className="relative flex-shrink-0">
-                  {conv.partner.image ? (
-                    <img
-                      src={conv.partner.image}
-                      alt={conv.partner.name}
-                      className="h-12 w-12 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-100 text-lg font-bold text-primary-700">
-                      {conv.partner.name.charAt(0).toUpperCase()}
+            {filtered.map((conv, idx) => {
+              const prev = filtered[idx - 1]
+              const showArchivedHeader = !conv.isActive && (idx === 0 || (prev && prev.isActive))
+              return (
+                <div key={conv.id}>
+                  {showArchivedHeader && (
+                    <div className="mb-2 mt-4 flex items-center gap-2 px-1 first:mt-0">
+                      <Archive className="h-3.5 w-3.5 text-gray-400" />
+                      <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Archivados ({archivedCount})
+                      </span>
                     </div>
                   )}
-                  {conv.partner.verified && (
-                    <span className="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-primary-600 text-white">
-                      <ShieldCheck className="h-3 w-3" />
-                    </span>
-                  )}
-                  {conv.unreadCount > 0 && (
-                    <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-                      {conv.unreadCount > 9 ? '9+' : conv.unreadCount}
-                    </span>
-                  )}
-                </div>
+                  <button
+                    onClick={() => setChatModal({
+                      isOpen: true,
+                      proposalId: conv.proposalId,
+                      partnerName: conv.partner.name,
+                      serviceName: conv.service.name,
+                    })}
+                    className={`flex w-full items-center gap-3 rounded-2xl border p-4 text-left transition-all active:scale-[0.99] ${
+                      conv.isActive
+                        ? 'border-gray-100 bg-white hover:border-primary-200 hover:shadow-sm'
+                        : 'border-gray-100 bg-gray-50/70 opacity-80 hover:opacity-100'
+                    }`}
+                  >
+                    <div className="relative flex-shrink-0">
+                      {conv.partner.image ? (
+                        <img
+                          src={conv.partner.image}
+                          alt={conv.partner.name}
+                          className={`h-12 w-12 rounded-full object-cover ${!conv.isActive ? 'grayscale' : ''}`}
+                        />
+                      ) : (
+                        <div className={`flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold ${
+                          conv.isActive ? 'bg-primary-100 text-primary-700' : 'bg-gray-200 text-gray-500'
+                        }`}>
+                          {conv.partner.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      {conv.partner.verified && conv.isActive && (
+                        <span className="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-primary-600 text-white">
+                          <ShieldCheck className="h-3 w-3" />
+                        </span>
+                      )}
+                      {conv.unreadCount > 0 && conv.isActive && (
+                        <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                          {conv.unreadCount > 9 ? '9+' : conv.unreadCount}
+                        </span>
+                      )}
+                    </div>
 
-                <div className="min-w-0 flex-1">
-                  <div className="mb-0.5 flex items-center justify-between">
-                    <p className={`truncate text-sm ${conv.unreadCount > 0 ? 'font-bold text-gray-900' : 'font-semibold text-gray-800'}`}>
-                      {conv.partner.name}
-                    </p>
-                    <p className="ml-2 flex-shrink-0 text-[10px] text-gray-400">
-                      {formatRelativeDate(conv.updatedAt)}
-                    </p>
-                  </div>
-                  <p className="flex items-center gap-1 truncate text-xs text-gray-500">
-                    <ServiceIcon slug={conv.service.slug} emoji={conv.service.icon} size="sm" />
-                    {conv.service.name}
-                  </p>
-                  {conv.lastMessage && (
-                    <p className={`mt-0.5 truncate text-xs ${conv.unreadCount > 0 ? 'font-medium text-gray-800' : 'text-gray-400'}`}>
-                      {conv.lastMessage.content}
-                    </p>
-                  )}
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-0.5 flex items-center justify-between gap-2">
+                        <p className={`truncate text-sm ${
+                          conv.unreadCount > 0 && conv.isActive
+                            ? 'font-bold text-gray-900'
+                            : conv.isActive
+                              ? 'font-semibold text-gray-800'
+                              : 'font-medium text-gray-600'
+                        }`}>
+                          {conv.partner.name}
+                        </p>
+                        <p className="flex-shrink-0 text-[10px] text-gray-400">
+                          {formatRelativeDate(conv.updatedAt)}
+                        </p>
+                      </div>
+                      <p className="flex items-center gap-1 truncate text-xs text-gray-500">
+                        <ServiceIcon slug={conv.service.slug} emoji={conv.service.icon} size="sm" />
+                        {conv.service.name}
+                      </p>
+                      {!conv.isActive ? (
+                        <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-semibold text-gray-600">
+                          <Lock className="h-2.5 w-2.5" />
+                          {chatStatusLabel(conv.bookingStatus)}
+                        </p>
+                      ) : conv.lastMessage ? (
+                        <p className={`mt-0.5 truncate text-xs ${conv.unreadCount > 0 ? 'font-medium text-gray-800' : 'text-gray-400'}`}>
+                          {conv.lastMessage.content}
+                        </p>
+                      ) : null}
+                    </div>
+                  </button>
                 </div>
-              </button>
-            ))}
+              )
+            })}
           </div>
         )}
       </main>

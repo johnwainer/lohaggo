@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
+import { isChatActive } from '@/lib/chat-status'
 
 
 const logger = createLogger('chats')
@@ -23,7 +24,16 @@ export async function GET(request: Request) {
         include: {
           messages: {
             orderBy: { createdAt: 'asc' }
-          }
+          },
+          proposal: {
+            include: {
+              bookings: {
+                orderBy: { createdAt: 'desc' },
+                take: 1,
+                select: { status: true },
+              },
+            },
+          },
         }
       })
 
@@ -48,7 +58,13 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
       }
 
-      return NextResponse.json(chat)
+      const bookingStatus = chat.proposal.bookings[0]?.status ?? null
+      const { proposal: _, ...chatWithoutProposal } = chat
+      return NextResponse.json({
+        ...chatWithoutProposal,
+        bookingStatus,
+        isActive: isChatActive(bookingStatus),
+      })
     }
 
     const isPartner = session.user.role === 'PARTNER'

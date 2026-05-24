@@ -6,6 +6,7 @@ import { createLogger } from '@/lib/logger'
 import { chatMessageSchema, validateRequest } from '@/lib/validation'
 import { createNotification } from '@/lib/notifications/notificationService'
 import { emitProposalBroadcast, emitProposalReadBroadcast } from '@/lib/supabase-admin'
+import { isChatActive } from '@/lib/chat-status'
 
 function detectContactInfo(message: string): { isValid: boolean; reason?: string } {
   const lowerMessage = message.toLowerCase()
@@ -251,11 +252,30 @@ export async function POST(
     }
 
     const chat = await prisma.chat.findUnique({
-      where: { id: chatId }
+      where: { id: chatId },
+      include: {
+        proposal: {
+          select: {
+            bookings: {
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+              select: { status: true },
+            },
+          },
+        },
+      },
     })
 
     if (!chat) {
       return NextResponse.json({ error: 'Chat not found' }, { status: 404 })
+    }
+
+    const latestBookingStatus = chat.proposal.bookings[0]?.status ?? null
+    if (!isChatActive(latestBookingStatus)) {
+      return NextResponse.json(
+        { error: 'Esta conversación está cerrada. La reserva ya finalizó o fue cancelada.' },
+        { status: 403 }
+      )
     }
 
     let isAuthorized = false
