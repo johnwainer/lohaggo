@@ -10,6 +10,7 @@ import MetaPixel from '@/components/analytics/MetaPixel'
 import GoogleAnalytics from '@/components/analytics/GoogleAnalytics'
 import MicrosoftClarity from '@/components/analytics/MicrosoftClarity'
 import ChunkErrorHandler from '@/components/ChunkErrorHandler'
+import InAppNotificationToast from '@/components/InAppNotificationToast'
 import { prisma } from '@/lib/prisma'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' })
@@ -300,6 +301,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
           <ChunkErrorHandler />
           <PWARegister />
           <TestModeBanner isTestMode={isTestMode} />
+          <InAppNotificationToast />
           <PublicLayout>
             {children}
           </PublicLayout>
