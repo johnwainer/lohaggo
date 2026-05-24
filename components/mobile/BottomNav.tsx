@@ -150,7 +150,13 @@ function ClientBarInner() {
         ))}
 
         <div className="flex min-h-[52px] flex-col items-center justify-end">
-          <span className="mt-1 text-[10px] font-semibold text-secondary-600">Solicitar</span>
+          <span
+            className={`mt-1 text-[10px] transition-colors ${
+              solicitarActive ? 'font-medium text-gray-500' : 'font-semibold text-secondary-600'
+            }`}
+          >
+            Solicitar
+          </span>
         </div>
 
         {rightItems.map((item) => (
@@ -168,16 +174,19 @@ function ClientBarInner() {
           href="/"
           aria-label="Solicitar servicio"
           onClick={() => window.dispatchEvent(new Event('bottom-nav-navigate'))}
-          className={`absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 transition active:scale-95 ${
-            solicitarActive ? 'scale-105' : ''
-          }`}
+          className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 transition active:scale-95"
         >
           <span
-            className={`flex h-16 w-16 items-center justify-center rounded-full border-4 border-white bg-gradient-to-br from-secondary-500 to-secondary-600 shadow-[0_8px_24px_-4px_rgba(234,88,12,0.55)] ${
-              solicitarActive ? 'ring-4 ring-secondary-200' : ''
+            className={`flex h-16 w-16 items-center justify-center rounded-full border-4 border-white transition-all ${
+              solicitarActive
+                ? 'bg-secondary-100 shadow-sm'
+                : 'bg-gradient-to-br from-secondary-500 to-secondary-600 shadow-[0_8px_24px_-4px_rgba(234,88,12,0.55)]'
             }`}
           >
-            <Sparkles className="h-7 w-7 text-white" strokeWidth={2.5} />
+            <Sparkles
+              className={`h-7 w-7 ${solicitarActive ? 'text-secondary-500' : 'text-white'}`}
+              strokeWidth={2.5}
+            />
           </span>
         </Link>
       </div>
