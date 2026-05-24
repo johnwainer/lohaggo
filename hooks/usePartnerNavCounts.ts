@@ -6,11 +6,12 @@ import { useSession } from 'next-auth/react'
 interface NavCounts {
   bookings: number
   messages: number
+  requests: number
 }
 
 export function usePartnerNavCounts(intervalMs = 20000) {
   const { data: session } = useSession()
-  const [counts, setCounts] = useState<NavCounts>({ bookings: 0, messages: 0 })
+  const [counts, setCounts] = useState<NavCounts>({ bookings: 0, messages: 0, requests: 0 })
 
   useEffect(() => {
     if (session?.user?.role !== 'PARTNER') return
@@ -21,7 +22,11 @@ export function usePartnerNavCounts(intervalMs = 20000) {
         const res = await fetch('/api/partner/nav-counts', { cache: 'no-store' })
         if (!res.ok || !mounted) return
         const data = await res.json()
-        setCounts({ bookings: data.bookings ?? 0, messages: data.messages ?? 0 })
+        setCounts({
+          bookings: data.bookings ?? 0,
+          messages: data.messages ?? 0,
+          requests: data.requests ?? 0,
+        })
       } catch {
         // silent
       }

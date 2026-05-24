@@ -3,19 +3,17 @@
 import { Suspense } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { Home, User, Package, Bell, MessageSquare, Wallet, UserCircle, Heart, Sparkles } from 'lucide-react'
+import { Home, User, Package, Bell, MessageSquare, Wallet, UserCircle, Heart, Sparkles, Zap } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { usePartnerNavCounts } from '@/hooks/usePartnerNavCounts'
 import { useClientNavCounts } from '@/hooks/useClientNavCounts'
 
-const PARTNER_ACCOUNT_PATHS = ['/profile', '/partner/services', '/partner/verification', '/partner/bank-accounts', '/partner/achievements']
+const PARTNER_ACCOUNT_PATHS = ['/profile', '/partner/services', '/partner/verification', '/partner/bank-accounts', '/partner/achievements', '/partner/payments']
 
 const partnerNavItems = [
   { id: 'overview', label: 'Inicio', icon: Home, path: '/partner' },
   { id: 'bookings', label: 'Reservas', icon: Package, path: '/partner?tab=bookings' },
-  { id: 'my-requests', label: 'Solicitudes', icon: Bell, path: '/partner?tab=my-requests' },
-  { id: 'messages', label: 'Mensajes', icon: MessageSquare, path: '/partner/messages' },
-  { id: 'payments', label: 'Pagos', icon: Wallet, path: '/partner/payments' },
+  { id: 'messages', label: 'Chats', icon: MessageSquare, path: '/partner/messages' },
   { id: 'account', label: 'Cuenta', icon: UserCircle, path: '/profile' },
 ] as const
 
@@ -70,9 +68,8 @@ function PartnerBarInner() {
   const isActive = (id: string) => {
     if (id === 'overview') return pathname === '/partner' && (!tab || tab === 'overview')
     if (id === 'bookings') return pathname === '/partner' && tab === 'bookings'
-    if (id === 'my-requests') return pathname === '/partner' && tab === 'my-requests'
+    if (id === 'oportunidades') return pathname === '/partner' && tab === 'my-requests'
     if (id === 'messages') return pathname.startsWith('/partner/messages')
-    if (id === 'payments') return pathname.startsWith('/partner/payments')
     if (id === 'account') return PARTNER_ACCOUNT_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))
     return false
   }
@@ -83,10 +80,18 @@ function PartnerBarInner() {
     return 0
   }
 
+  const oportunidadesActive = isActive('oportunidades')
+  const requestsBadge = counts.requests
+  const leftItems = partnerNavItems.slice(0, 2)
+  const rightItems = partnerNavItems.slice(2)
+
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)] md:hidden">
-      <div className="mx-auto grid max-w-2xl grid-cols-6 gap-1 px-2 py-2">
-        {partnerNavItems.map((item) => (
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)] md:hidden"
+      data-tour="bottom-nav"
+    >
+      <div className="relative mx-auto grid max-w-2xl grid-cols-5 gap-1 px-2 py-2">
+        {leftItems.map((item) => (
           <NavLink
             key={item.id}
             icon={item.icon}
@@ -96,6 +101,52 @@ function PartnerBarInner() {
             href={item.path}
           />
         ))}
+
+        <div className="flex min-h-[52px] flex-col items-center justify-end">
+          <span
+            className={`mt-1 text-[10px] transition-colors ${
+              oportunidadesActive ? 'font-medium text-gray-500' : 'font-semibold text-secondary-600'
+            }`}
+          >
+            Oportunidades
+          </span>
+        </div>
+
+        {rightItems.map((item) => (
+          <NavLink
+            key={item.id}
+            icon={item.icon}
+            label={item.label}
+            isActive={isActive(item.id)}
+            badge={badge(item.id)}
+            href={item.path}
+          />
+        ))}
+
+        <Link
+          href="/partner?tab=my-requests"
+          aria-label="Ver oportunidades"
+          onClick={() => window.dispatchEvent(new Event('bottom-nav-navigate'))}
+          className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 transition active:scale-95"
+        >
+          <span
+            className={`relative flex h-16 w-16 items-center justify-center rounded-full border-4 border-white transition-all ${
+              oportunidadesActive
+                ? 'bg-secondary-100 shadow-sm'
+                : 'bg-gradient-to-br from-secondary-500 to-secondary-600 shadow-[0_8px_24px_-4px_rgba(234,88,12,0.55)]'
+            }`}
+          >
+            <Zap
+              className={`h-7 w-7 ${oportunidadesActive ? 'text-secondary-500' : 'text-white'}`}
+              strokeWidth={2.5}
+            />
+            {!oportunidadesActive && requestsBadge > 0 && (
+              <span className="absolute -right-1 -top-1 inline-flex min-w-5 h-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white ring-2 ring-white animate-pulse">
+                {requestsBadge > 99 ? '99+' : requestsBadge}
+              </span>
+            )}
+          </span>
+        </Link>
       </div>
     </nav>
   )

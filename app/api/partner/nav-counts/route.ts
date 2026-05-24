@@ -13,11 +13,16 @@ export async function GET() {
 
   const partner = await prisma.partnerProfile.findUnique({
     where: { userId: session.user.id },
-    select: { id: true },
+    select: {
+      id: true,
+      services: { select: { serviceId: true } },
+    },
   })
   if (!partner) return NextResponse.json({ bookings: 0, requests: 0, messages: 0 })
 
-  const [bookings, messages] = await Promise.all([
+  const partnerServiceIds = partner.services.map((s) => s.serviceId)
+
+  const [bookings, messages, requests] = await Promise.all([
     prisma.booking.count({
       where: {
         partnerId: partner.id,
@@ -31,7 +36,18 @@ export async function GET() {
         senderId: { not: session.user.id },
       },
     }),
+    prisma.serviceRequest.count({
+      where: {
+        status: 'ACTIVE',
+        expiresAt: { gte: new Date() },
+        proposals: { none: { partnerId: partner.id } },
+        OR: [
+          { serviceId: { in: partnerServiceIds }, partnerId: null },
+          { partnerId: partner.id },
+        ],
+      },
+    }),
   ])
 
-  return NextResponse.json({ bookings, messages })
+  return NextResponse.json({ bookings, messages, requests })
 }
