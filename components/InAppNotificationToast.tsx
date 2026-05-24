@@ -35,6 +35,7 @@ interface Toast {
 
 const AUTO_DISMISS_MS = 7000
 const MAX_STACK = 3
+const FRESH_WINDOW_MS = 30 * 1000 // only toast notifications created in the last 30s
 const SKIP_PATH_PREFIXES = ['/admin', '/login', '/register', '/registro']
 
 function parseData(raw: string | null): Record<string, unknown> {
@@ -135,24 +136,25 @@ export default function InAppNotificationToast() {
       const list: Notification[] = await res.json()
       if (!Array.isArray(list) || list.length === 0) return
 
-      const fresh = list
-        .filter((n) => !seenIdsRef.current.has(n.id))
-        .slice(0, 2)
-      if (fresh.length === 0) return
+      const now = Date.now()
+      const fresh = list.find(
+        (n) =>
+          !seenIdsRef.current.has(n.id) &&
+          now - new Date(n.createdAt).getTime() < FRESH_WINDOW_MS
+      )
+      if (!fresh) return
 
-      const newToasts: Toast[] = fresh.map((n) => {
-        seenIdsRef.current.add(n.id)
-        return {
-          id: n.id,
-          type: n.type,
-          title: n.title,
-          message: n.message,
-          href: getActionUrl(n, session?.user?.role),
-          enteredAt: Date.now(),
-        }
-      })
+      seenIdsRef.current.add(fresh.id)
+      const toast: Toast = {
+        id: fresh.id,
+        type: fresh.type,
+        title: fresh.title,
+        message: fresh.message,
+        href: getActionUrl(fresh, session?.user?.role),
+        enteredAt: Date.now(),
+      }
 
-      setToasts((prev) => [...newToasts, ...prev].slice(0, MAX_STACK))
+      setToasts((prev) => [toast, ...prev].slice(0, MAX_STACK))
     } catch {
       // silent
     }
