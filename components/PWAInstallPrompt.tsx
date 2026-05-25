@@ -102,7 +102,7 @@ export default function PWAInstallPrompt() {
     <>
       {showInstallPrompt && (
         /* Compact bottom banner on mobile, card on desktop */
-        <div className="fixed bottom-20 left-0 right-0 md:bottom-4 md:left-auto md:right-4 md:w-96 bg-white md:rounded-2xl shadow-2xl border-t-2 md:border-2 border-gray-100 z-50 animate-slide-up">
+        <div className="fixed bottom-[5.5rem] left-0 right-0 md:bottom-4 md:left-auto md:right-4 md:w-96 bg-white md:rounded-2xl shadow-2xl border-t-2 md:border-2 border-gray-100 z-40 animate-slide-up">
           {/* Desktop card header */}
           <div className="hidden md:block bg-gradient-to-r from-primary-500 to-secondary-500 p-4 rounded-t-2xl">
             <div className="flex items-center justify-between">
@@ -161,7 +161,7 @@ export default function PWAInstallPrompt() {
       )}
 
       {showUpdatePrompt && (
-        <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 bg-white rounded-2xl shadow-2xl border-2 border-gray-100 z-50 animate-slide-up">
+        <div className="fixed bottom-28 left-4 right-4 md:bottom-4 md:left-auto md:right-4 md:w-96 bg-white rounded-2xl shadow-2xl border-2 border-gray-100 z-40 animate-slide-up">
           <div className="p-4">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-xl flex items-center justify-center">

@@ -84,7 +84,7 @@ export default function NotificationPermissionPrompt({
 
   return (
     <>
-      <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:max-w-md z-50 animate-slide-up">
+      <div className="fixed bottom-28 left-4 right-4 sm:bottom-4 sm:left-auto sm:right-4 sm:max-w-md z-40 animate-slide-up">
         <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
           <div className="relative bg-gradient-to-r from-secondary-500 to-secondary-600 p-4 sm:p-6">
             <button
