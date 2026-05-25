@@ -84,9 +84,37 @@ export default function NotificationPermissionPrompt({
 
   return (
     <>
-      <div className="fixed bottom-28 left-4 right-4 sm:bottom-4 sm:left-auto sm:right-4 sm:max-w-md z-40 animate-slide-up">
+      {/* Mobile: compact bottom banner (no tapa contenido) */}
+      <div className="fixed bottom-[5.5rem] left-3 right-3 sm:hidden z-40 animate-slide-up">
+        <div className="flex items-center gap-3 rounded-2xl bg-white shadow-lg ring-1 ring-gray-200 px-3 py-2.5">
+          <div className="flex-shrink-0 h-9 w-9 rounded-full bg-gradient-to-br from-secondary-500 to-secondary-600 flex items-center justify-center">
+            <Bell className="text-white" size={18} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-gray-900 leading-tight truncate">Activa notificaciones</p>
+            <p className="text-[11px] text-gray-500 leading-tight truncate">No te pierdas reservas, propuestas y mensajes</p>
+          </div>
+          <button
+            onClick={handleEnable}
+            disabled={isLoading}
+            className="flex-shrink-0 bg-secondary-500 text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-secondary-600 transition disabled:opacity-50"
+          >
+            {isLoading ? '...' : 'Activar'}
+          </button>
+          <button
+            onClick={handleDismiss}
+            aria-label="Cerrar"
+            className="flex-shrink-0 text-gray-400 hover:text-gray-700 transition"
+          >
+            <X size={18} />
+          </button>
+        </div>
+      </div>
+
+      {/* Desktop: card grande detallada */}
+      <div className="hidden sm:block fixed bottom-4 left-auto right-4 max-w-md z-40 animate-slide-up">
         <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
-          <div className="relative bg-gradient-to-r from-secondary-500 to-secondary-600 p-4 sm:p-6">
+          <div className="relative bg-gradient-to-r from-secondary-500 to-secondary-600 p-6">
             <button
               onClick={handleDismiss}
               className="absolute top-3 right-3 text-white/80 hover:text-white transition"
@@ -110,7 +138,7 @@ export default function NotificationPermissionPrompt({
             </div>
           </div>
 
-          <div className="p-4 sm:p-6">
+          <div className="p-6">
             <div className="space-y-3 mb-4">
               <div className="flex items-start gap-3">
                 <CheckCircle className="text-secondary-600 flex-shrink-0 mt-0.5" size={20} />
