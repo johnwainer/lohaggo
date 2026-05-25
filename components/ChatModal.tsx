@@ -155,8 +155,8 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
       })
 
       if (response.ok) {
-        const message = await response.json()
-        setMessages(prev => [...prev, message])
+        const { helpReply, ...message } = await response.json()
+        setMessages(prev => helpReply ? [...prev, message, helpReply] : [...prev, message])
       } else {
         const errorData = await response.json()
 

@@ -7,6 +7,7 @@ import { chatMessageSchema, validateRequest } from '@/lib/validation'
 import { createNotification } from '@/lib/notifications/notificationService'
 import { emitProposalBroadcast, emitProposalReadBroadcast } from '@/lib/supabase-admin'
 import { isChatActive } from '@/lib/chat-status'
+import { detectHelpQuery, formatHelpSystemMessage } from '@/lib/chat/help-responses'
 
 function detectContactInfo(message: string): { isValid: boolean; reason?: string } {
   const lowerMessage = message.toLowerCase()
@@ -319,6 +320,31 @@ export async function POST(
       data: { updatedAt: new Date() }
     })
 
+    const askerRole: 'CLIENT' | 'PARTNER' | null =
+      chat.clientId === session.user.id ? 'CLIENT' : session.user.role === 'PARTNER' ? 'PARTNER' : null
+    const helpDetection = detectHelpQuery(content, askerRole)
+    let helpReply = null
+    if (helpDetection) {
+      const recentHelp = await prisma.chatMessage.findFirst({
+        where: {
+          chatId,
+          senderId: 'SYSTEM',
+          content: { startsWith: 'ℹ️ Info de LoHaggo' },
+          createdAt: { gte: new Date(Date.now() - 5 * 60 * 1000) },
+        },
+        select: { id: true },
+      })
+      if (!recentHelp) {
+        helpReply = await prisma.chatMessage.create({
+          data: {
+            chatId,
+            senderId: 'SYSTEM',
+            content: formatHelpSystemMessage(helpDetection),
+          },
+        })
+      }
+    }
+
     void emitProposalBroadcast(chat.proposalId)
 
     let recipientUserId: string | null = null
@@ -346,7 +372,7 @@ export async function POST(
       })
     }
 
-    return NextResponse.json(message)
+    return NextResponse.json({ ...message, helpReply })
   } catch (error) {
     logger.error('Error sending message:', error || undefined)
     return NextResponse.json({ error: 'Error al enviar mensaje' }, { status: 500 })
