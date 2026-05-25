@@ -84,8 +84,8 @@ export default function NotificationPermissionPrompt({
 
   return (
     <>
-      {/* Mobile: compact bottom banner (no tapa contenido) */}
-      <div className="fixed bottom-[5.5rem] left-3 right-3 sm:hidden z-40 animate-slide-up">
+      {/* Banner compacto en mobile y desktop (no tapa contenido) */}
+      <div className="fixed bottom-[5.5rem] left-3 right-3 sm:bottom-4 sm:left-auto sm:right-4 sm:max-w-sm z-40 animate-slide-up">
         <div className="flex items-center gap-3 rounded-2xl bg-white shadow-lg ring-1 ring-gray-200 px-3 py-2.5">
           <div className="flex-shrink-0 h-9 w-9 rounded-full bg-gradient-to-br from-secondary-500 to-secondary-600 flex items-center justify-center">
             <Bell className="text-white" size={18} />
@@ -94,13 +94,23 @@ export default function NotificationPermissionPrompt({
             <p className="text-sm font-bold text-gray-900 leading-tight truncate">Activa notificaciones</p>
             <p className="text-[11px] text-gray-500 leading-tight truncate">No te pierdas reservas, propuestas y mensajes</p>
           </div>
-          <button
-            onClick={handleEnable}
-            disabled={isLoading}
-            className="flex-shrink-0 bg-secondary-500 text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-secondary-600 transition disabled:opacity-50"
-          >
-            {isLoading ? '...' : 'Activar'}
-          </button>
+          {error && hasInteracted ? (
+            <span className="flex-shrink-0 text-[11px] text-red-600 font-semibold" title={error}>
+              <AlertCircle size={16} />
+            </span>
+          ) : isSubscribed && hasInteracted ? (
+            <span className="flex-shrink-0 text-emerald-600">
+              <CheckCircle size={18} />
+            </span>
+          ) : (
+            <button
+              onClick={handleEnable}
+              disabled={isLoading}
+              className="flex-shrink-0 bg-secondary-500 text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-secondary-600 transition disabled:opacity-50"
+            >
+              {isLoading ? '...' : 'Activar'}
+            </button>
+          )}
           <button
             onClick={handleDismiss}
             aria-label="Cerrar"
@@ -108,97 +118,6 @@ export default function NotificationPermissionPrompt({
           >
             <X size={18} />
           </button>
-        </div>
-      </div>
-
-      {/* Desktop: card grande detallada */}
-      <div className="hidden sm:block fixed bottom-4 left-auto right-4 max-w-md z-40 animate-slide-up">
-        <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
-          <div className="relative bg-gradient-to-r from-secondary-500 to-secondary-600 p-6">
-            <button
-              onClick={handleDismiss}
-              className="absolute top-3 right-3 text-white/80 hover:text-white transition"
-              aria-label="Cerrar"
-            >
-              <X size={20} />
-            </button>
-
-            <div className="flex items-center gap-3">
-              <div className="bg-white/20 p-3 rounded-full">
-                <Bell className="text-white" size={24} />
-              </div>
-              <div>
-                <h3 className="text-white font-bold text-lg">
-                  Activa las notificaciones
-                </h3>
-                <p className="text-white/90 text-sm">
-                  No te pierdas ninguna actualización
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-6">
-            <div className="space-y-3 mb-4">
-              <div className="flex items-start gap-3">
-                <CheckCircle className="text-secondary-600 flex-shrink-0 mt-0.5" size={20} />
-                <div>
-                  <p className="font-medium text-gray-900 text-sm">Actualizaciones en tiempo real</p>
-                  <p className="text-gray-600 text-xs">Recibe notificaciones instantáneas de tus reservas</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <CheckCircle className="text-secondary-600 flex-shrink-0 mt-0.5" size={20} />
-                <div>
-                  <p className="font-medium text-gray-900 text-sm">Nuevas propuestas</p>
-                  <p className="text-gray-600 text-xs">Entérate cuando recibas nuevas ofertas</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <CheckCircle className="text-secondary-600 flex-shrink-0 mt-0.5" size={20} />
-                <div>
-                  <p className="font-medium text-gray-900 text-sm">Cambios de estado</p>
-                  <p className="text-gray-600 text-xs">Mantente informado del progreso de tus servicios</p>
-                </div>
-              </div>
-            </div>
-
-            {error && hasInteracted && (
-              <div className="mb-4 p-3 bg-secondary-50 border border-secondary-200 rounded-lg flex items-start gap-2">
-                <AlertCircle className="text-secondary-600 flex-shrink-0 mt-0.5" size={16} />
-                <p className="text-secondary-800 text-xs">{error}</p>
-              </div>
-            )}
-
-            {isSubscribed && hasInteracted && (
-              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
-                <CheckCircle className="text-green-600" size={16} />
-                <p className="text-green-800 text-sm font-medium">¡Notificaciones activadas!</p>
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              <button
-                onClick={handleDismiss}
-                className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition"
-              >
-                Ahora no
-              </button>
-              <button
-                onClick={handleEnable}
-                disabled={isLoading}
-                className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-secondary-500 rounded-lg hover:bg-secondary-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isLoading ? 'Activando...' : 'Activar'}
-              </button>
-            </div>
-
-            <p className="text-xs text-gray-500 text-center mt-3">
-              Puedes cambiar esto en cualquier momento desde la configuración
-            </p>
-          </div>
         </div>
       </div>
 
