@@ -339,8 +339,12 @@ function PartnerDashboardContent() {
 
   useEffect(() => {
     const tab = searchParams.get('tab')
-    if (tab && ['overview', 'bookings', 'my-requests'].includes(tab)) {
-      setActiveTab(tab as 'overview' | 'bookings' | 'my-requests')
+    if (tab && ['bookings', 'my-requests'].includes(tab)) {
+      setActiveTab(tab as 'bookings' | 'my-requests')
+    } else {
+      // Sin query (?tab=…) → overview. Sin este reset, navegar de /partner?tab=bookings
+      // a /partner dejaba el tab anterior pegado y el click en Inicio "no hacía nada".
+      setActiveTab('overview')
     }
   }, [searchParams])
 

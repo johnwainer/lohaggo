@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import { useEffect, useRef, useState } from 'react'
-import { Sparkles, ChevronDown, MapPin, LogOut, Bell, Home, Package, Zap, MessageSquare, UserCircle, Shield, Settings, Landmark, Wallet, Award, Globe, Menu } from 'lucide-react'
+import { Sparkles, ChevronDown, MapPin, LogOut, Home, Package, Zap, MessageSquare, UserCircle, Shield, Settings, Landmark, Wallet, Award, Globe, Menu } from 'lucide-react'
 import NotificationBell from '@/components/NotificationBell'
 import { useCity } from '@/lib/city-context'
 import { usePartnerNavCounts } from '@/hooks/usePartnerNavCounts'
@@ -102,18 +102,9 @@ export default function PartnerShell({ children }: { children: React.ReactNode }
             </div>
 
             <div className="flex items-center gap-1 sm:gap-2">
-              {/* En desktop usamos el NotificationBell rico (dropdown con feed).
-                  En mobile, un link simple a /partner/notifications. */}
-              <Link
-                href="/partner/notifications"
-                aria-label="Notificaciones"
-                className="md:hidden relative p-2 text-gray-600 hover:text-primary-600 hover:bg-gray-100 rounded-lg transition"
-              >
-                <Bell className="w-5 h-5" />
-              </Link>
-              <div className="hidden md:block">
-                <NotificationBell />
-              </div>
+              {/* Mismo NotificationBell en mobile y desktop para que el badge
+                  de no-leídos sea consistente. */}
+              <NotificationBell />
 
               <div ref={menuRef} className="relative">
                 <button
