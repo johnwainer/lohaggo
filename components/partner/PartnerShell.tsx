@@ -41,12 +41,17 @@ export default function PartnerShell({ children }: { children: React.ReactNode }
   const counts = usePartnerNavCounts()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const mobileMenuRef = useRef<HTMLDivElement>(null)
 
   const currentCity = cities.find(c => c.slug === selectedCity)
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false)
+      const target = e.target as Node
+      // Si el click cae dentro del dropdown desktop o del panel mobile, no cerrar.
+      if (menuRef.current?.contains(target)) return
+      if (mobileMenuRef.current?.contains(target)) return
+      setMenuOpen(false)
     }
     if (menuOpen) document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -171,7 +176,9 @@ export default function PartnerShell({ children }: { children: React.ReactNode }
           </div>
         </div>
 
-        {/* Mobile slide-down menu — mismo patrón visual que Navbar.tsx público */}
+        {/* Mobile slide-down menu — mismo patrón visual que Navbar.tsx público.
+            No incluye Inicio/Agenda/Solicitudes/Chats/Ingresos porque ya están
+            en el bottom nav: aquí solo van enlaces a Mi Negocio + sesión. */}
         {menuOpen && (
           <>
             <div
@@ -179,21 +186,38 @@ export default function PartnerShell({ children }: { children: React.ReactNode }
               aria-hidden="true"
               onClick={() => setMenuOpen(false)}
             />
-            <div className="md:hidden relative z-50 bg-white border-t border-gray-200 animate-slide-down shadow-lg max-h-[calc(100vh-5rem)] overflow-y-auto">
+            <div
+              ref={mobileMenuRef}
+              className="md:hidden relative z-50 bg-white border-t border-gray-200 animate-slide-down shadow-lg max-h-[calc(100vh-5rem)] overflow-y-auto"
+            >
               <div className="px-4 pt-2 pb-4 space-y-2">
+                <div className="flex items-center space-x-3 px-4 py-2">
+                  {session?.user?.image ? (
+                    <img src={session.user.image} alt="Profile" className="w-10 h-10 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center text-white font-black">
+                      {initial}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-gray-900 truncate">{session?.user?.name}</p>
+                    <p className="text-xs text-gray-500 font-medium truncate">{session?.user?.email}</p>
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-200 pt-2" />
+
                 <button
                   onClick={() => { setShowCityModal(true); setMenuOpen(false) }}
-                  className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 transition-all"
+                  className="w-full flex items-center px-4 py-3 rounded-xl text-sm font-bold text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 transition-all"
                 >
-                  <div className="flex items-center space-x-2">
-                    <MapPin size={18} className="text-primary-600" />
-                    <span>{isGeolocating ? 'Detectando...' : currentCity?.name ?? 'Seleccionar ciudad'}</span>
-                  </div>
+                  <MapPin size={18} className="text-primary-600 mr-2" />
+                  <span>{isGeolocating ? 'Detectando...' : currentCity?.name ?? 'Seleccionar ciudad'}</span>
                 </button>
 
                 <div className="border-t border-gray-200 pt-2" />
 
-                {SIDEBAR_LINKS.map(link => {
+                {BUSINESS_LINKS.map(link => {
                   const Icon = link.icon
                   return (
                     <Link
@@ -202,44 +226,15 @@ export default function PartnerShell({ children }: { children: React.ReactNode }
                       onClick={() => setMenuOpen(false)}
                       className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
                     >
-                      <Icon size={18} className={link.highlight ? 'text-secondary-600' : ''} />
-                      <span className={link.highlight ? 'text-secondary-700' : ''}>{link.label}</span>
+                      <Icon size={18} />
+                      <span>{link.label}</span>
                     </Link>
                   )
                 })}
 
-                <div className="border-t border-gray-200 pt-2 mt-2 space-y-1">
-                  <div className="flex items-center space-x-3 px-4 py-2 mb-1">
-                    {session?.user?.image ? (
-                      <img src={session.user.image} alt="Profile" className="w-10 h-10 rounded-full object-cover" />
-                    ) : (
-                      <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center text-white font-black">
-                        {initial}
-                      </div>
-                    )}
-                    <div className="min-w-0">
-                      <p className="text-sm font-bold text-gray-900 truncate">{session?.user?.name}</p>
-                      <p className="text-xs text-gray-500 font-medium truncate">{session?.user?.email}</p>
-                    </div>
-                  </div>
-
-                  {BUSINESS_LINKS.map(link => {
-                    const Icon = link.icon
-                    return (
-                      <Link
-                        key={link.id}
-                        href={link.href}
-                        onClick={() => setMenuOpen(false)}
-                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
-                      >
-                        <Icon size={18} />
-                        <span>{link.label}</span>
-                      </Link>
-                    )
-                  })}
-
+                <div className="border-t border-gray-200 pt-2 mt-2">
                   <button
-                    onClick={() => signOut({ callbackUrl: '/' })}
+                    onClick={() => { setMenuOpen(false); signOut({ callbackUrl: '/' }) }}
                     className="w-full flex items-center space-x-2 text-red-600 hover:text-red-700 hover:bg-red-50 px-4 py-3 rounded-xl text-sm font-bold transition-all"
                   >
                     <LogOut size={18} />
