@@ -64,6 +64,7 @@ export default function ServicesManagementPage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
+  const [showUnverified, setShowUnverified] = useState(false)
   const [bookingsCount, setBookingsCount] = useState(0)
   const [requestsCount, setRequestsCount] = useState(0)
 
@@ -221,10 +222,15 @@ export default function ServicesManagementPage() {
     }
   }
 
-  const categories = Array.from(new Set(allServices.map(s => s.category.name)))
+  // Por defecto, oculta servicios para los que el socio no tiene documentos
+  // aprobados aún (no puede activarlos). Mantiene visibles los ya activos.
+  const isVerifiedForService = (s: Service) => s.isActive || (s.approvedDocuments && s.approvedDocuments.length > 0)
+  const verifiedServices = showUnverified ? allServices : allServices.filter(isVerifiedForService)
+  const hiddenByVerification = allServices.length - verifiedServices.length
+  const categories = Array.from(new Set(verifiedServices.map(s => s.category.name)))
   const filteredServices = selectedCategory === 'all'
-    ? allServices
-    : allServices.filter(s => s.category.name === selectedCategory)
+    ? verifiedServices
+    : verifiedServices.filter(s => s.category.name === selectedCategory)
 
   if (loading) {
     return (
@@ -274,8 +280,11 @@ export default function ServicesManagementPage() {
               <div className="surface-card p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-gray-600 text-sm">Servicios Disponibles</p>
-                    <p className="text-3xl font-bold text-gray-900">{allServices.length}</p>
+                    <p className="text-gray-600 text-sm">Para activar</p>
+                    <p className="text-3xl font-bold text-gray-900">{verifiedServices.length - activeServices.length}</p>
+                    {hiddenByVerification > 0 && (
+                      <p className="text-[11px] text-gray-500 mt-0.5">{hiddenByVerification} requieren verificación</p>
+                    )}
                   </div>
                   <Plus className="text-gray-600" size={40} />
                 </div>
@@ -427,6 +436,22 @@ export default function ServicesManagementPage() {
                       </button>
                     </div>
                   </div>
+
+                  {/* Verification filter banner */}
+                  {hiddenByVerification > 0 && (
+                    <div className="px-5 py-3 bg-amber-50 border-b border-amber-100 flex items-center gap-2 text-xs">
+                      <AlertCircle size={14} className="text-amber-600 flex-shrink-0" />
+                      <span className="text-amber-900 flex-1">
+                        Ocultando <strong>{hiddenByVerification}</strong> servicios sin documentos aprobados.
+                      </span>
+                      <button
+                        onClick={() => setShowUnverified(v => !v)}
+                        className="font-semibold text-amber-700 hover:text-amber-900 whitespace-nowrap"
+                      >
+                        {showUnverified ? 'Ocultar' : 'Ver todos'}
+                      </button>
+                    </div>
+                  )}
 
                   {/* Category tabs — horizontal scroll */}
                   <div className="px-5 py-3 border-b border-gray-100">

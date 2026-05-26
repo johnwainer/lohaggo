@@ -40,12 +40,9 @@ export default function AccountTopHeader({
       </div>
 
       {role === 'PARTNER' ? (
-        <PartnerDashboardNav
-          bookingsCount={counts?.bookings ?? 0}
-          requestsCount={counts?.requests ?? 0}
-          notificationsCount={counts?.notifications}
-          activeTab={activeTab}
-        />
+        // El panel socio tiene su propio shell (sidebar + bottom-nav) en
+        // app/partner/layout.tsx → no duplicamos nav aquí.
+        null
       ) : (
         <ClientDashboardNav
           bookingsCount={counts?.bookings ?? 0}

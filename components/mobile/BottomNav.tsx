@@ -68,7 +68,7 @@ function PartnerBarInner() {
   const isActive = (id: string) => {
     if (id === 'overview') return pathname === '/partner' && (!tab || tab === 'overview')
     if (id === 'bookings') return pathname === '/partner' && tab === 'bookings'
-    if (id === 'oportunidades') return pathname === '/partner' && tab === 'my-requests'
+    if (id === 'solicitudes') return pathname === '/partner' && tab === 'my-requests'
     if (id === 'messages') return pathname.startsWith('/partner/messages')
     if (id === 'account') return PARTNER_ACCOUNT_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))
     return false
@@ -80,7 +80,7 @@ function PartnerBarInner() {
     return 0
   }
 
-  const oportunidadesActive = isActive('oportunidades')
+  const solicitudesActive = isActive('solicitudes')
   const requestsBadge = counts.requests
   const leftItems = partnerNavItems.slice(0, 2)
   const rightItems = partnerNavItems.slice(2)
@@ -105,10 +105,10 @@ function PartnerBarInner() {
         <div className="flex min-h-[52px] flex-col items-center justify-end">
           <span
             className={`mt-1 text-[10px] transition-colors ${
-              oportunidadesActive ? 'font-medium text-gray-500' : 'font-semibold text-secondary-600'
+              solicitudesActive ? 'font-medium text-gray-500' : 'font-semibold text-secondary-600'
             }`}
           >
-            Oportunidades
+            Solicitudes
           </span>
         </div>
 
@@ -125,22 +125,22 @@ function PartnerBarInner() {
 
         <Link
           href="/partner?tab=my-requests"
-          aria-label="Ver oportunidades"
+          aria-label="Ver solicitudes"
           onClick={() => window.dispatchEvent(new Event('bottom-nav-navigate'))}
           className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 transition active:scale-95"
         >
           <span
             className={`relative flex h-16 w-16 items-center justify-center rounded-full border-4 border-white transition-all ${
-              oportunidadesActive
+              solicitudesActive
                 ? 'bg-secondary-100 shadow-sm'
                 : 'bg-gradient-to-br from-secondary-500 to-secondary-600 shadow-[0_8px_24px_-4px_rgba(234,88,12,0.55)]'
             }`}
           >
             <Zap
-              className={`h-7 w-7 ${oportunidadesActive ? 'text-secondary-500' : 'text-white'}`}
+              className={`h-7 w-7 ${solicitudesActive ? 'text-secondary-500' : 'text-white'}`}
               strokeWidth={2.5}
             />
-            {!oportunidadesActive && requestsBadge > 0 && (
+            {!solicitudesActive && requestsBadge > 0 && (
               <span className="absolute -right-1 -top-1 inline-flex min-w-5 h-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white ring-2 ring-white animate-pulse">
                 {requestsBadge > 99 ? '99+' : requestsBadge}
               </span>

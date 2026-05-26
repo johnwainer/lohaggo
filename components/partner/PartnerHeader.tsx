@@ -1,10 +1,9 @@
 'use client'
 
-import PartnerDashboardNav from '@/components/PartnerDashboardNav'
-
 interface PartnerHeaderProps {
   title: string
   subtitle?: string
+  // Props legacy mantenidas para no romper callsites existentes; ignoradas
   activeTab?: string
   bookingsCount?: number
   requestsCount?: number
@@ -12,39 +11,12 @@ interface PartnerHeaderProps {
   showNavigation?: boolean
 }
 
-export default function PartnerHeader({
-  title,
-  subtitle,
-  activeTab,
-  bookingsCount = 0,
-  requestsCount = 0,
-  onTabChange,
-  showNavigation = true,
-}: PartnerHeaderProps) {
+export default function PartnerHeader({ title, subtitle }: PartnerHeaderProps) {
   return (
-    <header className="bg-white shadow-sm sticky top-20 z-40">
-      <div className="hidden sm:block max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-            <div className="min-w-0 flex-1">
-              <h1 className="panel-title truncate">{title}</h1>
-              {subtitle && (
-                <p className="panel-subtitle truncate hidden sm:block">
-                  {subtitle}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {showNavigation && (
-        <PartnerDashboardNav
-          bookingsCount={bookingsCount}
-          requestsCount={requestsCount}
-          activeTab={activeTab}
-          onTabChange={onTabChange}
-        />
+    <header className="bg-white md:bg-transparent border-b border-gray-200 md:border-0 px-4 md:px-0 py-3 md:py-0 md:mb-4">
+      <h1 className="text-xl md:text-2xl font-bold text-gray-900 truncate">{title}</h1>
+      {subtitle && (
+        <p className="text-xs md:text-sm text-gray-500 mt-0.5 truncate">{subtitle}</p>
       )}
     </header>
   )

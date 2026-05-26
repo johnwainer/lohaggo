@@ -48,6 +48,7 @@ export default function PartnerBankAccountsPage() {
     holderDocumentNumber: '',
     mercadoPagoRecipientId: '',
   })
+  const [formOpen, setFormOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [processingActionId, setProcessingActionId] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -146,6 +147,7 @@ export default function PartnerBankAccountsPage() {
           mercadoPagoRecipientId: '',
         })
         await load()
+        setFormOpen(false)
         setFeedback({ type: 'success', text: 'Cuenta bancaria registrada correctamente.' })
       }
     } catch (error) {
@@ -237,7 +239,83 @@ export default function PartnerBankAccountsPage() {
           </div>
         )}
 
-        <form onSubmit={createAccount} className="surface-card grid md:grid-cols-2 gap-3 p-4">
+        {/* Lista de cuentas + CTA agregar */}
+        <div className="surface-card p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-bold text-gray-900">Mis cuentas</h2>
+            {accounts.length > 0 && (
+              <button
+                onClick={() => setFormOpen(true)}
+                className="rounded-xl bg-primary-600 text-white px-3 py-1.5 text-sm font-semibold hover:bg-primary-700"
+              >
+                + Agregar cuenta
+              </button>
+            )}
+          </div>
+          {accounts.length === 0 ? (
+            <div className="py-8 text-center">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <span className="text-2xl">🏦</span>
+              </div>
+              <p className="font-semibold text-gray-900 mb-1">Aún no tienes cuentas registradas</p>
+              <p className="text-sm text-gray-500 mb-4">Registra una cuenta en Colombia para recibir tus pagos.</p>
+              <button
+                onClick={() => setFormOpen(true)}
+                className="inline-flex rounded-xl bg-primary-600 text-white px-4 py-2 text-sm font-semibold hover:bg-primary-700"
+              >
+                + Agregar cuenta bancaria
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {accounts.map((acc) => (
+                <div key={acc.id} className="border rounded-lg p-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-medium">{acc.bankName} · {acc.accountType === 'SAVINGS' ? 'Ahorros' : 'Corriente'}</p>
+                    <p className="text-sm text-gray-600">****{acc.accountNumber.slice(-4)} · {acc.holderDocumentType} {acc.holderDocumentNumber}</p>
+                    <p className="text-xs text-gray-500">{acc.isDefault ? 'Predeterminada' : 'Secundaria'} · {acc.isActive ? 'Activa' : 'Inactiva'}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    {!acc.isDefault && acc.isActive && (
+                      <button
+                        onClick={() => setDefault(acc.id)}
+                        disabled={processingActionId === acc.id}
+                        className="px-3 py-1 border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {processingActionId === acc.id ? 'Actualizando...' : 'Predeterminar'}
+                      </button>
+                    )}
+                    {acc.isActive && (
+                      <button
+                        onClick={() => deactivate(acc.id)}
+                        disabled={processingActionId === acc.id}
+                        className="px-3 py-1 border rounded text-sm text-red-600 border-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {processingActionId === acc.id ? 'Actualizando...' : 'Desactivar'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Modal: form para agregar cuenta */}
+        {formOpen && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
+            <div className="bg-white w-full sm:max-w-2xl rounded-t-2xl sm:rounded-2xl max-h-[92vh] overflow-y-auto">
+              <div className="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+                <h3 className="font-bold text-gray-900">Agregar cuenta bancaria</h3>
+                <button
+                  onClick={() => setFormOpen(false)}
+                  aria-label="Cerrar"
+                  className="p-1.5 rounded-lg hover:bg-gray-100"
+                >
+                  <span className="text-gray-500 text-xl leading-none">×</span>
+                </button>
+              </div>
+              <form onSubmit={createAccount} className="grid md:grid-cols-2 gap-3 p-4">
           <div className="md:col-span-2">
             <label className="block text-sm font-semibold text-gray-700 mb-1">Banco en Colombia</label>
             <select
@@ -319,42 +397,14 @@ export default function PartnerBankAccountsPage() {
               Ver documentación oficial de Mercado Pago
             </a>
           </div>
-          <button disabled={saving} className="md:col-span-2 rounded-lg bg-primary-600 text-white px-4 py-2 disabled:opacity-50">{saving ? 'Guardando...' : 'Guardar cuenta'}</button>
-        </form>
-
-        <div className="surface-card p-4 space-y-2">
-          {accounts.length === 0 ? (
-            <p className="text-gray-500">Aún no tienes cuentas registradas.</p>
-          ) : accounts.map((acc) => (
-            <div key={acc.id} className="border rounded-lg p-3 flex items-center justify-between gap-3">
-              <div>
-                <p className="font-medium">{acc.bankName} · {acc.accountType === 'SAVINGS' ? 'Ahorros' : 'Corriente'}</p>
-                <p className="text-sm text-gray-600">****{acc.accountNumber.slice(-4)} · {acc.holderDocumentType} {acc.holderDocumentNumber}</p>
-                <p className="text-xs text-gray-500">{acc.isDefault ? 'Predeterminada' : 'Secundaria'} · {acc.isActive ? 'Activa' : 'Inactiva'}</p>
-              </div>
-              <div className="flex gap-2">
-                {!acc.isDefault && acc.isActive && (
-                  <button
-                    onClick={() => setDefault(acc.id)}
-                    disabled={processingActionId === acc.id}
-                    className="px-3 py-1 border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {processingActionId === acc.id ? 'Actualizando...' : 'Predeterminar'}
-                  </button>
-                )}
-                {acc.isActive && (
-                  <button
-                    onClick={() => deactivate(acc.id)}
-                    disabled={processingActionId === acc.id}
-                    className="px-3 py-1 border rounded text-sm text-red-600 border-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {processingActionId === acc.id ? 'Actualizando...' : 'Desactivar'}
-                  </button>
-                )}
-              </div>
+          <div className="md:col-span-2 flex items-center justify-end gap-2 sticky bottom-0 bg-white pt-3 border-t border-gray-100 -mx-4 px-4">
+            <button type="button" onClick={() => setFormOpen(false)} className="rounded-lg border border-gray-300 text-gray-700 px-4 py-2 text-sm font-semibold hover:bg-gray-50">Cancelar</button>
+            <button disabled={saving} className="rounded-lg bg-primary-600 text-white px-4 py-2 text-sm font-semibold disabled:opacity-50">{saving ? 'Guardando...' : 'Guardar cuenta'}</button>
+          </div>
+              </form>
             </div>
-          ))}
-        </div>
+          </div>
+        )}
       </main>
     </div>
   )

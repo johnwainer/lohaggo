@@ -674,6 +674,40 @@ function PartnerDashboardContent() {
           {activeTab === 'overview' && (
             <div className="space-y-4 mt-4 pb-24 md:pb-6">
 
+              {/* ── Verification banner (no bloqueante) ── */}
+              {verificationAlert.isOpen && (
+                <div className="rounded-2xl border-2 border-red-200 bg-gradient-to-br from-red-50 to-orange-50 p-4 sm:p-5">
+                  <div className="flex items-start gap-3">
+                    <div className="bg-red-100 p-2 rounded-xl flex-shrink-0">
+                      <Shield className="text-red-600" size={20} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-red-900 text-base">Verificación pendiente</h3>
+                      <p className="text-sm text-red-800/90 mt-0.5">
+                        Para recibir solicitudes necesitas completar:
+                        {verificationAlert.missingDocs && <span className="font-semibold"> documento de identidad</span>}
+                        {verificationAlert.missingDocs && verificationAlert.missingEducation && <span>,</span>}
+                        {verificationAlert.missingEducation && <span className="font-semibold"> certificados de estudios</span>}.
+                      </p>
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        <button
+                          onClick={() => router.push('/partner/verification')}
+                          className="bg-red-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-red-700 transition shadow-sm"
+                        >
+                          Completar verificación
+                        </button>
+                        <button
+                          onClick={() => setVerificationAlert({ ...verificationAlert, isOpen: false })}
+                          className="text-red-700 hover:text-red-900 px-3 py-2 rounded-xl text-sm font-medium hover:bg-red-100/50 transition"
+                        >
+                          Más tarde
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* ── Availability toggle ── */}
               <div className={`rounded-2xl p-4 flex items-center justify-between gap-4 border-2 transition-all ${
                 isAvailable
@@ -830,22 +864,62 @@ function PartnerDashboardContent() {
                 </div>
               )}
 
-              {/* ── Empty state ── */}
-              {bookings.length === 0 && serviceRequests.length === 0 && (
-                <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Package className="text-gray-400" size={32} />
+              {/* ── Empty state contextual ── */}
+              {bookings.length === 0 && serviceRequests.length === 0 && (() => {
+                if (verificationAlert.isOpen) {
+                  // Ya hay banner arriba; aquí solo mostrar empty visual sin CTA duplicado
+                  return (
+                    <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
+                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Shield className="text-gray-400" size={32} />
+                      </div>
+                      <p className="font-bold text-gray-900 mb-1">Sin solicitudes todavía</p>
+                      <p className="text-sm text-gray-500">Completa la verificación de arriba para empezar a recibir.</p>
+                    </div>
+                  )
+                }
+                if (!isAvailable) {
+                  return (
+                    <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
+                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Package className="text-gray-400" size={32} />
+                      </div>
+                      <p className="font-bold text-gray-900 mb-1">No estás disponible</p>
+                      <p className="text-sm text-gray-500 mb-4">Activa tu disponibilidad para aparecer en las búsquedas de clientes.</p>
+                      <button
+                        onClick={toggleAvailability}
+                        disabled={availabilityLoading}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-700 transition disabled:opacity-60"
+                      >
+                        Activar disponibilidad
+                      </button>
+                    </div>
+                  )
+                }
+                return (
+                  <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Package className="text-gray-400" size={32} />
+                    </div>
+                    <p className="font-bold text-gray-900 mb-1">Todo tranquilo por ahora</p>
+                    <p className="text-sm text-gray-500 mb-4">Asegúrate de tener servicios activos y un perfil público completo para recibir más solicitudes.</p>
+                    <div className="flex flex-wrap items-center justify-center gap-2">
+                      <button
+                        onClick={() => router.push('/partner/services')}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-semibold rounded-xl hover:bg-primary-700 transition"
+                      >
+                        <Briefcase className="w-4 h-4" /> Configurar servicios
+                      </button>
+                      <button
+                        onClick={() => router.push('/profile#perfil-publico')}
+                        className="inline-flex items-center gap-2 px-4 py-2 border border-primary-200 text-primary-700 bg-white text-sm font-semibold rounded-xl hover:bg-primary-50 transition"
+                      >
+                        Compartir mi perfil
+                      </button>
+                    </div>
                   </div>
-                  <p className="font-bold text-gray-900 mb-1">Todo tranquilo por ahora</p>
-                  <p className="text-sm text-gray-500 mb-4">Cuando lleguen solicitudes o reservas aparecerán aquí</p>
-                  <button
-                    onClick={() => router.push('/partner/services')}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-semibold rounded-xl hover:bg-primary-700 transition"
-                  >
-                    <Briefcase className="w-4 h-4" /> Configurar servicios
-                  </button>
-                </div>
-              )}
+                )
+              })()}
 
               {/* PWA install banner */}
               {showPwaBanner && (
@@ -878,7 +952,7 @@ function PartnerDashboardContent() {
                 </div>
               )}
 
-              <PlatformTrustBanner variant="info" context="partner" />
+              <PlatformTrustBanner variant="info" context="partner" dismissKey="partner-overview" />
             </div>
           )}
 
@@ -1460,97 +1534,6 @@ function PartnerDashboardContent() {
         />
       )}
 
-      {verificationAlert.isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[9999] p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="bg-gradient-to-r from-red-600 to-orange-600 p-6 rounded-t-2xl">
-              <div className="flex items-center gap-4">
-                <div className="bg-white bg-opacity-20 p-3 rounded-full">
-                  <Shield className="text-white" size={32} />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-white">¡Verificación Pendiente!</h2>
-                  <p className="text-white text-opacity-90 mt-1">Completa tu perfil para poder trabajar</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-6 space-y-6">
-              <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4">
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="text-red-600 flex-shrink-0 mt-1" size={24} />
-                  <div>
-                    <h3 className="font-bold text-red-900 text-lg mb-2">Acción Requerida</h3>
-                    <p className="text-red-800 mb-3">
-                      Para poder recibir solicitudes de servicios y trabajar en la plataforma, debes completar tu verificación:
-                    </p>
-                    <ul className="space-y-2">
-                      {verificationAlert.missingDocs && (
-                        <li className="flex items-center gap-2 text-red-800">
-                          <XCircle className="text-red-600 flex-shrink-0" size={20} />
-                          <span className="font-semibold">Documento de identidad no verificado</span>
-                        </li>
-                      )}
-                      {verificationAlert.missingEducation && (
-                        <li className="flex items-center gap-2 text-red-800">
-                          <XCircle className="text-red-600 flex-shrink-0" size={20} />
-                          <span className="font-semibold">Estudios no verificados</span>
-                        </li>
-                      )}
-                    </ul>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
-                <div className="flex items-start gap-3">
-                  <CheckCircle className="text-blue-600 flex-shrink-0 mt-1" size={24} />
-                  <div>
-                    <h3 className="font-bold text-blue-900 mb-2">¿Qué necesitas hacer?</h3>
-                    <ol className="space-y-2 text-blue-800">
-                      {verificationAlert.missingDocs && (
-                        <li className="flex items-start gap-2">
-                          <span className="font-bold">1.</span>
-                          <span>Sube tu documento de identidad (Cédula, Pasaporte o PEP)</span>
-                        </li>
-                      )}
-                      {verificationAlert.missingEducation && (
-                        <li className="flex items-start gap-2">
-                          <span className="font-bold">{verificationAlert.missingDocs ? '2' : '1'}.</span>
-                          <span>Sube tus certificados de estudios (Diploma o certificados de cursos)</span>
-                        </li>
-                      )}
-                      <li className="flex items-start gap-2">
-                        <span className="font-bold">{verificationAlert.missingDocs && verificationAlert.missingEducation ? '3' : '2'}.</span>
-                        <span>Espera la aprobación del equipo de Haggo (generalmente 24-48 horas)</span>
-                      </li>
-                    </ol>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setVerificationAlert({ ...verificationAlert, isOpen: false })}
-                  className="flex-1 bg-gray-200 text-gray-700 px-6 py-3 rounded-xl font-semibold hover:bg-gray-300 transition-all"
-                >
-                  Recordar más tarde
-                </button>
-                <button
-                  onClick={() => {
-                    setVerificationAlert({ ...verificationAlert, isOpen: false })
-                    router.push('/partner/verification')
-                  }}
-                  className="flex-1 bg-gradient-to-r from-primary-600 to-primary-700 text-white px-6 py-3 rounded-xl font-semibold hover:from-primary-700 hover:to-primary-800 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
-                >
-                  <Shield size={20} />
-                  Completar Verificación
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

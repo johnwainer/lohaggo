@@ -1,18 +1,42 @@
 'use client'
 
-import { Shield, AlertTriangle, CheckCircle, Lock, HeadphonesIcon, FileCheck } from 'lucide-react'
+import { Shield, AlertTriangle, CheckCircle, Lock, HeadphonesIcon, FileCheck, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 interface PlatformTrustBannerProps {
   variant?: 'warning' | 'info' | 'success'
   context?: 'chat' | 'booking' | 'general' | 'partner'
   className?: string
+  /** Si se pasa, el banner se puede cerrar y la decisión persiste en localStorage. */
+  dismissKey?: string
 }
 
-export default function PlatformTrustBanner({ 
-  variant = 'warning', 
+export default function PlatformTrustBanner({
+  variant = 'warning',
   context = 'general',
-  className = '' 
+  className = '',
+  dismissKey,
 }: PlatformTrustBannerProps) {
+  const [dismissed, setDismissed] = useState(false)
+  const [hydrated, setHydrated] = useState(false)
+
+  useEffect(() => {
+    setHydrated(true)
+    if (dismissKey) {
+      try {
+        setDismissed(localStorage.getItem(`trust-banner:${dismissKey}`) === '1')
+      } catch { /* ignore */ }
+    }
+  }, [dismissKey])
+
+  const handleDismiss = () => {
+    setDismissed(true)
+    if (dismissKey) {
+      try { localStorage.setItem(`trust-banner:${dismissKey}`, '1') } catch { /* ignore */ }
+    }
+  }
+
+  if (dismissKey && hydrated && dismissed) return null
   
   const getContent = () => {
     switch (context) {
@@ -82,7 +106,16 @@ export default function PlatformTrustBanner({
   }
 
   return (
-    <div className={`${variantStyles[variant]} border-2 rounded-xl p-4 md:p-6 ${className}`}>
+    <div className={`${variantStyles[variant]} border-2 rounded-xl p-4 md:p-6 relative ${className}`}>
+      {dismissKey && (
+        <button
+          onClick={handleDismiss}
+          aria-label="Cerrar banner"
+          className="absolute top-2 right-2 p-1.5 rounded-lg hover:bg-black/5 transition opacity-60 hover:opacity-100"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      )}
       <div className="flex items-start gap-3 mb-4">
         <div className={iconStyles[variant]}>
           {content.icon}

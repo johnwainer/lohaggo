@@ -16,9 +16,24 @@ import FloatingButtons from './FloatingButtons'
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const isAdmin = pathname.startsWith('/admin')
+  const isPartnerPanel = pathname.startsWith('/partner')
 
   if (isAdmin) {
     return <>{children}</>
+  }
+
+  // Panel socio (rutas internas, no la landing pública /partner) tiene su propio shell.
+  // El layout en app/partner/layout.tsx renderiza PartnerShell.
+  if (isPartnerPanel) {
+    return (
+      <>
+        <InactiveAccountBanner />
+        <PasswordUpdateBanner />
+        {children}
+        <BottomNav />
+        <NotificationPermissionPrompt />
+      </>
+    )
   }
 
   return (
