@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import { useEffect, useRef, useState } from 'react'
-import { Sparkles, ChevronDown, MapPin, LogOut, Bell, Home, Package, Zap, MessageSquare, UserCircle, Shield, Settings, Landmark, Wallet, Award, Globe } from 'lucide-react'
+import { Sparkles, ChevronDown, MapPin, LogOut, Bell, Home, Package, Zap, MessageSquare, UserCircle, Shield, Settings, Landmark, Wallet, Award, Globe, Menu } from 'lucide-react'
 import NotificationBell from '@/components/NotificationBell'
 import { useCity } from '@/lib/city-context'
 import { usePartnerNavCounts } from '@/hooks/usePartnerNavCounts'
@@ -114,12 +114,16 @@ export default function PartnerShell({ children }: { children: React.ReactNode }
               <div ref={menuRef} className="relative">
                 <button
                   onClick={() => setMenuOpen(!menuOpen)}
-                  className="flex items-center gap-2 p-1.5 sm:px-2 sm:py-1.5 rounded-lg hover:bg-gray-100 transition"
+                  aria-label="Menú"
+                  className="flex items-center gap-2 p-2 sm:px-2 sm:py-1.5 rounded-lg hover:bg-gray-100 transition"
                 >
+                  {/* Mobile: hamburguesa */}
+                  <Menu className="w-6 h-6 text-gray-700 sm:hidden" />
+                  {/* Desktop: avatar + nombre */}
                   {session?.user?.image ? (
-                    <img src={session.user.image} alt="" className="w-7 h-7 rounded-full object-cover" />
+                    <img src={session.user.image} alt="" className="hidden sm:block w-7 h-7 rounded-full object-cover" />
                   ) : (
-                    <div className="w-7 h-7 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center text-white font-bold text-xs">
+                    <div className="hidden sm:flex w-7 h-7 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full items-center justify-center text-white font-bold text-xs">
                       {initial}
                     </div>
                   )}
