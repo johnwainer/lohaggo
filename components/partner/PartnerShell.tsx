@@ -80,11 +80,11 @@ export default function PartnerShell({ children }: { children: React.ReactNode }
                 <div className="bg-gradient-to-r from-primary-500 to-secondary-500 p-1.5 rounded-xl">
                   <Sparkles className="w-5 h-5 text-white" />
                 </div>
-                <div className="hidden sm:block">
-                  <div className="text-lg font-black bg-gradient-to-r from-primary-500 to-secondary-500 bg-clip-text text-transparent leading-tight">
+                <div className="leading-tight">
+                  <div className="text-base sm:text-lg font-black bg-gradient-to-r from-primary-500 to-secondary-500 bg-clip-text text-transparent">
                     LoHaggo
                   </div>
-                  <div className="text-[10px] text-gray-500 font-semibold -mt-1">Panel Socio</div>
+                  <div className="hidden sm:block text-[10px] text-gray-500 font-semibold -mt-0.5">Panel Socio</div>
                 </div>
               </Link>
 
@@ -99,14 +99,15 @@ export default function PartnerShell({ children }: { children: React.ReactNode }
             </div>
 
             <div className="flex items-center gap-1 sm:gap-2">
+              {/* En desktop usamos el NotificationBell rico (dropdown con feed).
+                  En mobile, un link simple a /partner/notifications. */}
               <Link
                 href="/partner/notifications"
                 aria-label="Notificaciones"
-                className="relative p-2 text-gray-600 hover:text-primary-600 hover:bg-gray-100 rounded-lg transition"
+                className="md:hidden relative p-2 text-gray-600 hover:text-primary-600 hover:bg-gray-100 rounded-lg transition"
               >
                 <Bell className="w-5 h-5" />
               </Link>
-
               <div className="hidden md:block">
                 <NotificationBell />
               </div>

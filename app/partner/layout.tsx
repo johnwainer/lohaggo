@@ -1,5 +1,4 @@
 import { Metadata } from 'next'
-import PartnerShell from '@/components/partner/PartnerShell'
 
 export const metadata: Metadata = {
   title: 'Panel Socio - LoHaggo',
@@ -7,6 +6,8 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
+// El shell del panel (top bar + sidebar) se aplica en components/PublicLayout.tsx
+// para que /profile también lo herede cuando el usuario es PARTNER.
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return <PartnerShell>{children}</PartnerShell>
+  return children
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { Navbar } from './Navbar'
 import { Footer } from './Footer'
 import { AppDownloadBanner } from './AppDownloadBanner'
@@ -12,24 +13,29 @@ import TermsBanner from './TermsBanner'
 import InactiveAccountBanner from './InactiveAccountBanner'
 import PasswordUpdateBanner from './shared/PasswordUpdateBanner'
 import FloatingButtons from './FloatingButtons'
+import PartnerShell from './partner/PartnerShell'
 
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const { data: session } = useSession()
   const isAdmin = pathname.startsWith('/admin')
-  const isPartnerPanel = pathname.startsWith('/partner')
+  const isPartnerPath = pathname.startsWith('/partner')
+  const isProfilePath = pathname === '/profile' || pathname.startsWith('/profile/')
+  // /profile es compartido entre CLIENT y PARTNER — solo aplicamos shell de
+  // socio si el usuario actual es PARTNER.
+  const isPartner = session?.user?.role === 'PARTNER'
+  const usePartnerShell = isPartnerPath || (isProfilePath && isPartner)
 
   if (isAdmin) {
     return <>{children}</>
   }
 
-  // Panel socio (rutas internas, no la landing pública /partner) tiene su propio shell.
-  // El layout en app/partner/layout.tsx renderiza PartnerShell.
-  if (isPartnerPanel) {
+  if (usePartnerShell) {
     return (
       <>
         <InactiveAccountBanner />
         <PasswordUpdateBanner />
-        {children}
+        <PartnerShell>{children}</PartnerShell>
         <BottomNav />
         <NotificationPermissionPrompt />
       </>
