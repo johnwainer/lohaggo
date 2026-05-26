@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import { useEffect, useRef, useState } from 'react'
-import { Sparkles, ChevronDown, MapPin, LogOut, Home, Package, Zap, MessageSquare, UserCircle, Shield, Settings, Landmark, Wallet, Award, Globe, Menu } from 'lucide-react'
+import { Sparkles, ChevronDown, MapPin, LogOut, Home, Package, Zap, MessageSquare, UserCircle, Shield, Settings, Landmark, Wallet, Award, Globe, Menu, X } from 'lucide-react'
 import NotificationBell from '@/components/NotificationBell'
 import { useCity } from '@/lib/city-context'
 import { usePartnerNavCounts } from '@/hooks/usePartnerNavCounts'
@@ -106,51 +106,60 @@ export default function PartnerShell({ children }: { children: React.ReactNode }
                   de no-leídos sea consistente. */}
               <NotificationBell />
 
-              <div ref={menuRef} className="relative">
+              {/* Mobile: hamburguesa (toggle full-width slide-down panel) */}
+              <button
+                onClick={() => setMenuOpen(!menuOpen)}
+                aria-label="Menú"
+                className="md:hidden p-2 rounded-lg text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 transition"
+              >
+                {menuOpen ? <X size={24} /> : <Menu size={24} />}
+              </button>
+
+              {/* Desktop: avatar + nombre + dropdown */}
+              <div ref={menuRef} className="relative hidden md:block">
                 <button
                   onClick={() => setMenuOpen(!menuOpen)}
-                  aria-label="Menú"
-                  className="flex items-center gap-2 p-2 sm:px-2 sm:py-1.5 rounded-lg hover:bg-gray-100 transition"
+                  className="flex items-center space-x-3 bg-gray-50 hover:bg-gray-100 px-4 py-2.5 rounded-xl transition-all border-2 border-gray-200 hover:border-primary-500/30"
                 >
-                  {/* Mobile: hamburguesa */}
-                  <Menu className="w-6 h-6 text-gray-700 sm:hidden" />
-                  {/* Desktop: avatar + nombre */}
                   {session?.user?.image ? (
-                    <img src={session.user.image} alt="" className="hidden sm:block w-7 h-7 rounded-full object-cover" />
+                    <img src={session.user.image} alt="Profile" className="w-9 h-9 rounded-full object-cover" />
                   ) : (
-                    <div className="hidden sm:flex w-7 h-7 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full items-center justify-center text-white font-bold text-xs">
+                    <div className="w-9 h-9 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center text-white font-black text-sm">
                       {initial}
                     </div>
                   )}
-                  <span className="hidden sm:block text-sm font-semibold text-gray-700 truncate max-w-[120px]">{session?.user?.name}</span>
-                  <ChevronDown size={14} className={`hidden sm:block text-gray-500 transition-transform ${menuOpen ? 'rotate-180' : ''}`} />
+                  <span className="text-sm font-bold text-gray-700">{session?.user?.name}</span>
+                  <ChevronDown size={16} className={`text-gray-500 transition-transform ${menuOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 {menuOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 py-1.5 z-50">
-                    <div className="px-4 py-2 border-b border-gray-100">
-                      <p className="text-sm font-bold text-gray-900 truncate">{session?.user?.name}</p>
+                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border-2 border-gray-100 py-2 animate-scale-in">
+                    <div className="px-4 py-3 border-b border-gray-100">
+                      <p className="text-sm font-bold text-gray-900">{session?.user?.name}</p>
                       <p className="text-xs text-gray-500 font-medium truncate">{session?.user?.email}</p>
+                      <span className="inline-block mt-2 text-xs font-bold text-primary-600 bg-primary-500/10 px-3 py-1 rounded-full border border-primary-500/20">
+                        SOCIO
+                      </span>
                     </div>
-                    <Link href="/profile" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                    <Link href="/profile" className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold">
                       <UserCircle size={16} />
                       <span>Mi Perfil</span>
                     </Link>
-                    <Link href="/partner/services" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                    <Link href="/partner/services" className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold">
                       <Settings size={16} />
                       <span>Mis Servicios</span>
                     </Link>
-                    <Link href="/partner/verification" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                    <Link href="/partner/verification" className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold">
                       <Shield size={16} />
                       <span>Verificación</span>
                     </Link>
-                    <Link href="/partner/bank-accounts" className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                    <Link href="/partner/bank-accounts" className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold">
                       <Landmark size={16} />
                       <span>Datos Bancarios</span>
                     </Link>
                     <button
                       onClick={() => signOut({ callbackUrl: '/' })}
-                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                      className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors font-bold"
                     >
                       <LogOut size={16} />
                       <span>Cerrar sesión</span>
@@ -161,6 +170,86 @@ export default function PartnerShell({ children }: { children: React.ReactNode }
             </div>
           </div>
         </div>
+
+        {/* Mobile slide-down menu — mismo patrón visual que Navbar.tsx público */}
+        {menuOpen && (
+          <>
+            <div
+              className="md:hidden fixed inset-0 z-40 bg-black/20"
+              aria-hidden="true"
+              onClick={() => setMenuOpen(false)}
+            />
+            <div className="md:hidden relative z-50 bg-white border-t border-gray-200 animate-slide-down shadow-lg max-h-[calc(100vh-5rem)] overflow-y-auto">
+              <div className="px-4 pt-2 pb-4 space-y-2">
+                <button
+                  onClick={() => { setShowCityModal(true); setMenuOpen(false) }}
+                  className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 transition-all"
+                >
+                  <div className="flex items-center space-x-2">
+                    <MapPin size={18} className="text-primary-600" />
+                    <span>{isGeolocating ? 'Detectando...' : currentCity?.name ?? 'Seleccionar ciudad'}</span>
+                  </div>
+                </button>
+
+                <div className="border-t border-gray-200 pt-2" />
+
+                {SIDEBAR_LINKS.map(link => {
+                  const Icon = link.icon
+                  return (
+                    <Link
+                      key={link.id}
+                      href={link.href}
+                      onClick={() => setMenuOpen(false)}
+                      className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                    >
+                      <Icon size={18} className={link.highlight ? 'text-secondary-600' : ''} />
+                      <span className={link.highlight ? 'text-secondary-700' : ''}>{link.label}</span>
+                    </Link>
+                  )
+                })}
+
+                <div className="border-t border-gray-200 pt-2 mt-2 space-y-1">
+                  <div className="flex items-center space-x-3 px-4 py-2 mb-1">
+                    {session?.user?.image ? (
+                      <img src={session.user.image} alt="Profile" className="w-10 h-10 rounded-full object-cover" />
+                    ) : (
+                      <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center text-white font-black">
+                        {initial}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-gray-900 truncate">{session?.user?.name}</p>
+                      <p className="text-xs text-gray-500 font-medium truncate">{session?.user?.email}</p>
+                    </div>
+                  </div>
+
+                  {BUSINESS_LINKS.map(link => {
+                    const Icon = link.icon
+                    return (
+                      <Link
+                        key={link.id}
+                        href={link.href}
+                        onClick={() => setMenuOpen(false)}
+                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                      >
+                        <Icon size={18} />
+                        <span>{link.label}</span>
+                      </Link>
+                    )
+                  })}
+
+                  <button
+                    onClick={() => signOut({ callbackUrl: '/' })}
+                    className="w-full flex items-center space-x-2 text-red-600 hover:text-red-700 hover:bg-red-50 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                  >
+                    <LogOut size={18} />
+                    <span>Cerrar sesión</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </header>
 
       {/* Body: sidebar (desktop) + content. Mobile: solo content, bottom nav lo maneja PublicLayout */}

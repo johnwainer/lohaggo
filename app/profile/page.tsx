@@ -458,13 +458,8 @@ export default function ProfilePage() {
       <main className="account-main">
         <div className="flex flex-col lg:flex-row gap-6">
           <div className="flex-1 space-y-6">
-            <AccountPanel noPadding>
-              <div className="bg-gradient-to-r from-primary-500 to-secondary-500 px-6 py-8">
-                <h2 className="text-2xl sm:text-3xl font-bold text-white">Información Personal</h2>
-                <p className="text-white/90 mt-2">Actualiza tus datos de perfil</p>
-              </div>
-
-              <div className="p-6 sm:p-8">
+            <AccountPanel title="Información Personal" subtitle="Actualiza tus datos de perfil">
+              <div>
                 {message && (
                   <div
                     className={`mb-6 p-4 rounded-lg flex items-center gap-3 ${
@@ -794,40 +789,36 @@ export default function ProfilePage() {
 
             {/* Public profile section — partners only */}
             {isPartner && pubLoaded && (
-              <AccountPanel noPadding>
-                <div className="bg-gradient-to-r from-primary-600 to-primary-800 px-6 py-6">
-                  <div className="flex items-center justify-between flex-wrap gap-3">
-                    <div>
-                      <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                        <Globe className="w-5 h-5" /> Perfil Público
-                      </h2>
-                      <p className="text-white/80 text-sm mt-0.5">Tu página personal para compartir con clientes</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={togglePubPublic}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
-                          pubIsPublic ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-white/10 text-white/60 hover:bg-white/20'
-                        }`}
+              <AccountPanel
+                title="Perfil Público"
+                subtitle="Tu página personal para compartir con clientes"
+                action={
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={togglePubPublic}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors ${
+                        pubIsPublic
+                          ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200'
+                      }`}
+                    >
+                      {pubIsPublic ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                      {pubIsPublic ? 'Visible' : 'Oculto'}
+                    </button>
+                    {pubSlug && (
+                      <a
+                        href={`/pro/${pubSlug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold bg-primary-600 text-white hover:bg-primary-700 transition-colors"
                       >
-                        {pubIsPublic ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                        {pubIsPublic ? 'Visible' : 'Oculto'}
-                      </button>
-                      {pubSlug && (
-                        <a
-                          href={`/pro/${pubSlug}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold bg-white text-primary-700 hover:bg-white/90 transition-colors"
-                        >
-                          <ExternalLink className="w-4 h-4" /> Ver perfil
-                        </a>
-                      )}
-                    </div>
+                        <ExternalLink className="w-4 h-4" /> Ver perfil
+                      </a>
+                    )}
                   </div>
-                </div>
-
-                <div className="p-4 sm:p-6 space-y-6">
+                }
+              >
+                <div className="space-y-6">
 
                   {/* Two-column on desktop: form left, QR right */}
                   <div className="flex flex-col lg:flex-row gap-6">
