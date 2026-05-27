@@ -304,7 +304,7 @@ export default function PartnerBankAccountsPage() {
         {/* Modal: form para agregar cuenta */}
         {formOpen && (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
-            <div className="bg-white w-full sm:max-w-2xl rounded-t-2xl sm:rounded-2xl max-h-[92vh] overflow-y-auto">
+            <div className="bg-white w-full sm:max-w-2xl rounded-t-2xl sm:rounded-2xl max-h-[85vh] sm:max-h-[92vh] overflow-y-auto">
               <div className="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
                 <h3 className="font-bold text-gray-900">Agregar cuenta bancaria</h3>
                 <button
@@ -373,30 +373,32 @@ export default function PartnerBankAccountsPage() {
             required
           />
           <input className="border rounded-lg px-3 py-2 md:col-span-2" placeholder="Mercado Pago recipient_id (requerido para live)" value={form.mercadoPagoRecipientId} onChange={(e) => setForm({ ...form, mercadoPagoRecipientId: e.target.value })} />
-          <div className="md:col-span-2 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">
-            <p className="font-semibold mb-1">Formato esperado</p>
-            <ul className="list-disc pl-5 space-y-1">
+          <details className="md:col-span-2 rounded-lg border border-gray-200 bg-gray-50 text-sm text-gray-700">
+            <summary className="cursor-pointer font-semibold px-3 py-2">Formato esperado</summary>
+            <ul className="list-disc pl-8 pr-3 pb-3 space-y-1">
               <li>Número de cuenta: solo números ({selectedBank ? `${selectedBank.accountNumberMinLength}-${selectedBank.accountNumberMaxLength}` : '8-20'} dígitos).</li>
               <li>Tipo de cuenta: ahorros o corriente.</li>
               <li>Documento: CC/CE/NIT numérico o pasaporte alfanumérico.</li>
             </ul>
-          </div>
-          <div className="md:col-span-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
-            <p className="font-semibold">¿Dónde saco mi `recipient_id` de Mercado Pago?</p>
-            <ol className="list-decimal pl-5 mt-1 space-y-1 text-blue-800">
-              <li>Entra al panel de desarrolladores de Mercado Pago con tu cuenta.</li>
-              <li>Configura la cuenta receptora para transferencias/payouts.</li>
-              <li>Copia el identificador del receptor (`recipient_id`) y pégalo aquí.</li>
-            </ol>
-            <a
-              href="https://www.mercadopago.com.co/developers/es/docs"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block mt-2 font-semibold text-blue-700 underline"
-            >
-              Ver documentación oficial de Mercado Pago
-            </a>
-          </div>
+          </details>
+          <details className="md:col-span-2 rounded-lg border border-blue-200 bg-blue-50 text-sm text-blue-900">
+            <summary className="cursor-pointer font-semibold px-3 py-2">¿Dónde saco mi recipient_id de Mercado Pago?</summary>
+            <div className="px-3 pb-3">
+              <ol className="list-decimal pl-5 space-y-1 text-blue-800">
+                <li>Entra al panel de desarrolladores de Mercado Pago con tu cuenta.</li>
+                <li>Configura la cuenta receptora para transferencias/payouts.</li>
+                <li>Copia el identificador del receptor (recipient_id) y pégalo aquí.</li>
+              </ol>
+              <a
+                href="https://www.mercadopago.com.co/developers/es/docs"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block mt-2 font-semibold text-blue-700 underline"
+              >
+                Ver documentación oficial de Mercado Pago
+              </a>
+            </div>
+          </details>
           <div className="md:col-span-2 flex items-center justify-end gap-2 sticky bottom-0 bg-white pt-3 border-t border-gray-100 -mx-4 px-4">
             <button type="button" onClick={() => setFormOpen(false)} className="rounded-lg border border-gray-300 text-gray-700 px-4 py-2 text-sm font-semibold hover:bg-gray-50">Cancelar</button>
             <button disabled={saving} className="rounded-lg bg-primary-600 text-white px-4 py-2 text-sm font-semibold disabled:opacity-50">{saving ? 'Guardando...' : 'Guardar cuenta'}</button>
