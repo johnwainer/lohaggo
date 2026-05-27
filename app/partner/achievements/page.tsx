@@ -15,7 +15,8 @@ interface Achievement {
   name: string
   description: string
   icon: string
-  unlockedAt: string
+  unlocked?: boolean
+  unlockedAt?: string | null
 }
 
 const ACHIEVEMENT_ICONS: Record<string, any> = {
@@ -79,17 +80,19 @@ export default function PartnerAchievementsPage() {
     )
   }
 
+  const unlockedAchievements = achievements.filter(a => a.unlocked && a.unlockedAt)
+
   return (
     <div className="account-shell">
       <AccountTopHeader
         role="PARTNER"
         title="Mis Logros"
-        subtitle={`Has desbloqueado ${achievements.length} logro${achievements.length !== 1 ? 's' : ''}`}
+        subtitle={`Has desbloqueado ${unlockedAchievements.length} logro${unlockedAchievements.length !== 1 ? 's' : ''}`}
       />
 
       <main className="account-main">
 
-        {achievements.length === 0 ? (
+        {unlockedAchievements.length === 0 ? (
           <AccountPanel className="text-center py-8">
             <Trophy className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">
@@ -101,7 +104,7 @@ export default function PartnerAchievementsPage() {
           </AccountPanel>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {achievements.map((achievement) => {
+            {unlockedAchievements.map((achievement) => {
               const Icon = ACHIEVEMENT_ICONS[achievement.type] || Award
               const colorClass = ACHIEVEMENT_COLORS[achievement.type] || 'bg-gray-100 text-gray-600'
 
@@ -121,7 +124,7 @@ export default function PartnerAchievementsPage() {
                   </p>
                   <div className="flex items-center text-sm text-gray-500">
                     <Clock className="w-4 h-4 mr-1" />
-                    Desbloqueado el {new Date(achievement.unlockedAt).toLocaleDateString('es-ES', {
+                    Desbloqueado el {new Date(achievement.unlockedAt!).toLocaleDateString('es-ES', {
                       day: 'numeric',
                       month: 'long',
                       year: 'numeric'
