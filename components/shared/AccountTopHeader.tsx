@@ -29,6 +29,18 @@ export default function AccountTopHeader({
 }: AccountTopHeaderProps) {
   return (
     <header className="account-header">
+      {role === 'PARTNER' ? (
+        <div className="sm:hidden bg-white border-b border-gray-200 px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl font-bold text-gray-900 truncate">{title}</h1>
+              {subtitle ? <p className="text-xs text-gray-500 mt-0.5 truncate">{subtitle}</p> : null}
+            </div>
+            {action ? <div className="flex-shrink-0">{action}</div> : null}
+          </div>
+        </div>
+      ) : null}
+
       <div className="hidden sm:block max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
