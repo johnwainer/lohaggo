@@ -303,7 +303,7 @@ export default function PartnerBankAccountsPage() {
 
         {/* Modal: form para agregar cuenta */}
         {formOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
             <div className="bg-white w-full sm:max-w-2xl rounded-2xl max-h-[85vh] sm:max-h-[92vh] overflow-y-auto">
               <div className="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
                 <h3 className="font-bold text-gray-900">Agregar cuenta bancaria</h3>
