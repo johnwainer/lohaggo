@@ -84,9 +84,10 @@ export default function NotificationPermissionPrompt({
 
   return (
     <>
-      {/* Banner compacto en mobile y desktop (no tapa contenido) */}
-      <div className="fixed bottom-[5.5rem] left-3 right-3 sm:bottom-4 sm:left-auto sm:right-4 sm:max-w-sm z-40 animate-slide-up">
-        <div className="flex items-center gap-3 rounded-2xl bg-white shadow-lg ring-1 ring-gray-200 px-3 py-2.5">
+      {/* Banner compacto en mobile y desktop (no tapa contenido).
+          Wrapper pointer-events-none para no robar clicks; tarjeta interna re-habilita. */}
+      <div className="fixed bottom-[5.5rem] left-3 right-3 sm:bottom-4 sm:left-auto sm:right-4 sm:max-w-sm z-40 pointer-events-none animate-slide-up">
+        <div className="pointer-events-auto flex items-center gap-3 rounded-2xl bg-white shadow-lg ring-1 ring-gray-200 px-3 py-2.5">
           <div className="flex-shrink-0 h-9 w-9 rounded-full bg-gradient-to-br from-secondary-500 to-secondary-600 flex items-center justify-center">
             <Bell className="text-white" size={18} />
           </div>

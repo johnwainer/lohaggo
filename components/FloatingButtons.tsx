@@ -22,13 +22,13 @@ export default function FloatingButtons() {
   const waHref = `https://wa.me/${wa.config.phone.replace(/\D/g, '')}${wa.config.message ? `?text=${encodeURIComponent(wa.config.message)}` : ''}`
 
   return (
-    <div className="fixed bottom-28 right-4 z-40 md:bottom-6 md:right-6">
+    <div className="fixed bottom-28 right-4 z-40 md:bottom-6 md:right-6 pointer-events-none">
       <a
         href={waHref}
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Contactar por WhatsApp"
-        className="group flex items-center gap-2"
+        className="pointer-events-auto group flex items-center gap-2"
       >
         <span className="hidden group-hover:flex items-center rounded-xl bg-[#25D366] px-3 py-1.5 text-xs font-medium text-white shadow-lg whitespace-nowrap">
           Chatea con nosotros

@@ -48,7 +48,8 @@ export default function TermsBanner() {
     }
 
     return (
-        <div className="fixed bottom-[5.5rem] left-0 right-0 md:bottom-0 z-40 bg-white border-t-2 border-primary-500 shadow-2xl">
+        <div className="fixed bottom-[5.5rem] left-3 right-3 md:left-0 md:right-0 md:bottom-0 z-40 pointer-events-none">
+            <div className="pointer-events-auto bg-white border-2 md:border-t-2 md:border-x-0 md:border-b-0 border-primary-500 rounded-2xl md:rounded-none shadow-2xl">
                 <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                         {/* Close button */}
@@ -121,6 +122,7 @@ export default function TermsBanner() {
                         </div>
                     </div>
                 </div>
+            </div>
         </div>
     )
 }

@@ -187,8 +187,8 @@ export default function PWAOnboardingPrompt() {
   const isCard = payload.format === 'CARD'
 
   return (
-    <div className="fixed bottom-20 left-3 right-3 z-40 md:left-auto md:right-4 md:bottom-6 md:w-[380px]">
-      <div className={`rounded-2xl border bg-white shadow-lg ${isCard ? 'p-4' : 'p-3'}`}>
+    <div className="fixed bottom-20 left-3 right-3 z-40 md:left-auto md:right-4 md:bottom-6 md:w-[380px] pointer-events-none">
+      <div className={`pointer-events-auto rounded-2xl border bg-white shadow-lg ${isCard ? 'p-4' : 'p-3'}`}>
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-start gap-2 min-w-0">
             <div className="mt-0.5 text-primary-600">{icon}</div>

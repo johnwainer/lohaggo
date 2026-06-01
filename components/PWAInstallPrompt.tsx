@@ -40,8 +40,9 @@ export default function PWAInstallPrompt() {
       const dismissedTime = installDismissed ? parseInt(installDismissed) : 0;
       const daysSinceDismissed = (Date.now() - dismissedTime) / (1000 * 60 * 60 * 24);
 
-      // Only show after MIN_VISITS_TO_SHOW visits and if not recently dismissed
-      if (newCount >= MIN_VISITS_TO_SHOW && (!installDismissed || daysSinceDismissed > 7)) {
+      // Only show after MIN_VISITS_TO_SHOW visits and if not recently dismissed.
+      // Respect the user's dismiss for 30 days (antes era 7) — menos fricción si dijeron "no".
+      if (newCount >= MIN_VISITS_TO_SHOW && (!installDismissed || daysSinceDismissed > 30)) {
         e.preventDefault();
         setDeferredPrompt(e);
         setTimeout(() => {
@@ -101,47 +102,13 @@ export default function PWAInstallPrompt() {
   return (
     <>
       {showInstallPrompt && (
-        /* Compact bottom banner on mobile, card on desktop */
-        <div className="fixed bottom-[5.5rem] left-0 right-0 md:bottom-4 md:left-auto md:right-4 md:w-96 bg-white md:rounded-2xl shadow-2xl border-t-2 md:border-2 border-gray-100 z-40 animate-slide-up">
-          {/* Desktop card header */}
-          <div className="hidden md:block bg-gradient-to-r from-primary-500 to-secondary-500 p-4 rounded-t-2xl">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center">
-                  <img src="/icon.svg" alt="LoHaggo" className="w-8 h-8" />
-                </div>
-                <div>
-                  <h3 className="text-white font-bold text-lg">Instalar LoHaggo</h3>
-                  <p className="text-white/90 text-sm">Acceso rápido desde tu inicio</p>
-                </div>
-              </div>
-              <button onClick={handleDismissInstall} className="text-white/80 hover:text-white transition-colors" aria-label="Cerrar">
-                <X size={24} />
-              </button>
-            </div>
-          </div>
-
-          {/* Desktop body */}
-          <div className="hidden md:block p-4">
-            <ul className="space-y-2 mb-4 text-sm text-gray-600">
-              <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 bg-primary-500 rounded-full"></span>Acceso instantáneo sin abrir el navegador</li>
-              <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 bg-primary-500 rounded-full"></span>Funciona sin conexión a internet</li>
-              <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 bg-primary-500 rounded-full"></span>Notificaciones de tus reservas</li>
-            </ul>
-            <button
-              onClick={handleInstallClick}
-              className="w-full bg-gradient-to-r from-primary-500 to-secondary-500 text-white py-3 rounded-xl font-bold hover:from-primary-600 hover:to-secondary-600 transition-all flex items-center justify-center gap-2 shadow-lg"
-            >
-              <Download size={20} />
-              Instalar Aplicación
-            </button>
-            <button onClick={handleDismissInstall} className="w-full mt-2 text-gray-500 hover:text-gray-700 py-2 text-sm font-medium transition-colors">
-              Ahora no
-            </button>
-          </div>
-
-          {/* Mobile compact banner */}
-          <div className="md:hidden flex items-center gap-3 px-4 py-3">
+        /* Compact toast on mobile (con márgenes laterales para no tapar cards),
+           card on desktop. Wrapper pointer-events-none por defensa: si alguna vez el
+           wrapper es más grande que el contenido visible, los clicks pasan al contenido detrás. */
+        <div className="fixed bottom-[5.5rem] left-3 right-3 max-w-md mx-auto md:bottom-4 md:left-auto md:right-4 md:mx-0 md:max-w-sm z-40 pointer-events-none animate-slide-up">
+        <div className="pointer-events-auto bg-white rounded-2xl shadow-2xl border border-gray-100">
+          {/* Toast compacto unificado (mobile + desktop): mínimo footprint para no tapar cards */}
+          <div className="flex items-center gap-3 px-4 py-3">
             <img src="/icon.svg" alt="LoHaggo" className="w-8 h-8 flex-shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-gray-900 leading-tight">Instalar LoHaggo</p>
@@ -149,8 +116,9 @@ export default function PWAInstallPrompt() {
             </div>
             <button
               onClick={handleInstallClick}
-              className="flex-shrink-0 bg-primary-500 text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-primary-600 transition-colors"
+              className="flex-shrink-0 bg-primary-500 text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-1"
             >
+              <Download size={14} />
               Instalar
             </button>
             <button onClick={handleDismissInstall} className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors" aria-label="Cerrar">
@@ -158,10 +126,12 @@ export default function PWAInstallPrompt() {
             </button>
           </div>
         </div>
+        </div>
       )}
 
       {showUpdatePrompt && (
-        <div className="fixed bottom-28 left-4 right-4 md:bottom-4 md:left-auto md:right-4 md:w-96 bg-white rounded-2xl shadow-2xl border-2 border-gray-100 z-40 animate-slide-up">
+        <div className="fixed bottom-28 left-4 right-4 md:bottom-4 md:left-auto md:right-4 md:w-96 z-40 pointer-events-none animate-slide-up">
+        <div className="pointer-events-auto bg-white rounded-2xl shadow-2xl border-2 border-gray-100">
           <div className="p-4">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-xl flex items-center justify-center">
@@ -180,6 +150,7 @@ export default function PWAInstallPrompt() {
               Actualizar Ahora
             </button>
           </div>
+        </div>
         </div>
       )}
     </>
