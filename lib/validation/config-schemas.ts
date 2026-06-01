@@ -9,6 +9,10 @@ export const commissionConfigSchema = z.object({
         .max(50, "La comisión del socio debe ser menor o igual a 50%"),
     minServicePrice: z.number().min(0).optional(),
     maxServicePrice: z.number().min(0).optional(),
+    commissionEnabled: z.boolean().optional(),
+    cashEnabled: z.boolean().optional(),
+    transferEnabled: z.boolean().optional(),
+    mercadoPagoEnabled: z.boolean().optional(),
 })
 
 export type CommissionConfigInput = z.infer<typeof commissionConfigSchema>

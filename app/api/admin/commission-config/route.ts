@@ -55,7 +55,16 @@ export async function PUT(req: NextRequest) {
       return validation.error;
     }
 
-    const { clientCommissionRate, partnerCommissionRate, minServicePrice, maxServicePrice } = validation.data;
+    const {
+      clientCommissionRate,
+      partnerCommissionRate,
+      minServicePrice,
+      maxServicePrice,
+      commissionEnabled,
+      cashEnabled,
+      transferEnabled,
+      mercadoPagoEnabled,
+    } = validation.data;
 
     const existingConfig = await prisma.platformConfig.findFirst();
 
@@ -69,6 +78,10 @@ export async function PUT(req: NextRequest) {
           commissionRate: clientCommissionRate,
           ...(minServicePrice !== undefined ? { minServicePrice } : {}),
           ...(maxServicePrice !== undefined ? { maxServicePrice } : {}),
+          ...(commissionEnabled !== undefined ? { commissionEnabled } : {}),
+          ...(cashEnabled !== undefined ? { cashEnabled } : {}),
+          ...(transferEnabled !== undefined ? { transferEnabled } : {}),
+          ...(mercadoPagoEnabled !== undefined ? { mercadoPagoEnabled } : {}),
         },
       });
     } else {
@@ -80,6 +93,10 @@ export async function PUT(req: NextRequest) {
           partnerCommissionRate,
           minServicePrice: minServicePrice ?? 10000,
           maxServicePrice: maxServicePrice ?? 10000000,
+          commissionEnabled: commissionEnabled ?? false,
+          cashEnabled: cashEnabled ?? true,
+          transferEnabled: transferEnabled ?? true,
+          mercadoPagoEnabled: mercadoPagoEnabled ?? false,
         },
       });
     }

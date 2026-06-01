@@ -18,6 +18,7 @@ import ConfirmModal from '@/components/ConfirmModal'
 import ImageGalleryModal from '@/components/ImageGalleryModal'
 import RatingModal from '@/components/RatingModal'
 import UnifiedBookingCard from '@/components/shared/UnifiedBookingCard'
+import OfflinePaymentActions from '@/components/payments/OfflinePaymentActions'
 import ServiceIcon from '@/components/ServiceIcon'
 import ClientDashboardNav from '@/components/ClientDashboardNav'
 import { getBookingVisualState, type BookingVisualState } from '@/lib/booking-status'
@@ -262,6 +263,11 @@ export default function DashboardPage() {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('')
   const [processingPayment, setProcessingPayment] = useState(false)
   const [loadingBreakdown, setLoadingBreakdown] = useState(false)
+  const [paymentConfig, setPaymentConfig] = useState<{ cashEnabled: boolean; transferEnabled: boolean; mercadoPagoEnabled: boolean } | null>(null)
+
+  useEffect(() => {
+    fetch('/api/payment-config/public').then(r => r.json()).then(setPaymentConfig).catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (status === 'authenticated') {
@@ -1396,7 +1402,7 @@ export default function DashboardPage() {
                     if (visualState === 'PAID') priorityBadges.push('SIN CALIFICAR')
 
                     const primaryAction =
-                      visualState === 'COMPLETED'
+                      visualState === 'COMPLETED' && paymentConfig?.mercadoPagoEnabled
                         ? {
                             label: 'Pagar ahora',
                             onClick: () => openPaymentModal(booking.id, booking.service.name, booking.totalPrice),
@@ -1458,25 +1464,36 @@ export default function DashboardPage() {
                     }
 
                     return (
-                      <UnifiedBookingCard
-                        key={booking.id}
-                        role="CLIENT"
-                        serviceName={booking.service.name}
-                        serviceIcon={booking.service.icon}
-                        serviceSlug={booking.service.slug}
-                        counterpartName={booking.partner?.user.name || 'Socio'}
-                        counterpartLabel="Socio"
-                        visualState={visualState}
-                        totalPrice={formatCurrency(booking.totalPrice)}
-                        scheduledDate={booking.scheduledDate}
-                        scheduledTime={booking.scheduledTime}
-                        address={booking.address}
-                        notes={booking.notes}
-                        priorityBadges={priorityBadges}
-                        primaryAction={primaryAction}
-                        secondaryActions={secondaryActions}
-                        metadataInline={`${new Date(booking.scheduledDate).toLocaleDateString('es-ES')} · ${booking.scheduledTime} · ${booking.address}`}
-                      />
+                      <div key={booking.id} className="space-y-2">
+                        <UnifiedBookingCard
+                          role="CLIENT"
+                          serviceName={booking.service.name}
+                          serviceIcon={booking.service.icon}
+                          serviceSlug={booking.service.slug}
+                          counterpartName={booking.partner?.user.name || 'Socio'}
+                          counterpartLabel="Socio"
+                          visualState={visualState}
+                          totalPrice={formatCurrency(booking.totalPrice)}
+                          scheduledDate={booking.scheduledDate}
+                          scheduledTime={booking.scheduledTime}
+                          address={booking.address}
+                          notes={booking.notes}
+                          priorityBadges={priorityBadges}
+                          primaryAction={primaryAction}
+                          secondaryActions={secondaryActions}
+                          metadataInline={`${new Date(booking.scheduledDate).toLocaleDateString('es-ES')} · ${booking.scheduledTime} · ${booking.address}`}
+                        />
+                        {booking.status === 'COMPLETED' && (
+                          <OfflinePaymentActions
+                            bookingId={booking.id}
+                            role="CLIENT"
+                            bookingStatus={booking.status}
+                            payment={booking.payment as any}
+                            partnerBankAccount={(booking.partner as any)?.bankAccounts?.find((b: any) => b.isDefault) || (booking.partner as any)?.bankAccounts?.[0] || null}
+                            onChange={fetchBookings}
+                          />
+                        )}
+                      </div>
                     )
                   })}
                 </div>

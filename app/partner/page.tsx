@@ -19,6 +19,7 @@ import ConfirmModal from '@/components/ConfirmModal'
 import ImageGalleryModal from '@/components/ImageGalleryModal'
 import RatingModal from '@/components/RatingModal'
 import UnifiedBookingCard from '@/components/shared/UnifiedBookingCard'
+import OfflinePaymentActions from '@/components/payments/OfflinePaymentActions'
 import PartnerHeader from '@/components/partner/PartnerHeader'
 import StatCard from '@/components/shared/StatCard'
 import LoadingSpinner from '@/components/shared/LoadingSpinner'
@@ -1185,25 +1186,35 @@ function PartnerDashboardContent() {
                     }
 
                     return (
-                      <UnifiedBookingCard
-                        key={booking.id}
-                        role="PARTNER"
-                        serviceName={booking.service.name}
-                        serviceIcon={booking.service.icon}
-                        serviceSlug={booking.service.slug}
-                        counterpartName={booking.user.name}
-                        counterpartLabel="Cliente"
-                        visualState={visualState}
-                        totalPrice={formatCurrency(booking.totalPrice)}
-                        scheduledDate={booking.scheduledDate}
-                        scheduledTime={booking.scheduledTime}
-                        address={booking.address}
-                        notes={booking.notes}
-                        priorityBadges={priorityBadges}
-                        primaryAction={primaryAction}
-                        secondaryActions={secondaryActions}
-                        metadataInline={`${new Date(booking.scheduledDate).toLocaleDateString('es-ES')} · ${booking.scheduledTime} · ${booking.address}`}
-                      />
+                      <div key={booking.id} className="space-y-2">
+                        <UnifiedBookingCard
+                          role="PARTNER"
+                          serviceName={booking.service.name}
+                          serviceIcon={booking.service.icon}
+                          serviceSlug={booking.service.slug}
+                          counterpartName={booking.user.name}
+                          counterpartLabel="Cliente"
+                          visualState={visualState}
+                          totalPrice={formatCurrency(booking.totalPrice)}
+                          scheduledDate={booking.scheduledDate}
+                          scheduledTime={booking.scheduledTime}
+                          address={booking.address}
+                          notes={booking.notes}
+                          priorityBadges={priorityBadges}
+                          primaryAction={primaryAction}
+                          secondaryActions={secondaryActions}
+                          metadataInline={`${new Date(booking.scheduledDate).toLocaleDateString('es-ES')} · ${booking.scheduledTime} · ${booking.address}`}
+                        />
+                        {booking.status === 'COMPLETED' && (
+                          <OfflinePaymentActions
+                            bookingId={booking.id}
+                            role="PARTNER"
+                            bookingStatus={booking.status}
+                            payment={(booking as any).payment}
+                            onChange={fetchBookings}
+                          />
+                        )}
+                      </div>
                     )
                   })}
                 </div>

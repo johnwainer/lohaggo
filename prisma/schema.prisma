@@ -9,54 +9,54 @@ datasource db {
 }
 
 model User {
-  id                     String                 @id @default(cuid())
-  email                  String                 @unique
-  name                   String
-  password               String
-  phone                  String?
-  image                  String?
-  role                   UserRole               @default(CLIENT)
-  isActive               Boolean                @default(true)
-  pushSubscription       String?
-  notificationsPushEnabled Boolean              @default(true)
-  notificationsEmailEnabled Boolean             @default(true)
-  notificationsWhatsappEnabled Boolean          @default(true)
-  notificationsSmsEnabled Boolean               @default(true)
-  clientRating           Float                  @default(0)
-  clientTotalReviews     Int                    @default(0)
-  completedServicesCount Int                    @default(0)
-  createdAt              DateTime               @default(now())
-  updatedAt              DateTime               @updatedAt
-  mercadopagoCustomerId  String?                @unique
-  addresses              Address[]
-  bookings               Booking[]
-  notifications          Notification[]
-  messagingCampaigns     MessagingCampaign[]    @relation("MessagingCampaignCreator")
-  messagingDeliveries    MessagingDelivery[]
-  notificationDispatches NotificationDispatchLog[]
-  messagingOptOuts       MessagingOptOut[]
-  automationExecutions   AutomationExecution[]
-  partnerProfile         PartnerProfile?
-  payments               Payment[]
-  paymentMethods         PaymentMethod[]
-  serviceRequests        ServiceRequest[]
-  clientChats            Chat[]                 @relation("ClientChats")
-  favoritePartners       FavoritePartner[]
-  favoriteServices       FavoriteService[]
-  searchHistory          SearchHistory[]
-  supportCases           AdminSupportCase[]
-  fraudSignals           FraudSignal[]
-  paymentIncidents       PaymentIncident[]
-  refundCases            RefundCase[]
-  taxDocuments           TaxDocument[]
-  complianceEvaluations  ComplianceEvaluation[]
-  pwaTelemetryEvents     PwaTelemetryEvent[]
-  pwaAdoptionProfile     PwaAdoptionProfile?
+  id                                String                      @id @default(cuid())
+  email                             String                      @unique
+  name                              String
+  password                          String
+  phone                             String?
+  image                             String?
+  role                              UserRole                    @default(CLIENT)
+  isActive                          Boolean                     @default(true)
+  pushSubscription                  String?
+  notificationsPushEnabled          Boolean                     @default(true)
+  notificationsEmailEnabled         Boolean                     @default(true)
+  notificationsWhatsappEnabled      Boolean                     @default(true)
+  notificationsSmsEnabled           Boolean                     @default(true)
+  clientRating                      Float                       @default(0)
+  clientTotalReviews                Int                         @default(0)
+  completedServicesCount            Int                         @default(0)
+  createdAt                         DateTime                    @default(now())
+  updatedAt                         DateTime                    @updatedAt
+  mercadopagoCustomerId             String?                     @unique
+  addresses                         Address[]
+  bookings                          Booking[]
+  notifications                     Notification[]
+  messagingCampaigns                MessagingCampaign[]         @relation("MessagingCampaignCreator")
+  messagingDeliveries               MessagingDelivery[]
+  notificationDispatches            NotificationDispatchLog[]
+  messagingOptOuts                  MessagingOptOut[]
+  automationExecutions              AutomationExecution[]
+  partnerProfile                    PartnerProfile?
+  payments                          Payment[]
+  paymentMethods                    PaymentMethod[]
+  serviceRequests                   ServiceRequest[]
+  clientChats                       Chat[]                      @relation("ClientChats")
+  favoritePartners                  FavoritePartner[]
+  favoriteServices                  FavoriteService[]
+  searchHistory                     SearchHistory[]
+  supportCases                      AdminSupportCase[]
+  fraudSignals                      FraudSignal[]
+  paymentIncidents                  PaymentIncident[]
+  refundCases                       RefundCase[]
+  taxDocuments                      TaxDocument[]
+  complianceEvaluations             ComplianceEvaluation[]
+  pwaTelemetryEvents                PwaTelemetryEvent[]
+  pwaAdoptionProfile                PwaAdoptionProfile?
   notificationEmailTemplatesUpdated NotificationEmailTemplate[] @relation("NotificationEmailTemplateUpdatedBy")
-  magicTokens                MagicToken[]
-  conversations              Conversation[]
-  assignedConversations      Conversation[]       @relation("AgentConversations")
-  sentMessages               ConversationMessage[] @relation("AgentMessages")
+  magicTokens                       MagicToken[]
+  conversations                     Conversation[]
+  assignedConversations             Conversation[]              @relation("AgentConversations")
+  sentMessages                      ConversationMessage[]       @relation("AgentMessages")
 }
 
 model PartnerProfile {
@@ -108,25 +108,25 @@ model Category {
 }
 
 model Service {
-  id              String            @id @default(cuid())
-  name            String
-  slug            String            @unique
-  description     String
-  icon            String
-  categoryId      String
-  basePrice       Float
-  duration        Int
-  popular         Boolean           @default(false)
-  showPartnerCount Boolean          @default(true)
-  showAvgRating   Boolean           @default(true)
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  bookings        Booking[]
-  partners        PartnerService[]
-  category        Category          @relation(fields: [categoryId], references: [id])
-  serviceRequests ServiceRequest[]
-  advertisements  Advertisement[]
-  favoritedBy     FavoriteService[]
+  id               String            @id @default(cuid())
+  name             String
+  slug             String            @unique
+  description      String
+  icon             String
+  categoryId       String
+  basePrice        Float
+  duration         Int
+  popular          Boolean           @default(false)
+  showPartnerCount Boolean           @default(true)
+  showAvgRating    Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  bookings         Booking[]
+  partners         PartnerService[]
+  category         Category          @relation(fields: [categoryId], references: [id])
+  serviceRequests  ServiceRequest[]
+  advertisements   Advertisement[]
+  favoritedBy      FavoriteService[]
 }
 
 model PartnerService {
@@ -245,15 +245,15 @@ model Proposal {
 }
 
 model Notification {
-  id        String           @id @default(cuid())
-  userId    String
-  type      NotificationType
-  title     String
-  message   String
-  data      String?
-  read      Boolean          @default(false)
-  createdAt DateTime         @default(now())
-  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         String                    @id @default(cuid())
+  userId     String
+  type       NotificationType
+  title      String
+  message    String
+  data       String?
+  read       Boolean                   @default(false)
+  createdAt  DateTime                  @default(now())
+  user       User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
   dispatches NotificationDispatchLog[]
 
   @@index([userId, read])
@@ -261,19 +261,19 @@ model Notification {
 }
 
 model NotificationAutomationConfig {
-  id            String                       @id @default(cuid())
-  target        NotificationAutomationTarget @unique
-  pushEnabled   Boolean                      @default(true)
-  emailEnabled  Boolean                      @default(false)
-  whatsappEnabled Boolean                    @default(false)
-  smsEnabled    Boolean                      @default(false)
-  updatedByEmail String?
-  createdAt     DateTime                     @default(now())
-  updatedAt     DateTime                     @updatedAt
+  id              String                       @id @default(cuid())
+  target          NotificationAutomationTarget @unique
+  pushEnabled     Boolean                      @default(true)
+  emailEnabled    Boolean                      @default(false)
+  whatsappEnabled Boolean                      @default(false)
+  smsEnabled      Boolean                      @default(false)
+  updatedByEmail  String?
+  createdAt       DateTime                     @default(now())
+  updatedAt       DateTime                     @updatedAt
 }
 
 model NotificationDispatchLog {
-  id                String                   @id @default(cuid())
+  id                String                     @id @default(cuid())
   notificationId    String?
   userId            String
   userRole          UserRole
@@ -290,9 +290,9 @@ model NotificationDispatchLog {
   deliveredAt       DateTime?
   openedAt          DateTime?
   clickedAt         DateTime?
-  createdAt         DateTime                 @default(now())
-  notification      Notification?            @relation(fields: [notificationId], references: [id], onDelete: SetNull)
-  user              User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt         DateTime                   @default(now())
+  notification      Notification?              @relation(fields: [notificationId], references: [id], onDelete: SetNull)
+  user              User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
   @@index([channel, status, createdAt])
@@ -423,38 +423,38 @@ model MessagingProviderConfig {
 }
 
 model AutomationRule {
-  id           String              @id @default(cuid())
+  id           String                @id @default(cuid())
   name         String
   description  String?
   trigger      AutomationTrigger
   targetRole   UserRole?
-  delayHours   Int                 @default(0)
-  channels     String              // JSON array of MessagingChannel
-  waTemplateFn String?             // function name in whatsapp-templates.ts
-  customBody   String?             // for SMS / Email body (supports {{name}} vars)
-  subject      String?             // for Email subject
-  isActive     Boolean             @default(true)
+  delayHours   Int                   @default(0)
+  channels     String // JSON array of MessagingChannel
+  waTemplateFn String? // function name in whatsapp-templates.ts
+  customBody   String? // for SMS / Email body (supports {{name}} vars)
+  subject      String? // for Email subject
+  isActive     Boolean               @default(true)
   metadata     String?
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
   executions   AutomationExecution[]
 
   @@index([trigger, isActive])
 }
 
 model AutomationExecution {
-  id          String            @id @default(cuid())
+  id          String           @id @default(cuid())
   ruleId      String
   userId      String
   channel     MessagingChannel
-  status      String            @default("PENDING")
-  contextId   String?           // booking ID, conversation ID, etc. for repeatable triggers
+  status      String           @default("PENDING")
+  contextId   String? // booking ID, conversation ID, etc. for repeatable triggers
   scheduledAt DateTime
   executedAt  DateTime?
   error       String?
-  createdAt   DateTime          @default(now())
-  rule        AutomationRule    @relation(fields: [ruleId], references: [id], onDelete: Cascade)
-  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime         @default(now())
+  rule        AutomationRule   @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([ruleId, userId, channel, contextId])
   @@index([scheduledAt, status])
@@ -563,20 +563,20 @@ model RequestPhoto {
 }
 
 model VerificationDocument {
-  id              String          @id @default(cuid())
-  partnerId       String
-  type            DocumentType
-  documentUrl     String
-  publicId        String?
-  status          DocumentStatus  @default(PENDING)
-  rejectionReason String?
-  reviewedBy      String?
-  reviewedAt      DateTime?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  id               String          @id @default(cuid())
+  partnerId        String
+  type             DocumentType
+  documentUrl      String
+  publicId         String?
+  status           DocumentStatus  @default(PENDING)
+  rejectionReason  String?
+  reviewedBy       String?
+  reviewedAt       DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
   partnerServiceId String?
-  partner         PartnerProfile  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
-  partnerService  PartnerService? @relation(fields: [partnerServiceId], references: [id], onDelete: SetNull)
+  partner          PartnerProfile  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  partnerService   PartnerService? @relation(fields: [partnerServiceId], references: [id], onDelete: SetNull)
 
   @@index([partnerId, status])
   @@index([status])
@@ -640,34 +640,44 @@ model PaymentMethod {
 }
 
 model Payment {
-  id                   String            @id @default(cuid())
-  bookingId            String            @unique
-  userId               String
-  paymentMethodId      String?
-  mercadopagoId        String?           @unique
-  preferenceId         String?
-  amount               Float
-  serviceAmount        Float
-  clientCommission     Float
-  clientCommissionRate Float
-  totalAmount          Float
-  status               PaymentStatus     @default(PENDING)
-  paymentMethodType    String?
-  paymentType          String?
-  transactionAmount    Float?
-  netReceivedAmount    Float?
-  mercadopagoFee       Float?
-  metadata             String?
-  paidAt               DateTime?
-  createdAt            DateTime          @default(now())
-  updatedAt            DateTime          @updatedAt
-  booking              Booking           @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  paymentMethod        PaymentMethod?    @relation(fields: [paymentMethodId], references: [id])
-  user                 User              @relation(fields: [userId], references: [id])
-  payout               Payout?
-  incidents            PaymentIncident[]
-  refundCases          RefundCase[]
-  taxDocuments         TaxDocument[]
+  id                     String                    @id @default(cuid())
+  bookingId              String                    @unique
+  userId                 String
+  paymentMethodId        String?
+  mercadopagoId          String?                   @unique
+  preferenceId           String?
+  amount                 Float
+  serviceAmount          Float
+  clientCommission       Float
+  clientCommissionRate   Float
+  totalAmount            Float
+  status                 PaymentStatus             @default(PENDING)
+  paymentMethodType      String?
+  paymentType            String?
+  transactionAmount      Float?
+  netReceivedAmount      Float?
+  mercadopagoFee         Float?
+  metadata               String?
+  paidAt                 DateTime?
+  confirmationStatus     PaymentConfirmationStatus @default(NONE)
+  clientReportedMethod   OfflinePaymentMethod?
+  clientReportedAt       DateTime?
+  clientReportNote       String?
+  partnerConfirmedMethod OfflinePaymentMethod?
+  partnerConfirmedAt     DateTime?
+  partnerRejectedAt      DateTime?
+  rejectionReason        String?
+  lastReminderAt         DateTime?
+  reminderCount          Int                       @default(0)
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
+  booking                Booking                   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  paymentMethod          PaymentMethod?            @relation(fields: [paymentMethodId], references: [id])
+  user                   User                      @relation(fields: [userId], references: [id])
+  payout                 Payout?
+  incidents              PaymentIncident[]
+  refundCases            RefundCase[]
+  taxDocuments           TaxDocument[]
 
   @@index([userId])
   @@index([status])
@@ -712,6 +722,10 @@ model PlatformConfig {
   partnerCommissionRate Float    @default(10.0)
   minServicePrice       Float
   maxServicePrice       Float
+  commissionEnabled     Boolean  @default(false)
+  cashEnabled           Boolean  @default(true)
+  transferEnabled       Boolean  @default(true)
+  mercadoPagoEnabled    Boolean  @default(false)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
@@ -846,6 +860,21 @@ enum PaymentStatus {
   REJECTED
   CANCELLED
   REFUNDED
+}
+
+enum PaymentConfirmationStatus {
+  NONE
+  CLIENT_REPORTED
+  PARTNER_REPORTED
+  CONFIRMED
+  DISPUTED
+  REJECTED_BY_PARTNER
+}
+
+enum OfflinePaymentMethod {
+  CASH
+  DIRECT_TRANSFER
+  MERCADOPAGO
 }
 
 enum PayoutStatus {
@@ -1464,21 +1493,21 @@ enum MessageDirection {
 }
 
 model Conversation {
-  id              String             @id @default(cuid())
+  id              String                @id @default(cuid())
   channel         MessagingChannel
   contactPhone    String
   contactName     String?
   userId          String?
   assignedToId    String?
-  status          ConversationStatus @default(OPEN)
-  tags            String[]           @default([])
+  status          ConversationStatus    @default(OPEN)
+  tags            String[]              @default([])
   lastMessageAt   DateTime?
   lastMessageBody String?
-  unreadCount     Int                @default(0)
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
-  user            User?              @relation(fields: [userId], references: [id])
-  assignedTo      User?              @relation("AgentConversations", fields: [assignedToId], references: [id])
+  unreadCount     Int                   @default(0)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  user            User?                 @relation(fields: [userId], references: [id])
+  assignedTo      User?                 @relation("AgentConversations", fields: [assignedToId], references: [id])
   messages        ConversationMessage[]
 
   @@unique([channel, contactPhone])

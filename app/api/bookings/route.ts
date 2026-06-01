@@ -67,6 +67,18 @@ export async function GET(request: Request) {
                 name: true,
                 email: true
               }
+            },
+            bankAccounts: {
+              where: { isDefault: true },
+              select: {
+                bankName: true,
+                accountType: true,
+                accountNumber: true,
+                accountHolderName: true,
+                holderDocumentNumber: true,
+                isDefault: true,
+              },
+              take: 1,
             }
           }
         },
@@ -81,7 +93,14 @@ export async function GET(request: Request) {
           select: {
             id: true,
             status: true,
-            totalAmount: true
+            totalAmount: true,
+            confirmationStatus: true,
+            clientReportedMethod: true,
+            clientReportedAt: true,
+            partnerConfirmedMethod: true,
+            partnerConfirmedAt: true,
+            partnerRejectedAt: true,
+            rejectionReason: true
           }
         }
       },

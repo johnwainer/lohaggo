@@ -1,12 +1,16 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { DollarSign, TrendingUp, Save, AlertCircle } from 'lucide-react'
+import { DollarSign, TrendingUp, Save, AlertCircle, Banknote, CreditCard, ArrowRightLeft, Percent } from 'lucide-react'
 
 export default function CommissionsSection() {
   const [config, setConfig] = useState({
     clientCommissionRate: 0,
     partnerCommissionRate: 0,
+    commissionEnabled: false,
+    cashEnabled: true,
+    transferEnabled: true,
+    mercadoPagoEnabled: false,
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -24,6 +28,10 @@ export default function CommissionsSection() {
         setConfig({
           clientCommissionRate: data.clientCommissionRate,
           partnerCommissionRate: data.partnerCommissionRate,
+          commissionEnabled: data.commissionEnabled ?? false,
+          cashEnabled: data.cashEnabled ?? true,
+          transferEnabled: data.transferEnabled ?? true,
+          mercadoPagoEnabled: data.mercadoPagoEnabled ?? false,
         })
       }
     } catch (error) {
@@ -182,6 +190,45 @@ export default function CommissionsSection() {
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h3 className="font-semibold text-gray-900 mb-4">Metodos de pago habilitados</h3>
+        <p className="text-sm text-gray-600 mb-4">
+          Controla que metodos puede usar el cliente al reportar el pago. La transferencia muestra los datos
+          bancarios registrados por el socio. La comision aplica solo si esta activada.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <ToggleRow
+            icon={<Banknote className="w-5 h-5 text-emerald-600" />}
+            label="Efectivo"
+            description="Cliente paga en efectivo al socio"
+            checked={config.cashEnabled}
+            onChange={(v) => setConfig({ ...config, cashEnabled: v })}
+          />
+          <ToggleRow
+            icon={<ArrowRightLeft className="w-5 h-5 text-blue-600" />}
+            label="Transferencia directa"
+            description="Cliente transfiere a la cuenta del socio"
+            checked={config.transferEnabled}
+            onChange={(v) => setConfig({ ...config, transferEnabled: v })}
+          />
+          <ToggleRow
+            icon={<CreditCard className="w-5 h-5 text-purple-600" />}
+            label="Mercado Pago"
+            description="Pago online con tarjeta via MP"
+            checked={config.mercadoPagoEnabled}
+            onChange={(v) => setConfig({ ...config, mercadoPagoEnabled: v })}
+          />
+          <ToggleRow
+            icon={<Percent className="w-5 h-5 text-amber-600" />}
+            label="Cobrar comision"
+            description="Aplica % de comision a cliente y socio"
+            checked={config.commissionEnabled}
+            onChange={(v) => setConfig({ ...config, commissionEnabled: v })}
+            warning={!config.commissionEnabled ? undefined : 'Afecta payouts existentes'}
+          />
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h3 className="font-semibold text-gray-900 mb-4">Resumen del Flujo de Pagos</h3>
         <div className="space-y-3 text-sm text-gray-700">
           <div className="flex items-start gap-2">
@@ -222,5 +269,38 @@ export default function CommissionsSection() {
         </button>
       </div>
     </div>
+  )
+}
+
+function ToggleRow({
+  icon,
+  label,
+  description,
+  checked,
+  onChange,
+  warning,
+}: {
+  icon: React.ReactNode
+  label: string
+  description: string
+  checked: boolean
+  onChange: (v: boolean) => void
+  warning?: string
+}) {
+  return (
+    <label className="flex items-start gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+      <div className="mt-0.5">{icon}</div>
+      <div className="flex-1 min-w-0">
+        <p className="font-medium text-gray-900">{label}</p>
+        <p className="text-xs text-gray-600">{description}</p>
+        {warning ? <p className="text-xs text-amber-600 mt-1">⚠ {warning}</p> : null}
+      </div>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="w-5 h-5 mt-0.5 accent-primary-600"
+      />
+    </label>
   )
 }
