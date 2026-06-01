@@ -61,7 +61,7 @@ export async function POST(
 
     await createNotification({
       userId: booking.userId,
-      type: 'BOOKING_COMPLETED',
+      type: 'PAYMENT_REJECTED_BY_PARTNER',
       title: 'El socio rechazo el pago reportado',
       message: `Motivo: ${validation.data.reason}. Por favor reporta el pago nuevamente desde tu panel.`,
       data: { bookingId: booking.id, kind: 'PAYMENT_REJECTED_BY_PARTNER', reason: validation.data.reason },

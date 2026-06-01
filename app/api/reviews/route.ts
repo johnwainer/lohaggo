@@ -139,7 +139,7 @@ export async function POST(request: Request) {
 
         await createNotification({
           userId: booking.partner.userId,
-          type: "BOOKING_COMPLETED",
+          type: "RATING_RECEIVED",
           title: "Nueva calificación recibida",
           message: `${booking.user.name} te ha calificado con ${rating} estrellas`,
           data: {

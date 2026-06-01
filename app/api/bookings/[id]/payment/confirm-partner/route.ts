@@ -90,7 +90,7 @@ export async function POST(
     if (confirmationStatus === 'CONFIRMED') {
       await createNotification({
         userId: booking.userId,
-        type: 'BOOKING_COMPLETED',
+        type: 'PAYMENT_CONFIRMED_BY_PARTNER',
         title: 'Pago confirmado por el socio',
         message: `El socio confirmo la recepcion del pago. Tu reserva esta marcada como pagada.`,
         data: { bookingId: booking.id, kind: 'PAYMENT_CONFIRMED' },
@@ -98,7 +98,7 @@ export async function POST(
     } else if (confirmationStatus === 'PARTNER_REPORTED') {
       await createNotification({
         userId: booking.userId,
-        type: 'BOOKING_COMPLETED',
+        type: 'PAYMENT_REPORTED_BY_CLIENT',
         title: 'El socio reporto haber recibido el pago',
         message: 'Confirma desde tu panel para cerrar la reserva.',
         data: { bookingId: booking.id, method: partnerMethod, kind: 'PAYMENT_REPORTED_BY_PARTNER' },
@@ -106,7 +106,7 @@ export async function POST(
     } else if (isDisputed) {
       await createNotification({
         userId: booking.userId,
-        type: 'BOOKING_COMPLETED',
+        type: 'PAYMENT_REJECTED_BY_PARTNER',
         title: 'Discrepancia en el metodo de pago',
         message: 'El metodo reportado no coincide con el del socio. Un administrador revisara el caso.',
         data: { bookingId: booking.id, kind: 'PAYMENT_DISPUTED' },
@@ -116,7 +116,7 @@ export async function POST(
       await Promise.all(admins.map((a) =>
         createNotification({
           userId: a.id,
-          type: 'BOOKING_COMPLETED',
+          type: 'PAYMENT_REJECTED_BY_PARTNER',
           title: 'Disputa de pago',
           message: `Booking ${booking.id}: cliente reporto ${booking.payment?.clientReportedMethod}, socio reporto ${partnerMethod}.`,
           data: { bookingId: booking.id, kind: 'PAYMENT_DISPUTE_ADMIN_ALERT' },

@@ -88,6 +88,8 @@ export async function PATCH(
     }
 
     // Dispatch automation triggers per booking status change
+    // NOTE: BOOKING_IN_PROGRESS también se notifica vía notifyBookingStatusChange (linea 81).
+    // El triggerMap solo controla las automation campaigns de marketing, que aún no incluyen IN_PROGRESS.
     const triggerMap: Record<string, 'BOOKING_CONFIRMED' | 'BOOKING_COMPLETED' | 'BOOKING_CANCELLED'> = {
       CONFIRMED: 'BOOKING_CONFIRMED',
       COMPLETED: 'BOOKING_COMPLETED',

@@ -35,7 +35,7 @@ async function run() {
 
     await createNotification({
       userId: partnerUserId,
-      type: 'BOOKING_COMPLETED',
+      type: 'PAYMENT_PENDING_REMINDER',
       title: 'Recordatorio: confirma el pago del cliente',
       message: `El cliente reporto haber pagado en ${payment.clientReportedMethod === 'CASH' ? 'efectivo' : 'transferencia'}. Confirma o rechaza desde tu panel.`,
       data: { bookingId: payment.bookingId, kind: 'PAYMENT_REMINDER' },

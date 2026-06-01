@@ -103,7 +103,7 @@ export async function POST(
     if (confirmationStatus === 'CONFIRMED' && booking.partner?.user) {
       await createNotification({
         userId: booking.partner.user.id,
-        type: 'BOOKING_COMPLETED',
+        type: 'PAYMENT_CONFIRMED_BY_PARTNER',
         title: 'Pago confirmado por el cliente',
         message: 'El cliente confirmo el metodo de pago. La reserva esta marcada como pagada.',
         data: { bookingId: booking.id, kind: 'PAYMENT_CONFIRMED' },
@@ -111,7 +111,7 @@ export async function POST(
     } else if (confirmationStatus === 'CLIENT_REPORTED' && booking.partner?.user) {
       await createNotification({
         userId: booking.partner.user.id,
-        type: 'BOOKING_COMPLETED',
+        type: 'PAYMENT_REPORTED_BY_CLIENT',
         title: 'Cliente reporto el pago',
         message: `El cliente reporto haber pagado en ${validation.data.method === 'CASH' ? 'efectivo' : 'transferencia'}. Confirma la recepcion.`,
         data: { bookingId: booking.id, method: validation.data.method, kind: 'PAYMENT_REPORTED_BY_CLIENT' },
@@ -120,7 +120,7 @@ export async function POST(
       if (booking.partner?.user) {
         await createNotification({
           userId: booking.partner.user.id,
-          type: 'BOOKING_COMPLETED',
+          type: 'PAYMENT_REJECTED_BY_PARTNER',
           title: 'Discrepancia en el metodo de pago',
           message: 'El metodo reportado por el cliente no coincide con el tuyo. Un administrador revisara el caso.',
           data: { bookingId: booking.id, kind: 'PAYMENT_DISPUTED' },
@@ -130,7 +130,7 @@ export async function POST(
       await Promise.all(admins.map((a) =>
         createNotification({
           userId: a.id,
-          type: 'BOOKING_COMPLETED',
+          type: 'PAYMENT_REJECTED_BY_PARTNER',
           title: 'Disputa de pago',
           message: `Booking ${booking.id}: cliente reporto ${validation.data.method}, socio habia reportado ${booking.payment?.partnerConfirmedMethod}.`,
           data: { bookingId: booking.id, kind: 'PAYMENT_DISPUTE_ADMIN_ALERT' },

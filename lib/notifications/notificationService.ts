@@ -102,6 +102,21 @@ function computeActionUrl(type: NotificationType, role: UserRole, appUrl: string
       return `${appUrl}/partner/verification`
     case 'ACHIEVEMENT_UNLOCKED':
       return `${appUrl}/partner/achievements`
+    case 'PAYMENT_REPORTED_BY_CLIENT':
+    case 'PAYMENT_PENDING_REMINDER':
+      return role === 'PARTNER' ? `${appUrl}/partner?tab=bookings` : `${appUrl}/dashboard?tab=bookings`
+    case 'PAYMENT_CONFIRMED_BY_PARTNER':
+    case 'PAYMENT_REJECTED_BY_PARTNER':
+      return `${appUrl}/dashboard?tab=bookings`
+    case 'RATING_RECEIVED':
+      return role === 'PARTNER' ? `${appUrl}/partner?tab=bookings` : `${appUrl}/my-ratings`
+    case 'RATING_REMINDER':
+      return role === 'PARTNER' ? `${appUrl}/partner?tab=bookings` : `${appUrl}/dashboard?tab=bookings`
+    case 'REQUEST_EXPIRING_SOON':
+      return `${appUrl}/dashboard?tab=requests`
+    case 'BOOKING_REMINDER_24H':
+    case 'BOOKING_STARTING_SOON':
+      return role === 'PARTNER' ? `${appUrl}/partner?tab=bookings` : `${appUrl}/dashboard?tab=bookings`
     default:
       return `${appUrl}/notifications`
   }

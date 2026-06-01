@@ -60,6 +60,15 @@ const SMS_BODY: Record<NotificationType, string> = {
   DOCUMENT_APPROVED:      'LoHaggo: {{message}}\nVer perfil: {{action_url}}',
   DOCUMENT_REJECTED:      'LoHaggo: {{message}}\nCorregir documento: {{action_url}}',
   ACHIEVEMENT_UNLOCKED:   'LoHaggo: {{message}}\nVer logros: {{action_url}}',
+  PAYMENT_REPORTED_BY_CLIENT:    'LoHaggo: {{message}}\nConfirmar recepcion: {{action_url}}',
+  PAYMENT_CONFIRMED_BY_PARTNER:  'LoHaggo: {{message}}\nVer reserva: {{action_url}}',
+  PAYMENT_REJECTED_BY_PARTNER:   'LoHaggo: {{message}}\nReportar de nuevo: {{action_url}}',
+  RATING_RECEIVED:               'LoHaggo: {{message}}\nVer calificacion: {{action_url}}',
+  RATING_REMINDER:               'LoHaggo: No olvides calificar tu servicio reciente.\nCalificar: {{action_url}}',
+  REQUEST_EXPIRING_SOON:         'LoHaggo: Tu solicitud {{service_name}} expira pronto y no tiene propuestas aceptadas.\nVer: {{action_url}}',
+  BOOKING_REMINDER_24H:          'LoHaggo: Recordatorio - tu servicio {{service_name}} es manana {{booking_date}} {{booking_time}}.\nVer: {{action_url}}',
+  BOOKING_STARTING_SOON:         'LoHaggo: Tu servicio {{service_name}} empieza en 1 hora.\nVer: {{action_url}}',
+  PAYMENT_PENDING_REMINDER:      'LoHaggo: El cliente aun no reporta el pago de {{service_name}}.\nVer: {{action_url}}',
 }
 
 const WA_BODY: Record<NotificationType, string> = {
@@ -207,6 +216,106 @@ Hola {{user_name}},
 
 Ver tus logros:
 {{action_url}}`,
+
+  PAYMENT_REPORTED_BY_CLIENT:
+`💰 *LoHaggo* – Cliente reportó pago
+
+Hola {{user_name}},
+
+{{message}}
+
+🔧 Servicio: {{service_name}}
+👤 Cliente: {{client_name}}
+
+Confirmar recepción:
+{{action_url}}`,
+
+  PAYMENT_CONFIRMED_BY_PARTNER:
+`✅ *LoHaggo* – Pago confirmado
+
+Hola {{user_name}},
+
+{{message}}
+
+🔧 Servicio: {{service_name}}
+👤 Profesional: {{partner_name}}
+
+Ver reserva:
+{{action_url}}`,
+
+  PAYMENT_REJECTED_BY_PARTNER:
+`⚠️ *LoHaggo* – Pago rechazado
+
+Hola {{user_name}},
+
+{{message}}
+
+🔧 Servicio: {{service_name}}
+
+Reportar de nuevo:
+{{action_url}}`,
+
+  RATING_RECEIVED:
+`⭐ *LoHaggo* – Nueva calificación
+
+Hola {{user_name}},
+
+{{message}}
+
+🔧 Servicio: {{service_name}}
+
+Ver:
+{{action_url}}`,
+
+  RATING_REMINDER:
+`⭐ *LoHaggo* – Recordatorio: califica tu servicio
+
+Hola {{user_name}},
+
+Tu opinión ayuda a la comunidad. No olvides calificar el servicio de {{service_name}}.
+
+Calificar:
+{{action_url}}`,
+
+  REQUEST_EXPIRING_SOON:
+`⏰ *LoHaggo* – Tu solicitud expira pronto
+
+Hola {{user_name}},
+
+Tu solicitud de {{service_name}} expira en menos de 2 horas y aún no has aceptado ninguna propuesta.
+
+Ver propuestas:
+{{action_url}}`,
+
+  BOOKING_REMINDER_24H:
+`📅 *LoHaggo* – Recordatorio de servicio mañana
+
+Hola {{user_name}},
+
+Mañana tienes el servicio de {{service_name}} a las {{booking_time}}.
+
+Ver detalles:
+{{action_url}}`,
+
+  BOOKING_STARTING_SOON:
+`⏳ *LoHaggo* – Tu servicio empieza en 1 hora
+
+Hola {{user_name}},
+
+Tu servicio de {{service_name}} empieza a las {{booking_time}}.
+
+Ver detalles:
+{{action_url}}`,
+
+  PAYMENT_PENDING_REMINDER:
+`💰 *LoHaggo* – Pago pendiente de reporte
+
+Hola {{user_name}},
+
+El cliente aún no ha reportado el pago del servicio de {{service_name}}. Puedes recordarle por chat.
+
+Ver reserva:
+{{action_url}}`,
 }
 
 const EMAIL_HTML: Record<NotificationType, string> = {
@@ -265,6 +374,47 @@ const EMAIL_HTML: Record<NotificationType, string> = {
   DOCUMENT_REJECTED: emailHtml('{{message}}', '', 'Corregir documento'),
 
   ACHIEVEMENT_UNLOCKED: emailHtml('{{message}}', '', 'Ver logros'),
+
+  PAYMENT_REPORTED_BY_CLIENT: emailHtml('{{message}}',
+    ctxRow('Servicio', '{{service_name}}') +
+    ctxRow('Cliente', '{{client_name}}'),
+    'Confirmar recepción'),
+
+  PAYMENT_CONFIRMED_BY_PARTNER: emailHtml('{{message}}',
+    ctxRow('Servicio', '{{service_name}}') +
+    ctxRow('Profesional', '{{partner_name}}'),
+    'Ver reserva'),
+
+  PAYMENT_REJECTED_BY_PARTNER: emailHtml('{{message}}',
+    ctxRow('Servicio', '{{service_name}}'),
+    'Reportar de nuevo'),
+
+  RATING_RECEIVED: emailHtml('{{message}}',
+    ctxRow('Servicio', '{{service_name}}'),
+    'Ver calificación'),
+
+  RATING_REMINDER: emailHtml('Tu opinión ayuda a la comunidad. No olvides calificar el servicio.',
+    ctxRow('Servicio', '{{service_name}}'),
+    'Calificar servicio'),
+
+  REQUEST_EXPIRING_SOON: emailHtml('Tu solicitud expira pronto y aún no has aceptado ninguna propuesta.',
+    ctxRow('Servicio', '{{service_name}}'),
+    'Ver propuestas'),
+
+  BOOKING_REMINDER_24H: emailHtml('Recordatorio: mañana tienes un servicio agendado.',
+    ctxRow('Servicio', '{{service_name}}') +
+    ctxRow('Fecha', '{{booking_date}} {{booking_time}}'),
+    'Ver reserva'),
+
+  BOOKING_STARTING_SOON: emailHtml('Tu servicio empieza en una hora.',
+    ctxRow('Servicio', '{{service_name}}') +
+    ctxRow('Hora', '{{booking_time}}'),
+    'Ver reserva'),
+
+  PAYMENT_PENDING_REMINDER: emailHtml('El cliente aún no ha reportado el pago.',
+    ctxRow('Servicio', '{{service_name}}') +
+    ctxRow('Cliente', '{{client_name}}'),
+    'Ver reserva'),
 }
 
 // ─── Catalog & defaults ──────────────────────────────────────────────────────
@@ -286,6 +436,15 @@ const NOTIFICATION_CATALOG: Array<{
   { type: 'DOCUMENT_APPROVED',    name: 'Documento aprobado',          role: 'PARTNER' },
   { type: 'DOCUMENT_REJECTED',    name: 'Documento rechazado',         role: 'PARTNER' },
   { type: 'ACHIEVEMENT_UNLOCKED', name: 'Logro desbloqueado',          role: 'PARTNER' },
+  { type: 'PAYMENT_REPORTED_BY_CLIENT',   name: 'Cliente reportó pago (socio)',         role: 'PARTNER' },
+  { type: 'PAYMENT_CONFIRMED_BY_PARTNER', name: 'Socio confirmó pago (cliente)',        role: 'CLIENT' },
+  { type: 'PAYMENT_REJECTED_BY_PARTNER',  name: 'Socio rechazó pago (cliente)',         role: 'CLIENT' },
+  { type: 'RATING_RECEIVED',              name: 'Nueva calificación recibida',          role: null },
+  { type: 'RATING_REMINDER',              name: 'Recordatorio: califica el servicio',   role: null },
+  { type: 'REQUEST_EXPIRING_SOON',        name: 'Solicitud por expirar (cliente)',      role: 'CLIENT' },
+  { type: 'BOOKING_REMINDER_24H',         name: 'Recordatorio 24h antes del servicio',  role: null },
+  { type: 'BOOKING_STARTING_SOON',        name: 'Servicio empieza en 1h',               role: null },
+  { type: 'PAYMENT_PENDING_REMINDER',     name: 'Pago pendiente de reporte (socio)',    role: 'PARTNER' },
 ]
 
 const CHANNELS: MessagingChannel[] = ['PUSH', 'EMAIL', 'WHATSAPP', 'SMS']
