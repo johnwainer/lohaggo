@@ -48,7 +48,7 @@ const FAQ_ITEMS = [
   },
   {
     q: '¿Cómo funcionan los pagos?',
-    a: 'Los pagos se procesan de forma segura a través de nuestra plataforma. Puedes pagar con tarjeta de crédito, débito o transferencia bancaria. El pago se realiza después de que el servicio haya sido completado y confirmado por ambas partes.',
+    a: 'El pago se acuerda y se realiza directamente entre el cliente y el socio. Puedes pagar en efectivo o por transferencia bancaria a la cuenta que el socio te indique. El cliente reporta el pago en la app y el socio confirma la recepción al finalizar el servicio.',
   },
   {
     q: '¿Los socios están verificados?',

@@ -103,11 +103,11 @@ const TOPICS: Record<HelpTopic, TopicConfig> = {
     ],
     responses: {
       CLIENT:
-        '💳 Al confirmar la reserva pagas dentro de la app (tarjeta o transferencia vía Mercado Pago). El dinero queda retenido hasta que confirmas que el servicio se completó. Es seguro y respaldado por LoHaggo.',
+        '💳 El pago lo acuerdas directamente con el socio: efectivo o transferencia bancaria a la cuenta que el socio te indique. Reportas el pago desde la app cuando lo hagas y el socio confirma la recepción al completar el servicio.',
       PARTNER:
-        '💰 El cliente paga dentro de la app al confirmar la reserva. El dinero queda retenido y se transfiere a tu cuenta bancaria 24-48h después de marcar el servicio como completado y que el cliente lo confirme. Configura tu cuenta bancaria en tu perfil para recibir pagos.',
+        '💰 El cliente te paga directamente en efectivo o por transferencia a tu cuenta bancaria. Configura tus datos bancarios en tu perfil para que el cliente pueda transferirte. Confirmas la recepción del pago desde la app al completar el servicio.',
       default:
-        'El pago se hace dentro de la app, queda retenido durante el servicio y se libera al socio cuando se confirma completado.',
+        'El pago se realiza directamente entre cliente y socio (efectivo o transferencia). Se reporta y confirma desde la app al completar el servicio.',
     },
   },
 

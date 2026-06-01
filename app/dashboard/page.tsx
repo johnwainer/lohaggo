@@ -922,7 +922,7 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6">
-                <p className="text-sm text-amber-800">No tienes métodos de pago guardados. Se procesará con Mercado Pago.</p>
+                <p className="text-sm text-amber-800">El pago se acordará directamente con el socio (efectivo o transferencia).</p>
               </div>
             )}
 
