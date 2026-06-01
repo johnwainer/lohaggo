@@ -56,11 +56,11 @@ export default function PlatformTrustBanner({
         return {
           icon: <Shield className="w-5 h-5 flex-shrink-0" />,
           title: '🛡️ Tu seguridad es nuestra prioridad',
-          message: 'Al usar LoHaggo estás protegido con nuestras garantías. NO aceptes pagos o acuerdos fuera de la plataforma.',
+          message: 'El pago se acuerda directamente con el socio (efectivo o transferencia a su cuenta). Mantén el chat y el reporte del pago dentro de LoHaggo para conservar tus garantías y soporte.',
           benefits: [
-            'Pagos seguros y protegidos',
-            'Seguro de responsabilidad civil',
-            'Garantía de satisfacción',
+            'Profesionales verificados y calificados',
+            'Historial completo del servicio y conversaciones',
+            'Reporte y confirmación de pago en la app',
             'Soporte y mediación en caso de conflictos'
           ]
         }
@@ -68,11 +68,11 @@ export default function PlatformTrustBanner({
         return {
           icon: <Shield className="w-5 h-5 flex-shrink-0" />,
           title: '💼 Trabaja seguro con LoHaggo',
-          message: 'Mantén todas tus transacciones en la plataforma para estar protegido. NO aceptes pagos directos ni contacto externo.',
+          message: 'El cliente te paga directamente en efectivo o por transferencia a tu cuenta. Mantén la comunicación dentro del chat de LoHaggo para conservar tus garantías y reputación.',
           benefits: [
-            'Cobros garantizados y puntuales',
-            'Seguro de responsabilidad incluido',
-            'Soporte legal ante disputas',
+            'Cliente verificado con historial en la plataforma',
+            'Confirmación de pago documentada en la app',
+            'Soporte y mediación ante disputas',
             'Reputación y calificaciones verificadas'
           ]
         }
@@ -80,12 +80,12 @@ export default function PlatformTrustBanner({
         return {
           icon: <CheckCircle className="w-5 h-5 flex-shrink-0" />,
           title: '✅ Beneficios de usar LoHaggo',
-          message: 'Mantén todas tus transacciones en la plataforma para disfrutar de protección completa.',
+          message: 'Catálogo de profesionales verificados, chat seguro y reporte de pago en la app. El pago se acuerda directamente entre cliente y socio.',
           benefits: [
             'Profesionales verificados y calificados',
-            'Pagos seguros con garantía',
+            'Chat e historial dentro de la app',
             'Soporte al cliente 24/7',
-            'Seguros y protección legal'
+            'Calificaciones y mediación ante disputas'
           ]
         }
     }
@@ -139,7 +139,7 @@ export default function PlatformTrustBanner({
         <div className="mt-4 pt-4 border-t border-current/20">
           <div className="flex items-center gap-2 text-xs md:text-sm font-bold">
             <Lock className="w-4 h-4" />
-            <span>Contactar fuera de la plataforma anula todas las garantías y protecciones</span>
+            <span>Comunicarte fuera del chat de LoHaggo anula las garantías y el soporte</span>
           </div>
         </div>
       )}
