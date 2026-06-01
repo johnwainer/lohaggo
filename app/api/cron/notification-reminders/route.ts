@@ -168,7 +168,14 @@ async function runRatingReminder(now: Date) {
   return sent
 }
 
-async function handler(_req: NextRequest) {
+async function handler(req: NextRequest) {
+  const cronSecret = process.env.CRON_SECRET
+  if (cronSecret) {
+    const auth = req.headers.get('authorization')
+    if (auth !== `Bearer ${cronSecret}`) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+  }
   const now = new Date()
   try {
     const [r24, r1, expiring, ratings] = await Promise.all([
