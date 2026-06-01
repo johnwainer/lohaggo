@@ -114,6 +114,15 @@ export default function OfflinePaymentActions({ bookingId, role, bookingStatus, 
         </button>
       )}
 
+      {role === 'CLIENT' && status === 'PARTNER_REPORTED' && availableMethods.length > 0 && (
+        <button
+          onClick={() => { setMethod((payment?.partnerConfirmedMethod as OfflineMethod) || availableMethods[0]); setModal('report') }}
+          className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700"
+        >
+          <CheckCircle className="w-4 h-4" /> Confirmar pago
+        </button>
+      )}
+
       {role === 'CLIENT' && status === 'CLIENT_REPORTED' && (
         <button
           onClick={unreport}
