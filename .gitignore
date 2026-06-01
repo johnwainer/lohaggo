@@ -79,3 +79,8 @@ PROJECT.md
 # Claude Code local overrides (contain personal tokens/permissions)
 .claude/settings.local.json
 .claude/worktrees/
+.claude/scheduled_tasks.lock
+
+# Screenshots locales (Playwright manual, design review) — no se commitean
+/screenshots/
+/*.png
