@@ -8,8 +8,6 @@ import Link from 'next/link'
 import { MessageSquare, Search, ShieldCheck, Package, Archive, Lock } from 'lucide-react'
 import ServiceIcon from '@/components/ServiceIcon'
 import AccountTopHeader from '@/components/shared/AccountTopHeader'
-import type { BookingStatus } from '@prisma/client'
-import { chatStatusLabel } from '@/lib/chat-status'
 
 const ChatModal = dynamic(() => import('@/components/ChatModal'), { ssr: false, loading: () => null })
 
@@ -22,7 +20,7 @@ interface ConversationItem {
   unreadCount: number
   updatedAt: string
   isActive: boolean
-  bookingStatus: BookingStatus | null
+  statusLabel: string
 }
 
 function formatRelativeDate(iso: string) {
@@ -209,7 +207,7 @@ export default function ClientMessagesPage() {
                       {!conv.isActive ? (
                         <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-semibold text-gray-600">
                           <Lock className="h-2.5 w-2.5" />
-                          {chatStatusLabel(conv.bookingStatus)}
+                          {conv.statusLabel}
                         </p>
                       ) : conv.lastMessage ? (
                         <p className={`mt-0.5 truncate text-xs ${conv.unreadCount > 0 ? 'font-medium text-gray-800' : 'text-gray-400'}`}>

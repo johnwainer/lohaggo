@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { isChatActive } from '@/lib/chat-status'
+import { computeChatState } from '@/lib/chat-status'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,9 +21,13 @@ export async function GET() {
         },
       },
       proposal: {
-        include: {
+        select: {
+          status: true,
           serviceRequest: {
-            include: { service: { select: { name: true, slug: true, icon: true } } },
+            select: {
+              status: true,
+              service: { select: { name: true, slug: true, icon: true } },
+            },
           },
           bookings: {
             orderBy: { createdAt: 'desc' },
@@ -50,6 +54,11 @@ export async function GET() {
   return NextResponse.json(
     chats.map((chat) => {
       const bookingStatus = chat.proposal.bookings[0]?.status ?? null
+      const state = computeChatState({
+        serviceRequestStatus: chat.proposal.serviceRequest.status,
+        proposalStatus: chat.proposal.status,
+        bookingStatus,
+      })
       return {
         id: chat.id,
         proposalId: chat.proposalId,
@@ -63,7 +72,8 @@ export async function GET() {
         unreadCount: chat._count.messages,
         updatedAt: chat.updatedAt,
         bookingStatus,
-        isActive: isChatActive(bookingStatus),
+        isActive: state.isActive,
+        statusLabel: state.statusLabel,
       }
     })
   )

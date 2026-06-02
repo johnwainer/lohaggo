@@ -6,7 +6,7 @@ import { createLogger } from '@/lib/logger'
 import { chatMessageSchema, validateRequest } from '@/lib/validation'
 import { createNotification } from '@/lib/notifications/notificationService'
 import { emitProposalBroadcast, emitProposalReadBroadcast } from '@/lib/supabase-admin'
-import { isChatActive } from '@/lib/chat-status'
+import { computeChatState } from '@/lib/chat-status'
 import { detectHelpQuery, formatHelpSystemMessage } from '@/lib/chat/help-responses'
 
 function detectContactInfo(message: string): { isValid: boolean; reason?: string } {
@@ -255,8 +255,10 @@ export async function POST(
     const chat = await prisma.chat.findUnique({
       where: { id: chatId },
       include: {
+        serviceRequest: { select: { status: true } },
         proposal: {
           select: {
+            status: true,
             bookings: {
               orderBy: { createdAt: 'desc' },
               take: 1,
@@ -271,10 +273,14 @@ export async function POST(
       return NextResponse.json({ error: 'Chat not found' }, { status: 404 })
     }
 
-    const latestBookingStatus = chat.proposal.bookings[0]?.status ?? null
-    if (!isChatActive(latestBookingStatus)) {
+    const state = computeChatState({
+      serviceRequestStatus: chat.serviceRequest?.status ?? null,
+      proposalStatus: chat.proposal?.status ?? null,
+      bookingStatus: chat.proposal.bookings[0]?.status ?? null,
+    })
+    if (!state.isActive) {
       return NextResponse.json(
-        { error: 'Esta conversación está cerrada. La reserva ya finalizó o fue cancelada.' },
+        { error: `Esta conversación está cerrada (${state.statusLabel.toLowerCase()}). Ya no se pueden enviar mensajes.` },
         { status: 403 }
       )
     }

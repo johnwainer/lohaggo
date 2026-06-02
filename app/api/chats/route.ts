@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
-import { isChatActive } from '@/lib/chat-status'
+import { computeChatState } from '@/lib/chat-status'
 
 
 const logger = createLogger('chats')
@@ -25,8 +25,10 @@ export async function GET(request: Request) {
           messages: {
             orderBy: { createdAt: 'asc' }
           },
+          serviceRequest: { select: { status: true } },
           proposal: {
-            include: {
+            select: {
+              status: true,
               bookings: {
                 orderBy: { createdAt: 'desc' },
                 take: 1,
@@ -59,11 +61,17 @@ export async function GET(request: Request) {
       }
 
       const bookingStatus = chat.proposal.bookings[0]?.status ?? null
-      const { proposal: _, ...chatWithoutProposal } = chat
-      return NextResponse.json({
-        ...chatWithoutProposal,
+      const state = computeChatState({
+        serviceRequestStatus: chat.serviceRequest?.status ?? null,
+        proposalStatus: chat.proposal?.status ?? null,
         bookingStatus,
-        isActive: isChatActive(bookingStatus),
+      })
+      const { proposal: _p, serviceRequest: _sr, ...chatBase } = chat
+      return NextResponse.json({
+        ...chatBase,
+        bookingStatus,
+        isActive: state.isActive,
+        statusLabel: state.statusLabel,
       })
     }
 

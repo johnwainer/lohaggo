@@ -3,8 +3,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { Send, X, MessageCircle, Loader2, Lock } from 'lucide-react'
-import type { BookingStatus } from '@prisma/client'
-import { chatStatusLabel } from '@/lib/chat-status'
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
 import PlatformTrustBanner from './PlatformTrustBanner'
@@ -24,7 +22,7 @@ interface Chat {
   partnerId: string
   messages: ChatMessage[]
   isActive?: boolean
-  bookingStatus?: BookingStatus | null
+  statusLabel?: string
 }
 
 interface ChatModalProps {
@@ -287,7 +285,7 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
               <div className="flex-1">
                 <p className="text-sm font-semibold text-gray-900">Conversación cerrada</p>
                 <p className="mt-0.5 text-xs text-gray-500">
-                  {chatStatusLabel(chat.bookingStatus ?? null)}. Ya no se pueden enviar mensajes en este chat.
+                  {chat.statusLabel ?? 'Conversación inactiva'}. Ya no se pueden enviar mensajes en este chat.
                 </p>
               </div>
             </div>

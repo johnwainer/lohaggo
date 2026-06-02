@@ -7,8 +7,6 @@ import dynamic from 'next/dynamic'
 import { MessageSquare, Search, Archive, Lock } from 'lucide-react'
 import ServiceIcon from '@/components/ServiceIcon'
 import PartnerHeader from '@/components/partner/PartnerHeader'
-import type { BookingStatus } from '@prisma/client'
-import { chatStatusLabel } from '@/lib/chat-status'
 
 const ChatModal = dynamic(() => import('@/components/ChatModal'), { ssr: false, loading: () => null })
 
@@ -21,7 +19,7 @@ interface ConversationItem {
   unreadCount: number
   updatedAt: string
   isActive: boolean
-  bookingStatus: BookingStatus | null
+  statusLabel: string
 }
 
 export default function PartnerMessagesPage() {
@@ -164,7 +162,7 @@ export default function PartnerMessagesPage() {
                       {!conv.isActive ? (
                         <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-semibold text-gray-600">
                           <Lock className="h-2.5 w-2.5" />
-                          {chatStatusLabel(conv.bookingStatus)}
+                          {conv.statusLabel}
                         </p>
                       ) : conv.lastMessage ? (
                         <p className={`text-xs truncate mt-0.5 ${conv.unreadCount > 0 ? 'text-gray-800 font-medium' : 'text-gray-400'}`}>
