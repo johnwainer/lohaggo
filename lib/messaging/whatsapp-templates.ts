@@ -22,6 +22,16 @@ export const WA_TEMPLATE_SIDS = {
   documentos_aprobados_wa:     'HX884290f9a4feb91eb95b8d4b018e6d32',
   documentos_rechazados_wa:    'HX362e6f86f1ff4e2fed5c82056fd90148',
   socio_activado_wa:           'HX7078001d6609526ee800dfe4483a6735',
+  // Flujo pago offline + recordatorios (submitted a Meta 2026-06-01, awaiting approval)
+  pago_reportado_cliente:      'HXd2f1eb1095382d496492a4c4af3db6a8',
+  pago_confirmado_cliente:     'HX9a5305e5b6545567ecd4811cdbc45f28',
+  pago_rechazado_cliente:      'HX8c5d079325d9af4c3185056b02a16320',
+  calificacion_recibida:       'HX37c3577844de7aea02f215b5467b7bb6',
+  recordatorio_calificacion:   'HX44d6f0dfa7e123c08b70c60ae3d52dba',
+  solicitud_por_expirar:       'HX6d5f128ce1aa1d6fcd12a59cc03c4466',
+  recordatorio_servicio_manana:'HX5c0dfcfc6e33c0b65c73e003425bdbcd',
+  servicio_empieza_pronto:     'HX79ef7bd9424beacfcc065e1a1655c652',
+  pago_pendiente_recordatorio: 'HX636d2d69f669a521768bc67c13c033ae',
 } as const
 
 async function getTwilioCfg() {
