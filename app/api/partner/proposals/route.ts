@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
 import { validateRequest } from '@/lib/validation'
 import { proposalCreateSchema } from '@/lib/validation/proposal-schemas'
+import { notifyNewProposal } from '@/lib/notifications/notificationService'
 
 export const dynamic = 'force-dynamic'
 
@@ -104,6 +105,8 @@ export async function POST(req: NextRequest) {
         }
       }
     })
+
+    await notifyNewProposal(proposal.id)
 
     return NextResponse.json(proposal, { status: 201 })
   } catch (error) {
