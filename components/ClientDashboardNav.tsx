@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Home, Package, MessageSquare, Heart, Bell } from 'lucide-react'
+import { Home, MessageSquare, Heart, Bell, Send } from 'lucide-react'
 import { useNotificationUnreadCount } from '@/hooks/useNotificationUnreadCount'
 
 interface ClientDashboardNavProps {
@@ -28,8 +28,7 @@ export default function ClientDashboardNav({
 
   const navItems = useMemo(() => ([
     { id: 'overview' as const, label: 'Resumen', icon: Home, path: '/dashboard', badge: 0 },
-    { id: 'bookings' as const, label: 'Reservas', icon: Package, path: '/dashboard?tab=bookings', badge: bookingsCount },
-    { id: 'requests' as const, label: 'Solicitudes', icon: MessageSquare, path: '/dashboard?tab=requests', badge: requestsCount },
+    { id: 'requests' as const, label: 'Solicitudes', icon: Send, path: '/dashboard?tab=requests', badge: requestsCount + bookingsCount },
     { id: 'favorites' as const, label: 'Favoritos', icon: Heart, path: '/dashboard?tab=favorites', badge: favoritesCount },
     { id: 'notifications' as const, label: 'Notifs', icon: Bell, path: '/notifications', badge: unreadNotifications },
   ]), [bookingsCount, requestsCount, favoritesCount, unreadNotifications])

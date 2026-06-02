@@ -18,7 +18,7 @@ const partnerNavItems = [
 ] as const
 
 const clientNavItems = [
-  { id: 'bookings', label: 'Pedidos', icon: Package, path: '/dashboard?tab=bookings' },
+  { id: 'requests', label: 'Solicitudes', icon: Package, path: '/dashboard?tab=requests' },
   { id: 'notifications', label: 'Notif.', icon: Bell, path: '/notifications' },
   { id: 'messages', label: 'Chats', icon: MessageSquare, path: '/dashboard/messages' },
   { id: 'profile', label: 'Perfil', icon: UserCircle, path: '/profile' },
@@ -166,7 +166,7 @@ function ClientBarInner() {
       if (pathname.startsWith('/reservar')) return true
       return false
     }
-    if (id === 'bookings') return pathname === '/dashboard' && (tab === 'bookings' || tab === 'requests')
+    if (id === 'requests') return pathname === '/dashboard' && (tab === 'requests' || tab === 'bookings')
     if (id === 'notifications') return pathname.startsWith('/notifications')
     if (id === 'messages') return pathname.startsWith('/dashboard/messages')
     if (id === 'profile') return pathname === '/profile' || pathname.startsWith('/profile/')
@@ -174,7 +174,7 @@ function ClientBarInner() {
   }
 
   const badge = (id: string) => {
-    if (id === 'bookings') return counts.bookings + counts.requests
+    if (id === 'requests') return counts.bookings + counts.requests
     if (id === 'notifications') return counts.notifications
     return 0
   }

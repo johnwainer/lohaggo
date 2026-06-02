@@ -410,12 +410,18 @@ export async function notifyNewServiceRequest(serviceRequestId: string) {
         service: {
           include: {
             partners: {
-              where: { active: true },
+              where: {
+                active: true,
+                partner: {
+                  isActive: true,
+                  verified: true,
+                  isAvailable: true,
+                },
+              },
               include: {
                 partner: {
                   include: {
                     user: { select: { id: true, name: true, phone: true } },
-                    documents: { where: { status: 'APPROVED' } }
                   }
                 }
               }
@@ -426,7 +432,6 @@ export async function notifyNewServiceRequest(serviceRequestId: string) {
         partner: {
           include: {
             user: { select: { id: true, name: true, phone: true } },
-            documents: { where: { status: 'APPROVED' } }
           }
         }
       }
@@ -463,12 +468,11 @@ export async function notifyNewServiceRequest(serviceRequestId: string) {
       }
     }
 
-    const isVerified = (docs: { type: string }[]) =>
-      docs.some(d => ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE'].includes(d.type)) &&
-      docs.some(d => d.type === 'ANTECEDENTES')
+    const isEligible = (p: { isActive: boolean; verified: boolean; isAvailable: boolean }) =>
+      p.isActive && p.verified && p.isAvailable
 
     if (serviceRequest.partnerId && serviceRequest.partner) {
-      if (isVerified(serviceRequest.partner.documents)) {
+      if (isEligible(serviceRequest.partner)) {
         await notifyPartner(serviceRequest.partner, true)
       }
     } else {
@@ -476,9 +480,7 @@ export async function notifyNewServiceRequest(serviceRequestId: string) {
         ps => ps.partner.city === serviceRequest.city
       )
       for (const { partner } of partners) {
-        if (isVerified(partner.documents)) {
-          await notifyPartner(partner, false)
-        }
+        await notifyPartner(partner, false)
       }
     }
 
