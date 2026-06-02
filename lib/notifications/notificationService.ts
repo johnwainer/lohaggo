@@ -255,6 +255,7 @@ async function dispatchAutomaticNotificationChannels(params: {
   const channels: Array<'PUSH' | 'EMAIL' | 'WHATSAPP' | 'SMS'> = ['PUSH', 'EMAIL', 'WHATSAPP', 'SMS']
 
   for (const channel of channels) {
+    try {
     if (!isNotificationChannelEnabled({ snapshot, role: params.user.role, channel })) {
       continue
     }
@@ -399,6 +400,34 @@ async function dispatchAutomaticNotificationChannels(params: {
         sentAt: result.ok ? new Date() : null,
       },
     })
+    } catch (channelErr) {
+      logger.error('[dispatch] channel threw uncaught', {
+        channel,
+        type: params.type,
+        userId: params.user.id,
+        error: channelErr instanceof Error ? channelErr.message : String(channelErr),
+        stack: channelErr instanceof Error ? channelErr.stack : undefined,
+      })
+      try {
+        await (prisma as any).notificationDispatchLog.create({
+          data: {
+            notificationId: params.notificationId,
+            userId: params.user.id,
+            userRole: params.user.role,
+            notificationType: params.type,
+            channel,
+            destination: null,
+            status: 'FAILED',
+            provider: 'internal',
+            errorCode: 'UNCAUGHT_EXCEPTION',
+            errorMessage: channelErr instanceof Error ? channelErr.message.slice(0, 500) : String(channelErr).slice(0, 500),
+            metadata: params.data ? JSON.stringify(params.data) : null,
+          },
+        })
+      } catch (logErr) {
+        logger.error('[dispatch] failed to write FAILED log row', { logErr })
+      }
+    }
   }
 }
 
