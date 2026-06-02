@@ -35,7 +35,7 @@ function NavLink({ icon: Icon, label, isActive, badge, href }: {
     <Link
       href={href}
       onClick={() => window.dispatchEvent(new Event('bottom-nav-navigate'))}
-      className={`relative flex min-h-[52px] flex-col items-center justify-center rounded-xl text-xs font-medium transition ${
+      className={`touch-manipulation relative flex min-h-[52px] flex-col items-center justify-center rounded-xl text-xs font-medium transition ${
         isActive ? 'bg-primary-50 text-primary-700' : 'text-gray-600 active:scale-95'
       }`}
     >
@@ -127,7 +127,7 @@ function PartnerBarInner() {
           href="/partner?tab=my-requests"
           aria-label="Ver oportunidades"
           onClick={() => window.dispatchEvent(new Event('bottom-nav-navigate'))}
-          className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 transition active:scale-95"
+          className="touch-manipulation absolute left-1/2 top-0 z-10 h-16 w-16 -translate-x-1/2 -translate-y-1/2 rounded-full transition active:scale-95 [clip-path:circle(50%)]"
         >
           <span
             className={`relative flex h-16 w-16 items-center justify-center rounded-full border-4 border-white transition-all ${
@@ -225,7 +225,7 @@ function ClientBarInner() {
           href="/"
           aria-label="Solicitar servicio"
           onClick={() => window.dispatchEvent(new Event('bottom-nav-navigate'))}
-          className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 transition active:scale-95"
+          className="touch-manipulation absolute left-1/2 top-0 z-10 h-16 w-16 -translate-x-1/2 -translate-y-1/2 rounded-full transition active:scale-95 [clip-path:circle(50%)]"
         >
           <span
             className={`flex h-16 w-16 items-center justify-center rounded-full border-4 border-white transition-all ${
