@@ -22,13 +22,13 @@ export async function POST(
     const user = await getCurrentUser()
     if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     if (user.role !== 'PARTNER' || !user.partnerProfile) {
-      return NextResponse.json({ error: 'Solo el socio puede confirmar la recepcion' }, { status: 403 })
+      return NextResponse.json({ error: 'Solo el socio puede confirmar la recepción' }, { status: 403 })
     }
 
     const body = await request.json()
     const validation = confirmSchema.safeParse(body)
     if (!validation.success) {
-      return NextResponse.json({ error: 'Datos invalidos', details: validation.error.flatten() }, { status: 400 })
+      return NextResponse.json({ error: 'Datos inválidos', details: validation.error.flatten() }, { status: 400 })
     }
 
     const booking = await prisma.booking.findUnique({
@@ -46,18 +46,17 @@ export async function POST(
     const partnerMethod = validation.data.method
     const clientReported = booking.payment?.confirmationStatus === 'CLIENT_REPORTED'
 
-    let confirmationStatus: 'CONFIRMED' | 'PARTNER_REPORTED' | 'DISPUTED' = 'PARTNER_REPORTED'
-    let paymentStatus: 'PENDING' | 'APPROVED' = 'PENDING'
+    // Caso A (sin reporte previo del cliente): el socio marca como recibido y la
+    // reserva queda confirmada/pagada inmediatamente desde su perspectiva.
+    // Caso B (cliente ya reportó): se valida que coincidan los métodos.
+    let confirmationStatus: 'CONFIRMED' | 'DISPUTED' = 'CONFIRMED'
+    let paymentStatus: 'PENDING' | 'APPROVED' = 'APPROVED'
     let isDisputed = false
 
-    if (clientReported) {
-      if (booking.payment?.clientReportedMethod === partnerMethod) {
-        confirmationStatus = 'CONFIRMED'
-        paymentStatus = 'APPROVED'
-      } else {
-        confirmationStatus = 'DISPUTED'
-        isDisputed = true
-      }
+    if (clientReported && booking.payment?.clientReportedMethod !== partnerMethod) {
+      confirmationStatus = 'DISPUTED'
+      paymentStatus = 'PENDING'
+      isDisputed = true
     }
 
     const payment = await prisma.payment.upsert({
@@ -88,27 +87,24 @@ export async function POST(
     })
 
     if (confirmationStatus === 'CONFIRMED') {
+      const wasClientReport = clientReported
       await createNotification({
         userId: booking.userId,
         type: 'PAYMENT_CONFIRMED_BY_PARTNER',
-        title: 'Pago confirmado por el socio',
-        message: `El socio confirmo la recepcion del pago. Tu reserva esta marcada como pagada.`,
+        title: wasClientReport
+          ? 'Pago confirmado por el socio'
+          : 'El socio marcó tu reserva como pagada',
+        message: wasClientReport
+          ? 'El socio confirmó la recepción del pago. Tu reserva está marcada como pagada.'
+          : 'El socio confirmó haber recibido el pago. Tu reserva queda marcada como pagada.',
         data: { bookingId: booking.id, kind: 'PAYMENT_CONFIRMED' },
-      })
-    } else if (confirmationStatus === 'PARTNER_REPORTED') {
-      await createNotification({
-        userId: booking.userId,
-        type: 'PAYMENT_REPORTED_BY_CLIENT',
-        title: 'El socio reporto haber recibido el pago',
-        message: 'Confirma desde tu panel para cerrar la reserva.',
-        data: { bookingId: booking.id, method: partnerMethod, kind: 'PAYMENT_REPORTED_BY_PARTNER' },
       })
     } else if (isDisputed) {
       await createNotification({
         userId: booking.userId,
         type: 'PAYMENT_REJECTED_BY_PARTNER',
-        title: 'Discrepancia en el metodo de pago',
-        message: 'El metodo reportado no coincide con el del socio. Un administrador revisara el caso.',
+        title: 'Discrepancia en el método de pago',
+        message: 'El método reportado no coincide con el del socio. Un administrador revisará el caso.',
         data: { bookingId: booking.id, kind: 'PAYMENT_DISPUTED' },
       })
 
@@ -118,7 +114,7 @@ export async function POST(
           userId: a.id,
           type: 'PAYMENT_REJECTED_BY_PARTNER',
           title: 'Disputa de pago',
-          message: `Booking ${booking.id}: cliente reporto ${booking.payment?.clientReportedMethod}, socio reporto ${partnerMethod}.`,
+          message: `Booking ${booking.id}: cliente reportó ${booking.payment?.clientReportedMethod}, socio reportó ${partnerMethod}.`,
           data: { bookingId: booking.id, kind: 'PAYMENT_DISPUTE_ADMIN_ALERT' },
         })
       ))

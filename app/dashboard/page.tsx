@@ -495,6 +495,44 @@ export default function DashboardPage() {
     })
   }
 
+  const cancelServiceRequest = async (id: string, serviceName: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Cancelar Solicitud',
+      message: `¿Cancelar tu solicitud de "${serviceName}"?\n\nLas propuestas pendientes se rechazarán y los chats se cerrarán. Esta acción no se puede deshacer.`,
+      type: 'danger',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/service-requests/${id}/cancel`, { method: 'POST' })
+          if (res.ok) {
+            setModal({
+              isOpen: true,
+              title: 'Solicitud Cancelada',
+              message: `Tu solicitud de "${serviceName}" fue cancelada.`,
+              type: 'success'
+            })
+            fetchServiceRequests()
+          } else {
+            const error = await res.json().catch(() => ({}))
+            setModal({
+              isOpen: true,
+              title: 'Error al Cancelar',
+              message: error.error || 'No se pudo cancelar la solicitud.',
+              type: 'error'
+            })
+          }
+        } catch {
+          setModal({
+            isOpen: true,
+            title: 'Error de Conexión',
+            message: 'No se pudo conectar con el servidor.',
+            type: 'error'
+          })
+        }
+      }
+    })
+  }
+
   const cancelBooking = async (id: string, serviceName: string) => {
     setConfirmModal({
       isOpen: true,
@@ -1770,7 +1808,18 @@ export default function DashboardPage() {
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-gray-500">{getRelativeTime(request.createdAt)}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs text-gray-500">{getRelativeTime(request.createdAt)}</p>
+                            {request.status === 'ACTIVE' && (
+                              <button
+                                type="button"
+                                onClick={() => cancelServiceRequest(request.id, request.service.name)}
+                                className="text-[11px] sm:text-xs font-semibold px-2.5 py-1 rounded-full border border-red-200 text-red-700 bg-white hover:bg-red-50 transition-colors"
+                              >
+                                Cancelar
+                              </button>
+                            )}
+                          </div>
                         </div>
 
                         <div className="flex items-start gap-3 mb-3">

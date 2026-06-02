@@ -189,6 +189,8 @@ const TOPICS: Record<HelpTopic, TopicConfig> = {
       /\bnecesito\s+ayuda\b/i,
       /\bayuda\s+por\s+favor\b/i,
       /\bquiero\s+hablar\s+con\s+(alguien|un\s+humano|soporte)\b/i,
+      /^\s*ayuda\s*[?!.]*\s*$/i,
+      /^\s*help\s*[?!.]*\s*$/i,
     ],
     responses: {
       default:

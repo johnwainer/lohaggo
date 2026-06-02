@@ -88,7 +88,9 @@ function computeActionUrl(type: NotificationType, role: UserRole, appUrl: string
     case 'BOOKING_COMPLETED':
       return role === 'PARTNER' ? `${appUrl}/partner?tab=bookings` : `${appUrl}/dashboard?tab=bookings`
     case 'NEW_SERVICE_REQUEST':
-      return `${appUrl}/partner?tab=my-requests`
+      return role === 'CLIENT'
+        ? `${appUrl}/dashboard?tab=requests`
+        : `${appUrl}/partner?tab=my-requests`
     case 'NEW_PROPOSAL':
       return `${appUrl}/dashboard?tab=requests`
     case 'PROPOSAL_ACCEPTED':
@@ -480,7 +482,14 @@ export async function notifyNewServiceRequest(serviceRequestId: string) {
       }
     }
 
-    // Notify the client that their request has been submitted
+    // Notify the client in-app that their request has been submitted
+    await createNotification({
+      userId: serviceRequest.user.id,
+      type: 'NEW_SERVICE_REQUEST',
+      title: 'Solicitud enviada',
+      message: `Estamos buscando socios para tu solicitud de ${serviceName}. Te avisaremos cuando recibas propuestas.`,
+      data: { serviceRequestId: serviceRequest.id, serviceId: serviceRequest.serviceId, recipient: 'CLIENT' }
+    })
     if (serviceRequest.user.phone) {
       sendSolicitudEnviadaCliente(serviceRequest.user.phone, serviceRequest.user.name ?? 'Cliente', serviceName)
         .catch(err => logger.error('WA solicitud_enviada_cliente failed', { err }))

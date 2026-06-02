@@ -248,8 +248,8 @@ function StatusBanner({ status, role, payment }: { status: string; role: 'CLIENT
   }
   if (status === 'PARTNER_REPORTED') {
     return role === 'PARTNER' ? (
-      <Badge tone="amber" icon={<Clock className="w-4 h-4" />}>
-        Marcaste como pagado · esperando confirmación del cliente
+      <Badge tone="emerald" icon={<CheckCircle className="w-4 h-4" />}>
+        Marcaste el pago como recibido · {methodLabel(payment?.partnerConfirmedMethod)}
       </Badge>
     ) : (
       <Badge tone="amber" icon={<Clock className="w-4 h-4" />}>

@@ -108,7 +108,7 @@ function PartnerBarInner() {
               solicitudesActive ? 'font-medium text-gray-500' : 'font-semibold text-secondary-600'
             }`}
           >
-            Solicitudes
+            Oportunidades
           </span>
         </div>
 
@@ -125,7 +125,7 @@ function PartnerBarInner() {
 
         <Link
           href="/partner?tab=my-requests"
-          aria-label="Ver solicitudes"
+          aria-label="Ver oportunidades"
           onClick={() => window.dispatchEvent(new Event('bottom-nav-navigate'))}
           className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 transition active:scale-95"
         >
