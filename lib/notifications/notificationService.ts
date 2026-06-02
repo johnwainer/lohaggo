@@ -57,9 +57,11 @@ export async function createNotification({
       },
     })
 
-    // Dispatch is fire-and-forget — never let it block saving the notification
+    // Await dispatch to ensure it completes before the serverless lambda
+    // terminates. Fire-and-forget gets dropped in Vercel when the parent
+    // function returns; the .catch swallows any error so callers don't fail.
     if (user) {
-      dispatchAutomaticNotificationChannels({
+      await dispatchAutomaticNotificationChannels({
         notificationId: notification.id,
         user,
         type,
