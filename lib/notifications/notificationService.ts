@@ -495,7 +495,7 @@ export async function notifyNewServiceRequest(serviceRequestId: string) {
         .catch(err => logger.error('WA solicitud_enviada_cliente failed', { err }))
     }
   } catch (error) {
-    console.error("Error notifying new service request:", error)
+    logger.error("Error notifying new service request", { serviceRequestId, error })
   }
 }
 
@@ -528,11 +528,11 @@ export async function notifyNewProposal(proposalId: string) {
       data: {
         proposalId: proposal.id,
         serviceRequestId: proposal.serviceRequestId,
-        price: proposal.price
+        price: Number(proposal.price)
       }
     })
   } catch (error) {
-    console.error("Error notifying new proposal:", error)
+    logger.error("Error notifying new proposal", { proposalId, error })
   }
 }
 
@@ -567,7 +567,7 @@ export async function notifyProposalAccepted(proposalId: string) {
       }
     })
   } catch (error) {
-    console.error("Error notifying proposal accepted:", error)
+    logger.error("Error notifying proposal accepted", { proposalId, error })
   }
 }
 
@@ -602,7 +602,7 @@ export async function notifyProposalRejected(proposalId: string) {
       }
     })
   } catch (error) {
-    console.error("Error notifying proposal rejected:", error)
+    logger.error("Error notifying proposal rejected", { proposalId, error })
   }
 }
 
@@ -699,6 +699,6 @@ export async function notifyBookingStatusChange(bookingId: string, status: strin
       }
     }
   } catch (error) {
-    console.error("Error notifying booking status change:", error)
+    logger.error("Error notifying booking status change", { bookingId, status, error })
   }
 }
