@@ -9,7 +9,6 @@ import { BottomNav } from './mobile/BottomNav'
 import NotificationPermissionPrompt from './NotificationPermissionPrompt'
 import PWAInstallPrompt from './PWAInstallPrompt'
 import PWAOnboardingPrompt from './PWAOnboardingPrompt'
-import TermsBanner from './TermsBanner'
 import InactiveAccountBanner from './InactiveAccountBanner'
 import PasswordUpdateBanner from './shared/PasswordUpdateBanner'
 import FloatingButtons from './FloatingButtons'
@@ -57,7 +56,6 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
       <NotificationPermissionPrompt />
       <PWAInstallPrompt />
       <PWAOnboardingPrompt />
-      <TermsBanner />
     </>
   )
 }

@@ -1,0 +1,52 @@
+- generic [ref=e1]:
+  - generic [ref=e12]:
+    - generic [ref=e628]:
+      - generic [ref=e630]:
+        - link "Administrador de anuncios Meta" [ref=e632] [cursor=pointer]:
+          - /url: /adsmanager/?act=1256726236378646
+          - generic [ref=e634]
+        - generic [ref=e639]:
+          - generic [ref=e642]
+          - separator [ref=e648]
+      - generic [ref=e651]:
+        - navigation "herramientas" [ref=e652]:
+          - list [ref=e653]
+        - navigation "Usadas frecuentemente" [ref=e719]:
+          - generic [ref=e724]: Usadas frecuentemente
+          - list
+      - generic [ref=e727]:
+        - separator [ref=e728]
+        - list [ref=e731]:
+          - listitem [ref=e732]
+        - generic [ref=e741]:
+          - listitem [ref=e745]
+          - button "Novedades de la cuenta publicitaria" [ref=e755] [cursor=pointer]
+          - button "Configuración del negocio" [ref=e762] [cursor=pointer]
+          - button "Buscar" [ref=e769] [cursor=pointer]
+          - button "Reportar un problema" [ref=e775] [cursor=pointer]
+    - generic [ref=e1521]:
+      - generic [ref=e1522]:
+        - button "Cerrar" [ref=e1523] [cursor=pointer]
+        - button "Ver gráficos (Ctrl+Y)" [ref=e1531] [cursor=pointer]
+        - button "Editar (Ctrl+U)" [ref=e1537] [cursor=pointer]
+        - button "Ver historial (Ctrl+I)" [ref=e1543] [cursor=pointer]
+        - button "Contraer vista" [ref=e1549] [cursor=pointer]
+      - generic [ref=e1551]:
+        - grid "grid" [ref=e2966]:
+          - generic [ref=e2967]
+        - generic [ref=e1624]:
+          - generic [ref=e1626]
+          - generic [ref=e2449]
+  - dialog "Llega a tus públicos preferidos" [ref=e3251]:
+    - generic "Llega a tus públicos preferidos" [ref=e3252]:
+      - generic [ref=e3253]:
+        - generic [ref=e3254]:
+          - generic [ref=e3256]
+          - button "Cerrar" [active] [ref=e3261] [cursor=pointer]
+        - grid [ref=e3271]:
+          - 'row "Conservar configuración actual Mantén Advantage+ activado o usa las sugerencias para llegar primero al público preferido. El sistema de Meta mostrará los anuncios a otras personas cuando esto genere mejores resultados. Resultado potencial: Hasta un 9.7% de disminución en el costo por resultado" [ref=e3272]'
+          - row "Aplicar reglas de valor con Advantage+ activado Indícanos qué tan importantes son ciertos públicos para tu negocio. El sistema de Meta optimizará los resultados en función de tus reglas." [ref=e3291]
+          - row "Limitar aún más el alcance de tus anuncios Usa los controles de público solo cuando haya ciertas personas que no deban ver tus anuncios, por ejemplo, debido a restricciones legales, geográficas o comerciales." [ref=e3304]
+        - generic [ref=e3317]:
+          - button "Iniciar prueba A/B" [ref=e3319] [cursor=pointer]
+          - generic [ref=e3326]
