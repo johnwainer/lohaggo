@@ -711,11 +711,11 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
               <Filter size={18} className="text-gray-700 md:w-[22px] md:h-[22px]" />
               <span className="font-bold text-gray-900 text-base md:text-lg">Categorías</span>
               </div>
-              {categories.length > 7 && (
+              {categoriesWithServices.length > 7 && (
                 <button
                   type="button"
                   onClick={() => setShowAllCategories((prev) => !prev)}
-                  className={`inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:border-primary-200 hover:text-primary-700 ${categories.length > 12 ? '' : 'md:hidden'}`}
+                  className={`inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:border-primary-200 hover:text-primary-700 ${categoriesWithServices.length > 12 ? '' : 'md:hidden'}`}
                 >
                   {showAllCategories ? 'Ver menos' : 'Ver más'}
                   <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showAllCategories ? 'rotate-180' : ''}`} />
