@@ -1043,7 +1043,7 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
       <button
         type="button"
         onClick={() => setShowRefineSheet(true)}
-        className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-4 z-30 flex items-center gap-1.5 rounded-full bg-primary-600 px-3 py-2.5 text-white shadow-xl active:scale-95 transition-transform md:hidden"
+        className={`fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-4 z-30 flex items-center gap-1.5 rounded-full bg-primary-600 px-3 py-2.5 text-white shadow-xl active:scale-95 transition-transform md:hidden ${pathname === '/' ? 'hidden' : ''}`}
         aria-label="Filtrar resultados"
       >
         <SlidersHorizontal className="h-4 w-4" />

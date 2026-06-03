@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 
 interface FloatingConfig {
   whatsapp_float_button?: { enabled: boolean; config: { phone?: string; message?: string } }
@@ -8,6 +9,7 @@ interface FloatingConfig {
 
 export default function FloatingButtons() {
   const [cfg, setCfg] = useState<FloatingConfig | null>(null)
+  const pathname = usePathname()
 
   useEffect(() => {
     fetch('/api/public/floating-buttons')
@@ -20,9 +22,10 @@ export default function FloatingButtons() {
   if (!wa?.enabled || !wa.config.phone) return null
 
   const waHref = `https://wa.me/${wa.config.phone.replace(/\D/g, '')}${wa.config.message ? `?text=${encodeURIComponent(wa.config.message)}` : ''}`
+  const hideOnMobile = pathname === '/'
 
   return (
-    <div className="fixed bottom-28 right-4 z-40 md:bottom-6 md:right-6 pointer-events-none">
+    <div className={`fixed bottom-28 right-4 z-40 md:bottom-6 md:right-6 pointer-events-none ${hideOnMobile ? 'hidden md:block' : ''}`}>
       <a
         href={waHref}
         target="_blank"
