@@ -250,7 +250,7 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
   )
 
   const visibleCategories = useMemo(
-    () => (showAllCategories ? categoriesWithServices : categoriesWithServices.slice(0, 7)),
+    () => (showAllCategories ? categoriesWithServices : categoriesWithServices.slice(0, 12)),
     [categoriesWithServices, showAllCategories]
   )
 
@@ -715,7 +715,7 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
                 <button
                   type="button"
                   onClick={() => setShowAllCategories((prev) => !prev)}
-                  className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:border-primary-200 hover:text-primary-700"
+                  className={`inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:border-primary-200 hover:text-primary-700 ${categories.length > 12 ? '' : 'md:hidden'}`}
                 >
                   {showAllCategories ? 'Ver menos' : 'Ver más'}
                   <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showAllCategories ? 'rotate-180' : ''}`} />
@@ -733,11 +733,13 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
               >
                 Todos
               </button>
-              {visibleCategories.map((category) => (
+              {visibleCategories.map((category, idx) => (
                 <button
                   key={category.id}
                   onClick={() => setSelectedCategory(category.slug)}
-                  className={`px-4 md:px-6 py-2.5 md:py-3 rounded-2xl transition-colors flex items-center gap-2 font-semibold text-sm md:text-base ${
+                  className={`px-4 md:px-6 py-2.5 md:py-3 rounded-2xl transition-colors items-center gap-2 font-semibold text-sm md:text-base ${
+                    !showAllCategories && idx >= 7 ? 'hidden md:flex' : 'flex'
+                  } ${
                     selectedCategory === category.slug
                       ? 'bg-primary-600 text-white shadow-card'
                       : category.slug === 'favor'
