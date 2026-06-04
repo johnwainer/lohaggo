@@ -6,7 +6,7 @@ import {
   CheckCheck, AlertCircle, Clock, X, Users, Inbox,
   ExternalLink, Star, MapPin, ShieldCheck, Calendar,
   StickyNote, Zap, Tag, ChevronDown, Plus, Trash2, LayoutTemplate,
-  ChevronUp, Link2, Copy, Check, ArrowLeft,
+  ChevronUp, Link2, Copy, Check, ArrowLeft, BellOff,
 } from 'lucide-react'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -34,7 +34,7 @@ type Direction = 'INBOUND' | 'OUTBOUND'
 type MsgStatus = 'PENDING' | 'SENT' | 'DELIVERED' | 'FAILED'
 
 type Agent = { id: string; name: string; email: string }
-type ConvUser = { id: string; name: string; email: string; role: string; image?: string | null; phone?: string | null }
+type ConvUser = { id: string; name: string; email: string; role: string; image?: string | null; phone?: string | null; excludedFromMarketing?: boolean }
 
 type Message = {
   id: string
@@ -459,6 +459,23 @@ export default function InboxPage() {
     }
   }
 
+  async function toggleMarketingExclusion(excluded: boolean) {
+    if (!selected?.user) return
+    const userId = selected.user.id
+    setSelected((prev) => prev?.user ? { ...prev, user: { ...prev.user, excludedFromMarketing: excluded } } : prev)
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/marketing-exclusion`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ excluded }),
+      })
+      if (!res.ok) throw new Error('failed')
+    } catch {
+      setSelected((prev) => prev?.user ? { ...prev, user: { ...prev.user, excludedFromMarketing: !excluded } } : prev)
+      alert('Error al actualizar exclusión de comunicaciones')
+    }
+  }
+
   // ── Derived values ────────────────────────────────────────────────────────
 
   const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0)
@@ -757,6 +774,20 @@ export default function InboxPage() {
                 <span className="truncate max-w-[200px] md:max-w-none"><b>{selected.user.name}</b> · {selected.user.email} · {selected.user.role}</span>
                 {selected.user.phone && <span className="hidden sm:flex items-center gap-1"><Phone className="h-3 w-3" />{selected.user.phone}</span>}
                 <div className="ml-auto flex items-center gap-2">
+                  <button
+                    onClick={() => toggleMarketingExclusion(!selected.user!.excludedFromMarketing)}
+                    title={selected.user!.excludedFromMarketing
+                      ? 'Excluido de campañas — clic para reactivar'
+                      : 'Recibe campañas — clic para excluir'}
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded-lg border transition text-xs font-medium ${
+                      selected.user!.excludedFromMarketing
+                        ? 'bg-rose-100 border-rose-300 text-rose-800 hover:bg-rose-200'
+                        : 'bg-white border-amber-300 text-amber-800 hover:bg-amber-100'
+                    }`}
+                  >
+                    <BellOff className="h-3 w-3" />
+                    {selected.user!.excludedFromMarketing ? 'Excluido de campañas' : 'Excluir de campañas'}
+                  </button>
                   <button
                     onClick={() => setMagicLinkTarget({
                       id: selected.user!.id,

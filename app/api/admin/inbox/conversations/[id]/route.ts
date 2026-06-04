@@ -16,7 +16,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
   const conversation = await prisma.conversation.findUnique({
     where: { id },
     include: {
-      user: { select: { id: true, name: true, email: true, role: true, image: true, phone: true } },
+      user: { select: { id: true, name: true, email: true, role: true, image: true, phone: true, excludedFromMarketing: true } },
       assignedTo: { select: { id: true, name: true, email: true } },
       messages: {
         orderBy: { sentAt: 'desc' },

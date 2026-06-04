@@ -238,6 +238,7 @@ export async function resolveCampaignRecipients(params: {
     ? await prisma.user.findMany({
         where: {
           role: roleFilter,
+          excludedFromMarketing: false,
           ...activeFilter,
           ...searchFilter,
           ...(hasPartnerProfileFilter && {
@@ -270,6 +271,7 @@ export async function resolveCampaignRecipients(params: {
         where: {
           ...searchFilter,
           ...activeFilter,
+          excludedFromMarketing: false,
           role: { in: ['PARTNER', 'CLIENT'] as UserRole[] },
         },
         select: { id: true, name: true, email: true, phone: true, pushSubscription: true, role: true },
@@ -278,10 +280,13 @@ export async function resolveCampaignRecipients(params: {
       })
     : []
 
+  // Incluir manualmente sigue respetando la exclusión: si un admin agregó a alguien
+  // por ID y luego fue excluido, no debe colarse al envío.
   const manualUsers = includeSet.size
     ? await prisma.user.findMany({
         where: {
           id: { in: Array.from(includeSet) },
+          excludedFromMarketing: false,
           ...activeFilter,
         },
         select: { id: true, name: true, email: true, phone: true, pushSubscription: true, role: true },

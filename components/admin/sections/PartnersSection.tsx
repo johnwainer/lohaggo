@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   Shield, ShieldCheck, Star, MapPin, Calendar, Package,
   CheckCircle, Users, TrendingUp, Activity, AlertCircle,
-  ChevronDown, ChevronUp,
+  ChevronDown, ChevronUp, BellOff,
 } from 'lucide-react'
 import DataTable from '@/components/admin/DataTable'
 
@@ -24,6 +24,7 @@ interface Partner {
     phone: string | null
     image: string | null
     createdAt: string
+    excludedFromMarketing?: boolean
   }
   services: Array<{
     id: string
@@ -156,6 +157,27 @@ export default function PartnersSection() {
       else alert('Error al actualizar verificación')
     } catch {
       alert('Error al actualizar verificación')
+    }
+  }
+
+  const handleToggleMarketingExclusion = async (userId: string, excluded: boolean) => {
+    setPartners(prev => prev.map(p => p.user.id === userId
+      ? { ...p, user: { ...p.user, excludedFromMarketing: excluded } }
+      : p,
+    ))
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/marketing-exclusion`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ excluded }),
+      })
+      if (!res.ok) throw new Error('failed')
+    } catch {
+      setPartners(prev => prev.map(p => p.user.id === userId
+        ? { ...p, user: { ...p.user, excludedFromMarketing: !excluded } }
+        : p,
+      ))
+      alert('Error al actualizar exclusión de comunicaciones')
     }
   }
 
@@ -317,6 +339,27 @@ export default function PartnersSection() {
           {value ? '✓ Verificado' : 'Verificar'}
         </button>
       ),
+    },
+    {
+      key: 'marketing',
+      label: 'Comunicaciones',
+      render: (_: unknown, row: Partner) => {
+        const excluded = Boolean(row.user.excludedFromMarketing)
+        return (
+          <button
+            onClick={() => handleToggleMarketingExclusion(row.user.id, !excluded)}
+            title={excluded ? 'Excluido de campañas — clic para reactivar' : 'Recibe campañas — clic para excluir'}
+            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${
+              excluded
+                ? 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-gray-50 hover:text-gray-600 hover:border-gray-200'
+                : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200'
+            }`}
+          >
+            <BellOff size={12} />
+            {excluded ? 'Excluido' : 'Recibe'}
+          </button>
+        )
+      },
     },
   ]
 

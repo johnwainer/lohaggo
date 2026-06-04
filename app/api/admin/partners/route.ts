@@ -27,6 +27,7 @@ export async function GET() {
             phone: true,
             image: true,
             createdAt: true,
+            excludedFromMarketing: true,
           }
         },
         services: {

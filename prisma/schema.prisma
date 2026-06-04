@@ -17,6 +17,9 @@ model User {
   image                             String?
   role                              UserRole                    @default(CLIENT)
   isActive                          Boolean                     @default(true)
+  excludedFromMarketing             Boolean                     @default(false)
+  excludedFromMarketingAt           DateTime?
+  excludedFromMarketingBy           String?
   pushSubscription                  String?
   notificationsPushEnabled          Boolean                     @default(true)
   notificationsEmailEnabled         Boolean                     @default(true)
