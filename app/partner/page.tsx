@@ -225,11 +225,9 @@ function PartnerDashboardContent() {
   const [verificationAlert, setVerificationAlert] = useState<{
     isOpen: boolean
     missingDocs: boolean
-    missingEducation: boolean
   }>({
     isOpen: false,
     missingDocs: false,
-    missingEducation: false
   })
 
   useEffect(() => {
@@ -281,16 +279,10 @@ function PartnerDashboardContent() {
           d.status === 'APPROVED'
         )
 
-        const hasApprovedEducation = documents.some((d: any) =>
-          ['DIPLOMA_BACHILLERATO', 'DIPLOMA_TECNICO', 'DIPLOMA_TECNOLOGO', 'DIPLOMA_PROFESIONAL', 'DIPLOMA_POSGRADO', 'CERTIFICADO_CURSO'].includes(d.type) &&
-          d.status === 'APPROVED'
-        )
-
-        if (!hasApprovedIdentity || !hasApprovedEducation) {
+        if (!hasApprovedIdentity) {
           setVerificationAlert({
             isOpen: true,
-            missingDocs: !hasApprovedIdentity,
-            missingEducation: !hasApprovedEducation
+            missingDocs: true,
           })
         }
       }
@@ -689,10 +681,7 @@ function PartnerDashboardContent() {
                     <div className="flex-1 min-w-0">
                       <h3 className="font-bold text-red-900 text-base">Verificación pendiente</h3>
                       <p className="text-sm text-red-800/90 mt-0.5">
-                        Para recibir solicitudes necesitas completar:
-                        {verificationAlert.missingDocs && <span className="font-semibold"> documento de identidad</span>}
-                        {verificationAlert.missingDocs && verificationAlert.missingEducation && <span>,</span>}
-                        {verificationAlert.missingEducation && <span className="font-semibold"> certificados de estudios</span>}.
+                        Para recibir solicitudes necesitas verificar tu <span className="font-semibold">documento de identidad</span>.
                       </p>
                       <div className="flex flex-wrap gap-2 mt-3">
                         <button
