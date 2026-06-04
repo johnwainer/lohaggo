@@ -254,6 +254,7 @@ export default function AdminCommunicationsPage() {
     partnerWithoutDocs: false,
     partnerWithoutStudies: false,
     partnerWithoutServices: false,
+    partnerOnlyActive: true,
     customSubject: '',
     customBody: '',
     templateId: '',
@@ -458,6 +459,7 @@ export default function AdminCommunicationsPage() {
           if (campForm.partnerWithoutDocs) params.set('partnerWithoutDocs', 'true')
           if (campForm.partnerWithoutStudies) params.set('partnerWithoutStudies', 'true')
           if (campForm.partnerWithoutServices) params.set('partnerWithoutServices', 'true')
+          if (campForm.partnerOnlyActive) params.set('partnerOnlyActive', 'true')
         }
         if (recipientIncludeIds.length) params.set('includeUserIds', recipientIncludeIds.join(','))
         if (recipientExcludeIds.length) params.set('excludeUserIds', recipientExcludeIds.join(','))
@@ -539,6 +541,7 @@ export default function AdminCommunicationsPage() {
     campForm.partnerWithoutDocs,
     campForm.partnerWithoutStudies,
     campForm.partnerWithoutServices,
+    campForm.partnerOnlyActive,
     recipientIncludeIds,
     recipientExcludeIds,
     selectionMode,
@@ -553,9 +556,9 @@ export default function AdminCommunicationsPage() {
 
   useEffect(() => {
     if (campForm.targetRole === 'PARTNER') return
-    if (!campForm.partnerServiceIds.length && !campForm.partnerCategoryIds.length && campForm.partnerFilterMode === 'ALL' && !campForm.partnerWithoutDocs && !campForm.partnerWithoutStudies && !campForm.partnerWithoutServices) return
-    setCampForm((prev) => ({ ...prev, partnerFilterMode: 'ALL', partnerCategoryIds: [], partnerServiceIds: [], partnerWithoutDocs: false, partnerWithoutStudies: false, partnerWithoutServices: false }))
-  }, [campForm.targetRole, campForm.partnerFilterMode, campForm.partnerCategoryIds.length, campForm.partnerServiceIds.length, campForm.partnerWithoutDocs, campForm.partnerWithoutStudies, campForm.partnerWithoutServices])
+    if (!campForm.partnerServiceIds.length && !campForm.partnerCategoryIds.length && campForm.partnerFilterMode === 'ALL' && !campForm.partnerWithoutDocs && !campForm.partnerWithoutStudies && !campForm.partnerWithoutServices && campForm.partnerOnlyActive) return
+    setCampForm((prev) => ({ ...prev, partnerFilterMode: 'ALL', partnerCategoryIds: [], partnerServiceIds: [], partnerWithoutDocs: false, partnerWithoutStudies: false, partnerWithoutServices: false, partnerOnlyActive: true }))
+  }, [campForm.targetRole, campForm.partnerFilterMode, campForm.partnerCategoryIds.length, campForm.partnerServiceIds.length, campForm.partnerWithoutDocs, campForm.partnerWithoutStudies, campForm.partnerWithoutServices, campForm.partnerOnlyActive])
 
   useEffect(() => {
     if (campForm.targetRole !== 'PARTNER') return
@@ -695,6 +698,7 @@ export default function AdminCommunicationsPage() {
         partnerWithoutDocs: selectionMode === 'SEGMENT' && campForm.targetRole === 'PARTNER' ? campForm.partnerWithoutDocs : false,
         partnerWithoutStudies: selectionMode === 'SEGMENT' && campForm.targetRole === 'PARTNER' ? campForm.partnerWithoutStudies : false,
         partnerWithoutServices: selectionMode === 'SEGMENT' && campForm.targetRole === 'PARTNER' ? campForm.partnerWithoutServices : false,
+        partnerOnlyActive: selectionMode === 'SEGMENT' && campForm.targetRole === 'PARTNER' ? campForm.partnerOnlyActive : false,
         customSubject: campForm.customSubject || null,
         templateId: isWaTemplate ? null : (campForm.templateId || null),
         status: campForm.scheduledAt ? 'SCHEDULED' : 'DRAFT',
@@ -752,6 +756,7 @@ export default function AdminCommunicationsPage() {
       partnerWithoutDocs: false,
       partnerWithoutStudies: false,
       partnerWithoutServices: false,
+      partnerOnlyActive: true,
       customSubject: '',
       customBody: '',
       templateId: '',
@@ -1866,6 +1871,7 @@ export default function AdminCommunicationsPage() {
                             partnerWithoutDocs: false,
                             partnerWithoutStudies: false,
                             partnerWithoutServices: false,
+                            partnerOnlyActive: true,
                           }))
                         }
                         type="button"
@@ -1895,6 +1901,14 @@ export default function AdminCommunicationsPage() {
                       </label>
                     </div>
                     <div className="flex flex-wrap gap-4">
+                      <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={campForm.partnerOnlyActive}
+                          onChange={(e) => setCampForm((prev) => ({ ...prev, partnerOnlyActive: e.target.checked }))}
+                        />
+                        <span>Solo socios activos en la plataforma <span className="text-gray-400">(cuenta habilitada)</span></span>
+                      </label>
                       <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
                         <input
                           type="checkbox"

@@ -23,6 +23,7 @@ export type CampaignAudienceFilter = {
   partnerWithoutDocs?: boolean
   partnerWithoutStudies?: boolean
   partnerWithoutServices?: boolean
+  partnerOnlyActive?: boolean
 }
 
 export type CampaignRecipient = BasicUser & {
@@ -59,7 +60,7 @@ export function parseRecipientControl(metadata: string | null | undefined): Reci
 
 export function parseCampaignAudience(metadata: string | null | undefined): CampaignAudienceFilter {
   const parsed = parseMetadataObject(metadata) as {
-    audience?: { partnerFilterMode?: unknown; partnerCategoryIds?: unknown; partnerServiceIds?: unknown; partnerWithoutDocs?: unknown; partnerWithoutStudies?: unknown; partnerWithoutServices?: unknown }
+    audience?: { partnerFilterMode?: unknown; partnerCategoryIds?: unknown; partnerServiceIds?: unknown; partnerWithoutDocs?: unknown; partnerWithoutStudies?: unknown; partnerWithoutServices?: unknown; partnerOnlyActive?: unknown }
   }
   const modeRaw = String(parsed?.audience?.partnerFilterMode || 'ALL').toUpperCase()
   const partnerFilterMode: CampaignAudienceFilter['partnerFilterMode'] =
@@ -71,6 +72,7 @@ export function parseCampaignAudience(metadata: string | null | undefined): Camp
     partnerWithoutDocs: Boolean(parsed?.audience?.partnerWithoutDocs),
     partnerWithoutStudies: Boolean(parsed?.audience?.partnerWithoutStudies),
     partnerWithoutServices: Boolean(parsed?.audience?.partnerWithoutServices),
+    partnerOnlyActive: Boolean(parsed?.audience?.partnerOnlyActive),
   }
 }
 
@@ -101,6 +103,7 @@ export function mergeCampaignAudienceMetadata(
     partnerWithoutDocs: Boolean(audience.partnerWithoutDocs),
     partnerWithoutStudies: Boolean(audience.partnerWithoutStudies),
     partnerWithoutServices: Boolean(audience.partnerWithoutServices),
+    partnerOnlyActive: Boolean(audience.partnerOnlyActive),
   }
 
   return JSON.stringify(parsed)
@@ -123,9 +126,10 @@ export async function resolveCampaignRecipients(params: {
   search?: string
 }) {
   const take = Math.min(params.take || 2000, 10000)
-  const activeFilter = params.includeInactive ? {} : { isActive: true }
   const control = params.controlOverride || parseRecipientControl(params.metadata)
   const audience = params.audienceOverride || parseCampaignAudience(params.metadata)
+  const forceActive = Boolean(audience.partnerOnlyActive)
+  const activeFilter = forceActive || !params.includeInactive ? { isActive: true } : {}
   const partnerFilterMode = audience.partnerFilterMode || 'ALL'
   const partnerCategoryIds = sanitizeIds(audience.partnerCategoryIds)
   const partnerServiceIds = sanitizeIds(audience.partnerServiceIds)

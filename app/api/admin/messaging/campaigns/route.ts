@@ -96,6 +96,7 @@ export async function POST(request: NextRequest) {
     partnerWithoutDocs: Boolean(body.partnerWithoutDocs),
     partnerWithoutStudies: Boolean(body.partnerWithoutStudies),
     partnerWithoutServices: Boolean(body.partnerWithoutServices),
+    partnerOnlyActive: Boolean(body.partnerOnlyActive),
   })
 
   // For manual campaigns, set totalRecipients at creation time since we know the exact list.
@@ -199,6 +200,18 @@ export async function PATCH(request: NextRequest) {
             partnerServiceIds: Array.isArray(body.partnerServiceIds)
               ? body.partnerServiceIds
               : currentAudience.partnerServiceIds,
+            partnerWithoutDocs: body.partnerWithoutDocs !== undefined
+              ? Boolean(body.partnerWithoutDocs)
+              : Boolean(currentAudience.partnerWithoutDocs),
+            partnerWithoutStudies: body.partnerWithoutStudies !== undefined
+              ? Boolean(body.partnerWithoutStudies)
+              : Boolean(currentAudience.partnerWithoutStudies),
+            partnerWithoutServices: body.partnerWithoutServices !== undefined
+              ? Boolean(body.partnerWithoutServices)
+              : Boolean(currentAudience.partnerWithoutServices),
+            partnerOnlyActive: body.partnerOnlyActive !== undefined
+              ? Boolean(body.partnerOnlyActive)
+              : Boolean(currentAudience.partnerOnlyActive),
           },
         )
       : undefined
