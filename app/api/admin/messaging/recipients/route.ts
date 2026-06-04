@@ -33,6 +33,7 @@ function parseAudienceFromRequest(request: NextRequest): CampaignAudienceFilter 
     partnerWithoutStudies: request.nextUrl.searchParams.get('partnerWithoutStudies') === 'true',
     partnerWithoutServices: request.nextUrl.searchParams.get('partnerWithoutServices') === 'true',
     partnerOnlyActive: request.nextUrl.searchParams.get('partnerOnlyActive') === 'true',
+    partnerOnlyVerified: request.nextUrl.searchParams.get('partnerOnlyVerified') === 'true',
   }
 }
 
@@ -54,7 +55,8 @@ export async function GET(request: NextRequest) {
     audienceOverride.partnerWithoutDocs === true ||
     audienceOverride.partnerWithoutStudies === true ||
     audienceOverride.partnerWithoutServices === true ||
-    audienceOverride.partnerOnlyActive === true
+    audienceOverride.partnerOnlyActive === true ||
+    audienceOverride.partnerOnlyVerified === true
 
   let targetRole = request.nextUrl.searchParams.get('targetRole') as UserRole | null
   let targetCity = request.nextUrl.searchParams.get('targetCity') as City | null

@@ -24,6 +24,7 @@ export type CampaignAudienceFilter = {
   partnerWithoutStudies?: boolean
   partnerWithoutServices?: boolean
   partnerOnlyActive?: boolean
+  partnerOnlyVerified?: boolean
 }
 
 export type CampaignRecipient = BasicUser & {
@@ -60,7 +61,7 @@ export function parseRecipientControl(metadata: string | null | undefined): Reci
 
 export function parseCampaignAudience(metadata: string | null | undefined): CampaignAudienceFilter {
   const parsed = parseMetadataObject(metadata) as {
-    audience?: { partnerFilterMode?: unknown; partnerCategoryIds?: unknown; partnerServiceIds?: unknown; partnerWithoutDocs?: unknown; partnerWithoutStudies?: unknown; partnerWithoutServices?: unknown; partnerOnlyActive?: unknown }
+    audience?: { partnerFilterMode?: unknown; partnerCategoryIds?: unknown; partnerServiceIds?: unknown; partnerWithoutDocs?: unknown; partnerWithoutStudies?: unknown; partnerWithoutServices?: unknown; partnerOnlyActive?: unknown; partnerOnlyVerified?: unknown }
   }
   const modeRaw = String(parsed?.audience?.partnerFilterMode || 'ALL').toUpperCase()
   const partnerFilterMode: CampaignAudienceFilter['partnerFilterMode'] =
@@ -73,6 +74,7 @@ export function parseCampaignAudience(metadata: string | null | undefined): Camp
     partnerWithoutStudies: Boolean(parsed?.audience?.partnerWithoutStudies),
     partnerWithoutServices: Boolean(parsed?.audience?.partnerWithoutServices),
     partnerOnlyActive: Boolean(parsed?.audience?.partnerOnlyActive),
+    partnerOnlyVerified: Boolean(parsed?.audience?.partnerOnlyVerified),
   }
 }
 
@@ -104,6 +106,7 @@ export function mergeCampaignAudienceMetadata(
     partnerWithoutStudies: Boolean(audience.partnerWithoutStudies),
     partnerWithoutServices: Boolean(audience.partnerWithoutServices),
     partnerOnlyActive: Boolean(audience.partnerOnlyActive),
+    partnerOnlyVerified: Boolean(audience.partnerOnlyVerified),
   }
 
   return JSON.stringify(parsed)
@@ -150,11 +153,12 @@ export async function resolveCampaignRecipients(params: {
   const partnerWithoutDocs = audience.partnerWithoutDocs ?? false
   const partnerWithoutStudies = audience.partnerWithoutStudies ?? false
   const partnerWithoutServices = audience.partnerWithoutServices ?? false
+  const partnerOnlyVerified = audience.partnerOnlyVerified ?? false
 
   const enforcePartnerRole =
     partnerFilterMode === 'CATEGORY' || partnerFilterMode === 'SERVICE' ||
     partnerCategoryIds.length > 0 || partnerServiceIds.length > 0 ||
-    partnerWithoutDocs || partnerWithoutStudies || partnerWithoutServices
+    partnerWithoutDocs || partnerWithoutStudies || partnerWithoutServices || partnerOnlyVerified
 
   const roleFilter = enforcePartnerRole ? 'PARTNER' : resolveRecipientRole(params.targetRole)
 
@@ -215,7 +219,18 @@ export async function resolveCampaignRecipients(params: {
       }
     : undefined
 
-  const hasPartnerProfileFilter = partnerServiceWhere || partnerCategoryWhere || partnerWithoutDocsWhere || partnerWithoutStudiesWhere || partnerWithoutServicesWhere
+  const partnerOnlyVerifiedWhere = partnerOnlyVerified
+    ? {
+        documents: {
+          some: {
+            type: { in: IDENTITY_DOC_TYPES as never[] },
+            status: 'APPROVED' as const,
+          },
+        },
+      }
+    : undefined
+
+  const hasPartnerProfileFilter = partnerServiceWhere || partnerCategoryWhere || partnerWithoutDocsWhere || partnerWithoutStudiesWhere || partnerWithoutServicesWhere || partnerOnlyVerifiedWhere
 
   // When targetRole is null (manual-only mode), skip the segment query entirely.
   // Recipients come exclusively from includeUserIds + search results.
@@ -232,6 +247,7 @@ export async function resolveCampaignRecipients(params: {
               ...(partnerWithoutDocsWhere || {}),
               ...(partnerWithoutStudiesWhere || {}),
               ...(partnerWithoutServicesWhere || {}),
+              ...(partnerOnlyVerifiedWhere || {}),
             },
           }),
           ...(params.targetCity
