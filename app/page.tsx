@@ -68,10 +68,8 @@ export default function Home() {
               </div>
             }
           >
-            <ServiciosContent showHeading={false} />
+            <ServiciosContent showHeading={false} interleaveSlot={<HomeFeaturedPartners />} />
           </Suspense>
-
-          <HomeFeaturedPartners />
 
           <HomePublicTestimonials />
         </div>

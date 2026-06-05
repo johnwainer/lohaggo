@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, Suspense, useCallback, useMemo, useRef, memo } from 'react'
+import { useEffect, useState, Suspense, useCallback, useMemo, useRef, memo, type ReactNode } from 'react'
 import { useSearchParams, usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
@@ -153,7 +153,15 @@ const ServiceCard = memo(function ServiceCard({
   )
 })
 
-export function ServiciosContent({ showHeading = true }: { showHeading?: boolean }) {
+export function ServiciosContent({
+  showHeading = true,
+  interleaveSlot,
+  interleaveAfter = 6,
+}: {
+  showHeading?: boolean
+  interleaveSlot?: ReactNode
+  interleaveAfter?: number
+}) {
   const searchParams = useSearchParams()
   const pathname = usePathname()
   const { data: session } = useSession()
@@ -941,9 +949,17 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
                   Limpiar filtros rapidos
                 </button>
               </div>
-            ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6" data-tour="services-grid">
-              {orderedServices.map((service) => (
+            ) : (() => {
+              const hasFiltersOrSearch =
+                !!searchTerm.trim() ||
+                !!selectedCategory ||
+                quickMinRating > 0 ||
+                sortBy !== 'RELEVANCE'
+              const canInterleave =
+                !!interleaveSlot &&
+                !hasFiltersOrSearch &&
+                orderedServices.length >= interleaveAfter + 4
+              const renderCard = (service: Service) => (
                 <ServiceCard
                   key={service.id}
                   service={service}
@@ -952,9 +968,28 @@ export function ServiciosContent({ showHeading = true }: { showHeading?: boolean
                   isLoggedIn={!!sessionUserId}
                   onToggleFavorite={toggleFavoriteService}
                 />
-              ))}
-            </div>
-            )}
+              )
+              if (!canInterleave) {
+                return (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6" data-tour="services-grid">
+                    {orderedServices.map(renderCard)}
+                  </div>
+                )
+              }
+              const before = orderedServices.slice(0, interleaveAfter)
+              const after = orderedServices.slice(interleaveAfter)
+              return (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6" data-tour="services-grid">
+                    {before.map(renderCard)}
+                  </div>
+                  {interleaveSlot}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                    {after.map(renderCard)}
+                  </div>
+                </>
+              )
+            })()}
 
             {filteredRelatedServices.length > 0 && (
               <div className="mt-8 md:mt-12">

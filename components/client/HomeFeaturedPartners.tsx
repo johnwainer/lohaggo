@@ -7,7 +7,7 @@ export async function HomeFeaturedPartners() {
   if (partners.length < 2) return null
 
   return (
-    <section className="py-10 bg-white border-t border-slate-100">
+    <section className="my-8 md:my-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-6 text-center sm:text-left">
           <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-1">
