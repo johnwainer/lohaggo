@@ -10,8 +10,8 @@ const CITY_NAMES: Record<string, string> = {
 }
 
 export function FeaturedPartnerCard({ partner }: { partner: FeaturedPartner }) {
-  const visibleServices = partner.services.slice(0, 2)
-  const extraServices = Math.max(0, partner.services.length - visibleServices.length)
+  const mainService = partner.services[0]
+  const extraServices = Math.max(0, partner.services.length - 1)
   const showRating = partner.totalReviews >= 3
   const initials = partner.name
     .split(' ')
@@ -55,17 +55,14 @@ export function FeaturedPartnerCard({ partner }: { partner: FeaturedPartner }) {
           {partner.name}
         </h3>
 
-        <div className="flex flex-wrap gap-1 mt-1">
-          {visibleServices.map((s) => (
-            <span
-              key={s.slug}
-              className="inline-block bg-primary-50 text-primary-700 text-[10px] font-medium px-1.5 py-0.5 rounded-full"
-            >
-              {s.name}
+        <div className="flex items-center gap-1 mt-1 min-w-0">
+          {mainService && (
+            <span className="inline-block bg-primary-50 text-primary-700 text-[10px] font-medium px-1.5 py-0.5 rounded-full truncate max-w-[140px]">
+              {mainService.name}
             </span>
-          ))}
+          )}
           {extraServices > 0 && (
-            <span className="inline-block bg-slate-100 text-slate-600 text-[10px] font-medium px-1.5 py-0.5 rounded-full">
+            <span className="flex-shrink-0 inline-block bg-slate-100 text-slate-600 text-[10px] font-medium px-1.5 py-0.5 rounded-full">
               +{extraServices}
             </span>
           )}

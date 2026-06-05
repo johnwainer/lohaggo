@@ -19,17 +19,14 @@ export async function HomeFeaturedPartners() {
           </p>
         </div>
 
-        <div className="flex md:hidden gap-3 overflow-x-auto snap-x snap-mandatory -mx-4 px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {partners.map((p) => (
-            <div key={p.slug} className="flex-shrink-0 w-[280px]">
+            <div
+              key={p.slug}
+              className="flex-shrink-0 snap-start w-[280px] md:w-[calc(33.333%-0.5rem)]"
+            >
               <FeaturedPartnerCard partner={p} />
             </div>
-          ))}
-        </div>
-
-        <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {partners.map((p) => (
-            <FeaturedPartnerCard key={p.slug} partner={p} />
           ))}
         </div>
 

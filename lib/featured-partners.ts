@@ -40,7 +40,7 @@ export async function getFeaturedPartners(): Promise<FeaturedPartner[]> {
   }
 
   return shuffled
-    .slice(0, 8)
+    .slice(0, 9)
     .map((p) => ({
       slug: p.slug as string,
       name: p.user.name,
