@@ -33,22 +33,15 @@ export async function getFeaturedPartners(): Promise<FeaturedPartner[]> {
     take: 30,
   })
 
-  return candidates
-    .map((p) => ({
-      p,
-      score:
-        (p.rating ?? 0) * Math.log10((p.totalReviews ?? 0) + 10) +
-        Math.min(p.completedServicesCount ?? 0, 50) * 0.05,
-    }))
-    .sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score
-      if (b.p.completedServicesCount !== a.p.completedServicesCount) {
-        return (b.p.completedServicesCount ?? 0) - (a.p.completedServicesCount ?? 0)
-      }
-      return a.p.createdAt.getTime() - b.p.createdAt.getTime()
-    })
+  const shuffled = [...candidates]
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  }
+
+  return shuffled
     .slice(0, 8)
-    .map(({ p }) => ({
+    .map((p) => ({
       slug: p.slug as string,
       name: p.user.name,
       image: p.user.image,
