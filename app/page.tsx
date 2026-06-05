@@ -4,6 +4,7 @@ import HomeClientWrapper from '@/components/HomeClientWrapper'
 import { ServiciosContent } from './servicios/page'
 import { HomeActiveBookingsBanner } from '@/components/client/HomeActiveBookingsBanner'
 import { HomePublicTestimonials } from '@/components/client/HomePublicTestimonials'
+import { HomeFeaturedPartners } from '@/components/client/HomeFeaturedPartners'
 
 export const dynamic = 'force-dynamic'
 
@@ -69,6 +70,8 @@ export default function Home() {
           >
             <ServiciosContent showHeading={false} />
           </Suspense>
+
+          <HomeFeaturedPartners />
 
           <HomePublicTestimonials />
         </div>
