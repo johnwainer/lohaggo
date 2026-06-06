@@ -5,6 +5,9 @@ import { ServiciosContent } from './servicios/page'
 import { HomeActiveBookingsBanner } from '@/components/client/HomeActiveBookingsBanner'
 import { HomePublicTestimonials } from '@/components/client/HomePublicTestimonials'
 import { HomeFeaturedPartners } from '@/components/client/HomeFeaturedPartners'
+import { HomeHeroCTA } from '@/components/client/HomeHeroCTA'
+import { queryServices } from '@/lib/services/queryServices'
+import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
 
@@ -50,7 +53,20 @@ const homePageSchema = {
   },
 }
 
-export default function Home() {
+export default async function Home() {
+  // Server-render the default (Medellín) catalogue so the first paint already
+  // contains real service cards — no client fetch chain, no spinner, no shift.
+  // Failures degrade gracefully to the client-side fetch path.
+  const [initialResult, initialCategories] = await Promise.all([
+    queryServices({ citySlug: 'medellin' }).catch(() => undefined),
+    prisma.category
+      .findMany({
+        include: { _count: { select: { services: true } } },
+        orderBy: { name: 'asc' },
+      })
+      .catch(() => undefined),
+  ])
+
   return (
     <>
       <script
@@ -60,6 +76,7 @@ export default function Home() {
       <HomeClientWrapper>
         <div className="min-h-screen bg-slate-50">
           <HomeActiveBookingsBanner />
+          <HomeHeroCTA />
 
           <Suspense
             fallback={
@@ -68,7 +85,12 @@ export default function Home() {
               </div>
             }
           >
-            <ServiciosContent showHeading={false} interleaveSlot={<HomeFeaturedPartners />} />
+            <ServiciosContent
+              showHeading={false}
+              interleaveSlot={<HomeFeaturedPartners />}
+              initialResult={initialResult}
+              initialCategories={initialCategories as any}
+            />
           </Suspense>
 
           <HomePublicTestimonials />

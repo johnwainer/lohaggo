@@ -153,27 +153,47 @@ const ServiceCard = memo(function ServiceCard({
   )
 })
 
+interface InitialServicesResult {
+  services: Service[]
+  relatedByCategory?: Service[]
+  topMatch?: Service | null
+}
+
 export function ServiciosContent({
   showHeading = true,
   interleaveSlot,
   interleaveAfter = 6,
+  initialResult,
+  initialCategories,
 }: {
   showHeading?: boolean
   interleaveSlot?: ReactNode
   interleaveAfter?: number
+  initialResult?: InitialServicesResult
+  initialCategories?: Category[]
 }) {
   const searchParams = useSearchParams()
   const pathname = usePathname()
   const { data: session } = useSession()
-  const [services, setServices] = useState<Service[]>([])
-  const [relatedServices, setRelatedServices] = useState<Service[]>([])
-  const [topMatch, setTopMatch] = useState<Service | null>(null)
-  const [categories, setCategories] = useState<Category[]>([])
-  const [activeCategorySlugs, setActiveCategorySlugs] = useState<Set<string>>(new Set())
+  const [services, setServices] = useState<Service[]>(initialResult?.services ?? [])
+  const [relatedServices, setRelatedServices] = useState<Service[]>(initialResult?.relatedByCategory ?? [])
+  const [topMatch, setTopMatch] = useState<Service | null>(initialResult?.topMatch ?? null)
+  const [categories, setCategories] = useState<Category[]>(initialCategories ?? [])
+  const [activeCategorySlugs, setActiveCategorySlugs] = useState<Set<string>>(() => {
+    if (!initialResult?.services) return new Set()
+    return new Set(
+      initialResult.services
+        .filter(s => (s.partnerStats?.availableCount ?? s._count.partners) > 0)
+        .map(s => s.category.slug)
+    )
+  })
   const [selectedCategory, setSelectedCategory] = useState<string>('')
   const [searchTerm, setSearchTerm] = useState('')
-  const [loading, setLoading] = useState(true)
+  // When the server already provided the default listing, render it immediately
+  // (no spinner, no layout shift) and let the client only re-fetch on changes.
+  const [loading, setLoading] = useState(!initialResult)
   const [initialized, setInitialized] = useState(false)
+  const hasSsrData = useRef(!!initialResult)
   const [suggestions, setSuggestions] = useState<Suggestions | null>(null)
   const [autocompleteResults, setAutocompleteResults] = useState<Service[]>([])
   const [showAutocomplete, setShowAutocomplete] = useState(false)
@@ -499,24 +519,20 @@ export function ServiciosContent({
   }, [sessionUserId])
 
   useEffect(() => {
-    const init = async () => {
-      await fetchCategories()
-      await fetchSearchHistory()
+    // Categories/history are non-critical for first paint — fire them off
+    // without blocking the services render (they were serializing the chain
+    // before the spinner could clear).
+    if (categories.length === 0) fetchCategories()
+    fetchSearchHistory()
 
-      const urlSearch = searchParams.get('search')
-      const urlCategory = searchParams.get('category')
+    const urlSearch = searchParams.get('search')
+    const urlCategory = searchParams.get('category')
 
-      if (urlSearch) {
-        setSearchTerm(urlSearch)
-      }
-      if (urlCategory) {
-        setSelectedCategory(urlCategory)
-      }
+    if (urlSearch) setSearchTerm(urlSearch)
+    if (urlCategory) setSelectedCategory(urlCategory)
 
-      setInitialized(true)
-    }
-
-    init()
+    setInitialized(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
 
   useEffect(() => {
@@ -527,13 +543,30 @@ export function ServiciosContent({
   }, [session])
 
   useEffect(() => {
-    if (initialized) {
-      const timeoutId = setTimeout(() => {
-        fetchServices()
-      }, 300)
+    if (!initialized) return
 
-      return () => clearTimeout(timeoutId)
+    // First render after init: if the server already delivered this exact view
+    // (default listing for the default city, no search/category), skip the
+    // refetch entirely so we never flash the spinner over SSR'd content.
+    if (hasSsrData.current) {
+      hasSsrData.current = false
+      const citySlug = typeof window !== 'undefined'
+        ? (localStorage.getItem('selectedCity') || 'medellin')
+        : 'medellin'
+      if (!selectedCategory && !searchTerm && citySlug === 'medellin') {
+        return
+      }
     }
+
+    // Debounce only matters while typing a search; category switches and the
+    // first uncached load should fire immediately.
+    const delay = searchTerm ? 300 : 0
+    const timeoutId = setTimeout(() => {
+      fetchServices()
+    }, delay)
+
+    return () => clearTimeout(timeoutId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCategory, searchTerm, initialized])
 
   useEffect(() => {
@@ -600,7 +633,7 @@ export function ServiciosContent({
           </div>
         )}
 
-        <div className="bg-white rounded-2xl md:rounded-3xl shadow-card p-4 md:p-6 mb-4 md:mb-6 border border-slate-100 transition">
+        <div id="buscar" className="scroll-mt-24 bg-white rounded-2xl md:rounded-3xl shadow-card p-4 md:p-6 mb-4 md:mb-6 border border-slate-100 transition">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative" data-tour="services-search">
               <Search className="absolute left-3 md:left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={22} />
@@ -812,13 +845,20 @@ export function ServiciosContent({
               <p className="text-gray-600 text-sm md:text-base font-semibold">Buscando servicios...</p>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-6" aria-hidden="true">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6" aria-hidden="true">
               {Array.from({ length: 6 }).map((_, idx) => (
-                <div key={idx} className="bg-white rounded-xl md:rounded-2xl shadow-md border-2 border-gray-100 p-4 md:p-6 animate-pulse">
-                  <div className="h-10 w-10 md:h-12 md:w-12 bg-gray-200 rounded-lg mb-3"></div>
-                  <div className="h-4 md:h-5 bg-gray-200 rounded mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded w-4/5 mb-4"></div>
-                  <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                <div key={idx} className="bg-white rounded-2xl shadow-card border border-slate-100 p-4 md:p-6 animate-pulse min-h-[196px] md:min-h-[232px]">
+                  <div className="flex items-start justify-between mb-3 md:mb-4">
+                    <div className="h-10 w-10 md:h-12 md:w-12 bg-gray-200 rounded-lg"></div>
+                    <div className="h-6 w-20 bg-gray-200 rounded-full"></div>
+                  </div>
+                  <div className="h-5 md:h-6 bg-gray-200 rounded mb-2 md:mb-3 w-3/4"></div>
+                  <div className="h-3 bg-gray-200 rounded w-full mb-2"></div>
+                  <div className="h-3 bg-gray-200 rounded w-4/5 mb-4 md:mb-5"></div>
+                  <div className="flex items-center justify-between pt-3 md:pt-4 border-t border-slate-100">
+                    <div className="h-6 w-16 bg-gray-200 rounded"></div>
+                    <div className="h-4 w-20 bg-gray-200 rounded"></div>
+                  </div>
                 </div>
               ))}
             </div>

@@ -1,54 +1,10 @@
 import { NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
-import { enhancedSearch, normalizeSearchTerm, getSuggestions } from "@/lib/searchSynonyms"
+import { queryServices } from "@/lib/services/queryServices"
 import { createLogger } from '@/lib/logger'
-import type { City } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
 
-
 const logger = createLogger('services')
-
-
-function normalizeCityEnum(cityName: string): City {
-  return cityName
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toUpperCase()
-    .replace(/\s+/g, '_') as City
-}
-
-function enrichPartnerStats<T extends {
-  partners: Array<{
-    partner: {
-      rating: number
-      documents: Array<{ type: string; status: string }>
-    }
-  }>
-}>(services: T[]) {
-  return services.map((service) => {
-    const availableCount = service.partners.length
-    const avgRating = availableCount > 0
-      ? Number(
-          (
-            service.partners.reduce((acc, item) => acc + (item.partner.rating || 0), 0) / availableCount
-          ).toFixed(1)
-        )
-      : 0
-
-    return {
-      ...service,
-      partnerStats: {
-        availableCount,
-        avgRating,
-      },
-      _count: {
-        ...((('_count' in service ? (service as any)._count : {}) as Record<string, unknown>)),
-        partners: availableCount,
-      },
-    }
-  })
-}
 
 export async function GET(request: Request) {
   try {
@@ -58,116 +14,19 @@ export async function GET(request: Request) {
     const search = searchParams.get("search")
     const citySlug = searchParams.get('city') || 'medellin'
 
-    // Global visibility flags — override per-service settings when disabled
-    const [flagPartnerCount, flagAvgRating] = await Promise.all([
-      prisma.featureFlag.findUnique({ where: { key: 'show_partner_count' } }),
-      prisma.featureFlag.findUnique({ where: { key: 'show_avg_rating' } }),
-    ])
-    const globalShowPartnerCount = flagPartnerCount ? flagPartnerCount.enabled : true
-    const globalShowAvgRating = flagAvgRating ? flagAvgRating.enabled : true
+    const result = await queryServices({ category, popular, search, citySlug })
 
-    const where: any = {}
+    const response = NextResponse.json(result)
 
-    if (category) {
-      where.category = { slug: category }
+    // The default (no search/category) listing is identical for all anonymous
+    // visitors of a city → let the CDN serve it for a few seconds and revalidate
+    // in the background. This collapses the repeated cold fetches that were
+    // making the home spinner linger.
+    if (!search && !category) {
+      response.headers.set('Cache-Control', 's-maxage=30, stale-while-revalidate=120')
     }
 
-    if (popular === "true") {
-      where.popular = true
-    }
-
-    const cityRecord = await prisma.cityConfig.findUnique({
-      where: { slug: citySlug }
-    })
-
-    const cityEnum = cityRecord ? normalizeCityEnum(cityRecord.name) : null
-
-    const serviceQueryInclude = {
-      category: true,
-      _count: {
-        select: { partners: true, bookings: true }
-      },
-      partners: {
-        where: {
-          active: true,
-          partner: {
-            isActive: true,
-            verified: true,
-            ...(cityEnum ? { city: cityEnum } : {}),
-          },
-        },
-        include: {
-          partner: {
-            select: {
-              rating: true,
-              documents: {
-                where: { status: 'APPROVED' },
-                select: { type: true, status: true },
-              },
-            },
-          },
-        },
-      },
-    } as const
-
-    const applyGlobalFlags = <T extends { showPartnerCount?: boolean; showAvgRating?: boolean }>(items: T[]): T[] =>
-      items.map(s => ({
-        ...s,
-        showPartnerCount: globalShowPartnerCount ? (s.showPartnerCount ?? true) : false,
-        showAvgRating: globalShowAvgRating ? (s.showAvgRating ?? true) : false,
-      }))
-
-    let servicesRaw = await prisma.service.findMany({
-      where,
-      include: serviceQueryInclude,
-      orderBy: [
-        { popular: "desc" },
-        { name: "asc" }
-      ]
-    })
-    let services = applyGlobalFlags(enrichPartnerStats(servicesRaw))
-
-    if (search) {
-      const searchResult = enhancedSearch(services, search)
-
-      if (searchResult.results.length === 0) {
-        const allServicesRaw = await prisma.service.findMany({
-          include: serviceQueryInclude,
-          orderBy: [
-            { popular: "desc" },
-            { name: "asc" }
-          ]
-        })
-        const allServices = applyGlobalFlags(enrichPartnerStats(allServicesRaw))
-
-        const suggestions = getSuggestions(search, allServices)
-
-        return NextResponse.json({
-          services: [],
-          relatedByCategory: [],
-          topMatch: null,
-          suggestions: {
-            didYouMean: suggestions.didYouMean,
-            popularServices: suggestions.popularServices,
-            similarServices: suggestions.similarServices
-          }
-        })
-      }
-
-      return NextResponse.json({
-        services: searchResult.results,
-        relatedByCategory: searchResult.relatedByCategory,
-        topMatch: searchResult.topMatch,
-        suggestions: null
-      })
-    }
-
-    return NextResponse.json({
-      services,
-      relatedByCategory: [],
-      topMatch: null,
-      suggestions: null
-    })
+    return response
   } catch (error) {
     logger.error('Error fetching services:', error)
     return NextResponse.json(
