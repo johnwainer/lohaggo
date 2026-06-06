@@ -13,6 +13,7 @@ import InactiveAccountBanner from './InactiveAccountBanner'
 import PasswordUpdateBanner from './shared/PasswordUpdateBanner'
 import FloatingButtons from './FloatingButtons'
 import PartnerShell from './partner/PartnerShell'
+import InAppBrowserBanner from './InAppBrowserBanner'
 
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -32,6 +33,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
   if (usePartnerShell) {
     return (
       <>
+        <InAppBrowserBanner />
         <InactiveAccountBanner />
         <PasswordUpdateBanner />
         <PartnerShell>{children}</PartnerShell>
@@ -43,6 +45,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
 
   return (
     <>
+      <InAppBrowserBanner />
       <InactiveAccountBanner />
       <Navbar />
       <PasswordUpdateBanner />
