@@ -26,6 +26,12 @@ function MagicLinkInner() {
       return
     }
 
+    // Remove the token from the visible URL / history immediately so it isn't
+    // exposed in the address bar, the back button, or any screen share.
+    try {
+      window.history.replaceState(null, '', '/auth/magic')
+    } catch { /* ignore */ }
+
     fetch(`/api/auth/magic/validate?token=${encodeURIComponent(token)}`)
       .then(async (res) => {
         const data = await res.json()

@@ -97,6 +97,9 @@ export async function GET(request: NextRequest) {
     redirectUrl: magic.redirectUrl,
   })
 
+  // Never let a proxy/CDN cache a token-bearing response.
+  response.headers.set('Cache-Control', 'no-store, max-age=0')
+
   response.cookies.set(cookieName, jwtToken, {
     httpOnly: true,
     sameSite: 'lax',
