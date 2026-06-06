@@ -84,8 +84,11 @@ export default function Modal({
         onClick={onClose}
       />
 
-      <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full animate-fadeIn">
-        <div className={`${styles.bg} ${styles.border} border-b px-6 py-4 rounded-t-lg`}>
+      {/* Height-capped + internal scroll so the action buttons stay reachable on
+          short viewports (e.g. Facebook/Instagram in-app browsers, where the
+          panel previously overflowed off-screen → dead click). */}
+      <div className="relative flex max-h-[90dvh] w-full max-w-md flex-col overflow-hidden rounded-lg bg-white shadow-xl animate-fadeIn">
+        <div className={`${styles.bg} ${styles.border} border-b px-6 py-4 rounded-t-lg shrink-0`}>
           <div className="flex items-center justify-between">
             <h3 className={`text-lg font-semibold ${styles.icon}`}>
               {title}
@@ -99,7 +102,7 @@ export default function Modal({
           </div>
         </div>
 
-        <div className="px-6 py-4">
+        <div className="px-6 py-4 overflow-y-auto overscroll-contain">
           {children ? children : (
             <p className="text-gray-700 whitespace-pre-line">
               {message}
@@ -108,7 +111,7 @@ export default function Modal({
         </div>
 
         {!children && (
-          <div className="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-3">
+          <div className="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-3 shrink-0">
             {showCancel && (
               <button
                 onClick={onClose}
