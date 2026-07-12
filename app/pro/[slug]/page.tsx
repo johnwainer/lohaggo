@@ -133,7 +133,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       images: [image],
     },
     alternates: { canonical: `https://www.lohaggo.com/pro/${partner.slug}` },
-    robots: partner.totalReviews > 0 ? undefined : { index: false, follow: true },
+      robots: (partner.totalReviews > 0 || partner.services.length > 0) ? undefined : { index: false, follow: true },  
   }
 }
 
