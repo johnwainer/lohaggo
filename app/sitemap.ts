@@ -92,9 +92,8 @@ try {
     }),
     prisma.cityConfig.findMany({ select: { slug: true, updatedAt: true } }),
     prisma.partnerProfile.findMany({
-      where: { isPublicProfile: true, isActive: true, slug: { not: null }, totalReviews: { gt: 0 } },
-      select: { slug: true, updatedAt: true },
-    }),
+        where: { isPublicProfile: true, isActive: true, slug: { not: null } },
+        select: { slug: true, updatedAt: true, totalReviews: true, services: { where: { active: true }, select: { id: true }, take: 1 } },    }),
     ])
 
   const servicePages: MetadataRoute.Sitemap = services
@@ -114,8 +113,8 @@ try {
   }))
 
   const partnerPages: MetadataRoute.Sitemap = partners
-  .filter((p) => p.slug)
-  .map((p) => ({
+      .filter((p) => p.slug && (p.totalReviews > 0 || p.services.length > 0))
+    .map((p) => ({
     url: `${baseUrl}/pro/${p.slug}`,
     lastModified: p.updatedAt,
     changeFrequency: 'weekly' as const,
