@@ -61,6 +61,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description,
     keywords: buildKeywords(service.name, service.category.name),
     alternates: { canonical: url },
+    robots: service._count.partners > 0 ? undefined : { index: false, follow: true },
     openGraph: {
       title,
       description,
@@ -133,7 +134,7 @@ export default async function ServiceSlugLayout({ params, children }: Props) {
       availability: 'https://schema.org/InStock',
       url,
     },
-    aggregateRating: reviewCount > 0 ? {
+    aggregateRating: reviews.length > 0 ? {
       '@type': 'AggregateRating',
       ratingValue: avgRating,
       reviewCount: reviewCount.toString(),
