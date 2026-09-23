@@ -7,7 +7,7 @@ import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/admin-utils'
 import { cloudinaryService } from '@/lib/cloudinary'
 import { canView, getWorkspaceAccess } from '@/lib/workspaces'
-import { channelSupportsAttachment, cloudinaryResourceType, validateInboxAttachment } from '@/lib/messaging/attachments'
+import { channelSupportsAttachment, cloudinaryResourceType, safeAttachmentName, validateInboxAttachment } from '@/lib/messaging/attachments'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
   if (!support.ok) return NextResponse.json({ error: support.error }, { status: 400 })
 
   try {
-    const safeName = (file.name || 'adjunto').replace(/[^\w.\-() ]+/g, '_').slice(0, 120)
+    const safeName = safeAttachmentName(file.name, validation.mime)
     const upload = await cloudinaryService.upload(
       new File([new Uint8Array(validation.buffer) as unknown as BlobPart], safeName, { type: validation.mime }),
       `lohaggo/inbox/${conversation.workspaceId}`,

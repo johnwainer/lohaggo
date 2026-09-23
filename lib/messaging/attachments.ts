@@ -56,8 +56,10 @@ export async function validateInboxAttachment(file: File): Promise<AttachmentVal
   if (sig?.mime === 'application/zip' && OFFICE_ZIP_MIMES.has(declared)) sig = { mime: declared, kind: 'file', check: () => true }
 
   if (!sig) {
-    if (TEXT_MIMES.has(declared) && isProbablyText(head)) return { ok: true, mime: declared, kind: 'file', buffer }
-    return { ok: false, error: 'Tipo de archivo no permitido. Usa imágenes, audio, video, PDF u Office.' }
+    const ext = (file.name.split('.').pop() || '').toLowerCase()
+    const textExtOk = (declared === 'text/plain' && ext === 'txt') || (declared === 'text/csv' && ext === 'csv')
+    if (TEXT_MIMES.has(declared) && textExtOk && isProbablyText(head)) return { ok: true, mime: declared, kind: 'file', buffer }
+    return { ok: false, error: 'Tipo de archivo no permitido. Usa imágenes, audio, video, PDF, Office, TXT o CSV.' }
   }
   if (sig.mime === 'application/zip') return { ok: false, error: 'Los archivos ZIP no están permitidos' }
 
@@ -66,6 +68,23 @@ export async function validateInboxAttachment(file: File): Promise<AttachmentVal
 
 function isProbablyText(head: Uint8Array) {
   return Array.from(head).every((c) => c === 0x09 || c === 0x0a || c === 0x0d || (c >= 0x20 && c < 0x7f) || c >= 0x80)
+}
+
+const MIME_EXTENSION: Record<string, string> = {
+  'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp',
+  'audio/wav': 'wav', 'audio/ogg': 'ogg', 'audio/mpeg': 'mp3', 'audio/aac': 'aac', 'audio/amr': 'amr', 'audio/mp4': 'm4a', 'audio/webm': 'weba',
+  'video/webm': 'webm', 'video/mp4': 'mp4',
+  'application/pdf': 'pdf', 'text/plain': 'txt', 'text/csv': 'csv',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
+}
+
+/** Builds a safe storage name whose extension always matches the sniffed type (never .svg/.html/.js…). */
+export function safeAttachmentName(originalName: string | undefined, mime: string) {
+  const base = (originalName || 'adjunto').replace(/\.[^.]*$/, '').replace(/[^\w\-() ]+/g, '_').trim().slice(0, 80) || 'adjunto'
+  const ext = MIME_EXTENSION[mime] || 'bin'
+  return `${base}.${ext}`
 }
 
 export function kindFromMime(mime: string | null | undefined): AttachmentKind {
