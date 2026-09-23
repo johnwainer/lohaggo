@@ -11,8 +11,8 @@ emitter.setMaxListeners(200)
 if (process.env.NODE_ENV !== 'production') globalThis.__inboxEmitter = emitter
 
 export type InboxEvent =
-  | { type: 'new-message'; conversationId: string }
-  | { type: 'status-update'; conversationId: string }
+  | { type: 'new-message'; conversationId: string; workspaceId: string }
+  | { type: 'status-update'; conversationId: string; workspaceId: string }
   | { type: 'ping' }
 
 export function emitInboxEvent(event: InboxEvent) {

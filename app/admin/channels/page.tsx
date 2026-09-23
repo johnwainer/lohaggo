@@ -11,8 +11,13 @@ type MetaChannel = 'MESSENGER' | 'INSTAGRAM'
 
 type Capabilities = { receive: boolean; send: boolean; sendDetail?: string; receiveDetail?: string; checkedAt: string } | null
 
+type WorkspaceOption = { id: string; name: string; isDefault: boolean; canManage: boolean }
+
 type Connection = {
   id: string
+  workspaceId: string
+  workspace?: { id: string; name: string } | null
+  canManage: boolean
   channel: MetaChannel
   externalId: string
   name: string
@@ -35,11 +40,12 @@ type MetaAppView = {
   verifyToken: string
   graphVersion: string
   configId: string
+  canEdit: boolean
 }
 
 type Urls = { redirect: string; messenger: string; instagram: string }
 
-type Candidate = { id: string; name: string; pageId: string; username?: string | null; alreadyConnected: boolean }
+type Candidate = { id: string; name: string; pageId: string; username?: string | null; alreadyConnected: boolean; takenByWorkspace?: string | null }
 
 type WebhookEventRow = {
   id: string
@@ -122,6 +128,8 @@ export default function ChannelsPage() {
   const [metaApp, setMetaApp] = useState<MetaAppView | null>(null)
   const [urls, setUrls] = useState<Urls | null>(null)
   const [connections, setConnections] = useState<Connection[]>([])
+  const [workspaces, setWorkspaces] = useState<WorkspaceOption[]>([])
+  const [selectedWs, setSelectedWs] = useState<string>('')
   const [events, setEvents] = useState<WebhookEventRow[]>([])
 
   const [form, setForm] = useState({ appId: '', appSecret: '', verifyToken: '', graphVersion: 'v26.0', configId: '' })
@@ -130,6 +138,7 @@ export default function ChannelsPage() {
 
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [sessionChannel, setSessionChannel] = useState<MetaChannel | null>(null)
+  const [sessionWorkspaceName, setSessionWorkspaceName] = useState<string | null>(null)
   const [candidates, setCandidates] = useState<Candidate[] | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [sessionError, setSessionError] = useState<string | null>(null)
@@ -147,6 +156,9 @@ export default function ChannelsPage() {
       setMetaApp(data.metaApp)
       setUrls(data.urls)
       setConnections(data.connections || [])
+      const ws: WorkspaceOption[] = data.workspaces || []
+      setWorkspaces(ws)
+      setSelectedWs((prev) => (prev && ws.some((w) => w.id === prev && w.canManage) ? prev : ws.find((w) => w.canManage)?.id || ''))
       setForm((prev) => ({
         ...prev,
         appId: data.metaApp?.appId || '',
@@ -188,9 +200,10 @@ export default function ChannelsPage() {
         if (cancelled) return
         if (!res.ok) { setSessionError(data.error || 'Sesión inválida'); setCandidates([]); return }
         setSessionChannel(data.session.channel)
+        setSessionWorkspaceName(data.session.workspace?.name || null)
         setCandidates(data.candidates || [])
         setSessionError(data.error || null)
-        setSelected(new Set((data.candidates || []).filter((c: Candidate) => !c.alreadyConnected).map((c: Candidate) => c.id)))
+        setSelected(new Set((data.candidates || []).filter((c: Candidate) => !c.alreadyConnected && !c.takenByWorkspace).map((c: Candidate) => c.id)))
       } catch {
         if (!cancelled) { setSessionError('No se pudo leer la sesión OAuth'); setCandidates([]) }
       }
@@ -302,6 +315,13 @@ export default function ChannelsPage() {
   }
 
   const configured = Boolean(metaApp?.configured)
+  const canEditApp = Boolean(metaApp?.canEdit)
+  const manageableWs = workspaces.filter((w) => w.canManage)
+  const canConnect = configured && Boolean(selectedWs)
+  const connectHref = (channel: 'messenger' | 'instagram') => `/api/admin/channels/oauth/start?channel=${channel}&workspaceId=${encodeURIComponent(selectedWs)}`
+  const grouped = workspaces
+    .map((w) => ({ workspace: w, items: connections.filter((c) => c.workspaceId === w.id) }))
+    .filter((g) => g.items.length > 0)
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8">
@@ -348,7 +368,10 @@ export default function ChannelsPage() {
             </div>
             <div>
               <h2 className="font-semibold text-gray-900">App de Meta</h2>
-              <p className="text-xs text-gray-500">Claves de la app (la misma que usas para WhatsApp). Se guardan cifradas en la base de datos.</p>
+              <p className="text-xs text-gray-500">
+                Claves de la app (la misma que usas para WhatsApp). Se guardan cifradas en la base de datos.
+                {!canEditApp && ' Solo un superadmin puede editarlas.'}
+              </p>
             </div>
           </div>
           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${configured ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
@@ -357,7 +380,7 @@ export default function ChannelsPage() {
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <fieldset disabled={!canEditApp} className="grid grid-cols-1 md:grid-cols-2 gap-4 disabled:opacity-60">
           <label className="flex flex-col gap-1">
             <span className="text-xs font-medium text-gray-600">App ID</span>
             <input
@@ -422,7 +445,7 @@ export default function ChannelsPage() {
               />
             </label>
           </div>
-        </div>
+        </fieldset>
 
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <p className="text-xs text-gray-400">
@@ -430,7 +453,7 @@ export default function ChannelsPage() {
           </p>
           <button
             onClick={saveMetaApp}
-            disabled={saving || !form.appId || !form.verifyToken || (!form.appSecret && !metaApp?.hasAppSecret)}
+            disabled={!canEditApp || saving || !form.appId || !form.verifyToken || (!form.appSecret && !metaApp?.hasAppSecret)}
             className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-40 transition"
           >
             {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
@@ -454,18 +477,28 @@ export default function ChannelsPage() {
             <h2 className="font-semibold text-gray-900">Cuentas conectadas</h2>
             <p className="text-xs text-gray-500">Autorizar → elegir cuentas → confirmado. Cada cuenta enruta sus mensajes a la bandeja por su ID.</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap items-center">
+            <select
+              className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700"
+              value={selectedWs}
+              onChange={(e) => setSelectedWs(e.target.value)}
+              disabled={manageableWs.length === 0}
+              title="Workspace donde se conectará la cuenta"
+            >
+              {manageableWs.length === 0 && <option value="">Sin workspace propio</option>}
+              {manageableWs.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+            </select>
             <a
-              href={configured ? '/api/admin/channels/oauth/start?channel=messenger' : undefined}
-              aria-disabled={!configured}
-              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition ${configured ? 'bg-sky-600 text-white hover:bg-sky-700' : 'bg-gray-100 text-gray-400 pointer-events-none'}`}
+              href={canConnect ? connectHref('messenger') : undefined}
+              aria-disabled={!canConnect}
+              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition ${canConnect ? 'bg-sky-600 text-white hover:bg-sky-700' : 'bg-gray-100 text-gray-400 pointer-events-none'}`}
             >
               <Facebook size={16} /> Conectar Messenger
             </a>
             <a
-              href={configured ? '/api/admin/channels/oauth/start?channel=instagram' : undefined}
-              aria-disabled={!configured}
-              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition ${configured ? 'bg-pink-600 text-white hover:bg-pink-700' : 'bg-gray-100 text-gray-400 pointer-events-none'}`}
+              href={canConnect ? connectHref('instagram') : undefined}
+              aria-disabled={!canConnect}
+              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition ${canConnect ? 'bg-pink-600 text-white hover:bg-pink-700' : 'bg-gray-100 text-gray-400 pointer-events-none'}`}
             >
               <Instagram size={16} /> Conectar Instagram
             </a>
@@ -475,6 +508,12 @@ export default function ChannelsPage() {
         {!configured && !loading && (
           <p className="text-sm text-gray-500 rounded-xl border border-dashed border-gray-200 p-4">
             Guarda primero las claves de la App de Meta para habilitar la conexión de cuentas.
+          </p>
+        )}
+        {configured && !loading && manageableWs.length === 0 && (
+          <p className="text-sm text-gray-500 rounded-xl border border-dashed border-gray-200 p-4">
+            Para conectar cuentas necesitas ser propietario de un workspace.{' '}
+            <Link href="/admin/workspaces" className="text-primary-600 font-medium hover:underline">Crea uno</Link> o pide a un propietario que te promueva.
           </p>
         )}
 
@@ -491,8 +530,15 @@ export default function ChannelsPage() {
             </div>
           )
         ) : (
+          grouped.map(({ workspace, items }) => (
+          <div key={workspace.id} className="space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">{workspace.name}</span>
+              <span className="text-[11px] text-gray-400">· {items.length} cuenta{items.length === 1 ? '' : 's'}</span>
+              {!workspace.canManage && <span className="text-[11px] text-gray-400">· solo lectura</span>}
+            </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {connections.map((conn) => {
+            {items.map((conn) => {
               const caps = conn.capabilities
               const busy = busyId === conn.id
               return (
@@ -541,17 +587,23 @@ export default function ChannelsPage() {
                     <button onClick={() => diagnose(conn)} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50">
                       {busy ? <Loader2 size={13} className="animate-spin" /> : <Stethoscope size={13} />} Diagnosticar
                     </button>
-                    <button onClick={() => toggleEnabled(conn)} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50">
-                      {conn.enabled ? <Pause size={13} /> : <Play size={13} />} {conn.enabled ? 'Pausar' : 'Reanudar'}
-                    </button>
-                    <button onClick={() => disconnect(conn)} disabled={busy} className="ml-auto inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50">
-                      <Trash2 size={13} /> Desconectar
-                    </button>
+                    {conn.canManage && (
+                      <>
+                        <button onClick={() => toggleEnabled(conn)} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50">
+                          {conn.enabled ? <Pause size={13} /> : <Play size={13} />} {conn.enabled ? 'Pausar' : 'Reanudar'}
+                        </button>
+                        <button onClick={() => disconnect(conn)} disabled={busy} className="ml-auto inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50">
+                          <Trash2 size={13} /> Desconectar
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               )
             })}
           </div>
+          </div>
+          ))
         )}
 
         <div className="rounded-xl bg-gray-50 border border-gray-100 p-4 text-xs text-gray-500 space-y-1">
@@ -602,9 +654,12 @@ export default function ChannelsPage() {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
           <div className="w-full sm:max-w-lg max-h-[90vh] flex flex-col rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl">
             <div className="flex items-center justify-between px-5 py-4 border-b">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 min-w-0">
                 {sessionChannel && <ChannelIcon channel={sessionChannel} />}
-                <h3 className="font-semibold text-gray-900">Elige qué conectar</h3>
+                <h3 className="font-semibold text-gray-900 truncate">
+                  Elige qué conectar
+                  {sessionWorkspaceName && <span className="text-gray-400 font-normal"> · {sessionWorkspaceName}</span>}
+                </h3>
               </div>
               <button onClick={() => { setSessionId(null); setCandidates(null) }} className="text-gray-400 hover:text-gray-600">✕</button>
             </div>
@@ -621,12 +676,14 @@ export default function ChannelsPage() {
               ) : (
                 candidates.map((c) => {
                   const checked = selected.has(c.id)
+                  const blocked = Boolean(c.takenByWorkspace)
                   return (
-                    <label key={c.id} className={`flex items-center gap-3 rounded-xl border p-3 cursor-pointer transition ${checked ? 'border-primary-400 bg-primary-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+                    <label key={c.id} className={`flex items-center gap-3 rounded-xl border p-3 transition ${blocked ? 'border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed' : checked ? 'border-primary-400 bg-primary-50 cursor-pointer' : 'border-gray-200 hover:bg-gray-50 cursor-pointer'}`}>
                       <input
                         type="checkbox"
                         className="h-4 w-4 accent-primary-600"
                         checked={checked}
+                        disabled={blocked}
                         onChange={(e) => {
                           setSelected((prev) => {
                             const next = new Set(prev)
@@ -641,6 +698,9 @@ export default function ChannelsPage() {
                       </div>
                       {c.alreadyConnected && (
                         <span className="shrink-0 rounded-full bg-gray-100 text-gray-600 px-2 py-0.5 text-[10px] font-semibold">Ya conectada · renovará token</span>
+                      )}
+                      {c.takenByWorkspace && (
+                        <span className="shrink-0 rounded-full bg-orange-100 text-orange-700 px-2 py-0.5 text-[10px] font-semibold">Ocupada por "{c.takenByWorkspace}"</span>
                       )}
                     </label>
                   )

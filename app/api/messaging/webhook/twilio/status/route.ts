@@ -38,9 +38,9 @@ export async function POST(request: NextRequest) {
     // Find conversation to emit SSE event
     const msg = await prisma.conversationMessage.findFirst({
       where: { providerMessageId: messageSid },
-      select: { conversationId: true },
+      select: { conversationId: true, conversation: { select: { workspaceId: true } } },
     })
-    if (msg) emitInboxEvent({ type: 'status-update', conversationId: msg.conversationId })
+    if (msg) emitInboxEvent({ type: 'status-update', conversationId: msg.conversationId, workspaceId: msg.conversation.workspaceId })
   }
 
   return new NextResponse('OK')

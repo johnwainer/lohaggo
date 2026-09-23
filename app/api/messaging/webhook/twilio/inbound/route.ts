@@ -8,6 +8,7 @@ import { createLogger } from '@/lib/logger'
 import { emitInboxEvent } from '@/lib/messaging/inbox-emitter'
 import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
 import { scheduleAutomationsForUser } from '@/lib/messaging/automation-service'
+import { getDefaultWorkspaceId } from '@/lib/workspaces'
 
 const logger = createLogger('twilio-inbound')
 
@@ -114,6 +115,7 @@ export async function POST(request: NextRequest) {
     conversation = await prisma.conversation.create({
       data: {
         channel,
+        workspaceId: await getDefaultWorkspaceId(),
         contactPhone,
         contactName: user?.name || null,
         userId: user?.id || null,
@@ -156,7 +158,7 @@ export async function POST(request: NextRequest) {
   })
 
   logger.info('Inbound saved', { conversationId: conversation.id, messageSid })
-  emitInboxEvent({ type: 'new-message', conversationId: conversation.id })
+  emitInboxEvent({ type: 'new-message', conversationId: conversation.id, workspaceId: conversation.workspaceId })
 
   // Fire INBOUND_MESSAGE automation only for known users, once per conversation
   if (user?.id) {

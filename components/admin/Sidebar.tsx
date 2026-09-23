@@ -110,6 +110,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
       items: [
         { id: 'connections', label: 'Conexiones', icon: Link2, isLink: true, href: '/admin/connections' },
         { id: 'channels', label: 'Canales', icon: Share2, isLink: true, href: '/admin/channels' },
+        { id: 'workspaces', label: 'Workspaces', icon: Users, isLink: true, href: '/admin/workspaces' },
         { id: 'automations', label: 'Automatizaciones', icon: Zap, isLink: true, href: '/admin/automations' },
         { id: 'commissions', label: 'Comisiones', icon: Percent },
         { id: 'banks', label: 'Bancos', icon: Building2, isLink: true, href: '/admin/banks' },

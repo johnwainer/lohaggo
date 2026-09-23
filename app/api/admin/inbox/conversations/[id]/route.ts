@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import type { ConversationStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/admin-utils'
+import { canView, getWorkspaceAccess } from '@/lib/workspaces'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -18,6 +19,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     include: {
       user: { select: { id: true, name: true, email: true, role: true, image: true, phone: true, excludedFromMarketing: true } },
       assignedTo: { select: { id: true, name: true, email: true } },
+      workspace: { select: { id: true, name: true } },
       messages: {
         orderBy: { sentAt: 'desc' },
         take: limit,
@@ -28,6 +30,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
   })
 
   if (!conversation) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  const access = await getWorkspaceAccess(admin)
+  if (!canView(access, conversation.workspaceId)) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   // Reverse to chronological order
   const messages = [...conversation.messages].reverse()
@@ -47,9 +51,21 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   const { id } = await context.params
   const body = await request.json()
 
+  const existing = await prisma.conversation.findUnique({ where: { id }, select: { workspaceId: true } })
+  if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  const access = await getWorkspaceAccess(admin)
+  if (!canView(access, existing.workspaceId)) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
   const data: Record<string, unknown> = {}
   if (body.status !== undefined) data.status = body.status as ConversationStatus
-  if (body.assignedToId !== undefined) data.assignedToId = body.assignedToId || null
+  if (body.assignedToId !== undefined) {
+    const assignee = body.assignedToId ? String(body.assignedToId) : null
+    if (assignee && !access.isSuperAdmin) {
+      const member = await prisma.workspaceMember.findUnique({ where: { workspaceId_userId: { workspaceId: existing.workspaceId, userId: assignee } } })
+      if (!member) return NextResponse.json({ error: 'El agente no pertenece a este workspace' }, { status: 400 })
+    }
+    data.assignedToId = assignee
+  }
   if (body.contactName !== undefined) data.contactName = body.contactName
   if (body.tags !== undefined) data.tags = Array.isArray(body.tags) ? body.tags : []
 

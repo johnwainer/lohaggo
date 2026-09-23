@@ -60,6 +60,7 @@ type Conversation = {
   lastMessageBody?: string | null
   unreadCount: number
   threadOwner?: string | null
+  workspace?: { id: string; name: string } | null
   createdAt: string
   user?: ConvUser | null
   messages?: Message[]
@@ -168,6 +169,8 @@ function groupedMessages(messages: Message[]) {
 export default function InboxPage() {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [agents, setAgents] = useState<Agent[]>([])
+  const [workspaces, setWorkspaces] = useState<{ id: string; name: string; isDefault: boolean }[]>([])
+  const [filterWorkspace, setFilterWorkspace] = useState('')
   const [selected, setSelected] = useState<Conversation | null>(null)
   const [mobileView, setMobileView] = useState<'list' | 'chat'>('list')
   const [loading, setLoading] = useState(true)
@@ -210,16 +213,18 @@ export default function InboxPage() {
       if (filterStatus) params.set('status', filterStatus)
       if (filterChannel) params.set('channel', filterChannel)
       if (filterAgent) params.set('assignedToId', filterAgent)
+      if (filterWorkspace) params.set('workspaceId', filterWorkspace)
       if (filterUnread) params.set('unreadOnly', 'true')
       if (search) params.set('search', search)
       const res = await fetch(`/api/admin/inbox/conversations?${params}`)
       const data = await res.json()
+      if (Array.isArray(data.workspaces)) setWorkspaces(data.workspaces)
       setConversations(data.conversations || [])
       setAgents(data.agents || [])
     } catch { /* silent */ } finally {
       setLoading(false)
     }
-  }, [filterStatus, filterChannel, filterAgent, filterUnread, search])
+  }, [filterStatus, filterChannel, filterAgent, filterWorkspace, filterUnread, search])
 
   useEffect(() => { loadConversations() }, [loadConversations])
 
@@ -585,6 +590,12 @@ export default function InboxPage() {
               <option value="none">Sin asignar</option>
               {agents.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
+            {workspaces.length > 1 && (
+              <select className="border rounded px-2 py-1 text-xs flex-1 min-w-0" value={filterWorkspace} onChange={(e) => setFilterWorkspace(e.target.value)}>
+                <option value="">Workspace</option>
+                {workspaces.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+              </select>
+            )}
             <button
               onClick={() => setFilterUnread((v) => !v)}
               className={`rounded px-2 py-1 text-xs border transition ${filterUnread ? 'bg-red-50 border-red-300 text-red-700 font-semibold' : 'text-gray-600'}`}
@@ -686,7 +697,10 @@ export default function InboxPage() {
                     <span className={`rounded-full w-2 h-2 shrink-0 inline-block ${CHANNEL_COLOR[selected.channel]}`} />
                     <span className="text-xs text-gray-500">{channelLabel(selected.channel)}</span>
                   </div>
-                  <p className="text-xs text-gray-500">{isMetaChannel(selected.channel) ? `ID ${selected.contactPhone}` : selected.contactPhone}</p>
+                  <p className="text-xs text-gray-500">
+                    {isMetaChannel(selected.channel) ? `ID ${selected.contactPhone}` : selected.contactPhone}
+                    {selected.workspace && workspaces.length > 1 && <span className="text-gray-400"> · {selected.workspace.name}</span>}
+                  </p>
                 </div>
 
                 {/* In-conversation search */}
@@ -876,7 +890,7 @@ export default function InboxPage() {
                         ) : (
                           <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${msg.direction === 'OUTBOUND' ? 'bg-primary-600 text-white rounded-br-sm' : 'bg-white border text-gray-800 rounded-bl-sm shadow-sm'}`}>
                             {msg.mediaUrl && (() => {
-                              const proxyUrl = `/api/admin/inbox/media?url=${encodeURIComponent(msg.mediaUrl)}`
+                              const proxyUrl = `/api/admin/inbox/media?url=${encodeURIComponent(msg.mediaUrl)}&conversationId=${encodeURIComponent(selected.id)}`
                               return (
                                 <div className="mb-2">
                                   <img

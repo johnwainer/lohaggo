@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/admin-utils'
 import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
+import { canView, getWorkspaceAccess } from '@/lib/workspaces'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,13 +22,24 @@ export async function GET(request: NextRequest) {
   if (!admin) return new NextResponse('Unauthorized', { status: 401 })
 
   const url = request.nextUrl.searchParams.get('url')
+  const conversationId = request.nextUrl.searchParams.get('conversationId')
   if (!url) return new NextResponse('Missing url', { status: 400 })
+  if (!conversationId) return new NextResponse('Missing conversationId', { status: 400 })
 
   const isTwilio = url.startsWith('https://api.twilio.com/') || url.startsWith('https://media.twiliocdn.com/')
   const isMetaCdn = isMetaMediaUrl(url)
   if (!isTwilio && !isMetaCdn) {
     return new NextResponse('Invalid media URL', { status: 400 })
   }
+
+  // The attachment must belong to a message of a conversation the caller can see
+  const message = await prisma.conversationMessage.findFirst({
+    where: { conversationId, mediaUrl: url },
+    select: { conversation: { select: { workspaceId: true } } },
+  })
+  if (!message) return new NextResponse('Not found', { status: 404 })
+  const access = await getWorkspaceAccess(admin)
+  if (!canView(access, message.conversation.workspaceId)) return new NextResponse('Not found', { status: 404 })
 
   const headers: Record<string, string> = {}
   if (isTwilio) {

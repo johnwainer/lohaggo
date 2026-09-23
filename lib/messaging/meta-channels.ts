@@ -81,7 +81,7 @@ export function getConnectionMeta(conn: Pick<ChannelConnection, 'meta'>): Connec
 
 // ─── OAuth sessions ──────────────────────────────────────────────────────────
 
-export async function startOAuthSession(params: { channel: MetaChannel; adminId: string }) {
+export async function startOAuthSession(params: { channel: MetaChannel; adminId: string; workspaceId: string }) {
   const app = await requireMetaApp()
   await prisma.channelOAuthSession.deleteMany({ where: { expiresAt: { lt: new Date() } } }).catch(() => null)
 
@@ -91,6 +91,7 @@ export async function startOAuthSession(params: { channel: MetaChannel; adminId:
       state,
       channel: params.channel,
       adminId: params.adminId,
+      workspaceId: params.workspaceId,
       status: 'pending',
       expiresAt: new Date(Date.now() + OAUTH_SESSION_TTL_MS),
     },
@@ -158,11 +159,14 @@ export type CandidateView = {
   name: string
   pageId: string
   username?: string | null
+  /** Already connected in THIS workspace: selecting it refreshes the token */
   alreadyConnected: boolean
+  /** Connected in another workspace: cannot be selected (one account, one workspace) */
+  takenByWorkspace: string | null
 }
 
 export async function getOAuthSessionCandidates(sessionId: string, adminId: string) {
-  const session = await prisma.channelOAuthSession.findUnique({ where: { id: sessionId } })
+  const session = await prisma.channelOAuthSession.findUnique({ where: { id: sessionId }, include: { workspace: { select: { id: true, name: true } } } })
   if (!session || session.adminId !== adminId) return null
   if (session.status === 'error') return { session, candidates: [] as CandidateView[], error: session.error || 'Error' }
   if (session.status !== 'ready' || !session.candidatesEncrypted) return { session, candidates: [] as CandidateView[], error: null }
@@ -171,16 +175,21 @@ export async function getOAuthSessionCandidates(sessionId: string, adminId: stri
   const payload = decryptConfig<{ candidates: MetaPageCandidate[] }>(session.candidatesEncrypted)
   const existing = await prisma.channelConnection.findMany({
     where: { channel: session.channel, externalId: { in: payload.candidates.map((c) => c.id) } },
-    select: { externalId: true },
+    select: { externalId: true, workspaceId: true, workspace: { select: { name: true } } },
   })
-  const taken = new Set(existing.map((e) => e.externalId))
-  const candidates: CandidateView[] = payload.candidates.map((c) => ({
-    id: c.id,
-    name: c.name,
-    pageId: c.pageId,
-    username: c.username ?? null,
-    alreadyConnected: taken.has(c.id),
-  }))
+  const byExternal = new Map(existing.map((e) => [e.externalId, e]))
+  const candidates: CandidateView[] = payload.candidates.map((c) => {
+    const found = byExternal.get(c.id)
+    const sameWorkspace = found?.workspaceId === session.workspaceId
+    return {
+      id: c.id,
+      name: c.name,
+      pageId: c.pageId,
+      username: c.username ?? null,
+      alreadyConnected: Boolean(found && sameWorkspace),
+      takenByWorkspace: found && !sameWorkspace ? found.workspace.name : null,
+    }
+  })
   return { session, candidates, error: null }
 }
 
@@ -196,8 +205,19 @@ export async function completeOAuthSelection(params: { sessionId: string; adminI
   const chosen = payload.candidates.filter((c) => params.selectedIds.includes(c.id))
   if (chosen.length === 0) throw new Error('Selecciona al menos una cuenta')
 
+  const conflicts = await prisma.channelConnection.findMany({
+    where: { channel, externalId: { in: chosen.map((c) => c.id) }, workspaceId: { not: session.workspaceId } },
+    select: { externalId: true, workspace: { select: { name: true } } },
+  })
+  const conflictMap = new Map(conflicts.map((c) => [c.externalId, c.workspace.name]))
+
   const results: Array<{ id: string; name: string; connectionId?: string; error?: string }> = []
   for (const candidate of chosen) {
+    const takenBy = conflictMap.get(candidate.id)
+    if (takenBy) {
+      results.push({ id: candidate.id, name: candidate.name, error: `ya está conectada en el workspace "${takenBy}"` })
+      continue
+    }
     try {
       let subscribedFields: string[] = []
       let lastError: string | null = null
@@ -218,6 +238,7 @@ export async function completeOAuthSelection(params: { sessionId: string; adminI
         where: { channel_externalId: { channel, externalId: candidate.id } },
         create: {
           channel,
+          workspaceId: session.workspaceId,
           externalId: candidate.id,
           name: candidate.name,
           status: lastError ? 'ERROR' : 'ACTIVE',
@@ -248,7 +269,7 @@ export async function completeOAuthSelection(params: { sessionId: string; adminI
     data: { status: 'completed', candidatesEncrypted: null },
   })
 
-  return { channel, results }
+  return { channel, workspaceId: session.workspaceId, results }
 }
 
 // ─── Diagnostics ─────────────────────────────────────────────────────────────

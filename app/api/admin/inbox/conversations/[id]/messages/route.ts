@@ -6,6 +6,7 @@ import { emitInboxEvent } from '@/lib/messaging/inbox-emitter'
 import { sendWhatsAppTemplate } from '@/lib/messaging/providers'
 import { sendMetaMessage } from '@/lib/messaging/meta-graph'
 import { describeGraphError, getConnectionCredentials, isMetaChannel, requireMetaApp } from '@/lib/messaging/meta-channels'
+import { canView, getWorkspaceAccess } from '@/lib/workspaces'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -30,6 +31,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
   const conversation = await prisma.conversation.findUnique({ where: { id } })
   if (!conversation) return NextResponse.json({ error: 'Conversación no encontrada' }, { status: 404 })
+  const access = await getWorkspaceAccess(admin)
+  if (!canView(access, conversation.workspaceId)) return NextResponse.json({ error: 'Conversación no encontrada' }, { status: 404 })
 
   // Internal notes: save to DB only, no Twilio
   if (isInternal) {
@@ -44,7 +47,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       },
       include: { sentBy: { select: { id: true, name: true } } },
     })
-    emitInboxEvent({ type: 'new-message', conversationId: id })
+    emitInboxEvent({ type: 'new-message', conversationId: id, workspaceId: conversation.workspaceId })
     return NextResponse.json({ message: saved })
   }
 
@@ -106,7 +109,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       where: { id },
       data: { lastMessageAt: new Date(), lastMessageBody: message.trim().slice(0, 200), status: 'IN_PROGRESS' },
     })
-    emitInboxEvent({ type: 'new-message', conversationId: id })
+    emitInboxEvent({ type: 'new-message', conversationId: id, workspaceId: conversation.workspaceId })
     return NextResponse.json({ message: saved })
   }
 
@@ -182,6 +185,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
     },
   })
 
-  emitInboxEvent({ type: 'new-message', conversationId: id })
+  emitInboxEvent({ type: 'new-message', conversationId: id, workspaceId: conversation.workspaceId })
   return NextResponse.json({ message: saved })
 }

@@ -3,6 +3,7 @@ import { createLogger } from '@/lib/logger'
 import { sendMessageViaProvider, sendMetaWhatsAppTemplate, sendWhatsAppTemplate } from '@/lib/messaging/providers'
 import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
 import { emitInboxEvent } from '@/lib/messaging/inbox-emitter'
+import { getDefaultWorkspaceId } from '@/lib/workspaces'
 import {
   sendWelcomePartner,
   sendVerificationReminder,
@@ -26,6 +27,7 @@ async function saveAutomationMessageToInbox(params: {
       where: { channel_contactPhone: { channel, contactPhone } },
       create: {
         channel,
+        workspaceId: await getDefaultWorkspaceId(),
         contactPhone,
         contactName,
         userId,
@@ -51,7 +53,7 @@ async function saveAutomationMessageToInbox(params: {
       },
     })
 
-    emitInboxEvent({ type: 'new-message', conversationId: conversation.id })
+    emitInboxEvent({ type: 'new-message', conversationId: conversation.id, workspaceId: conversation.workspaceId })
   } catch (err) {
     logger.error('saveAutomationMessageToInbox failed', { err })
   }

@@ -141,6 +141,7 @@ async function ensureConversation(params: RecordParams) {
     conversation = await prisma.conversation.create({
       data: {
         channel,
+        workspaceId: conn.workspaceId,
         contactPhone: contactId,
         contactName: contactName || fallbackContactName(channel, contactId),
         connectionId: conn.id,
@@ -199,7 +200,7 @@ export async function recordMetaMessage(params: RecordParams): Promise<boolean> 
       ...(conversation.connectionId ? {} : { connectionId: params.conn.id }),
     },
   })
-  emitInboxEvent({ type: 'new-message', conversationId: conversation.id })
+  emitInboxEvent({ type: 'new-message', conversationId: conversation.id, workspaceId: conversation.workspaceId })
   return true
 }
 
@@ -207,7 +208,7 @@ async function setThreadOwner(channel: MetaChannel, contactId: string, threadOwn
   const conversation = await prisma.conversation.findUnique({ where: { channel_contactPhone: { channel, contactPhone: contactId } } })
   if (!conversation) return
   await prisma.conversation.update({ where: { id: conversation.id }, data: { threadOwner } })
-  emitInboxEvent({ type: 'status-update', conversationId: conversation.id })
+  emitInboxEvent({ type: 'status-update', conversationId: conversation.id, workspaceId: conversation.workspaceId })
 }
 
 async function markOutboundDelivered(channel: MetaChannel, contactId: string, mids: string[] | undefined, watermark: number | undefined) {

@@ -5,6 +5,7 @@ import { renderTextTemplate } from '@/lib/messaging/template'
 import { sendMessageViaProvider, sendWhatsAppTemplate, sendMetaWhatsAppTemplate } from '@/lib/messaging/providers'
 import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
 import { resolveCampaignRecipients, resolveDestination } from '@/lib/messaging/campaign-recipients'
+import { getDefaultWorkspaceId } from '@/lib/workspaces'
 
 export async function processCampaign(campaignId: string) {
   const campaign = await prisma.messagingCampaign.findUnique({
@@ -287,6 +288,7 @@ export async function processCampaign(campaignId: string) {
           where: { channel_contactPhone: { channel: campaign.channel, contactPhone: normalizedPhone } },
           create: {
             channel: campaign.channel,
+            workspaceId: await getDefaultWorkspaceId(),
             contactPhone: normalizedPhone,
             userId: user.id,
             contactName: user.name || null,

@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/admin-utils'
 import { getMetaAppConfig, META_GRAPH_DEFAULT_VERSION } from '@/lib/messaging/provider-config'
 import { getOAuthRedirectUri, getWebhookUrls } from '@/lib/messaging/meta-channels'
+import { canManage, getWorkspaceAccess, listAccessibleWorkspaces, workspaceScope } from '@/lib/workspaces'
 
 function maskSecret(value: string | undefined) {
   if (!value) return ''
@@ -16,13 +17,17 @@ export async function GET() {
   const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const [app, connections] = await Promise.all([
+  const access = await getWorkspaceAccess(admin)
+
+  const [app, connections, workspaces] = await Promise.all([
     getMetaAppConfig(),
     prisma.channelConnection.findMany({
-      where: { channel: { in: ['MESSENGER', 'INSTAGRAM'] } },
-      orderBy: [{ channel: 'asc' }, { createdAt: 'desc' }],
+      where: { channel: { in: ['MESSENGER', 'INSTAGRAM'] }, ...workspaceScope(access) },
+      orderBy: [{ workspaceId: 'asc' }, { channel: 'asc' }, { createdAt: 'desc' }],
       select: {
         id: true,
+        workspaceId: true,
+        workspace: { select: { id: true, name: true } },
         channel: true,
         externalId: true,
         name: true,
@@ -37,6 +42,7 @@ export async function GET() {
         _count: { select: { conversations: true } },
       },
     }).catch(() => []),
+    listAccessibleWorkspaces(access).catch(() => []),
   ])
 
   return NextResponse.json({
@@ -48,8 +54,11 @@ export async function GET() {
       verifyToken: app?.verifyToken || '',
       graphVersion: app?.graphVersion || META_GRAPH_DEFAULT_VERSION,
       configId: app?.configId || '',
+      canEdit: access.isSuperAdmin,
     },
     urls: { redirect: getOAuthRedirectUri(), ...getWebhookUrls() },
-    connections,
+    connections: connections.map((c) => ({ ...c, canManage: canManage(access, c.workspaceId) })),
+    workspaces: workspaces.map((w) => ({ ...w, canManage: canManage(access, w.id) })),
+    isSuperAdmin: access.isSuperAdmin,
   })
 }

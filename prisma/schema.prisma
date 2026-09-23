@@ -17,6 +17,7 @@ model User {
   image                             String?
   role                              UserRole                    @default(CLIENT)
   isActive                          Boolean                     @default(true)
+  isSuperAdmin                      Boolean                     @default(false)
   excludedFromMarketing             Boolean                     @default(false)
   excludedFromMarketingAt           DateTime?
   excludedFromMarketingBy           String?
@@ -60,6 +61,8 @@ model User {
   conversations                     Conversation[]
   assignedConversations             Conversation[]              @relation("AgentConversations")
   sentMessages                      ConversationMessage[]       @relation("AgentMessages")
+  workspaceMemberships              WorkspaceMember[]
+  createdWorkspaces                 Workspace[]                 @relation("WorkspaceCreator")
 }
 
 model PartnerProfile {
@@ -1519,12 +1522,14 @@ model Conversation {
   lastMessageAt   DateTime?
   lastMessageBody String?
   unreadCount     Int                   @default(0)
+  workspaceId     String
   connectionId    String?
   threadOwner     String?
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
   user            User?                 @relation(fields: [userId], references: [id])
   assignedTo      User?                 @relation("AgentConversations", fields: [assignedToId], references: [id])
+  workspace       Workspace             @relation(fields: [workspaceId], references: [id])
   connection      ChannelConnection?    @relation(fields: [connectionId], references: [id], onDelete: SetNull)
   messages        ConversationMessage[]
 
@@ -1532,10 +1537,49 @@ model Conversation {
   @@index([status, lastMessageAt(sort: Desc)])
   @@index([assignedToId])
   @@index([connectionId])
+  @@index([workspaceId, lastMessageAt(sort: Desc)])
+}
+
+model Workspace {
+  id            String                @id @default(cuid())
+  name          String
+  description   String?
+  isDefault     Boolean               @default(false)
+  createdById   String?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  createdBy     User?                 @relation("WorkspaceCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  members       WorkspaceMember[]
+  connections   ChannelConnection[]
+  conversations Conversation[]
+  oauthSessions ChannelOAuthSession[]
+
+  @@index([isDefault])
+}
+
+model WorkspaceMember {
+  id             String        @id @default(cuid())
+  workspaceId    String
+  userId         String
+  role           WorkspaceRole @default(MEMBER)
+  invitedByEmail String?
+  createdAt      DateTime      @default(now())
+  workspace      Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+}
+
+enum WorkspaceRole {
+  OWNER
+  MEMBER
 }
 
 model ChannelConnection {
   id                   String                  @id @default(cuid())
+  workspaceId          String
+  workspace            Workspace               @relation(fields: [workspaceId], references: [id])
   channel              MessagingChannel
   externalId           String
   name                 String
@@ -1553,6 +1597,7 @@ model ChannelConnection {
 
   @@unique([channel, externalId])
   @@index([enabled])
+  @@index([workspaceId])
 }
 
 model WebhookEvent {
@@ -1573,11 +1618,13 @@ model ChannelOAuthSession {
   state               String           @unique
   channel             MessagingChannel
   adminId             String
+  workspaceId         String
   status              String           @default("pending")
   candidatesEncrypted String?
   error               String?
   expiresAt           DateTime
   createdAt           DateTime         @default(now())
+  workspace           Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([expiresAt])
 }

@@ -3,11 +3,14 @@ export const runtime = 'nodejs'
 
 import { requireAdmin } from '@/lib/admin-utils'
 import { subscribeToInbox, type InboxEvent } from '@/lib/messaging/inbox-emitter'
+import { canView, getWorkspaceAccess } from '@/lib/workspaces'
 
 export async function GET() {
   const admin = await requireAdmin()
   if (!admin) return new Response('Unauthorized', { status: 401 })
 
+  // Workspace visibility is evaluated once per connection; the client reconnects on membership changes
+  const access = await getWorkspaceAccess(admin)
   const encoder = new TextEncoder()
 
   let unsubscribe: (() => void) | null = null
@@ -16,6 +19,7 @@ export async function GET() {
   const stream = new ReadableStream({
     start(controller) {
       const send = (event: InboxEvent) => {
+        if (event.type !== 'ping' && !canView(access, event.workspaceId)) return
         try {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`))
         } catch {
