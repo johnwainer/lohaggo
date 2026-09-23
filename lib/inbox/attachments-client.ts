@@ -154,10 +154,10 @@ async function encodeToMp3(raw: Blob): Promise<Blob> {
     pcm[i] = s < 0 ? s * 0x8000 : s * 0x7fff
   }
 
-  const { Mp3Encoder } = await import('lamejs')
+  const { Mp3Encoder } = await import('@breezystack/lamejs')
   const encoder = new Mp3Encoder(1, decoded.sampleRate, 64)
   const parts: BlobPart[] = []
-  const toPart = (chunk: Int8Array): BlobPart => {
+  const toPart = (chunk: Int8Array | Uint8Array): BlobPart => {
     const copy = new Uint8Array(new ArrayBuffer(chunk.length))
     copy.set(new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.length))
     return copy

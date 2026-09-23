@@ -19,6 +19,7 @@
     "seed": "node prisma/seed.js"
   },
   "dependencies": {
+    "@breezystack/lamejs": "^1.2.7",
     "@prisma/client": "^5.22.0",
     "@radix-ui/react-select": "^2.2.6",
     "@radix-ui/react-tabs": "^1.1.13",
@@ -29,7 +30,6 @@
     "clsx": "^2.1.1",
     "date-fns": "^3.0.0",
     "express-rate-limit": "^8.2.1",
-    "lamejs": "^1.2.1",
     "lucide-react": "^0.468.0",
     "mercadopago": "^2.9.0",
     "next": "^16.0.3",
