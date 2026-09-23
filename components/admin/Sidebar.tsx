@@ -1,6 +1,6 @@
 'use client'
 
-import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, LogOut, Menu, X, Shield, DollarSign, Wallet, MapPin, CreditCard, ChevronDown, ChevronRight, Percent, Megaphone, Activity, Building2, BookOpen, Smartphone, MessageSquare, Inbox, Link2, Zap, Palette, Send } from 'lucide-react'
+import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, LogOut, Menu, X, Shield, DollarSign, Wallet, MapPin, CreditCard, ChevronDown, ChevronRight, Percent, Megaphone, Activity, Building2, BookOpen, Smartphone, MessageSquare, Inbox, Link2, Zap, Palette, Send, Share2 } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import { useEffect, useState } from 'react'
@@ -109,6 +109,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
       hint: 'Integraciones, ajustes y plataforma',
       items: [
         { id: 'connections', label: 'Conexiones', icon: Link2, isLink: true, href: '/admin/connections' },
+        { id: 'channels', label: 'Canales', icon: Share2, isLink: true, href: '/admin/channels' },
         { id: 'automations', label: 'Automatizaciones', icon: Zap, isLink: true, href: '/admin/automations' },
         { id: 'commissions', label: 'Comisiones', icon: Percent },
         { id: 'banks', label: 'Bancos', icon: Building2, isLink: true, href: '/admin/banks' },

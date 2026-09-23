@@ -4,8 +4,13 @@ import { requireAdmin } from '@/lib/admin-utils'
 import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
 import { emitInboxEvent } from '@/lib/messaging/inbox-emitter'
 import { sendWhatsAppTemplate } from '@/lib/messaging/providers'
+import { sendMetaMessage } from '@/lib/messaging/meta-graph'
+import { describeGraphError, getConnectionCredentials, isMetaChannel, requireMetaApp } from '@/lib/messaging/meta-channels'
 
 type RouteContext = { params: Promise<{ id: string }> }
+
+const DAY_MS = 24 * 60 * 60 * 1000
+const HUMAN_AGENT_WINDOW_MS = 7 * DAY_MS
 
 function normalizePhone(phone: string) {
   const clean = phone.replace(/[^\d+]/g, '')
@@ -43,6 +48,68 @@ export async function POST(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ message: saved })
   }
 
+  let providerMessageId: string | null = null
+
+  // Messenger / Instagram: send through the connected Page's token (Graph API)
+  if (isMetaChannel(conversation.channel)) {
+    const connection = conversation.connectionId
+      ? await prisma.channelConnection.findUnique({ where: { id: conversation.connectionId } })
+      : null
+    if (!connection) return NextResponse.json({ error: 'Esta conversación no tiene una cuenta conectada' }, { status: 500 })
+    if (!connection.enabled) return NextResponse.json({ error: `La conexión "${connection.name}" está pausada` }, { status: 409 })
+    if (conversation.threadOwner) {
+      return NextResponse.json({ error: 'El hilo está en la bandeja nativa de Meta. Recupera el control antes de responder.' }, { status: 409 })
+    }
+    const creds = getConnectionCredentials(connection)
+    if (!creds?.pageAccessToken) return NextResponse.json({ error: 'Token de la página no disponible, vuelve a conectar la cuenta' }, { status: 500 })
+
+    const lastInbound = await prisma.conversationMessage.findFirst({
+      where: { conversationId: id, direction: 'INBOUND' },
+      orderBy: { sentAt: 'desc' },
+      select: { sentAt: true },
+    })
+    const sinceInbound = lastInbound ? Date.now() - lastInbound.sentAt.getTime() : Number.POSITIVE_INFINITY
+    const insideWindow = sinceInbound <= DAY_MS
+    if (!insideWindow && sinceInbound > HUMAN_AGENT_WINDOW_MS) {
+      return NextResponse.json({ error: 'Ventana de 24h cerrada y han pasado más de 7 días: Meta no permite enviar' }, { status: 409 })
+    }
+
+    try {
+      const app = await requireMetaApp()
+      const result = await sendMetaMessage({
+        app,
+        pageAccessToken: creds.pageAccessToken,
+        recipientId: conversation.contactPhone,
+        message: { text: message.trim() },
+        messagingType: insideWindow ? 'RESPONSE' : 'MESSAGE_TAG',
+        tag: insideWindow ? undefined : 'HUMAN_AGENT',
+      })
+      providerMessageId = result.message_id || null
+    } catch (err) {
+      const detail = describeGraphError(err)
+      await prisma.channelConnection.update({ where: { id: connection.id }, data: { lastError: detail } }).catch(() => null)
+      return NextResponse.json({ error: detail }, { status: 502 })
+    }
+
+    const saved = await prisma.conversationMessage.create({
+      data: {
+        conversationId: id,
+        direction: 'OUTBOUND',
+        body: message.trim(),
+        providerMessageId,
+        sentById: admin.id,
+        status: 'SENT',
+      },
+      include: { sentBy: { select: { id: true, name: true } } },
+    })
+    await prisma.conversation.update({
+      where: { id },
+      data: { lastMessageAt: new Date(), lastMessageBody: message.trim().slice(0, 200), status: 'IN_PROGRESS' },
+    })
+    emitInboxEvent({ type: 'new-message', conversationId: id })
+    return NextResponse.json({ message: saved })
+  }
+
   const runtimeConfig = await getMessagingProviderRuntimeConfig()
   const conf = runtimeConfig.twilio?.config
   if (!runtimeConfig.twilio?.active || !conf?.accountSid || !conf?.authToken) {
@@ -50,7 +117,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
   }
 
   const isWhatsApp = conversation.channel === 'WHATSAPP'
-  let providerMessageId: string | null = null
 
   // WA Content Template send from inbox
   if (isWhatsApp && waContentSid) {

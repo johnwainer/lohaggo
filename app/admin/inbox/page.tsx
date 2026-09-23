@@ -28,7 +28,7 @@ type QuickProfile = {
   _count: { bookings: number; serviceRequests: number; payments: number }
 }
 
-type Channel = 'SMS' | 'WHATSAPP'
+type Channel = 'SMS' | 'WHATSAPP' | 'MESSENGER' | 'INSTAGRAM'
 type ConvStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED'
 type Direction = 'INBOUND' | 'OUTBOUND'
 type MsgStatus = 'PENDING' | 'SENT' | 'DELIVERED' | 'FAILED'
@@ -59,6 +59,7 @@ type Conversation = {
   lastMessageAt?: string | null
   lastMessageBody?: string | null
   unreadCount: number
+  threadOwner?: string | null
   createdAt: string
   user?: ConvUser | null
   messages?: Message[]
@@ -78,7 +79,16 @@ const STATUS_COLORS: Record<ConvStatus, string> = {
   OPEN: 'bg-emerald-100 text-emerald-800', IN_PROGRESS: 'bg-blue-100 text-blue-800',
   RESOLVED: 'bg-gray-100 text-gray-600', CLOSED: 'bg-gray-100 text-gray-400',
 }
-const CHANNEL_COLOR: Record<Channel, string> = { WHATSAPP: 'bg-green-500', SMS: 'bg-blue-500' }
+const CHANNEL_COLOR: Record<Channel, string> = { WHATSAPP: 'bg-green-500', SMS: 'bg-blue-500', MESSENGER: 'bg-sky-500', INSTAGRAM: 'bg-pink-500' }
+const CHANNEL_LABEL: Record<Channel, string> = { WHATSAPP: 'WhatsApp', SMS: 'SMS', MESSENGER: 'Messenger', INSTAGRAM: 'Instagram' }
+
+function isMetaChannel(channel: Channel) {
+  return channel === 'MESSENGER' || channel === 'INSTAGRAM'
+}
+
+function channelLabel(channel: Channel) {
+  return CHANNEL_LABEL[channel] ?? channel
+}
 
 const PRESET_TAGS = ['urgente', 'documentos', 'pago-pendiente', 'onboarding', 'reclamo', 'seguimiento', 'información']
 
@@ -398,6 +408,14 @@ export default function InboxPage() {
 
   // ── Status / assign ──────────────────────────────────────────────────────
 
+  async function takeThreadControl() {
+    if (!selected) return
+    const res = await fetch(`/api/admin/inbox/conversations/${selected.id}/thread-control`, { method: 'POST' })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) { setError(data.error || 'No se pudo recuperar el control del hilo'); return }
+    setSelected((prev) => prev ? { ...prev, threadOwner: null } : prev)
+  }
+
   async function updateStatus(status: ConvStatus) {
     if (!selected) return
     const res = await fetch(`/api/admin/inbox/conversations/${selected.id}`, {
@@ -486,6 +504,9 @@ export default function InboxPage() {
   )
 
   const windowClosed = selected?.channel === 'WHATSAPP' && isWaWindowClosed(selected?.messages || [])
+  // Messenger / Instagram: outside 24h the input stays open (HUMAN_AGENT tag, up to 7 days) but we warn
+  const metaWindowClosed = !!selected && isMetaChannel(selected.channel) && isWaWindowClosed(selected.messages || [])
+  const metaThreadElsewhere = !!selected && isMetaChannel(selected.channel) && !!selected.threadOwner
 
   const cannedFiltered = cannedResponses.filter((r) =>
     !cannedSearch || r.title.toLowerCase().includes(cannedSearch.toLowerCase()) || r.body.toLowerCase().includes(cannedSearch.toLowerCase())
@@ -556,6 +577,8 @@ export default function InboxPage() {
               <option value="">Canal</option>
               <option value="WHATSAPP">WhatsApp</option>
               <option value="SMS">SMS</option>
+              <option value="MESSENGER">Messenger</option>
+              <option value="INSTAGRAM">Instagram</option>
             </select>
             <select className="border rounded px-2 py-1 text-xs flex-1 min-w-0" value={filterAgent} onChange={(e) => setFilterAgent(e.target.value)}>
               <option value="">Agente</option>
@@ -661,9 +684,9 @@ export default function InboxPage() {
                   <div className="flex items-center gap-2">
                     <p className="font-semibold text-gray-900 truncate">{displayName(selected)}</p>
                     <span className={`rounded-full w-2 h-2 shrink-0 inline-block ${CHANNEL_COLOR[selected.channel]}`} />
-                    <span className="text-xs text-gray-500">{selected.channel}</span>
+                    <span className="text-xs text-gray-500">{channelLabel(selected.channel)}</span>
                   </div>
-                  <p className="text-xs text-gray-500">{selected.contactPhone}</p>
+                  <p className="text-xs text-gray-500">{isMetaChannel(selected.channel) ? `ID ${selected.contactPhone}` : selected.contactPhone}</p>
                 </div>
 
                 {/* In-conversation search */}
@@ -965,6 +988,25 @@ export default function InboxPage() {
                   </div>
                 )}
 
+                {/* Meta thread handed over to the native inbox */}
+                {metaThreadElsewhere && !isInternalNote && (
+                  <div className="mb-2 flex items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-800">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0 text-orange-600" />
+                    <span className="flex-1">Este hilo está en la bandeja nativa de Meta. No se puede responder desde aquí hasta recuperar el control.</span>
+                    <button onClick={takeThreadControl} className="shrink-0 rounded-lg bg-orange-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-orange-700">
+                      Recuperar control
+                    </button>
+                  </div>
+                )}
+
+                {/* Meta 24h window notice (non-blocking) */}
+                {metaWindowClosed && !metaThreadElsewhere && !isInternalNote && (
+                  <div className="mb-2 flex items-center gap-2 rounded-xl border border-yellow-200 bg-yellow-50 px-3 py-2 text-xs text-yellow-800">
+                    <Clock className="h-3.5 w-3.5 shrink-0 text-yellow-600" />
+                    <span>Ventana de 24h cerrada. El envío irá con etiqueta <strong>HUMAN_AGENT</strong> (máx. 7 días, requiere permiso de Meta).</span>
+                  </div>
+                )}
+
                 {/* WA window blocked notice */}
                 {windowClosed && !isInternalNote && !showTemplatePicker && (
                   <div className="mb-2 flex items-center gap-2 rounded-xl border border-yellow-200 bg-yellow-50 px-3 py-2 text-xs text-yellow-800">
@@ -1100,7 +1142,7 @@ export default function InboxPage() {
                     {/* Channel badge — pushed to right */}
                     <div className="ml-auto flex items-center gap-1.5 px-2 text-xs text-gray-400">
                       <span className={`rounded-full w-2 h-2 shrink-0 ${CHANNEL_COLOR[selected.channel]}`} />
-                      <span className="hidden sm:inline">{selected.channel}</span>
+                      <span className="hidden sm:inline">{channelLabel(selected.channel)}</span>
                     </div>
                   </div>
 

@@ -1464,6 +1464,8 @@ enum MessagingChannel {
   WHATSAPP
   EMAIL
   PUSH
+  MESSENGER
+  INSTAGRAM
 }
 
 enum MessagingCampaignStatus {
@@ -1490,6 +1492,7 @@ enum MessagingProvider {
   TWILIO
   SENDGRID
   META_WHATSAPP
+  META_APP
 }
 
 enum ConversationStatus {
@@ -1516,15 +1519,81 @@ model Conversation {
   lastMessageAt   DateTime?
   lastMessageBody String?
   unreadCount     Int                   @default(0)
+  connectionId    String?
+  threadOwner     String?
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
   user            User?                 @relation(fields: [userId], references: [id])
   assignedTo      User?                 @relation("AgentConversations", fields: [assignedToId], references: [id])
+  connection      ChannelConnection?    @relation(fields: [connectionId], references: [id], onDelete: SetNull)
   messages        ConversationMessage[]
 
   @@unique([channel, contactPhone])
   @@index([status, lastMessageAt(sort: Desc)])
   @@index([assignedToId])
+  @@index([connectionId])
+}
+
+model ChannelConnection {
+  id                   String                  @id @default(cuid())
+  channel              MessagingChannel
+  externalId           String
+  name                 String
+  status               ChannelConnectionStatus @default(ACTIVE)
+  enabled              Boolean                 @default(true)
+  credentialsEncrypted String
+  meta                 Json?
+  capabilities         Json?
+  lastError            String?
+  lastEventAt          DateTime?
+  connectedByEmail     String?
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+  conversations        Conversation[]
+
+  @@unique([channel, externalId])
+  @@index([enabled])
+}
+
+model WebhookEvent {
+  id         String             @id @default(cuid())
+  channel    MessagingChannel
+  externalId String?
+  status     WebhookEventStatus
+  detail     String?
+  payload    Json?
+  createdAt  DateTime           @default(now())
+
+  @@index([createdAt(sort: Desc)])
+  @@index([channel, externalId])
+}
+
+model ChannelOAuthSession {
+  id                  String           @id @default(cuid())
+  state               String           @unique
+  channel             MessagingChannel
+  adminId             String
+  status              String           @default("pending")
+  candidatesEncrypted String?
+  error               String?
+  expiresAt           DateTime
+  createdAt           DateTime         @default(now())
+
+  @@index([expiresAt])
+}
+
+enum ChannelConnectionStatus {
+  ACTIVE
+  ERROR
+}
+
+enum WebhookEventStatus {
+  OK
+  IGNORED
+  UNROUTED
+  PAUSED
+  BAD_SIGNATURE
+  ERROR
 }
 
 model ConversationMessage {

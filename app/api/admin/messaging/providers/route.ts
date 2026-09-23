@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auditAdminAction, requireAdmin } from '@/lib/admin-utils'
-import { getMessagingProviderRuntimeConfig, upsertProviderConfig } from '@/lib/messaging/provider-config'
+import { getMessagingProviderRuntimeConfig, META_GRAPH_DEFAULT_VERSION, upsertProviderConfig } from '@/lib/messaging/provider-config'
 import { isPushConfigured } from '@/lib/notifications/push-sender'
 import { env } from '@/lib/env'
 
@@ -35,6 +35,13 @@ export async function GET() {
         wabaId: config.metaWhatsApp.config?.wabaId || '',
         phoneNumberId: config.metaWhatsApp.config?.phoneNumberId || '',
         hasAccessToken: Boolean(config.metaWhatsApp.config?.accessToken),
+      },
+      metaApp: {
+        active: config.metaApp.active,
+        appId: config.metaApp.config?.appId || '',
+        hasAppSecret: Boolean(config.metaApp.config?.appSecret),
+        hasVerifyToken: Boolean(config.metaApp.config?.verifyToken),
+        graphVersion: config.metaApp.config?.graphVersion || META_GRAPH_DEFAULT_VERSION,
       },
       push: {
         configured: isPushConfigured(),
@@ -97,6 +104,28 @@ export async function PATCH(request: NextRequest) {
     }
     await upsertProviderConfig({
       provider: 'META_WHATSAPP',
+      isActive: body.isActive ?? true,
+      config: merged,
+      updatedByEmail: admin.email,
+    })
+  } else if (body.provider === 'META_APP') {
+    const graphVersionRaw = body.graphVersion !== undefined ? String(body.graphVersion).trim() : current.metaApp.config?.graphVersion
+    const graphVersion = graphVersionRaw || META_GRAPH_DEFAULT_VERSION
+    if (!/^v\d+\.\d+$/.test(graphVersion)) {
+      return NextResponse.json({ error: 'graphVersion debe tener formato vNN.N (ej. v26.0)' }, { status: 400 })
+    }
+    const merged = {
+      appId: body.appId ? String(body.appId).trim() : current.metaApp.config?.appId,
+      appSecret: body.appSecret ? String(body.appSecret).trim() : current.metaApp.config?.appSecret,
+      verifyToken: body.verifyToken ? String(body.verifyToken).trim() : current.metaApp.config?.verifyToken,
+      graphVersion,
+      configId: body.configId !== undefined ? (body.configId ? String(body.configId).trim() : undefined) : current.metaApp.config?.configId,
+    }
+    if (!merged.appId || !merged.appSecret || !merged.verifyToken) {
+      return NextResponse.json({ error: 'appId, appSecret y verifyToken son requeridos para la App de Meta' }, { status: 400 })
+    }
+    await upsertProviderConfig({
+      provider: 'META_APP',
       isActive: body.isActive ?? true,
       config: merged,
       updatedByEmail: admin.email,

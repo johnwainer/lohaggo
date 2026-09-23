@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import {
   Mail, Phone, CreditCard, Bell, CheckCircle2, XCircle, AlertCircle,
-  ArrowRight, RefreshCw, Loader2, Settings, Zap,
+  ArrowRight, RefreshCw, Loader2, Settings, Zap, Share2,
 } from 'lucide-react'
 
 type ProviderStatus = 'active' | 'inactive' | 'unknown'
@@ -32,6 +32,13 @@ interface ProvidersData {
     active: boolean
     fromEmail: string
     hasApiKey: boolean
+  }
+  metaApp?: {
+    active: boolean
+    appId: string
+    hasAppSecret: boolean
+    hasVerifyToken: boolean
+    graphVersion: string
   }
   push: {
     configured: boolean
@@ -191,6 +198,20 @@ export default function ConnectionsPage() {
         providers.twilio.hasAuthToken ? 'Credenciales: configuradas' : 'Credenciales: faltantes',
       ],
       href: '/admin/messaging',
+    },
+    {
+      id: 'meta-channels',
+      name: 'Messenger e Instagram',
+      category: 'Meta',
+      description: 'Páginas de Facebook y cuentas de Instagram conectadas por OAuth. Los mensajes llegan a la bandeja de entrada.',
+      icon: <Share2 size={20} className={providers.metaApp?.hasAppSecret ? 'text-green-600' : 'text-gray-400'} />,
+      status: providers.metaApp?.hasAppSecret && providers.metaApp?.hasVerifyToken ? 'active' : 'inactive',
+      details: [
+        `App ID: ${providers.metaApp?.appId || 'No configurado'}`,
+        providers.metaApp?.hasAppSecret ? 'App Secret: configurado' : 'App Secret: faltante',
+        `Graph API: ${providers.metaApp?.graphVersion || 'v26.0'}`,
+      ],
+      href: '/admin/channels',
     },
     {
       id: 'mercadopago',
