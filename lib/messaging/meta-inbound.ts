@@ -116,6 +116,7 @@ type RecordParams = {
   direction: 'INBOUND' | 'OUTBOUND'
   body: string
   mediaUrl?: string | null
+  mediaType?: string | null
   providerMessageId: string
   sentAt?: Date
   contactNameHint?: string | null
@@ -173,6 +174,7 @@ export async function recordMetaMessage(params: RecordParams): Promise<boolean> 
         direction: params.direction,
         body: params.body,
         mediaUrl: params.mediaUrl || null,
+        mediaType: params.mediaType || null,
         providerMessageId: params.providerMessageId,
         status: 'DELIVERED',
         sentAt: params.sentAt || new Date(),
@@ -222,7 +224,7 @@ async function markOutboundDelivered(channel: MetaChannel, contactId: string, mi
 }
 
 function describeAttachments(attachments: Attachment[] | undefined) {
-  if (!attachments?.length) return { text: '', mediaUrl: null as string | null }
+  if (!attachments?.length) return { text: '', mediaUrl: null as string | null, mediaType: null as string | null }
   const first = attachments[0]
   const labels: Record<string, string> = {
     image: '📷 Imagen',
@@ -239,7 +241,9 @@ function describeAttachments(attachments: Attachment[] | undefined) {
   }
   const parts = attachments.map((a) => labels[a.type || ''] || `📎 ${a.type || 'Adjunto'}`)
   const mediaUrl = first?.payload?.url || null
-  return { text: parts.join(' · '), mediaUrl }
+  const kindMime: Record<string, string> = { image: 'image/*', video: 'video/*', audio: 'audio/*', file: 'application/octet-stream' }
+  const mediaType = first?.type ? kindMime[first.type] || null : null
+  return { text: parts.join(' · '), mediaUrl, mediaType }
 }
 
 // ─── Event processing ────────────────────────────────────────────────────────
@@ -257,7 +261,7 @@ async function processEvent(app: MetaAppConfig, conn: ChannelConnection, channel
     const att = describeAttachments(ev.message.attachments)
     const body = ev.message.text || att.text || '[mensaje]'
     const recorded = await recordMetaMessage({
-      app, conn, channel, contactId, direction: 'OUTBOUND', body, mediaUrl: att.mediaUrl,
+      app, conn, channel, contactId, direction: 'OUTBOUND', body, mediaUrl: att.mediaUrl, mediaType: att.mediaType,
       providerMessageId: ev.message.mid, sentAt: ts, threadOwner,
     })
     return { kind: 'echo', recorded }
@@ -275,7 +279,7 @@ async function processEvent(app: MetaAppConfig, conn: ChannelConnection, channel
     if (!body) body = att.text || (ev.message.is_unsupported ? '[Mensaje no soportado]' : '[mensaje]')
     else if (att.text) body = `${body}\n${att.text}`
     const recorded = await recordMetaMessage({
-      app, conn, channel, contactId, direction: 'INBOUND', body, mediaUrl: att.mediaUrl,
+      app, conn, channel, contactId, direction: 'INBOUND', body, mediaUrl: att.mediaUrl, mediaType: att.mediaType,
       providerMessageId: ev.message.mid || `msg:${contactId}:${ts.getTime()}`, sentAt: ts, threadOwner,
     })
     return { kind: 'message', recorded }

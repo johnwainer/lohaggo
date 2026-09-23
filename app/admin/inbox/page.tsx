@@ -7,7 +7,12 @@ import {
   ExternalLink, Star, MapPin, ShieldCheck, Calendar,
   StickyNote, Zap, Tag, ChevronDown, Plus, Trash2, LayoutTemplate,
   ChevronUp, Link2, Copy, Check, ArrowLeft, BellOff,
+  Paperclip, Mic, Square, FileText, Download,
 } from 'lucide-react'
+import {
+  VoiceRecorder, isRecordingSupported, prepareImage, uploadAttachment, kindFromMime, formatBytes, formatDuration,
+  type PendingAttachment,
+} from '@/lib/inbox/attachments-client'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -41,6 +46,8 @@ type Message = {
   direction: Direction
   body: string
   mediaUrl?: string | null
+  mediaType?: string | null
+  mediaName?: string | null
   isInternal: boolean
   sentAt: string
   status: MsgStatus
@@ -176,6 +183,12 @@ export default function InboxPage() {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [messageText, setMessageText] = useState('')
+  const [attachment, setAttachment] = useState<PendingAttachment | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [recording, setRecording] = useState(false)
+  const [recordingMs, setRecordingMs] = useState(0)
+  const recorderRef = useRef<VoiceRecorder | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState<ConvStatus | ''>('')
   const [filterChannel, setFilterChannel] = useState<Channel | ''>('')
@@ -350,19 +363,95 @@ export default function InboxPage() {
 
   // ── Send message ─────────────────────────────────────────────────────────
 
+  // ── Attachments ──────────────────────────────────────────────────────────
+
+  function clearAttachment() {
+    setAttachment((prev) => {
+      if (prev?.previewUrl) URL.revokeObjectURL(prev.previewUrl)
+      return null
+    })
+  }
+
+  async function pickFile(file: File | null | undefined) {
+    if (!file) return
+    setError(null)
+    const prepared = await prepareImage(file)
+    if (prepared.size > 4 * 1024 * 1024) { setError('El adjunto supera 4 MB'); return }
+    const kind = kindFromMime(prepared.type)
+    clearAttachment()
+    setAttachment({ file: prepared, kind, previewUrl: kind === 'image' || kind === 'audio' || kind === 'video' ? URL.createObjectURL(prepared) : null })
+  }
+
+  async function startRecording() {
+    if (!isRecordingSupported()) { setError('Este navegador no permite grabar audio'); return }
+    setError(null)
+    try {
+      const rec = new VoiceRecorder()
+      await rec.start()
+      recorderRef.current = rec
+      setRecording(true)
+      setRecordingMs(0)
+    } catch (err) {
+      setError(err instanceof Error && err.name === 'NotAllowedError' ? 'Permiso de micrófono denegado' : 'No se pudo iniciar la grabación')
+    }
+  }
+
+  async function stopRecording(discard = false) {
+    const rec = recorderRef.current
+    recorderRef.current = null
+    setRecording(false)
+    if (!rec) return
+    if (discard) { rec.cancel(); return }
+    if (rec.elapsedMs < 700) { rec.cancel(); setError('Grabación demasiado corta'); return }
+    try {
+      setUploading(true)
+      const { file, durationMs } = await rec.stop()
+      clearAttachment()
+      setAttachment({ file, kind: 'audio', previewUrl: URL.createObjectURL(file), durationMs })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo procesar la grabación')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!recording) return
+    const t = setInterval(() => setRecordingMs(recorderRef.current?.elapsedMs ?? 0), 250)
+    return () => clearInterval(t)
+  }, [recording])
+
+  // ── Send message ─────────────────────────────────────────────────────────
+
   async function sendMessage() {
-    if (!selected || !messageText.trim() || sending) return
+    if (!selected || sending || uploading) return
+    if (!messageText.trim() && !attachment) return
     setSending(true)
     setError(null)
     try {
+      let uploaded = attachment?.uploaded
+      if (attachment && !uploaded) {
+        setUploading(true)
+        try {
+          uploaded = await uploadAttachment(selected.id, attachment.file)
+          setAttachment((prev) => (prev ? { ...prev, uploaded } : prev))
+        } finally {
+          setUploading(false)
+        }
+      }
       const res = await fetch(`/api/admin/inbox/conversations/${selected.id}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: messageText.trim(), isInternal }),
+        body: JSON.stringify({
+          message: messageText.trim(),
+          isInternal,
+          ...(uploaded ? { attachment: { url: uploaded.url, mediaType: uploaded.mediaType, mediaName: uploaded.mediaName } } : {}),
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Error enviando')
       setMessageText('')
+      clearAttachment()
       setIsInternalNote(false)
       setSelected((prev) =>
         prev ? { ...prev, messages: [...(prev.messages || []), data.message], lastMessageBody: data.message.body, lastMessageAt: data.message.sentAt } : prev
@@ -891,6 +980,31 @@ export default function InboxPage() {
                           <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${msg.direction === 'OUTBOUND' ? 'bg-primary-600 text-white rounded-br-sm' : 'bg-white border text-gray-800 rounded-bl-sm shadow-sm'}`}>
                             {msg.mediaUrl && (() => {
                               const proxyUrl = `/api/admin/inbox/media?url=${encodeURIComponent(msg.mediaUrl)}&conversationId=${encodeURIComponent(selected.id)}`
+                              const kind = msg.mediaType ? kindFromMime(msg.mediaType) : 'image'
+                              const muted = msg.direction === 'OUTBOUND' ? 'text-primary-100' : 'text-gray-600'
+                              if (kind === 'audio') {
+                                return (
+                                  <div className="mb-2">
+                                    <audio controls preload="metadata" src={proxyUrl} className="max-w-[240px] h-10" />
+                                  </div>
+                                )
+                              }
+                              if (kind === 'video') {
+                                return (
+                                  <div className="mb-2">
+                                    <video controls preload="metadata" src={proxyUrl} className="max-w-[240px] rounded-lg" />
+                                  </div>
+                                )
+                              }
+                              if (kind === 'file') {
+                                return (
+                                  <a href={`${proxyUrl}&download=1`} target="_blank" rel="noopener noreferrer" className={`mb-2 flex items-center gap-2 rounded-lg border px-2.5 py-2 text-xs ${msg.direction === 'OUTBOUND' ? 'border-primary-400 bg-primary-700/40' : 'border-gray-200 bg-gray-50'} ${muted}`}>
+                                    <FileText className="h-4 w-4 shrink-0" />
+                                    <span className="truncate max-w-[180px]">{msg.mediaName || 'Archivo adjunto'}</span>
+                                    <Download className="h-3.5 w-3.5 shrink-0 ml-auto" />
+                                  </a>
+                                )
+                              }
                               return (
                                 <div className="mb-2">
                                   <img
@@ -994,6 +1108,44 @@ export default function InboxPage() {
             ) : (
               /* Message input */
               <div className="px-3 md:px-5 pb-4 pt-2 border-t bg-white">
+                {/* Pending attachment */}
+                {attachment && (
+                  <div className="mb-2 flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2">
+                    {attachment.kind === 'image' && attachment.previewUrl ? (
+                      <img src={attachment.previewUrl} alt="" className="h-12 w-12 rounded-lg object-cover shrink-0" />
+                    ) : attachment.kind === 'audio' && attachment.previewUrl ? (
+                      <audio controls preload="metadata" src={attachment.previewUrl} className="h-9 max-w-[220px]" />
+                    ) : attachment.kind === 'video' && attachment.previewUrl ? (
+                      <video src={attachment.previewUrl} className="h-12 w-16 rounded-lg object-cover shrink-0" muted />
+                    ) : (
+                      <FileText className="h-6 w-6 text-gray-400 shrink-0" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-gray-800 truncate">{attachment.file.name}</p>
+                      <p className="text-[11px] text-gray-400">
+                        {formatBytes(attachment.file.size)}
+                        {attachment.durationMs ? ` · ${formatDuration(attachment.durationMs)}` : ''}
+                        {uploading ? ' · subiendo…' : attachment.uploaded ? ' · listo' : ''}
+                      </p>
+                    </div>
+                    <button onClick={clearAttachment} disabled={sending} className="rounded-lg p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50" title="Quitar adjunto">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Recording indicator */}
+                {recording && (
+                  <div className="mb-2 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                    <span className="h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse" />
+                    <span className="font-medium">Grabando… {formatDuration(recordingMs)}</span>
+                    <button onClick={() => stopRecording(true)} className="ml-auto rounded-lg px-2 py-1 text-red-600 hover:bg-red-100">Cancelar</button>
+                    <button onClick={() => stopRecording(false)} className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-2.5 py-1 font-semibold text-white hover:bg-red-700">
+                      <Square className="h-3 w-3" /> Detener
+                    </button>
+                  </div>
+                )}
+
                 {/* Mode indicator */}
                 {isInternalNote && (
                   <div className="flex items-center gap-1.5 mb-1.5">
@@ -1098,6 +1250,33 @@ export default function InboxPage() {
                       <Zap className="h-4 w-4" />
                     </button>
 
+                    {/* Attach file */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      className="hidden"
+                      accept="image/*,audio/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
+                      onChange={(e) => { pickFile(e.target.files?.[0]); e.target.value = '' }}
+                    />
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={recording || uploading}
+                      className={`rounded-lg p-2 transition ${attachment ? 'bg-primary-100 text-primary-600' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'} disabled:opacity-40`}
+                      title="Adjuntar imagen, audio, video o archivo"
+                    >
+                      <Paperclip className="h-4 w-4" />
+                    </button>
+
+                    {/* Voice note */}
+                    <button
+                      onClick={() => (recording ? stopRecording(false) : startRecording())}
+                      disabled={uploading || selected.channel === 'SMS'}
+                      className={`rounded-lg p-2 transition ${recording ? 'bg-red-100 text-red-600' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'} disabled:opacity-40`}
+                      title={selected.channel === 'SMS' ? 'SMS no admite audios' : recording ? 'Detener grabación' : 'Grabar nota de voz'}
+                    >
+                      {recording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                    </button>
+
                     {/* Internal note */}
                     <button
                       onClick={() => setIsInternalNote((v) => !v)}
@@ -1180,10 +1359,10 @@ export default function InboxPage() {
                     />
                     <button
                       onClick={sendMessage}
-                      disabled={!messageText.trim() || sending || (windowClosed && !isInternalNote)}
+                      disabled={(!messageText.trim() && !attachment) || sending || uploading || recording || (windowClosed && !isInternalNote)}
                       className="shrink-0 rounded-xl bg-primary-600 p-2.5 text-white hover:bg-primary-700 disabled:opacity-40 transition"
                     >
-                      {sending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                      {sending || uploading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                     </button>
                   </div>
                 </div>

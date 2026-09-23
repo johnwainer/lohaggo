@@ -63,7 +63,7 @@ class CloudinaryService {
   public async upload(
     file: File,
     folder: string = 'lohaggo',
-    resourceType: 'image' | 'raw' = 'image'
+    resourceType: 'image' | 'raw' | 'video' = 'image'
   ): Promise<CloudinaryUploadResult> {
     if (!this.isEnabled() || !this.config) {
       throw new Error('Cloudinary service is not configured')

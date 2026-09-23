@@ -25,7 +25,7 @@ const securityHeaders = [
   },
   {
     key: 'Permissions-Policy',
-    value: 'camera=(), microphone=(), geolocation=(self), interest-cohort=()'
+    value: 'camera=(), microphone=(self), geolocation=(self), interest-cohort=()'
   },
   {
     key: 'Content-Security-Policy',
@@ -34,6 +34,7 @@ const securityHeaders = [
       "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://sdk.mercadopago.com https://www.mercadopago.com https://www.googletagmanager.com https://www.google-analytics.com https://connect.facebook.net https://www.facebook.com https://www.clarity.ms https://*.clarity.ms",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "img-src 'self' data: https: blob: https://*.clarity.ms",
+      "media-src 'self' blob: https://res.cloudinary.com",
       "font-src 'self' data: https://fonts.gstatic.com",
       "connect-src 'self' https://api.mercadopago.com https://api.cloudinary.com https://*.cloudinary.com https://www.google-analytics.com https://analytics.google.com https://www.google.com https://www.googletagmanager.com https://www.facebook.com https://connect.facebook.net https://*.clarity.ms https://*.bing.com https://*.on.aws https://*.supabase.co wss://*.supabase.co",
       "frame-src 'self' https://www.mercadopago.com https://www.facebook.com",

@@ -7,11 +7,24 @@ import { sendWhatsAppTemplate } from '@/lib/messaging/providers'
 import { sendMetaMessage } from '@/lib/messaging/meta-graph'
 import { describeGraphError, getConnectionCredentials, isMetaChannel, requireMetaApp } from '@/lib/messaging/meta-channels'
 import { canView, getWorkspaceAccess } from '@/lib/workspaces'
+import { attachmentLabel, channelSupportsAttachment, isTrustedAttachmentUrl, kindFromMime, type AttachmentKind } from '@/lib/messaging/attachments'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const HUMAN_AGENT_WINDOW_MS = 7 * DAY_MS
+
+type OutboundAttachment = { url: string; mediaType: string; mediaName: string | null; kind: AttachmentKind }
+
+function parseAttachment(raw: unknown): OutboundAttachment | null {
+  if (!raw || typeof raw !== 'object') return null
+  const a = raw as Record<string, unknown>
+  const url = typeof a.url === 'string' ? a.url : ''
+  const mediaType = typeof a.mediaType === 'string' ? a.mediaType.toLowerCase() : ''
+  if (!url || !mediaType || !isTrustedAttachmentUrl(url)) return null
+  const mediaName = typeof a.mediaName === 'string' && a.mediaName.trim() ? a.mediaName.trim().slice(0, 120) : null
+  return { url, mediaType, mediaName, kind: kindFromMime(mediaType) }
+}
 
 function normalizePhone(phone: string) {
   const clean = phone.replace(/[^\d+]/g, '')
@@ -26,13 +39,21 @@ export async function POST(request: NextRequest, context: RouteContext) {
   const { id } = await context.params
   const body = await request.json()
 
-  const { message, isInternal, waContentSid, waVariables } = body
-  if (!message?.trim()) return NextResponse.json({ error: 'Mensaje requerido' }, { status: 400 })
+  const { isInternal, waContentSid, waVariables } = body
+  const message: string = typeof body.message === 'string' ? body.message.trim() : ''
+
+  // Optional attachment previously uploaded via /attachments (Cloudinary URL only)
+  const attachment = parseAttachment(body.attachment)
+  if (body.attachment && !attachment) return NextResponse.json({ error: 'Adjunto inválido' }, { status: 400 })
+  if (!message && !attachment) return NextResponse.json({ error: 'Mensaje requerido' }, { status: 400 })
 
   const conversation = await prisma.conversation.findUnique({ where: { id } })
   if (!conversation) return NextResponse.json({ error: 'Conversación no encontrada' }, { status: 404 })
   const access = await getWorkspaceAccess(admin)
   if (!canView(access, conversation.workspaceId)) return NextResponse.json({ error: 'Conversación no encontrada' }, { status: 404 })
+
+  const storedBody = message || (attachment ? attachmentLabel(attachment.kind, attachment.mediaName) : '')
+  const mediaData = attachment ? { mediaUrl: attachment.url, mediaType: attachment.mediaType, mediaName: attachment.mediaName } : {}
 
   // Internal notes: save to DB only, no Twilio
   if (isInternal) {
@@ -40,7 +61,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
       data: {
         conversationId: id,
         direction: 'OUTBOUND',
-        body: message.trim(),
+        body: storedBody,
+        ...mediaData,
         isInternal: true,
         sentById: admin.id,
         status: 'SENT',
@@ -49,6 +71,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
     })
     emitInboxEvent({ type: 'new-message', conversationId: id, workspaceId: conversation.workspaceId })
     return NextResponse.json({ message: saved })
+  }
+
+  if (attachment) {
+    const support = channelSupportsAttachment(conversation.channel, attachment.mediaType, attachment.kind)
+    if (!support.ok) return NextResponse.json({ error: support.error }, { status: 400 })
   }
 
   let providerMessageId: string | null = null
@@ -79,15 +106,25 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     try {
       const app = await requireMetaApp()
-      const result = await sendMetaMessage({
+      const common = {
         app,
         pageAccessToken: creds.pageAccessToken,
         recipientId: conversation.contactPhone,
-        message: { text: message.trim() },
-        messagingType: insideWindow ? 'RESPONSE' : 'MESSAGE_TAG',
+        messagingType: insideWindow ? ('RESPONSE' as const) : ('MESSAGE_TAG' as const),
         tag: insideWindow ? undefined : 'HUMAN_AGENT',
-      })
-      providerMessageId = result.message_id || null
+      }
+      // Meta accepts either text or attachment per message: send the attachment first, then the caption
+      if (attachment) {
+        const result = await sendMetaMessage({
+          ...common,
+          message: { attachment: { type: attachment.kind, payload: { url: attachment.url, is_reusable: true } } },
+        })
+        providerMessageId = result.message_id || null
+      }
+      if (message) {
+        const result = await sendMetaMessage({ ...common, message: { text: message } })
+        providerMessageId = providerMessageId || result.message_id || null
+      }
     } catch (err) {
       const detail = describeGraphError(err)
       await prisma.channelConnection.update({ where: { id: connection.id }, data: { lastError: detail } }).catch(() => null)
@@ -98,7 +135,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
       data: {
         conversationId: id,
         direction: 'OUTBOUND',
-        body: message.trim(),
+        body: storedBody,
+        ...mediaData,
         providerMessageId,
         sentById: admin.id,
         status: 'SENT',
@@ -107,7 +145,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     })
     await prisma.conversation.update({
       where: { id },
-      data: { lastMessageAt: new Date(), lastMessageBody: message.trim().slice(0, 200), status: 'IN_PROGRESS' },
+      data: { lastMessageAt: new Date(), lastMessageBody: storedBody.slice(0, 200), status: 'IN_PROGRESS' },
     })
     emitInboxEvent({ type: 'new-message', conversationId: id, workspaceId: conversation.workspaceId })
     return NextResponse.json({ message: saved })
@@ -144,7 +182,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const fromFormatted = isWhatsApp ? `whatsapp:${from}` : from
 
     const endpoint = `https://api.twilio.com/2010-04-01/Accounts/${conf.accountSid}/Messages.json`
-    const payload = new URLSearchParams({ To: toFormatted, From: fromFormatted, Body: message.trim() })
+    const payload = new URLSearchParams({ To: toFormatted, From: fromFormatted })
+    if (message) payload.set('Body', message)
+    if (attachment) payload.set('MediaUrl', attachment.url)
 
     const response = await fetch(endpoint, {
       method: 'POST',
@@ -168,7 +208,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
     data: {
       conversationId: id,
       direction: 'OUTBOUND',
-      body: message.trim(),
+      body: storedBody,
+      ...mediaData,
       providerMessageId,
       sentById: admin.id,
       status: 'SENT',
@@ -180,7 +221,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     where: { id },
     data: {
       lastMessageAt: new Date(),
-      lastMessageBody: message.trim().slice(0, 200),
+      lastMessageBody: storedBody.slice(0, 200),
       status: 'IN_PROGRESS',
     },
   })

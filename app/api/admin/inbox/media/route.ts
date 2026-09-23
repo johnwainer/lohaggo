@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/admin-utils'
 import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
 import { canView, getWorkspaceAccess } from '@/lib/workspaces'
+import { isTrustedAttachmentUrl } from '@/lib/messaging/attachments'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,7 +29,8 @@ export async function GET(request: NextRequest) {
 
   const isTwilio = url.startsWith('https://api.twilio.com/') || url.startsWith('https://media.twiliocdn.com/')
   const isMetaCdn = isMetaMediaUrl(url)
-  if (!isTwilio && !isMetaCdn) {
+  const isCloudinary = isTrustedAttachmentUrl(url)
+  if (!isTwilio && !isMetaCdn && !isCloudinary) {
     return new NextResponse('Invalid media URL', { status: 400 })
   }
 
