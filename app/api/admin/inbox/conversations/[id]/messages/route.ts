@@ -8,7 +8,7 @@ import { sendWhatsAppTemplate } from '@/lib/messaging/providers'
 import { sendMetaMessage } from '@/lib/messaging/meta-graph'
 import { describeGraphError, getConnectionCredentials, isMetaChannel, requireMetaApp } from '@/lib/messaging/meta-channels'
 import { canView, getWorkspaceAccess } from '@/lib/workspaces'
-import { attachmentLabel, channelSupportsAttachment, isTrustedAttachmentUrl, kindFromMime, type AttachmentKind } from '@/lib/messaging/attachments'
+import { attachmentLabel, channelDeliveryUrl, channelSupportsAttachment, warmDeliveryUrl, isTrustedAttachmentUrl, kindFromMime, type AttachmentKind } from '@/lib/messaging/attachments'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -109,6 +109,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
     if (!support.ok) return NextResponse.json({ error: support.error }, { status: 400 })
   }
 
+  // Format each channel accepts (e.g. Instagram needs M4A instead of MP3); transcoded by Cloudinary
+  const delivery = attachment ? channelDeliveryUrl(conversation.channel, attachment.url, attachment.kind) : null
+  if (delivery?.converted) await warmDeliveryUrl(delivery.url)
+  const deliveryUrl = delivery?.url ?? attachment?.url ?? ''
+
   let providerMessageId: string | null = null
 
   // Messenger / Instagram: send through the connected Page's token (Graph API)
@@ -150,7 +155,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       if (attachment) {
         const result = await sendMetaMessage({
           ...common,
-          message: { attachment: { type: attachment.kind, payload: { url: attachment.url, is_reusable: true } } },
+          message: { attachment: { type: attachment.kind, payload: { url: deliveryUrl, is_reusable: true } } },
         })
         attachmentMid = result.message_id || null
       }
@@ -221,7 +226,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const endpoint = `https://api.twilio.com/2010-04-01/Accounts/${conf.accountSid}/Messages.json`
     const payload = new URLSearchParams({ To: toFormatted, From: fromFormatted })
     if (message) payload.set('Body', message)
-    if (attachment) payload.set('MediaUrl', attachment.url)
+    if (attachment) payload.set('MediaUrl', deliveryUrl)
     // Delivery status (incl. media download failures) comes back to the inbox
     const base = (env.NEXT_PUBLIC_APP_URL || env.NEXTAUTH_URL || '').replace(/\/+$/, '')
     if (base.startsWith('https://')) {

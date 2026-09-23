@@ -122,6 +122,54 @@ export function attachmentLabel(kind: AttachmentKind, name?: string | null) {
   return `${icon} ${name || fallback}`
 }
 
+// ─── Per-channel delivery format ─────────────────────────────────────────────
+// Cloudinary transcodes on the fly when the extension changes (…/video/upload/v1/x.mp3 → x.m4a).
+// Each channel only accepts some formats: Instagram rejects MP3 audio with "(#100) formato no compatible".
+
+const CLOUDINARY_MEDIA_URL = /^(https:\/\/res\.cloudinary\.com\/[^/]+\/(image|video)\/upload\/.+)\.([a-z0-9]+)$/i
+
+const CHANNEL_TARGET: Record<string, Partial<Record<AttachmentKind, { ext: string; mime: string; keep?: string[] }>>> = {
+  INSTAGRAM: {
+    audio: { ext: 'm4a', mime: 'audio/mp4', keep: ['m4a', 'aac', 'wav', 'mp4'] },
+    image: { ext: 'jpg', mime: 'image/jpeg', keep: ['jpg', 'jpeg', 'png', 'gif'] },
+    video: { ext: 'mp4', mime: 'video/mp4', keep: ['mp4'] },
+  },
+  WHATSAPP: {
+    audio: { ext: 'mp3', mime: 'audio/mpeg', keep: ['mp3', 'm4a', 'aac', 'amr'] },
+    image: { ext: 'jpg', mime: 'image/jpeg', keep: ['jpg', 'jpeg', 'png'] },
+    video: { ext: 'mp4', mime: 'video/mp4', keep: ['mp4'] },
+  },
+  MESSENGER: {
+    audio: { ext: 'mp3', mime: 'audio/mpeg', keep: ['mp3', 'm4a', 'aac', 'wav'] },
+    video: { ext: 'mp4', mime: 'video/mp4', keep: ['mp4'] },
+  },
+}
+
+/** URL (and mime) the given channel can actually consume for this attachment. */
+export function channelDeliveryUrl(channel: string, url: string, kind: AttachmentKind): { url: string; mime: string | null; converted: boolean } {
+  const target = CHANNEL_TARGET[channel]?.[kind]
+  const m = url.match(CLOUDINARY_MEDIA_URL)
+  if (!target || !m) return { url, mime: null, converted: false }
+  const currentExt = m[3].toLowerCase()
+  if (target.keep?.includes(currentExt)) return { url, mime: null, converted: false }
+  return { url: `${m[1]}.${target.ext}`, mime: target.mime, converted: true }
+}
+
+/** First request to a transcoded URL is slow; warm it so Twilio/Meta don't time out fetching it. */
+export async function warmDeliveryUrl(url: string) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 25000)
+  try {
+    const res = await fetch(url, { signal: controller.signal, cache: 'no-store' })
+    await res.arrayBuffer().catch(() => null)
+    return res.ok
+  } catch {
+    return false
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 /** WhatsApp (via Twilio) is strict about media formats; Messenger/Instagram are more lenient. */
 const WHATSAPP_MIMES = new Set([
   'image/jpeg', 'image/png',
@@ -138,6 +186,8 @@ export function channelSupportsAttachment(channel: string, mime: string, kind: A
     case 'SMS':
       return { ok: false, error: 'SMS no admite adjuntos en Colombia (MMS solo existe en EE. UU. y Canadá). Envía el enlace en el texto.' }
     case 'WHATSAPP':
+      // Image/audio/video are transcoded by Cloudinary to a WhatsApp format (see channelDeliveryUrl)
+      if (kind !== 'file') return { ok: true }
       if (!WHATSAPP_MIMES.has(mime)) return { ok: false, error: `WhatsApp no acepta el formato ${mime}. Usa JPG/PNG, MP3/OGG/M4A, MP4 o PDF/Office.` }
       return { ok: true }
     case 'INSTAGRAM':
