@@ -17,6 +17,36 @@ const HUMAN_AGENT_WINDOW_MS = 7 * DAY_MS
 
 type OutboundAttachment = { url: string; mediaType: string; mediaName: string | null; kind: AttachmentKind }
 
+/**
+ * Creates the OUTBOUND row, or completes it if the provider's echo/status webhook already stored
+ * a row with the same providerMessageId (race: Meta echoes arrive before the send call returns).
+ */
+async function saveOutbound(params: {
+  conversationId: string
+  providerMessageId: string | null
+  body: string
+  media: { mediaUrl?: string; mediaType?: string; mediaName?: string | null }
+  sentById: string
+}) {
+  const data = { body: params.body, ...params.media, sentById: params.sentById }
+  const include = { sentBy: { select: { id: true, name: true } } }
+  if (params.providerMessageId) {
+    const existing = await prisma.conversationMessage.findUnique({ where: { providerMessageId: params.providerMessageId } })
+    if (existing) return prisma.conversationMessage.update({ where: { id: existing.id }, data, include })
+  }
+  try {
+    return await prisma.conversationMessage.create({
+      data: { conversationId: params.conversationId, direction: 'OUTBOUND', status: 'SENT', providerMessageId: params.providerMessageId, ...data },
+      include,
+    })
+  } catch (err) {
+    if ((err as { code?: string })?.code === 'P2002' && params.providerMessageId) {
+      return prisma.conversationMessage.update({ where: { providerMessageId: params.providerMessageId }, data, include })
+    }
+    throw err
+  }
+}
+
 function parseAttachment(raw: unknown): OutboundAttachment | null {
   if (!raw || typeof raw !== 'object') return null
   const a = raw as Record<string, unknown>
@@ -105,6 +135,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'Ventana de 24h cerrada y han pasado más de 7 días: Meta no permite enviar' }, { status: 409 })
     }
 
+    let attachmentMid: string | null = null
+    let textMid: string | null = null
     try {
       const app = await requireMetaApp()
       const common = {
@@ -120,36 +152,40 @@ export async function POST(request: NextRequest, context: RouteContext) {
           ...common,
           message: { attachment: { type: attachment.kind, payload: { url: attachment.url, is_reusable: true } } },
         })
-        providerMessageId = result.message_id || null
+        attachmentMid = result.message_id || null
       }
       if (message) {
         const result = await sendMetaMessage({ ...common, message: { text: message } })
-        providerMessageId = providerMessageId || result.message_id || null
+        textMid = result.message_id || null
       }
     } catch (err) {
       const detail = describeGraphError(err)
       await prisma.channelConnection.update({ where: { id: connection.id }, data: { lastError: detail } }).catch(() => null)
-      return NextResponse.json({ error: detail }, { status: 502 })
+      // If the attachment already went out, keep it in the inbox instead of losing it
+      if (!attachmentMid) return NextResponse.json({ error: detail }, { status: 502 })
     }
 
-    const saved = await prisma.conversationMessage.create({
-      data: {
+    // Meta sends one message per part (attachment, text): store each one so its echo webhook matches
+    const savedList = []
+    if (attachment) {
+      savedList.push(await saveOutbound({
         conversationId: id,
-        direction: 'OUTBOUND',
-        body: storedBody,
-        ...mediaData,
-        providerMessageId,
+        providerMessageId: attachmentMid,
+        body: attachmentLabel(attachment.kind, attachment.mediaName),
+        media: mediaData,
         sentById: admin.id,
-        status: 'SENT',
-      },
-      include: { sentBy: { select: { id: true, name: true } } },
-    })
+      }))
+    }
+    if (message && (textMid || !attachment)) {
+      savedList.push(await saveOutbound({ conversationId: id, providerMessageId: textMid, body: message, media: {}, sentById: admin.id }))
+    }
+    const saved = savedList[savedList.length - 1]
     await prisma.conversation.update({
       where: { id },
       data: { lastMessageAt: new Date(), lastMessageBody: storedBody.slice(0, 200), status: 'IN_PROGRESS' },
     })
     emitInboxEvent({ type: 'new-message', conversationId: id, workspaceId: conversation.workspaceId })
-    return NextResponse.json({ message: saved })
+    return NextResponse.json({ message: saved, messages: savedList })
   }
 
   const runtimeConfig = await getMessagingProviderRuntimeConfig()

@@ -448,14 +448,19 @@ export default function InboxPage() {
           ...(uploaded ? { attachment: { url: uploaded.url, mediaType: uploaded.mediaType, mediaName: uploaded.mediaName } } : {}),
         }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Error enviando')
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.message) throw new Error(data.error || `Error enviando (HTTP ${res.status})`)
       setMessageText('')
       clearAttachment()
       setIsInternalNote(false)
-      setSelected((prev) =>
-        prev ? { ...prev, messages: [...(prev.messages || []), data.message], lastMessageBody: data.message.body, lastMessageAt: data.message.sentAt } : prev
-      )
+      const added: Message[] = Array.isArray(data.messages) && data.messages.length ? data.messages : [data.message]
+      setSelected((prev) => {
+        if (!prev) return prev
+        const ids = new Set(added.map((m) => m.id))
+        // The echo webhook may already have pushed some of these rows via SSE refresh
+        const merged = [...(prev.messages || []).filter((m) => !ids.has(m.id)), ...added]
+        return { ...prev, messages: merged, lastMessageBody: data.message.body, lastMessageAt: data.message.sentAt }
+      })
       setConversations((prev) =>
         prev.map((c) =>
           c.id === selected.id
