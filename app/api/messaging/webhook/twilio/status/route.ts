@@ -25,8 +25,10 @@ export async function POST(request: NextRequest) {
 
   if (!messageSid || !STATUS_MAP[messageStatus]) return new NextResponse('OK')
 
+  const mapped = STATUS_MAP[messageStatus]
   const updated = await prisma.conversationMessage.updateMany({
-    where: { providerMessageId: messageSid },
+    // Callbacks can arrive out of order: never downgrade DELIVERED/FAILED back to SENT
+    where: { providerMessageId: messageSid, ...(mapped === 'SENT' ? { status: { in: ['PENDING', 'SENT'] } } : {}) },
     data: {
       status: STATUS_MAP[messageStatus] as 'SENT' | 'DELIVERED' | 'FAILED',
       deliveredAt:

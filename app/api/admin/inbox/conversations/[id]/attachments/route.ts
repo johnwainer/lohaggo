@@ -7,6 +7,7 @@ import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/admin-utils'
 import { cloudinaryService } from '@/lib/cloudinary'
 import { canView, getWorkspaceAccess } from '@/lib/workspaces'
+import { uploadInboxDocument } from '@/lib/messaging/attachment-storage'
 import { channelSupportsAttachment, cloudinaryResourceType, safeAttachmentName, validateInboxAttachment } from '@/lib/messaging/attachments'
 
 type RouteContext = { params: Promise<{ id: string }> }
@@ -21,10 +22,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
   const access = await getWorkspaceAccess(admin)
   if (!canView(access, conversation.workspaceId)) return NextResponse.json({ error: 'Conversación no encontrada' }, { status: 404 })
 
-  if (!cloudinaryService.isEnabled()) {
-    return NextResponse.json({ error: 'Almacenamiento de archivos (Cloudinary) no configurado' }, { status: 500 })
-  }
-
   const formData = await request.formData().catch(() => null)
   const file = formData?.get('file')
   if (!(file instanceof File)) return NextResponse.json({ error: 'Archivo requerido' }, { status: 400 })
@@ -37,6 +34,19 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
   try {
     const safeName = safeAttachmentName(file.name, validation.mime)
+
+    // Documents → Supabase Storage (Cloudinary denies PDF delivery on this account)
+    if (validation.kind === 'file') {
+      const stored = await uploadInboxDocument({ buffer: validation.buffer, mime: validation.mime, name: safeName, workspaceId: conversation.workspaceId })
+      return NextResponse.json({
+        ok: true,
+        attachment: { url: stored.url, mediaType: validation.mime, mediaName: safeName, kind: validation.kind, size: file.size },
+      })
+    }
+
+    if (!cloudinaryService.isEnabled()) {
+      return NextResponse.json({ error: 'Almacenamiento de medios (Cloudinary) no configurado' }, { status: 500 })
+    }
     const upload = await cloudinaryService.upload(
       new File([new Uint8Array(validation.buffer) as unknown as BlobPart], safeName, { type: validation.mime }),
       `lohaggo/inbox/${conversation.workspaceId}`,

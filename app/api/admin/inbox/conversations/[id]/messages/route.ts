@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { env } from '@/lib/env'
 import { requireAdmin } from '@/lib/admin-utils'
 import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
 import { emitInboxEvent } from '@/lib/messaging/inbox-emitter'
@@ -185,6 +186,13 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const payload = new URLSearchParams({ To: toFormatted, From: fromFormatted })
     if (message) payload.set('Body', message)
     if (attachment) payload.set('MediaUrl', attachment.url)
+    // Delivery status (incl. media download failures) comes back to the inbox
+    const base = (env.NEXT_PUBLIC_APP_URL || env.NEXTAUTH_URL || '').replace(/\/+$/, '')
+    if (base.startsWith('https://')) {
+      const cb = new URL(`${base}/api/messaging/webhook/twilio/status`)
+      if (env.SECURITY_INTERNAL_TOKEN) cb.searchParams.set('token', env.SECURITY_INTERNAL_TOKEN)
+      payload.set('StatusCallback', cb.toString())
+    }
 
     const response = await fetch(endpoint, {
       method: 'POST',

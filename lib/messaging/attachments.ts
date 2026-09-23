@@ -3,6 +3,8 @@
  * Files are hosted on Cloudinary (public URL) so Twilio and Meta can fetch them.
  */
 
+import { isInboxBucketUrl } from '@/lib/messaging/attachment-storage'
+
 export const INBOX_ATTACHMENT_MAX_BYTES = 4 * 1024 * 1024 // Vercel request body cap is ~4.5 MB
 
 export type AttachmentKind = 'image' | 'audio' | 'video' | 'file'
@@ -105,6 +107,7 @@ export function cloudinaryResourceType(kind: AttachmentKind): 'image' | 'video' 
 const CLOUDINARY_HOST = /(^|\.)cloudinary\.com$/i
 
 export function isTrustedAttachmentUrl(url: string) {
+  if (isInboxBucketUrl(url)) return true
   try {
     const u = new URL(url)
     return u.protocol === 'https:' && CLOUDINARY_HOST.test(u.hostname)
