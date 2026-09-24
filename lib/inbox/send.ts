@@ -6,6 +6,7 @@ import { emitInboxEvent } from '@/lib/messaging/inbox-emitter'
 import { sendWhatsAppTemplate } from '@/lib/messaging/providers'
 import { sendMetaMessage } from '@/lib/messaging/meta-graph'
 import { describeGraphError, getConnectionCredentials, isMetaChannel, requireMetaApp } from '@/lib/messaging/meta-channels'
+import { twilioAddress } from '@/lib/messaging/contact-address'
 import { attachmentLabel, channelDeliveryUrl, channelSupportsAttachment, warmDeliveryUrl, isTrustedAttachmentUrl, kindFromMime, type AttachmentKind } from '@/lib/messaging/attachments'
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -40,13 +41,6 @@ export function parseAttachment(raw: unknown): OutboundAttachment | null {
   if (!url || !mediaType || !isTrustedAttachmentUrl(url)) return null
   const mediaName = typeof a.mediaName === 'string' && a.mediaName.trim() ? a.mediaName.trim().slice(0, 120) : null
   return { url, mediaType, mediaName, kind: kindFromMime(mediaType) }
-}
-
-function normalizePhone(phone: string) {
-  const clean = phone.replace(/[^\d+]/g, '')
-  if (clean.startsWith('+')) return clean
-  if (clean.startsWith('57')) return `+${clean}`
-  return `+57${clean}`
 }
 
 /**
@@ -184,15 +178,14 @@ export async function sendToConversation(input: SendInput): Promise<SendResult> 
 
   // WA Content Template send from inbox
   if (isWhatsApp && input.waTemplate?.contentSid) {
-    const result = await sendWhatsAppTemplate(normalizePhone(conversation.contactPhone), input.waTemplate.contentSid, input.waTemplate.variables || {}, runtimeConfig.twilio)
+    const result = await sendWhatsAppTemplate(twilioAddress(conversation.contactPhone, false), input.waTemplate.contentSid, input.waTemplate.variables || {}, runtimeConfig.twilio)
     if (!result.ok) return { ok: false, status: 502, error: result.errorMessage || 'Error enviando plantilla' }
     providerMessageId = result.providerMessageId || null
   } else {
     const from = isWhatsApp ? conf.whatsappFrom : conf.smsFrom
     if (!from) return { ok: false, status: 500, error: `Número ${conversation.channel} no configurado en Twilio` }
 
-    const toRaw = normalizePhone(conversation.contactPhone)
-    const toFormatted = isWhatsApp ? `whatsapp:${toRaw}` : toRaw
+    const toFormatted = twilioAddress(conversation.contactPhone, isWhatsApp)
     const fromFormatted = isWhatsApp ? `whatsapp:${from}` : from
 
     const endpoint = `https://api.twilio.com/2010-04-01/Accounts/${conf.accountSid}/Messages.json`

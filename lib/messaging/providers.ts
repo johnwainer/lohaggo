@@ -2,6 +2,7 @@ import type { MessagingChannel } from '@prisma/client'
 import type { MessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
 import { sendPushToUser } from '@/lib/notifications/push-sender'
 import { wrapBodyInEmailLayout } from '@/lib/email-layout'
+import { normalizeContactAddress } from '@/lib/messaging/contact-address'
 
 type SendParams = {
   channel: MessagingChannel
@@ -21,10 +22,7 @@ type SendResult = {
 }
 
 function normalizePhone(phone: string) {
-  const clean = phone.replace(/[^\d+]/g, '')
-  if (clean.startsWith('+')) return clean
-  if (clean.startsWith('57')) return `+${clean}`
-  return `+57${clean}`
+  return normalizeContactAddress(phone)
 }
 
 async function sendByTwilioSms(to: string, body: string, cfg: MessagingProviderRuntimeConfig['twilio']): Promise<SendResult> {

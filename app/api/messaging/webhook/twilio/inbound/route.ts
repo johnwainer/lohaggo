@@ -10,17 +10,10 @@ import { emitInboxEvent } from '@/lib/messaging/inbox-emitter'
 import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
 import { scheduleAutomationsForUser } from '@/lib/messaging/automation-service'
 import { getDefaultWorkspaceId } from '@/lib/workspaces'
+import { normalizeContactAddress } from '@/lib/messaging/contact-address'
 import { autopilotCovers, drainAgentTasks, scheduleInboundAgent } from '@/lib/ai/autopilot'
 
 const logger = createLogger('twilio-inbound')
-
-function normalizePhone(raw: string): string {
-  const stripped = raw.replace(/^whatsapp:/i, '').trim()
-  const clean = stripped.replace(/[^\d+]/g, '')
-  if (clean.startsWith('+')) return clean
-  if (clean.startsWith('57')) return `+${clean}`
-  return `+57${clean}`
-}
 
 async function validateTwilioSignature(request: NextRequest, authToken: string): Promise<boolean> {
   const signature = request.headers.get('x-twilio-signature')
@@ -70,7 +63,7 @@ export async function POST(request: NextRequest) {
 
   const isWhatsApp = from.toLowerCase().startsWith('whatsapp:')
   const channel: 'WHATSAPP' | 'SMS' = isWhatsApp ? 'WHATSAPP' : 'SMS'
-  const contactPhone = normalizePhone(from)
+  const contactPhone = normalizeContactAddress(from)
 
   // STOP / opt-out detection
   const trimmedBody = body.trim().toLowerCase()
