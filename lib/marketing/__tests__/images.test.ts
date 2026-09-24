@@ -88,7 +88,11 @@ describe('sugerencias por servicio del catálogo', () => {
     expect(matchServices('Consejos de un electricista', '', catalog)[0]).toBe('Electricidad')
   })
   it('el título pesa más que el texto', () => {
-    expect(matchServices('Pintura para tu sala', 'Después de pintar, llama a limpieza de hogar', catalog)).toEqual(['Pintura', 'Limpieza de hogar'])
+    expect(matchServices('Pintura para tu sala', 'Después de pintar, llama a limpieza de hogar', catalog)).toEqual(['Pintura'])
+    expect(matchServices('Pintura y limpieza de hogar', '', catalog)).toEqual(['Limpieza de hogar', 'Pintura'])
+  })
+  it('lo mencionado de pasada no compite con el servicio del título', () => {
+    expect(matchServices('Cerrajería en Medellín', 'Lubrica la cerradura con aceite; cambio de guardas y puertas de carpintería', [...catalog, 'Cambio de aceite'])).toEqual(['Cerrajería'])
   })
   it('sin coincidencias no inventa', () => {
     expect(matchServices('Feliz navidad', 'Les deseamos lo mejor', catalog)).toEqual([])

@@ -154,9 +154,13 @@ export function matchServices(title: string, text: string, services: string[]) {
     if (!stems.length) return { name, score: 0 }
     const hits = (hay: string) => stems.filter((s) => hay.includes(` ${s}`)).length / stems.length
     const exact = t.includes(` ${norm(name)} `) ? 2 : b.includes(` ${norm(name)} `) ? 1 : 0
-    return { name, score: exact * 3 + hits(t) * 2 + hits(b) }
+    // In the body, a service counts only if all its words appear (a passing "aceite" is not "Cambio de aceite")
+    return { name, score: exact * 3 + hits(t) * 2 + (hits(b) === 1 ? 1 : 0) }
   })
-  return scored.filter((s) => s.score >= 1).sort((a, b) => b.score - a.score).map((s) => s.name).slice(0, 5)
+  const ranked = scored.filter((s) => s.score >= 1).sort((a, b) => b.score - a.score)
+  // Only services nearly as relevant as the main one
+  const top = ranked[0]?.score ?? 0
+  return ranked.filter((s) => s.score > top / 2).map((s) => s.name).slice(0, 3)
 }
 
 /** Default description for AI generation: the service, in a Colombian home. */
