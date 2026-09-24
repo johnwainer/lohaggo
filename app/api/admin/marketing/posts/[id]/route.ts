@@ -16,8 +16,12 @@ export async function GET(_request: NextRequest, context: Ctx) {
   const auth = await marketingAuth()
   if (!auth.ok) return auth.response
   const { id } = await context.params
-  const post = await loadPostDetail(id)
+  let post = await loadPostDetail(id)
   if (!post || !mkCan(auth.access, post.workspaceId, 'marketing.view')) return NextResponse.json({ error: 'No encontrada' }, { status: 404 })
+  if (post.status === 'partial' || post.status === 'failed') {
+    await refreshPostStatus(id)
+    post = (await loadPostDetail(id)) ?? post
+  }
   const [campaigns, accounts] = await Promise.all([
     prisma.marketingCampaign.findMany({ where: { workspaceId: post.workspaceId, status: { not: 'done' } }, select: { id: true, name: true, color: true }, orderBy: { createdAt: 'desc' } }),
     workspaceAccounts(post.workspaceId),

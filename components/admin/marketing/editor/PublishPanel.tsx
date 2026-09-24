@@ -108,18 +108,21 @@ export default function PublishPanel({ post, accounts, validations, canPublish, 
             <p className="text-xs font-semibold text-gray-700">Envíos</p>
             {canPublish && scheduled.length > 0 && <button onClick={() => onPublish('cancel', [])} disabled={busy} className="inline-flex items-center gap-1 text-[11px] text-red-600 hover:underline"><XCircle size={12} /> Cancelar programación</button>}
           </div>
-          {post.publications.map((p) => (
-            <div key={p.id} className="rounded-xl bg-gray-50 px-3 py-2 text-xs space-y-1">
+          {post.publications.map((p) => {
+            // A failed attempt later re-sent to the same account is history, not a problem
+            const superseded = p.status !== 'published' && post.publications.some((o) => o.id !== p.id && o.channel === p.channel && (o.connection?.id ?? null) === (p.connection?.id ?? null) && new Date(o.scheduledAt) >= new Date(p.scheduledAt) && o.status !== 'failed')
+            return (
+            <div key={p.id} className={`rounded-xl bg-gray-50 px-3 py-2 text-xs space-y-1 ${superseded ? 'opacity-50' : ''}`}>
               <div className="flex items-center gap-2">
                 <MkChannelIcon channel={p.channel} size={14} />
                 <span className="flex-1 truncate text-gray-800">{p.connection?.name || CHANNEL_NAME[p.channel]}</span>
-                <span className={PUB_STATUS[p.status]?.cls || 'text-gray-500'}>{PUB_STATUS[p.status]?.label || p.status}</span>
+                <span className={superseded ? 'text-gray-500' : PUB_STATUS[p.status]?.cls || 'text-gray-500'}>{superseded ? 'Reemplazado por un envío posterior' : PUB_STATUS[p.status]?.label || p.status}</span>
               </div>
               <p className="text-gray-500">
                 {p.status === 'published' ? fmtDateTime(p.publishedAt) : `Para ${fmtDateTime(p.scheduledAt)}`}{p.attempts > 1 ? ` · intento ${p.attempts}` : ''}
                 {p.permalink?.startsWith('https://') && <> · <a href={p.permalink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-primary-700 hover:underline">Ver <ExternalLink size={10} /></a></>}
               </p>
-              {p.lastError && p.status !== 'published' && <p className="text-red-600">{p.lastError}</p>}
+              {p.lastError && p.status !== 'published' && <p className={superseded ? 'text-gray-500' : 'text-red-600'}>{p.lastError}</p>}
               {p.metrics && (
                 <p className="text-gray-600">
                   {num(p.metrics.reach)} alcance · {num(p.metrics.likes)} reacciones · {num(p.metrics.comments)} comentarios · {num(p.metrics.shares)} compartidos{p.metrics.saves ? ` · ${num(p.metrics.saves)} guardados` : ''}{p.metrics.clicks ? ` · ${num(p.metrics.clicks)} clics` : ''}
@@ -129,7 +132,8 @@ export default function PublishPanel({ post, accounts, validations, canPublish, 
                 <p className="text-gray-600">{num(post.variants.find((v) => v.channel === 'WEB')?.webViews ?? 0)} visitas</p>
               )}
             </div>
-          ))}
+            )
+          })}
           {canPublish && webLive && (
             <button onClick={() => { if (window.confirm('¿Quitar el artículo del sitio? Dejará de estar en el blog y en el sitemap.')) onPublish('unpublish', []) }} disabled={busy} className="text-[11px] text-red-600 hover:underline">Despublicar del sitio</button>
           )}

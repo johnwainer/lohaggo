@@ -163,7 +163,8 @@ export default function PostsTab({ posts, campaigns, filters, setFilters, worksp
                   <p className="font-semibold text-gray-900 truncate group-hover:text-primary-700">{p.title}</p>
                   <div className="flex items-center gap-1.5">
                     {(pubs.length ? pubs.map((x) => x.channel) : p.variants.map((v) => v.channel)).filter((c, i, a) => a.indexOf(c) === i).map((c) => {
-                      const pub = pubs.find((x) => x.channel === c)
+                      // A channel published on a later attempt shows as published, not as the old failure
+                      const pub = pubs.find((x) => x.channel === c && x.status === 'published') ?? pubs.find((x) => x.channel === c)
                       return (
                         <span key={c} title={pub ? `${CHANNEL_NAME[c]}${pub.connection ? ` · ${pub.connection.name}` : ''}: ${PUB_STATUS[pub.status]?.label || pub.status}${pub.lastError ? ` — ${pub.lastError}` : ''}` : CHANNEL_NAME[c]} className={`relative ${pub?.status === 'failed' ? 'ring-2 ring-red-400 rounded-full' : ''}`}>
                           <MkChannelIcon channel={c} size={18} />

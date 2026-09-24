@@ -5,7 +5,7 @@ vi.mock('@/lib/prisma', () => ({ prisma: {} }))
 import { countHashtags, countMentions, instagramFormat, validateVariant, type VariantInput } from '@/lib/marketing/channel-rules'
 import { articleJsonLd, jsonLdScript, makeExcerpt, readingMinutes, renderMarkdown, safeUrl, slugify, stripMarkdown } from '@/lib/marketing/seo'
 import { deliveryUrl, ogImageUrl, videoPosterUrl } from '@/lib/marketing/media'
-import { aggregatePostStatus, canSchedule, classifyGraphError, findAlreadyPublished, metricsDue, nextAttemptAt } from '@/lib/marketing/publisher-core'
+import { aggregatePostStatus, canSchedule, classifyGraphError, findAlreadyPublished, latestPerTarget, metricsDue, nextAttemptAt } from '@/lib/marketing/publisher-core'
 import { sanitizeCampaignInput, sanitizePostInput, sanitizeVariantInput, validateUploadedMedia } from '@/lib/marketing/input'
 import { parseHashtags, parseJson, systemPrompt, userPrompt } from '@/lib/marketing/copilot-core'
 import { resolveMarketingGrants } from '@/lib/marketing/permissions'
@@ -174,6 +174,20 @@ describe('publicador: errores, reintentos y estado', () => {
     expect(aggregatePostStatus('scheduled', ['published', 'scheduled'])).toBe('publishing')
     expect(aggregatePostStatus('scheduled', ['cancelled'])).toBe('approved')
     expect(aggregatePostStatus('draft', [])).toBe('draft')
+  })
+  it('un fallo reemplazado por un envío posterior a la misma cuenta no cuenta', () => {
+    const at = (m: number) => new Date(Date.UTC(2026, 8, 24, 23, m))
+    const pubs = [
+      { channel: 'INSTAGRAM', connectionId: 'ig', createdAt: at(20), status: 'failed' },
+      { channel: 'FACEBOOK', connectionId: 'fb1', createdAt: at(20), status: 'published' },
+      { channel: 'WEB', connectionId: null, createdAt: at(20), status: 'published' },
+      { channel: 'INSTAGRAM', connectionId: 'ig', createdAt: at(21), status: 'published' },
+    ]
+    const latest = latestPerTarget(pubs)
+    expect(latest).toHaveLength(3)
+    expect(aggregatePostStatus('partial', latest.map((p) => p.status as 'published'))).toBe('published')
+    // Another account that really failed still makes it partial
+    expect(aggregatePostStatus('partial', latestPerTarget([...pubs, { channel: 'FACEBOOK', connectionId: 'fb2', createdAt: at(20), status: 'failed' }]).map((p) => p.status as 'published'))).toBe('partial')
   })
   it('un reintento reconoce lo que ya salió (no publica dos veces)', () => {
     const since = new Date('2026-09-26T10:00:00Z')

@@ -15,6 +15,7 @@ import {
   aggregatePostStatus,
   classifyGraphError,
   findAlreadyPublished,
+  latestPerTarget,
   nextAttemptAt,
   type PostStatus,
   type PublicationStatus,
@@ -145,10 +146,10 @@ async function claim(ids: string[]) {
 export async function refreshPostStatus(postId: string) {
   const [post, pubs] = await Promise.all([
     prisma.marketingPost.findUnique({ where: { id: postId }, select: { status: true, publishedAt: true } }),
-    prisma.marketingPublication.findMany({ where: { postId }, select: { status: true, publishedAt: true } }),
+    prisma.marketingPublication.findMany({ where: { postId }, select: { status: true, publishedAt: true, channel: true, connectionId: true, createdAt: true } }),
   ])
   if (!post) return
-  const status = aggregatePostStatus(post.status as PostStatus, pubs.map((p) => p.status as PublicationStatus))
+  const status = aggregatePostStatus(post.status as PostStatus, latestPerTarget(pubs).map((p) => p.status as PublicationStatus))
   const firstPublished = pubs.map((p) => p.publishedAt).filter((d): d is Date => Boolean(d)).sort((a, b) => a.getTime() - b.getTime())[0] ?? null
   await prisma.marketingPost.update({ where: { id: postId }, data: { status, publishedAt: post.publishedAt ?? firstPublished } })
 }

@@ -71,6 +71,21 @@ export function aggregatePostStatus(current: PostStatus, statuses: PublicationSt
   return 'partial'
 }
 
+/**
+ * Only the latest send to each target (channel + account) counts: a failed attempt followed by a
+ * successful re-publish on the same account is history, not a failure.
+ */
+export function latestPerTarget<T extends { channel: string; connectionId: string | null; createdAt: Date; status: string }>(pubs: T[]) {
+  const latest = new Map<string, T>()
+  for (const p of pubs) {
+    if (p.status === 'cancelled') continue
+    const key = `${p.channel}:${p.connectionId || 'web'}`
+    const cur = latest.get(key)
+    if (!cur || p.createdAt.getTime() > cur.createdAt.getTime()) latest.set(key, p)
+  }
+  return Array.from(latest.values())
+}
+
 const norm = (s: string) => s.replace(/\s+/g, ' ').trim().toLowerCase()
 
 /**
