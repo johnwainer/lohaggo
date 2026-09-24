@@ -3,6 +3,10 @@ import type { ConversationStatus, Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { retrieve, type KnowledgeChunk } from '@/lib/ai/knowledge'
 import { assertPublicHttpsUrl } from '@/lib/ai/net'
+import { CATALOG_TOPICS, CRM_MODULES, catalogLookup, crmLookup } from '@/lib/ai/platform-data'
+
+export { CRM_MODULES }
+export type { CrmModule } from '@/lib/ai/platform-data'
 
 export type ToolName =
   | 'etiquetar_contacto'
@@ -13,13 +17,7 @@ export type ToolName =
   | 'avisar_webhook'
   | 'buscar_en_conocimiento'
   | 'consultar_crm'
-
-export const CRM_MODULES = {
-  reservas: 'Reservas',
-  solicitudes: 'Solicitudes de servicio',
-  pagos: 'Pagos',
-} as const
-export type CrmModule = keyof typeof CRM_MODULES
+  | 'consultar_catalogo'
 
 type CatalogEntry = {
   label: string
@@ -84,10 +82,22 @@ export const TOOL_CATALOG: Record<ToolName, CatalogEntry> = {
     writes: false,
     schema: () => ({ type: 'object', properties: { pregunta: str('Qué quieres encontrar') }, required: ['pregunta'], additionalProperties: false }),
   },
+  consultar_catalogo: {
+    label: 'Consultar catálogo de la plataforma',
+    description: 'Consulta datos públicos de LoHaggo: servicios disponibles con precio base, duración y cuántos socios verificados los ofrecen; ciudades activas y próximas; medios de pago habilitados y tarifas.',
+    guidance: 'Úsala cuando pregunten qué servicios hay, cuánto cuesta un servicio, en qué ciudades operamos o cómo se puede pagar. Para un servicio concreto usa tema "servicios" y escribe el nombre en busqueda; para todo el catálogo deja busqueda vacía. El precio base es un "desde": el precio final lo pone el socio en su propuesta.',
+    writes: false,
+    schema: () => ({
+      type: 'object',
+      properties: { tema: { type: 'string', enum: [...CATALOG_TOPICS] }, busqueda: str('Palabra del servicio buscado, o vacío para todo') },
+      required: ['tema', 'busqueda'],
+      additionalProperties: false,
+    }),
+  },
   consultar_crm: {
-    label: 'Consultar datos del cliente',
-    description: 'Consulta los registros del cliente que atiendes (solo los suyos) en la plataforma.',
-    guidance: 'Úsala cuando el cliente pregunte por sus reservas, solicitudes o pagos. Si un módulo responde "no disponible", di que no puedes consultarlo ahora; nunca afirmes que no tiene registros.',
+    label: 'Consultar datos del usuario',
+    description: 'Consulta los datos en la plataforma de la persona que atiendes (solo los suyos): su cuenta y, como cliente, reservas, solicitudes y pagos; como socio, estado de verificación, documentos, servicios, reservas, propuestas y pagos.',
+    guidance: 'Úsala cuando la persona pregunte por algo de su cuenta, sus reservas, solicitudes, pagos o, si es socio, su verificación, documentos, servicios, propuestas o pagos. Elige el módulo que responde la pregunta; no consultes módulos que no hacen falta. Si responde "no disponible", di que no puedes consultarlo ahora; nunca afirmes que no tiene registros. Si responde que no es socio, trátala como cliente o aspirante.',
     writes: false,
     schema: (agent) => ({
       type: 'object',
@@ -158,31 +168,7 @@ export type ToolCallRecord = { name: string; input: Record<string, unknown>; out
 
 const STATUS_MAP: Record<string, ConversationStatus> = { abierta: 'OPEN', en_curso: 'IN_PROGRESS', resuelta: 'RESOLVED', cerrada: 'CLOSED' }
 
-const fmtDate = (d: Date | null | undefined) => (d ? new Intl.DateTimeFormat('es-CO', { dateStyle: 'medium', timeZone: 'America/Bogota' }).format(d) : '—')
-const fmtMoney = (n: number | null | undefined) => (n == null ? '—' : `$${Math.round(n).toLocaleString('es-CO')}`)
 
-async function crmLookup(module: string, userId: string | null): Promise<string> {
-  if (!(module in CRM_MODULES)) return `Módulo "${module}" no disponible.`
-  if (!userId) return `${CRM_MODULES[module as CrmModule]}: no disponible (este contacto no está vinculado a un usuario de la plataforma).`
-  try {
-    if (module === 'reservas') {
-      const rows = await prisma.booking.findMany({ where: { userId }, orderBy: { scheduledDate: 'desc' }, take: 10, select: { id: true, scheduledDate: true, scheduledTime: true, status: true, totalPrice: true, service: { select: { name: true } } } })
-      if (!rows.length) return 'Reservas: el cliente no tiene reservas registradas.'
-      return `Reservas (${rows.length} más recientes):\n${rows.map((r) => `• ${r.service.name} · ${fmtDate(r.scheduledDate)} ${r.scheduledTime} · estado ${r.status} · ${fmtMoney(r.totalPrice)} · ref ${r.id.slice(-6)}`).join('\n')}`
-    }
-    if (module === 'solicitudes') {
-      const rows = await prisma.serviceRequest.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 10, select: { id: true, status: true, createdAt: true, preferredDate: true, service: { select: { name: true } } } })
-      if (!rows.length) return 'Solicitudes: el cliente no tiene solicitudes registradas.'
-      return `Solicitudes (${rows.length} más recientes):\n${rows.map((r) => `• ${r.service.name} · creada ${fmtDate(r.createdAt)} · preferida ${fmtDate(r.preferredDate)} · estado ${r.status} · ref ${r.id.slice(-6)}`).join('\n')}`
-    }
-    const rows = await prisma.payment.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 10, select: { id: true, status: true, totalAmount: true, paidAt: true, createdAt: true, booking: { select: { service: { select: { name: true } } } } } })
-    if (!rows.length) return 'Pagos: el cliente no tiene pagos registrados.'
-    return `Pagos (${rows.length} más recientes):\n${rows.map((r) => `• ${r.booking?.service?.name ?? 'Servicio'} · ${fmtMoney(r.totalAmount)} · estado ${r.status} · ${r.paidAt ? `pagado ${fmtDate(r.paidAt)}` : `creado ${fmtDate(r.createdAt)}`} · ref ${r.id.slice(-6)}`).join('\n')}`
-  } catch {
-    // Never let a failed lookup read as "no records"
-    return `${CRM_MODULES[module as CrmModule]}: no disponible en este momento.`
-  }
-}
 
 async function runOne(name: string, input: Record<string, unknown>, ctx: ToolContext): Promise<string> {
   const s = (k: string) => String(input[k] ?? '').trim()
@@ -259,6 +245,9 @@ async function runOne(name: string, input: Record<string, unknown>, ctx: ToolCon
       const module = s('modulo')
       if (!ctx.agent.crmModules.includes(module)) return `Módulo "${module}" no disponible para este agente.`
       return crmLookup(module, ctx.userId)
+    }
+    case 'consultar_catalogo': {
+      return catalogLookup(s('tema'), s('busqueda'))
     }
     case 'elegir_salida': {
       ctx.state.chosenOutput = s('salida')

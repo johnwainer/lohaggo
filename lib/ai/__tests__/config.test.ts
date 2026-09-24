@@ -8,6 +8,7 @@ import { resolveGrants } from '@/lib/ai/permissions'
 import { agentToolNames, buildToolDefs, toolGuidance } from '@/lib/ai/tools'
 import { googleExportUrl } from '@/lib/ai/knowledge'
 import { isPrivateAddress } from '@/lib/ai/net'
+import { CRM_MODULES, crmLookup, maskEmail } from '@/lib/ai/platform-data'
 
 describe('entrada del agente', () => {
   it('filtra canales, herramientas y módulos desconocidos', () => {
@@ -95,5 +96,28 @@ describe('SSRF del webhook', () => {
   })
   it('permite IPs públicas', () => {
     for (const ip of ['8.8.8.8', '172.32.0.1', '2606:4700::1111']) expect(isPrivateAddress(ip)).toBe(false)
+  })
+})
+
+describe('datos de la plataforma', () => {
+  it('módulos de cliente y de socio', () => {
+    expect(Object.keys(CRM_MODULES)).toEqual(expect.arrayContaining(['cuenta', 'reservas', 'socio_perfil', 'socio_documentos', 'socio_servicios', 'socio_reservas', 'socio_propuestas', 'socio_pagos']))
+  })
+  it('sin usuario vinculado dice "no disponible", nunca "no tiene"', async () => {
+    const out = await crmLookup('socio_documentos', null)
+    expect(out).toMatch(/no disponible/)
+    expect(out).not.toMatch(/no tiene/)
+  })
+  it('un fallo de la consulta se reporta como no disponible', async () => {
+    // prisma está simulado vacío: la consulta lanza
+    expect(await crmLookup('reservas', 'u1')).toMatch(/no disponible en este momento/)
+    expect(await crmLookup('socio_perfil', 'u1')).toMatch(/no disponible en este momento/)
+  })
+  it('módulo desconocido', async () => expect(await crmLookup('facturas', 'u1')).toMatch(/no disponible/))
+  it('enmascara el correo', () => expect(maskEmail('juanperez@gmail.com')).toBe('ju*******@gmail.com'))
+  it('la herramienta de catálogo no depende del contacto y tiene temas cerrados', () => {
+    const defs = buildToolDefs({ id: 'a', name: 'S', tools: ['consultar_catalogo'], crmModules: [], webhookUrl: null })
+    expect(defs[0].name).toBe('consultar_catalogo')
+    expect((defs[0].input_schema.properties as Record<string, { enum?: string[] }>).tema.enum).toEqual(['servicios', 'ciudades', 'pagos'])
   })
 })
