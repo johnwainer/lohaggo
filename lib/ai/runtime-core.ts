@@ -164,8 +164,16 @@ export function isHumanMessage(m: OutboundLike) {
   return Boolean(m.sentById) || m.senderType === 'HUMAN' || m.senderType === 'ECHO'
 }
 
-export function hasRecentHumanActivity(messages: OutboundLike[], now: Date, graceMs = HUMAN_GRACE_MS) {
-  return messages.some((m) => isHumanMessage(m) && now.getTime() - m.sentAt.getTime() < graceMs)
+/**
+ * A person wrote in the last 30 minutes → the machine stays out. Messages sent before the team
+ * explicitly handed the conversation (back) to the AI don't count: that hand-back is their decision.
+ */
+export function hasRecentHumanActivity(messages: OutboundLike[], now: Date, graceMs = HUMAN_GRACE_MS, handedToAiAt?: Date | null) {
+  return messages.some((m) =>
+    isHumanMessage(m) &&
+    now.getTime() - m.sentAt.getTime() < graceMs &&
+    (!handedToAiAt || m.sentAt.getTime() > handedToAiAt.getTime()),
+  )
 }
 
 // ─── Autopilot ───────────────────────────────────────────────────────────────

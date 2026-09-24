@@ -37,9 +37,8 @@ export async function assignToAi(conversation: Conversation, actor: Actor, prefe
     data: { aiHandled: true, aiAgentId: agent.id, aiAgentName: agent.name, assignedToId: null, automationsPaused: false, aiSpam: false, aiTurns: 0, priority: 'normal', aiHandoffAt: null },
     include: { assignedTo: { select: { id: true, name: true, email: true } } },
   })
-  if (!conversation.aiHandled || conversation.aiAgentId !== agent.id) {
-    await prisma.conversationEvent.create({ data: { conversationId: conversation.id, type: 'ai_started', actorType: 'ai', actorId: agent.id, actorName: agent.name, detail: `Asignada por ${actor.name}` } })
-  }
+  // Always recorded: it is also the mark from which earlier human messages stop pausing the AI
+  await prisma.conversationEvent.create({ data: { conversationId: conversation.id, type: 'ai_started', actorType: 'ai', actorId: agent.id, actorName: agent.name, detail: `Asignada por ${actor.name}` } })
   emitInboxEvent({ type: 'status-update', conversationId: conversation.id, workspaceId: conversation.workspaceId })
 
   const last = await prisma.conversationMessage.findFirst({

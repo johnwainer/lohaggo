@@ -34,11 +34,20 @@ const DAY_MS = 24 * 60 * 60 * 1000
  * the AI step of a flow alike.
  */
 export async function humanActiveRecently(conversationId: string, now = new Date()) {
-  const recent = await prisma.conversationMessage.findMany({
-    where: { conversationId, direction: 'OUTBOUND', isInternal: false, sentAt: { gte: new Date(now.getTime() - HUMAN_GRACE_MS) } },
-    select: { direction: true, isInternal: true, sentById: true, senderType: true, sentAt: true },
-  })
-  return hasRecentHumanActivity(recent, now)
+  const since = new Date(now.getTime() - HUMAN_GRACE_MS)
+  const [recent, handBack] = await Promise.all([
+    prisma.conversationMessage.findMany({
+      where: { conversationId, direction: 'OUTBOUND', isInternal: false, sentAt: { gte: since } },
+      select: { direction: true, isInternal: true, sentById: true, senderType: true, sentAt: true },
+    }),
+    // Last time the conversation was handed to the AI (by a person or by the autopilot)
+    prisma.conversationEvent.findFirst({
+      where: { conversationId, type: 'ai_started', createdAt: { gte: since } },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true },
+    }),
+  ])
+  return hasRecentHumanActivity(recent, now, HUMAN_GRACE_MS, handBack?.createdAt ?? null)
 }
 
 /** True when an autopilot agent covers this channel/account: new conversations then skip human auto-assign. */

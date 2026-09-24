@@ -159,6 +159,13 @@ describe('regla de los 30 minutos', () => {
   })
   it('un eco de la bandeja nativa de Meta sí cuenta como persona', () => expect(hasRecentHumanActivity([msg(5, { sentById: null, senderType: 'ECHO' })], now)).toBe(true))
   it('las notas internas no cuentan', () => expect(hasRecentHumanActivity([msg(5, { isInternal: true })], now)).toBe(false))
+  it('devolver la conversación a la IA anula los mensajes humanos anteriores', () => {
+    const handBack = new Date(now.getTime() - 60_000)
+    // La persona escribió hace 2 min y la devolvió hace 1 min: la IA puede responder
+    expect(hasRecentHumanActivity([msg(2)], now, undefined, handBack)).toBe(false)
+    // Si vuelve a escribir después de devolverla, la IA se calla otra vez
+    expect(hasRecentHumanActivity([msg(0.5)], now, undefined, handBack)).toBe(true)
+  })
 })
 
 describe('marcas', () => {
