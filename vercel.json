@@ -29,6 +29,10 @@
     {
       "path": "/api/cron/ai-maintenance",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/copilot",
+      "schedule": "* * * * *"
     }
   ]
 }

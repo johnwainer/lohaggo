@@ -102,7 +102,8 @@ export async function GET(request: NextRequest) {
       orderBy: { updatedAt: 'desc' },
     }),
     prisma.aiAgent.findMany({
-      where: { status: 'active', autopilot: true, ...workspaceScope(access) },
+      // Agents a conversation can be handed to: autopilot or copilot on some channel
+      where: { status: 'active', OR: [{ autopilot: true }, { NOT: { copilotChannels: { isEmpty: true } } }], ...workspaceScope(access) },
       select: { id: true, name: true, workspaceId: true },
       orderBy: { createdAt: 'asc' },
     }),

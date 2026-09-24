@@ -8,7 +8,7 @@ import { getAiSettings } from '@/lib/ai/settings'
 import { applySignature, formatForChannel, parseMarkers } from '@/lib/ai/format'
 import { buildSystem } from '@/lib/ai/prompt'
 import { recordGap, retrieve, type KnowledgeChunk, type Retrieval } from '@/lib/ai/knowledge'
-import { buildToolDefs, executeTool, toolGuidance, type ToolCallRecord, type ToolRunState } from '@/lib/ai/tools'
+import { buildToolDefs, executeTool, isWriteTool, toolGuidance, type ToolCallRecord, type ToolRunState } from '@/lib/ai/tools'
 import { auxBudgetAvailable, checkWorkspaceBudget } from '@/lib/ai/limits'
 import type { UsageTokens } from '@/lib/ai/pricing'
 import type { AiCallKind } from '@/lib/ai/calls'
@@ -72,7 +72,9 @@ export type ReplyOptions = {
   history: Array<{ role: 'user' | 'assistant'; content: string }>
   text: string
   summary: string | null
-  kind: Extract<AiCallKind, 'agent_reply' | 'playground' | 'flow_step'>
+  kind: Extract<AiCallKind, 'agent_reply' | 'playground' | 'flow_step' | 'copilot_suggestion'>
+  /** Copilot: drafts the reply a person will send. Read-only tools, no signature, no side effects. */
+  copilot?: boolean
   dryRun: boolean
   flowOutputs?: string[]
   now?: Date
@@ -159,7 +161,8 @@ export const AgentRuntimeService = {
    * playground alike, so testing an agent tests what it answers in production.
    */
   async reply(opts: ReplyOptions): Promise<ReplyResult> {
-    const { agent } = opts
+    // In copilot mode the agent only reads: tools that write stay out of its reach entirely
+    const agent = opts.copilot ? { ...opts.agent, tools: opts.agent.tools.filter((t) => !isWriteTool(t)) } : opts.agent
     const now = opts.now ?? new Date()
     const requestedModel = await resolveModel(agent)
     const result: ReplyResult = {
@@ -187,6 +190,7 @@ export const AgentRuntimeService = {
       contact: { name: opts.contact.name, tags: opts.contact.tags, fields: opts.contact.fields, linkedUser: Boolean(opts.userId) },
       summary: opts.summary,
       toolGuidance: toolGuidance(agent, opts.flowOutputs),
+      copilot: opts.copilot,
       flowOutputs: opts.flowOutputs,
     })
     const tools = buildToolDefs(agent, opts.flowOutputs)
@@ -269,7 +273,9 @@ export const AgentRuntimeService = {
     }
 
     const body = markers.text || (result.handoff ? agent.handoffMessage : '')
-    result.text = applySignature(formatForChannel(body, opts.channel), agent.signatureMode, agent.signatureText, result.handoff || result.done)
+    result.text = opts.copilot
+      ? formatForChannel(body, opts.channel)
+      : applySignature(formatForChannel(body, opts.channel), agent.signatureMode, agent.signatureText, result.handoff || result.done)
     return result
   },
 

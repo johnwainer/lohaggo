@@ -23,6 +23,8 @@ export type PromptContext = {
   summary: string | null
   toolGuidance: string
   flowOutputs?: string[]
+  /** Copilot: the text is a draft for the person handling the conversation, not sent by the AI */
+  copilot?: boolean
 }
 
 const CHANNEL_LABEL: Record<string, string> = { WHATSAPP: 'WhatsApp', SMS: 'SMS', MESSENGER: 'Facebook Messenger', INSTAGRAM: 'Instagram', EMAIL: 'correo', TEST: 'área de pruebas' }
@@ -102,6 +104,9 @@ function contextBlock(ctx: PromptContext) {
     fields.length ? `Datos guardados: ${fields.join('; ')}.` : '',
     ctx.summary ? `Resumen de la conversación anterior:\n${ctx.summary}` : '',
     ctx.flowOutputs?.length ? `Estás en un paso de un flujo. Salidas posibles: ${ctx.flowOutputs.join(', ')}.` : '',
+    ctx.copilot
+      ? 'Modo copiloto: una persona del equipo lleva esta conversación. Escribe la respuesta que ella podría enviar al cliente ahora, en su nombre (no firmes ni te presentes como IA). Si hay algo que conviene que esa persona sepa y el cliente no debe leer (una reserva pendiente, un reclamo anterior, que el caso requiere revisar algo), agrégalo al final después de la marca [[CONTEXTO]] en una sola frase. No uses [[HANDOFF]], [[DONE]] ni [[SPAM]].'
+      : '',
   ]
   return lines.filter(Boolean).join('\n')
 }

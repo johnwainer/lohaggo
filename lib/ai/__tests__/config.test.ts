@@ -217,3 +217,17 @@ describe('ciudad y servicios dichos en el chat', () => {
     expect((await resolvePartnerChoices('Cartagena', ['plomería'])).citySlug).toBeNull()
   })
 })
+
+describe('copiloto: nunca ejecuta herramientas que escriben', () => {
+  it('las herramientas que escriben están marcadas como tales', () => {
+    for (const t of ['etiquetar_contacto', 'guardar_dato', 'cambiar_estado', 'asignar_a_persona', 'crear_tarea', 'avisar_webhook', 'crear_cuenta_cliente', 'crear_cuenta_socio']) {
+      expect([t, isWriteToolForTest(t)]).toEqual([t, true])
+    }
+    for (const t of ['buscar_en_conocimiento', 'consultar_crm', 'consultar_catalogo']) expect([t, isWriteToolForTest(t)]).toEqual([t, false])
+  })
+  it('el agente del copiloto queda solo con las de lectura', () => {
+    const tools = ['etiquetar_contacto', 'buscar_en_conocimiento', 'crear_cuenta_cliente', 'consultar_catalogo']
+    expect(tools.filter((t) => !isWriteToolForTest(t))).toEqual(['buscar_en_conocimiento', 'consultar_catalogo'])
+  })
+})
+import { isWriteTool as isWriteToolForTest } from '@/lib/ai/tools'

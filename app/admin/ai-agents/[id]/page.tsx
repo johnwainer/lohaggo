@@ -20,6 +20,7 @@ type Agent = Record<string, unknown> & {
   autopilotChannels: string[]
   autopilotAccounts: string[]
   autopilotSkipTags: string[]
+  copilotChannels: string[]
   handoffKeywords: string[]
   tools: string[]
   crmModules: string[]
@@ -300,6 +301,46 @@ export default function AiAgentDetailPage({ params }: { params: Promise<{ id: st
               <Field label="Reenganche (horas sin respuesta del cliente)" hint="0 = apagado. Un único mensaje de seguimiento, una sola vez, dentro de la ventana de 24 h y del horario.">
                 <input type="number" min={0} max={23} className={input} value={Number(v.reengageAfterHours)} onChange={(e) => set({ reengageAfterHours: Number(e.target.value) })} />
               </Field>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
+              <h3 className="font-semibold text-gray-900">Copiloto</h3>
+              <p className="text-xs text-gray-500">
+                En estos canales la conversación la lleva una persona y el agente la ayuda: le sugiere respuestas en una tarjeta sobre el cuadro de escritura y,
+                si el cliente se queda sin respuesta, la retoma. Si un canal también tiene piloto automático, manda el piloto automático.
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                {catalog.channels.map((c) => {
+                  const disabled = v.channels.length > 0 && !v.channels.includes(c)
+                  return (
+                    <button key={c} type="button" disabled={disabled} onClick={() => toggleIn('copilotChannels', c)} className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-sm disabled:opacity-40 ${v.copilotChannels.includes(c) ? 'border-violet-500 bg-violet-50 text-violet-800' : 'border-gray-200 text-gray-600'}`}>
+                      <ChannelIcon channel={c} size={16} /> {CHANNEL_LABEL[c]}
+                      {v.autopilot && v.autopilotChannels.includes(c) && v.copilotChannels.includes(c) && <span className="text-[10px] text-amber-700">(piloto manda)</span>}
+                    </button>
+                  )
+                })}
+              </div>
+              {v.copilotChannels.length > 0 && (
+                <>
+                  <Field label="Sugerencias de respuesta" hint="Cada sugerencia automática cuesta como una respuesta de la IA.">
+                    <select className={input} value={String(v.copilotSuggest)} onChange={(e) => set({ copilotSuggest: e.target.value })}>
+                      <option value="auto">Automáticas cuando escribe el cliente, y también bajo demanda</option>
+                      <option value="manual">Solo bajo demanda (botón «Sugerir respuesta»)</option>
+                    </select>
+                  </Field>
+                  <Toggle checked={Boolean(v.copilotTakeover)} onChange={(x) => set({ copilotTakeover: x })} label="Retomar la conversación si nadie responde" hint="Solo dentro del horario del agente y de la ventana de 24 h. Nunca retoma casos que la IA traspasó ni con etiquetas excluidas: en esos avisa al equipo." />
+                  {Boolean(v.copilotTakeover) && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <Field label="Minutos sin respuesta para retomar">
+                        <input type="number" min={1} max={720} className={input} value={Number(v.copilotTakeoverMinutes)} onChange={(e) => set({ copilotTakeoverMinutes: Number(e.target.value) })} />
+                      </Field>
+                      <Field label="Aviso previo (minutos)" hint="0 = sin aviso">
+                        <input type="number" min={0} max={60} className={input} value={Number(v.copilotWarnMinutes)} onChange={(e) => set({ copilotWarnMinutes: Number(e.target.value) })} />
+                      </Field>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
         )}

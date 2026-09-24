@@ -37,6 +37,7 @@ const KIND_LABEL: Record<string, string> = {
   playground: 'Área de pruebas',
   embedding: 'Embeddings',
   model_test: 'Prueba de modelo',
+  copilot_suggestion: 'Sugerencia de copiloto',
 }
 
 const usd = (n: number) => `$${n.toFixed(n < 1 ? 4 : 2)}`

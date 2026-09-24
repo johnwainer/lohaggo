@@ -19,6 +19,8 @@ type Agent = {
   conversations: number
   handoffs: number
   resolution: number | null
+  copilotChannels: string[]
+  copilotStats: { total: number; used: number; edited: number; discarded: number; ignored: number; byChannel: Record<string, { total: number; useful: number }> } | null
 }
 type Workspace = { id: string; name: string; isDefault: boolean; permissions: string[]; canManagePermissions: boolean }
 type Budget = { workspaceId: string; costUsd: number; calls: number; state: string; pct: number }
@@ -183,6 +185,14 @@ export default function AiAgentsPage() {
                 <ChannelChips channels={a.channels} />
                 <div className="text-xs text-gray-500 pt-1">Piloto automático</div>
                 {a.autopilot && a.autopilotChannels.length ? <ChannelChips channels={a.autopilotChannels} /> : <span className="text-xs text-gray-400">Apagado</span>}
+                <div className="text-xs text-gray-500 pt-1">Copiloto</div>
+                {a.copilotChannels.length ? <ChannelChips channels={a.copilotChannels} /> : <span className="text-xs text-gray-400">Apagado</span>}
+                {a.copilotStats && a.copilotStats.total > 0 && (
+                  <p className="text-[11px] text-gray-500 pt-1" title={Object.entries(a.copilotStats.byChannel).map(([ch, s]) => `${ch}: ${Math.round((s.useful / s.total) * 100)}% útiles de ${s.total}`).join(' · ')}>
+                    Sugerencias útiles: <strong className="text-gray-800">{Math.round(((a.copilotStats.used + a.copilotStats.edited) / a.copilotStats.total) * 100)}%</strong>
+                    {' '}({a.copilotStats.used} tal cual · {a.copilotStats.edited} editadas · {a.copilotStats.discarded} descartadas · {a.copilotStats.ignored} ignoradas)
+                  </p>
+                )}
               </div>
               <div className="grid grid-cols-3 gap-2 text-center border-t border-gray-100 pt-3">
                 <div><p className="text-lg font-semibold text-gray-900">{a.conversations}</p><p className="text-[11px] text-gray-500">Conversaciones</p></div>

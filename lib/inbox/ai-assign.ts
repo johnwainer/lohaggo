@@ -26,7 +26,8 @@ export async function assignToAi(conversation: Conversation, actor: Actor, prefe
   const agents = await prisma.aiAgent.findMany({ where: { workspaceId: conversation.workspaceId, status: 'active' } })
   const conv = await withAccountKey(conversation)
   const decision = shouldTakeOverCore(
-    { ...conv, aiAgentId: preferredAgentId ?? conversation.aiAgentId, assignedToId: null, automationsPaused: false, aiSpam: false, aiHandoffAt: null },
+    // This action hands the conversation to the AI, so copilot agents of the channel qualify too
+    { ...conv, aiHandled: true, aiAgentId: preferredAgentId ?? conversation.aiAgentId, assignedToId: null, automationsPaused: false, aiSpam: false, aiHandoffAt: null },
     { agents, recentHumanActivity: false },
   )
   if (!decision.take) return { ok: false as const, reason: decision.reason, error: AI_ASSIGN_ERRORS[decision.reason] || 'No se puede asignar a la IA' }

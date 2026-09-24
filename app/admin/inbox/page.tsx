@@ -7,7 +7,7 @@ import {
   ExternalLink, Star, MapPin, ShieldCheck, Calendar,
   StickyNote, Zap, Tag, ChevronDown, Plus, Trash2, LayoutTemplate,
   ChevronUp, Link2, Copy, Check, ArrowLeft, BellOff,
-  Paperclip, Mic, Square, FileText, Download, Bot, Hand, Pause, Play, ListTodo,
+  Paperclip, Mic, Square, FileText, Download, Bot, Hand, Pause, Play, ListTodo, Sparkles,
 } from 'lucide-react'
 import { ChannelIcon, CHANNEL_META } from '@/components/admin/ChannelIcon'
 import ContactPanel, { RoleBadge, type ContactDetail } from '@/components/admin/inbox/ContactPanel'
@@ -83,6 +83,14 @@ type Conversation = {
   messages?: Message[]
   _count?: { messages: number }
   contactId?: string | null
+  copilotAlertedMessageId?: string | null
+  copilot?: {
+    agentId: string
+    agentName: string
+    suggestMode: string
+    suggestion: { id: string; text: string; context: string | null; createdAt: string } | null
+    timer: { action: 'wait' | 'warn' | 'takeover' | 'alert'; mode: 'takeover' | 'alert'; warnAt: string; takeoverAt: string } | null
+  } | null
   contact?: ContactDetail | null
   aiHandled?: boolean
   aiAgentId?: string | null
@@ -186,6 +194,8 @@ const EVENT_LABEL: Record<string, string> = {
   ai_spam: 'La IA lo marcó como publicidad',
   account_created: 'Cuenta creada',
   account_attempt: 'Intento de crear cuenta',
+  copilot_alert: 'Cliente sin respuesta',
+  copilot_skip: 'La persona atiende este mensaje',
   assigned: 'Asignada',
   status: 'Estado',
 }
@@ -235,6 +245,9 @@ export default function InboxPage() {
   const [bulkBusy, setBulkBusy] = useState(false)
   const [bulkNotice, setBulkNotice] = useState<string | null>(null)
   const [showContact, setShowContact] = useState(false)
+  const [usedSuggestionId, setUsedSuggestionId] = useState<string | null>(null)
+  const [suggesting, setSuggesting] = useState(false)
+  const [nowTick, setNowTick] = useState(() => Date.now())
   const [workspaces, setWorkspaces] = useState<{ id: string; name: string; isDefault: boolean }[]>([])
   const [filterWorkspace, setFilterWorkspace] = useState('')
   const [selected, setSelected] = useState<Conversation | null>(null)
@@ -421,6 +434,7 @@ export default function InboxPage() {
   }
 
   function selectConversation(conv: Conversation) {
+    setUsedSuggestionId(null)
     setShowMsgSearch(false)
     setMsgSearch('')
     setIsInternalNote(false)
@@ -533,6 +547,7 @@ export default function InboxPage() {
         body: JSON.stringify({
           message: messageText.trim(),
           isInternal,
+          ...(usedSuggestionId && !isInternal ? { suggestionId: usedSuggestionId } : {}),
           ...(uploaded ? { attachment: { url: uploaded.url, mediaType: uploaded.mediaType, mediaName: uploaded.mediaName } } : {}),
         }),
       })
@@ -540,6 +555,11 @@ export default function InboxPage() {
       if (!res.ok || !data.message) throw new Error(data.error || `Error enviando (HTTP ${res.status})`)
       setMessageText('')
       clearAttachment()
+      if (!isInternal) {
+        setUsedSuggestionId(null)
+        // Replying ends the countdown and any pending suggestion
+        setSelected((prev) => prev?.copilot ? { ...prev, copilot: { ...prev.copilot, suggestion: null, timer: null } } : prev)
+      }
       setIsInternalNote(false)
       const added: Message[] = Array.isArray(data.messages) && data.messages.length ? data.messages : [data.message]
       setSelected((prev) => {
@@ -652,6 +672,60 @@ export default function InboxPage() {
       const { task: updated } = await res.json()
       setSelected((prev) => prev ? { ...prev, tasks: (prev.tasks || []).map((t) => t.id === task.id ? updated : t) } : prev)
     }
+  }
+
+  // ── Copilot: suggestions and the "nobody answered" countdown ─────────────
+
+  useEffect(() => {
+    if (!selected?.copilot?.timer) return
+    const t = setInterval(() => setNowTick(Date.now()), 15_000)
+    return () => clearInterval(t)
+  }, [selected?.copilot?.timer])
+
+  async function copilotCall(body: Record<string, unknown>) {
+    if (!selected) return null
+    const res = await fetch(`/api/admin/inbox/conversations/${selected.id}/copilot`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) { setError(data.error || 'Error del copiloto'); return null }
+    return data
+  }
+
+  async function requestSuggestion() {
+    if (!selected) return
+    setSuggesting(true)
+    try {
+      const data = await copilotCall({ action: 'suggest' })
+      if (data?.suggestion) {
+        const s = data.suggestion
+        setSelected((prev) => prev?.copilot ? { ...prev, copilot: { ...prev.copilot, suggestion: { id: s.id, text: s.text, context: s.context, createdAt: s.createdAt } } } : prev)
+      }
+    } finally {
+      setSuggesting(false)
+    }
+  }
+
+  async function useSuggestion() {
+    const s = selected?.copilot?.suggestion
+    if (!s) return
+    setMessageText(s.text)
+    setIsInternalNote(false)
+    setUsedSuggestionId(s.id)
+    setSelected((prev) => prev?.copilot ? { ...prev, copilot: { ...prev.copilot, suggestion: null } } : prev)
+    await copilotCall({ action: 'resolve', suggestionId: s.id, status: 'inserted' })
+    inputRef.current?.focus()
+  }
+
+  async function discardSuggestion() {
+    const s = selected?.copilot?.suggestion
+    if (!s) return
+    setSelected((prev) => prev?.copilot ? { ...prev, copilot: { ...prev.copilot, suggestion: null } } : prev)
+    await copilotCall({ action: 'resolve', suggestionId: s.id, status: 'discarded' })
+  }
+
+  async function handleMyself() {
+    if (!selected) return
+    await copilotCall({ action: 'handle' })
+    setSelected((prev) => prev?.copilot ? { ...prev, copilot: { ...prev.copilot, timer: null } } : prev)
   }
 
   // ── Bulk assignment (AI agent or person) ─────────────────────────────────
@@ -1017,6 +1091,9 @@ export default function InboxPage() {
                       {conv.tags?.slice(0, 2).map((tag) => (
                         <span key={tag} className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium border ${tagColor(tag)}`}>{tag}</span>
                       ))}
+                      {conv.copilotAlertedMessageId && (
+                        <span className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-800">⏱ Esperando</span>
+                      )}
                       {conv.priority === 'high' && (
                         <span className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold bg-red-100 text-red-700">Prioridad</span>
                       )}
@@ -1532,6 +1609,41 @@ export default function InboxPage() {
                   </div>
                 )}
 
+                {/* Copilot: takeover countdown */}
+                {!selected.aiHandled && selected.copilot?.timer?.mode === 'takeover' && nowTick >= new Date(selected.copilot.timer.warnAt).getTime() && (
+                  <div className="mb-2 flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-900">
+                    <Clock className="h-3.5 w-3.5 shrink-0 text-violet-600" />
+                    <span className="flex-1">
+                      🤖 {selected.copilot.agentName} retomará esta conversación{' '}
+                      {(() => {
+                        const mins = Math.ceil((new Date(selected.copilot.timer.takeoverAt).getTime() - nowTick) / 60_000)
+                        return mins > 0 ? `en ${mins} min` : 'en cualquier momento'
+                      })()}{' '}si nadie responde.
+                    </span>
+                    <button onClick={handleMyself} className="shrink-0 rounded-lg bg-violet-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-violet-700">Lo atiendo yo</button>
+                  </div>
+                )}
+
+                {/* Copilot: suggested reply */}
+                {!selected.aiHandled && selected.copilot?.suggestion && !isInternalNote && (
+                  <div className="mb-2 rounded-xl border border-violet-200 bg-white shadow-sm">
+                    <div className="flex items-center gap-1.5 px-3 pt-2 text-[11px] font-medium text-violet-700">
+                      <Sparkles className="h-3.5 w-3.5" /> Sugerencia de {selected.copilot.agentName}
+                    </div>
+                    {selected.copilot.suggestion.context && (
+                      <p className="mx-3 mt-1.5 rounded-lg bg-amber-50 px-2 py-1 text-[11px] text-amber-800">💡 {selected.copilot.suggestion.context}</p>
+                    )}
+                    <p className="px-3 py-2 text-sm text-gray-800 whitespace-pre-wrap break-words">{selected.copilot.suggestion.text}</p>
+                    <div className="flex items-center gap-2 border-t border-violet-100 px-3 py-1.5">
+                      <button onClick={useSuggestion} className="rounded-lg bg-violet-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-violet-700">Usar</button>
+                      <button onClick={requestSuggestion} disabled={suggesting} className="rounded-lg border border-violet-200 px-2.5 py-1 text-[11px] text-violet-700 hover:bg-violet-50 disabled:opacity-50">
+                        {suggesting ? 'Pensando…' : 'Otra'}
+                      </button>
+                      <button onClick={discardSuggestion} className="ml-auto text-[11px] text-gray-500 hover:text-gray-800">Descartar</button>
+                    </div>
+                  </div>
+                )}
+
                 {aiLocked && (
                   <div className="mb-2 flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-900">
                     <Bot className="h-3.5 w-3.5 shrink-0 text-violet-600" />
@@ -1629,6 +1741,18 @@ export default function InboxPage() {
                 }`}>
                   {/* Row 1: action toolbar */}
                   <div className="flex items-center gap-1 px-2 pt-2 pb-1">
+                    {/* Copilot: suggest a reply on demand */}
+                    {selected.copilot && !selected.aiHandled && (
+                      <button
+                        onClick={requestSuggestion}
+                        disabled={suggesting}
+                        className="rounded-lg p-2 transition text-violet-500 hover:text-violet-700 hover:bg-violet-50 disabled:opacity-50"
+                        title={`Sugerir respuesta (${selected.copilot.agentName})`}
+                      >
+                        {suggesting ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                      </button>
+                    )}
+
                     {/* Canned responses */}
                     <button
                       onClick={() => setShowCannedPicker((v) => !v)}

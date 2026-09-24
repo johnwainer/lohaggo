@@ -119,7 +119,12 @@ export async function handleInbound(conversationId: string, messageId: string, o
   if (conversation.reengagedAt) await prisma.conversation.update({ where: { id: conversationId }, data: { reengagedAt: null } })
 
   const decision = await shouldTakeOver(conversation)
-  if (!decision.take) return { skipped: decision.reason }
+  if (!decision.take) {
+    // The autopilot stays out; a copilot agent may still help the person who handles it
+    const { copilotOnInbound } = await import('@/lib/ai/copilot')
+    await copilotOnInbound(conversation, messageId, decision.reason).catch(() => null)
+    return { skipped: decision.reason }
+  }
   const agent = decision.agent as AiAgent
   conversation = await markStarted(conversation, agent)
 

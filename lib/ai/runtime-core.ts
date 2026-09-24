@@ -24,6 +24,8 @@ export type AgentLike = {
   outsideHours: string
   outsideHoursMessage: string | null
   memoryWindow: number
+  /** Copilot channels: a conversation handed to the AI on one of them is answered too */
+  copilotChannels?: string[]
 }
 
 export const HUMAN_GRACE_MS = 30 * 60 * 1000
@@ -192,6 +194,8 @@ export type TakeOverConversation = {
   aiHandoffAt: Date | null
   /** Meta page id / IG business id of the account the conversation came in through (stable across reconnects) */
   connectionExternalId?: string | null
+  /** Already handed to the AI (by a person or a copilot takeover) */
+  aiHandled?: boolean
 }
 
 export type TakeOverDecision =
@@ -235,6 +239,11 @@ export function shouldTakeOverCore<T extends AgentLike>(
   if (conv.threadOwner) return { take: false, reason: 'thread_elsewhere' }
 
   const candidates = autopilotCandidates(ctx.agents, conv.channel)
+  // A conversation explicitly given to an agent that has copilot on this channel stays with that agent
+  if (conv.aiHandled && conv.aiAgentId) {
+    const owner = ctx.agents.find((a) => a.id === conv.aiAgentId && a.status === 'active' && (a.copilotChannels ?? []).includes(conv.channel) && servesChannel(a, conv.channel))
+    if (owner && !candidates.includes(owner)) candidates.push(owner)
+  }
   const skipTags = new Set(candidates.flatMap((a) => a.autopilotSkipTags.map(normalizeText)))
   if (conv.tags.some((t) => skipTags.has(normalizeText(t)))) return { take: false, reason: 'skip_tag' }
   if (candidates.length === 0) return { take: false, reason: 'no_agent' }

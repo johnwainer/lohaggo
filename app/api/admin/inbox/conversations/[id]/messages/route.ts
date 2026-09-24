@@ -5,6 +5,7 @@ import { emitInboxEvent } from '@/lib/messaging/inbox-emitter'
 import { canView, getWorkspaceAccess } from '@/lib/workspaces'
 import { attachmentLabel } from '@/lib/messaging/attachments'
 import { parseAttachment, sendToConversation } from '@/lib/inbox/send'
+import { resolveSuggestionOnSend } from '@/lib/ai/copilot'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -59,5 +60,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     waTemplate: waContentSid ? { contentSid: String(waContentSid), variables: waVariables || {} } : null,
   })
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status })
+  // Copilot metrics (suggestion used / edited / ignored) and the "no answer" alert is over
+  await resolveSuggestionOnSend(id, message, typeof body.suggestionId === 'string' ? body.suggestionId : null, admin.id).catch(() => null)
   return NextResponse.json({ message: result.saved, messages: result.savedList })
 }

@@ -63,6 +63,12 @@ export function sanitizeAgentInput(body: AgentInput, opts: { allowModel: boolean
   set('autopilotSkipTags', list(body.autopilotSkipTags, undefined, 50)?.map((t) => t.toLowerCase().slice(0, 40)))
   if (body.reengageAfterHours !== undefined) out.reengageAfterHours = clampInt(body.reengageAfterHours, 0, 23, 0)
 
+  set('copilotChannels', list(body.copilotChannels, AGENT_CHANNELS))
+  set('copilotSuggest', oneOf(body.copilotSuggest, ['auto', 'manual'] as const))
+  if (typeof body.copilotTakeover === 'boolean') out.copilotTakeover = body.copilotTakeover
+  if (body.copilotTakeoverMinutes !== undefined) out.copilotTakeoverMinutes = clampInt(body.copilotTakeoverMinutes, 1, 720, 10)
+  if (body.copilotWarnMinutes !== undefined) out.copilotWarnMinutes = clampInt(body.copilotWarnMinutes, 0, 60, 2)
+
   set('tools', list(body.tools, TOOL_NAMES))
   set('crmModules', list(body.crmModules, Object.keys(CRM_MODULES)))
   if (body.webhookUrl !== undefined) {

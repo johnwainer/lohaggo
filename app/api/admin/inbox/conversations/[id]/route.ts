@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/admin-utils'
 import { canView, getWorkspaceAccess } from '@/lib/workspaces'
 import { contactInclude } from '@/lib/inbox/contacts'
+import { copilotState } from '@/lib/ai/copilot'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -47,7 +48,24 @@ export async function GET(request: NextRequest, context: RouteContext) {
     await prisma.conversation.update({ where: { id }, data: { unreadCount: 0 } })
   }
 
-  return NextResponse.json({ conversation: { ...conversation, messages }, hasMore })
+  // Copilot: agent that assists here, the pending suggestion and the takeover countdown
+  let copilot = null
+  if (!before && !conversation.aiHandled) {
+    const state = await copilotState(conversation).catch(() => null)
+    if (state?.agent) {
+      const suggestion = await prisma.aiSuggestion.findFirst({ where: { conversationId: id, status: { in: ['pending', 'inserted'] } }, orderBy: { createdAt: 'desc' } })
+      const t = state.timer
+      copilot = {
+        agentId: state.agent.id,
+        agentName: state.agent.name,
+        suggestMode: state.agent.copilotSuggest,
+        suggestion: suggestion && suggestion.status === 'pending' ? { id: suggestion.id, text: suggestion.text, context: suggestion.context, createdAt: suggestion.createdAt } : null,
+        timer: t.action === 'none' ? null : { action: t.action, mode: t.mode, warnAt: t.warnAt, takeoverAt: t.takeoverAt },
+      }
+    }
+  }
+
+  return NextResponse.json({ conversation: { ...conversation, messages, copilot }, hasMore })
 }
 
 export async function PATCH(request: NextRequest, context: RouteContext) {

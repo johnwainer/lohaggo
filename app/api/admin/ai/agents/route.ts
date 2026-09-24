@@ -23,6 +23,24 @@ export async function GET() {
     getAiSettings(),
   ])
 
+  // Copilot usefulness: what people did with each agent's suggestions, per channel
+  const suggestionRows = await prisma.aiSuggestion.groupBy({
+    by: ['agentId', 'channel', 'status'],
+    where: { agentId: { in: agents.map((a) => a.id) } },
+    _count: { _all: true },
+  })
+  const copilotStats: Record<string, { total: number; used: number; edited: number; discarded: number; ignored: number; byChannel: Record<string, { total: number; useful: number }> }> = {}
+  for (const r of suggestionRows) {
+    const s = (copilotStats[r.agentId] ??= { total: 0, used: 0, edited: 0, discarded: 0, ignored: 0, byChannel: {} })
+    const n = r._count._all
+    if (r.status === 'pending' || r.status === 'inserted' || r.status === 'expired') continue
+    s.total += n
+    if (r.status === 'used' || r.status === 'edited' || r.status === 'discarded' || r.status === 'ignored') s[r.status] += n
+    const ch = (s.byChannel[r.channel] ??= { total: 0, useful: 0 })
+    ch.total += n
+    if (r.status === 'used' || r.status === 'edited') ch.useful += n
+  }
+
   const budgets = await Promise.all(workspaces.map(async (w) => ({ workspaceId: w.id, ...(await workspaceUsage(w.id)), ...(await checkWorkspaceBudget(w.id)) })))
 
   // Channel accounts per workspace. Twilio numbers are platform-level (default workspace), keyed CHANNEL:default.
@@ -36,7 +54,7 @@ export async function GET() {
   }))
 
   return NextResponse.json({
-    agents: agents.map((a) => ({ ...a, resolution: resolutionRate(a.conversations, a.handoffs) })),
+    agents: agents.map((a) => ({ ...a, resolution: resolutionRate(a.conversations, a.handoffs), copilotStats: copilotStats[a.id] ?? null })),
     workspaces: workspaces.map((w) => ({
       ...w,
       permissions: (Object.keys(AI_PERMISSION_LABELS) as Array<keyof typeof AI_PERMISSION_LABELS>).filter((p) => can(auth, w.id, p)),
