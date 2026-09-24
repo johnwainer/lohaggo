@@ -992,6 +992,11 @@ export default function InboxPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 pr-6">
                       <span className={`text-sm truncate flex-1 ${conv.unreadCount > 0 ? 'font-bold text-gray-900' : 'font-semibold text-gray-800'}`}>{displayName(conv)}</span>
+                      {conv.user && (conv.user.role === 'PARTNER' || conv.user.role === 'CLIENT') && (
+                        <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${conv.user.role === 'PARTNER' ? 'bg-orange-100 text-orange-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                          {conv.user.role === 'PARTNER' ? 'Socio' : 'Cliente'}
+                        </span>
+                      )}
                       <span className="text-xs text-gray-400 shrink-0">{conv.lastMessageAt ? timeAgo(conv.lastMessageAt) : ''}</span>
                     </div>
                     <p className={`text-xs truncate ${CHANNEL_META[conv.channel]?.text ?? 'text-gray-500'}`}>
@@ -1077,9 +1082,11 @@ export default function InboxPage() {
                 >
                   <ArrowLeft className="h-5 w-5" />
                 </button>
-                <div className="flex-shrink-0 h-9 w-9 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold text-sm">
-                  {displayName(selected).charAt(0).toUpperCase()}
-                </div>
+                <button onClick={() => setShowContact(true)} title="Contacto" className="flex-shrink-0 h-9 w-9 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold text-sm overflow-hidden">
+                  {selected.contact?.user?.image || selected.user?.image
+                    ? <img src={(selected.contact?.user?.image || selected.user?.image)!} alt="" className="h-full w-full object-cover" />
+                    : displayName(selected).replace(/^[@+]/, '').charAt(0).toUpperCase()}
+                </button>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="font-semibold text-gray-900 truncate">{displayName(selected)}</p>

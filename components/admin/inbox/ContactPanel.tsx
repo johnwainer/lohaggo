@@ -14,7 +14,7 @@ export type ContactDetail = {
   identities: Array<{ id: string; channel: string; externalId: string }>
   conversations: Array<{ id: string; channel: string; status: string; lastMessageAt: string | null; connection?: { name: string } | null }>
   user: {
-    id: string; name: string; email: string; phone: string | null; role: string; isActive: boolean; createdAt: string
+    id: string; name: string; email: string; phone: string | null; image?: string | null; role: string; isActive: boolean; createdAt: string
     partnerProfile: { verified: boolean; isActive: boolean; city: string; rating: number; totalReviews: number } | null
     _count: { bookings: number; serviceRequests: number }
   } | null
@@ -120,6 +120,19 @@ export default function ContactPanel({
       <div className="flex-1 overflow-y-auto p-4 space-y-5 text-sm">
         {error && <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700"><AlertCircle className="h-3.5 w-3.5" /> {error}</div>}
         {notice && <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700"><CheckCircle2 className="h-3.5 w-3.5" /> {notice}</div>}
+
+        {/* Who is this */}
+        <div className="flex items-center gap-3">
+          <div className="h-14 w-14 shrink-0 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 text-xl font-bold overflow-hidden">
+            {contact.user?.image
+              ? <img src={contact.user.image} alt="" className="h-full w-full object-cover" />
+              : (contact.name || contact.user?.name || '?').replace(/^[@+]/, '').charAt(0).toUpperCase()}
+          </div>
+          <div className="min-w-0">
+            <p className="font-semibold text-gray-900 truncate">{contact.name || contact.user?.name || 'Sin nombre'}</p>
+            {contact.user ? <RoleBadge user={contact.user} /> : <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600">Sin cuenta en la plataforma</span>}
+          </div>
+        </div>
 
         {/* Data */}
         <div className="space-y-2.5">

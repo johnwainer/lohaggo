@@ -19,7 +19,13 @@ export function toE164(raw: string | null | undefined): string | null {
 const PHONE_CHANNELS: MessagingChannel[] = ['WHATSAPP', 'SMS']
 
 async function userByPhone(phone: string) {
-  return prisma.user.findFirst({ where: { phone }, select: { id: true, name: true } })
+  return prisma.user.findFirst({ where: { phone }, select: { id: true, name: true, email: true } })
+}
+
+/** Names the channels invent when they don't know the person ("Instagram · …1234", "@usuario", "+57…"). */
+export function isPlaceholderName(name: string | null | undefined) {
+  if (!name?.trim()) return true
+  return /^(Instagram|Messenger|WhatsApp|SMS) · /.test(name) || /^\+?\d[\d\s]+$/.test(name.trim()) || /^CO\./.test(name)
 }
 
 /** Adds (WHATSAPP, phone) and (SMS, phone) identities to a contact, taking them from any other contact. */
@@ -98,8 +104,9 @@ export async function resolveInboundContact(params: {
   }
 
   const user = phone ? await userByPhone(phone) : null
+  // A platform user with that phone: the contact starts with their real name and email
   const contact = await prisma.contact.create({
-    data: { workspaceId: params.workspaceId, name: params.nameHint || user?.name || null, phone, userId: user?.id ?? null },
+    data: { workspaceId: params.workspaceId, name: user?.name || params.nameHint || null, phone, email: user?.email ?? null, userId: user?.id ?? null },
   })
   if (phone) await attachPhoneIdentities(contact.id, phone)
   else await prisma.contactIdentity.create({ data: { contactId: contact.id, channel: params.channel, externalId: params.externalId } })
@@ -135,7 +142,11 @@ export async function updateContact(id: string, patch: ContactPatch): Promise<Co
       await prisma.conversation.updateMany({ where: { channel: { in: PHONE_CHANNELS }, contactPhone: phone, workspaceId: contact.workspaceId }, data: { contactId: survivorId } })
       if (!contact.userId && !patch.userId) {
         const user = await userByPhone(phone)
-        if (user) data.user = { connect: { id: user.id } }
+        if (user) {
+          data.user = { connect: { id: user.id } }
+          if (patch.name === undefined && isPlaceholderName(contact.name)) data.name = user.name
+          if (patch.email === undefined && !contact.email && user.email) data.email = user.email.toLowerCase()
+        }
       }
     } else if (!phone && contact.phone) {
       data.phone = null
@@ -149,12 +160,16 @@ export async function updateContact(id: string, patch: ContactPatch): Promise<Co
     data.email = email
   }
   if (patch.notes !== undefined) data.notes = patch.notes?.trim().slice(0, 2000) || null
+  let userPhone: string | null = null
   if (patch.userId !== undefined) {
     if (patch.userId) {
-      const user = await prisma.user.findUnique({ where: { id: patch.userId }, select: { id: true, name: true, phone: true } })
+      const user = await prisma.user.findUnique({ where: { id: patch.userId }, select: { id: true, name: true, phone: true, email: true } })
       if (!user) throw new Error('Usuario no encontrado')
       data.user = { connect: { id: user.id } }
-      if (patch.name === undefined && !contact.name) data.name = user.name
+      // What the platform already knows about the person fills the gaps in the contact
+      if (patch.name === undefined && isPlaceholderName(contact.name)) data.name = user.name
+      if (patch.email === undefined && !contact.email && user.email) data.email = user.email.toLowerCase()
+      if (patch.phone === undefined && !contact.phone) userPhone = toE164(user.phone)
     } else {
       data.user = { disconnect: true }
     }
@@ -162,6 +177,8 @@ export async function updateContact(id: string, patch: ContactPatch): Promise<Co
 
   const updated = await prisma.contact.update({ where: { id: survivorId }, data })
   await syncConversationsFromContact(updated)
+  // The user's phone makes them reachable (and recognised) on WhatsApp, merging with a contact that already has it
+  if (userPhone) return updateContact(updated.id, { phone: userPhone })
   return updated
 }
 
@@ -189,7 +206,7 @@ export const contactInclude = {
   conversations: { select: { id: true, channel: true, status: true, lastMessageAt: true, connection: { select: { name: true } } }, orderBy: { lastMessageAt: 'desc' as const } },
   user: {
     select: {
-      id: true, name: true, email: true, phone: true, role: true, isActive: true, createdAt: true,
+      id: true, name: true, email: true, phone: true, image: true, role: true, isActive: true, createdAt: true,
       partnerProfile: { select: { verified: true, isActive: true, city: true, rating: true, totalReviews: true } },
       _count: { select: { bookings: true, serviceRequests: true } },
     },
