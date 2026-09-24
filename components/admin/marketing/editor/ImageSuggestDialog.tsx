@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ExternalLink, ImageIcon, Loader2, Search, Sparkles, Wand2, X } from 'lucide-react'
+import { ExternalLink, ImageIcon, Loader2, Search, Wand2, X } from 'lucide-react'
 import { api, input, type MkChannel } from '@/components/admin/marketing/shared'
-import { STYLE_PRESETS, defaultOrientation, type ImageCandidate, type Orientation } from '@/lib/marketing/images-core'
+import { STYLE_PRESETS, defaultOrientation, servicePrompt, type ImageCandidate, type Orientation } from '@/lib/marketing/images-core'
 import type { Post } from '@/components/admin/marketing/editor/types'
 
 export type ImageSummary = { pexels: boolean; provider: string; providerLabel: string; providerReady: boolean; providerReason: string | null; supportsReference: boolean; costPerImageUsd: number }
@@ -13,8 +13,8 @@ export type BrandKitView = { logoUrl: string | null; logoPublicId: string | null
 const ORIENT_LABEL: Record<Orientation, string> = { portrait: 'Vertical 4:5 (Instagram)', square: 'Cuadrada 1:1', landscape: 'Horizontal (Facebook, blog)' }
 
 /**
- * "Sugerir imágenes": Claude proposes searches and a description from the post; everything is
- * editable before anything is sent. Free photos from Pexels, or AI images with the configured provider.
+ * "Sugerir imágenes": starts from the catalog service the post is about (searched on Pexels right
+ * away, it is free); the search, the AI description and every option stay editable before generating.
  */
 export default function ImageSuggestDialog({ post, channel, format, text, brief, summary, kit, onClose, onImported }: {
   post: Post
@@ -30,7 +30,9 @@ export default function ImageSuggestDialog({ post, channel, format, text, brief,
   const [tab, setTab] = useState<'pexels' | 'ai'>(summary.pexels ? 'pexels' : 'ai')
   const [orientation, setOrientation] = useState<Orientation>(defaultOrientation(channel, format))
   const [brand, setBrand] = useState(Boolean(kit?.logoPublicId && kit.autoApply))
-  const [queries, setQueries] = useState<string[]>([])
+  const [services, setServices] = useState<string[]>([])
+  const [matched, setMatched] = useState<string[]>([])
+  const [service, setService] = useState('')
   const [query, setQuery] = useState('')
   const [prompt, setPrompt] = useState('')
   const [alt, setAlt] = useState('')
@@ -44,16 +46,24 @@ export default function ImageSuggestDialog({ post, channel, format, text, brief,
   const [error, setError] = useState<string | null>(null)
   const images = post.media.filter((m) => m.kind === 'image')
 
-  // Claude reads the post once and pre-fills; nothing is searched or generated until the person asks
+  // The service the post is about (detected from the catalog, no AI): photo search and AI description start from it
+  const pickService = (name: string, run = true) => {
+    setService(name)
+    setQuery(name)
+    setPrompt(name ? servicePrompt(name) : '')
+    setAlt(name ? `Profesional de ${name.toLowerCase()} – LoHaggo` : '')
+    setResults([])
+    if (run && name && summary.pexels) search(name)
+  }
   useEffect(() => {
-    api<{ images: { queries: string[]; prompt: string; alt: string } }>('/api/admin/marketing/images', { method: 'POST', json: { action: 'suggest', postId: post.id, channel, text, brief } })
+    api<{ services: string[]; matched: string[] }>('/api/admin/marketing/images', { method: 'POST', json: { action: 'suggest', postId: post.id } })
       .then((d) => {
-        setQueries(d.images.queries)
-        setQuery((q) => q || d.images.queries[0] || '')
-        setPrompt((p) => p || d.images.prompt)
-        setAlt((a) => a || d.images.alt)
+        setServices(d.services)
+        setMatched(d.matched)
+        if (d.matched[0]) pickService(d.matched[0], tab === 'pexels')
+        else setQuery(post.title)
       })
-      .catch(() => setQuery((q) => q || post.title))
+      .catch(() => setQuery(post.title))
       .finally(() => setSuggesting(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -65,7 +75,7 @@ export default function ImageSuggestDialog({ post, channel, format, text, brief,
       const d = await api<{ results: ImageCandidate[] }>('/api/admin/marketing/images', { method: 'POST', json: { action: 'search', postId: post.id, query: q, orientation, page: p } })
       setResults((r) => (p === 1 ? d.results : [...r, ...d.results]))
       setPage(p)
-      if (!d.results.length && p === 1) setError('Sin resultados: prueba con otras palabras (en inglés suele encontrar más).')
+      if (!d.results.length && p === 1) setError('Sin resultados: prueba con otras palabras.')
     } catch (err) { setError(err instanceof Error ? err.message : 'Error') } finally { setBusy(null) }
   }
 
@@ -106,6 +116,22 @@ export default function ImageSuggestDialog({ post, channel, format, text, brief,
           <p className="text-sm text-amber-800 bg-amber-50 rounded-xl px-3 py-2">No hay fuentes de imágenes configuradas. El administrador de la plataforma las activa en Publicaciones → Marca e imágenes.</p>
         )}
 
+        <div className="space-y-1.5">
+          <label className="block space-y-1"><span className="text-xs font-medium text-gray-700">Servicio</span>
+            <select className={input} value={service} onChange={(e) => pickService(e.target.value)} disabled={suggesting}>
+              <option value="">{suggesting ? 'Detectando el servicio…' : 'Elige el servicio de la publicación'}</option>
+              {services.map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </label>
+          {matched.length > 1 && (
+            <div className="flex flex-wrap gap-1.5 items-center">
+              <span className="text-[11px] text-gray-500">La publicación también habla de:</span>
+              {matched.filter((m) => m !== service).map((m) => <button key={m} onClick={() => pickService(m)} className="rounded-full border border-gray-200 px-2.5 py-1 text-xs text-gray-700 hover:bg-gray-50">{m}</button>)}
+            </div>
+          )}
+          {!suggesting && !matched.length && <p className="text-[11px] text-gray-500">No se detectó un servicio del catálogo en la publicación: elígelo arriba o escribe la búsqueda.</p>}
+        </div>
+
         {/* Options, all editable before sending anything */}
         <div className="grid sm:grid-cols-2 gap-3">
           <label className="block space-y-1"><span className="text-xs font-medium text-gray-700">Formato</span>
@@ -126,7 +152,7 @@ export default function ImageSuggestDialog({ post, channel, format, text, brief,
           </div>
         </div>
         <label className="block space-y-1"><span className="text-xs font-medium text-gray-700">Texto alternativo (accesibilidad y SEO)</span>
-          <input className={input} value={alt} onChange={(e) => setAlt(e.target.value)} placeholder={suggesting ? 'Claude lo está proponiendo…' : 'Describe la imagen en una frase'} />
+          <input className={input} value={alt} onChange={(e) => setAlt(e.target.value)} placeholder="Describe la imagen en una frase" />
         </label>
 
         {tab === 'pexels' ? (
@@ -134,23 +160,17 @@ export default function ImageSuggestDialog({ post, channel, format, text, brief,
             <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); search() }}>
               <div className="relative flex-1">
                 <Search size={15} className="absolute left-3 top-2.5 text-gray-400" />
-                <input className={`${input} pl-9`} value={query} onChange={(e) => setQuery(e.target.value)} placeholder={suggesting ? 'Claude está leyendo la publicación…' : 'Qué buscar (en inglés encuentra más)'} />
+                <input className={`${input} pl-9`} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Qué buscar (por defecto, el nombre del servicio)" />
               </div>
               <button disabled={busy === 'search' || !query.trim()} className="inline-flex items-center gap-1.5 rounded-full bg-primary-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
                 {busy === 'search' ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />} Buscar
               </button>
             </form>
-            {queries.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 items-center">
-                <span className="text-[11px] text-gray-500 flex items-center gap-1"><Sparkles size={11} /> Sugeridas:</span>
-                {queries.map((q) => <button key={q} onClick={() => { setQuery(q); search(q) }} className="rounded-full border border-gray-200 px-2.5 py-1 text-xs text-gray-700 hover:bg-gray-50">{q}</button>)}
-              </div>
-            )}
           </div>
         ) : (
           <div className="space-y-3">
             <label className="block space-y-1"><span className="text-xs font-medium text-gray-700">Descripción de la imagen</span>
-              <textarea className={input} rows={3} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder={suggesting ? 'Claude la está escribiendo…' : 'Escena, sujeto, encuadre, luz y ambiente'} />
+              <textarea className={input} rows={3} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Escena, sujeto, encuadre, luz y ambiente" />
               <span className="block text-[11px] text-gray-500">Siempre se añade: sin textos, letras ni logotipos dibujados (el logo real lo pone la plataforma).</span>
             </label>
             <div className="space-y-1">

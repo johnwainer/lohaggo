@@ -3,17 +3,16 @@ import { prisma } from '@/lib/prisma'
 import { cloudinaryService } from '@/lib/cloudinary'
 import { marketingAuth, mkCan } from '@/lib/marketing/permissions'
 import { ORIENTATIONS, clampCount, isPexelsImageUrl, type Orientation } from '@/lib/marketing/images-core'
-import { ImageError, generateImages, importImage, searchPexels } from '@/lib/marketing/images'
-import { CopywritingError, runCopywriting } from '@/lib/marketing/copilot'
+import { ImageError, generateImages, importImage, searchPexels, serviceSuggestions } from '@/lib/marketing/images'
+import { CopywritingError } from '@/lib/marketing/copilot'
 import { loadPostDetail, mediaFolder, reopenReviewIfNeeded } from '@/lib/marketing/service'
 
 export const maxDuration = 180
 
-const CH = ['WEB', 'FACEBOOK', 'INSTAGRAM'] as const
 
 /**
  * Image suggestions for a post.
- * suggest: Claude reads the post and proposes photo searches + an AI prompt (editable before sending).
+ * suggest: catalog services the post is about (the photo search and the AI description start from them).
  * search: Pexels. generate: the configured AI provider. import: add the chosen one to the post.
  */
 export async function POST(request: NextRequest) {
@@ -27,9 +26,8 @@ export async function POST(request: NextRequest) {
 
   try {
     if (b.action === 'suggest') {
-      const channel = CH.includes(b.channel) ? b.channel : 'INSTAGRAM'
-      const r = await runCopywriting(post.workspaceId, { action: 'images', channel, title: post.title, text: typeof b.text === 'string' ? b.text.slice(0, 6000) : '', brief: typeof b.brief === 'string' ? b.brief.slice(0, 2000) : '' })
-      return NextResponse.json(r)
+      // No AI here: the services of the catalog the post is about (simple searches work best on Pexels)
+      return NextResponse.json(await serviceSuggestions(post.id))
     }
     if (b.action === 'search') {
       const query = typeof b.query === 'string' ? b.query.trim() : ''

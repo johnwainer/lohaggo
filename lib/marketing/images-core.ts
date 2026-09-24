@@ -133,3 +133,33 @@ export function clampCount(n: unknown) {
   const x = Math.floor(Number(n))
   return Number.isFinite(x) ? Math.min(4, Math.max(1, x)) : 2
 }
+
+const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim()
+const STOP = new Set(['de', 'del', 'la', 'las', 'el', 'los', 'y', 'en', 'para', 'a', 'con', 'por', 'servicio', 'servicios'])
+
+/** Root of a service name that also matches its trade: "Plomería" → "plomer" (plomero), "Cerrajería" → "cerraj". */
+function stemsOf(name: string) {
+  return norm(name).split(' ').filter((w) => w.length > 2 && !STOP.has(w)).map((w) => w.slice(0, Math.max(5, Math.min(7, w.length - 2))))
+}
+
+/**
+ * Catalog services a post talks about, best match first (title counts more than the text). Photo
+ * suggestions are just these names: simple searches return the most relevant stock photos.
+ */
+export function matchServices(title: string, text: string, services: string[]) {
+  const t = ` ${norm(title)} `
+  const b = ` ${norm(text)} `
+  const scored = services.map((name) => {
+    const stems = stemsOf(name)
+    if (!stems.length) return { name, score: 0 }
+    const hits = (hay: string) => stems.filter((s) => hay.includes(` ${s}`)).length / stems.length
+    const exact = t.includes(` ${norm(name)} `) ? 2 : b.includes(` ${norm(name)} `) ? 1 : 0
+    return { name, score: exact * 3 + hits(t) * 2 + hits(b) }
+  })
+  return scored.filter((s) => s.score >= 1).sort((a, b) => b.score - a.score).map((s) => s.name).slice(0, 5)
+}
+
+/** Default description for AI generation: the service, in a Colombian home. */
+export function servicePrompt(service: string) {
+  return `Profesional de ${service.toLowerCase()} trabajando en un hogar colombiano, escena real y cercana.`
+}

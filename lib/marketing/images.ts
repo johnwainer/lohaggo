@@ -16,6 +16,7 @@ import {
   type ImageProvider,
   type Orientation,
   type PexelsPhoto,
+  matchServices,
 } from '@/lib/marketing/images-core'
 
 const logger = createLogger('marketing-images')
@@ -103,7 +104,9 @@ export async function searchPexels(query: string, orientation: Orientation, page
   if (res.status === 429) throw new ImageError('Se alcanzó el límite de búsquedas de Pexels por ahora; intenta en un rato')
   if (!res.ok) throw new ImageError(`Pexels respondió ${res.status}`)
   const data = (await res.json()) as { photos?: PexelsPhoto[]; total_results?: number }
-  return { results: (data.photos || []).map(fromPexels), total: data.total_results ?? 0 }
+  // Thumbnails are served through our server (Pexels' CDN refuses to be embedded from another site)
+  const results = (data.photos || []).map(fromPexels).map((c) => ({ ...c, previewUrl: `/api/admin/marketing/images/preview?url=${encodeURIComponent(c.previewUrl)}` }))
+  return { results, total: data.total_results ?? 0 }
 }
 
 // ─── AI generation ───────────────────────────────────────────────────────────
@@ -244,7 +247,13 @@ export async function importImage(params: {
   const c = params.candidate
   let file = { url: c.url, publicId: c.publicId ?? null, width: c.width ?? null, height: c.height ?? null, bytes: c.bytes ?? null, mime: 'image/jpeg' }
   if (c.source === 'pexels') {
-    const up = await cloudinaryService.uploadRemote(c.url, mediaFolder(params.workspaceId, params.postId))
+    // Downloaded by our server and sent to Cloudinary as data (Pexels' CDN may refuse other fetchers)
+    const res = await fetch(c.url, { cache: 'no-store' }).catch(() => null)
+    const type = res?.headers.get('content-type') || ''
+    if (!res?.ok || !type.startsWith('image/')) throw new ImageError('No se pudo descargar la foto de Pexels; prueba con otra')
+    const buf = Buffer.from(await res.arrayBuffer())
+    if (buf.length > 15 * 1024 * 1024) throw new ImageError('La foto pesa demasiado; prueba con otra')
+    const up = await cloudinaryService.uploadRemote(`data:${type};base64,${buf.toString('base64')}`, mediaFolder(params.workspaceId, params.postId))
     file = { url: up.secure_url, publicId: up.public_id, width: up.width ?? null, height: up.height ?? null, bytes: up.bytes ?? null, mime: up.format === 'png' ? 'image/png' : 'image/jpeg' }
   }
   const kit = params.brand ? await getBrandKit(params.workspaceId) : null
@@ -269,4 +278,16 @@ export async function setMediaBranding(workspaceId: string, mediaId: string, on:
   const url = brandedUrl(original, kit)
   if (!url) throw new ImageError('Esta imagen no está en Cloudinary: no se le puede poner el logo')
   return prisma.marketingMedia.update({ where: { id: m.id }, data: { url, originalUrl: original, branded: true } })
+}
+
+/** Catalog service names (for the "Servicio" picker) and the ones this post talks about. */
+export async function serviceSuggestions(postId: string) {
+  const [post, services] = await Promise.all([
+    prisma.marketingPost.findUnique({ where: { id: postId }, select: { title: true, brief: true, variants: { select: { body: true, seoTitle: true } }, campaign: { select: { name: true, description: true } } } }),
+    prisma.service.findMany({ select: { name: true }, orderBy: { name: 'asc' } }),
+  ])
+  const names = Array.from(new Set(services.map((s) => s.name.trim()).filter(Boolean)))
+  if (!post) return { services: names, matched: [] as string[] }
+  const text = [post.brief, post.campaign?.name, post.campaign?.description, ...post.variants.map((v) => `${v.seoTitle || ''} ${v.body.slice(0, 3000)}`)].filter(Boolean).join(' ')
+  return { services: names, matched: matchServices(post.title, text, names) }
 }

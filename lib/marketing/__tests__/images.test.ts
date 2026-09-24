@@ -77,3 +77,23 @@ describe('generación', () => {
     expect(p).toContain('Revisa tu techo')
   })
 })
+
+import { matchServices, servicePrompt } from '@/lib/marketing/images-core'
+
+describe('sugerencias por servicio del catálogo', () => {
+  const catalog = ['Plomería', 'Cerrajería', 'Electricidad', 'Limpieza de hogar', 'Pintura', 'Carpintería']
+  it('reconoce el servicio en el título aunque se escriba como oficio', () => {
+    expect(matchServices('Cerrajería en Medellín: guía práctica', '', catalog)[0]).toBe('Cerrajería')
+    expect(matchServices('¿Buscas un plomero de confianza?', '', catalog)[0]).toBe('Plomería')
+    expect(matchServices('Consejos de un electricista', '', catalog)[0]).toBe('Electricidad')
+  })
+  it('el título pesa más que el texto', () => {
+    expect(matchServices('Pintura para tu sala', 'Después de pintar, llama a limpieza de hogar', catalog)).toEqual(['Pintura', 'Limpieza de hogar'])
+  })
+  it('sin coincidencias no inventa', () => {
+    expect(matchServices('Feliz navidad', 'Les deseamos lo mejor', catalog)).toEqual([])
+  })
+  it('descripción por defecto para generar', () => {
+    expect(servicePrompt('Cerrajería')).toBe('Profesional de cerrajería trabajando en un hogar colombiano, escena real y cercana.')
+  })
+})
