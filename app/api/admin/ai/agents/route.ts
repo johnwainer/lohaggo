@@ -19,7 +19,7 @@ export async function GET() {
   const [workspaces, agents, connections, settings] = await Promise.all([
     prisma.workspace.findMany({ where: wsWhere, select: { id: true, name: true, isDefault: true, timezone: true, aiMonthlyCostCapUsd: true, aiMonthlyCallCap: true }, orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] }),
     prisma.aiAgent.findMany({ where: scope === null ? {} : { workspaceId: { in: scope } }, orderBy: { createdAt: 'asc' } }),
-    prisma.channelConnection.findMany({ where: scope === null ? {} : { workspaceId: { in: scope } }, select: { id: true, name: true, channel: true, workspaceId: true, enabled: true } }),
+    prisma.channelConnection.findMany({ where: scope === null ? {} : { workspaceId: { in: scope } }, select: { id: true, name: true, channel: true, workspaceId: true, enabled: true, externalId: true } }),
     getAiSettings(),
   ])
 
@@ -30,7 +30,8 @@ export async function GET() {
     workspaceId: w.id,
     accounts: [
       ...(w.isDefault ? [{ key: 'WHATSAPP:default', channel: 'WHATSAPP', name: 'WhatsApp (número de Twilio)', enabled: true }, { key: 'SMS:default', channel: 'SMS', name: 'SMS (número de Twilio)', enabled: true }] : []),
-      ...connections.filter((c) => c.workspaceId === w.id).map((c) => ({ key: c.id, channel: c.channel, name: c.name, enabled: c.enabled })),
+      // Keyed by the Meta page / IG id so reconnecting the account keeps the agent's setting
+      ...connections.filter((c) => c.workspaceId === w.id).map((c) => ({ key: `${c.channel}:${c.externalId}`, legacyKey: c.id, channel: c.channel, name: c.name, enabled: c.enabled })),
     ],
   }))
 

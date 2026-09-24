@@ -46,6 +46,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ message: saved })
   }
 
+  // Human agents write only after taking the conversation over from the AI
+  if (conversation.aiHandled) {
+    return NextResponse.json({ error: `${conversation.aiAgentName || 'El agente de IA'} lleva esta conversación. Pulsa "Intervenir" para escribir.` }, { status: 409 })
+  }
+
   const result = await sendToConversation({
     conversation,
     message,

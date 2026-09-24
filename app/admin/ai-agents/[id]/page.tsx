@@ -28,7 +28,7 @@ type Agent = Record<string, unknown> & {
   handoffs: number
   resolution: number | null
 }
-type Account = { key: string; channel: string; name: string; enabled: boolean }
+type Account = { key: string; legacyKey?: string; channel: string; name: string; enabled: boolean }
 type Catalog = {
   channels: string[]
   avatars: Avatar[]
@@ -61,6 +61,25 @@ const Field = ({ label, hint, children }: { label: string; hint?: string; childr
     {hint && <span className="block text-xs text-gray-500">{hint}</span>}
   </label>
 )
+/** Free typing (commas, spaces) for a list field; the list is parsed when the field loses focus. */
+function ListInput({ value, onChange, placeholder }: { value: string[]; onChange: (v: string[]) => void; placeholder?: string }) {
+  const [text, setText] = useState(value.join(', '))
+  const [focused, setFocused] = useState(false)
+  useEffect(() => { if (!focused) setText(value.join(', ')) }, [value, focused])
+  const commit = () => onChange(Array.from(new Set(text.split(',').map((t) => t.trim()).filter(Boolean))))
+  return (
+    <input
+      className={input}
+      value={text}
+      placeholder={placeholder}
+      onChange={(e) => setText(e.target.value)}
+      onFocus={() => setFocused(true)}
+      onBlur={() => { setFocused(false); commit() }}
+      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commit() } }}
+    />
+  )
+}
+
 const Toggle = ({ checked, onChange, label, hint }: { checked: boolean; onChange: (v: boolean) => void; label: string; hint?: string }) => (
   <label className="flex items-start gap-3 cursor-pointer">
     <input type="checkbox" className="mt-1" checked={checked} onChange={(e) => onChange(e.target.checked)} />
@@ -257,7 +276,16 @@ export default function AiAgentDetailPage({ params }: { params: Promise<{ id: st
                   <div className="grid sm:grid-cols-2 gap-2">
                     {accounts.filter((a) => v.autopilotChannels.includes(a.channel)).map((a) => (
                       <label key={a.key} className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm">
-                        <input type="checkbox" checked={v.autopilotAccounts.includes(a.key)} onChange={() => toggleIn('autopilotAccounts', a.key)} />
+                        <input
+                          type="checkbox"
+                          checked={v.autopilotAccounts.includes(a.key) || (!!a.legacyKey && v.autopilotAccounts.includes(a.legacyKey))}
+                          onChange={() => {
+                            // Saved with the stable key; an old connection-id entry is replaced
+                            const on = v.autopilotAccounts.includes(a.key) || (!!a.legacyKey && v.autopilotAccounts.includes(a.legacyKey))
+                            const rest = v.autopilotAccounts.filter((k) => k !== a.key && k !== a.legacyKey)
+                            set({ autopilotAccounts: on ? rest : [...rest, a.key] })
+                          }}
+                        />
                         <ChannelIcon channel={a.channel} size={14} /> <span className="truncate">{a.name}</span>
                         {!a.enabled && <span className="text-[10px] text-gray-400">(pausada)</span>}
                       </label>
@@ -267,7 +295,7 @@ export default function AiAgentDetailPage({ params }: { params: Promise<{ id: st
                 )}
               </div>
               <Field label="No tomar conversaciones con estas etiquetas" hint="Separadas por comas, p. ej. vip, legal">
-                <input className={input} value={v.autopilotSkipTags.join(', ')} onChange={(e) => set({ autopilotSkipTags: e.target.value.split(',').map((t) => t.trim()).filter(Boolean) })} />
+                <ListInput value={v.autopilotSkipTags} onChange={(list) => set({ autopilotSkipTags: list.map((t) => t.toLowerCase()) })} placeholder="vip, legal" />
               </Field>
               <Field label="Reenganche (horas sin respuesta del cliente)" hint="0 = apagado. Un único mensaje de seguimiento, una sola vez, dentro de la ventana de 24 h y del horario.">
                 <input type="number" min={0} max={23} className={input} value={Number(v.reengageAfterHours)} onChange={(e) => set({ reengageAfterHours: Number(e.target.value) })} />
@@ -279,7 +307,7 @@ export default function AiAgentDetailPage({ params }: { params: Promise<{ id: st
         {tab === 'handoff' && (
           <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
             <Field label="Palabras que fuerzan el traspaso" hint="Separadas por comas. Se comprueban antes de llamar al modelo (sin coste).">
-              <input className={input} value={v.handoffKeywords.join(', ')} onChange={(e) => set({ handoffKeywords: e.target.value.split(',').map((t) => t.trim()).filter(Boolean) })} placeholder="asesor, humano, persona, queja" />
+              <ListInput value={v.handoffKeywords} onChange={(list) => set({ handoffKeywords: list })} placeholder="asesor, humano, persona, queja" />
             </Field>
             <Field label="Traspasar tras N respuestas" hint="0 = sin límite."><input type="number" min={0} className={input} value={Number(v.handoffAfterTurns)} onChange={(e) => set({ handoffAfterTurns: Number(e.target.value) })} /></Field>
             <Toggle checked={Boolean(v.handoffOnUnknown)} onChange={(x) => set({ handoffOnUnknown: x })} label="Traspasar cuando no sepa la respuesta" hint="Recomendado: sin esto el modelo tiende a inventar antes que reconocer que no sabe." />

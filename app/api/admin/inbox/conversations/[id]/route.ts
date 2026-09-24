@@ -3,6 +3,7 @@ import type { ConversationStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/admin-utils'
 import { canView, getWorkspaceAccess } from '@/lib/workspaces'
+import { contactInclude } from '@/lib/inbox/contacts'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -21,6 +22,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       assignedTo: { select: { id: true, name: true, email: true } },
       workspace: { select: { id: true, name: true } },
       connection: { select: { id: true, name: true, channel: true } },
+      contact: { include: contactInclude },
       events: { orderBy: { createdAt: 'asc' }, take: 200 },
       tasks: { orderBy: [{ doneAt: 'asc' }, { createdAt: 'desc' }], take: 50 },
       messages: {

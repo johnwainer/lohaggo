@@ -307,3 +307,21 @@ describe('buildSystem', () => {
     expect(rules).toMatch(/Responde siempre en inglés/)
   })
 })
+
+import { accountAllowed, accountKeysOf } from '@/lib/ai/runtime-core'
+
+describe('claves de cuenta estables', () => {
+  it('sin conexión: CANAL:default', () => expect(accountKeysOf({ channel: 'WHATSAPP', connectionId: null })).toEqual(['WHATSAPP:default']))
+  it('con conexión Meta: clave estable por id de página + id interno heredado', () => {
+    expect(accountKeysOf({ channel: 'INSTAGRAM', connectionId: 'conn_new', connectionExternalId: '1784140' })).toEqual(['INSTAGRAM:1784140', 'conn_new'])
+  })
+  it('reconectar la cuenta (nuevo id interno) no desactiva al agente', () => {
+    const a = agent({ autopilot: true, autopilotChannels: ['INSTAGRAM'], autopilotAccounts: ['INSTAGRAM:1784140'] })
+    const r = shouldTakeOverCore(conv({ channel: 'INSTAGRAM', connectionId: 'conn_after_reconnect', connectionExternalId: '1784140' }), { agents: [a], recentHumanActivity: false })
+    expect(r.take).toBe(true)
+  })
+  it('un agente guardado con el id interno antiguo sigue funcionando mientras exista', () => {
+    expect(accountAllowed({ autopilotAccounts: ['conn_old'] }, ['MESSENGER:218', 'conn_old'])).toBe(true)
+    expect(accountAllowed({ autopilotAccounts: ['conn_old'] }, ['MESSENGER:218', 'conn_new'])).toBe(false)
+  })
+})

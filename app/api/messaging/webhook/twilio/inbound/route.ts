@@ -11,6 +11,7 @@ import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-conf
 import { scheduleAutomationsForUser } from '@/lib/messaging/automation-service'
 import { getDefaultWorkspaceId } from '@/lib/workspaces'
 import { normalizeContactAddress } from '@/lib/messaging/contact-address'
+import { resolveInboundContact } from '@/lib/inbox/contacts'
 import { autopilotCovers, drainAgentTasks, scheduleInboundAgent } from '@/lib/ai/autopilot'
 
 const logger = createLogger('twilio-inbound')
@@ -58,6 +59,11 @@ export async function POST(request: NextRequest) {
   const numMedia = parseInt(String(formData.get('NumMedia') || '0'), 10)
   const mediaUrl = numMedia > 0 ? String(formData.get('MediaUrl0') || '') : undefined
   const mediaType = numMedia > 0 ? String(formData.get('MediaContentType0') || '') || null : null
+  const profileName = String(formData.get('ProfileName') || '').trim().slice(0, 120) || null
+
+  // Raw params (minus media URLs) so odd sender formats (e.g. WhatsApp ids instead of phones) can be inspected
+  const rawParams: Record<string, string> = {}
+  formData.forEach((value, key) => { if (!/^MediaUrl/i.test(key)) rawParams[key] = String(value).slice(0, 200) })
 
   if (!from) return twiml()
 
@@ -77,11 +83,10 @@ export async function POST(request: NextRequest) {
     return twiml()
   }
 
-  // Identify user
-  const user = await prisma.user.findFirst({
-    where: { phone: contactPhone },
-    select: { id: true, name: true },
-  })
+  const workspaceId = await getDefaultWorkspaceId()
+  // One contact per person across channels; matched to a platform user by phone when possible
+  const contact = await resolveInboundContact({ workspaceId, channel, externalId: contactPhone, nameHint: profileName })
+  const user = contact.userId ? await prisma.user.findUnique({ where: { id: contact.userId }, select: { id: true, name: true } }) : null
 
   // Auto-assign: find admin with fewest active IN_PROGRESS conversations
   const agentCounts = await prisma.conversation.groupBy({
@@ -103,7 +108,6 @@ export async function POST(request: NextRequest) {
   }
 
   // A conversation an AI autopilot will take must not get a human owner
-  const workspaceId = await getDefaultWorkspaceId()
   if (await autopilotCovers(workspaceId, channel, null)) autoAssignId = null
 
   // Upsert conversation
@@ -117,8 +121,9 @@ export async function POST(request: NextRequest) {
         channel,
         workspaceId,
         contactPhone,
-        contactName: user?.name || null,
+        contactName: contact.name || user?.name || null,
         userId: user?.id || null,
+        contactId: contact.id,
         assignedToId: autoAssignId,
         status: 'OPEN',
         lastMessageAt: new Date(),
@@ -136,7 +141,8 @@ export async function POST(request: NextRequest) {
         lastMessageBody: body.slice(0, 200),
         unreadCount: { increment: 1 },
         userId: user?.id ?? conversation.userId,
-        contactName: user?.name ?? conversation.contactName,
+        contactName: conversation.contactName || contact.name || user?.name || null,
+        ...(conversation.contactId ? {} : { contactId: contact.id }),
         // Only auto-assign if currently unassigned
         ...(conversation.assignedToId == null && autoAssignId
           ? { assignedToId: autoAssignId }
@@ -160,6 +166,9 @@ export async function POST(request: NextRequest) {
   })
 
   logger.info('Inbound saved', { conversationId: conversation.id, messageSid })
+  prisma.webhookEvent.create({
+    data: { channel, externalId: contactPhone, status: 'OK', detail: `inbound · ${profileName || 'sin nombre'}`, payload: rawParams },
+  }).catch(() => null)
   emitInboxEvent({ type: 'new-message', conversationId: conversation.id, workspaceId: conversation.workspaceId })
 
   // Fire INBOUND_MESSAGE automation only for known users, once per conversation

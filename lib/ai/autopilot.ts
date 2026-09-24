@@ -13,7 +13,7 @@ import { auxBudgetAvailable } from '@/lib/ai/limits'
 import {
   HUMAN_GRACE_MS,
   accountAllowed,
-  accountKeyOf,
+  accountKeysOf,
   autopilotCandidates,
   describeNow,
   hasRecentHumanActivity,
@@ -42,22 +42,31 @@ export async function humanActiveRecently(conversationId: string, now = new Date
 }
 
 /** True when an autopilot agent covers this channel/account: new conversations then skip human auto-assign. */
-export async function autopilotCovers(workspaceId: string, channel: string, connectionId: string | null) {
+export async function autopilotCovers(workspaceId: string, channel: string, connectionId: string | null, connectionExternalId?: string | null) {
   try {
     const agents = await prisma.aiAgent.findMany({ where: { workspaceId, status: 'active', autopilot: true } })
-    const key = accountKeyOf({ channel, connectionId })
-    return autopilotCandidates(agents, channel).some((a) => accountAllowed(a, key))
+    const keys = accountKeysOf({ channel, connectionId, connectionExternalId })
+    return autopilotCandidates(agents, channel).some((a) => accountAllowed(a, keys))
   } catch {
     return false
   }
 }
 
+/** The conversation plus the stable id of its channel account, as shouldTakeOverCore expects it. */
+export async function withAccountKey<T extends { connectionId: string | null }>(conversation: T) {
+  const connection = conversation.connectionId
+    ? await prisma.channelConnection.findUnique({ where: { id: conversation.connectionId }, select: { externalId: true } })
+    : null
+  return { ...conversation, connectionExternalId: connection?.externalId ?? null }
+}
+
 export async function shouldTakeOver(conversation: Conversation) {
-  const [agents, recentHumanActivity] = await Promise.all([
+  const [agents, recentHumanActivity, conv] = await Promise.all([
     prisma.aiAgent.findMany({ where: { workspaceId: conversation.workspaceId, status: 'active' } }),
     humanActiveRecently(conversation.id),
+    withAccountKey(conversation),
   ])
-  return shouldTakeOverCore(conversation, { agents, recentHumanActivity })
+  return shouldTakeOverCore(conv, { agents, recentHumanActivity })
 }
 
 async function markStarted(conversation: Conversation, agent: AiAgent) {

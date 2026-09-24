@@ -182,14 +182,22 @@ export type TakeOverConversation = {
   aiAgentId: string | null
   /** Set when the AI handed off; only "return to the AI" or a person closing the case clears it */
   aiHandoffAt: Date | null
+  /** Meta page id / IG business id of the account the conversation came in through (stable across reconnects) */
+  connectionExternalId?: string | null
 }
 
 export type TakeOverDecision =
   | { take: true; agent: AgentLike }
   | { take: false; reason: 'test' | 'human_owner' | 'human_recent' | 'handed_off' | 'paused' | 'spam' | 'thread_elsewhere' | 'skip_tag' | 'no_agent' | 'account_not_enabled' }
 
-export function accountKeyOf(conv: { channel: string; connectionId: string | null }) {
-  return conv.connectionId ?? `${conv.channel}:default`
+/**
+ * Keys an agent's autopilotAccounts may hold for a conversation's channel account. The stable key is
+ * CHANNEL:externalId (page / IG id), which survives reconnecting the account; the raw connection id
+ * is accepted too for agents saved before that.
+ */
+export function accountKeysOf(conv: { channel: string; connectionId: string | null; connectionExternalId?: string | null }): string[] {
+  if (!conv.connectionId) return [`${conv.channel}:default`]
+  return conv.connectionExternalId ? [`${conv.channel}:${conv.connectionExternalId}`, conv.connectionId] : [conv.connectionId]
 }
 
 /** Active agents with autopilot on and this channel declared explicitly (never the "all channels" default). */
@@ -199,8 +207,8 @@ export function autopilotCandidates<T extends AgentLike>(agents: T[], channel: s
     .sort(byAge)
 }
 
-export function accountAllowed(agent: Pick<AgentLike, 'autopilotAccounts'>, accountKey: string) {
-  return agent.autopilotAccounts.length === 0 || agent.autopilotAccounts.includes(accountKey)
+export function accountAllowed(agent: Pick<AgentLike, 'autopilotAccounts'>, accountKeys: string[]) {
+  return agent.autopilotAccounts.length === 0 || accountKeys.some((k) => agent.autopilotAccounts.includes(k))
 }
 
 /**
@@ -223,11 +231,11 @@ export function shouldTakeOverCore<T extends AgentLike>(
   if (conv.tags.some((t) => skipTags.has(normalizeText(t)))) return { take: false, reason: 'skip_tag' }
   if (candidates.length === 0) return { take: false, reason: 'no_agent' }
 
-  const accountKey = accountKeyOf(conv)
-  const allowed = candidates.filter((a) => accountAllowed(a, accountKey))
+  const accountKeys = accountKeysOf(conv)
+  const allowed = candidates.filter((a) => accountAllowed(a, accountKeys))
   if (allowed.length === 0) return { take: false, reason: 'account_not_enabled' }
 
   const current = conv.aiAgentId ? allowed.find((a) => a.id === conv.aiAgentId) : undefined
-  const explicit = allowed.find((a) => a.autopilotAccounts.includes(accountKey))
+  const explicit = allowed.find((a) => accountKeys.some((k) => a.autopilotAccounts.includes(k)))
   return { take: true, agent: current ?? explicit ?? allowed[0] }
 }

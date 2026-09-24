@@ -10,6 +10,7 @@ import {
   Paperclip, Mic, Square, FileText, Download, Bot, Hand, Pause, Play, ListTodo,
 } from 'lucide-react'
 import { ChannelIcon, CHANNEL_META } from '@/components/admin/ChannelIcon'
+import ContactPanel, { RoleBadge, type ContactDetail } from '@/components/admin/inbox/ContactPanel'
 import {
   VoiceRecorder, isRecordingSupported, prepareImage, uploadAttachment, kindFromMime, formatBytes, formatDuration,
   type PendingAttachment,
@@ -81,6 +82,8 @@ type Conversation = {
   user?: ConvUser | null
   messages?: Message[]
   _count?: { messages: number }
+  contactId?: string | null
+  contact?: ContactDetail | null
   aiHandled?: boolean
   aiAgentId?: string | null
   aiAgentName?: string | null
@@ -229,6 +232,7 @@ export default function InboxPage() {
   const [bulkTarget, setBulkTarget] = useState('')
   const [bulkBusy, setBulkBusy] = useState(false)
   const [bulkNotice, setBulkNotice] = useState<string | null>(null)
+  const [showContact, setShowContact] = useState(false)
   const [workspaces, setWorkspaces] = useState<{ id: string; name: string; isDefault: boolean }[]>([])
   const [filterWorkspace, setFilterWorkspace] = useState('')
   const [selected, setSelected] = useState<Conversation | null>(null)
@@ -742,6 +746,8 @@ export default function InboxPage() {
   const timelineMessages = msgSearch ? filteredMessages : withEvents(filteredMessages, selected?.events)
 
   const windowClosed = selected?.channel === 'WHATSAPP' && isWaWindowClosed(selected?.messages || [])
+  // While an AI agent handles the conversation, people only write after taking it over (internal notes stay open)
+  const aiLocked = !!selected?.aiHandled && !isInternalNote
   // Messenger / Instagram: outside 24h the input stays open (HUMAN_AGENT tag, up to 7 days) but we warn
   const metaWindowClosed = !!selected && isMetaChannel(selected.channel) && isWaWindowClosed(selected.messages || [])
   const metaThreadElsewhere = !!selected && isMetaChannel(selected.channel) && !!selected.threadOwner
@@ -1026,7 +1032,20 @@ export default function InboxPage() {
       </aside>
 
       {/* ── Right: chat view ── */}
-      <div className={`flex flex-col flex-1 min-w-0 ${mobileView === 'list' ? 'hidden md:flex' : 'flex'}`}>
+      <div className={`relative flex flex-col flex-1 min-w-0 ${mobileView === 'list' ? 'hidden md:flex' : 'flex'}`}>
+        {selected?.contact && showContact && (
+          <ContactPanel
+            contact={selected.contact}
+            currentConversationId={selected.id}
+            onClose={() => setShowContact(false)}
+            onChanged={(contact) => {
+              setSelected((prev) => prev ? { ...prev, contact, contactName: contact.name ?? prev.contactName, user: contact.user ? { ...contact.user, image: prev.user?.image ?? null } : null } : prev)
+              setConversations((prev) => prev.map((c) => c.contactId === contact.id ? { ...c, contactName: contact.name ?? c.contactName } : c))
+            }}
+            onOpenConversation={(id) => { setShowContact(false); loadConversationDetail(id); loadConversations(true) }}
+            onOpenProfile={openProfile}
+          />
+        )}
 
         {!selected ? (
           <div className="flex flex-col flex-1">
@@ -1064,6 +1083,7 @@ export default function InboxPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="font-semibold text-gray-900 truncate">{displayName(selected)}</p>
+                    {selected.contact?.user && <RoleBadge user={selected.contact.user} />}
                     <ChannelIcon channel={selected.channel} size={16} />
                     <span className={`text-xs font-medium ${CHANNEL_META[selected.channel]?.text ?? 'text-gray-500'}`}>{channelLabel(selected.channel)}</span>
                     {selected.connection?.name && <span className="text-xs text-gray-400 truncate">· {selected.connection.name}</span>}
@@ -1073,6 +1093,15 @@ export default function InboxPage() {
                     {selected.workspace && workspaces.length > 1 && <span className="text-gray-400"> · {selected.workspace.name}</span>}
                   </p>
                 </div>
+
+                {/* Contact panel: edit data, link platform user, other channels */}
+                <button
+                  onClick={() => setShowContact((v) => !v)}
+                  className={`rounded-lg p-1.5 transition ${showContact ? 'bg-primary-100 text-primary-600' : 'hover:bg-gray-100 text-gray-400'}`}
+                  title="Contacto"
+                >
+                  <User className="h-4 w-4" />
+                </button>
 
                 {/* In-conversation search */}
                 <button
@@ -1494,6 +1523,16 @@ export default function InboxPage() {
                   </div>
                 )}
 
+                {aiLocked && (
+                  <div className="mb-2 flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-900">
+                    <Bot className="h-3.5 w-3.5 shrink-0 text-violet-600" />
+                    <span className="flex-1">🤖 {selected.aiAgentName || 'El agente de IA'} lleva esta conversación. Para escribir tú, primero intervén; puedes dejar notas internas sin intervenir.</span>
+                    <button onClick={() => aiAction('intervene')} className="shrink-0 rounded-lg bg-violet-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-violet-700">
+                      Intervenir
+                    </button>
+                  </div>
+                )}
+
                 {/* Meta thread handed over to the native inbox */}
                 {metaThreadElsewhere && !isInternalNote && (
                   <div className="mb-2 flex items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-800">
@@ -1684,10 +1723,10 @@ export default function InboxPage() {
                     <textarea
                       ref={inputRef}
                       className="flex-1 bg-transparent resize-none text-sm outline-none min-h-[40px] max-h-32 py-1 placeholder:text-gray-400"
-                      placeholder={isInternalNote ? 'Escribe una nota interna…' : windowClosed ? 'Ventana cerrada — usa una plantilla' : `Escribe un mensaje…`}
+                      placeholder={isInternalNote ? 'Escribe una nota interna…' : aiLocked ? 'La IA lleva esta conversación — pulsa Intervenir para escribir' : windowClosed ? 'Ventana cerrada — usa una plantilla' : `Escribe un mensaje…`}
                       value={messageText}
                       rows={1}
-                      disabled={windowClosed && !isInternalNote}
+                      disabled={(windowClosed && !isInternalNote) || aiLocked}
                       onChange={(e) => {
                         setMessageText(e.target.value)
                         e.target.style.height = 'auto'
@@ -1699,7 +1738,7 @@ export default function InboxPage() {
                     />
                     <button
                       onClick={sendMessage}
-                      disabled={(!messageText.trim() && !attachment) || sending || uploading || recording || (windowClosed && !isInternalNote)}
+                      disabled={(!messageText.trim() && !attachment) || sending || uploading || recording || (windowClosed && !isInternalNote) || aiLocked}
                       className="shrink-0 rounded-xl bg-primary-600 p-2.5 text-white hover:bg-primary-700 disabled:opacity-40 transition"
                     >
                       {sending || uploading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}

@@ -62,6 +62,7 @@ model User {
   assignedConversations             Conversation[]              @relation("AgentConversations")
   sentMessages                      ConversationMessage[]       @relation("AgentMessages")
   workspaceMemberships              WorkspaceMember[]
+  inboxContacts                     Contact[]
   createdWorkspaces                 Workspace[]                 @relation("WorkspaceCreator")
 }
 
@@ -1538,8 +1539,10 @@ model Conversation {
   reengagedAt       DateTime?
   aiHandoffAt       DateTime?
   isTest            Boolean               @default(false)
+  contactId         String?
   createdAt         DateTime              @default(now())
   updatedAt         DateTime              @updatedAt
+  contact           Contact?              @relation(fields: [contactId], references: [id], onDelete: SetNull)
   events            ConversationEvent[]
   tasks             ConversationTask[]
   user              User?                 @relation(fields: [userId], references: [id])
@@ -1554,6 +1557,41 @@ model Conversation {
   @@index([connectionId])
   @@index([workspaceId, lastMessageAt(sort: Desc)])
   @@index([aiHandled, lastMessageAt])
+  @@index([contactId])
+}
+
+/// One person across channels. WhatsApp (the phone) is the base identity; Meta ids hang from it.
+model Contact {
+  id            String            @id @default(cuid())
+  workspaceId   String
+  name          String?
+  phone         String?
+  email         String?
+  notes         String?
+  userId        String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  workspace     Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user          User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  identities    ContactIdentity[]
+  conversations Conversation[]
+
+  @@unique([workspaceId, phone])
+  @@index([workspaceId, updatedAt])
+  @@index([userId])
+}
+
+/// How a contact is addressed on a channel: E.164 phone for WhatsApp/SMS, PSID / IGSID for Meta.
+model ContactIdentity {
+  id         String           @id @default(cuid())
+  contactId  String
+  channel    MessagingChannel
+  externalId String
+  createdAt  DateTime         @default(now())
+  contact    Contact          @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([channel, externalId])
+  @@index([contactId])
 }
 
 model Workspace {
@@ -1574,6 +1612,7 @@ model Workspace {
   conversations       Conversation[]
   oauthSessions       ChannelOAuthSession[]
   aiAgents            AiAgent[]
+  contacts            Contact[]
 
   @@index([isDefault])
 }

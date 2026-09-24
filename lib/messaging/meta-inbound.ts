@@ -7,6 +7,7 @@ import type { MetaAppConfig } from '@/lib/messaging/provider-config'
 import { fetchContactProfile, fetchThreadMessages, listPendingConversations, type MetaChannel } from '@/lib/messaging/meta-graph'
 import { getConnectionCredentials, getConnectionMeta, isMetaChannel, requireMetaApp } from '@/lib/messaging/meta-channels'
 import { autopilotCovers, drainAgentTasks, scheduleInboundAgent } from '@/lib/ai/autopilot'
+import { resolveInboundContact } from '@/lib/inbox/contacts'
 
 const logger = createLogger('meta-inbound')
 
@@ -127,7 +128,13 @@ type RecordParams = {
 async function ensureConversation(params: RecordParams) {
   const { conn, channel, contactId } = params
   let conversation = await prisma.conversation.findUnique({ where: { channel_contactPhone: { channel, contactPhone: contactId } } })
-  if (conversation) return { conversation, created: false }
+  if (conversation) {
+    if (!conversation.contactId) {
+      const contact = await resolveInboundContact({ workspaceId: conn.workspaceId, channel, externalId: contactId, nameHint: conversation.contactName })
+      conversation = await prisma.conversation.update({ where: { id: conversation.id }, data: { contactId: contact.id, userId: conversation.userId ?? contact.userId } })
+    }
+    return { conversation, created: false }
+  }
 
   let contactName = params.contactNameHint || null
   if (!contactName) {
@@ -139,14 +146,17 @@ async function ensureConversation(params: RecordParams) {
   }
 
   // A conversation an AI autopilot will take must not start with a human owner
-  const assignedToId = (await autopilotCovers(conn.workspaceId, channel, conn.id)) ? null : await pickAutoAssignAgent()
+  const assignedToId = (await autopilotCovers(conn.workspaceId, channel, conn.id, conn.externalId)) ? null : await pickAutoAssignAgent()
+  const contact = await resolveInboundContact({ workspaceId: conn.workspaceId, channel, externalId: contactId, nameHint: contactName })
   try {
     conversation = await prisma.conversation.create({
       data: {
         channel,
         workspaceId: conn.workspaceId,
         contactPhone: contactId,
-        contactName: contactName || fallbackContactName(channel, contactId),
+        contactName: contact.name || contactName || fallbackContactName(channel, contactId),
+        contactId: contact.id,
+        userId: contact.userId,
         connectionId: conn.id,
         assignedToId,
         status: 'OPEN',

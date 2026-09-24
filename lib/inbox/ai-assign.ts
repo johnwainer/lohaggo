@@ -2,6 +2,7 @@ import type { Conversation } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { emitInboxEvent } from '@/lib/messaging/inbox-emitter'
 import { shouldTakeOverCore } from '@/lib/ai/runtime-core'
+import { withAccountKey } from '@/lib/ai/autopilot'
 
 /** A pending client message older than this can't be answered anyway (24h channel window). */
 export const PENDING_MAX_AGE_MS = 23 * 60 * 60 * 1000
@@ -23,8 +24,9 @@ type Actor = { id: string; name: string }
  */
 export async function assignToAi(conversation: Conversation, actor: Actor, preferredAgentId?: string | null) {
   const agents = await prisma.aiAgent.findMany({ where: { workspaceId: conversation.workspaceId, status: 'active' } })
+  const conv = await withAccountKey(conversation)
   const decision = shouldTakeOverCore(
-    { ...conversation, aiAgentId: preferredAgentId ?? conversation.aiAgentId, assignedToId: null, automationsPaused: false, aiSpam: false, aiHandoffAt: null },
+    { ...conv, aiAgentId: preferredAgentId ?? conversation.aiAgentId, assignedToId: null, automationsPaused: false, aiSpam: false, aiHandoffAt: null },
     { agents, recentHumanActivity: false },
   )
   if (!decision.take) return { ok: false as const, reason: decision.reason, error: AI_ASSIGN_ERRORS[decision.reason] || 'No se puede asignar a la IA' }
