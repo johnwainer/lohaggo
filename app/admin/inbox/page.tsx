@@ -9,6 +9,7 @@ import {
   ChevronUp, Link2, Copy, Check, ArrowLeft, BellOff,
   Paperclip, Mic, Square, FileText, Download,
 } from 'lucide-react'
+import { ChannelIcon, CHANNEL_META } from '@/components/admin/ChannelIcon'
 import {
   VoiceRecorder, isRecordingSupported, prepareImage, uploadAttachment, kindFromMime, formatBytes, formatDuration,
   type PendingAttachment,
@@ -68,6 +69,7 @@ type Conversation = {
   unreadCount: number
   threadOwner?: string | null
   workspace?: { id: string; name: string } | null
+  connection?: { id: string; name: string; channel: Channel } | null
   createdAt: string
   user?: ConvUser | null
   messages?: Message[]
@@ -87,7 +89,6 @@ const STATUS_COLORS: Record<ConvStatus, string> = {
   OPEN: 'bg-emerald-100 text-emerald-800', IN_PROGRESS: 'bg-blue-100 text-blue-800',
   RESOLVED: 'bg-gray-100 text-gray-600', CLOSED: 'bg-gray-100 text-gray-400',
 }
-const CHANNEL_COLOR: Record<Channel, string> = { WHATSAPP: 'bg-green-500', SMS: 'bg-blue-500', MESSENGER: 'bg-sky-500', INSTAGRAM: 'bg-pink-500' }
 const CHANNEL_LABEL: Record<Channel, string> = { WHATSAPP: 'WhatsApp', SMS: 'SMS', MESSENGER: 'Messenger', INSTAGRAM: 'Instagram' }
 
 function isMetaChannel(channel: Channel) {
@@ -189,11 +190,20 @@ export default function InboxPage() {
   const [recordingMs, setRecordingMs] = useState(0)
   const recorderRef = useRef<VoiceRecorder | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState<ConvStatus | ''>('')
   const [filterChannel, setFilterChannel] = useState<Channel | ''>('')
   const [filterAgent, setFilterAgent] = useState('')
   const [filterUnread, setFilterUnread] = useState(false)
+  const [filterConnection, setFilterConnection] = useState('')
+  const [filterTag, setFilterTag] = useState('')
+  const [sortBy, setSortBy] = useState<'unread' | 'recent' | 'waiting' | 'oldest'>('unread')
+  const [showFilters, setShowFilters] = useState(false)
+  const [channelCounts, setChannelCounts] = useState<Record<string, number>>({})
+  const [totalCount, setTotalCount] = useState(0)
+  const [connections, setConnections] = useState<{ id: string; name: string; channel: Channel }[]>([])
+  const [knownTags, setKnownTags] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
 
   // New feature state
@@ -227,17 +237,36 @@ export default function InboxPage() {
       if (filterChannel) params.set('channel', filterChannel)
       if (filterAgent) params.set('assignedToId', filterAgent)
       if (filterWorkspace) params.set('workspaceId', filterWorkspace)
+      if (filterConnection) params.set('connectionId', filterConnection)
+      if (filterTag) params.set('tag', filterTag)
       if (filterUnread) params.set('unreadOnly', 'true')
       if (search) params.set('search', search)
+      params.set('sort', sortBy)
       const res = await fetch(`/api/admin/inbox/conversations?${params}`)
       const data = await res.json()
       if (Array.isArray(data.workspaces)) setWorkspaces(data.workspaces)
       setConversations(data.conversations || [])
       setAgents(data.agents || [])
+      setChannelCounts(data.channelCounts || {})
+      setTotalCount(data.total || 0)
+      if (Array.isArray(data.connections)) setConnections(data.connections)
+      if (Array.isArray(data.tags)) setKnownTags(data.tags)
     } catch { /* silent */ } finally {
       setLoading(false)
     }
-  }, [filterStatus, filterChannel, filterAgent, filterWorkspace, filterUnread, search])
+  }, [filterStatus, filterChannel, filterAgent, filterWorkspace, filterConnection, filterTag, filterUnread, search, sortBy])
+
+  // Debounce typing before hitting the API
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput.trim()), 350)
+    return () => clearTimeout(t)
+  }, [searchInput])
+
+  const activeFilterCount = [filterStatus, filterAgent, filterConnection, filterTag, filterWorkspace].filter(Boolean).length + (filterUnread ? 1 : 0) + (sortBy !== 'unread' ? 1 : 0)
+  function clearFilters() {
+    setFilterStatus(''); setFilterAgent(''); setFilterConnection(''); setFilterTag(''); setFilterWorkspace('')
+    setFilterUnread(false); setSortBy('unread'); setFilterChannel(''); setSearchInput(''); setSearch('')
+  }
 
   useEffect(() => { loadConversations() }, [loadConversations])
 
@@ -658,45 +687,103 @@ export default function InboxPage() {
           <div className="relative mb-2">
             <Search className="absolute left-2.5 top-2 h-4 w-4 text-gray-400" />
             <input
-              className="w-full border rounded-lg pl-8 pr-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
-              placeholder="Buscar nombre, teléfono…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              className="w-full border rounded-lg pl-8 pr-8 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
+              placeholder="Buscar nombre, teléfono, email o mensaje…"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
             />
+            {searchInput && (
+              <button onClick={() => { setSearchInput(''); setSearch('') }} className="absolute right-2 top-1.5 rounded p-0.5 text-gray-400 hover:text-gray-600" title="Limpiar búsqueda">
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
 
-          <div className="flex gap-1.5 flex-wrap">
-            <select className="border rounded px-2 py-1 text-xs flex-1 min-w-0" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as ConvStatus | '')}>
-              <option value="">Todos</option>
-              {(Object.keys(STATUS_LABELS) as ConvStatus[]).map((s) => (
-                <option key={s} value={s}>{STATUS_LABELS[s]}</option>
-              ))}
-            </select>
-            <select className="border rounded px-2 py-1 text-xs flex-1 min-w-0" value={filterChannel} onChange={(e) => setFilterChannel(e.target.value as Channel | '')}>
-              <option value="">Canal</option>
-              <option value="WHATSAPP">WhatsApp</option>
-              <option value="SMS">SMS</option>
-              <option value="MESSENGER">Messenger</option>
-              <option value="INSTAGRAM">Instagram</option>
-            </select>
-            <select className="border rounded px-2 py-1 text-xs flex-1 min-w-0" value={filterAgent} onChange={(e) => setFilterAgent(e.target.value)}>
-              <option value="">Agente</option>
-              <option value="none">Sin asignar</option>
-              {agents.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-            </select>
-            {workspaces.length > 1 && (
-              <select className="border rounded px-2 py-1 text-xs flex-1 min-w-0" value={filterWorkspace} onChange={(e) => setFilterWorkspace(e.target.value)}>
-                <option value="">Workspace</option>
-                {workspaces.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-              </select>
-            )}
+          {/* Channel chips with counters */}
+          <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
+            <button
+              onClick={() => setFilterChannel('')}
+              className={`shrink-0 inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition ${filterChannel === '' ? 'bg-gray-900 border-gray-900 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+            >
+              Todos <span className={filterChannel === '' ? 'text-gray-300' : 'text-gray-400'}>{totalCount}</span>
+            </button>
+            {(['WHATSAPP', 'INSTAGRAM', 'MESSENGER', 'SMS'] as Channel[]).filter((ch) => (channelCounts[ch] ?? 0) > 0 || filterChannel === ch).map((ch) => (
+              <button
+                key={ch}
+                onClick={() => setFilterChannel(filterChannel === ch ? '' : ch)}
+                className={`shrink-0 inline-flex items-center gap-1.5 rounded-full border pl-1 pr-2.5 py-0.5 text-xs font-medium transition ${filterChannel === ch ? `bg-white border-gray-900 ring-2 ${CHANNEL_META[ch].ring} text-gray-900` : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                title={`Solo ${CHANNEL_META[ch].label}`}
+              >
+                <ChannelIcon channel={ch} size={18} />
+                {CHANNEL_META[ch].label}
+                <span className="text-gray-400">{channelCounts[ch] ?? 0}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-1.5 mt-2">
             <button
               onClick={() => setFilterUnread((v) => !v)}
-              className={`rounded px-2 py-1 text-xs border transition ${filterUnread ? 'bg-red-50 border-red-300 text-red-700 font-semibold' : 'text-gray-600'}`}
+              className={`rounded-lg px-2 py-1 text-xs border transition ${filterUnread ? 'bg-red-50 border-red-300 text-red-700 font-semibold' : 'text-gray-600 hover:bg-gray-50'}`}
             >
               No leídos
             </button>
+            <button
+              onClick={() => setFilterAgent(filterAgent === 'none' ? '' : 'none')}
+              className={`rounded-lg px-2 py-1 text-xs border transition ${filterAgent === 'none' ? 'bg-amber-50 border-amber-300 text-amber-800 font-semibold' : 'text-gray-600 hover:bg-gray-50'}`}
+            >
+              Sin asignar
+            </button>
+            <button
+              onClick={() => setShowFilters((v) => !v)}
+              className={`ml-auto inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs border transition ${showFilters || activeFilterCount > 0 ? 'bg-primary-50 border-primary-300 text-primary-700 font-semibold' : 'text-gray-600 hover:bg-gray-50'}`}
+            >
+              Filtros{activeFilterCount > 0 ? ` · ${activeFilterCount}` : ''}
+              {showFilters ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            </button>
           </div>
+
+          {showFilters && (
+            <div className="mt-2 grid grid-cols-2 gap-1.5 rounded-xl border bg-gray-50 p-2">
+              <select className="border rounded-lg px-2 py-1 text-xs bg-white min-w-0" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as ConvStatus | '')}>
+                <option value="">Estado: todos</option>
+                {(Object.keys(STATUS_LABELS) as ConvStatus[]).map((st) => <option key={st} value={st}>{STATUS_LABELS[st]}</option>)}
+              </select>
+              <select className="border rounded-lg px-2 py-1 text-xs bg-white min-w-0" value={filterAgent} onChange={(e) => setFilterAgent(e.target.value)}>
+                <option value="">Agente: todos</option>
+                <option value="none">Sin asignar</option>
+                {agents.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+              <select className="border rounded-lg px-2 py-1 text-xs bg-white min-w-0" value={filterConnection} onChange={(e) => setFilterConnection(e.target.value)} disabled={connections.length === 0}>
+                <option value="">Cuenta: todas</option>
+                {connections.map((c) => <option key={c.id} value={c.id}>{CHANNEL_META[c.channel]?.label ?? c.channel} · {c.name}</option>)}
+              </select>
+              <select className="border rounded-lg px-2 py-1 text-xs bg-white min-w-0" value={filterTag} onChange={(e) => setFilterTag(e.target.value)}>
+                <option value="">Etiqueta: todas</option>
+                {Array.from(new Set([...PRESET_TAGS, ...knownTags])).map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+              {workspaces.length > 1 && (
+                <select className="border rounded-lg px-2 py-1 text-xs bg-white min-w-0" value={filterWorkspace} onChange={(e) => setFilterWorkspace(e.target.value)}>
+                  <option value="">Workspace: todos</option>
+                  {workspaces.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                </select>
+              )}
+              <select className="border rounded-lg px-2 py-1 text-xs bg-white min-w-0" value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)}>
+                <option value="unread">Orden: no leídos primero</option>
+                <option value="recent">Orden: más recientes</option>
+                <option value="waiting">Orden: más tiempo esperando</option>
+                <option value="oldest">Orden: más antiguas</option>
+              </select>
+              <button onClick={clearFilters} className="col-span-2 rounded-lg py-1 text-xs font-medium text-gray-500 hover:text-gray-800 hover:bg-white">
+                Limpiar filtros
+              </button>
+            </div>
+          )}
+
+          <p className="mt-2 text-[11px] text-gray-400">
+            {loading ? 'Buscando…' : `${conversations.length}${conversations.length === 200 ? '+' : ''} conversación${conversations.length === 1 ? '' : 'es'}`}
+            {search && <> · para “{search}”</>}
+          </p>
         </div>
 
         {/* List */}
@@ -708,6 +795,9 @@ export default function InboxPage() {
             <div className="flex flex-col items-center justify-center h-32 text-sm text-gray-400 gap-2">
               <MessageSquare className="h-8 w-8 opacity-30" />
               Sin conversaciones
+              {(activeFilterCount > 0 || search || filterChannel) && (
+                <button onClick={clearFilters} className="text-xs font-medium text-primary-600 hover:underline">Limpiar filtros</button>
+              )}
             </div>
           )}
           {conversations.map((conv) => {
@@ -723,25 +813,42 @@ export default function InboxPage() {
                     {conv.unreadCount}
                   </span>
                 )}
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className={`inline-block rounded-full w-2 h-2 shrink-0 ${CHANNEL_COLOR[conv.channel]}`} />
-                  <span className="font-semibold text-sm text-gray-900 truncate flex-1">{displayName(conv)}</span>
-                  <span className="text-xs text-gray-400 shrink-0">{conv.lastMessageAt ? timeAgo(conv.lastMessageAt) : ''}</span>
-                </div>
-                <p className="text-xs text-gray-500 truncate pl-4">{conv.lastMessageBody || '—'}</p>
-                <div className="flex items-center gap-1.5 mt-1 pl-4 flex-wrap">
-                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${STATUS_COLORS[conv.status]}`}>{STATUS_LABELS[conv.status]}</span>
-                  {sla && (
-                    <span className={`text-[10px] font-medium ${sla.level === 'critical' ? 'text-red-600' : 'text-orange-500'}`}>
-                      · {sla.label}
-                    </span>
-                  )}
-                  {conv.tags?.slice(0, 2).map((tag) => (
-                    <span key={tag} className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium border ${tagColor(tag)}`}>{tag}</span>
-                  ))}
-                  {conv.assignedTo && (
-                    <span className="text-[10px] text-gray-400 truncate ml-auto">· {conv.assignedTo.name}</span>
-                  )}
+                <div className="flex gap-3">
+                  {/* Avatar with channel badge */}
+                  <div className="relative shrink-0">
+                    <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold text-sm overflow-hidden">
+                      {conv.user?.image
+                        ? <img src={conv.user.image} alt="" className="h-full w-full object-cover" />
+                        : displayName(conv).replace(/^[@+]/, '').charAt(0).toUpperCase()}
+                    </div>
+                    <ChannelIcon channel={conv.channel} size={18} className="absolute -bottom-0.5 -right-0.5 ring-2 ring-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 pr-6">
+                      <span className={`text-sm truncate flex-1 ${conv.unreadCount > 0 ? 'font-bold text-gray-900' : 'font-semibold text-gray-800'}`}>{displayName(conv)}</span>
+                      <span className="text-xs text-gray-400 shrink-0">{conv.lastMessageAt ? timeAgo(conv.lastMessageAt) : ''}</span>
+                    </div>
+                    <p className={`text-xs truncate ${CHANNEL_META[conv.channel]?.text ?? 'text-gray-500'}`}>
+                      {CHANNEL_META[conv.channel]?.label ?? conv.channel}
+                      {conv.connection?.name ? <span className="text-gray-400"> · {conv.connection.name}</span> : null}
+                      {workspaces.length > 1 && conv.workspace ? <span className="text-gray-400"> · {conv.workspace.name}</span> : null}
+                    </p>
+                    <p className={`text-xs truncate mt-0.5 ${conv.unreadCount > 0 ? 'text-gray-800' : 'text-gray-500'}`}>{conv.lastMessageBody || '—'}</p>
+                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                      <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${STATUS_COLORS[conv.status]}`}>{STATUS_LABELS[conv.status]}</span>
+                      {sla && (
+                        <span className={`text-[10px] font-medium ${sla.level === 'critical' ? 'text-red-600' : 'text-orange-500'}`}>
+                          · {sla.label}
+                        </span>
+                      )}
+                      {conv.tags?.slice(0, 2).map((tag) => (
+                        <span key={tag} className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium border ${tagColor(tag)}`}>{tag}</span>
+                      ))}
+                      {conv.assignedTo && (
+                        <span className="text-[10px] text-gray-400 truncate ml-auto">· {conv.assignedTo.name}</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </button>
             )
@@ -788,8 +895,9 @@ export default function InboxPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="font-semibold text-gray-900 truncate">{displayName(selected)}</p>
-                    <span className={`rounded-full w-2 h-2 shrink-0 inline-block ${CHANNEL_COLOR[selected.channel]}`} />
-                    <span className="text-xs text-gray-500">{channelLabel(selected.channel)}</span>
+                    <ChannelIcon channel={selected.channel} size={16} />
+                    <span className={`text-xs font-medium ${CHANNEL_META[selected.channel]?.text ?? 'text-gray-500'}`}>{channelLabel(selected.channel)}</span>
+                    {selected.connection?.name && <span className="text-xs text-gray-400 truncate">· {selected.connection.name}</span>}
                   </div>
                   <p className="text-xs text-gray-500">
                     {isMetaChannel(selected.channel) ? `ID ${selected.contactPhone}` : selected.contactPhone}
@@ -1339,7 +1447,7 @@ export default function InboxPage() {
 
                     {/* Channel badge — pushed to right */}
                     <div className="ml-auto flex items-center gap-1.5 px-2 text-xs text-gray-400">
-                      <span className={`rounded-full w-2 h-2 shrink-0 ${CHANNEL_COLOR[selected.channel]}`} />
+                      <ChannelIcon channel={selected.channel} size={14} />
                       <span className="hidden sm:inline">{channelLabel(selected.channel)}</span>
                     </div>
                   </div>
