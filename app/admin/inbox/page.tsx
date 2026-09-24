@@ -1408,8 +1408,14 @@ export default function InboxPage() {
             {/* Comments: the post (or ad) the conversation is about */}
             {commentConv && (
               <div className="flex items-center gap-3 px-3 md:px-5 py-2 bg-gray-50 border-b text-xs text-gray-600">
-                {selected.postMediaUrl?.startsWith('https://') && (
-                  <img src={selected.postMediaUrl} alt="" referrerPolicy="no-referrer" className="h-10 w-10 rounded-lg object-cover shrink-0 bg-gray-200" />
+                {(selected.postMediaUrl || selected.postId) && (
+                  // Served by our server: Meta's CDN refuses to be embedded and its URLs expire
+                  <img
+                    src={`/api/admin/inbox/conversations/${selected.id}/post-media`}
+                    alt=""
+                    className="h-10 w-10 rounded-lg object-cover shrink-0 bg-gray-200"
+                    onError={(e) => { (e.target as HTMLImageElement).style.visibility = 'hidden' }}
+                  />
                 )}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
