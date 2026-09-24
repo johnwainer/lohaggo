@@ -6,6 +6,7 @@ import { loadPostDetail, reopenReviewIfNeeded, saveVariants, workspaceAccounts }
 import { sanitizePostInput, sanitizeVariantInput } from '@/lib/marketing/input'
 import { canEditPost, type PostStatus } from '@/lib/marketing/publisher-core'
 import { refreshPostStatus } from '@/lib/marketing/publisher'
+import { revalidateLiveArticle } from '@/lib/marketing/blog'
 
 export const dynamic = 'force-dynamic'
 
@@ -56,6 +57,8 @@ export async function PATCH(request: NextRequest, context: Ctx) {
     if (variants.length) await saveVariants(id, variants)
     if (contentChanged && !data.status) await reopenReviewIfNeeded(id, mkCan(auth.access, existing.workspaceId, 'marketing.publish'))
     if (data.status === 'archived') await refreshPostStatus(id)
+    // A live article shows the edit right away (and the sitemap its new date)
+    if (contentChanged) await revalidateLiveArticle(id)
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Datos inválidos' }, { status: 400 })
   }

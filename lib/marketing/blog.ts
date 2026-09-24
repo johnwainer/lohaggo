@@ -63,3 +63,18 @@ export async function unpublishArticle(postId: string) {
     // outside a request
   }
 }
+
+/** After editing a published article (or renaming its URL): refresh its page, the index and the sitemap. */
+export async function revalidateLiveArticle(postId: string) {
+  const v = await prisma.marketingPostVariant.findUnique({ where: { postId_channel: { postId, channel: 'WEB' } }, select: { slug: true, webPublishedAt: true } })
+  if (!v?.webPublishedAt) return
+  const redirects = v.slug ? await prisma.webRedirect.findMany({ where: { toPath: `/blog/${v.slug}` }, select: { fromPath: true } }) : []
+  try {
+    revalidatePath('/blog')
+    if (v.slug) revalidatePath(`/blog/${v.slug}`)
+    for (const r of redirects) revalidatePath(r.fromPath)
+    revalidatePath('/sitemap.xml')
+  } catch {
+    // outside a request
+  }
+}

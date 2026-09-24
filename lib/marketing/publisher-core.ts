@@ -86,9 +86,13 @@ export function findAlreadyPublished<T extends { id: string; message?: string | 
   return recent.find((p) => p.createdAt.getTime() >= since.getTime() - 60_000 && norm(p.message || '') === target) ?? null
 }
 
-/** Valid moves; anything else is refused by the API (e.g. editing a post while it publishes). */
+/**
+ * Editing is refused only while a publication is running. A published post stays editable: the web
+ * article updates in place and can get new channels; what already went out on the networks is not
+ * changed there (Meta does not let us edit those posts).
+ */
 export function canEditPost(status: PostStatus) {
-  return ['draft', 'review', 'approved', 'scheduled', 'failed', 'partial'].includes(status)
+  return status !== 'publishing'
 }
 
 export function canSchedule(when: Date, now: Date) {
