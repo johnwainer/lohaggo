@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auditAdminAction, requireAdmin } from '@/lib/admin-utils'
 import { canManage, getWorkspaceAccess } from '@/lib/workspaces'
+import { updateCommentSettings } from '@/lib/messaging/meta-channels'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -27,9 +28,21 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   const data: { enabled?: boolean; name?: string } = {}
   if (typeof body.enabled === 'boolean') data.enabled = body.enabled
   if (typeof body.name === 'string' && body.name.trim()) data.name = body.name.trim().slice(0, 120)
-  if (Object.keys(data).length === 0) return NextResponse.json({ error: 'Nada que actualizar' }, { status: 400 })
+  const commentPatch = body.commentSettings && typeof body.commentSettings === 'object' ? (body.commentSettings as Record<string, unknown>) : null
+  if (Object.keys(data).length === 0 && !commentPatch) return NextResponse.json({ error: 'Nada que actualizar' }, { status: 400 })
 
-  const updated = await prisma.channelConnection.update({ where: { id }, data })
+  // Comments: receive them, include paid ads, Instagram mentions
+  let comments: Awaited<ReturnType<typeof updateCommentSettings>> | null = null
+  if (commentPatch) {
+    const pick = (k: string) => (typeof commentPatch[k] === 'boolean' ? (commentPatch[k] as boolean) : undefined)
+    try {
+      comments = await updateCommentSettings(id, { enabled: pick('enabled'), includeAds: pick('includeAds'), mentions: pick('mentions') })
+    } catch (err) {
+      return NextResponse.json({ error: err instanceof Error ? err.message : 'No se pudo guardar' }, { status: 400 })
+    }
+  }
+
+  const updated = Object.keys(data).length ? await prisma.channelConnection.update({ where: { id }, data }) : await prisma.channelConnection.findUniqueOrThrow({ where: { id } })
 
   await auditAdminAction({
     actorId: admin.id,
@@ -38,10 +51,14 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     entityType: 'ChannelConnection',
     entityId: id,
     route: `/api/admin/channels/${id}`,
-    details: JSON.stringify(data),
+    details: JSON.stringify({ ...data, ...(comments ? { commentSettings: { enabled: comments.settings.enabled, includeAds: comments.settings.includeAds, mentions: comments.settings.mentions } } : {}) }),
     request,
   })
-  return NextResponse.json({ ok: true, connection: { id: updated.id, enabled: updated.enabled, name: updated.name } })
+  return NextResponse.json({
+    ok: true,
+    connection: { id: updated.id, enabled: updated.enabled, name: updated.name, commentSettings: updated.commentSettings },
+    warning: comments?.warning ?? null,
+  })
 }
 
 export async function DELETE(request: NextRequest, context: RouteContext) {

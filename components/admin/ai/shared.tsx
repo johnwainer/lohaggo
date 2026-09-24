@@ -4,7 +4,10 @@ import { ChannelIcon } from '@/components/admin/ChannelIcon'
 
 export type Avatar = { key: string; emoji: string; bg: string }
 
-export const CHANNEL_LABEL: Record<string, string> = { WHATSAPP: 'WhatsApp', SMS: 'SMS', MESSENGER: 'Messenger', INSTAGRAM: 'Instagram' }
+export const CHANNEL_LABEL: Record<string, string> = {
+  WHATSAPP: 'WhatsApp', SMS: 'SMS', MESSENGER: 'Messenger', INSTAGRAM: 'Instagram',
+  FACEBOOK_COMMENT: 'Comentarios de Facebook', INSTAGRAM_COMMENT: 'Comentarios de Instagram',
+}
 
 export function AgentFace({ avatar, avatars, size = 44 }: { avatar: string; avatars: Avatar[]; size?: number }) {
   const a = avatars.find((x) => x.key === avatar) ?? avatars[0]

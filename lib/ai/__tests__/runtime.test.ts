@@ -170,9 +170,9 @@ describe('regla de los 30 minutos', () => {
 
 describe('marcas', () => {
   it('se extraen y no llegan al cliente', () => {
-    expect(parseMarkers('No tengo ese dato. [[HANDOFF]]')).toEqual({ text: 'No tengo ese dato.', handoff: true, done: false, spam: false })
+    expect(parseMarkers('No tengo ese dato. [[HANDOFF]]')).toEqual({ text: 'No tengo ese dato.', handoff: true, done: false, spam: false, ignore: false, sensitive: false, offensive: false })
     expect(parseMarkers('¡Listo, agendado! [[DONE]]').done).toBe(true)
-    expect(parseMarkers('[[SPAM]]')).toEqual({ text: '', handoff: false, done: false, spam: true })
+    expect(parseMarkers('[[SPAM]]')).toEqual({ text: '', handoff: false, done: false, spam: true, ignore: false, sensitive: false, offensive: false })
   })
   it('tolera espacios y minúsculas, y varias marcas', () => {
     const r = parseMarkers('Gracias [[ done ]]\n[[HANDOFF]]')

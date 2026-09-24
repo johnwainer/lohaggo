@@ -20,6 +20,8 @@ type Agent = {
   handoffs: number
   resolution: number | null
   copilotChannels: string[]
+  commentChannels: string[]
+  commentCopilotChannels: string[]
   copilotStats: { total: number; used: number; edited: number; discarded: number; ignored: number; byChannel: Record<string, { total: number; useful: number }> } | null
 }
 type Workspace = { id: string; name: string; isDefault: boolean; permissions: string[]; canManagePermissions: boolean }
@@ -187,6 +189,17 @@ export default function AiAgentsPage() {
                 {a.autopilot && a.autopilotChannels.length ? <ChannelChips channels={a.autopilotChannels} /> : <span className="text-xs text-gray-400">Apagado</span>}
                 <div className="text-xs text-gray-500 pt-1">Copiloto</div>
                 {a.copilotChannels.length ? <ChannelChips channels={a.copilotChannels} /> : <span className="text-xs text-gray-400">Apagado</span>}
+                {(a.commentChannels.length > 0 || a.commentCopilotChannels.length > 0) && (
+                  <>
+                    <div className="text-xs text-gray-500 pt-1">Comentarios</div>
+                    <span className="inline-flex flex-wrap gap-1">
+                      {a.commentChannels.length > 0 && <ChannelChips channels={a.commentChannels} />}
+                      {a.commentCopilotChannels.filter((c) => !a.commentChannels.includes(c)).map((c) => (
+                        <span key={c} className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-xs text-violet-700">{c === 'FACEBOOK_COMMENT' ? 'Comentarios de Facebook' : 'Comentarios de Instagram'} · copiloto</span>
+                      ))}
+                    </span>
+                  </>
+                )}
                 {a.copilotStats && a.copilotStats.total > 0 && (
                   <p className="text-[11px] text-gray-500 pt-1" title={Object.entries(a.copilotStats.byChannel).map(([ch, s]) => `${ch}: ${Math.round((s.useful / s.total) * 100)}% útiles de ${s.total}`).join(' · ')}>
                     Sugerencias útiles: <strong className="text-gray-800">{Math.round(((a.copilotStats.used + a.copilotStats.edited) / a.copilotStats.total) * 100)}%</strong>

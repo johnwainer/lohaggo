@@ -2,7 +2,7 @@
  * Copilot: the agent helps the person handling a conversation (reply suggestions) and takes the
  * conversation over when nobody answers in time. Pure rules here; wiring in lib/ai/copilot.ts.
  */
-import { isWithinHours, normalizeText, servesChannel, type AgentLike } from '@/lib/ai/runtime-core'
+import { copilotChannelsOf, isWithinHours, normalizeText, servesChannel, type AgentLike } from '@/lib/ai/runtime-core'
 
 export type CopilotAgentLike = AgentLike & {
   copilotChannels: string[]
@@ -19,7 +19,7 @@ const byAge = <T extends { createdAt: Date }>(a: T, b: T) => a.createdAt.getTime
 
 /** Oldest active agent with copilot on for this channel (declared explicitly, like the autopilot). */
 export function copilotAgentFor<T extends CopilotAgentLike>(agents: T[], channel: string): T | null {
-  return agents.filter((a) => a.status === 'active' && a.copilotChannels.includes(channel) && servesChannel(a, channel)).sort(byAge)[0] ?? null
+  return agents.filter((a) => a.status === 'active' && copilotChannelsOf(a, channel).includes(channel) && servesChannel(a, channel)).sort(byAge)[0] ?? null
 }
 
 export type CopilotConversation = {

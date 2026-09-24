@@ -1,10 +1,12 @@
-type Channel = 'WHATSAPP' | 'SMS' | 'MESSENGER' | 'INSTAGRAM' | string
+type Channel = 'WHATSAPP' | 'SMS' | 'MESSENGER' | 'INSTAGRAM' | 'FACEBOOK_COMMENT' | 'INSTAGRAM_COMMENT' | string
 
 export const CHANNEL_META: Record<string, { label: string; bg: string; text: string; ring: string }> = {
   WHATSAPP: { label: 'WhatsApp', bg: 'bg-[#25D366]', text: 'text-[#128C4B]', ring: 'ring-[#25D366]/30' },
   MESSENGER: { label: 'Messenger', bg: 'bg-[#0A7CFF]', text: 'text-[#0A6BE0]', ring: 'ring-[#0A7CFF]/30' },
   INSTAGRAM: { label: 'Instagram', bg: 'bg-gradient-to-tr from-[#F58529] via-[#DD2A7B] to-[#8134AF]', text: 'text-[#C13584]', ring: 'ring-[#DD2A7B]/30' },
   SMS: { label: 'SMS', bg: 'bg-slate-500', text: 'text-slate-600', ring: 'ring-slate-400/30' },
+  FACEBOOK_COMMENT: { label: 'Comentarios FB', bg: 'bg-[#1877F2]', text: 'text-[#1464D8]', ring: 'ring-[#1877F2]/30' },
+  INSTAGRAM_COMMENT: { label: 'Comentarios IG', bg: 'bg-gradient-to-tr from-[#F58529] via-[#DD2A7B] to-[#8134AF]', text: 'text-[#C13584]', ring: 'ring-[#DD2A7B]/30' },
 }
 
 export function channelLabel(channel: Channel) {
@@ -34,6 +36,17 @@ function Glyph({ channel, px }: { channel: Channel; px: number }) {
           <rect x="3" y="3" width="18" height="18" rx="5" />
           <circle cx="12" cy="12" r="4" />
           <circle cx="17.5" cy="6.5" r="0.6" fill="currentColor" />
+        </svg>
+      )
+    case 'FACEBOOK_COMMENT':
+    case 'INSTAGRAM_COMMENT':
+      // The network's color with a comment bubble (three dots) instead of the messaging glyph
+      return (
+        <svg viewBox="0 0 24 24" style={style} className={className} fill="currentColor" aria-hidden="true">
+          <path d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 4v-4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" fillOpacity="0.95" />
+          <circle cx="8" cy="11" r="1.4" style={{ fill: channel === 'FACEBOOK_COMMENT' ? '#1877F2' : '#DD2A7B' }} />
+          <circle cx="12" cy="11" r="1.4" style={{ fill: channel === 'FACEBOOK_COMMENT' ? '#1877F2' : '#DD2A7B' }} />
+          <circle cx="16" cy="11" r="1.4" style={{ fill: channel === 'FACEBOOK_COMMENT' ? '#1877F2' : '#DD2A7B' }} />
         </svg>
       )
     default:

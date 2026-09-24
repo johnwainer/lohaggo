@@ -8,6 +8,8 @@ import { fetchContactProfile, fetchThreadMessages, listPendingConversations, typ
 import { getConnectionCredentials, getConnectionMeta, isMetaChannel, requireMetaApp } from '@/lib/messaging/meta-channels'
 import { autopilotCovers, drainAgentTasks, scheduleInboundAgent } from '@/lib/ai/autopilot'
 import { resolveInboundContact } from '@/lib/inbox/contacts'
+import { processCommentChanges } from '@/lib/messaging/meta-comments'
+import { commentSettingsOf } from '@/lib/ai/comments-core'
 
 const logger = createLogger('meta-inbound')
 
@@ -91,7 +93,7 @@ export type MetaWebhookPayload = { object?: string; entry?: WebhookEntry[] }
 
 const SAFE_RETRY_CODES = new Set(['P2002'])
 
-async function pickAutoAssignAgent(): Promise<string | null> {
+export async function pickAutoAssignAgent(): Promise<string | null> {
   const [agentCounts, adminUsers] = await Promise.all([
     prisma.conversation.groupBy({
       by: ['assignedToId'],
@@ -177,6 +179,11 @@ async function ensureConversation(params: RecordParams) {
 
 /** Idempotent on providerMessageId. Returns false when the message already existed. */
 export async function recordMetaMessage(params: RecordParams): Promise<boolean> {
+  // Echo of something we already stored (e.g. a private reply to a comment): don't open an empty DM thread for it
+  if (params.direction === 'OUTBOUND') {
+    const known = await prisma.conversationMessage.findUnique({ where: { providerMessageId: params.providerMessageId }, select: { id: true } })
+    if (known) return false
+  }
   const { conversation } = await ensureConversation(params)
 
   let messageId: string
@@ -404,9 +411,9 @@ export async function processMetaWebhookPayload(channel: MetaChannel, payload: M
       ...(entry.standby || []).map((ev) => ({ ev, standby: true })),
     ]
 
-    if (events.length === 0) {
-      const detail = entry.changes?.length ? 'Evento de feed/comentarios (no procesado)' : 'Entry sin eventos de mensajería'
-      await logWebhookEvent({ channel, externalId: accountId, status: 'IGNORED', detail, payload: entry })
+    const changes = entry.changes || []
+    if (events.length === 0 && changes.length === 0) {
+      await logWebhookEvent({ channel, externalId: accountId, status: 'IGNORED', detail: 'Entry sin eventos de mensajería', payload: entry })
       continue
     }
 
@@ -425,7 +432,19 @@ export async function processMetaWebhookPayload(channel: MetaChannel, payload: M
       acc[s.kind] = (acc[s.kind] || 0) + 1
       return acc
     }, {})
-    const detail = Object.entries(counts).map(([k, v]) => `${k}×${v}`).join(', ')
+
+    // Comments on posts / ads (Page "feed", Instagram "comments" / "mentions")
+    if (changes.length) {
+      if (!commentSettingsOf(conn.commentSettings).enabled) {
+        await logWebhookEvent({ channel, externalId: accountId, status: 'PAUSED', detail: `Comentarios desactivados en "${conn.name}" (Admin → Canales)`, payload: entry })
+        if (events.length === 0) continue
+      } else {
+        const result = await processCommentChanges(app, conn, channel, changes)
+        for (const [k, v] of Object.entries(result.counts)) counts[k] = (counts[k] || 0) + v
+        if (result.error) error = result.error
+      }
+    }
+    const detail = Object.entries(counts).map(([k, v]) => `${k}×${v}`).join(', ') || 'sin cambios'
 
     await Promise.all([
       logWebhookEvent({

@@ -4,7 +4,9 @@ import { env } from '@/lib/env'
 import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
 import { emitInboxEvent } from '@/lib/messaging/inbox-emitter'
 import { sendWhatsAppTemplate } from '@/lib/messaging/providers'
-import { sendMetaMessage } from '@/lib/messaging/meta-graph'
+import { replyToComment, replyToMention, sendMetaMessage, sendPrivateReply } from '@/lib/messaging/meta-graph'
+import { baseChannelOf, isCommentChannel, privateReplyAvailability } from '@/lib/ai/comments-core'
+import { linkIdentity } from '@/lib/inbox/contacts'
 import { describeGraphError, getConnectionCredentials, isMetaChannel, requireMetaApp } from '@/lib/messaging/meta-channels'
 import { twilioAddress } from '@/lib/messaging/contact-address'
 import { attachmentLabel, channelDeliveryUrl, channelSupportsAttachment, warmDeliveryUrl, isTrustedAttachmentUrl, kindFromMime, type AttachmentKind } from '@/lib/messaging/attachments'
@@ -23,6 +25,10 @@ export type SendInput = {
   attachment?: OutboundAttachment | null
   sender: OutboundSender
   waTemplate?: { contentSid: string; variables: Record<string, string> } | null
+  /** Comment channels: public reply under the comment, or the one-time private reply by direct message */
+  visibility?: 'public' | 'private'
+  /** Comment channels: the comment to answer (default: the latest one still visible) */
+  replyToCommentId?: string | null
 }
 
 const include = { sentBy: { select: { id: true, name: true } } }
@@ -53,11 +59,13 @@ async function saveOutbound(params: {
   body: string
   media: { mediaUrl?: string; mediaType?: string; mediaName?: string | null }
   sender: OutboundSender
+  extra?: { commentId?: string | null; visibility?: string | null }
 }) {
-  const data = { body: params.body, ...params.media, ...senderFields(params.sender) }
+  const data = { body: params.body, ...params.media, ...senderFields(params.sender), ...(params.extra || {}) }
   if (params.providerMessageId) {
     const existing = await prisma.conversationMessage.findUnique({ where: { providerMessageId: params.providerMessageId } })
-    if (existing) return prisma.conversationMessage.update({ where: { id: existing.id }, data, include })
+    // A private reply to a comment echoes on the Messenger / IG thread: the message belongs to the comment conversation
+    if (existing) return prisma.conversationMessage.update({ where: { id: existing.id }, data: { ...data, conversationId: params.conversationId }, include })
   }
   try {
     return await prisma.conversationMessage.create({
@@ -100,6 +108,8 @@ export async function sendToConversation(input: SendInput): Promise<SendResult> 
     emitInboxEvent({ type: 'new-message', conversationId: id, workspaceId: conversation.workspaceId })
     return { ok: true, saved: savedList[savedList.length - 1], savedList }
   }
+
+  if (isCommentChannel(conversation.channel)) return sendCommentReply(input, finish)
 
   // Messenger / Instagram: send through the connected Page's token (Graph API)
   if (isMetaChannel(conversation.channel)) {
@@ -232,4 +242,62 @@ export async function sendToConversation(input: SendInput): Promise<SendResult> 
     include,
   })
   return finish([saved])
+}
+
+/**
+ * Public reply under the comment, or the private reply (a direct message tied to the comment: once per
+ * comment, within 7 days). There is no 24h window for public replies. Text only.
+ */
+async function sendCommentReply(input: SendInput, finish: (saved: Saved[]) => Promise<SendResult>): Promise<SendResult> {
+  const { conversation, message, attachment, sender } = input
+  if (!isCommentChannel(conversation.channel)) return { ok: false, status: 400, error: 'No es un canal de comentarios' }
+  if (attachment) return { ok: false, status: 400, error: 'Las respuestas a comentarios solo admiten texto' }
+  if (!message) return { ok: false, status: 400, error: 'Mensaje requerido' }
+  const visibility = input.visibility === 'private' ? 'private' : 'public'
+  const id = conversation.id
+
+  const connection = conversation.connectionId ? await prisma.channelConnection.findUnique({ where: { id: conversation.connectionId } }) : null
+  if (!connection) return { ok: false, status: 500, error: 'Esta conversación no tiene una cuenta conectada' }
+  if (!connection.enabled) return { ok: false, status: 409, error: `La conexión "${connection.name}" está pausada` }
+  const creds = getConnectionCredentials(connection)
+  if (!creds?.pageAccessToken) return { ok: false, status: 500, error: 'Token de la página no disponible, vuelve a conectar la cuenta' }
+
+  const inbound = await prisma.conversationMessage.findMany({
+    where: { conversationId: id, direction: 'INBOUND', commentId: { not: null } },
+    orderBy: { sentAt: 'desc' },
+    take: 50,
+    select: { commentId: true, sentAt: true, commentDeletedAt: true },
+  })
+  const target = input.replyToCommentId
+    ? inbound.find((m) => m.commentId === input.replyToCommentId) ?? null
+    : inbound.find((m) => !m.commentDeletedAt) ?? null
+  if (!target?.commentId) return { ok: false, status: 409, error: 'No hay un comentario al que responder (¿lo eliminaron?)' }
+  if (target.commentDeletedAt) return { ok: false, status: 409, error: 'El comentario fue eliminado' }
+
+  const base = baseChannelOf(conversation.channel)
+  const app = await requireMetaApp()
+  try {
+    if (visibility === 'private') {
+      const replied = await prisma.conversationMessage.findMany({ where: { conversationId: id, direction: 'OUTBOUND', visibility: 'private' }, select: { commentId: true } })
+      const availability = privateReplyAvailability(target, replied.map((r) => r.commentId), new Date(), conversation.commentKind)
+      if (!availability.ok) return { ok: false, status: 409, error: availability.reason }
+      const res = await sendPrivateReply(app, creds.pageAccessToken, target.commentId, message)
+      // Stored first: its echo on the Messenger / IG thread then deduplicates against it
+      const saved = await saveOutbound({ conversationId: id, providerMessageId: res.message_id || null, body: message, media: {}, sender, extra: { visibility: 'private', commentId: target.commentId } })
+      await prisma.conversation.update({ where: { id }, data: { privateReplyUsedAt: new Date() } })
+      // The PSID Meta returns is the person's Messenger / Instagram identity: same contact as their DMs
+      if (res.recipient_id && conversation.contactId) await linkIdentity(conversation.contactId, base, res.recipient_id).catch(() => null)
+      return finish([saved])
+    }
+    const res = conversation.commentKind === 'mention' && conversation.postId
+      ? await replyToMention(app, creds.pageAccessToken, connection.externalId, conversation.postId, target.commentId, message)
+      : await replyToComment(app, creds.pageAccessToken, base, target.commentId, message)
+    const saved = await saveOutbound({ conversationId: id, providerMessageId: res.id ? `comment:${res.id}` : null, body: message, media: {}, sender, extra: { visibility: 'public', commentId: res.id || null } })
+    return finish([saved])
+  } catch (err) {
+    const detail = describeGraphError(err)
+    // Missing permission / bad token is a problem of the account: show it in Admin → Canales
+    if (/\(#(10|190|200|230|3)\)/.test(detail)) await prisma.channelConnection.update({ where: { id: connection.id }, data: { lastError: detail } }).catch(() => null)
+    return { ok: false, status: 502, error: detail }
+  }
 }

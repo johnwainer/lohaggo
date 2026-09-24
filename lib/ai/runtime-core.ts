@@ -26,6 +26,26 @@ export type AgentLike = {
   memoryWindow: number
   /** Copilot channels: a conversation handed to the AI on one of them is answered too */
   copilotChannels?: string[]
+  /** Comment channels (FACEBOOK_COMMENT / INSTAGRAM_COMMENT) have their own switches and accounts */
+  commentChannels?: string[]
+  commentCopilotChannels?: string[]
+  commentAccounts?: string[]
+}
+
+const COMMENT_CHANNEL_SET = new Set(['FACEBOOK_COMMENT', 'INSTAGRAM_COMMENT'])
+
+/** Channels where the agent answers alone: comment channels are configured apart from messaging channels. */
+export function autopilotChannelsOf(agent: Pick<AgentLike, 'autopilot' | 'autopilotChannels' | 'commentChannels'>, channel: string) {
+  if (COMMENT_CHANNEL_SET.has(channel)) return agent.commentChannels ?? []
+  return agent.autopilot ? agent.autopilotChannels : []
+}
+
+export function copilotChannelsOf(agent: Pick<AgentLike, 'copilotChannels' | 'commentCopilotChannels'>, channel: string) {
+  return (COMMENT_CHANNEL_SET.has(channel) ? agent.commentCopilotChannels : agent.copilotChannels) ?? []
+}
+
+export function accountListOf(agent: Pick<AgentLike, 'autopilotAccounts' | 'commentAccounts'>, channel: string) {
+  return COMMENT_CHANNEL_SET.has(channel) ? agent.commentAccounts ?? [] : agent.autopilotAccounts
 }
 
 export const HUMAN_GRACE_MS = 30 * 60 * 1000
@@ -33,8 +53,9 @@ export const MIN_MEMORY_WINDOW = 4
 
 const byAge = <T extends { createdAt: Date }>(a: T, b: T) => a.createdAt.getTime() - b.createdAt.getTime()
 
+/** "Canales que atiende" lists messaging channels; comment channels are opted into in their own tab. */
 export function servesChannel(agent: Pick<AgentLike, 'channels'>, channel: string) {
-  return agent.channels.length === 0 || agent.channels.includes(channel)
+  return COMMENT_CHANNEL_SET.has(channel) || agent.channels.length === 0 || agent.channels.includes(channel)
 }
 
 /**
@@ -215,12 +236,13 @@ export function accountKeysOf(conv: { channel: string; connectionId: string | nu
 /** Active agents with autopilot on and this channel declared explicitly (never the "all channels" default). */
 export function autopilotCandidates<T extends AgentLike>(agents: T[], channel: string): T[] {
   return agents
-    .filter((a) => a.status === 'active' && a.autopilot && a.autopilotChannels.includes(channel) && servesChannel(a, channel))
+    .filter((a) => a.status === 'active' && autopilotChannelsOf(a, channel).includes(channel) && servesChannel(a, channel))
     .sort(byAge)
 }
 
-export function accountAllowed(agent: Pick<AgentLike, 'autopilotAccounts'>, accountKeys: string[]) {
-  return agent.autopilotAccounts.length === 0 || accountKeys.some((k) => agent.autopilotAccounts.includes(k))
+export function accountAllowed(agent: Pick<AgentLike, 'autopilotAccounts' | 'commentAccounts'>, accountKeys: string[], channel?: string) {
+  const list = channel ? accountListOf(agent, channel) : agent.autopilotAccounts
+  return list.length === 0 || accountKeys.some((k) => list.includes(k))
 }
 
 /**
@@ -241,7 +263,7 @@ export function shouldTakeOverCore<T extends AgentLike>(
   const candidates = autopilotCandidates(ctx.agents, conv.channel)
   // A conversation explicitly given to an agent that has copilot on this channel stays with that agent
   if (conv.aiHandled && conv.aiAgentId) {
-    const owner = ctx.agents.find((a) => a.id === conv.aiAgentId && a.status === 'active' && (a.copilotChannels ?? []).includes(conv.channel) && servesChannel(a, conv.channel))
+    const owner = ctx.agents.find((a) => a.id === conv.aiAgentId && a.status === 'active' && copilotChannelsOf(a, conv.channel).includes(conv.channel) && servesChannel(a, conv.channel))
     if (owner && !candidates.includes(owner)) candidates.push(owner)
   }
   const skipTags = new Set(candidates.flatMap((a) => a.autopilotSkipTags.map(normalizeText)))
@@ -249,10 +271,10 @@ export function shouldTakeOverCore<T extends AgentLike>(
   if (candidates.length === 0) return { take: false, reason: 'no_agent' }
 
   const accountKeys = accountKeysOf(conv)
-  const allowed = candidates.filter((a) => accountAllowed(a, accountKeys))
+  const allowed = candidates.filter((a) => accountAllowed(a, accountKeys, conv.channel))
   if (allowed.length === 0) return { take: false, reason: 'account_not_enabled' }
 
   const current = conv.aiAgentId ? allowed.find((a) => a.id === conv.aiAgentId) : undefined
-  const explicit = allowed.find((a) => accountKeys.some((k) => a.autopilotAccounts.includes(k)))
+  const explicit = allowed.find((a) => accountKeys.some((k) => accountListOf(a, conv.channel).includes(k)))
   return { take: true, agent: current ?? explicit ?? allowed[0] }
 }

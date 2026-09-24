@@ -1470,6 +1470,8 @@ enum MessagingChannel {
   PUSH
   MESSENGER
   INSTAGRAM
+  FACEBOOK_COMMENT
+  INSTAGRAM_COMMENT
 }
 
 enum MessagingCampaignStatus {
@@ -1542,6 +1544,14 @@ model Conversation {
   contactId               String?
   copilotSkipMessageId    String?
   copilotAlertedMessageId String?
+  postId                  String?
+  postPermalink           String?
+  postCaption             String?
+  postMediaUrl            String?
+  rootCommentId           String?
+  privateReplyUsedAt      DateTime?
+  isAd                    Boolean               @default(false)
+  commentKind             String?
   createdAt               DateTime              @default(now())
   updatedAt               DateTime              @updatedAt
   contact                 Contact?              @relation(fields: [contactId], references: [id], onDelete: SetNull)
@@ -1561,6 +1571,7 @@ model Conversation {
   @@index([workspaceId, lastMessageAt(sort: Desc)])
   @@index([aiHandled, lastMessageAt])
   @@index([contactId])
+  @@index([postId])
 }
 
 /// One person across channels. WhatsApp (the phone) is the base identity; Meta ids hang from it.
@@ -1652,6 +1663,7 @@ model ChannelConnection {
   credentialsEncrypted String
   meta                 Json?
   capabilities         Json?
+  commentSettings      Json?
   lastError            String?
   lastEventAt          DateTime?
   connectedByEmail     String?
@@ -1685,6 +1697,7 @@ model ChannelOAuthSession {
   workspaceId         String
   status              String           @default("pending")
   candidatesEncrypted String?
+  options             Json?
   error               String?
   expiresAt           DateTime
   createdAt           DateTime         @default(now())
@@ -1724,11 +1737,16 @@ model ConversationMessage {
   senderType        String?
   aiAgentId         String?
   aiAgentName       String?
+  commentId         String?
+  commentHidden     Boolean                 @default(false)
+  commentDeletedAt  DateTime?
+  visibility        String?
   createdAt         DateTime                @default(now())
   conversation      Conversation            @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sentBy            User?                   @relation("AgentMessages", fields: [sentById], references: [id])
 
   @@index([conversationId, sentAt])
+  @@index([commentId])
 }
 
 model CannedResponse {
@@ -1815,55 +1833,69 @@ model AiCall {
 }
 
 model AiAgent {
-  id                     String    @id @default(cuid())
-  workspaceId            String
-  name                   String
-  avatar                 String    @default("face-1")
-  goal                   String    @default("")
-  instructions           String    @default("")
-  tone                   String    @default("Cercano y profesional")
-  language               String    @default("auto")
-  status                 String    @default("active")
-  model                  String?
-  maxTokens              Int       @default(512)
-  memoryWindow           Int       @default(20)
-  channels               String[]  @default([])
-  isDefault              Boolean   @default(false)
-  handoffKeywords        String[]  @default([])
-  handoffAfterTurns      Int       @default(0)
-  handoffOnUnknown       Boolean   @default(true)
-  handoffMessage         String    @default("Te comunico con una persona del equipo, en un momento te responde.")
-  autopilot              Boolean   @default(false)
-  autopilotChannels      String[]  @default([])
-  autopilotAccounts      String[]  @default([])
-  autopilotSkipTags      String[]  @default([])
-  reengageAfterHours     Int       @default(0)
-  copilotChannels        String[]  @default([])
-  copilotSuggest         String    @default("auto")
-  copilotTakeover        Boolean   @default(true)
-  copilotTakeoverMinutes Int       @default(10)
-  copilotWarnMinutes     Int       @default(2)
-  tools                  String[]  @default([])
-  crmModules             String[]  @default([])
-  webhookUrl             String?
-  goalDoneAction         String    @default("none")
-  goalDoneTag            String?
-  hoursEnabled           Boolean   @default(false)
-  hoursTimezone          String?
-  hoursDays              Int[]     @default([1, 2, 3, 4, 5])
-  hoursStart             String    @default("08:00")
-  hoursEnd               String    @default("18:00")
-  outsideHours           String    @default("notice")
-  outsideHoursMessage    String?
-  ignoreSpam             Boolean   @default(true)
-  signatureMode          String    @default("off")
-  signatureText          String?
-  conversations          Int       @default(0)
-  handoffs               Int       @default(0)
-  createdByEmail         String?
-  createdAt              DateTime  @default(now())
-  updatedAt              DateTime  @updatedAt
-  workspace              Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  id                         String    @id @default(cuid())
+  workspaceId                String
+  name                       String
+  avatar                     String    @default("face-1")
+  goal                       String    @default("")
+  instructions               String    @default("")
+  tone                       String    @default("Cercano y profesional")
+  language                   String    @default("auto")
+  status                     String    @default("active")
+  model                      String?
+  maxTokens                  Int       @default(512)
+  memoryWindow               Int       @default(20)
+  channels                   String[]  @default([])
+  isDefault                  Boolean   @default(false)
+  handoffKeywords            String[]  @default([])
+  handoffAfterTurns          Int       @default(0)
+  handoffOnUnknown           Boolean   @default(true)
+  handoffMessage             String    @default("Te comunico con una persona del equipo, en un momento te responde.")
+  autopilot                  Boolean   @default(false)
+  autopilotChannels          String[]  @default([])
+  autopilotAccounts          String[]  @default([])
+  autopilotSkipTags          String[]  @default([])
+  reengageAfterHours         Int       @default(0)
+  copilotChannels            String[]  @default([])
+  copilotSuggest             String    @default("auto")
+  copilotTakeover            Boolean   @default(true)
+  copilotTakeoverMinutes     Int       @default(10)
+  copilotWarnMinutes         Int       @default(2)
+  commentChannels            String[]  @default([])
+  commentCopilotChannels     String[]  @default([])
+  commentAccounts            String[]  @default([])
+  commentReplyMode           Json?
+  commentPublicTemplate      String?
+  commentScope               String    @default("intent")
+  commentAlwaysKeywords      String[]  @default([])
+  commentNeverKeywords       String[]  @default([])
+  commentIgnoreTagOnly       Boolean   @default(true)
+  commentSensitiveAction     String    @default("private_and_handoff")
+  commentHideOffensive       Boolean   @default(false)
+  commentHideSpam            Boolean   @default(false)
+  commentMaxPerPostPerHour   Int       @default(20)
+  commentMaxPerAccountPerDay Int       @default(200)
+  tools                      String[]  @default([])
+  crmModules                 String[]  @default([])
+  webhookUrl                 String?
+  goalDoneAction             String    @default("none")
+  goalDoneTag                String?
+  hoursEnabled               Boolean   @default(false)
+  hoursTimezone              String?
+  hoursDays                  Int[]     @default([1, 2, 3, 4, 5])
+  hoursStart                 String    @default("08:00")
+  hoursEnd                   String    @default("18:00")
+  outsideHours               String    @default("notice")
+  outsideHoursMessage        String?
+  ignoreSpam                 Boolean   @default(true)
+  signatureMode              String    @default("off")
+  signatureText              String?
+  conversations              Int       @default(0)
+  handoffs                   Int       @default(0)
+  createdByEmail             String?
+  createdAt                  DateTime  @default(now())
+  updatedAt                  DateTime  @updatedAt
+  workspace                  Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId, status])
 }
@@ -1958,6 +1990,7 @@ model AiSuggestion {
   channel        String
   messageId      String?
   text           String
+  privateText    String?
   context        String?
   trigger        String       @default("auto")
   status         String       @default("pending")

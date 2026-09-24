@@ -8,6 +8,7 @@ import { getMetaAppConfig, type MetaAppConfig } from '@/lib/messaging/provider-c
 import {
   buildOAuthUrl,
   exchangeCodeForUserToken,
+  fetchGrantedScopes,
   exchangeLongLivedToken,
   isPageSubscribed,
   listPagesForChannel,
@@ -16,7 +17,9 @@ import {
   subscribePageWithFallback,
   type MetaChannel,
   type MetaPageCandidate,
+  type OAuthOptions,
 } from '@/lib/messaging/meta-graph'
+import { commentSettingsOf, missingScopes, requiredCommentScopes, type CommentSettings } from '@/lib/ai/comments-core'
 
 const logger = createLogger('meta-channels')
 
@@ -36,6 +39,8 @@ export type ConnectionCapabilities = {
   sendDetail?: string
   receiveDetail?: string
   checkedAt: string
+  /** Comments: scopes the token needs and lacks (null = could not be checked), Page "feed" subscription */
+  comments?: { required: string[]; missing: string[] | null; feedSubscribed: boolean | null; detail?: string }
 }
 
 export function isMetaChannel(channel: string): channel is MetaChannel {
@@ -81,7 +86,7 @@ export function getConnectionMeta(conn: Pick<ChannelConnection, 'meta'>): Connec
 
 // ─── OAuth sessions ──────────────────────────────────────────────────────────
 
-export async function startOAuthSession(params: { channel: MetaChannel; adminId: string; workspaceId: string }) {
+export async function startOAuthSession(params: { channel: MetaChannel; adminId: string; workspaceId: string; options?: OAuthOptions }) {
   const app = await requireMetaApp()
   await prisma.channelOAuthSession.deleteMany({ where: { expiresAt: { lt: new Date() } } }).catch(() => null)
 
@@ -93,11 +98,12 @@ export async function startOAuthSession(params: { channel: MetaChannel; adminId:
       adminId: params.adminId,
       workspaceId: params.workspaceId,
       status: 'pending',
+      options: (params.options ?? {}) as Prisma.InputJsonValue,
       expiresAt: new Date(Date.now() + OAUTH_SESSION_TTL_MS),
     },
   })
 
-  const url = buildOAuthUrl({ app, redirectUri: getOAuthRedirectUri(), state, channel: params.channel })
+  const url = buildOAuthUrl({ app, redirectUri: getOAuthRedirectUri(), state, channel: params.channel, options: params.options })
   return { session, url }
 }
 
@@ -210,6 +216,7 @@ export async function completeOAuthSelection(params: { sessionId: string; adminI
     select: { externalId: true, workspace: { select: { name: true } } },
   })
   const conflictMap = new Map(conflicts.map((c) => [c.externalId, c.workspace.name]))
+  const options = (session.options as OAuthOptions | null) || {}
 
   const results: Array<{ id: string; name: string; connectionId?: string; error?: string }> = []
   for (const candidate of chosen) {
@@ -222,7 +229,7 @@ export async function completeOAuthSelection(params: { sessionId: string; adminI
       let subscribedFields: string[] = []
       let lastError: string | null = null
       try {
-        subscribedFields = await subscribePageWithFallback(app, candidate.pageId, candidate.pageAccessToken, channel)
+        subscribedFields = await subscribePageWithFallback(app, candidate.pageId, candidate.pageAccessToken, channel, { feed: Boolean(options.comments) })
       } catch (err) {
         lastError = `Suscripción de webhook falló: ${err instanceof Error ? err.message : 'error'}`
         logger.warn('Page subscription failed', { pageId: candidate.pageId, lastError })
@@ -234,6 +241,12 @@ export async function completeOAuthSelection(params: { sessionId: string; adminI
         subscribedFields,
         tokenExpiresAt: payload.tokenExpiresAt,
       }
+      // Connecting with the comments option switches them on; reconnecting without it keeps what was set
+      const previous = await prisma.channelConnection.findUnique({ where: { channel_externalId: { channel, externalId: candidate.id } }, select: { commentSettings: true } })
+      const prevComments = commentSettingsOf(previous?.commentSettings)
+      const commentSettings = options.comments
+        ? { ...prevComments, enabled: true, mentions: channel === 'INSTAGRAM' ? Boolean(options.mentions) : false, grantedScopes: null, checkedAt: null }
+        : previous?.commentSettings ? { ...prevComments, grantedScopes: null, checkedAt: null } : undefined
       const conn = await prisma.channelConnection.upsert({
         where: { channel_externalId: { channel, externalId: candidate.id } },
         create: {
@@ -247,6 +260,7 @@ export async function completeOAuthSelection(params: { sessionId: string; adminI
           meta: meta as unknown as Prisma.InputJsonValue,
           lastError,
           connectedByEmail: params.adminEmail,
+          ...(commentSettings ? { commentSettings: commentSettings as unknown as Prisma.InputJsonValue } : {}),
         },
         update: {
           name: candidate.name,
@@ -255,6 +269,7 @@ export async function completeOAuthSelection(params: { sessionId: string; adminI
           meta: meta as unknown as Prisma.InputJsonValue,
           lastError,
           connectedByEmail: params.adminEmail,
+          ...(commentSettings ? { commentSettings: commentSettings as unknown as Prisma.InputJsonValue } : {}),
         },
       })
       runCapabilityDiagnostics(conn.id).catch(() => null)
@@ -286,12 +301,24 @@ export async function runCapabilityDiagnostics(connectionId: string): Promise<Co
     return caps
   }
 
-  const [send, receive] = await Promise.all([
+  const [send, receive, granted] = await Promise.all([
     probeSendCapability(app, creds.pageAccessToken),
     isPageSubscribed(app, meta.pageId || conn.externalId, creds.pageAccessToken)
-      .then((r) => ({ ok: r.subscribed, detail: r.subscribed ? `Campos: ${r.fields.join(', ') || '—'}` : 'La app no está suscrita a la página' }))
-      .catch((err) => ({ ok: false, detail: err instanceof Error ? err.message : 'error' })),
+      .then((r) => ({ ok: r.subscribed, fields: r.fields, detail: r.subscribed ? `Campos: ${r.fields.join(', ') || '—'}` : 'La app no está suscrita a la página' }))
+      .catch((err) => ({ ok: false, fields: [] as string[], detail: err instanceof Error ? err.message : 'error' })),
+    fetchGrantedScopes(app, creds.pageAccessToken).catch((err) => ({ scopes: null, valid: true, error: err instanceof Error ? err.message : 'error' })),
   ])
+
+  // Comments: which permissions the token has against the ones comments need
+  const settings = commentSettingsOf(conn.commentSettings)
+  const required = requiredCommentScopes(conn.channel, settings.mentions)
+  const grantedScopes = granted.scopes
+  const comments: ConnectionCapabilities['comments'] = {
+    required,
+    missing: missingScopes(required, grantedScopes),
+    feedSubscribed: conn.channel === 'MESSENGER' ? receive.fields.includes('feed') : null,
+    ...('error' in granted && granted.error ? { detail: `No se pudieron leer los permisos del token: ${granted.error}` } : {}),
+  }
 
   const caps: ConnectionCapabilities = {
     receive: receive.ok,
@@ -301,6 +328,7 @@ export async function runCapabilityDiagnostics(connectionId: string): Promise<Co
     send: send.ok,
     sendDetail: send.detail,
     checkedAt: new Date().toISOString(),
+    comments,
   }
 
   const tokenInvalid = !send.ok && /\(#190\)/.test(send.detail)
@@ -308,12 +336,52 @@ export async function runCapabilityDiagnostics(connectionId: string): Promise<Co
     where: { id: conn.id },
     data: {
       capabilities: caps as unknown as Prisma.InputJsonValue,
+      ...(grantedScopes ? { commentSettings: { ...settings, grantedScopes, checkedAt: caps.checkedAt } as unknown as Prisma.InputJsonValue } : {}),
       status: tokenInvalid ? 'ERROR' : conn.status === 'ERROR' && send.ok && receive.ok ? 'ACTIVE' : conn.status,
       // A passing diagnosis clears stale errors (e.g. one rejected attachment) that would hide the real result
       lastError: tokenInvalid ? 'Token inválido o expirado, vuelve a conectar la cuenta' : send.ok && receive.ok ? null : conn.lastError,
     },
   })
   return caps
+}
+
+/**
+ * Comment options of one account. Switching comments on for a Page re-subscribes it with "feed"
+ * (Instagram comments are subscribed at app level in the Meta console). Returns a warning when the
+ * subscription could not include "feed" (usually: the comment permissions are missing).
+ */
+export async function updateCommentSettings(connectionId: string, patch: Partial<Pick<CommentSettings, 'enabled' | 'includeAds' | 'mentions'>>) {
+  const conn = await prisma.channelConnection.findUnique({ where: { id: connectionId } })
+  if (!conn || !isMetaChannel(conn.channel)) throw new Error('Conexión no encontrada')
+  const current = commentSettingsOf(conn.commentSettings)
+  const next: CommentSettings = {
+    ...current,
+    ...(typeof patch.enabled === 'boolean' ? { enabled: patch.enabled } : {}),
+    ...(typeof patch.includeAds === 'boolean' ? { includeAds: patch.includeAds } : {}),
+    ...(typeof patch.mentions === 'boolean' && conn.channel === 'INSTAGRAM' ? { mentions: patch.mentions } : {}),
+  }
+  let warning: string | null = null
+  if (conn.channel === 'MESSENGER' && next.enabled !== current.enabled) {
+    const creds = getConnectionCredentials(conn)
+    const meta = getConnectionMeta(conn)
+    if (creds?.pageAccessToken) {
+      try {
+        const fields = await subscribePageWithFallback(await requireMetaApp(), meta.pageId || conn.externalId, creds.pageAccessToken, 'MESSENGER', { feed: next.enabled })
+        await prisma.channelConnection.update({ where: { id: conn.id }, data: { meta: { ...meta, subscribedFields: fields } as unknown as Prisma.InputJsonValue } })
+        if (next.enabled && !fields.includes('feed')) warning = 'Meta no aceptó la suscripción a comentarios ("feed"): reconecta la página con la opción de comentarios para conceder los permisos.'
+      } catch (err) {
+        warning = `No se pudo actualizar la suscripción de la página: ${describeGraphError(err)}`
+      }
+    } else {
+      warning = 'Token de la página no disponible: vuelve a conectar la cuenta'
+    }
+  }
+  if (next.enabled) {
+    const missing = missingScopes(requiredCommentScopes(conn.channel, next.mentions), next.grantedScopes)
+    if (missing?.length) warning = `${warning ? `${warning} ` : ''}Faltan permisos: ${missing.join(', ')}. Reconecta con la opción de comentarios.`
+  }
+  await prisma.channelConnection.update({ where: { id: conn.id }, data: { commentSettings: next as unknown as Prisma.InputJsonValue } })
+  return { settings: next, warning }
 }
 
 export function describeGraphError(err: unknown) {

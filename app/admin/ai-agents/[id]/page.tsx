@@ -21,6 +21,12 @@ type Agent = Record<string, unknown> & {
   autopilotAccounts: string[]
   autopilotSkipTags: string[]
   copilotChannels: string[]
+  commentChannels: string[]
+  commentCopilotChannels: string[]
+  commentAccounts: string[]
+  commentReplyMode: Record<string, string> | null
+  commentAlwaysKeywords: string[]
+  commentNeverKeywords: string[]
   handoffKeywords: string[]
   tools: string[]
   crmModules: string[]
@@ -32,6 +38,7 @@ type Agent = Record<string, unknown> & {
 type Account = { key: string; legacyKey?: string; channel: string; name: string; enabled: boolean }
 type Catalog = {
   channels: string[]
+  commentChannels: string[]
   avatars: Avatar[]
   languages: string[]
   tools: Array<{ name: string; label: string; description: string; writes: boolean }>
@@ -42,6 +49,7 @@ const TABS = [
   ['identity', 'Identidad'],
   ['model', 'Modelo'],
   ['channels', 'Canales y piloto automático'],
+  ['comments', 'Comentarios'],
   ['handoff', 'Traspaso'],
   ['hours', 'Horario'],
   ['tools', 'Herramientas'],
@@ -341,6 +349,104 @@ export default function AiAgentDetailPage({ params }: { params: Promise<{ id: st
                   )}
                 </>
               )}
+            </div>
+          </div>
+        )}
+
+        {tab === 'comments' && (
+          <div className="space-y-5">
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
+              <h3 className="font-semibold text-gray-900">Comentarios en publicaciones y anuncios</h3>
+              <p className="text-xs text-gray-500">
+                Cuando alguien comenta una publicación o un anuncio de una página de Facebook o de la cuenta de Instagram, el agente puede contestar en público
+                y/o por mensaje privado. Primero hay que activar «Recibir comentarios» en esa cuenta, en Admin → Canales.
+              </p>
+              {catalog.commentChannels.map((c) => {
+                const mode = v.commentChannels.includes(c) ? 'autopilot' : v.commentCopilotChannels.includes(c) ? 'copilot' : 'off'
+                const setMode = (m: string) => set({
+                  commentChannels: m === 'autopilot' ? Array.from(new Set([...v.commentChannels, c])) : v.commentChannels.filter((x) => x !== c),
+                  commentCopilotChannels: m === 'copilot' ? Array.from(new Set([...v.commentCopilotChannels, c])) : v.commentCopilotChannels.filter((x) => x !== c),
+                })
+                const replyMode = v.commentReplyMode?.[c] || 'public_and_private'
+                return (
+                  <div key={c} className="rounded-xl border border-gray-200 p-4 space-y-3">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <ChannelIcon channel={c} size={18} /> <span className="text-sm font-medium text-gray-900">{CHANNEL_LABEL[c]}</span>
+                      <select className="ml-auto border border-gray-200 rounded-xl px-3 py-1.5 text-sm" value={mode} onChange={(e) => setMode(e.target.value)}>
+                        <option value="off">Apagado</option>
+                        <option value="autopilot">Piloto automático (responde solo)</option>
+                        <option value="copilot">Copiloto (sugiere a una persona)</option>
+                      </select>
+                    </div>
+                    {mode !== 'off' && (
+                      <Field label="Cómo responde" hint="La respuesta privada es un mensaje directo ligado al comentario: Meta permite una sola por comentario y dentro de 7 días. Si la persona contesta, sigue en su chat de Messenger / Instagram.">
+                        <select className={input} value={replyMode} onChange={(e) => set({ commentReplyMode: { ...(v.commentReplyMode || {}), [c]: e.target.value } })}>
+                          <option value="public_and_private">Respuesta pública breve y el detalle por privado</option>
+                          <option value="public_only">Solo respuesta pública</option>
+                          <option value="private_only">Solo por privado</option>
+                        </select>
+                      </Field>
+                    )}
+                  </div>
+                )
+              })}
+              {(v.commentChannels.length > 0 || v.commentCopilotChannels.length > 0) && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-gray-700">Cuentas</p>
+                  <p className="text-xs text-gray-500">Ninguna marcada = todas las cuentas de los canales elegidos.</p>
+                  <div className="grid sm:grid-cols-2 gap-2">
+                    {accounts.filter((a) => v.commentChannels.includes(a.channel) || v.commentCopilotChannels.includes(a.channel)).map((a) => (
+                      <label key={a.key} className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm">
+                        <input type="checkbox" checked={v.commentAccounts.includes(a.key)} onChange={() => toggleIn('commentAccounts', a.key)} />
+                        <ChannelIcon channel={a.channel} size={14} /> <span className="truncate">{a.name}</span>
+                        {!a.enabled && <span className="text-[10px] text-amber-700">(comentarios apagados en Canales)</span>}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
+              <h3 className="font-semibold text-gray-900">Qué responde</h3>
+              <Field label="Comentarios a los que responde" hint="Con «solo los que lo piden» el agente decide: no contesta emojis sueltos, etiquetas a amigos, trolls ni conversaciones entre otras personas. Ante una pregunta o una queja real, responde.">
+                <select className={input} value={String(v.commentScope)} onChange={(e) => set({ commentScope: e.target.value })}>
+                  <option value="intent">Solo los que piden respuesta (lo decide el agente)</option>
+                  <option value="all">Todos los comentarios</option>
+                </select>
+              </Field>
+              <Field label="Responder siempre si contiene" hint="Separadas por comas. Se comprueban antes de llamar al modelo (sin costo), p. ej. precio, info, cotización.">
+                <ListInput value={v.commentAlwaysKeywords} onChange={(list) => set({ commentAlwaysKeywords: list })} placeholder="precio, info, cotización" />
+              </Field>
+              <Field label="No responder nunca si contiene" hint="Separadas por comas. Tienen prioridad sobre la lista anterior.">
+                <ListInput value={v.commentNeverKeywords} onChange={(list) => set({ commentNeverKeywords: list })} placeholder="sorteo, concurso" />
+              </Field>
+              <Toggle checked={Boolean(v.commentIgnoreTagOnly)} onChange={(x) => set({ commentIgnoreTagOnly: x })} label="Ignorar comentarios que solo etiquetan a otras personas" hint="«@ana @luis mira esto» no se responde y no gasta una llamada." />
+              <Field label="Texto público fijo (opcional)" hint="Si lo escribes, la respuesta pública es siempre este texto y el agente solo redacta el mensaje privado. {nombre} se reemplaza por el nombre de la persona.">
+                <input className={input} value={String(v.commentPublicTemplate ?? '')} onChange={(e) => set({ commentPublicTemplate: e.target.value })} placeholder="¡Hola {nombre}! Te escribimos por privado 🙌" />
+              </Field>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
+              <h3 className="font-semibold text-gray-900">Temas sensibles y moderación</h3>
+              <Field label="Ante reembolsos, quejas, seguridad o datos personales" hint="Nunca se contesta el fondo del tema en público. Las palabras de traspaso (pestaña Traspaso) siempre pasan el caso a una persona.">
+                <select className={input} value={String(v.commentSensitiveAction)} onChange={(e) => set({ commentSensitiveAction: e.target.value })}>
+                  <option value="private_and_handoff">Mensaje privado breve y pasar a una persona</option>
+                  <option value="private_only">Solo mensaje privado</option>
+                  <option value="handoff_only">Pasar a una persona sin responder</option>
+                </select>
+              </Field>
+              <Toggle checked={Boolean(v.commentHideOffensive)} onChange={(x) => set({ commentHideOffensive: x })} label="Ocultar comentarios ofensivos" hint="Ocultar no borra: la persona y sus amigos lo siguen viendo, el resto no. Queda registrado en la conversación y se puede mostrar de nuevo." />
+              <Toggle checked={Boolean(v.commentHideSpam)} onChange={(x) => set({ commentHideSpam: x })} label="Ocultar spam" hint="Publicidad y enlaces sin relación con el negocio. Si está apagado, solo se registra y no se responde." />
+            </div>
+
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
+              <h3 className="font-semibold text-gray-900">Límites</h3>
+              <p className="text-xs text-gray-500">Frenan una avalancha (un anuncio viral, un ataque de spam). Al llegar al límite la IA deja de responder y avisa con una nota interna.</p>
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Respuestas por publicación y hora"><input type="number" min={1} max={1000} className={input} value={Number(v.commentMaxPerPostPerHour)} onChange={(e) => set({ commentMaxPerPostPerHour: Number(e.target.value) })} /></Field>
+                <Field label="Respuestas por cuenta y día"><input type="number" min={1} max={1000} className={input} value={Number(v.commentMaxPerAccountPerDay)} onChange={(e) => set({ commentMaxPerAccountPerDay: Number(e.target.value) })} /></Field>
+              </div>
             </div>
           </div>
         )}

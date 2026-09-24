@@ -25,9 +25,26 @@ export type PromptContext = {
   flowOutputs?: string[]
   /** Copilot: the text is a draft for the person handling the conversation, not sent by the AI */
   copilot?: boolean
+  /** Public comment on a post (Facebook / Instagram) */
+  comment?: CommentPromptContext
 }
 
-const CHANNEL_LABEL: Record<string, string> = { WHATSAPP: 'WhatsApp', SMS: 'SMS', MESSENGER: 'Facebook Messenger', INSTAGRAM: 'Instagram', EMAIL: 'correo', TEST: 'área de pruebas' }
+export type CommentPromptContext = {
+  postCaption: string | null
+  isAd: boolean
+  isMention: boolean
+  replyMode: 'public_and_private' | 'public_only' | 'private_only'
+  privateAvailable: boolean
+  /** The pre-filter decided this comment must be answered */
+  forced: boolean
+  /** The business set a fixed public text */
+  hasTemplate: boolean
+}
+
+const CHANNEL_LABEL: Record<string, string> = {
+  WHATSAPP: 'WhatsApp', SMS: 'SMS', MESSENGER: 'Facebook Messenger', INSTAGRAM: 'Instagram', EMAIL: 'correo', TEST: 'área de pruebas',
+  FACEBOOK_COMMENT: 'comentario público en Facebook', INSTAGRAM_COMMENT: 'comentario público en Instagram',
+}
 
 const LANGUAGE_LABEL: Record<string, string> = { es: 'español', en: 'inglés', pt: 'portugués', fr: 'francés' }
 
@@ -92,6 +109,39 @@ function knowledgeBlock(k: Retrieval) {
   return `${header}\n\n${k.chunks.map((c) => `### ${c.title}\n${c.text.trim()}`).join('\n\n')}`
 }
 
+function commentBlock(c: CommentPromptContext, copilot: boolean) {
+  const where = c.isMention
+    ? 'Es una mención a la cuenta del negocio en una publicación de otra persona.'
+    : c.isAd ? 'El comentario está en un anuncio pagado del negocio.' : 'El comentario está en una publicación del negocio.'
+  const canPrivate = c.privateAvailable && c.replyMode !== 'public_only'
+  const format =
+    c.replyMode === 'private_only' && canPrivate
+      ? 'Formato: escribe [[PRIVADO]] y después el mensaje privado completo, que le llega por mensaje directo. No escribas nada en público.'
+      : canPrivate
+        ? c.hasTemplate
+          ? 'Formato: la respuesta pública la pone el negocio. Escribe solo [[PRIVADO]] y después el mensaje privado completo, que le llega por mensaje directo.'
+          : 'Formato: primero la respuesta pública; luego la marca [[PRIVADO]] y después el mensaje privado completo, que le llega por mensaje directo.'
+        : 'Formato: escribe solo la respuesta pública; esta vez no se le puede escribir por privado.'
+  const lines = [
+    `Estás respondiendo un comentario público: lo que escribas en público lo lee cualquiera. ${where}`,
+    `Texto de la publicación: ${c.postCaption?.trim() ? `«${c.postCaption.trim()}»` : 'sin texto'}.`,
+    'Reglas para comentarios:',
+    '- En público nunca escribas datos personales, montos, reservas, pedidos ni detalles de un reclamo: eso va por privado.',
+    '- La respuesta pública tiene una o dos frases.',
+    `- ${format}`,
+  ]
+  if (!copilot) {
+    lines.push(
+      c.forced
+        ? '- Este comentario debe responderse: no uses [[IGNORAR]].'
+        : '- [[IGNORAR]] si no conviene responder: solo emojis, etiquetas a amigos, trolls o una conversación entre otras personas. Sé prudente: ante una pregunta o una queja real, responde. Con [[IGNORAR]] no escribas nada más.',
+      '- [[SENSIBLE]] si el comentario trata un reembolso, una queja, la seguridad o datos personales: escribe solo [[PRIVADO]] y un mensaje privado breve; nada del tema en público.',
+      '- [[OFENSIVO]] si el comentario insulta o es ofensivo, y [[SPAM]] si es publicidad o spam. Con cualquiera de las dos no escribas nada más.',
+    )
+  }
+  return lines.join('\n')
+}
+
 function contextBlock(ctx: PromptContext) {
   const fields = Object.entries(ctx.contact.fields || {})
     .filter(([, v]) => v !== null && v !== undefined && String(v).trim())
@@ -107,6 +157,7 @@ function contextBlock(ctx: PromptContext) {
     ctx.copilot
       ? 'Modo copiloto: una persona del equipo lleva esta conversación. Escribe la respuesta que ella podría enviar al cliente ahora, en su nombre (no firmes ni te presentes como IA). Si hay algo que conviene que esa persona sepa y el cliente no debe leer (una reserva pendiente, un reclamo anterior, que el caso requiere revisar algo), agrégalo al final después de la marca [[CONTEXTO]] en una sola frase. No uses [[HANDOFF]], [[DONE]] ni [[SPAM]].'
       : '',
+    ctx.comment ? commentBlock(ctx.comment, Boolean(ctx.copilot)) : '',
   ]
   return lines.filter(Boolean).join('\n')
 }

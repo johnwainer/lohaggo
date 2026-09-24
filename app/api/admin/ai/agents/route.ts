@@ -3,11 +3,12 @@ import { auditAdminAction } from '@/lib/admin-utils'
 import { prisma } from '@/lib/prisma'
 import { aiAuth, can, forbidden } from '@/lib/ai/route-auth'
 import { aiWorkspacesWith, canManageAiPermissions, AI_PERMISSION_LABELS } from '@/lib/ai/permissions'
-import { AGENT_CHANNELS, AVATARS, LANGUAGES, resolutionRate, sanitizeAgentInput } from '@/lib/ai/agent-input'
+import { AGENT_CHANNELS, AGENT_COMMENT_CHANNELS, AVATARS, LANGUAGES, resolutionRate, sanitizeAgentInput } from '@/lib/ai/agent-input'
 import { CRM_MODULES, TOOL_CATALOG, TOOL_NAMES } from '@/lib/ai/tools'
 import { getAiSettings } from '@/lib/ai/settings'
 import { assertPublicHttpsUrl } from '@/lib/ai/net'
 import { checkWorkspaceBudget, workspaceUsage } from '@/lib/ai/limits'
+import { commentChannelOf, commentSettingsOf } from '@/lib/ai/comments-core'
 
 /** Agents the caller can see + everything the screens need (real channel accounts, catalogs, permissions). */
 export async function GET() {
@@ -19,7 +20,7 @@ export async function GET() {
   const [workspaces, agents, connections, settings] = await Promise.all([
     prisma.workspace.findMany({ where: wsWhere, select: { id: true, name: true, isDefault: true, timezone: true, aiMonthlyCostCapUsd: true, aiMonthlyCallCap: true }, orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] }),
     prisma.aiAgent.findMany({ where: scope === null ? {} : { workspaceId: { in: scope } }, orderBy: { createdAt: 'asc' } }),
-    prisma.channelConnection.findMany({ where: scope === null ? {} : { workspaceId: { in: scope } }, select: { id: true, name: true, channel: true, workspaceId: true, enabled: true, externalId: true } }),
+    prisma.channelConnection.findMany({ where: scope === null ? {} : { workspaceId: { in: scope } }, select: { id: true, name: true, channel: true, workspaceId: true, enabled: true, externalId: true, commentSettings: true } }),
     getAiSettings(),
   ])
 
@@ -50,6 +51,13 @@ export async function GET() {
       ...(w.isDefault ? [{ key: 'WHATSAPP:default', channel: 'WHATSAPP', name: 'WhatsApp (número de Twilio)', enabled: true }, { key: 'SMS:default', channel: 'SMS', name: 'SMS (número de Twilio)', enabled: true }] : []),
       // Keyed by the Meta page / IG id so reconnecting the account keeps the agent's setting
       ...connections.filter((c) => c.workspaceId === w.id).map((c) => ({ key: `${c.channel}:${c.externalId}`, legacyKey: c.id, channel: c.channel, name: c.name, enabled: c.enabled })),
+      // The same Page / IG account, for its comments (enabled = comments switched on in Admin → Canales)
+      ...connections
+        .filter((c) => c.workspaceId === w.id && (c.channel === 'MESSENGER' || c.channel === 'INSTAGRAM'))
+        .map((c) => {
+          const channel = commentChannelOf(c.channel as 'MESSENGER' | 'INSTAGRAM')
+          return { key: `${channel}:${c.externalId}`, channel, name: c.name, enabled: c.enabled && commentSettingsOf(c.commentSettings).enabled }
+        }),
     ],
   }))
 
@@ -64,6 +72,7 @@ export async function GET() {
     budgets,
     catalog: {
       channels: AGENT_CHANNELS,
+      commentChannels: AGENT_COMMENT_CHANNELS,
       avatars: AVATARS,
       languages: LANGUAGES,
       tools: TOOL_NAMES.map((n) => ({ name: n, label: TOOL_CATALOG[n].label, description: TOOL_CATALOG[n].description, writes: TOOL_CATALOG[n].writes })),
@@ -95,9 +104,9 @@ export async function POST(request: NextRequest) {
   }
   if (!data.name) return NextResponse.json({ error: 'El nombre es obligatorio' }, { status: 400 })
 
-  // Autopilot is born off: it is switched on explicitly from the Channels tab
+  // Autopilot is born off (messages and comments): it is switched on explicitly from its tab
   const agent = await prisma.aiAgent.create({
-    data: { ...(data as { name: string }), autopilot: false, workspaceId, createdByEmail: auth.admin.email },
+    data: { ...(data as { name: string }), autopilot: false, commentChannels: [], workspaceId, createdByEmail: auth.admin.email },
   })
   if (agent.isDefault) await prisma.aiAgent.updateMany({ where: { workspaceId, id: { not: agent.id } }, data: { isDefault: false } })
   await auditAdminAction({ actorId: auth.admin.id, actorEmail: auth.admin.email, action: 'AI_AGENT_CREATE', entityType: 'AiAgent', entityId: agent.id, details: agent.name, request })

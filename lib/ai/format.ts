@@ -1,8 +1,12 @@
-export type Markers = { text: string; handoff: boolean; done: boolean; spam: boolean }
+export type Markers = { text: string; handoff: boolean; done: boolean; spam: boolean; ignore: boolean; sensitive: boolean; offensive: boolean }
 
-const MARKER_RE = /\[\[\s*(HANDOFF|DONE|SPAM)\s*\]\]/gi
+const MARKER_RE = /\[\[\s*(HANDOFF|DONE|SPAM|IGNORAR|SENSIBLE|OFENSIVO)\s*\]\]/gi
 
-/** Extracts [[HANDOFF]] / [[DONE]] / [[SPAM]] wherever the model put them; the client never sees them. */
+/**
+ * Extracts [[HANDOFF]] / [[DONE]] / [[SPAM]] and the comment markers ([[IGNORAR]], [[SENSIBLE]],
+ * [[OFENSIVO]]) wherever the model put them; the client never sees them. [[PRIVADO]] is a separator
+ * and stays in the text (see splitPublicPrivate).
+ */
 export function parseMarkers(raw: string): Markers {
   const found = new Set<string>()
   const text = raw.replace(MARKER_RE, (_, m: string) => {
@@ -14,6 +18,9 @@ export function parseMarkers(raw: string): Markers {
     handoff: found.has('HANDOFF'),
     done: found.has('DONE'),
     spam: found.has('SPAM'),
+    ignore: found.has('IGNORAR'),
+    sensitive: found.has('SENSIBLE'),
+    offensive: found.has('OFENSIVO'),
   }
 }
 

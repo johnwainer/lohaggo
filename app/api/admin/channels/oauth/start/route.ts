@@ -11,6 +11,9 @@ export async function GET(request: NextRequest) {
 
   const channelParam = (request.nextUrl.searchParams.get('channel') || '').toUpperCase()
   const workspaceId = request.nextUrl.searchParams.get('workspaceId') || ''
+  // Comments ask for extra permissions (and mentions one more on Instagram), only when chosen
+  const comments = request.nextUrl.searchParams.get('comments') === '1'
+  const mentions = comments && channelParam === 'INSTAGRAM' && request.nextUrl.searchParams.get('mentions') === '1'
   const fail = (message: string) => {
     const target = new URL('/admin/channels', getAppBaseUrl() || request.nextUrl.origin)
     target.searchParams.set('oauthError', message)
@@ -24,14 +27,14 @@ export async function GET(request: NextRequest) {
   if (!canManage(access, workspaceId)) return fail('Solo el propietario del workspace puede conectar cuentas')
 
   try {
-    const { url } = await startOAuthSession({ channel: channelParam, adminId: admin.id, workspaceId })
+    const { url } = await startOAuthSession({ channel: channelParam, adminId: admin.id, workspaceId, options: { comments, mentions } })
     await auditAdminAction({
       actorId: admin.id,
       actorEmail: admin.email,
       action: 'channels.oauth.start',
       entityType: 'ChannelConnection',
       route: '/api/admin/channels/oauth/start',
-      details: `${channelParam} ws=${workspaceId}`,
+      details: `${channelParam} ws=${workspaceId}${comments ? ` comments${mentions ? '+mentions' : ''}` : ''}`,
       request,
     })
     return NextResponse.redirect(url, { status: 302 })

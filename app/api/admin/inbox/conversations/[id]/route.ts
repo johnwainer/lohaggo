@@ -5,6 +5,8 @@ import { requireAdmin } from '@/lib/admin-utils'
 import { canView, getWorkspaceAccess } from '@/lib/workspaces'
 import { contactInclude } from '@/lib/inbox/contacts'
 import { copilotState } from '@/lib/ai/copilot'
+import { commentModeration } from '@/lib/ai/comments'
+import { isCommentChannel, privateReplyAvailability } from '@/lib/ai/comments-core'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -59,13 +61,24 @@ export async function GET(request: NextRequest, context: RouteContext) {
         agentId: state.agent.id,
         agentName: state.agent.name,
         suggestMode: state.agent.copilotSuggest,
-        suggestion: suggestion && suggestion.status === 'pending' ? { id: suggestion.id, text: suggestion.text, context: suggestion.context, createdAt: suggestion.createdAt } : null,
+        suggestion: suggestion && suggestion.status === 'pending' ? { id: suggestion.id, text: suggestion.text, privateText: suggestion.privateText, context: suggestion.context, createdAt: suggestion.createdAt } : null,
         timer: t.action === 'none' ? null : { action: t.action, mode: t.mode, warnAt: t.warnAt, takeoverAt: t.takeoverAt },
       }
     }
   }
 
-  return NextResponse.json({ conversation: { ...conversation, messages, copilot }, hasMore })
+  // Comments: can the private reply still be used, can this account hide comments
+  let comments = null
+  if (!before && isCommentChannel(conversation.channel)) {
+    const [target, replied, moderation] = await Promise.all([
+      prisma.conversationMessage.findFirst({ where: { conversationId: id, direction: 'INBOUND', commentId: { not: null }, commentDeletedAt: null }, orderBy: { sentAt: 'desc' }, select: { commentId: true, sentAt: true } }),
+      prisma.conversationMessage.findMany({ where: { conversationId: id, direction: 'OUTBOUND', visibility: 'private' }, select: { commentId: true } }),
+      commentModeration(conversation),
+    ])
+    comments = { canHide: moderation.canHide, privateReply: privateReplyAvailability(target, replied.map((r) => r.commentId), new Date(), conversation.commentKind) }
+  }
+
+  return NextResponse.json({ conversation: { ...conversation, messages, copilot, comments }, hasMore })
 }
 
 export async function PATCH(request: NextRequest, context: RouteContext) {

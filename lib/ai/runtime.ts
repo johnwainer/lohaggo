@@ -6,7 +6,8 @@ import { emitInboxEvent } from '@/lib/messaging/inbox-emitter'
 import { callClaude, describeApiError, textOf, type Effort } from '@/lib/ai/anthropic'
 import { getAiSettings } from '@/lib/ai/settings'
 import { applySignature, formatForChannel, parseMarkers } from '@/lib/ai/format'
-import { buildSystem } from '@/lib/ai/prompt'
+import { buildSystem, type CommentPromptContext } from '@/lib/ai/prompt'
+import type { CommentSignals } from '@/lib/ai/comments-core'
 import { recordGap, retrieve, type KnowledgeChunk, type Retrieval } from '@/lib/ai/knowledge'
 import { buildToolDefs, executeTool, isWriteTool, toolGuidance, type ToolCallRecord, type ToolRunState } from '@/lib/ai/tools'
 import { auxBudgetAvailable, checkWorkspaceBudget } from '@/lib/ai/limits'
@@ -39,6 +40,7 @@ export type HandoffReason =
   | 'tool_loop'
   | 'empty'
   | 'goal_done'
+  | 'sensitive'
 
 export type ReplyResult = {
   ok: boolean
@@ -60,6 +62,8 @@ export type ReplyResult = {
   rounds: number
   stopReason: string | null
   error: string | null
+  /** Comment mode: raw signals for planCommentReply (text keeps the [[PRIVADO]] separator, unformatted) */
+  comment?: CommentSignals
 }
 
 export type ReplyOptions = {
@@ -72,13 +76,18 @@ export type ReplyOptions = {
   history: Array<{ role: 'user' | 'assistant'; content: string }>
   text: string
   summary: string | null
-  kind: Extract<AiCallKind, 'agent_reply' | 'playground' | 'flow_step' | 'copilot_suggestion'>
+  kind: Extract<AiCallKind, 'agent_reply' | 'playground' | 'flow_step' | 'copilot_suggestion' | 'comment_reply' | 'comment_suggestion'>
   /** Copilot: drafts the reply a person will send. Read-only tools, no signature, no side effects. */
   copilot?: boolean
+  /** Public comment on a post: the caller plans public / private replies and moderation from the signals */
+  comment?: CommentPromptContext
   dryRun: boolean
   flowOutputs?: string[]
   now?: Date
 }
+
+/** Calls whose whole cost (tool rounds included) is reported under their own kind */
+const KEEP_KIND_ON_TOOL_ROUNDS = new Set<AiCallKind>(['playground', 'copilot_suggestion', 'comment_reply', 'comment_suggestion'])
 
 const emptyUsage = (): UsageTokens => ({ inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 })
 
@@ -162,7 +171,9 @@ export const AgentRuntimeService = {
    */
   async reply(opts: ReplyOptions): Promise<ReplyResult> {
     // In copilot mode the agent only reads: tools that write stay out of its reach entirely
-    const agent = opts.copilot ? { ...opts.agent, tools: opts.agent.tools.filter((t) => !isWriteTool(t)) } : opts.agent
+    // Public comments come from anyone: like the copilot, the agent only reads there (no accounts, tasks or status changes)
+    const readOnly = opts.copilot || Boolean(opts.comment)
+    const agent = readOnly ? { ...opts.agent, tools: opts.agent.tools.filter((t) => !isWriteTool(t)) } : opts.agent
     const now = opts.now ?? new Date()
     const requestedModel = await resolveModel(agent)
     const result: ReplyResult = {
@@ -192,6 +203,7 @@ export const AgentRuntimeService = {
       toolGuidance: toolGuidance(agent, opts.flowOutputs),
       copilot: opts.copilot,
       flowOutputs: opts.flowOutputs,
+      comment: opts.comment,
     })
     const tools = buildToolDefs(agent, opts.flowOutputs)
     const effort: Effort = tools.length ? 'medium' : 'low'
@@ -215,7 +227,7 @@ export const AgentRuntimeService = {
       for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
         const call = await callClaude(
           { model: requestedModel, system, messages: merged, tools, maxTokens: agent.maxTokens, effort },
-          { kind: round === 0 || opts.kind === 'playground' || opts.kind === 'copilot_suggestion' ? opts.kind : 'tools_round', workspaceId: opts.workspaceId, agentId: agent.id, conversationId: opts.conversationId },
+          { kind: round === 0 || KEEP_KIND_ON_TOOL_ROUNDS.has(opts.kind) ? opts.kind : 'tools_round', workspaceId: opts.workspaceId, agentId: agent.id, conversationId: opts.conversationId },
         )
         result.rounds = round + 1
         result.model = call.model
@@ -255,6 +267,24 @@ export const AgentRuntimeService = {
     }
 
     const markers = parseMarkers(final ? textOf(final) : '')
+    if (opts.comment) {
+      result.done = markers.done
+      if (state.handoff) {
+        result.handoff = true
+        result.handoffReason = 'tool'
+        result.handoffDetail = state.handoff.reason
+      } else if (markers.handoff || markers.sensitive) {
+        result.handoff = markers.handoff
+        result.handoffReason = markers.sensitive ? 'sensitive' : 'model'
+      }
+      result.spam = markers.spam
+      result.text = markers.text
+      result.comment = {
+        text: markers.text, handoff: result.handoff, sensitive: markers.sensitive, ignore: markers.ignore, offensive: markers.offensive, spam: markers.spam,
+        usedTools: result.toolsUsed.length > 0,
+      }
+      return result
+    }
     result.done = markers.done
     result.spam = markers.spam && agent.ignoreSpam
     if (result.spam) return { ...result, text: '' }
@@ -365,6 +395,7 @@ export const HANDOFF_LABEL: Record<HandoffReason, string> = {
   tool_loop: 'Demasiadas vueltas de herramientas',
   empty: 'Respuesta vacía',
   goal_done: 'Objetivo cumplido',
+  sensitive: 'Tema sensible en un comentario',
 }
 
 async function pickLeastLoadedMember(workspaceId: string): Promise<string | null> {

@@ -1,3 +1,4 @@
+import { isCommentChannel } from '@/lib/ai/comments-core'
 import { prisma } from '@/lib/prisma'
 import { sendToConversation } from '@/lib/inbox/send'
 import { AgentRuntimeService } from '@/lib/ai/runtime'
@@ -29,7 +30,7 @@ export async function runFlowAiStep(params: { conversationId: string; agentId?: 
     channel: conversation.channel,
     conversationId: conversation.id,
     userId: conversation.userId,
-    contact: { name: conversation.contactName, phone: conversation.contactPhone, tags: conversation.tags, fields: (conversation.customFields as Record<string, unknown>) || {} },
+    contact: { name: conversation.contactName, phone: isCommentChannel(conversation.channel) ? null : conversation.contactPhone, tags: conversation.tags, fields: (conversation.customFields as Record<string, unknown>) || {} },
     history,
     text,
     summary: memory.summary,

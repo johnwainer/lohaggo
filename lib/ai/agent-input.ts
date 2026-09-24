@@ -1,6 +1,9 @@
 import { TOOL_NAMES, CRM_MODULES } from '@/lib/ai/tools'
+import { COMMENT_CHANNELS, COMMENT_SCOPES_MODES, REPLY_MODES, SENSITIVE_ACTIONS } from '@/lib/ai/comments-core'
 
 export const AGENT_CHANNELS = ['WHATSAPP', 'SMS', 'MESSENGER', 'INSTAGRAM'] as const
+/** Configured in the agent's "Comentarios" tab, apart from messaging channels */
+export const AGENT_COMMENT_CHANNELS = COMMENT_CHANNELS
 
 /** Face catalog: agents store the key, never a URL. */
 export const AVATARS = [
@@ -68,6 +71,29 @@ export function sanitizeAgentInput(body: AgentInput, opts: { allowModel: boolean
   if (typeof body.copilotTakeover === 'boolean') out.copilotTakeover = body.copilotTakeover
   if (body.copilotTakeoverMinutes !== undefined) out.copilotTakeoverMinutes = clampInt(body.copilotTakeoverMinutes, 1, 720, 10)
   if (body.copilotWarnMinutes !== undefined) out.copilotWarnMinutes = clampInt(body.copilotWarnMinutes, 0, 60, 2)
+
+  set('commentChannels', list(body.commentChannels, AGENT_COMMENT_CHANNELS))
+  set('commentCopilotChannels', list(body.commentCopilotChannels, AGENT_COMMENT_CHANNELS))
+  set('commentAccounts', list(body.commentAccounts, undefined, 100))
+  if (body.commentReplyMode !== undefined) {
+    const raw = body.commentReplyMode && typeof body.commentReplyMode === 'object' ? (body.commentReplyMode as Record<string, unknown>) : {}
+    const modes: Record<string, string> = {}
+    for (const ch of AGENT_COMMENT_CHANNELS) {
+      const m = oneOf(raw[ch], REPLY_MODES)
+      if (m) modes[ch] = m
+    }
+    out.commentReplyMode = modes
+  }
+  if (body.commentPublicTemplate !== undefined) out.commentPublicTemplate = text(body.commentPublicTemplate, 300) || null
+  set('commentScope', oneOf(body.commentScope, COMMENT_SCOPES_MODES))
+  set('commentAlwaysKeywords', list(body.commentAlwaysKeywords, undefined, 100)?.map((k) => k.slice(0, 60)))
+  set('commentNeverKeywords', list(body.commentNeverKeywords, undefined, 100)?.map((k) => k.slice(0, 60)))
+  if (typeof body.commentIgnoreTagOnly === 'boolean') out.commentIgnoreTagOnly = body.commentIgnoreTagOnly
+  set('commentSensitiveAction', oneOf(body.commentSensitiveAction, SENSITIVE_ACTIONS))
+  if (typeof body.commentHideOffensive === 'boolean') out.commentHideOffensive = body.commentHideOffensive
+  if (typeof body.commentHideSpam === 'boolean') out.commentHideSpam = body.commentHideSpam
+  if (body.commentMaxPerPostPerHour !== undefined) out.commentMaxPerPostPerHour = clampInt(body.commentMaxPerPostPerHour, 1, 1000, 20)
+  if (body.commentMaxPerAccountPerDay !== undefined) out.commentMaxPerAccountPerDay = clampInt(body.commentMaxPerAccountPerDay, 1, 1000, 200)
 
   set('tools', list(body.tools, TOOL_NAMES))
   set('crmModules', list(body.crmModules, Object.keys(CRM_MODULES)))

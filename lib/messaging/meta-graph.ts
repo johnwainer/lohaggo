@@ -105,13 +105,29 @@ export const META_SCOPES: Record<MetaChannel, string[]> = {
   INSTAGRAM: ['pages_show_list', 'instagram_basic', 'instagram_manage_messages', 'pages_manage_metadata'],
 }
 
-export function buildOAuthUrl(params: { app: MetaAppConfig; redirectUri: string; state: string; channel: MetaChannel }) {
+/** Extra scopes asked only when the account is connected with the comments option. */
+export const COMMENT_SCOPES: Record<MetaChannel, string[]> = {
+  MESSENGER: ['pages_read_engagement', 'pages_read_user_content', 'pages_manage_engagement'],
+  INSTAGRAM: ['instagram_manage_comments'],
+}
+export const MENTION_SCOPE = 'instagram_manage_mentions'
+
+export type OAuthOptions = { comments?: boolean; mentions?: boolean }
+
+export function scopesFor(channel: MetaChannel, options: OAuthOptions = {}) {
+  const scopes = [...META_SCOPES[channel]]
+  if (options.comments) scopes.push(...COMMENT_SCOPES[channel])
+  if (options.comments && options.mentions && channel === 'INSTAGRAM') scopes.push(MENTION_SCOPE)
+  return scopes
+}
+
+export function buildOAuthUrl(params: { app: MetaAppConfig; redirectUri: string; state: string; channel: MetaChannel; options?: OAuthOptions }) {
   const url = new URL(facebookDialogUrl(params.app.graphVersion))
   url.searchParams.set('client_id', params.app.appId)
   url.searchParams.set('redirect_uri', params.redirectUri)
   url.searchParams.set('state', params.state)
   url.searchParams.set('response_type', 'code')
-  url.searchParams.set('scope', META_SCOPES[params.channel].join(','))
+  url.searchParams.set('scope', scopesFor(params.channel, params.options).join(','))
   url.searchParams.set('auth_type', 'rerequest')
   if (params.app.configId) url.searchParams.set('config_id', params.app.configId)
   return url.toString()
@@ -207,17 +223,25 @@ export async function subscribePageToApp(app: MetaAppConfig, pageId: string, pag
   return fields
 }
 
-export async function subscribePageWithFallback(app: MetaAppConfig, pageId: string, pageAccessToken: string, channel: MetaChannel) {
-  const primary = channel === 'MESSENGER' ? MESSENGER_SUBSCRIBED_FIELDS_FULL : ['messages']
-  try {
-    return await subscribePageToApp(app, pageId, pageAccessToken, primary)
-  } catch (err) {
-    if (channel === 'MESSENGER') {
-      logger.warn('Full subscription rejected, retrying with minimal set', { pageId, err: err instanceof Error ? err.message : err })
-      return await subscribePageToApp(app, pageId, pageAccessToken, MESSENGER_SUBSCRIBED_FIELDS_MIN)
+/**
+ * `feed` (Page comments) is added when comments are on for the Page. Without the comment permissions
+ * Meta rejects it, so each fallback keeps messaging working: full+feed → min+feed → full → min.
+ */
+export async function subscribePageWithFallback(app: MetaAppConfig, pageId: string, pageAccessToken: string, channel: MetaChannel, opts: { feed?: boolean } = {}) {
+  if (channel !== 'MESSENGER') return subscribePageToApp(app, pageId, pageAccessToken, ['messages'])
+  const attempts = opts.feed
+    ? [[...MESSENGER_SUBSCRIBED_FIELDS_FULL, 'feed'], [...MESSENGER_SUBSCRIBED_FIELDS_MIN, 'feed'], MESSENGER_SUBSCRIBED_FIELDS_FULL, MESSENGER_SUBSCRIBED_FIELDS_MIN]
+    : [MESSENGER_SUBSCRIBED_FIELDS_FULL, MESSENGER_SUBSCRIBED_FIELDS_MIN]
+  let lastError: unknown = null
+  for (const fields of attempts) {
+    try {
+      return await subscribePageToApp(app, pageId, pageAccessToken, fields)
+    } catch (err) {
+      lastError = err
+      logger.warn('Page subscription rejected, trying a smaller set', { pageId, fields: fields.join(','), err: err instanceof Error ? err.message : err })
     }
-    throw err
   }
+  throw lastError
 }
 
 export async function isPageSubscribed(app: MetaAppConfig, pageId: string, pageAccessToken: string) {
@@ -276,6 +300,95 @@ export async function fetchContactProfile(app: MetaAppConfig, pageAccessToken: s
   })
   const name = data.name || [data.first_name, data.last_name].filter(Boolean).join(' ') || null
   return { name, username: data.username || null }
+}
+
+// ─── Comments ────────────────────────────────────────────────────────────────
+
+/** Public reply under a comment. Facebook: /{comment}/comments; Instagram: /{comment}/replies. */
+export async function replyToComment(app: MetaAppConfig, pageAccessToken: string, channel: MetaChannel, commentId: string, message: string) {
+  return graphFetch<{ id: string }>(`${commentId}/${channel === 'INSTAGRAM' ? 'replies' : 'comments'}`, {
+    version: app.graphVersion,
+    method: 'POST',
+    token: pageAccessToken,
+    body: { message },
+  })
+}
+
+/** Reply to a comment where the business was @mentioned on someone else's Instagram media. */
+export async function replyToMention(app: MetaAppConfig, pageAccessToken: string, igUserId: string, mediaId: string, commentId: string, message: string) {
+  return graphFetch<{ id: string }>(`${igUserId}/mentions`, {
+    version: app.graphVersion,
+    method: 'POST',
+    token: pageAccessToken,
+    body: { comment_id: commentId, media_id: mediaId, message },
+  })
+}
+
+/** Private reply: a direct message tied to the comment (one per comment, within 7 days). */
+export async function sendPrivateReply(app: MetaAppConfig, pageAccessToken: string, commentId: string, message: string) {
+  return graphFetch<{ recipient_id?: string; message_id?: string }>('me/messages', {
+    version: app.graphVersion,
+    method: 'POST',
+    token: pageAccessToken,
+    body: { recipient: { comment_id: commentId }, message: { text: message } },
+  })
+}
+
+export async function setCommentHidden(app: MetaAppConfig, pageAccessToken: string, channel: MetaChannel, commentId: string, hidden: boolean) {
+  return graphFetch<{ success?: boolean }>(commentId, {
+    version: app.graphVersion,
+    method: 'POST',
+    token: pageAccessToken,
+    query: channel === 'INSTAGRAM' ? { hide: String(hidden) } : { is_hidden: String(hidden) },
+  })
+}
+
+export type PostInfo = { caption: string | null; permalink: string | null; mediaUrl: string | null; isAd: boolean }
+
+/** Post / media shown above a comment conversation. Unpublished Page posts are ad creatives ("dark posts"). */
+export async function fetchPostInfo(app: MetaAppConfig, pageAccessToken: string, channel: MetaChannel, postId: string): Promise<PostInfo> {
+  if (channel === 'INSTAGRAM') {
+    const data = await graphFetch<{ caption?: string; permalink?: string; media_url?: string; thumbnail_url?: string; media_product_type?: string }>(postId, {
+      version: app.graphVersion,
+      token: pageAccessToken,
+      query: { fields: 'caption,permalink,media_url,thumbnail_url,media_product_type' },
+    })
+    return { caption: data.caption ?? null, permalink: data.permalink ?? null, mediaUrl: data.thumbnail_url || data.media_url || null, isAd: data.media_product_type === 'AD' }
+  }
+  const data = await graphFetch<{ message?: string; permalink_url?: string; full_picture?: string; is_published?: boolean; promotion_status?: string }>(postId, {
+    version: app.graphVersion,
+    token: pageAccessToken,
+    query: { fields: 'message,permalink_url,full_picture,is_published,promotion_status' },
+  })
+  return {
+    caption: data.message ?? null,
+    permalink: data.permalink_url ?? null,
+    mediaUrl: data.full_picture ?? null,
+    isAd: data.is_published === false || data.promotion_status === 'active',
+  }
+}
+
+/** A comment that @mentions the business on someone else's media (the webhook only carries ids). */
+export async function fetchMentionedComment(app: MetaAppConfig, pageAccessToken: string, igUserId: string, commentId: string) {
+  // Goes inside a field expression: only Meta's numeric ids are accepted
+  if (!/^\d+(_\d+)?$/.test(commentId)) return null
+  const data = await graphFetch<{
+    mentioned_comment?: { id: string; text?: string; timestamp?: string; username?: string; from?: { id?: string; username?: string }; media?: { id: string; caption?: string; permalink?: string; media_url?: string } }
+  }>(igUserId, {
+    version: app.graphVersion,
+    token: pageAccessToken,
+    query: { fields: `mentioned_comment.comment_id(${commentId}){id,text,timestamp,username,from,media{id,caption,permalink,media_url}}` },
+  })
+  return data.mentioned_comment ?? null
+}
+
+/** Scopes actually granted to the stored token (debug_token with the app token). */
+export async function fetchGrantedScopes(app: MetaAppConfig, token: string) {
+  const data = await graphFetch<{ data?: { scopes?: string[]; is_valid?: boolean } }>('debug_token', {
+    version: app.graphVersion,
+    query: { input_token: token, access_token: `${app.appId}|${app.appSecret}` },
+  })
+  return { scopes: data.data?.scopes ?? [], valid: data.data?.is_valid !== false }
 }
 
 // ─── Capability probing (no real traffic) ────────────────────────────────────

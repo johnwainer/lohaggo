@@ -6,7 +6,7 @@ import { canView, getWorkspaceAccess, listAccessibleWorkspaces, workspaceScope }
 
 export const dynamic = 'force-dynamic'
 
-const CHANNELS: MessagingChannel[] = ['WHATSAPP', 'SMS', 'MESSENGER', 'INSTAGRAM']
+const CHANNELS: MessagingChannel[] = ['WHATSAPP', 'SMS', 'MESSENGER', 'INSTAGRAM', 'FACEBOOK_COMMENT', 'INSTAGRAM_COMMENT']
 const STATUSES: ConversationStatus[] = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED']
 type SortKey = 'recent' | 'unread' | 'waiting' | 'oldest'
 
@@ -103,7 +103,11 @@ export async function GET(request: NextRequest) {
     }),
     prisma.aiAgent.findMany({
       // Agents a conversation can be handed to: autopilot or copilot on some channel
-      where: { status: 'active', OR: [{ autopilot: true }, { NOT: { copilotChannels: { isEmpty: true } } }], ...workspaceScope(access) },
+      where: {
+        status: 'active',
+        OR: [{ autopilot: true }, { NOT: { copilotChannels: { isEmpty: true } } }, { NOT: { commentChannels: { isEmpty: true } } }, { NOT: { commentCopilotChannels: { isEmpty: true } } }],
+        ...workspaceScope(access),
+      },
       select: { id: true, name: true, workspaceId: true },
       orderBy: { createdAt: 'asc' },
     }),

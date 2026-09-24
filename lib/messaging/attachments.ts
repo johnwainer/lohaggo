@@ -195,6 +195,9 @@ export function channelSupportsAttachment(channel: string, mime: string, kind: A
       return { ok: true }
     case 'MESSENGER':
       return { ok: true }
+    case 'FACEBOOK_COMMENT':
+    case 'INSTAGRAM_COMMENT':
+      return { ok: false, error: 'Las respuestas a comentarios solo admiten texto' }
     default:
       return { ok: false, error: 'Canal sin soporte de adjuntos' }
   }

@@ -113,6 +113,21 @@ export async function resolveInboundContact(params: {
   return contact
 }
 
+/**
+ * Links a channel id to a contact (e.g. the Messenger PSID a private reply to a Facebook comment
+ * returns). If another contact already owns that id, both become one.
+ */
+export async function linkIdentity(contactId: string, channel: MessagingChannel, externalId: string) {
+  const existing = await prisma.contactIdentity.findUnique({ where: { channel_externalId: { channel, externalId } } })
+  if (!existing) {
+    await prisma.contactIdentity.create({ data: { contactId, channel, externalId } })
+    return contactId
+  }
+  if (existing.contactId === contactId) return contactId
+  const merged = await mergeContacts(existing.contactId, contactId)
+  return merged?.id ?? existing.contactId
+}
+
 export type ContactPatch = { name?: string | null; phone?: string | null; email?: string | null; notes?: string | null; userId?: string | null }
 
 /**

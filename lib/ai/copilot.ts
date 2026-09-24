@@ -6,6 +6,9 @@ import { AgentRuntimeService } from '@/lib/ai/runtime'
 import { handleInbound, withAccountKey } from '@/lib/ai/autopilot'
 import { accountAllowed, accountKeysOf } from '@/lib/ai/runtime-core'
 import { COPILOT_MAX_AGE_MS, copilotAgentFor, copilotTimer, splitSuggestion, type CopilotTimer } from '@/lib/ai/copilot-core'
+import { isCommentChannel, privateReplyAvailability, splitCommentSuggestion } from '@/lib/ai/comments-core'
+import { commentPromptContext } from '@/lib/ai/comments'
+import { formatForChannel } from '@/lib/ai/format'
 
 const logger = createLogger('ai-copilot')
 const DEFAULT_TZ = 'America/Bogota'
@@ -14,10 +17,12 @@ const DEFAULT_TZ = 'America/Bogota'
 const COPILOT_HELPS_WHEN = new Set(['human_owner', 'human_recent', 'handed_off', 'no_agent', 'account_not_enabled', 'skip_tag'])
 
 export async function copilotAgentForConversation(conversation: Pick<Conversation, 'workspaceId' | 'channel' | 'connectionId'>) {
-  const agents = await prisma.aiAgent.findMany({ where: { workspaceId: conversation.workspaceId, status: 'active', copilotChannels: { has: conversation.channel } } })
+  const agents = await prisma.aiAgent.findMany({
+    where: { workspaceId: conversation.workspaceId, status: 'active', OR: [{ copilotChannels: { has: conversation.channel } }, { commentCopilotChannels: { has: conversation.channel } }] },
+  })
   const conv = await withAccountKey(conversation)
   const keys = accountKeysOf(conv)
-  return copilotAgentFor(agents.filter((a) => accountAllowed(a, keys)), conversation.channel)
+  return copilotAgentFor(agents.filter((a) => accountAllowed(a, keys, conversation.channel)), conversation.channel)
 }
 
 async function accountTz(workspaceId: string) {
@@ -34,6 +39,14 @@ async function lastClientFacingMessage(conversationId: string) {
 }
 
 export class CopilotError extends Error {}
+
+async function commentPrivateAvailable(conversation: Conversation) {
+  const [target, replied] = await Promise.all([
+    prisma.conversationMessage.findFirst({ where: { conversationId: conversation.id, direction: 'INBOUND', commentId: { not: null }, commentDeletedAt: null }, orderBy: { sentAt: 'desc' }, select: { commentId: true, sentAt: true } }),
+    prisma.conversationMessage.findMany({ where: { conversationId: conversation.id, direction: 'OUTBOUND', visibility: 'private' }, select: { commentId: true } }),
+  ])
+  return privateReplyAvailability(target, replied.map((r) => r.commentId), new Date(), conversation.commentKind).ok
+}
 
 /**
  * Drafts the reply the person handling the conversation could send. Same runtime, knowledge and
@@ -53,30 +66,39 @@ export async function suggestReply(conversationId: string, opts: { trigger: 'aut
     ? history.pop()!.content
     : '[Aviso interno, no lo escribió el cliente] El cliente no ha escrito nada nuevo. Sugiere un mensaje breve de seguimiento para retomar la conversación donde quedó.'
 
+  const comment = isCommentChannel(conversation.channel)
   const result = await AgentRuntimeService.reply({
     agent,
     workspaceId: conversation.workspaceId,
     channel: conversation.channel,
     conversationId,
     userId: conversation.userId,
-    contact: { name: conversation.contactName, phone: conversation.contactPhone, tags: conversation.tags, fields: (conversation.customFields as Record<string, unknown>) || {} },
+    contact: { name: conversation.contactName, phone: comment ? null : conversation.contactPhone, tags: conversation.tags, fields: (conversation.customFields as Record<string, unknown>) || {} },
     history,
     text,
     summary: memory.summary,
-    kind: 'copilot_suggestion',
+    kind: comment ? 'comment_suggestion' : 'copilot_suggestion',
     copilot: true,
+    comment: comment ? commentPromptContext(conversation, agent, { privateAvailable: await commentPrivateAvailable(conversation), forced: true }) : undefined,
     dryRun: true,
   })
   if (!result.ok) throw new CopilotError(result.error || 'No se pudo generar la sugerencia')
   if (result.handoffReason === 'budget') throw new CopilotError('Tope mensual de IA alcanzado')
-  const { text: suggestion, context } = splitSuggestion(result.text)
-  if (!suggestion) throw new CopilotError('El agente no generó una sugerencia')
+  // Comments: the public reply and the private one are suggested separately
+  const parts = comment
+    ? (() => {
+        const c = splitCommentSuggestion(result.text)
+        return { text: formatForChannel(c.publicText, conversation.channel), privateText: formatForChannel(c.privateText, conversation.channel) || null, context: c.context }
+      })()
+    : { ...splitSuggestion(result.text), privateText: null }
+  if (!parts.text && !parts.privateText) throw new CopilotError('El agente no generó una sugerencia')
 
   await prisma.aiSuggestion.updateMany({ where: { conversationId, status: 'pending' }, data: { status: 'expired', resolvedAt: new Date() } })
   const saved = await prisma.aiSuggestion.create({
     data: {
       conversationId, agentId: agent.id, channel: conversation.channel, messageId: opts.messageId ?? null,
-      text: suggestion.slice(0, 4000), context: context?.slice(0, 500) ?? null, trigger: opts.trigger, model: result.model, costUsd: result.costUsd,
+      text: parts.text.slice(0, 4000), privateText: parts.privateText?.slice(0, 4000) ?? null, context: parts.context?.slice(0, 500) ?? null,
+      trigger: opts.trigger, model: result.model, costUsd: result.costUsd,
     },
   })
   emitInboxEvent({ type: 'status-update', conversationId, workspaceId: conversation.workspaceId })
@@ -146,7 +168,9 @@ async function alert(conversation: Conversation, agent: AiAgent, lastMessageId: 
  * not take (it handed it off itself, or it carries an excluded tag).
  */
 export async function runCopilotTakeovers(limit = 40) {
-  const agents = await prisma.aiAgent.findMany({ where: { status: 'active', copilotTakeover: true, NOT: { copilotChannels: { isEmpty: true } } } })
+  const agents = await prisma.aiAgent.findMany({
+    where: { status: 'active', copilotTakeover: true, OR: [{ NOT: { copilotChannels: { isEmpty: true } } }, { NOT: { commentCopilotChannels: { isEmpty: true } } }] },
+  })
   let tookOver = 0
   let alerted = 0
   for (const agent of agents) {
@@ -154,7 +178,7 @@ export async function runCopilotTakeovers(limit = 40) {
     const newest = new Date(Date.now() - Math.max(1, agent.copilotTakeoverMinutes) * 60_000)
     const conversations = await prisma.conversation.findMany({
       where: {
-        workspaceId: agent.workspaceId, channel: { in: agent.copilotChannels as never[] }, aiHandled: false, isTest: false, aiSpam: false,
+        workspaceId: agent.workspaceId, channel: { in: [...agent.copilotChannels, ...agent.commentCopilotChannels] as never[] }, aiHandled: false, isTest: false, aiSpam: false,
         automationsPaused: false, threadOwner: null, status: { in: ['OPEN', 'IN_PROGRESS'] }, lastMessageAt: { gte: oldest, lte: newest },
       },
       orderBy: { lastMessageAt: 'asc' },
@@ -188,7 +212,9 @@ export async function resolveSuggestionOnSend(conversationId: string, sentText: 
   if (suggestionId) {
     const s = await prisma.aiSuggestion.findFirst({ where: { id: suggestionId, conversationId } })
     if (s && (s.status === 'pending' || s.status === 'inserted')) {
-      await prisma.aiSuggestion.update({ where: { id: s.id }, data: { status: suggestionOutcome(s.text, sentText), resolvedAt: new Date(), resolvedById: userId } })
+      // Comments: the person may have sent the public or the private suggestion
+      const used = [s.text, s.privateText].some((t) => t && suggestionOutcome(t, sentText) === 'used')
+      await prisma.aiSuggestion.update({ where: { id: s.id }, data: { status: used ? 'used' : 'edited', resolvedAt: new Date(), resolvedById: userId } })
     }
   }
   await prisma.aiSuggestion.updateMany({ where: { conversationId, status: { in: ['pending', 'inserted'] } }, data: { status: 'ignored', resolvedAt: new Date(), resolvedById: userId } })

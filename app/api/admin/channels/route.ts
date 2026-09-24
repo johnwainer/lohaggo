@@ -35,6 +35,7 @@ export async function GET() {
         enabled: true,
         meta: true,
         capabilities: true,
+        commentSettings: true,
         lastError: true,
         lastEventAt: true,
         connectedByEmail: true,

@@ -58,6 +58,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
     attachment,
     sender: { type: 'HUMAN', userId: admin.id },
     waTemplate: waContentSid ? { contentSid: String(waContentSid), variables: waVariables || {} } : null,
+    visibility: body.visibility === 'private' ? 'private' : 'public',
+    replyToCommentId: typeof body.replyToCommentId === 'string' ? body.replyToCommentId : null,
   })
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status })
   // Copilot metrics (suggestion used / edited / ignored) and the "no answer" alert is over

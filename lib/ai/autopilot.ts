@@ -10,6 +10,7 @@ import { buildSystem } from '@/lib/ai/prompt'
 import { retrieve } from '@/lib/ai/knowledge'
 import { getAiSettings } from '@/lib/ai/settings'
 import { auxBudgetAvailable } from '@/lib/ai/limits'
+import { isCommentChannel } from '@/lib/ai/comments-core'
 import {
   HUMAN_GRACE_MS,
   accountAllowed,
@@ -53,9 +54,9 @@ export async function humanActiveRecently(conversationId: string, now = new Date
 /** True when an autopilot agent covers this channel/account: new conversations then skip human auto-assign. */
 export async function autopilotCovers(workspaceId: string, channel: string, connectionId: string | null, connectionExternalId?: string | null) {
   try {
-    const agents = await prisma.aiAgent.findMany({ where: { workspaceId, status: 'active', autopilot: true } })
+    const agents = await prisma.aiAgent.findMany({ where: { workspaceId, status: 'active' } })
     const keys = accountKeysOf({ channel, connectionId, connectionExternalId })
-    return autopilotCandidates(agents, channel).some((a) => accountAllowed(a, keys))
+    return autopilotCandidates(agents, channel).some((a) => accountAllowed(a, keys, channel))
   } catch {
     return false
   }
@@ -90,7 +91,7 @@ async function markStarted(conversation: Conversation, agent: AiAgent) {
   return updated
 }
 
-async function stillOurs(conversationId: string, agentId: string) {
+export async function stillOurs(conversationId: string, agentId: string) {
   const c = await prisma.conversation.findUnique({ where: { id: conversationId } })
   if (!c || !c.aiHandled || c.aiAgentId !== agentId || c.assignedToId || c.automationsPaused) return null
   if (await humanActiveRecently(conversationId)) return null
@@ -128,6 +129,12 @@ export async function handleInbound(conversationId: string, messageId: string, o
   const agent = decision.agent as AiAgent
   conversation = await markStarted(conversation, agent)
 
+  // Public comments on posts follow their own rules (public / private reply, moderation, limits)
+  if (isCommentChannel(conversation.channel)) {
+    const { handleCommentInbound } = await import('@/lib/ai/comments')
+    return handleCommentInbound(conversation, agent, message)
+  }
+
   const ws = await prisma.workspace.findUnique({ where: { id: conversation.workspaceId }, select: { timezone: true } })
   const accountTz = ws?.timezone || 'America/Bogota'
   const pre = AgentRuntimeService.preHandoff(agent, { text: message.body, turns: conversation.aiTurns, now: new Date(), accountTz })
@@ -150,6 +157,11 @@ export async function handleInbound(conversationId: string, messageId: string, o
   const history = [...memory.history]
   // Everything the client wrote since our last answer is the "new message"
   const pending = history.length && history[history.length - 1].role === 'user' ? history.pop()!.content : message.body
+  // A chat that started by answering our private reply to a comment: the agent sees that comment first
+  if (conversation.channel === 'MESSENGER' || conversation.channel === 'INSTAGRAM') {
+    const { privateReplyContext } = await import('@/lib/ai/comments')
+    history.unshift(...(await privateReplyContext(conversation, history.length).catch(() => [])))
+  }
 
   const result = await AgentRuntimeService.reply({
     agent,
@@ -221,6 +233,7 @@ export async function runReengagement(limit = 30) {
     const convs = await prisma.conversation.findMany({
       where: {
         aiHandled: true, aiAgentId: agent.id, assignedToId: null, reengagedAt: null, isTest: false, aiSpam: false,
+        channel: { notIn: ['FACEBOOK_COMMENT', 'INSTAGRAM_COMMENT'] },
         automationsPaused: false, status: { in: ['OPEN', 'IN_PROGRESS'] }, lastMessageAt: { lt: cutoff, gt: new Date(Date.now() - DAY_MS) },
       },
       take: limit,

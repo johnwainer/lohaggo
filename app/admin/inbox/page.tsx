@@ -7,7 +7,7 @@ import {
   ExternalLink, Star, MapPin, ShieldCheck, Calendar,
   StickyNote, Zap, Tag, ChevronDown, Plus, Trash2, LayoutTemplate,
   ChevronUp, Link2, Copy, Check, ArrowLeft, BellOff,
-  Paperclip, Mic, Square, FileText, Download, Bot, Hand, Pause, Play, ListTodo, Sparkles,
+  Paperclip, Mic, Square, FileText, Download, Bot, Hand, Pause, Play, ListTodo, Sparkles, Eye, EyeOff,
 } from 'lucide-react'
 import { ChannelIcon, CHANNEL_META } from '@/components/admin/ChannelIcon'
 import ContactPanel, { RoleBadge, type ContactDetail } from '@/components/admin/inbox/ContactPanel'
@@ -35,7 +35,7 @@ type QuickProfile = {
   _count: { bookings: number; serviceRequests: number; payments: number }
 }
 
-type Channel = 'SMS' | 'WHATSAPP' | 'MESSENGER' | 'INSTAGRAM'
+type Channel = 'SMS' | 'WHATSAPP' | 'MESSENGER' | 'INSTAGRAM' | 'FACEBOOK_COMMENT' | 'INSTAGRAM_COMMENT'
 type ConvStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED'
 type Direction = 'INBOUND' | 'OUTBOUND'
 type MsgStatus = 'PENDING' | 'SENT' | 'DELIVERED' | 'FAILED'
@@ -56,6 +56,11 @@ type Message = {
   sentBy?: { id: string; name: string } | null
   senderType?: string | null
   aiAgentName?: string | null
+  /** Comment channels: Meta comment id, hidden on the post, deleted by its author, public reply or private reply */
+  commentId?: string | null
+  commentHidden?: boolean
+  commentDeletedAt?: string | null
+  visibility?: string | null
   /** Timeline-only: an agent/status fact rendered between messages */
   event?: ConvEvent
 }
@@ -88,7 +93,7 @@ type Conversation = {
     agentId: string
     agentName: string
     suggestMode: string
-    suggestion: { id: string; text: string; context: string | null; createdAt: string } | null
+    suggestion: { id: string; text: string; privateText?: string | null; context: string | null; createdAt: string } | null
     timer: { action: 'wait' | 'warn' | 'takeover' | 'alert'; mode: 'takeover' | 'alert'; warnAt: string; takeoverAt: string } | null
   } | null
   contact?: ContactDetail | null
@@ -100,6 +105,13 @@ type Conversation = {
   priority?: string
   events?: ConvEvent[]
   tasks?: ConvTask[]
+  postId?: string | null
+  postPermalink?: string | null
+  postCaption?: string | null
+  postMediaUrl?: string | null
+  isAd?: boolean
+  commentKind?: string | null
+  comments?: { canHide: boolean; privateReply: { ok: boolean; reason?: string } } | null
 }
 
 type CannedResponse = { id: string; title: string; body: string; category?: string | null }
@@ -115,10 +127,17 @@ const STATUS_COLORS: Record<ConvStatus, string> = {
   OPEN: 'bg-emerald-100 text-emerald-800', IN_PROGRESS: 'bg-blue-100 text-blue-800',
   RESOLVED: 'bg-gray-100 text-gray-600', CLOSED: 'bg-gray-100 text-gray-400',
 }
-const CHANNEL_LABEL: Record<Channel, string> = { WHATSAPP: 'WhatsApp', SMS: 'SMS', MESSENGER: 'Messenger', INSTAGRAM: 'Instagram' }
+const CHANNEL_LABEL: Record<Channel, string> = {
+  WHATSAPP: 'WhatsApp', SMS: 'SMS', MESSENGER: 'Messenger', INSTAGRAM: 'Instagram',
+  FACEBOOK_COMMENT: 'Comentarios de Facebook', INSTAGRAM_COMMENT: 'Comentarios de Instagram',
+}
 
 function isMetaChannel(channel: Channel) {
   return channel === 'MESSENGER' || channel === 'INSTAGRAM'
+}
+
+function isCommentChannel(channel: Channel) {
+  return channel === 'FACEBOOK_COMMENT' || channel === 'INSTAGRAM_COMMENT'
 }
 
 function channelLabel(channel: Channel) {
@@ -279,6 +298,9 @@ export default function InboxPage() {
 
   // New feature state
   const [isInternalNote, setIsInternalNote] = useState(false)
+  // Comment channels: answer under the comment (public) or with the one-time private reply
+  const [replyVisibility, setReplyVisibility] = useState<'public' | 'private'>('public')
+  const [commentBusyId, setCommentBusyId] = useState<string | null>(null)
   const [showCannedPicker, setShowCannedPicker] = useState(false)
   const [cannedResponses, setCannedResponses] = useState<CannedResponse[]>([])
   const [cannedSearch, setCannedSearch] = useState('')
@@ -435,6 +457,7 @@ export default function InboxPage() {
 
   function selectConversation(conv: Conversation) {
     setUsedSuggestionId(null)
+    setReplyVisibility('public')
     setShowMsgSearch(false)
     setMsgSearch('')
     setIsInternalNote(false)
@@ -547,6 +570,7 @@ export default function InboxPage() {
         body: JSON.stringify({
           message: messageText.trim(),
           isInternal,
+          ...(isCommentChannel(selected.channel) && !isInternal ? { visibility: replyVisibility } : {}),
           ...(usedSuggestionId && !isInternal ? { suggestionId: usedSuggestionId } : {}),
           ...(uploaded ? { attachment: { url: uploaded.url, mediaType: uploaded.mediaType, mediaName: uploaded.mediaName } } : {}),
         }),
@@ -561,6 +585,11 @@ export default function InboxPage() {
         setSelected((prev) => prev?.copilot ? { ...prev, copilot: { ...prev.copilot, suggestion: null, timer: null } } : prev)
       }
       setIsInternalNote(false)
+      // The private reply is single-use: refresh whether it is still available
+      if (isCommentChannel(selected.channel) && !isInternal) {
+        setReplyVisibility('public')
+        loadConversationDetail(selected.id, true)
+      }
       const added: Message[] = Array.isArray(data.messages) && data.messages.length ? data.messages : [data.message]
       setSelected((prev) => {
         if (!prev) return prev
@@ -698,22 +727,51 @@ export default function InboxPage() {
       const data = await copilotCall({ action: 'suggest' })
       if (data?.suggestion) {
         const s = data.suggestion
-        setSelected((prev) => prev?.copilot ? { ...prev, copilot: { ...prev.copilot, suggestion: { id: s.id, text: s.text, context: s.context, createdAt: s.createdAt } } } : prev)
+        setSelected((prev) => prev?.copilot ? { ...prev, copilot: { ...prev.copilot, suggestion: { id: s.id, text: s.text, privateText: s.privateText, context: s.context, createdAt: s.createdAt } } } : prev)
       }
     } finally {
       setSuggesting(false)
     }
   }
 
-  async function useSuggestion() {
+  async function useSuggestion(part: 'public' | 'private' = 'public') {
     const s = selected?.copilot?.suggestion
     if (!s) return
-    setMessageText(s.text)
+    const text = part === 'private' ? s.privateText || '' : s.text
+    setMessageText(text)
     setIsInternalNote(false)
     setUsedSuggestionId(s.id)
-    setSelected((prev) => prev?.copilot ? { ...prev, copilot: { ...prev.copilot, suggestion: null } } : prev)
-    await copilotCall({ action: 'resolve', suggestionId: s.id, status: 'inserted' })
+    if (selected && isCommentChannel(selected.channel)) {
+      setReplyVisibility(part)
+      // Comments: keep the other half on the card so it can be sent next
+      const rest = part === 'private' ? { ...s, privateText: null } : { ...s, text: '' }
+      const keep = Boolean(rest.text || rest.privateText)
+      setSelected((prev) => prev?.copilot ? { ...prev, copilot: { ...prev.copilot, suggestion: keep ? rest : null } } : prev)
+      if (!keep) await copilotCall({ action: 'resolve', suggestionId: s.id, status: 'inserted' })
+    } else {
+      setSelected((prev) => prev?.copilot ? { ...prev, copilot: { ...prev.copilot, suggestion: null } } : prev)
+      await copilotCall({ action: 'resolve', suggestionId: s.id, status: 'inserted' })
+    }
     inputRef.current?.focus()
+  }
+
+  async function toggleCommentHidden(msg: Message) {
+    if (!selected || !msg.commentId) return
+    setCommentBusyId(msg.id)
+    try {
+      const hidden = !msg.commentHidden
+      const res = await fetch(`/api/admin/inbox/conversations/${selected.id}/comments`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messageId: msg.id, hidden }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'No se pudo cambiar el comentario')
+      setSelected((prev) => prev ? { ...prev, messages: (prev.messages || []).map((m) => (m.id === msg.id ? { ...m, commentHidden: hidden } : m)) } : prev)
+      loadConversationDetail(selected.id, true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error')
+    } finally {
+      setCommentBusyId(null)
+    }
   }
 
   async function discardSuggestion() {
@@ -828,6 +886,8 @@ export default function InboxPage() {
   // Messenger / Instagram: outside 24h the input stays open (HUMAN_AGENT tag, up to 7 days) but we warn
   const metaWindowClosed = !!selected && isMetaChannel(selected.channel) && isWaWindowClosed(selected.messages || [])
   const metaThreadElsewhere = !!selected && isMetaChannel(selected.channel) && !!selected.threadOwner
+  const commentConv = !!selected && isCommentChannel(selected.channel)
+  const privateReply = selected?.comments?.privateReply ?? { ok: false, reason: 'No disponible' }
 
   const cannedFiltered = cannedResponses.filter((r) =>
     !cannedSearch || r.title.toLowerCase().includes(cannedSearch.toLowerCase()) || r.body.toLowerCase().includes(cannedSearch.toLowerCase())
@@ -900,7 +960,7 @@ export default function InboxPage() {
             >
               Todos <span className={filterChannel === '' ? 'text-gray-300' : 'text-gray-400'}>{totalCount}</span>
             </button>
-            {(['WHATSAPP', 'INSTAGRAM', 'MESSENGER', 'SMS'] as Channel[]).filter((ch) => (channelCounts[ch] ?? 0) > 0 || filterChannel === ch).map((ch) => (
+            {(['WHATSAPP', 'INSTAGRAM', 'MESSENGER', 'SMS', 'FACEBOOK_COMMENT', 'INSTAGRAM_COMMENT'] as Channel[]).filter((ch) => (channelCounts[ch] ?? 0) > 0 || filterChannel === ch).map((ch) => (
               <button
                 key={ch}
                 onClick={() => setFilterChannel(filterChannel === ch ? '' : ch)}
@@ -1176,7 +1236,9 @@ export default function InboxPage() {
                     {selected.connection?.name && <span className="text-xs text-gray-400 truncate">· {selected.connection.name}</span>}
                   </div>
                   <p className="text-xs text-gray-500">
-                    {isMetaChannel(selected.channel) ? `ID ${selected.contactPhone}` : selected.contactPhone}
+                    {isCommentChannel(selected.channel)
+                      ? selected.commentKind === 'mention' ? 'Mención en una publicación de otra cuenta' : 'Comentario en una publicación'
+                      : isMetaChannel(selected.channel) ? `ID ${selected.contactPhone}` : selected.contactPhone}
                     {selected.workspace && workspaces.length > 1 && <span className="text-gray-400"> · {selected.workspace.name}</span>}
                   </p>
                 </div>
@@ -1343,6 +1405,27 @@ export default function InboxPage() {
               )}
             </div>
 
+            {/* Comments: the post (or ad) the conversation is about */}
+            {commentConv && (
+              <div className="flex items-center gap-3 px-3 md:px-5 py-2 bg-gray-50 border-b text-xs text-gray-600">
+                {selected.postMediaUrl?.startsWith('https://') && (
+                  <img src={selected.postMediaUrl} alt="" referrerPolicy="no-referrer" className="h-10 w-10 rounded-lg object-cover shrink-0 bg-gray-200" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-medium text-gray-800">{selected.commentKind === 'mention' ? 'Mención' : 'Publicación'}</span>
+                    {selected.isAd && <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">Anuncio</span>}
+                  </div>
+                  <p className="truncate text-gray-500">{selected.postCaption?.trim() || 'Sin texto'}</p>
+                </div>
+                {selected.postPermalink?.startsWith('https://') && (
+                  <a href={selected.postPermalink} target="_blank" rel="noopener noreferrer" className="shrink-0 inline-flex items-center gap-1 font-medium text-primary-600 hover:underline">
+                    Ver publicación <ExternalLink className="h-3 w-3" />
+                  </a>
+                )}
+              </div>
+            )}
+
             {/* User info bar */}
             {selected.user && (
               <div className="flex flex-wrap items-center gap-2 px-3 md:px-5 py-2 bg-amber-50 border-b text-xs text-amber-800">
@@ -1433,7 +1516,18 @@ export default function InboxPage() {
                             </div>
                           </div>
                         ) : (
-                          <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${msg.direction === 'OUTBOUND' ? `${msg.senderType === 'AI' ? 'bg-violet-600' : 'bg-primary-600'} text-white rounded-br-sm` : 'bg-white border text-gray-800 rounded-bl-sm shadow-sm'}`}>
+                          <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${msg.direction === 'OUTBOUND' ? `${msg.senderType === 'AI' ? 'bg-violet-600' : 'bg-primary-600'} text-white rounded-br-sm` : 'bg-white border text-gray-800 rounded-bl-sm shadow-sm'} ${msg.commentHidden || msg.commentDeletedAt ? 'opacity-50' : ''}`}>
+                            {commentConv && (msg.visibility || msg.commentHidden || msg.commentDeletedAt) && (
+                              <div className="mb-1 flex items-center gap-1 flex-wrap">
+                                {msg.visibility && (
+                                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${msg.direction === 'OUTBOUND' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                                    {msg.visibility === 'private' ? '🔒 Privado' : '🌐 Público'}
+                                  </span>
+                                )}
+                                {msg.commentHidden && <span className="rounded-full bg-gray-800 px-1.5 py-0.5 text-[10px] font-semibold text-white">Oculto</span>}
+                                {msg.commentDeletedAt && <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">Eliminado por su autor</span>}
+                              </div>
+                            )}
                             {msg.mediaUrl && (() => {
                               const proxyUrl = `/api/admin/inbox/media?url=${encodeURIComponent(msg.mediaUrl)}&conversationId=${encodeURIComponent(selected.id)}`
                               const kind = msg.mediaType ? kindFromMime(msg.mediaType) : 'image'
@@ -1477,6 +1571,17 @@ export default function InboxPage() {
                               )
                             })()}
                             <p className="text-sm whitespace-pre-wrap break-words">{msg.body}</p>
+                            {commentConv && msg.direction === 'INBOUND' && msg.commentId && !msg.commentDeletedAt && selected.comments?.canHide && (
+                              <button
+                                onClick={() => toggleCommentHidden(msg)}
+                                disabled={commentBusyId === msg.id}
+                                className="mt-1 inline-flex items-center gap-1 text-[11px] text-gray-500 hover:text-gray-800 disabled:opacity-50"
+                                title={msg.commentHidden ? 'Volver a mostrarlo en la publicación' : 'Ocultarlo: la persona y sus amigos lo siguen viendo, el resto no'}
+                              >
+                                {commentBusyId === msg.id ? <RefreshCw className="h-3 w-3 animate-spin" /> : msg.commentHidden ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                                {msg.commentHidden ? 'Mostrar comentario' : 'Ocultar'}
+                              </button>
+                            )}
                             <div className={`flex items-center gap-1 mt-1 ${msg.direction === 'OUTBOUND' ? 'justify-end' : 'justify-start'}`}>
                               <span className={`text-[11px] ${msg.direction === 'OUTBOUND' ? 'text-primary-200' : 'text-gray-400'}`}>
                                 {formatTime(msg.sentAt)}
@@ -1634,9 +1739,35 @@ export default function InboxPage() {
                     {selected.copilot.suggestion.context && (
                       <p className="mx-3 mt-1.5 rounded-lg bg-amber-50 px-2 py-1 text-[11px] text-amber-800">💡 {selected.copilot.suggestion.context}</p>
                     )}
-                    <p className="px-3 py-2 text-sm text-gray-800 whitespace-pre-wrap break-words">{selected.copilot.suggestion.text}</p>
+                    {commentConv ? (
+                      <div className="px-3 py-2 space-y-2">
+                        {selected.copilot.suggestion.text && (
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">🌐 Público</p>
+                            <p className="text-sm text-gray-800 whitespace-pre-wrap break-words">{selected.copilot.suggestion.text}</p>
+                          </div>
+                        )}
+                        {selected.copilot.suggestion.privateText && (
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">🔒 Privado</p>
+                            <p className="text-sm text-gray-800 whitespace-pre-wrap break-words">{selected.copilot.suggestion.privateText}</p>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="px-3 py-2 text-sm text-gray-800 whitespace-pre-wrap break-words">{selected.copilot.suggestion.text}</p>
+                    )}
                     <div className="flex items-center gap-2 border-t border-violet-100 px-3 py-1.5">
-                      <button onClick={useSuggestion} className="rounded-lg bg-violet-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-violet-700">Usar</button>
+                      {commentConv ? (
+                        <>
+                          {selected.copilot.suggestion.text && <button onClick={() => useSuggestion('public')} className="rounded-lg bg-violet-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-violet-700">Usar público</button>}
+                          {selected.copilot.suggestion.privateText && (
+                            <button onClick={() => useSuggestion('private')} disabled={!privateReply.ok} title={privateReply.ok ? undefined : privateReply.reason} className="rounded-lg bg-violet-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-violet-700 disabled:opacity-40">Usar privado</button>
+                          )}
+                        </>
+                      ) : (
+                        <button onClick={() => useSuggestion()} className="rounded-lg bg-violet-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-violet-700">Usar</button>
+                      )}
                       <button onClick={requestSuggestion} disabled={suggesting} className="rounded-lg border border-violet-200 px-2.5 py-1 text-[11px] text-violet-700 hover:bg-violet-50 disabled:opacity-50">
                         {suggesting ? 'Pensando…' : 'Otra'}
                       </button>
@@ -1737,6 +1868,28 @@ export default function InboxPage() {
                   </div>
                 )}
 
+                {/* Comments: public reply under the comment or the one-time private reply */}
+                {commentConv && !isInternalNote && !aiLocked && (
+                  <div className="mb-2 flex items-center gap-2 flex-wrap text-xs">
+                    <span className="text-gray-500">Responder:</span>
+                    <div className="inline-flex rounded-xl border border-gray-200 bg-white p-0.5">
+                      <button onClick={() => setReplyVisibility('public')} className={`rounded-lg px-2.5 py-1 font-medium ${replyVisibility === 'public' ? 'bg-primary-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>🌐 Pública</button>
+                      <button
+                        onClick={() => setReplyVisibility('private')}
+                        disabled={!privateReply.ok}
+                        title={privateReply.ok ? 'Mensaje directo ligado al comentario (una sola vez, hasta 7 días después)' : privateReply.reason}
+                        className={`rounded-lg px-2.5 py-1 font-medium disabled:opacity-40 ${replyVisibility === 'private' ? 'bg-primary-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}
+                      >
+                        🔒 Privada
+                      </button>
+                    </div>
+                    <span className="text-gray-400">
+                      {replyVisibility === 'public' ? 'La verá cualquiera en la publicación.' : privateReply.ok ? 'Le llega por mensaje directo; solo se puede usar una vez.' : ''}
+                    </span>
+                    {!privateReply.ok && privateReply.reason && <span className="text-gray-400">Privada: {privateReply.reason}.</span>}
+                  </div>
+                )}
+
                 {/* ── Compose box ── */}
                 <div className={`rounded-2xl border transition ${
                   windowClosed && !isInternalNote
@@ -1776,7 +1929,7 @@ export default function InboxPage() {
                     />
                     <button
                       onClick={() => fileInputRef.current?.click()}
-                      disabled={recording || uploading}
+                      disabled={recording || uploading || commentConv}
                       className={`rounded-lg p-2 transition ${attachment ? 'bg-primary-100 text-primary-600' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'} disabled:opacity-40`}
                       title="Adjuntar imagen, audio, video o archivo"
                     >
@@ -1786,7 +1939,7 @@ export default function InboxPage() {
                     {/* Voice note */}
                     <button
                       onClick={() => (recording ? stopRecording(false) : startRecording())}
-                      disabled={uploading || selected.channel === 'SMS'}
+                      disabled={uploading || selected.channel === 'SMS' || commentConv}
                       className={`rounded-lg p-2 transition ${recording ? 'bg-red-100 text-red-600' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'} disabled:opacity-40`}
                       title={selected.channel === 'SMS' ? 'SMS no admite audios' : recording ? 'Detener grabación' : 'Grabar nota de voz'}
                     >
@@ -1860,7 +2013,7 @@ export default function InboxPage() {
                     <textarea
                       ref={inputRef}
                       className="flex-1 bg-transparent resize-none text-sm outline-none min-h-[40px] max-h-32 py-1 placeholder:text-gray-400"
-                      placeholder={isInternalNote ? 'Escribe una nota interna…' : aiLocked ? 'La IA lleva esta conversación — pulsa Intervenir para escribir' : windowClosed ? 'Ventana cerrada — usa una plantilla' : `Escribe un mensaje…`}
+                      placeholder={isInternalNote ? 'Escribe una nota interna…' : aiLocked ? 'La IA lleva esta conversación — pulsa Intervenir para escribir' : windowClosed ? 'Ventana cerrada — usa una plantilla' : commentConv ? (replyVisibility === 'private' ? 'Mensaje privado…' : 'Respuesta pública…') : `Escribe un mensaje…`}
                       value={messageText}
                       rows={1}
                       disabled={(windowClosed && !isInternalNote) || aiLocked}
