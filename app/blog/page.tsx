@@ -47,7 +47,7 @@ export default async function BlogPage({ searchParams }: Props) {
         </div>
       </section>
 
-      <div className="max-w-6xl mx-auto px-4 -mt-5">
+      <div className="max-w-6xl mx-auto px-4 pt-6 sm:pt-8">
         {data.categories.length > 0 && (
           <nav aria-label="Categorías" className="flex gap-2 overflow-x-auto pb-2">
             <Link href="/blog" className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium shadow-sm ${!categoria ? 'bg-gray-900 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'}`}>Todo</Link>
@@ -60,9 +60,9 @@ export default async function BlogPage({ searchParams }: Props) {
         )}
 
         {data.items.length === 0 ? (
-          <div className="mt-6 rounded-3xl bg-white p-10 text-center text-gray-500 shadow-sm">Pronto publicaremos los primeros artículos.</div>
+          <div className="rounded-3xl bg-white p-10 text-center text-gray-500 shadow-sm">Pronto publicaremos los primeros artículos.</div>
         ) : (
-          <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className={`${data.categories.length > 0 ? 'mt-5' : ''} grid gap-5 sm:grid-cols-2 lg:grid-cols-3`}>
             {data.items.map((a) => {
               const image = a.coverUrl || a.post.media[0]?.url || null
               return (
