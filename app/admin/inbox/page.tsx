@@ -396,7 +396,7 @@ export default function InboxPage() {
 
   function loadWaTemplates() {
     if (waTemplates.length > 0) { setShowTemplatePicker(true); return }
-    fetch('/api/admin/messaging/wa-templates')
+    fetch('/api/admin/messaging/wa-templates?for=inbox')
       .then((r) => r.json())
       .then((d) => { setWaTemplates(d.templates || []); setShowTemplatePicker(true) })
       .catch(() => { /* ignore */ })
@@ -593,7 +593,8 @@ export default function InboxPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: selectedTemplate.body,
+          // What the client receives, with the variables filled in
+          message: selectedTemplate.body.replace(/\{\{\s*(\w+)\s*\}\}/g, (m: string, k: string) => templateVars[k] || m),
           waContentSid: selectedTemplate.sid,
           waVariables: templateVars,
         }),
@@ -1677,7 +1678,10 @@ export default function InboxPage() {
                 {windowClosed && !isInternalNote && !showTemplatePicker && (
                   <div className="mb-2 flex items-center gap-2 rounded-xl border border-yellow-200 bg-yellow-50 px-3 py-2 text-xs text-yellow-800">
                     <Clock className="h-3.5 w-3.5 shrink-0 text-yellow-600" />
-                    <span>Ventana de 24h cerrada. Usa la plantilla <LayoutTemplate className="inline h-3 w-3 mx-0.5" /> del toolbar para retomar.</span>
+                    <span className="flex-1">Ventana de 24h cerrada: WhatsApp solo permite retomar con una plantilla aprobada.</span>
+                    <button onClick={loadWaTemplates} className="shrink-0 inline-flex items-center gap-1 rounded-lg bg-green-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-green-700">
+                      <LayoutTemplate className="h-3.5 w-3.5" /> Elegir plantilla
+                    </button>
                   </div>
                 )}
 
@@ -1723,7 +1727,7 @@ export default function InboxPage() {
                         ))}
                         <button
                           onClick={sendTemplate}
-                          disabled={sending}
+                          disabled={sending || Object.keys(selectedTemplate.variables).some((k) => !templateVars[k]?.trim())}
                           className="w-full rounded-lg bg-green-600 py-1.5 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-40 transition"
                         >
                           {sending ? 'Enviando…' : 'Enviar plantilla'}
@@ -1736,7 +1740,7 @@ export default function InboxPage() {
                 {/* ── Compose box ── */}
                 <div className={`rounded-2xl border transition ${
                   windowClosed && !isInternalNote
-                    ? 'bg-gray-100 border-gray-200 opacity-60 pointer-events-none select-none'
+                    ? 'bg-gray-100 border-gray-200'
                     : isInternalNote ? 'bg-yellow-50 border-yellow-200' : 'bg-gray-50 border-gray-200'
                 }`}>
                   {/* Row 1: action toolbar */}

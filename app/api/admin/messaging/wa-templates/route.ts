@@ -57,7 +57,8 @@ function cachedTemplatesToResponse(cached: any[]) {
   }))
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const forInbox = new URL(request.url).searchParams.get('for') === 'inbox'
   const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -101,6 +102,11 @@ export async function GET() {
           })
         )
       } catch { /* Twilio unavailable — continue */ }
+    }
+
+    // The inbox sends WhatsApp through Twilio: only its templates approved by WhatsApp can go out
+    if (forInbox) {
+      return NextResponse.json({ templates: twilioTemplates.filter((t) => t.waStatus === 'approved') })
     }
 
     const metaTemplates: any[] = []
