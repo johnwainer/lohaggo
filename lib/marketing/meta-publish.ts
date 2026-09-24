@@ -198,3 +198,30 @@ export async function instagramMetrics(c: Ctx, mediaId: string): Promise<Metrics
   m.raw = { insights: Object.fromEntries(ins) }
   return m
 }
+
+/**
+ * Cloudinary creates each network's version of a file (size, format, logo) on its first request, and
+ * the networks give up if it is not ready when they fetch it. Ask for it first and wait until it is
+ * served as real media (videos may take a while to transcode).
+ */
+export async function warmMedia(url: string, kind: 'image' | 'video', maxWaitMs = kind === 'video' ? 90_000 : 30_000) {
+  const started = Date.now()
+  let last = ''
+  while (Date.now() - started < maxWaitMs) {
+    const c = new AbortController()
+    const t = setTimeout(() => c.abort(), 25_000)
+    try {
+      const res = await fetch(url, { headers: { Range: 'bytes=0-2047' }, cache: 'no-store', signal: c.signal })
+      const type = res.headers.get('content-type') || ''
+      await res.arrayBuffer().catch(() => null)
+      if ((res.ok || res.status === 206) && (type.startsWith('image/') || type.startsWith('video/'))) return
+      last = `${res.status} ${type}`
+    } catch (err) {
+      last = err instanceof Error ? err.message : 'error'
+    } finally {
+      clearTimeout(t)
+    }
+    await new Promise((r) => setTimeout(r, 3000))
+  }
+  throw new MetaGraphError(`El archivo no estuvo listo a tiempo para publicarlo (${last}); se reintenta`, { status: 503 })
+}

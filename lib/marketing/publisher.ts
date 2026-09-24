@@ -25,6 +25,7 @@ import {
   publishToInstagram,
   recentFacebookPosts,
   recentInstagramMedia,
+  warmMedia,
   type PublishResult,
 } from '@/lib/marketing/meta-publish'
 
@@ -214,6 +215,8 @@ export async function runPublication(pub: MarketingPublication) {
     }
 
     const media = mediaFor(post, variant).map((m) => ({ url: deliveryUrl(pub.channel as MarketingChannel, m.url, infoOf(m)), kind: infoOf(m).kind }))
+    // The network's version of each file must exist before Meta fetches it
+    await Promise.all(media.map((m) => warmMedia(m.url, m.kind)))
     let result: PublishResult
     if (pub.channel === 'FACEBOOK') {
       result = await publishToFacebook(ctx, pageId, { message: variant.body, link: variant.linkUrl, media })

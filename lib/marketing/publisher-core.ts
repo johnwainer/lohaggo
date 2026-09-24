@@ -42,8 +42,9 @@ export function classifyGraphError(e: GraphFailure): FailureKind {
   if (code === 10 || code === 200 || (code !== null && code >= 200 && code < 300)) {
     return { retryable: false, tokenProblem: true, reason: `Falta un permiso para publicar (${e.message}): reconecta la cuenta` }
   }
-  // Rate limits, transient and "media not ready yet"
-  if ([1, 2, 4, 17, 32, 341, 368, 613, 9007].includes(code ?? -1) || sub === 2207027 || (e.status ?? 0) >= 500 || e.status === 0) {
+  // Rate limits, transient, "media not ready yet" and "could not read the media" (the file was still being generated)
+  const mediaFetch = [9004].includes(code ?? -1) || [2207027, 2207052, 2207003].includes(sub ?? -1) || /only photo or video can be accepted|media could not be fetched|failed to download/i.test(e.message)
+  if ([1, 2, 4, 17, 32, 341, 368, 613, 9007].includes(code ?? -1) || mediaFetch || (e.status ?? 0) >= 500 || e.status === 0) {
     return { retryable: true, tokenProblem: false, reason: `Meta no respondió bien (${e.message}); se reintenta` }
   }
   return { retryable: false, tokenProblem: false, reason: e.message }

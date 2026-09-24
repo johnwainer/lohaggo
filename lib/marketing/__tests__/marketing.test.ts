@@ -155,6 +155,9 @@ describe('publicador: errores, reintentos y estado', () => {
     expect(classifyGraphError({ status: 503, message: 'down' })).toMatchObject({ retryable: true })
     expect(classifyGraphError({ status: 0, message: 'network' })).toMatchObject({ retryable: true })
     expect(classifyGraphError({ code: 100, message: 'Invalid parameter' })).toMatchObject({ retryable: false, tokenProblem: false })
+    // Instagram could not read the file (still being generated): retried
+    expect(classifyGraphError({ code: 100, message: 'Only photo or video can be accepted as media type.' })).toMatchObject({ retryable: true })
+    expect(classifyGraphError({ code: 9004, subcode: 2207052, message: 'Media could not be fetched from this uri' })).toMatchObject({ retryable: true })
   })
   it('reintentos a los 2, 10 y ninguno más', () => {
     const now = new Date('2026-09-26T10:00:00Z')
