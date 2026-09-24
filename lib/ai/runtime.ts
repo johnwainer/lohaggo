@@ -215,7 +215,7 @@ export const AgentRuntimeService = {
       for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
         const call = await callClaude(
           { model: requestedModel, system, messages: merged, tools, maxTokens: agent.maxTokens, effort },
-          { kind: round === 0 || opts.kind === 'playground' ? opts.kind : 'tools_round', workspaceId: opts.workspaceId, agentId: agent.id, conversationId: opts.conversationId },
+          { kind: round === 0 || opts.kind === 'playground' || opts.kind === 'copilot_suggestion' ? opts.kind : 'tools_round', workspaceId: opts.workspaceId, agentId: agent.id, conversationId: opts.conversationId },
         )
         result.rounds = round + 1
         result.model = call.model
