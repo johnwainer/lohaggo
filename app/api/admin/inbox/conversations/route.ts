@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
       ? [{ unreadCount: 'desc' }, { lastMessageAt: { sort: 'asc', nulls: 'last' } }]
       : [{ unreadCount: 'desc' }, { lastMessageAt: { sort: 'desc', nulls: 'last' } }]
 
-  const [conversations, channelGroups, agents, workspaces, connections, tagRows] = await Promise.all([
+  const [conversations, channelGroups, agents, workspaces, connections, tagRows, aiAgents] = await Promise.all([
     prisma.conversation.findMany({
       where: { ...baseWhere, ...(channel ? { channel } : {}) },
       include: {
@@ -101,6 +101,11 @@ export async function GET(request: NextRequest) {
       take: 1000,
       orderBy: { updatedAt: 'desc' },
     }),
+    prisma.aiAgent.findMany({
+      where: { status: 'active', autopilot: true, ...workspaceScope(access) },
+      select: { id: true, name: true, workspaceId: true },
+      orderBy: { createdAt: 'asc' },
+    }),
   ])
 
   const channelCounts: Record<string, number> = {}
@@ -110,6 +115,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     conversations,
     agents,
+    aiAgents,
     workspaces,
     connections,
     tags,

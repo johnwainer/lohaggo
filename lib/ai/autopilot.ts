@@ -86,12 +86,12 @@ async function sendAsAgent(conversation: Conversation, agent: AiAgent, text: str
 }
 
 /** Called after an inbound message is stored, on every channel. */
-export async function handleInbound(conversationId: string, messageId: string, opts: { debounceMs?: number } = {}) {
+export async function handleInbound(conversationId: string, messageId: string, opts: { debounceMs?: number; maxAgeMs?: number } = {}) {
   await new Promise((r) => setTimeout(r, opts.debounceMs ?? DEBOUNCE_MS))
 
   const message = await prisma.conversationMessage.findUnique({ where: { id: messageId } })
   if (!message || message.direction !== 'INBOUND') return { skipped: 'not_inbound' }
-  if (Date.now() - message.sentAt.getTime() > STALE_INBOUND_MS) return { skipped: 'stale' }
+  if (Date.now() - message.sentAt.getTime() > (opts.maxAgeMs ?? STALE_INBOUND_MS)) return { skipped: 'stale' }
   // Several messages in a row: only the handler of the latest one answers (it sees them all)
   const latest = await prisma.conversationMessage.findFirst({ where: { conversationId, direction: 'INBOUND' }, orderBy: { sentAt: 'desc' }, select: { id: true } })
   if (latest?.id !== messageId) return { skipped: 'newer_message' }

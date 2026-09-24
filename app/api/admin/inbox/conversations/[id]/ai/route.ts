@@ -1,9 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/admin-utils'
 import { emitInboxEvent } from '@/lib/messaging/inbox-emitter'
 import { canView, getWorkspaceAccess } from '@/lib/workspaces'
 import { shouldTakeOverCore } from '@/lib/ai/runtime-core'
+import { handleInbound } from '@/lib/ai/autopilot'
+
+export const maxDuration = 60
+
+/** A pending client message older than this can't be answered anyway (24h channel window). */
+const PENDING_MAX_AGE_MS = 23 * 60 * 60 * 1000
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -34,7 +40,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
     case 'return': {
       const agents = await prisma.aiAgent.findMany({ where: { workspaceId: conversation.workspaceId, status: 'active' } })
       // Same rules as the autopilot, minus the ones this action itself resolves (owner, recent human)
-      const decision = shouldTakeOverCore({ ...conversation, assignedToId: null, automationsPaused: false, aiSpam: false, aiHandoffAt: null }, { agents, recentHumanActivity: false })
+      // A specific agent chosen in the inbox wins if it can take this channel/account
+      const preferred = typeof body.agentId === 'string' ? body.agentId : conversation.aiAgentId
+      const decision = shouldTakeOverCore({ ...conversation, aiAgentId: preferred, assignedToId: null, automationsPaused: false, aiSpam: false, aiHandoffAt: null }, { agents, recentHumanActivity: false })
       if (!decision.take) {
         const why: Record<string, string> = {
           test: 'Es una conversación de prueba',
@@ -70,5 +78,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
   }
   emitInboxEvent({ type: 'status-update', conversationId: id, workspaceId: conversation.workspaceId })
+
+  // Handed back while the client is waiting: the agent answers that message now, not only the next one
+  if (body.action === 'return') {
+    const last = await prisma.conversationMessage.findFirst({ where: { conversationId: id, isInternal: false }, orderBy: { sentAt: 'desc' }, select: { id: true, direction: true } })
+    if (last?.direction === 'INBOUND') after(() => handleInbound(id, last.id, { debounceMs: 0, maxAgeMs: PENDING_MAX_AGE_MS }).then(() => undefined))
+  }
   return NextResponse.json({ conversation: updated })
 }

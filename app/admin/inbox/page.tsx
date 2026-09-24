@@ -82,6 +82,7 @@ type Conversation = {
   messages?: Message[]
   _count?: { messages: number }
   aiHandled?: boolean
+  aiAgentId?: string | null
   aiAgentName?: string | null
   aiSpam?: boolean
   automationsPaused?: boolean
@@ -223,6 +224,7 @@ function groupedMessages(messages: Message[]) {
 export default function InboxPage() {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [agents, setAgents] = useState<Agent[]>([])
+  const [aiAgents, setAiAgents] = useState<{ id: string; name: string; workspaceId: string }[]>([])
   const [workspaces, setWorkspaces] = useState<{ id: string; name: string; isDefault: boolean }[]>([])
   const [filterWorkspace, setFilterWorkspace] = useState('')
   const [selected, setSelected] = useState<Conversation | null>(null)
@@ -293,6 +295,7 @@ export default function InboxPage() {
       if (Array.isArray(data.workspaces)) setWorkspaces(data.workspaces)
       setConversations(data.conversations || [])
       setAgents(data.agents || [])
+      setAiAgents(data.aiAgents || [])
       setChannelCounts(data.channelCounts || {})
       setTotalCount(data.total || 0)
       if (Array.isArray(data.connections)) setConnections(data.connections)
@@ -619,10 +622,10 @@ export default function InboxPage() {
 
   // ── AI agent control ─────────────────────────────────────────────────────
 
-  async function aiAction(action: 'intervene' | 'return' | 'pause' | 'resume') {
+  async function aiAction(action: 'intervene' | 'return' | 'pause' | 'resume', agentId?: string) {
     if (!selected) return
     const res = await fetch(`/api/admin/inbox/conversations/${selected.id}/ai`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }),
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, agentId }),
     })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) { setError(data.error || 'No se pudo completar la acción'); return }
@@ -1004,9 +1007,20 @@ export default function InboxPage() {
                 {/* Agent selector */}
                 <div className="hidden sm:flex items-center gap-1 shrink-0">
                   <Users className="h-3.5 w-3.5 text-gray-400" />
-                  <select className="border rounded-lg px-2 py-1 text-xs" value={selected.assignedToId || ''} onChange={(e) => assignAgent(e.target.value)}>
+                  <select
+                    className="border rounded-lg px-2 py-1 text-xs"
+                    value={selected.aiHandled && selected.aiAgentId ? `ai:${selected.aiAgentId}` : selected.assignedToId || ''}
+                    onChange={(e) => e.target.value.startsWith('ai:') ? aiAction('return', e.target.value.slice(3)) : assignAgent(e.target.value)}
+                  >
                     <option value="">Sin asignar</option>
-                    {agents.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                    {aiAgents.filter((a) => !selected.workspace || a.workspaceId === selected.workspace.id).length > 0 && (
+                      <optgroup label="Agentes IA">
+                        {aiAgents.filter((a) => !selected.workspace || a.workspaceId === selected.workspace.id).map((a) => <option key={a.id} value={`ai:${a.id}`}>🤖 {a.name}</option>)}
+                      </optgroup>
+                    )}
+                    <optgroup label="Personas">
+                      {agents.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                    </optgroup>
                   </select>
                 </div>
 
