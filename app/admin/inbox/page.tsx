@@ -225,6 +225,10 @@ export default function InboxPage() {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [agents, setAgents] = useState<Agent[]>([])
   const [aiAgents, setAiAgents] = useState<{ id: string; name: string; workspaceId: string }[]>([])
+  const [checkedIds, setCheckedIds] = useState<string[]>([])
+  const [bulkTarget, setBulkTarget] = useState('')
+  const [bulkBusy, setBulkBusy] = useState(false)
+  const [bulkNotice, setBulkNotice] = useState<string | null>(null)
   const [workspaces, setWorkspaces] = useState<{ id: string; name: string; isDefault: boolean }[]>([])
   const [filterWorkspace, setFilterWorkspace] = useState('')
   const [selected, setSelected] = useState<Conversation | null>(null)
@@ -644,6 +648,37 @@ export default function InboxPage() {
     }
   }
 
+  // ── Bulk assignment (AI agent or person) ─────────────────────────────────
+
+  function toggleChecked(id: string) {
+    setCheckedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])
+  }
+
+  async function applyBulk() {
+    if (!checkedIds.length || !bulkTarget) return
+    const target = bulkTarget.startsWith('ai:')
+      ? { type: 'ai', agentId: bulkTarget.slice(3) }
+      : bulkTarget === 'none' ? { type: 'none' } : { type: 'person', userId: bulkTarget }
+    setBulkBusy(true)
+    setBulkNotice(null)
+    try {
+      const res = await fetch('/api/admin/inbox/conversations/bulk-assign', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: checkedIds, target }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) { setError(data.error || 'No se pudo asignar'); return }
+      const skipped = Object.entries((data.skipped || {}) as Record<string, number>).map(([why, n]) => `${n} ${why.toLowerCase()}`)
+      const answering = data.answering ? ` La IA está respondiendo ${data.answering} mensaje(s) pendiente(s).` : ''
+      setBulkNotice(`${data.done} asignada(s).${answering}${skipped.length ? ` Omitidas: ${skipped.join('; ')}.` : ''}`)
+      setCheckedIds([])
+      setBulkTarget('')
+      await loadConversations(true)
+      if (selected && checkedIds.includes(selected.id)) await loadConversationDetail(selected.id, true)
+    } finally {
+      setBulkBusy(false)
+    }
+  }
+
   // ── Tags ─────────────────────────────────────────────────────────────────
 
   async function toggleTag(tag: string) {
@@ -862,10 +897,50 @@ export default function InboxPage() {
             </div>
           )}
 
-          <p className="mt-2 text-[11px] text-gray-400">
-            {loading ? 'Buscando…' : `${conversations.length}${conversations.length === 200 ? '+' : ''} ${conversations.length === 1 ? 'conversación' : 'conversaciones'}`}
-            {search && <> · para “{search}”</>}
-          </p>
+          <div className="mt-2 flex items-center gap-2 text-[11px] text-gray-400">
+            <input
+              type="checkbox"
+              aria-label="Seleccionar todas"
+              checked={conversations.length > 0 && conversations.every((c) => checkedIds.includes(c.id))}
+              onChange={(e) => setCheckedIds(e.target.checked ? conversations.map((c) => c.id) : [])}
+            />
+            <span>
+              {loading ? 'Buscando…' : `${conversations.length}${conversations.length === 200 ? '+' : ''} ${conversations.length === 1 ? 'conversación' : 'conversaciones'}`}
+              {search && <> · para “{search}”</>}
+            </span>
+          </div>
+
+          {checkedIds.length > 0 && (
+            <div className="mt-2 rounded-xl border border-primary-200 bg-primary-50 p-2 space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-primary-800">{checkedIds.length} seleccionada{checkedIds.length === 1 ? '' : 's'}</span>
+                <button onClick={() => setCheckedIds([])} className="text-gray-500 hover:text-gray-800">Cancelar</button>
+              </div>
+              <div className="flex gap-1.5">
+                <select className="flex-1 min-w-0 border rounded-lg px-2 py-1 text-xs bg-white" value={bulkTarget} onChange={(e) => setBulkTarget(e.target.value)}>
+                  <option value="">¿Quién las atiende?</option>
+                  {aiAgents.length > 0 && (
+                    <optgroup label="Agentes IA">
+                      {aiAgents.map((a) => <option key={a.id} value={`ai:${a.id}`}>🤖 {a.name}</option>)}
+                    </optgroup>
+                  )}
+                  <optgroup label="Personas">
+                    {agents.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </optgroup>
+                  <option value="none">Sin asignar</option>
+                </select>
+                <button onClick={applyBulk} disabled={!bulkTarget || bulkBusy} className="rounded-lg bg-primary-600 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50">
+                  {bulkBusy ? 'Asignando…' : 'Asignar'}
+                </button>
+              </div>
+            </div>
+          )}
+          {bulkNotice && (
+            <div className="mt-2 flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-xs text-emerald-800">
+              <span className="flex-1">{bulkNotice}</span>
+              <button onClick={() => setBulkNotice(null)}><X className="h-3 w-3" /></button>
+            </div>
+          )}
         </div>
 
         {/* List */}
@@ -885,10 +960,13 @@ export default function InboxPage() {
           {conversations.map((conv) => {
             const sla = slaLabel(conv)
             return (
+              <div key={conv.id} className={`flex items-stretch ${checkedIds.includes(conv.id) ? 'bg-primary-50/60' : ''}`}>
+              <label className="flex items-start pl-3 pt-4 cursor-pointer" title="Seleccionar">
+                <input type="checkbox" checked={checkedIds.includes(conv.id)} onChange={() => toggleChecked(conv.id)} />
+              </label>
               <button
-                key={conv.id}
                 onClick={() => selectConversation(conv)}
-                className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition relative ${selected?.id === conv.id ? 'bg-primary-50 border-l-2 border-primary-600' : ''}`}
+                className={`flex-1 min-w-0 text-left pl-2 pr-4 py-3 hover:bg-gray-50 transition relative ${selected?.id === conv.id ? 'bg-primary-50 border-l-2 border-primary-600' : ''}`}
               >
                 {conv.unreadCount > 0 && (
                   <span className="absolute right-3 top-3 rounded-full bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 leading-none">
@@ -941,6 +1019,7 @@ export default function InboxPage() {
                   </div>
                 </div>
               </button>
+              </div>
             )
           })}
         </div>

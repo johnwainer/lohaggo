@@ -72,8 +72,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       if (!member) return NextResponse.json({ error: 'El agente no pertenece a este workspace' }, { status: 400 })
     }
     data.assignedToId = assignee
-    // A person taking the conversation switches the AI off for it
-    if (assignee) data.aiHandled = false
+    // Choosing a person (or nobody) in the selector takes the conversation away from the AI
+    data.aiHandled = false
   }
   if (body.contactName !== undefined) data.contactName = body.contactName
   if (body.tags !== undefined) data.tags = Array.isArray(body.tags) ? body.tags : []
