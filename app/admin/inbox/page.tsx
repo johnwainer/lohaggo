@@ -700,7 +700,7 @@ export default function InboxPage() {
           </div>
 
           {/* Channel chips with counters */}
-          <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
+          <div className="flex flex-wrap gap-1.5">
             <button
               onClick={() => setFilterChannel('')}
               className={`shrink-0 inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition ${filterChannel === '' ? 'bg-gray-900 border-gray-900 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
@@ -781,7 +781,7 @@ export default function InboxPage() {
           )}
 
           <p className="mt-2 text-[11px] text-gray-400">
-            {loading ? 'Buscando…' : `${conversations.length}${conversations.length === 200 ? '+' : ''} conversación${conversations.length === 1 ? '' : 'es'}`}
+            {loading ? 'Buscando…' : `${conversations.length}${conversations.length === 200 ? '+' : ''} ${conversations.length === 1 ? 'conversación' : 'conversaciones'}`}
             {search && <> · para “{search}”</>}
           </p>
         </div>
@@ -815,7 +815,7 @@ export default function InboxPage() {
                 )}
                 <div className="flex gap-3">
                   {/* Avatar with channel badge */}
-                  <div className="relative shrink-0">
+                  <div className="relative shrink-0 self-start h-10 w-10">
                     <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold text-sm overflow-hidden">
                       {conv.user?.image
                         ? <img src={conv.user.image} alt="" className="h-full w-full object-cover" />
