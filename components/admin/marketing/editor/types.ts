@@ -3,7 +3,7 @@ import type { MkChannel } from '@/components/admin/marketing/shared'
 export type Issue = { code: string; message: string; field?: string }
 export type Validation = { ok: boolean; errors: Issue[]; warnings: Issue[]; stats: { chars: number; hashtags: number; mentions: number; words: number } }
 
-export type Media = { id: string; url: string; publicId: string | null; kind: 'image' | 'video'; mime: string | null; bytes: number | null; width: number | null; height: number | null; durationSec: number | null; alt: string | null; position: number }
+export type Media = { id: string; url: string; publicId: string | null; kind: 'image' | 'video'; mime: string | null; bytes: number | null; width: number | null; height: number | null; durationSec: number | null; alt: string | null; position: number; source?: string; credit?: string | null; creditUrl?: string | null; originalUrl?: string | null; branded?: boolean }
 
 export type Variant = {
   id: string

@@ -264,7 +264,10 @@ export default function PostEditorPage({ params }: { params: Promise<{ id: strin
           )}
 
           <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5">
-            <MediaManager post={post} editable={editable} onChange={(p) => adopt(p, true)} />
+            <MediaManager
+              post={post} editable={editable} onChange={(p) => adopt(p, true)}
+              channel={current?.channel ?? 'INSTAGRAM'} format={current?.format ?? null} text={current?.body ?? ''} brief={brief}
+            />
           </div>
         </div>
 

@@ -73,6 +73,23 @@ class CloudinaryService {
     return { cloudName: this.config.cloudName, apiKey: this.config.apiKey, timestamp, signature, folder, allowedFormats: allowed_formats, resourceType: kind }
   }
 
+  /** Server-side upload of a remote URL or a data: URI (stock photos, AI-generated images). */
+  public async uploadRemote(file: string, folder: string, resourceType: 'image' | 'video' = 'image') {
+    if (!this.isEnabled() || !this.config) throw new Error('Cloudinary service is not configured')
+    const timestamp = Math.floor(Date.now() / 1000)
+    const signature = this.generateSignature({ folder, timestamp })
+    const form = new FormData()
+    form.append('file', file)
+    form.append('folder', folder)
+    form.append('timestamp', String(timestamp))
+    form.append('api_key', this.config.apiKey)
+    form.append('signature', signature)
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${this.config.cloudName}/${resourceType}/upload`, { method: 'POST', body: form })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(`Cloudinary: ${data?.error?.message || res.status}`)
+    return data as { secure_url: string; public_id: string; width?: number; height?: number; bytes?: number; format?: string }
+  }
+
   public cloudName() {
     return this.config?.cloudName ?? null
   }

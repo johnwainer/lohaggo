@@ -58,6 +58,11 @@ export async function runCopywriting(workspaceId: string, req: CopilotRequest) {
     if (!p) throw new CopywritingError('El modelo no devolvió datos SEO válidos; inténtalo de nuevo')
     return { ...meta, seo: { seoTitle: p.seoTitle?.slice(0, 120) ?? '', seoDescription: p.seoDescription?.slice(0, 300) ?? '', slug: slugify(p.slug || p.seoTitle || ''), excerpt: p.excerpt?.slice(0, 400) ?? '', tags: (p.tags || []).slice(0, 10).map(String) } }
   }
+  if (req.action === 'images') {
+    const p = parseJson<{ queries?: string[]; prompt?: string; alt?: string }>(raw)
+    if (!p?.queries?.length && !p?.prompt) throw new CopywritingError('El modelo no devolvió sugerencias de imagen; inténtalo de nuevo')
+    return { ...meta, images: { queries: (p.queries || []).map(String).map((q) => q.slice(0, 80)).slice(0, 5), prompt: (p.prompt || '').slice(0, 1000), alt: (p.alt || '').slice(0, 200) } }
+  }
   if (req.action === 'hashtags') return { ...meta, hashtags: parseHashtags(raw) }
   const text = cleanText(raw)
   if (!text) throw new CopywritingError('El modelo no devolvió texto; inténtalo de nuevo')

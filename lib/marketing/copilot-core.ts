@@ -3,7 +3,7 @@
  */
 import { LIMITS, type MarketingChannel } from '@/lib/marketing/channel-rules'
 
-export const COPILOT_ACTIONS = ['draft', 'adapt', 'improve', 'ideas', 'hashtags', 'seo'] as const
+export const COPILOT_ACTIONS = ['draft', 'adapt', 'improve', 'ideas', 'hashtags', 'seo', 'images'] as const
 export type CopilotAction = (typeof COPILOT_ACTIONS)[number]
 
 export type CopilotRequest = {
@@ -63,6 +63,8 @@ export function userPrompt(r: CopilotRequest) {
       return `Sugiere entre 8 y 15 hashtags para esta publicación de ${CHANNEL_NAME[r.channel]} (mezcla generales, de nicho y locales de Colombia). Responde solo con los hashtags separados por espacios.\n\nPublicación:\n${r.text || r.brief || ''}`
     case 'ideas':
       return `Propón 6 ideas de contenido para ${CHANNEL_NAME[r.channel]}${r.brief?.trim() ? ` sobre: ${r.brief.trim()}` : ''}. Responde solo con JSON: {"ideas":[{"title":"...","angle":"una frase con el enfoque","format":"${r.channel === 'INSTAGRAM' ? 'feed | reel | carousel' : r.channel === 'WEB' ? 'guía | lista | comparativa | caso' : 'texto | foto | video | enlace'}"}]}`
+    case 'images':
+      return `Propón imágenes para esta publicación de ${CHANNEL_NAME[r.channel]}. Responde solo con JSON: {"queries":["3 a 5 búsquedas cortas EN INGLÉS para un banco de fotos (2 a 4 palabras cada una, concretas y visuales, p. ej. \"plumber fixing sink\")"],"prompt":"en español, una descripción visual de 1 a 3 frases para generar la imagen con IA: escena, sujeto, encuadre, luz y ambiente; sin textos ni logos en la imagen","alt":"texto alternativo en español, una frase que describa la imagen"}${title}\n\nPublicación:\n${(r.text || r.brief || '').slice(0, 4000)}`
     case 'seo':
       return `Para este artículo de blog, propone los datos SEO. Responde solo con JSON: {"seoTitle":"máx. 60 caracteres, con la palabra clave al inicio","seoDescription":"entre 120 y 160 caracteres, con llamada a la acción","slug":"minusculas-con-guiones, 3 a 6 palabras","excerpt":"una o dos frases","tags":["3 a 6 etiquetas"]}${title}\n\nArtículo:\n${(r.text || '').slice(0, 6000)}`
   }
@@ -89,7 +91,7 @@ export function parseHashtags(raw: string) {
 }
 
 export function maxTokensFor(r: CopilotRequest) {
-  if (r.action === 'hashtags' || r.action === 'seo') return 400
+  if (r.action === 'hashtags' || r.action === 'seo' || r.action === 'images') return 500
   if (r.action === 'ideas') return 900
   return r.channel === 'WEB' ? 2600 : 900
 }

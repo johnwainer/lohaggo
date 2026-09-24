@@ -1,8 +1,9 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, ImagePlus, Loader2, Play, Trash2 } from 'lucide-react'
-import { api } from '@/components/admin/marketing/shared'
+import { BadgeCheck, ChevronLeft, ChevronRight, ImagePlus, Loader2, Play, Sparkles, Trash2 } from 'lucide-react'
+import { api, type MkChannel } from '@/components/admin/marketing/shared'
+import ImageSuggestDialog, { type BrandKitView, type ImageSummary } from '@/components/admin/marketing/editor/ImageSuggestDialog'
 import { videoPosterUrl } from '@/lib/marketing/media'
 import type { Media, Post } from '@/components/admin/marketing/editor/types'
 
@@ -42,7 +43,32 @@ function uploadToCloudinary(file: File, sign: Sign, onProgress: (p: number) => v
   })
 }
 
-export default function MediaManager({ post, editable, onChange }: { post: Post; editable: boolean; onChange: (p: Post) => void }) {
+export default function MediaManager({ post, editable, onChange, channel, format, text, brief }: {
+  post: Post
+  editable: boolean
+  onChange: (p: Post) => void
+  /** Context for "Sugerir imágenes": the channel being edited and its text */
+  channel: MkChannel
+  format: string | null
+  text: string
+  brief: string
+}) {
+  const [suggest, setSuggest] = useState<{ summary: ImageSummary; kit: BrandKitView } | null>(null)
+  const [opening, setOpening] = useState(false)
+  async function openSuggest() {
+    setOpening(true)
+    try {
+      const [s, k] = await Promise.all([
+        api<{ summary: ImageSummary }>('/api/admin/marketing/image-settings'),
+        api<{ kit: BrandKitView }>(`/api/admin/marketing/brand-kit?workspaceId=${post.workspaceId}`),
+      ])
+      setSuggest({ summary: s.summary, kit: k.kit })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error')
+    } finally {
+      setOpening(false)
+    }
+  }
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploads, setUploads] = useState<Upload[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -93,10 +119,13 @@ export default function MediaManager({ post, editable, onChange }: { post: Post;
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold text-gray-900">Imágenes y videos <span className="font-normal text-gray-400">({post.media.length}/10)</span></p>
         {editable && post.media.length < 10 && (
-          <>
+          <div className="flex items-center gap-2">
+            <button onClick={openSuggest} disabled={opening} className="inline-flex items-center gap-1.5 rounded-full border border-violet-200 px-3 py-1.5 text-xs font-medium text-violet-800 hover:bg-violet-50 disabled:opacity-50">
+              {opening ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Sugerir imágenes
+            </button>
             <input ref={fileRef} type="file" multiple accept={ACCEPT} className="hidden" onChange={(e) => { addFiles(e.target.files); e.target.value = '' }} />
             <button onClick={() => fileRef.current?.click()} className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"><ImagePlus size={14} /> Subir</button>
-          </>
+          </div>
         )}
       </div>
       {error && <p className="text-xs text-red-600">{error}</p>}
@@ -116,18 +145,24 @@ export default function MediaManager({ post, editable, onChange }: { post: Post;
               <img src={m.kind === 'video' ? videoPosterUrl(m.url) || '' : m.url} alt={m.alt || ''} className="aspect-square w-full object-cover" />
               {m.kind === 'video' && <span className="absolute left-1 top-1 inline-flex items-center gap-0.5 rounded bg-black/60 px-1 text-[10px] text-white"><Play size={9} />{m.durationSec ? `${Math.round(m.durationSec)} s` : ''}</span>}
               <span className="absolute right-1 top-1 rounded bg-black/50 px-1 text-[10px] text-white">{i + 1}</span>
+              {m.branded && <span className="absolute left-1 bottom-6 inline-flex items-center gap-0.5 rounded bg-white/90 px-1 text-[9px] text-gray-700"><BadgeCheck size={9} /> logo</span>}
               {editable && (
                 <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/50 px-1 py-0.5 opacity-0 group-hover:opacity-100 transition">
                   <button onClick={() => move(m, -1)} disabled={i === 0} className="text-white disabled:opacity-30"><ChevronLeft size={14} /></button>
                   <button onClick={() => { const alt = window.prompt('Texto alternativo (describe la imagen para accesibilidad y SEO)', m.alt || ''); if (alt !== null) mutate(api(`/api/admin/marketing/posts/${post.id}/media`, { method: 'PATCH', json: { mediaId: m.id, alt } }), m.id) }} className="text-[10px] text-white underline">alt</button>
+                  {m.kind === 'image' && <button onClick={() => mutate(api(`/api/admin/marketing/posts/${post.id}/media`, { method: 'PATCH', json: { mediaId: m.id, brand: !m.branded } }), m.id)} className="text-[10px] text-white underline" title={m.branded ? 'Quitar el logo' : 'Poner el logo'}>{m.branded ? '−logo' : '+logo'}</button>}
                   <button onClick={() => { if (window.confirm('¿Quitar este archivo de la publicación?')) mutate(api(`/api/admin/marketing/posts/${post.id}/media?mediaId=${m.id}`, { method: 'DELETE' }), m.id) }} className="text-white"><Trash2 size={13} /></button>
                   <button onClick={() => move(m, 1)} disabled={i === post.media.length - 1} className="text-white disabled:opacity-30"><ChevronRight size={14} /></button>
                 </div>
               )}
+              {m.credit && (m.creditUrl ? <a href={m.creditUrl} target="_blank" rel="noopener noreferrer" className="absolute left-0 right-0 top-0 truncate bg-black/40 px-1 text-[9px] text-white hover:underline">{m.credit}</a> : <span className="absolute left-0 right-0 top-0 truncate bg-black/40 px-1 text-[9px] text-white">{m.credit}</span>)}
               {busy === m.id && <div className="absolute inset-0 flex items-center justify-center bg-white/60"><Loader2 size={16} className="animate-spin" /></div>}
             </div>
           ))}
         </div>
+      )}
+      {suggest && (
+        <ImageSuggestDialog post={post} channel={channel} format={format} text={text} brief={brief} summary={suggest.summary} kit={suggest.kit} onClose={() => setSuggest(null)} onImported={onChange} />
       )}
     </div>
   )

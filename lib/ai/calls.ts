@@ -4,7 +4,7 @@ import { DEFAULT_PRICING, computeCost, periodOf, resolvePricing, type Pricing, t
 
 const logger = createLogger('ai-calls')
 
-export type AiCallKind = 'agent_reply' | 'tools_round' | 'summary' | 'reengagement' | 'flow_step' | 'playground' | 'embedding' | 'model_test' | 'copilot_suggestion' | 'comment_reply' | 'comment_suggestion' | 'copywriting'
+export type AiCallKind = 'agent_reply' | 'tools_round' | 'summary' | 'reengagement' | 'flow_step' | 'playground' | 'embedding' | 'model_test' | 'copilot_suggestion' | 'comment_reply' | 'comment_suggestion' | 'copywriting' | 'image_generation'
 
 export const AUX_KINDS: AiCallKind[] = ['summary', 'reengagement']
 
@@ -35,7 +35,7 @@ export function invalidatePricing() {
 }
 
 export type LogCallInput = {
-  provider: 'anthropic' | 'voyage'
+  provider: 'anthropic' | 'voyage' | 'gemini' | 'openai' | 'cloudflare'
   model: string
   requestedModel?: string | null
   kind: AiCallKind
@@ -73,4 +73,19 @@ export async function logAiCall(input: LogCallInput) {
     logger.error('Could not log AI call', { err: err instanceof Error ? err.message : err })
   }
   return costUsd
+}
+
+/** Calls billed per unit (AI images): no tokens, a fixed cost per image configured by the platform. */
+export async function logFixedCostCall(input: { provider: string; model: string; kind: AiCallKind; workspaceId?: string | null; costUsd: number; latencyMs?: number }) {
+  try {
+    await prisma.aiCall.create({
+      data: {
+        period: periodOf(new Date()), provider: input.provider, model: input.model, requestedModel: input.model, kind: input.kind,
+        workspaceId: input.workspaceId ?? null, inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0,
+        costUsd: input.costUsd, latencyMs: input.latencyMs ?? null,
+      },
+    })
+  } catch (err) {
+    logger.error('Could not log fixed-cost call', { err: err instanceof Error ? err.message : err })
+  }
 }

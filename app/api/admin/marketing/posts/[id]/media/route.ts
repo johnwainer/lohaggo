@@ -4,6 +4,7 @@ import { cloudinaryService } from '@/lib/cloudinary'
 import { marketingAuth, mkCan } from '@/lib/marketing/permissions'
 import { loadPostDetail, mediaFolder, reopenReviewIfNeeded } from '@/lib/marketing/service'
 import { validateUploadedMedia } from '@/lib/marketing/input'
+import { ImageError, setMediaBranding } from '@/lib/marketing/images'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -30,7 +31,12 @@ export async function POST(request: NextRequest, context: Ctx) {
     const m = validateUploadedMedia(body, cloud, mediaFolder(r.post.workspaceId, id))
     const count = await prisma.marketingMedia.count({ where: { postId: id } })
     if (count >= 10) return NextResponse.json({ error: 'Máximo 10 archivos por publicación' }, { status: 400 })
-    await prisma.marketingMedia.create({ data: { ...m, postId: id, position: count } })
+    const created = await prisma.marketingMedia.create({ data: { ...m, postId: id, position: count, originalUrl: m.url } })
+    // Brand kit set to "always": the logo goes on every new image
+    if (m.kind === 'image' && body.brand !== false) {
+      const kit = await prisma.marketingBrandKit.findUnique({ where: { workspaceId: r.post.workspaceId }, select: { autoApply: true, logoPublicId: true } })
+      if (kit?.autoApply && kit.logoPublicId) await setMediaBranding(r.post.workspaceId, created.id, true).catch(() => null)
+    }
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Archivo inválido' }, { status: 400 })
   }
@@ -46,6 +52,15 @@ export async function PATCH(request: NextRequest, context: Ctx) {
   if (Array.isArray(body.order)) {
     const ids = body.order.filter((x: unknown): x is string => typeof x === 'string')
     await prisma.$transaction(ids.map((mediaId: string, position: number) => prisma.marketingMedia.updateMany({ where: { id: mediaId, postId: id }, data: { position } })))
+  }
+  if (typeof body.mediaId === 'string' && typeof body.brand === 'boolean') {
+    const m = await prisma.marketingMedia.findFirst({ where: { id: body.mediaId, postId: id }, select: { id: true } })
+    if (!m) return NextResponse.json({ error: 'Archivo no encontrado' }, { status: 404 })
+    try {
+      await setMediaBranding(r.post.workspaceId, m.id, body.brand)
+    } catch (err) {
+      return NextResponse.json({ error: err instanceof ImageError ? err.message : 'No se pudo cambiar el logo' }, { status: 400 })
+    }
   }
   if (typeof body.mediaId === 'string' && typeof body.alt === 'string') {
     await prisma.marketingMedia.updateMany({ where: { id: body.mediaId, postId: id }, data: { alt: body.alt.trim().slice(0, 200) || null } })

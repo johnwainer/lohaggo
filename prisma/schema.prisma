@@ -1629,6 +1629,7 @@ model Workspace {
   contacts            Contact[]
   marketingCampaigns  MarketingCampaign[]
   marketingPosts      MarketingPost[]
+  marketingBrandKit   MarketingBrandKit?
 
   @@index([isDefault])
 }
@@ -2102,6 +2103,11 @@ model MarketingMedia {
   durationSec Float?
   alt         String?
   position    Int           @default(0)
+  source      String        @default("upload")
+  credit      String?
+  creditUrl   String?
+  originalUrl String?
+  branded     Boolean       @default(false)
   createdAt   DateTime      @default(now())
   post        MarketingPost @relation(fields: [postId], references: [id], onDelete: Cascade)
 
@@ -2170,4 +2176,31 @@ model WebPageView {
   variant   MarketingPostVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
 
   @@unique([variantId, day])
+}
+
+/// Platform-wide image sources: Pexels key and the AI image provider (keys encrypted in one blob)
+model MarketingImageSettings {
+  id                  String   @id @default("platform")
+  keysEncrypted       String?
+  provider            String   @default("none")
+  models              Json?
+  cloudflareAccountId String?
+  costPerImageUsd     Float    @default(0.04)
+  updatedByEmail      String?
+  updatedAt           DateTime @updatedAt
+}
+
+/// Brand kit of a workspace: the logo applied on post images and how
+model MarketingBrandKit {
+  id           String    @id @default(cuid())
+  workspaceId  String    @unique
+  logoUrl      String?
+  logoPublicId String?
+  logoPosition String    @default("south_east")
+  logoScale    Float     @default(0.18)
+  logoOpacity  Int       @default(90)
+  logoMargin   Int       @default(24)
+  autoApply    Boolean   @default(true)
+  updatedAt    DateTime  @updatedAt
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }

@@ -41,6 +41,7 @@ const KIND_LABEL: Record<string, string> = {
   comment_reply: 'Respuesta a comentario',
   comment_suggestion: 'Sugerencia para comentario',
   copywriting: 'Redacción de publicaciones',
+  image_generation: 'Imágenes generadas',
 }
 
 const usd = (n: number) => `$${n.toFixed(n < 1 ? 4 : 2)}`

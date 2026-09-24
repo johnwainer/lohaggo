@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { AlertTriangle, BarChart3, CalendarDays, FileText, Loader2, Megaphone, ShieldCheck } from 'lucide-react'
+import { AlertTriangle, BarChart3, CalendarDays, FileText, Loader2, Megaphone, Palette, ShieldCheck } from 'lucide-react'
 import { api, type Account } from '@/components/admin/marketing/shared'
 import PostsTab, { type PostRow } from '@/components/admin/marketing/PostsTab'
 import CalendarTab from '@/components/admin/marketing/CalendarTab'
 import CampaignsTab, { type Campaign } from '@/components/admin/marketing/CampaignsTab'
 import StatsTab from '@/components/admin/marketing/StatsTab'
 import PermissionsTab from '@/components/admin/marketing/PermissionsTab'
+import BrandTab from '@/components/admin/marketing/BrandTab'
 
 type Workspace = { id: string; name: string; permissions: string[]; canManagePermissions: boolean }
 type Overview = { workspaces: Workspace[]; posts: PostRow[]; campaigns: Campaign[]; accounts: Account[] }
@@ -18,6 +19,7 @@ const TABS = [
   ['calendar', 'Parrilla', CalendarDays],
   ['campaigns', 'Campañas', Megaphone],
   ['stats', 'Estadísticas', BarChart3],
+  ['brand', 'Marca e imágenes', Palette],
   ['permissions', 'Permisos', ShieldCheck],
 ] as const
 type Tab = (typeof TABS)[number][0]
@@ -114,6 +116,7 @@ export default function MarketingPage() {
           {tab === 'calendar' && <CalendarTab workspaceId={workspaceId} campaigns={data.campaigns} workspace={activeWs} canEdit={can('edit')} />}
           {tab === 'campaigns' && <CampaignsTab campaigns={data.campaigns} workspace={activeWs} canEdit={can('edit')} onChanged={load} />}
           {tab === 'stats' && <StatsTab workspaceId={workspaceId} campaigns={data.campaigns} />}
+          {tab === 'brand' && <BrandTab workspaces={activeWs ? [activeWs] : ws} />}
           {tab === 'permissions' && <PermissionsTab workspaces={ws.filter((w) => w.canManagePermissions)} />}
         </>
       )}
