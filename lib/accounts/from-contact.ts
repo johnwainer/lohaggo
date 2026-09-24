@@ -190,3 +190,30 @@ export async function emailProviderReady() {
   const runtime = await getMessagingProviderRuntimeConfig()
   return Boolean(runtime.sendgrid?.active)
 }
+
+function fold(s: string) {
+  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
+/**
+ * Maps what a person says in a chat ("Medellín", "plomería y pintura") to a city slug and catalog
+ * service ids. Exact name first, then a name that contains / is contained in what was said.
+ */
+export async function resolvePartnerChoices(cityText: string, serviceNames: string[]) {
+  const [cities, services] = await Promise.all([
+    prisma.cityConfig.findMany({ where: { status: { in: ['ACTIVE', 'COMING_SOON'] } }, select: { slug: true, name: true } }),
+    prisma.service.findMany({ select: { id: true, name: true } }),
+  ])
+  const c = fold(cityText)
+  const city = cities.find((x) => fold(x.name) === c || x.slug === c) ?? cities.find((x) => c && (fold(x.name).includes(c) || c.includes(fold(x.name))))
+  const serviceIds: string[] = []
+  const unknown: string[] = []
+  for (const raw of serviceNames) {
+    const n = fold(raw)
+    if (!n) continue
+    const hit = services.find((x) => fold(x.name) === n) ?? services.find((x) => fold(x.name).includes(n) || n.includes(fold(x.name)))
+    if (hit && !serviceIds.includes(hit.id)) serviceIds.push(hit.id)
+    else if (!hit) unknown.push(raw)
+  }
+  return { citySlug: city?.slug ?? null, cityOptions: cities.map((x) => x.name), serviceIds: serviceIds.slice(0, MAX_PARTNER_SERVICES), unknown }
+}

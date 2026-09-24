@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { retrieve, type KnowledgeChunk } from '@/lib/ai/knowledge'
 import { assertPublicHttpsUrl } from '@/lib/ai/net'
 import { CATALOG_TOPICS, CRM_MODULES, catalogLookup, crmLookup } from '@/lib/ai/platform-data'
-import { ACCESS_LINK_TTL_HOURS, createAccountFromContact, emailAccessLink, emailProviderReady, validateAccountInput } from '@/lib/accounts/from-contact'
+import { ACCESS_LINK_TTL_HOURS, MAX_PARTNER_SERVICES, createAccountFromContact, emailAccessLink, emailProviderReady, resolvePartnerChoices, validateAccountInput, type AccountRole } from '@/lib/accounts/from-contact'
 import { maskEmail } from '@/lib/ai/platform-data'
 
 /** Account-creation attempts an AI agent may make per conversation per day (anti-abuse). */
@@ -26,6 +26,7 @@ export type ToolName =
   | 'consultar_crm'
   | 'consultar_catalogo'
   | 'crear_cuenta_cliente'
+  | 'crear_cuenta_socio'
 
 type CatalogEntry = {
   label: string
@@ -105,12 +106,29 @@ export const TOOL_CATALOG: Record<ToolName, CatalogEntry> = {
   crear_cuenta_cliente: {
     label: 'Crear cuenta de cliente',
     description: 'Crea la cuenta de cliente en LoHaggo de la persona con la que hablas y le envía a su correo un enlace para crear su contraseña.',
-    guidance: 'Úsala solo cuando la persona quiera registrarse o necesite cuenta para pedir un servicio, después de pedirle su nombre completo y su correo y confirmarle el correo leyéndoselo. Nunca la uses si consultar datos del usuario muestra que ya tiene cuenta, ni para crear cuentas de otras personas ni de socios (a quien quiera ser socio, envíalo a lohaggo.com/unete). El enlace de acceso llega a su correo, no al chat: dile que revise su bandeja de entrada y spam, y que vence en ' + ACCESS_LINK_TTL_HOURS + ' horas. Nunca inventes ni pidas un enlace. Si la herramienta dice que no se pudo, repite exactamente la alternativa que te da.',
+    guidance: 'Úsala solo cuando la persona quiera registrarse o necesite cuenta para pedir un servicio, después de pedirle su nombre completo y su correo y confirmarle el correo leyéndoselo. Nunca la uses si consultar datos del usuario muestra que ya tiene cuenta, ni para crear cuentas de otras personas ni de socios (para socios usa crear_cuenta_socio si la tienes; si no, envíalo a lohaggo.com/unete). El enlace de acceso llega a su correo, no al chat: dile que revise su bandeja de entrada y spam, y que vence en ' + ACCESS_LINK_TTL_HOURS + ' horas. Nunca inventes ni pidas un enlace. Si la herramienta dice que no se pudo, repite exactamente la alternativa que te da.',
     writes: true,
     schema: () => ({
       type: 'object',
       properties: { nombre: str('Nombre completo de la persona'), correo: str('Correo que la persona confirmó') },
       required: ['nombre', 'correo'],
+      additionalProperties: false,
+    }),
+  },
+  crear_cuenta_socio: {
+    label: 'Crear cuenta de socio',
+    description: 'Crea la cuenta de socio (profesional que ofrece servicios) de la persona con la que hablas, sin verificar, y le envía a su correo un enlace para crear su contraseña y subir sus documentos.',
+    guidance: 'Úsala solo cuando la persona quiera trabajar como socio en LoHaggo, después de pedirle nombre completo, correo (confírmaselo leyéndoselo), ciudad y de 1 a ' + MAX_PARTNER_SERVICES + ' servicios que ofrece. Usa consultar catálogo para saber los nombres exactos de servicios y ciudades antes de llamarla. Nunca la uses si ya tiene cuenta, ni para otras personas. Explícale que la cuenta queda sin verificar hasta que suba su documento de identidad y el equipo lo apruebe, y que sin verificación no recibe solicitudes. El enlace llega a su correo, no al chat: dile que revise bandeja de entrada y spam, y que vence en ' + ACCESS_LINK_TTL_HOURS + ' horas. Si la herramienta dice que no se pudo, repite exactamente la alternativa que te da.',
+    writes: true,
+    schema: () => ({
+      type: 'object',
+      properties: {
+        nombre: str('Nombre completo de la persona'),
+        correo: str('Correo que la persona confirmó'),
+        ciudad: str('Ciudad donde trabajará, tal como aparece en el catálogo'),
+        servicios: { type: 'array', items: { type: 'string' }, description: `Entre 1 y ${MAX_PARTNER_SERVICES} nombres de servicios del catálogo` },
+      },
+      required: ['nombre', 'correo', 'ciudad', 'servicios'],
       additionalProperties: false,
     }),
   },
@@ -269,31 +287,10 @@ async function runOne(name: string, input: Record<string, unknown>, ctx: ToolCon
     case 'consultar_catalogo': {
       return catalogLookup(s('tema'), s('busqueda'))
     }
-    case 'crear_cuenta_cliente': {
-      const check = validateAccountInput({ name: s('nombre'), email: s('correo'), role: 'CLIENT' })
-      if (!check.ok) return `No se creó la cuenta: ${check.error}. Pídele el dato correcto.`
-      if (dry) return `Cuenta de cliente creada para ${check.name} — simulado en pruebas. En producción el enlace de acceso llega al correo ${maskEmail(check.email)}.`
-      if (!convId) return ACCOUNT_TOOL_FAILURE
-      const conv = await prisma.conversation.findUnique({ where: { id: convId }, select: { contactId: true } })
-      if (!conv?.contactId) return ACCOUNT_TOOL_FAILURE
-      // Anti-abuse: a few attempts per conversation per day, each one visible to the team in the thread
-      const attempts = await prisma.conversationEvent.count({ where: { conversationId: convId, type: 'account_attempt', createdAt: { gte: new Date(Date.now() - 24 * 3600_000) } } })
-      if (attempts >= MAX_ACCOUNT_ATTEMPTS_PER_DAY) return ACCOUNT_TOOL_FAILURE
-      await prisma.conversationEvent.create({ data: { conversationId: convId, type: 'account_attempt', actorType: 'ai', actorId: ctx.agent.id, actorName: ctx.agent.name, detail: maskEmail(check.email) } })
-      // The link goes to the email (proof of ownership), so without email delivery nothing is created
-      if (!(await emailProviderReady())) return ACCOUNT_TOOL_FAILURE
-      const result = await createAccountFromContact({
-        contactId: conv.contactId, role: 'CLIENT', name: check.name, email: check.email,
-        createdBy: { type: 'ai', id: ctx.agent.id, name: ctx.agent.name },
-      })
-      if (!result.ok) {
-        if (result.code === 'already_linked') return 'Esta persona ya tiene una cuenta en LoHaggo (está vinculada a esta conversación). Dile que entre en lohaggo.com; si no recuerda la contraseña, que use "Olvidé mi contraseña".'
-        return ACCOUNT_TOOL_FAILURE
-      }
-      const mail = await emailAccessLink(check.email, check.name, 'CLIENT', result.accessUrl)
-      if (!mail.ok) return `La cuenta se creó, pero no se pudo enviar el correo con el enlace. Dile que entre en lohaggo.com con "Olvidé mi contraseña" usando ${maskEmail(check.email)}.`
-      return `Cuenta de cliente creada para ${check.name}. Le enviamos al correo ${maskEmail(check.email)} el enlace para crear su contraseña (vence en ${ACCESS_LINK_TTL_HOURS} horas). Dile que revise su bandeja de entrada y spam.`
-    }
+    case 'crear_cuenta_cliente':
+      return createAccountFromChat('CLIENT', input, ctx)
+    case 'crear_cuenta_socio':
+      return createAccountFromChat('PARTNER', input, ctx)
     case 'elegir_salida': {
       ctx.state.chosenOutput = s('salida')
       return `Salida "${s('salida')}" elegida.`
@@ -301,6 +298,53 @@ async function runOne(name: string, input: Record<string, unknown>, ctx: ToolCon
     default:
       return `Herramienta "${name}" no disponible.`
   }
+}
+
+/**
+ * Account creation requested in a chat (unverified identity). The access link goes to the email so
+ * only its owner gets in; every failure reads the same (no email enumeration); a few attempts per
+ * conversation per day, each one visible to the team in the thread.
+ */
+async function createAccountFromChat(role: AccountRole, input: Record<string, unknown>, ctx: ToolContext): Promise<string> {
+  const s = (k: string) => String(input[k] ?? '').trim()
+  const label = role === 'PARTNER' ? 'socio' : 'cliente'
+  let citySlug: string | null = null
+  let serviceIds: string[] = []
+  if (role === 'PARTNER') {
+    const names = Array.isArray(input.servicios) ? input.servicios.map(String) : []
+    if (!names.length || names.length > MAX_PARTNER_SERVICES) return `No se creó la cuenta: indica entre 1 y ${MAX_PARTNER_SERVICES} servicios.`
+    const choice = await resolvePartnerChoices(s('ciudad'), names)
+    if (!choice.citySlug) return `No se creó la cuenta: la ciudad "${s('ciudad')}" no está disponible. Ciudades posibles: ${choice.cityOptions.join(', ')}.`
+    if (choice.unknown.length) return `No se creó la cuenta: estos servicios no están en el catálogo: ${choice.unknown.join(', ')}. Consulta el catálogo y pregúntale cuáles de los disponibles ofrece.`
+    citySlug = choice.citySlug
+    serviceIds = choice.serviceIds
+  }
+  const check = validateAccountInput({ name: s('nombre'), email: s('correo'), role, serviceIds })
+  if (!check.ok) return `No se creó la cuenta: ${check.error}. Pídele el dato correcto.`
+  if (ctx.dryRun) return `Cuenta de ${label} creada para ${check.name} — simulado en pruebas. En producción el enlace de acceso llega al correo ${maskEmail(check.email)}.`
+
+  const convId = ctx.conversationId
+  if (!convId) return ACCOUNT_TOOL_FAILURE
+  const conv = await prisma.conversation.findUnique({ where: { id: convId }, select: { contactId: true } })
+  if (!conv?.contactId) return ACCOUNT_TOOL_FAILURE
+  const attempts = await prisma.conversationEvent.count({ where: { conversationId: convId, type: 'account_attempt', createdAt: { gte: new Date(Date.now() - 24 * 3600_000) } } })
+  if (attempts >= MAX_ACCOUNT_ATTEMPTS_PER_DAY) return ACCOUNT_TOOL_FAILURE
+  await prisma.conversationEvent.create({ data: { conversationId: convId, type: 'account_attempt', actorType: 'ai', actorId: ctx.agent.id, actorName: ctx.agent.name, detail: `${label} · ${maskEmail(check.email)}` } })
+  if (!(await emailProviderReady())) return ACCOUNT_TOOL_FAILURE
+
+  const result = await createAccountFromContact({
+    contactId: conv.contactId, role, name: check.name, email: check.email, citySlug, serviceIds,
+    createdBy: { type: 'ai', id: ctx.agent.id, name: ctx.agent.name },
+  })
+  if (!result.ok) {
+    if (result.code === 'already_linked') return 'Esta persona ya tiene una cuenta en LoHaggo (está vinculada a esta conversación). Dile que entre en lohaggo.com; si no recuerda la contraseña, que use "Olvidé mi contraseña".'
+    return ACCOUNT_TOOL_FAILURE
+  }
+  const mail = await emailAccessLink(check.email, check.name, role, result.accessUrl)
+  if (!mail.ok) return `La cuenta se creó, pero no se pudo enviar el correo con el enlace. Dile que entre en lohaggo.com con "Olvidé mi contraseña" usando ${maskEmail(check.email)}.`
+  return role === 'PARTNER'
+    ? `Cuenta de socio creada para ${check.name}, sin verificar. Le enviamos al correo ${maskEmail(check.email)} el enlace para crear su contraseña y subir su documento de identidad (vence en ${ACCESS_LINK_TTL_HOURS} horas). Dile que revise bandeja de entrada y spam, y que empezará a recibir solicitudes cuando el equipo apruebe su documento.`
+    : `Cuenta de cliente creada para ${check.name}. Le enviamos al correo ${maskEmail(check.email)} el enlace para crear su contraseña (vence en ${ACCESS_LINK_TTL_HOURS} horas). Dile que revise su bandeja de entrada y spam.`
 }
 
 export function isWriteTool(name: string) {

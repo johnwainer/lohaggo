@@ -179,3 +179,41 @@ describe('crear cuenta desde el chat: sin fugas', () => {
     expect(ACCOUNT_TOOL_FAILURE).not.toMatch(/ya existe|registrad[oa] con/i)
   })
 })
+
+describe('crear cuenta de socio desde el chat', () => {
+  const ctx = (tools: string[]) => ({
+    agent: { id: 'a', name: 'S', tools, crmModules: [], webhookUrl: null },
+    workspaceId: 'w', conversationId: null, userId: null, contact: { name: null, phone: null, channel: 'WHATSAPP' }, dryRun: true,
+    state: { handoff: null, chosenOutput: null, chunks: [] },
+  })
+  it('activable por agente, independiente de la de clientes', () => {
+    const base = { id: 'a', name: 'S', crmModules: [], webhookUrl: null }
+    expect(agentToolNames({ ...base, tools: ['crear_cuenta_cliente'] })).not.toContain('crear_cuenta_socio')
+    expect(agentToolNames({ ...base, tools: ['crear_cuenta_socio'] })).toContain('crear_cuenta_socio')
+  })
+  it('esquema estricto con ciudad y servicios', () => {
+    const def = buildToolDefs({ id: 'a', name: 'S', tools: ['crear_cuenta_socio'], crmModules: [], webhookUrl: null })[0]
+    expect(def.strict).toBe(true)
+    expect(def.input_schema.required).toEqual(['nombre', 'correo', 'ciudad', 'servicios'])
+  })
+  it('sin servicios o con más de 5 no crea nada', async () => {
+    expect((await executeTool('crear_cuenta_socio', { nombre: 'Luis', correo: 'l@x.co', ciudad: 'Medellín', servicios: [] }, ctx(['crear_cuenta_socio']))).output).toMatch(/entre 1 y 5/)
+    expect((await executeTool('crear_cuenta_socio', { nombre: 'Luis', correo: 'l@x.co', ciudad: 'Medellín', servicios: ['a', 'b', 'c', 'd', 'e', 'f'] }, ctx(['crear_cuenta_socio']))).output).toMatch(/entre 1 y 5/)
+  })
+})
+
+import { prisma as mockedPrisma } from '@/lib/prisma'
+import { resolvePartnerChoices } from '@/lib/accounts/from-contact'
+
+describe('ciudad y servicios dichos en el chat', () => {
+  it('reconoce nombres sin tildes, parciales y reporta los que no existen', async () => {
+    const p = mockedPrisma as unknown as Record<string, unknown>
+    p.cityConfig = { findMany: async () => [{ slug: 'medellin', name: 'Medellín' }, { slug: 'bogota', name: 'Bogotá' }] }
+    p.service = { findMany: async () => [{ id: 's1', name: 'Plomería' }, { id: 's2', name: 'Pintura de interiores' }, { id: 's3', name: 'Limpieza General' }] }
+    const r = await resolvePartnerChoices('medellin', ['plomeria', 'Pintura', 'astronauta'])
+    expect(r.citySlug).toBe('medellin')
+    expect(r.serviceIds).toEqual(['s1', 's2'])
+    expect(r.unknown).toEqual(['astronauta'])
+    expect((await resolvePartnerChoices('Cartagena', ['plomería'])).citySlug).toBeNull()
+  })
+})
