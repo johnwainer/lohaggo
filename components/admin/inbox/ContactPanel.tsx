@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { AlertCircle, CheckCircle2, Link2, Loader2, MessageCircle, Save, Search, ShieldCheck, Unlink, User, X } from 'lucide-react'
 import { ChannelIcon, CHANNEL_META } from '@/components/admin/ChannelIcon'
+import CreateAccountForm, { AccessLinkBox } from '@/components/admin/inbox/CreateAccountForm'
 
 export type ContactDetail = {
   id: string
@@ -52,6 +53,22 @@ export default function ContactPanel({
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchUser[]>([])
   const [searching, setSearching] = useState(false)
+  const [resent, setResent] = useState<{ accessUrl: string; sent: boolean; sendError: string | null } | null>(null)
+
+  async function resendAccess() {
+    setSaving(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/admin/inbox/contacts/${contact.id}/account`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'resend', sendToConversationId: currentConversationId }) })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'No se pudo generar el enlace')
+      setResent(data)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   useEffect(() => {
     setForm({ name: contact.name || '', phone: contact.phone || '', email: contact.email || '', notes: contact.notes || '' })
@@ -174,6 +191,11 @@ export default function ContactPanel({
                 <button onClick={() => onOpenProfile(contact.user!.id)} className="text-primary-600 hover:underline">Ver perfil completo</button>
                 <button onClick={() => patch({ userId: null }, 'Usuario desvinculado.')} className="inline-flex items-center gap-1 text-gray-500 hover:underline"><Unlink className="h-3 w-3" /> Desvincular</button>
               </div>
+              {(contact.user.role === 'CLIENT' || contact.user.role === 'PARTNER') && (
+                resent
+                  ? <AccessLinkBox url={resent.accessUrl} sent={resent.sent} sendError={resent.sendError} />
+                  : <button onClick={resendAccess} disabled={saving} className="text-xs text-primary-600 hover:underline disabled:opacity-50">Enviar enlace de acceso por este chat</button>
+              )}
             </div>
           ) : (
             <div className="space-y-2">
@@ -198,6 +220,10 @@ export default function ContactPanel({
                 </div>
               )}
               {query.trim().length >= 3 && !searching && results.length === 0 && <p className="text-[11px] text-gray-400">Sin resultados.</p>}
+              <div className="pt-1">
+                <p className="text-[11px] text-gray-500 mb-1.5">¿No tiene cuenta? Créala aquí y envíale el enlace para que ponga su contraseña.</p>
+                <CreateAccountForm contact={contact} conversationId={currentConversationId} onCreated={onChanged} />
+              </div>
             </div>
           )}
         </div>

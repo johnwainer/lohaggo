@@ -121,3 +121,61 @@ describe('datos de la plataforma', () => {
     expect((defs[0].input_schema.properties as Record<string, { enum?: string[] }>).tema.enum).toEqual(['servicios', 'ciudades', 'pagos'])
   })
 })
+
+import { validateAccountInput, normalizeCityName, accessLinkMessage } from '@/lib/accounts/from-contact'
+import { executeTool } from '@/lib/ai/tools'
+
+describe('crear cuentas desde la bandeja', () => {
+  it('valida nombre, correo, teléfono y servicios del socio', () => {
+    expect(validateAccountInput({ name: 'Ana', email: 'ana@x.co', role: 'CLIENT' }).ok).toBe(true)
+    expect(validateAccountInput({ name: 'A', email: 'ana@x.co', role: 'CLIENT' }).ok).toBe(false)
+    expect(validateAccountInput({ name: 'Ana', email: 'ana', role: 'CLIENT' }).ok).toBe(false)
+    expect(validateAccountInput({ name: 'Ana', email: 'ana@x.co', phone: 'CO.123', role: 'CLIENT' }).ok).toBe(false)
+    expect(validateAccountInput({ name: 'Ana', email: 'ana@x.co', role: 'PARTNER', serviceIds: [] }).ok).toBe(false)
+    expect(validateAccountInput({ name: 'Ana', email: 'ana@x.co', role: 'PARTNER', serviceIds: ['1', '2', '3', '4', '5', '6'] }).ok).toBe(false)
+    expect(validateAccountInput({ name: 'Ana', email: 'ana@x.co', role: 'PARTNER', serviceIds: ['1'] }).ok).toBe(true)
+  })
+  it('normaliza correo y teléfono', () => {
+    const r = validateAccountInput({ name: '  Ana   Pérez ', email: ' ANA@X.CO ', phone: '300 123 4567', role: 'CLIENT' })
+    expect(r).toMatchObject({ ok: true, name: 'Ana Pérez', email: 'ana@x.co', phone: '+573001234567' })
+  })
+  it('ciudad al enum', () => expect(normalizeCityName('Bogotá')).toBe('BOGOTA'))
+  it('mensaje del enlace por rol', () => {
+    expect(accessLinkMessage('Ana Pérez', 'CLIENT', 'https://x/y')).toMatch(/^Ana, ya creamos tu cuenta en LoHaggo.*https:\/\/x\/y$/)
+    expect(accessLinkMessage('Luis', 'PARTNER', 'https://x/y')).toMatch(/documentos de verificación/)
+  })
+  it('la capacidad del agente se activa por agente (desactivada si no está en tools)', () => {
+    const base = { id: 'a', name: 'S', crmModules: [], webhookUrl: null }
+    expect(agentToolNames({ ...base, tools: [] })).not.toContain('crear_cuenta_cliente')
+    expect(agentToolNames({ ...base, tools: ['crear_cuenta_cliente'] })).toContain('crear_cuenta_cliente')
+  })
+  it('en el área de pruebas crea en seco y valida el correo', async () => {
+    const ctx = {
+      agent: { id: 'a', name: 'S', tools: ['crear_cuenta_cliente'], crmModules: [], webhookUrl: null },
+      workspaceId: 'w', conversationId: null, userId: null, contact: { name: null, phone: null, channel: 'WHATSAPP' }, dryRun: true,
+      state: { handoff: null, chosenOutput: null, chunks: [] },
+    }
+    const ok = await executeTool('crear_cuenta_cliente', { nombre: 'Ana Pérez', correo: 'ana@x.co' }, ctx)
+    expect(ok.output).toMatch(/simulado en pruebas/)
+    expect(ok.output).toMatch(/an\*+@x\.co/)
+    expect(ok.output).not.toMatch(/token=/)
+    expect(ok.dryRun).toBe(true)
+    const bad = await executeTool('crear_cuenta_cliente', { nombre: 'Ana', correo: 'no-es-correo' }, ctx)
+    expect(bad.output).toMatch(/No se creó la cuenta/)
+  })
+  it('un agente sin la capacidad no puede ejecutarla', async () => {
+    const r = await executeTool('crear_cuenta_cliente', { nombre: 'Ana', correo: 'ana@x.co' }, {
+      agent: { id: 'a', name: 'S', tools: [], crmModules: [], webhookUrl: null },
+      workspaceId: 'w', conversationId: 'c', userId: null, contact: { name: null, phone: null, channel: 'WHATSAPP' }, dryRun: false,
+      state: { handoff: null, chosenOutput: null, chunks: [] },
+    })
+    expect(r.isError).toBe(true)
+  })
+})
+
+import { ACCOUNT_TOOL_FAILURE } from '@/lib/ai/tools'
+describe('crear cuenta desde el chat: sin fugas', () => {
+  it('un solo mensaje de fallo, que no dice si el correo existe', () => {
+    expect(ACCOUNT_TOOL_FAILURE).not.toMatch(/ya existe|registrad[oa] con/i)
+  })
+})

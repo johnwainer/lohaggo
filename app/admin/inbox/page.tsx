@@ -184,6 +184,8 @@ const EVENT_LABEL: Record<string, string> = {
   ai_handoff: 'La IA traspasa a una persona',
   ai_done: 'La IA cumplió el objetivo',
   ai_spam: 'La IA lo marcó como publicidad',
+  account_created: 'Cuenta creada',
+  account_attempt: 'Intento de crear cuenta',
   assigned: 'Asignada',
   status: 'Estado',
 }
