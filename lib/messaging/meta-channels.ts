@@ -15,6 +15,7 @@ import {
   MetaGraphError,
   probeSendCapability,
   subscribePageWithFallback,
+  PUBLISH_SCOPES,
   type MetaChannel,
   type MetaPageCandidate,
   type OAuthOptions,
@@ -25,13 +26,21 @@ const logger = createLogger('meta-channels')
 
 export const OAUTH_SESSION_TTL_MS = 10 * 60 * 1000
 
-export type ConnectionCredentials = { pageAccessToken: string }
+export type ConnectionCredentials = {
+  pageAccessToken: string
+  /** Long-lived user token the page token came from: renewed before it expires (see lib/marketing/token-health.ts) */
+  userAccessToken?: string
+  /** Business Manager system-user token: never expires, page tokens are derived from it */
+  systemUserToken?: string
+}
 export type ConnectionMeta = {
   pageId: string
   username?: string | null
   scopes?: string[]
   subscribedFields?: string[]
   tokenExpiresAt?: string | null
+  /** oauth_user = came from a person's login (user token renewable); system_user = permanent */
+  tokenKind?: 'oauth_user' | 'system_user'
 }
 export type ConnectionCapabilities = {
   receive: boolean
@@ -41,6 +50,8 @@ export type ConnectionCapabilities = {
   checkedAt: string
   /** Comments: scopes the token needs and lacks (null = could not be checked), Page "feed" subscription */
   comments?: { required: string[]; missing: string[] | null; feedSubscribed: boolean | null; detail?: string }
+  /** Publishing from the marketing module */
+  publish?: { required: string[]; missing: string[] | null }
 }
 
 export function isMetaChannel(channel: string): channel is MetaChannel {
@@ -148,7 +159,7 @@ export async function completeOAuthCallback(params: { code?: string | null; stat
       where: { id: session.id },
       data: {
         status: 'ready',
-        candidatesEncrypted: encryptConfig({ candidates, tokenExpiresAt }),
+        candidatesEncrypted: encryptConfig({ candidates, tokenExpiresAt, userAccessToken: longLived.token }),
         expiresAt: new Date(Date.now() + OAUTH_SESSION_TTL_MS),
       },
     })
@@ -207,7 +218,7 @@ export async function completeOAuthSelection(params: { sessionId: string; adminI
 
   const app = await requireMetaApp()
   const channel = session.channel as MetaChannel
-  const payload = decryptConfig<{ candidates: MetaPageCandidate[]; tokenExpiresAt: string | null }>(session.candidatesEncrypted)
+  const payload = decryptConfig<{ candidates: MetaPageCandidate[]; tokenExpiresAt: string | null; userAccessToken?: string }>(session.candidatesEncrypted)
   const chosen = payload.candidates.filter((c) => params.selectedIds.includes(c.id))
   if (chosen.length === 0) throw new Error('Selecciona al menos una cuenta')
 
@@ -240,6 +251,7 @@ export async function completeOAuthSelection(params: { sessionId: string; adminI
         username: candidate.username ?? null,
         subscribedFields,
         tokenExpiresAt: payload.tokenExpiresAt,
+        tokenKind: 'oauth_user',
       }
       // Connecting with the comments option switches them on; reconnecting without it keeps what was set
       const previous = await prisma.channelConnection.findUnique({ where: { channel_externalId: { channel, externalId: candidate.id } }, select: { commentSettings: true } })
@@ -256,7 +268,7 @@ export async function completeOAuthSelection(params: { sessionId: string; adminI
           name: candidate.name,
           status: lastError ? 'ERROR' : 'ACTIVE',
           enabled: true,
-          credentialsEncrypted: encryptConfig({ pageAccessToken: candidate.pageAccessToken } satisfies ConnectionCredentials),
+          credentialsEncrypted: encryptConfig({ pageAccessToken: candidate.pageAccessToken, userAccessToken: payload.userAccessToken } satisfies ConnectionCredentials),
           meta: meta as unknown as Prisma.InputJsonValue,
           lastError,
           connectedByEmail: params.adminEmail,
@@ -265,7 +277,7 @@ export async function completeOAuthSelection(params: { sessionId: string; adminI
         update: {
           name: candidate.name,
           status: lastError ? 'ERROR' : 'ACTIVE',
-          credentialsEncrypted: encryptConfig({ pageAccessToken: candidate.pageAccessToken } satisfies ConnectionCredentials),
+          credentialsEncrypted: encryptConfig({ pageAccessToken: candidate.pageAccessToken, userAccessToken: payload.userAccessToken } satisfies ConnectionCredentials),
           meta: meta as unknown as Prisma.InputJsonValue,
           lastError,
           connectedByEmail: params.adminEmail,
@@ -329,13 +341,15 @@ export async function runCapabilityDiagnostics(connectionId: string): Promise<Co
     sendDetail: send.detail,
     checkedAt: new Date().toISOString(),
     comments,
+    publish: { required: PUBLISH_SCOPES[conn.channel], missing: missingScopes(PUBLISH_SCOPES[conn.channel], grantedScopes) },
   }
 
   const tokenInvalid = !send.ok && /\(#190\)/.test(send.detail)
   await prisma.channelConnection.update({
     where: { id: conn.id },
     data: {
-      capabilities: caps as unknown as Prisma.InputJsonValue,
+      // The daily token check lives in the same JSON: keep it
+      capabilities: { ...caps, tokenHealth: (conn.capabilities as { tokenHealth?: unknown } | null)?.tokenHealth } as unknown as Prisma.InputJsonValue,
       ...(grantedScopes ? { commentSettings: { ...settings, grantedScopes, checkedAt: caps.checkedAt } as unknown as Prisma.InputJsonValue } : {}),
       status: tokenInvalid ? 'ERROR' : conn.status === 'ERROR' && send.ok && receive.ok ? 'ACTIVE' : conn.status,
       // A passing diagnosis clears stale errors (e.g. one rejected attachment) that would hide the real result

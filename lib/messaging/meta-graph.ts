@@ -112,13 +112,19 @@ export const COMMENT_SCOPES: Record<MetaChannel, string[]> = {
 }
 export const MENTION_SCOPE = 'instagram_manage_mentions'
 
+/** Publishing posts from the marketing module (always asked: it is how the business uses its pages). */
+export const PUBLISH_SCOPES: Record<MetaChannel, string[]> = {
+  MESSENGER: ['pages_manage_posts', 'pages_read_engagement'],
+  INSTAGRAM: ['instagram_content_publish'],
+}
+
 export type OAuthOptions = { comments?: boolean; mentions?: boolean }
 
 export function scopesFor(channel: MetaChannel, options: OAuthOptions = {}) {
-  const scopes = [...META_SCOPES[channel]]
+  const scopes = [...META_SCOPES[channel], ...PUBLISH_SCOPES[channel]]
   if (options.comments) scopes.push(...COMMENT_SCOPES[channel])
   if (options.comments && options.mentions && channel === 'INSTAGRAM') scopes.push(MENTION_SCOPE)
-  return scopes
+  return Array.from(new Set(scopes))
 }
 
 export function buildOAuthUrl(params: { app: MetaAppConfig; redirectUri: string; state: string; channel: MetaChannel; options?: OAuthOptions }) {
@@ -380,6 +386,34 @@ export async function fetchMentionedComment(app: MetaAppConfig, pageAccessToken:
     query: { fields: `mentioned_comment.comment_id(${commentId}){id,text,timestamp,username,from,media{id,caption,permalink,media_url}}` },
   })
   return data.mentioned_comment ?? null
+}
+
+export type TokenDebug = { valid: boolean; type: string | null; scopes: string[]; expiresAt: Date | null; neverExpires: boolean; error: string | null; errorSubcode: number | null }
+
+/** Full debug_token view of a token: validity, type, scopes and expiry (0 = never expires). */
+export async function debugToken(app: MetaAppConfig, token: string): Promise<TokenDebug> {
+  const d = await graphFetch<{ data?: { is_valid?: boolean; type?: string; scopes?: string[]; expires_at?: number; error?: { message?: string; subcode?: number } } }>('debug_token', {
+    version: app.graphVersion,
+    query: { input_token: token, access_token: `${app.appId}|${app.appSecret}` },
+  })
+  const x = d.data || {}
+  const exp = typeof x.expires_at === 'number' ? x.expires_at : null
+  return {
+    valid: x.is_valid !== false,
+    type: x.type ?? null,
+    scopes: x.scopes ?? [],
+    expiresAt: exp ? new Date(exp * 1000) : null,
+    neverExpires: exp === 0,
+    error: x.error?.message ?? null,
+    errorSubcode: x.error?.subcode ?? null,
+  }
+}
+
+/** Page token derived from a user or system-user token that manages the page. */
+export async function pageTokenFrom(app: MetaAppConfig, userToken: string, pageId: string) {
+  const d = await graphFetch<{ access_token?: string }>(pageId, { version: app.graphVersion, token: userToken, query: { fields: 'access_token' } })
+  if (!d.access_token) throw new MetaGraphError('El token no administra esta página', { status: 403 })
+  return d.access_token
 }
 
 /** Scopes actually granted to the stored token (debug_token with the app token). */

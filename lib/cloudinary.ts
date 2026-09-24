@@ -60,6 +60,23 @@ class CloudinaryService {
       .digest('hex')
   }
 
+  /**
+   * Signature for an upload the browser sends straight to Cloudinary (videos exceed the serverless
+   * request size). Only this folder can be written with it, and it expires with the timestamp (1 h).
+   */
+  public signDirectUpload(folder: string, kind: 'image' | 'video') {
+    if (!this.isEnabled() || !this.config) throw new Error('Cloudinary service is not configured')
+    const timestamp = Math.floor(Date.now() / 1000)
+    // Signed with the upload: Cloudinary rejects any other format (no SVG, no raw files)
+    const allowed_formats = kind === 'video' ? 'mp4,mov' : 'jpg,jpeg,png,webp,gif'
+    const signature = this.generateSignature({ allowed_formats, folder, timestamp })
+    return { cloudName: this.config.cloudName, apiKey: this.config.apiKey, timestamp, signature, folder, allowedFormats: allowed_formats, resourceType: kind }
+  }
+
+  public cloudName() {
+    return this.config?.cloudName ?? null
+  }
+
   public async upload(
     file: File,
     folder: string = 'lohaggo',

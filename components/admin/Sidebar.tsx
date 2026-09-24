@@ -1,6 +1,6 @@
 'use client'
 
-import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, LogOut, Menu, X, Shield, DollarSign, Wallet, MapPin, CreditCard, ChevronDown, ChevronRight, Percent, Megaphone, Activity, Building2, BookOpen, Smartphone, MessageSquare, Inbox, Link2, Zap, Palette, Send, Share2, Bot, Cpu } from 'lucide-react'
+import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, LogOut, Menu, X, Shield, DollarSign, Wallet, MapPin, CreditCard, ChevronDown, ChevronRight, Percent, Megaphone, Activity, Building2, BookOpen, Smartphone, MessageSquare, Inbox, Link2, Zap, Palette, Send, Share2, Bot, Cpu, Newspaper } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import { useEffect, useState } from 'react'
@@ -96,6 +96,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
       label: 'Marketing y Canales',
       hint: 'Adquisición, comunicación y alcance',
       items: [
+        { id: 'marketing', label: 'Publicaciones', icon: Newspaper, isLink: true, href: '/admin/marketing' },
         { id: 'ads', label: 'Publicidad', icon: Megaphone, isLink: true, href: '/admin/ads' },
         { id: 'communications', label: 'Comunicaciones', icon: Bell, isLink: true, href: '/admin/communications' },
         { id: 'inbox', label: 'Bandeja de entrada', icon: Inbox, isLink: true, href: '/admin/inbox' },

@@ -1627,6 +1627,8 @@ model Workspace {
   oauthSessions       ChannelOAuthSession[]
   aiAgents            AiAgent[]
   contacts            Contact[]
+  marketingCampaigns  MarketingCampaign[]
+  marketingPosts      MarketingPost[]
 
   @@index([isDefault])
 }
@@ -1652,24 +1654,25 @@ enum WorkspaceRole {
 }
 
 model ChannelConnection {
-  id                   String                  @id @default(cuid())
-  workspaceId          String
-  workspace            Workspace               @relation(fields: [workspaceId], references: [id])
-  channel              MessagingChannel
-  externalId           String
-  name                 String
-  status               ChannelConnectionStatus @default(ACTIVE)
-  enabled              Boolean                 @default(true)
-  credentialsEncrypted String
-  meta                 Json?
-  capabilities         Json?
-  commentSettings      Json?
-  lastError            String?
-  lastEventAt          DateTime?
-  connectedByEmail     String?
-  createdAt            DateTime                @default(now())
-  updatedAt            DateTime                @updatedAt
-  conversations        Conversation[]
+  id                    String                  @id @default(cuid())
+  workspaceId           String
+  workspace             Workspace               @relation(fields: [workspaceId], references: [id])
+  channel               MessagingChannel
+  externalId            String
+  name                  String
+  status                ChannelConnectionStatus @default(ACTIVE)
+  enabled               Boolean                 @default(true)
+  credentialsEncrypted  String
+  meta                  Json?
+  capabilities          Json?
+  commentSettings       Json?
+  lastError             String?
+  lastEventAt           DateTime?
+  connectedByEmail      String?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  conversations         Conversation[]
+  marketingPublications MarketingPublication[]
 
   @@unique([channel, externalId])
   @@index([enabled])
@@ -2003,4 +2006,168 @@ model AiSuggestion {
 
   @@index([conversationId, createdAt])
   @@index([agentId, status])
+}
+
+// ─── Marketing: campaigns, posts, publications per channel, metrics, blog ─────
+
+enum MarketingChannel {
+  WEB
+  FACEBOOK
+  INSTAGRAM
+}
+
+model MarketingCampaign {
+  id          String          @id @default(cuid())
+  workspaceId String
+  name        String
+  objective   String          @default("reach")
+  description String?
+  startsAt    DateTime?
+  endsAt      DateTime?
+  budget      Float?
+  status      String          @default("draft")
+  color       String          @default("#7C3AED")
+  createdById String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  posts       MarketingPost[]
+
+  @@index([workspaceId, status])
+}
+
+model MarketingPost {
+  id           String                 @id @default(cuid())
+  workspaceId  String
+  campaignId   String?
+  title        String
+  brief        String?
+  status       String                 @default("draft")
+  scheduledAt  DateTime?
+  publishedAt  DateTime?
+  createdById  String?
+  approvedById String?
+  approvedAt   DateTime?
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+  workspace    Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  campaign     MarketingCampaign?     @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  variants     MarketingPostVariant[]
+  media        MarketingMedia[]
+  publications MarketingPublication[]
+
+  @@index([workspaceId, status])
+  @@index([campaignId])
+  @@index([scheduledAt])
+}
+
+model MarketingPostVariant {
+  id             String           @id @default(cuid())
+  postId         String
+  channel        MarketingChannel
+  body           String           @default("")
+  format         String?
+  linkUrl        String?
+  mediaIds       String[]         @default([])
+  slug           String?          @unique
+  seoTitle       String?
+  seoDescription String?
+  excerpt        String?
+  coverUrl       String?
+  category       String?
+  tags           String[]         @default([])
+  canonicalUrl   String?
+  noindex        Boolean          @default(false)
+  webPublishedAt DateTime?
+  aiGenerated    Boolean          @default(false)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  post           MarketingPost    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  pageViews      WebPageView[]
+
+  @@unique([postId, channel])
+  @@index([channel, webPublishedAt])
+}
+
+model MarketingMedia {
+  id          String        @id @default(cuid())
+  postId      String
+  url         String
+  publicId    String?
+  kind        String
+  mime        String?
+  bytes       Int?
+  width       Int?
+  height      Int?
+  durationSec Float?
+  alt         String?
+  position    Int           @default(0)
+  createdAt   DateTime      @default(now())
+  post        MarketingPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+}
+
+model MarketingPublication {
+  id             String                    @id @default(cuid())
+  postId         String
+  variantId      String
+  channel        MarketingChannel
+  connectionId   String?
+  status         String                    @default("scheduled")
+  scheduledAt    DateTime
+  claimedAt      DateTime?
+  claimToken     String?
+  attempts       Int                       @default(0)
+  lastError      String?
+  idempotencyKey String                    @unique
+  externalId     String?
+  permalink      String?
+  containerId    String?
+  publishedAt    DateTime?
+  metricsAt      DateTime?
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+  post           MarketingPost             @relation(fields: [postId], references: [id], onDelete: Cascade)
+  connection     ChannelConnection?        @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  snapshots      MarketingMetricSnapshot[]
+
+  @@index([status, scheduledAt])
+  @@index([postId])
+  @@index([externalId])
+}
+
+model MarketingMetricSnapshot {
+  id            String               @id @default(cuid())
+  publicationId String
+  capturedAt    DateTime             @default(now())
+  reach         Int                  @default(0)
+  impressions   Int                  @default(0)
+  likes         Int                  @default(0)
+  comments      Int                  @default(0)
+  shares        Int                  @default(0)
+  saves         Int                  @default(0)
+  clicks        Int                  @default(0)
+  videoViews    Int                  @default(0)
+  raw           Json?
+  publication   MarketingPublication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+
+  @@index([publicationId, capturedAt])
+}
+
+model WebRedirect {
+  id        String   @id @default(cuid())
+  fromPath  String   @unique
+  toPath    String
+  createdAt DateTime @default(now())
+}
+
+model WebPageView {
+  id        String               @id @default(cuid())
+  variantId String
+  day       String
+  views     Int                  @default(0)
+  variant   MarketingPostVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([variantId, day])
 }

@@ -1,5 +1,6 @@
 import { MetadataRoute } from 'next'
 import { PrismaClient } from '@prisma/client'
+import { sitemapArticles } from '@/lib/marketing/blog'
 
 const prisma = new PrismaClient()
 
@@ -82,7 +83,7 @@ const staticPages: MetadataRoute.Sitemap = [
   ]
 
 try {
-  const [services, cities, partners] = await Promise.all([
+  const [services, cities, partners, articles] = await Promise.all([
     prisma.service.findMany({
       select: {
         slug: true,
@@ -94,6 +95,7 @@ try {
     prisma.partnerProfile.findMany({
         where: { isPublicProfile: true, isActive: true, slug: { not: null } },
         select: { slug: true, updatedAt: true, totalReviews: true, services: { where: { active: true }, select: { id: true }, take: 1 } },    }),
+    sitemapArticles().catch(() => []),
     ])
 
   const servicePages: MetadataRoute.Sitemap = services
@@ -121,9 +123,15 @@ try {
     priority: 0.8,
   }))
 
+  // Blog: the index plus every published, indexable article
+  const blogPages: MetadataRoute.Sitemap = [
+    { url: `${baseUrl}/blog`, lastModified: articles[0]?.updatedAt ?? new Date(), changeFrequency: 'daily', priority: 0.7 },
+    ...articles.filter((a) => a.slug).map((a) => ({ url: `${baseUrl}/blog/${a.slug}`, lastModified: a.updatedAt, changeFrequency: 'monthly' as const, priority: 0.65 })),
+  ]
+
   await prisma.$disconnect()
 
-  return [...staticPages, ...servicePages, ...cityPages, ...partnerPages]
+  return [...staticPages, ...servicePages, ...cityPages, ...partnerPages, ...blogPages]
 } catch (error) {
   console.error('Error generating sitemap:', error)
   await prisma.$disconnect()

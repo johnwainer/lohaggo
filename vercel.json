@@ -33,6 +33,18 @@
     {
       "path": "/api/cron/copilot",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/publisher",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/marketing-metrics",
+      "schedule": "20 * * * *"
+    },
+    {
+      "path": "/api/cron/channel-health",
+      "schedule": "0 11 * * *"
     }
   ]
 }

@@ -16,6 +16,8 @@ type Capabilities = {
   receiveDetail?: string
   checkedAt: string
   comments?: { required: string[]; missing: string[] | null; feedSubscribed: boolean | null; detail?: string }
+  publish?: { required: string[]; missing: string[] | null }
+  tokenHealth?: { valid: boolean; checkedAt: string; kind: string; pageTokenExpiresAt: string | null; userTokenExpiresAt: string | null; renewedAt?: string | null; error: string | null }
 } | null
 
 type CommentSettings = { enabled?: boolean; includeAds?: boolean; mentions?: boolean; grantedScopes?: string[] | null; checkedAt?: string | null } | null
@@ -166,6 +168,46 @@ function CommentsBox({ conn, busy, onPatch, reconnectHref }: { conn: Connection;
       )}
       {enabled && conn.channel === 'MESSENGER' && c?.feedSubscribed === false && (
         <p className="text-[11px] text-amber-800 bg-amber-50 rounded-lg px-2.5 py-1.5">La página no está suscrita a «feed»: los comentarios no llegarán. Reconecta con comentarios.</p>
+      )}
+    </div>
+  )
+}
+
+/** Token state from the daily check, manual check, and the switch to a permanent system-user token. */
+function TokenBox({ conn, busy, onCheck, onSystemToken }: { conn: Connection; busy: boolean; onCheck: () => void; onSystemToken: (token: string) => void }) {
+  const h = conn.capabilities?.tokenHealth
+  const [open, setOpen] = useState(false)
+  const [token, setToken] = useState('')
+  const kindLabel = h?.kind === 'system_user' ? 'Usuario del sistema (no expira)' : h?.kind === 'oauth_user' ? 'Conectado por una persona (se renueva solo)' : 'Conectado antes de la renovación automática'
+  const exp = h?.userTokenExpiresAt ? new Date(h.userTokenExpiresAt) : null
+  return (
+    <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-3 space-y-1.5 text-[11px]">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-semibold text-gray-700">Token</span>
+        {h ? (
+          <span className={h.valid ? 'text-green-700' : 'text-red-600 font-semibold'}>{h.valid ? 'Válido' : 'No válido'} · revisado {timeAgo(h.checkedAt)}</span>
+        ) : <span className="text-gray-400">Sin revisar todavía</span>}
+      </div>
+      {h && <p className="text-gray-600">{kindLabel}{exp && h.kind === 'oauth_user' ? ` · el acceso de la persona vence el ${exp.toLocaleDateString('es-CO')} y se renueva 15 días antes` : ''}{h.renewedAt ? ` · renovado ${timeAgo(h.renewedAt)}` : ''}</p>}
+      {h && !h.valid && h.error && <p className="text-red-600">{h.error}</p>}
+      {conn.capabilities?.publish?.missing && conn.capabilities.publish.missing.length > 0 && (
+        <p className="text-amber-800">Para publicar desde Publicaciones faltan los permisos <span className="font-mono">{conn.capabilities.publish.missing.join(', ')}</span>: reconecta la cuenta.</p>
+      )}
+      {h?.kind === 'unknown' && <p className="text-amber-800">Reconecta la cuenta una vez para que su acceso se renueve solo y no se desconecte.</p>}
+      {conn.canManage && (
+        <div className="flex gap-3 pt-0.5">
+          <button onClick={onCheck} disabled={busy} className="font-medium text-gray-700 hover:underline disabled:opacity-50">Comprobar ahora</button>
+          {h?.kind !== 'system_user' && <button onClick={() => setOpen(!open)} className="font-medium text-gray-700 hover:underline">Usar token permanente</button>}
+        </div>
+      )}
+      {open && (
+        <div className="space-y-1.5 pt-1">
+          <p className="text-gray-600">Para páginas del propio negocio: en Business Manager → Configuración → Usuarios del sistema, crea un usuario con acceso a esta página, genera un token para esta app con los mismos permisos y pégalo aquí. No depende de la contraseña de nadie.</p>
+          <div className="flex gap-2">
+            <input type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} className="flex-1 rounded-lg border border-gray-200 px-2 py-1 text-xs" placeholder="Token del usuario del sistema" />
+            <button onClick={() => { onSystemToken(token); setToken(''); setOpen(false) }} disabled={busy || token.length < 50} className="rounded-lg bg-gray-900 px-2.5 py-1 text-xs font-semibold text-white disabled:opacity-40">Guardar</button>
+          </div>
+        </div>
       )}
     </div>
   )
@@ -363,6 +405,21 @@ export default function ChannelsPage() {
       await load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error guardando los comentarios')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function tokenAction(conn: Connection, body: Record<string, string>) {
+    setBusyId(conn.id)
+    try {
+      const res = await fetch(`/api/admin/channels/${conn.id}/token`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Error')
+      if (body.action === 'system_user') setNotice(`"${conn.name}" usa ahora un token permanente.`)
+      await load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error con el token')
     } finally {
       setBusyId(null)
     }
@@ -667,6 +724,7 @@ export default function ChannelsPage() {
                     <p className="text-xs text-red-600 bg-red-50 rounded-lg px-2.5 py-1.5 break-words">{conn.lastError}</p>
                   )}
                   <CommentsBox conn={conn} busy={busy} onPatch={(patch) => patchComments(conn, patch)} reconnectHref={reconnectHref(conn)} />
+                  <TokenBox conn={conn} busy={busy} onCheck={() => tokenAction(conn, { action: 'check' })} onSystemToken={(token) => tokenAction(conn, { action: 'system_user', token })} />
                   {caps && !caps.send && caps.sendDetail && !conn.lastError && (
                     <p className="text-xs text-red-600 bg-red-50 rounded-lg px-2.5 py-1.5 break-words">Envío: {caps.sendDetail}</p>
                   )}
