@@ -151,7 +151,8 @@ export async function sendToConversation(input: SendInput): Promise<SendResult> 
       }
     } catch (err) {
       const detail = describeGraphError(err)
-      await prisma.channelConnection.update({ where: { id: connection.id }, data: { lastError: detail } }).catch(() => null)
+      // (#100) = this message was rejected (e.g. attachment format): not a problem of the account itself
+      if (!/\(#100\)/.test(detail)) await prisma.channelConnection.update({ where: { id: connection.id }, data: { lastError: detail } }).catch(() => null)
       // If the attachment already went out, keep it in the inbox instead of losing it
       if (!attachmentMid) return { ok: false, status: 502, error: detail }
     }

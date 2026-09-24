@@ -309,7 +309,8 @@ export async function runCapabilityDiagnostics(connectionId: string): Promise<Co
     data: {
       capabilities: caps as unknown as Prisma.InputJsonValue,
       status: tokenInvalid ? 'ERROR' : conn.status === 'ERROR' && send.ok && receive.ok ? 'ACTIVE' : conn.status,
-      lastError: tokenInvalid ? 'Token inválido o expirado, vuelve a conectar la cuenta' : conn.lastError,
+      // A passing diagnosis clears stale errors (e.g. one rejected attachment) that would hide the real result
+      lastError: tokenInvalid ? 'Token inválido o expirado, vuelve a conectar la cuenta' : send.ok && receive.ok ? null : conn.lastError,
     },
   })
   return caps
