@@ -25,6 +25,10 @@
     {
       "path": "/api/cron/meta-pending",
       "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/cron/ai-maintenance",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

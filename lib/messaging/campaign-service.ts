@@ -311,6 +311,7 @@ export async function processCampaign(campaignId: string) {
             body: messageBody,
             providerMessageId: result.providerMessageId || null,
             status: 'SENT',
+            senderType: 'AUTOMATION',
           },
         })
       } catch {

@@ -1511,48 +1511,69 @@ enum MessageDirection {
 }
 
 model Conversation {
-  id              String                @id @default(cuid())
-  channel         MessagingChannel
-  contactPhone    String
-  contactName     String?
-  userId          String?
-  assignedToId    String?
-  status          ConversationStatus    @default(OPEN)
-  tags            String[]              @default([])
-  lastMessageAt   DateTime?
-  lastMessageBody String?
-  unreadCount     Int                   @default(0)
-  workspaceId     String
-  connectionId    String?
-  threadOwner     String?
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
-  user            User?                 @relation(fields: [userId], references: [id])
-  assignedTo      User?                 @relation("AgentConversations", fields: [assignedToId], references: [id])
-  workspace       Workspace             @relation(fields: [workspaceId], references: [id])
-  connection      ChannelConnection?    @relation(fields: [connectionId], references: [id], onDelete: SetNull)
-  messages        ConversationMessage[]
+  id                String                @id @default(cuid())
+  channel           MessagingChannel
+  contactPhone      String
+  contactName       String?
+  userId            String?
+  assignedToId      String?
+  status            ConversationStatus    @default(OPEN)
+  tags              String[]              @default([])
+  lastMessageAt     DateTime?
+  lastMessageBody   String?
+  unreadCount       Int                   @default(0)
+  workspaceId       String
+  connectionId      String?
+  threadOwner       String?
+  aiHandled         Boolean               @default(false)
+  aiAgentId         String?
+  aiAgentName       String?
+  aiTurns           Int                   @default(0)
+  aiSpam            Boolean               @default(false)
+  aiSummary         String?
+  aiSummaryCount    Int                   @default(0)
+  automationsPaused Boolean               @default(false)
+  priority          String                @default("normal")
+  customFields      Json?
+  reengagedAt       DateTime?
+  aiHandoffAt       DateTime?
+  isTest            Boolean               @default(false)
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  events            ConversationEvent[]
+  tasks             ConversationTask[]
+  user              User?                 @relation(fields: [userId], references: [id])
+  assignedTo        User?                 @relation("AgentConversations", fields: [assignedToId], references: [id])
+  workspace         Workspace             @relation(fields: [workspaceId], references: [id])
+  connection        ChannelConnection?    @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  messages          ConversationMessage[]
 
   @@unique([channel, contactPhone])
   @@index([status, lastMessageAt(sort: Desc)])
   @@index([assignedToId])
   @@index([connectionId])
   @@index([workspaceId, lastMessageAt(sort: Desc)])
+  @@index([aiHandled, lastMessageAt])
 }
 
 model Workspace {
-  id            String                @id @default(cuid())
-  name          String
-  description   String?
-  isDefault     Boolean               @default(false)
-  createdById   String?
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt
-  createdBy     User?                 @relation("WorkspaceCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  members       WorkspaceMember[]
-  connections   ChannelConnection[]
-  conversations Conversation[]
-  oauthSessions ChannelOAuthSession[]
+  id                  String                @id @default(cuid())
+  name                String
+  description         String?
+  isDefault           Boolean               @default(false)
+  createdById         String?
+  timezone            String                @default("America/Bogota")
+  aiMonthlyCostCapUsd Float?
+  aiMonthlyCallCap    Int?
+  aiCapWarnedPeriod   String?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  createdBy           User?                 @relation("WorkspaceCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  members             WorkspaceMember[]
+  connections         ChannelConnection[]
+  conversations       Conversation[]
+  oauthSessions       ChannelOAuthSession[]
+  aiAgents            AiAgent[]
 
   @@index([isDefault])
 }
@@ -1562,6 +1583,7 @@ model WorkspaceMember {
   workspaceId    String
   userId         String
   role           WorkspaceRole @default(MEMBER)
+  permissions    String[]      @default([])
   invitedByEmail String?
   createdAt      DateTime      @default(now())
   workspace      Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -1657,6 +1679,9 @@ model ConversationMessage {
   status            MessagingDeliveryStatus @default(SENT)
   providerMessageId String?                 @unique
   sentById          String?
+  senderType        String?
+  aiAgentId         String?
+  aiAgentName       String?
   createdAt         DateTime                @default(now())
   conversation      Conversation            @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sentBy            User?                   @relation("AgentMessages", fields: [sentById], references: [id])
@@ -1688,4 +1713,192 @@ model MagicToken {
 
   @@index([token])
   @@index([userId])
+}
+
+// ─── AI agents ───────────────────────────────────────────────────────────────
+
+/// Platform-wide AI provider settings (singleton row id = "platform"). Keys are AES-256-GCM encrypted.
+model AiSettings {
+  id                      String    @id @default("platform")
+  anthropicKeyEncrypted   String?
+  voyageKeyEncrypted      String?
+  defaultModel            String    @default("claude-opus-5")
+  fallbackModel           String    @default("claude-haiku-4-5")
+  embeddingModel          String    @default("voyage-3")
+  allowAgentModelOverride Boolean   @default(false)
+  auxDailyBudgetUsd       Float     @default(5)
+  modelsCache             Json?
+  modelsCachedAt          DateTime?
+  defaultModelCheckedAt   DateTime?
+  defaultModelCheckOk     Boolean?
+  updatedByEmail          String?
+  updatedAt               DateTime  @updatedAt
+}
+
+model AiPricing {
+  id                String   @id @default(cuid())
+  provider          String
+  model             String
+  inputPerMTok      Float
+  outputPerMTok     Float
+  cacheReadPerMTok  Float    @default(0)
+  cacheWritePerMTok Float    @default(0)
+  updatedAt         DateTime @updatedAt
+
+  @@unique([provider, model])
+}
+
+model AiCall {
+  id               String   @id @default(cuid())
+  createdAt        DateTime @default(now())
+  period           String
+  provider         String
+  model            String
+  requestedModel   String?
+  kind             String
+  workspaceId      String?
+  agentId          String?
+  conversationId   String?
+  inputTokens      Int      @default(0)
+  outputTokens     Int      @default(0)
+  cacheReadTokens  Int      @default(0)
+  cacheWriteTokens Int      @default(0)
+  costUsd          Float    @default(0)
+  latencyMs        Int?
+
+  @@index([period, workspaceId])
+  @@index([agentId, createdAt])
+  @@index([createdAt])
+  @@map("ai_calls")
+}
+
+model AiAgent {
+  id                  String    @id @default(cuid())
+  workspaceId         String
+  name                String
+  avatar              String    @default("face-1")
+  goal                String    @default("")
+  instructions        String    @default("")
+  tone                String    @default("Cercano y profesional")
+  language            String    @default("auto")
+  status              String    @default("active")
+  model               String?
+  maxTokens           Int       @default(512)
+  memoryWindow        Int       @default(20)
+  channels            String[]  @default([])
+  isDefault           Boolean   @default(false)
+  handoffKeywords     String[]  @default([])
+  handoffAfterTurns   Int       @default(0)
+  handoffOnUnknown    Boolean   @default(true)
+  handoffMessage      String    @default("Te comunico con una persona del equipo, en un momento te responde.")
+  autopilot           Boolean   @default(false)
+  autopilotChannels   String[]  @default([])
+  autopilotAccounts   String[]  @default([])
+  autopilotSkipTags   String[]  @default([])
+  reengageAfterHours  Int       @default(0)
+  tools               String[]  @default([])
+  crmModules          String[]  @default([])
+  webhookUrl          String?
+  goalDoneAction      String    @default("none")
+  goalDoneTag         String?
+  hoursEnabled        Boolean   @default(false)
+  hoursTimezone       String?
+  hoursDays           Int[]     @default([1, 2, 3, 4, 5])
+  hoursStart          String    @default("08:00")
+  hoursEnd            String    @default("18:00")
+  outsideHours        String    @default("notice")
+  outsideHoursMessage String?
+  ignoreSpam          Boolean   @default(true)
+  signatureMode       String    @default("off")
+  signatureText       String?
+  conversations       Int       @default(0)
+  handoffs            Int       @default(0)
+  createdByEmail      String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  workspace           Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status])
+}
+
+/// Immutable log of conversation facts (ai_started, ai_handoff, ai_done, ai_spam, assigned, status).
+model ConversationEvent {
+  id             String       @id @default(cuid())
+  conversationId String
+  type           String
+  actorType      String
+  actorId        String?
+  actorName      String?
+  detail         String?
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+}
+
+model ConversationTask {
+  id             String       @id @default(cuid())
+  conversationId String
+  workspaceId    String
+  title          String
+  dueAt          DateTime?
+  source         String       @default("user")
+  agentName      String?
+  doneAt         DateTime?
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([workspaceId, doneAt])
+}
+
+model AiKnowledgeDoc {
+  id             String             @id @default(cuid())
+  workspaceId    String
+  agentIds       String[]           @default([])
+  title          String
+  kind           String
+  sourceUrl      String?
+  content        String             @default("")
+  status         String             @default("pending")
+  error          String?
+  chunkCount     Int                @default(0)
+  embeddingModel String?
+  indexedAt      DateTime?
+  createdByEmail String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  chunks         AiKnowledgeChunk[]
+
+  @@index([workspaceId, status])
+}
+
+model AiKnowledgeChunk {
+  id           String                 @id @default(cuid())
+  docId        String
+  workspaceId  String
+  idx          Int
+  text         String
+  tokens       Int
+  embeddingDim Int?
+  embedding    Unsupported("vector")?
+  createdAt    DateTime               @default(now())
+  doc          AiKnowledgeDoc         @relation(fields: [docId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, embeddingDim])
+  @@index([docId])
+}
+
+model AiKnowledgeGap {
+  id             String    @id @default(cuid())
+  workspaceId    String
+  agentId        String?
+  conversationId String?
+  question       String
+  status         String    @default("open")
+  answerDocId    String?
+  createdAt      DateTime  @default(now())
+  answeredAt     DateTime?
+
+  @@index([workspaceId, status])
 }

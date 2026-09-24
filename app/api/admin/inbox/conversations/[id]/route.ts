@@ -21,6 +21,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
       assignedTo: { select: { id: true, name: true, email: true } },
       workspace: { select: { id: true, name: true } },
       connection: { select: { id: true, name: true, channel: true } },
+      events: { orderBy: { createdAt: 'asc' }, take: 200 },
+      tasks: { orderBy: [{ doneAt: 'asc' }, { createdAt: 'desc' }], take: 50 },
       messages: {
         orderBy: { sentAt: 'desc' },
         take: limit,
@@ -52,13 +54,17 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   const { id } = await context.params
   const body = await request.json()
 
-  const existing = await prisma.conversation.findUnique({ where: { id }, select: { workspaceId: true } })
+  const existing = await prisma.conversation.findUnique({ where: { id }, select: { workspaceId: true, status: true, assignedToId: true } })
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   const access = await getWorkspaceAccess(admin)
   if (!canView(access, existing.workspaceId)) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const data: Record<string, unknown> = {}
-  if (body.status !== undefined) data.status = body.status as ConversationStatus
+  if (body.status !== undefined) {
+    data.status = body.status as ConversationStatus
+    // Case closed by a person: a future message may be taken by the AI again
+    if (body.status === 'RESOLVED' || body.status === 'CLOSED') Object.assign(data, { aiHandoffAt: null, priority: 'normal' })
+  }
   if (body.assignedToId !== undefined) {
     const assignee = body.assignedToId ? String(body.assignedToId) : null
     if (assignee && !access.isSuperAdmin) {
@@ -66,6 +72,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       if (!member) return NextResponse.json({ error: 'El agente no pertenece a este workspace' }, { status: 400 })
     }
     data.assignedToId = assignee
+    // A person taking the conversation switches the AI off for it
+    if (assignee) data.aiHandled = false
   }
   if (body.contactName !== undefined) data.contactName = body.contactName
   if (body.tags !== undefined) data.tags = Array.isArray(body.tags) ? body.tags : []
@@ -77,6 +85,15 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       assignedTo: { select: { id: true, name: true, email: true } },
     },
   })
+
+  // Immutable facts for the thread
+  const actor = { conversationId: id, actorType: 'user', actorId: admin.id, actorName: admin.name }
+  if (data.status !== undefined && data.status !== existing.status) {
+    await prisma.conversationEvent.create({ data: { ...actor, type: 'status', detail: String(data.status) } })
+  }
+  if (data.assignedToId !== undefined && data.assignedToId !== existing.assignedToId) {
+    await prisma.conversationEvent.create({ data: { ...actor, type: 'assigned', detail: conversation.assignedTo?.name || 'Sin asignar' } })
+  }
 
   return NextResponse.json({ conversation })
 }

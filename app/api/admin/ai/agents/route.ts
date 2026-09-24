@@ -1,0 +1,86 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { auditAdminAction } from '@/lib/admin-utils'
+import { prisma } from '@/lib/prisma'
+import { aiAuth, can, forbidden } from '@/lib/ai/route-auth'
+import { aiWorkspacesWith, canManageAiPermissions, AI_PERMISSION_LABELS } from '@/lib/ai/permissions'
+import { AGENT_CHANNELS, AVATARS, LANGUAGES, resolutionRate, sanitizeAgentInput } from '@/lib/ai/agent-input'
+import { CRM_MODULES, TOOL_CATALOG, TOOL_NAMES } from '@/lib/ai/tools'
+import { getAiSettings } from '@/lib/ai/settings'
+import { assertPublicHttpsUrl } from '@/lib/ai/net'
+import { checkWorkspaceBudget, workspaceUsage } from '@/lib/ai/limits'
+
+/** Agents the caller can see + everything the screens need (real channel accounts, catalogs, permissions). */
+export async function GET() {
+  const auth = await aiAuth()
+  if (!auth.ok) return auth.response
+  const scope = aiWorkspacesWith(auth.access, 'ai.view')
+  const wsWhere = scope === null ? {} : { id: { in: scope } }
+
+  const [workspaces, agents, connections, settings] = await Promise.all([
+    prisma.workspace.findMany({ where: wsWhere, select: { id: true, name: true, isDefault: true, timezone: true, aiMonthlyCostCapUsd: true, aiMonthlyCallCap: true }, orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] }),
+    prisma.aiAgent.findMany({ where: scope === null ? {} : { workspaceId: { in: scope } }, orderBy: { createdAt: 'asc' } }),
+    prisma.channelConnection.findMany({ where: scope === null ? {} : { workspaceId: { in: scope } }, select: { id: true, name: true, channel: true, workspaceId: true, enabled: true } }),
+    getAiSettings(),
+  ])
+
+  const budgets = await Promise.all(workspaces.map(async (w) => ({ workspaceId: w.id, ...(await workspaceUsage(w.id)), ...(await checkWorkspaceBudget(w.id)) })))
+
+  // Channel accounts per workspace. Twilio numbers are platform-level (default workspace), keyed CHANNEL:default.
+  const accounts = workspaces.map((w) => ({
+    workspaceId: w.id,
+    accounts: [
+      ...(w.isDefault ? [{ key: 'WHATSAPP:default', channel: 'WHATSAPP', name: 'WhatsApp (número de Twilio)', enabled: true }, { key: 'SMS:default', channel: 'SMS', name: 'SMS (número de Twilio)', enabled: true }] : []),
+      ...connections.filter((c) => c.workspaceId === w.id).map((c) => ({ key: c.id, channel: c.channel, name: c.name, enabled: c.enabled })),
+    ],
+  }))
+
+  return NextResponse.json({
+    agents: agents.map((a) => ({ ...a, resolution: resolutionRate(a.conversations, a.handoffs) })),
+    workspaces: workspaces.map((w) => ({
+      ...w,
+      permissions: (Object.keys(AI_PERMISSION_LABELS) as Array<keyof typeof AI_PERMISSION_LABELS>).filter((p) => can(auth, w.id, p)),
+      canManagePermissions: canManageAiPermissions(auth.access, w.id),
+    })),
+    accounts,
+    budgets,
+    catalog: {
+      channels: AGENT_CHANNELS,
+      avatars: AVATARS,
+      languages: LANGUAGES,
+      tools: TOOL_NAMES.map((n) => ({ name: n, label: TOOL_CATALOG[n].label, description: TOOL_CATALOG[n].description, writes: TOOL_CATALOG[n].writes })),
+      crmModules: Object.entries(CRM_MODULES).map(([key, label]) => ({ key, label })),
+    },
+    platform: { allowAgentModelOverride: settings.allowAgentModelOverride, defaultModel: settings.defaultModel, hasAnthropicKey: Boolean(settings.anthropicKey), hasVoyageKey: Boolean(settings.voyageKey) },
+    me: { isSuperAdmin: auth.access.isSuperAdmin },
+  })
+}
+
+export async function POST(request: NextRequest) {
+  const auth = await aiAuth()
+  if (!auth.ok) return auth.response
+  const body = await request.json().catch(() => ({}))
+  const workspaceId = typeof body.workspaceId === 'string' ? body.workspaceId : ''
+  if (!workspaceId || !can(auth, workspaceId, 'ai.edit')) return forbidden()
+
+  const settings = await getAiSettings()
+  let data: Record<string, unknown>
+  try {
+    data = sanitizeAgentInput(body, { allowModel: settings.allowAgentModelOverride })
+  } catch (err) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Datos inválidos' }, { status: 400 })
+  }
+  if (typeof data.webhookUrl === 'string') {
+    try { await assertPublicHttpsUrl(data.webhookUrl) } catch (err) {
+      return NextResponse.json({ error: `Webhook: ${err instanceof Error ? err.message : 'no permitido'}` }, { status: 400 })
+    }
+  }
+  if (!data.name) return NextResponse.json({ error: 'El nombre es obligatorio' }, { status: 400 })
+
+  // Autopilot is born off: it is switched on explicitly from the Channels tab
+  const agent = await prisma.aiAgent.create({
+    data: { ...(data as { name: string }), autopilot: false, workspaceId, createdByEmail: auth.admin.email },
+  })
+  if (agent.isDefault) await prisma.aiAgent.updateMany({ where: { workspaceId, id: { not: agent.id } }, data: { isDefault: false } })
+  await auditAdminAction({ actorId: auth.admin.id, actorEmail: auth.admin.email, action: 'AI_AGENT_CREATE', entityType: 'AiAgent', entityId: agent.id, details: agent.name, request })
+  return NextResponse.json({ agent })
+}

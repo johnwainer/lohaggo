@@ -50,6 +50,7 @@ async function saveAutomationMessageToInbox(params: {
         direction: 'OUTBOUND',
         body,
         status: 'SENT',
+        senderType: 'AUTOMATION',
       },
     })
 

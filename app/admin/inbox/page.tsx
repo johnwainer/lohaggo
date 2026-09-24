@@ -7,7 +7,7 @@ import {
   ExternalLink, Star, MapPin, ShieldCheck, Calendar,
   StickyNote, Zap, Tag, ChevronDown, Plus, Trash2, LayoutTemplate,
   ChevronUp, Link2, Copy, Check, ArrowLeft, BellOff,
-  Paperclip, Mic, Square, FileText, Download,
+  Paperclip, Mic, Square, FileText, Download, Bot, Hand, Pause, Play, ListTodo,
 } from 'lucide-react'
 import { ChannelIcon, CHANNEL_META } from '@/components/admin/ChannelIcon'
 import {
@@ -53,7 +53,14 @@ type Message = {
   sentAt: string
   status: MsgStatus
   sentBy?: { id: string; name: string } | null
+  senderType?: string | null
+  aiAgentName?: string | null
+  /** Timeline-only: an agent/status fact rendered between messages */
+  event?: ConvEvent
 }
+
+type ConvEvent = { id: string; type: string; actorType: string; actorName?: string | null; detail?: string | null; createdAt: string }
+type ConvTask = { id: string; title: string; dueAt?: string | null; source: string; agentName?: string | null; doneAt?: string | null; createdAt: string }
 
 type Conversation = {
   id: string
@@ -74,6 +81,13 @@ type Conversation = {
   user?: ConvUser | null
   messages?: Message[]
   _count?: { messages: number }
+  aiHandled?: boolean
+  aiAgentName?: string | null
+  aiSpam?: boolean
+  automationsPaused?: boolean
+  priority?: string
+  events?: ConvEvent[]
+  tasks?: ConvTask[]
 }
 
 type CannedResponse = { id: string; title: string; body: string; category?: string | null }
@@ -159,6 +173,38 @@ function isWaWindowClosed(messages: Message[]): boolean {
   const lastInbound = [...messages].reverse().find((m) => m.direction === 'INBOUND')
   if (!lastInbound) return true
   return Date.now() - new Date(lastInbound.sentAt).getTime() > 24 * 60 * 60 * 1000
+}
+
+const EVENT_LABEL: Record<string, string> = {
+  ai_started: 'La IA toma la conversación',
+  ai_handoff: 'La IA traspasa a una persona',
+  ai_done: 'La IA cumplió el objetivo',
+  ai_spam: 'La IA lo marcó como publicidad',
+  assigned: 'Asignada',
+  status: 'Estado',
+}
+
+function eventText(e: ConvEvent) {
+  const who = e.actorName ? (e.actorType === 'ai' ? `🤖 ${e.actorName}` : e.actorName) : ''
+  const base = EVENT_LABEL[e.type] || e.type
+  const detail = e.type === 'status' && e.detail && e.detail in STATUS_LABELS ? STATUS_LABELS[e.detail as ConvStatus] : e.detail
+  return [who, base, detail].filter(Boolean).join(' · ')
+}
+
+/** Interleaves the conversation's facts with the loaded messages (only within the loaded range). */
+function withEvents(messages: Message[], events: ConvEvent[] | undefined): Message[] {
+  if (!events?.length) return messages
+  const oldest = messages[0]?.sentAt
+  const items = events
+    .filter((e) => !oldest || e.createdAt >= oldest)
+    .map((e) => ({ id: `ev_${e.id}`, direction: 'OUTBOUND' as Direction, body: '', isInternal: false, sentAt: e.createdAt, status: 'SENT' as MsgStatus, event: e }))
+  return [...messages, ...items].sort((a, b) => a.sentAt.localeCompare(b.sentAt))
+}
+
+function ownerLabel(conv: Conversation): { text: string; tone: 'ai' | 'human' | 'free' } {
+  if (conv.aiHandled && conv.aiAgentName) return { text: `🤖 ${conv.aiAgentName}`, tone: 'ai' }
+  if (conv.assignedTo) return { text: conv.assignedTo.name, tone: 'human' }
+  return { text: 'Libre', tone: 'free' }
 }
 
 function groupedMessages(messages: Message[]) {
@@ -571,6 +617,30 @@ export default function InboxPage() {
     }
   }
 
+  // ── AI agent control ─────────────────────────────────────────────────────
+
+  async function aiAction(action: 'intervene' | 'return' | 'pause' | 'resume') {
+    if (!selected) return
+    const res = await fetch(`/api/admin/inbox/conversations/${selected.id}/ai`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) { setError(data.error || 'No se pudo completar la acción'); return }
+    await loadConversationDetail(selected.id, true)
+    setConversations((prev) => prev.map((c) => c.id === selected.id ? { ...c, ...data.conversation } : c))
+  }
+
+  async function toggleTask(task: ConvTask) {
+    if (!selected) return
+    const res = await fetch(`/api/admin/inbox/tasks/${task.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ done: !task.doneAt }),
+    })
+    if (res.ok) {
+      const { task: updated } = await res.json()
+      setSelected((prev) => prev ? { ...prev, tasks: (prev.tasks || []).map((t) => t.id === task.id ? updated : t) } : prev)
+    }
+  }
+
   // ── Tags ─────────────────────────────────────────────────────────────────
 
   async function toggleTag(tag: string) {
@@ -630,6 +700,8 @@ export default function InboxPage() {
   const filteredMessages = (selected?.messages || []).filter((m) =>
     !msgSearch || m.body.toLowerCase().includes(msgSearch.toLowerCase())
   )
+
+  const timelineMessages = msgSearch ? filteredMessages : withEvents(filteredMessages, selected?.events)
 
   const windowClosed = selected?.channel === 'WHATSAPP' && isWaWindowClosed(selected?.messages || [])
   // Messenger / Instagram: outside 24h the input stays open (HUMAN_AGENT tag, up to 7 days) but we warn
@@ -735,6 +807,12 @@ export default function InboxPage() {
               Sin asignar
             </button>
             <button
+              onClick={() => setFilterAgent(filterAgent === 'ai' ? '' : 'ai')}
+              className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs border transition ${filterAgent === 'ai' ? 'bg-violet-50 border-violet-300 text-violet-800 font-semibold' : 'text-gray-600 hover:bg-gray-50'}`}
+            >
+              <Bot className="h-3 w-3" /> IA
+            </button>
+            <button
               onClick={() => setShowFilters((v) => !v)}
               className={`ml-auto inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs border transition ${showFilters || activeFilterCount > 0 ? 'bg-primary-50 border-primary-300 text-primary-700 font-semibold' : 'text-gray-600 hover:bg-gray-50'}`}
             >
@@ -752,6 +830,7 @@ export default function InboxPage() {
               <select className="border rounded-lg px-2 py-1 text-xs bg-white min-w-0" value={filterAgent} onChange={(e) => setFilterAgent(e.target.value)}>
                 <option value="">Agente: todos</option>
                 <option value="none">Sin asignar</option>
+                <option value="ai">Atendidas por IA</option>
                 {agents.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
               <select className="border rounded-lg px-2 py-1 text-xs bg-white min-w-0" value={filterConnection} onChange={(e) => setFilterConnection(e.target.value)} disabled={connections.length === 0}>
@@ -844,9 +923,17 @@ export default function InboxPage() {
                       {conv.tags?.slice(0, 2).map((tag) => (
                         <span key={tag} className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium border ${tagColor(tag)}`}>{tag}</span>
                       ))}
-                      {conv.assignedTo && (
-                        <span className="text-[10px] text-gray-400 truncate ml-auto">· {conv.assignedTo.name}</span>
+                      {conv.priority === 'high' && (
+                        <span className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold bg-red-100 text-red-700">Prioridad</span>
                       )}
+                      {(() => {
+                        const owner = ownerLabel(conv)
+                        return (
+                          <span className={`text-[10px] truncate ml-auto ${owner.tone === 'ai' ? 'text-violet-600 font-medium' : owner.tone === 'free' ? 'text-amber-600' : 'text-gray-400'}`}>
+                            · {owner.text}
+                          </span>
+                        )
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -984,6 +1071,47 @@ export default function InboxPage() {
                 </div>
               </div>
 
+              {/* AI agent bar: who handles it, intervene / return, automations, tasks */}
+              <div className="flex items-center gap-2 flex-wrap pl-2 md:pl-12 text-xs">
+                {(() => {
+                  const owner = ownerLabel(selected)
+                  return (
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium ${owner.tone === 'ai' ? 'bg-violet-100 text-violet-800' : owner.tone === 'human' ? 'bg-gray-100 text-gray-700' : 'bg-amber-50 text-amber-800'}`}>
+                      {owner.tone === 'ai' ? null : <Users className="h-3 w-3" />} {owner.text}
+                    </span>
+                  )
+                })()}
+                {selected.aiHandled ? (
+                  <button onClick={() => aiAction('intervene')} className="inline-flex items-center gap-1 rounded-lg border border-violet-300 px-2 py-0.5 text-violet-700 hover:bg-violet-50">
+                    <Hand className="h-3 w-3" /> Intervenir
+                  </button>
+                ) : (
+                  <button onClick={() => aiAction('return')} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2 py-0.5 text-gray-600 hover:bg-gray-50">
+                    <Bot className="h-3 w-3" /> Devolver a la IA
+                  </button>
+                )}
+                <button onClick={() => aiAction(selected.automationsPaused ? 'resume' : 'pause')} className={`inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 ${selected.automationsPaused ? 'border-amber-300 bg-amber-50 text-amber-800' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+                  {selected.automationsPaused ? <><Play className="h-3 w-3" /> Reanudar automatizaciones</> : <><Pause className="h-3 w-3" /> Pausar automatizaciones</>}
+                </button>
+                {selected.priority === 'high' && <span className="rounded-full bg-red-100 text-red-700 px-2 py-0.5 font-semibold">Prioridad alta</span>}
+                {selected.aiSpam && <span className="rounded-full bg-gray-100 text-gray-600 px-2 py-0.5">Marcada como publicidad</span>}
+              </div>
+              {(selected.tasks || []).some((t) => !t.doneAt) && (
+                <div className="pl-2 md:pl-12 space-y-1">
+                  {(selected.tasks || []).filter((t) => !t.doneAt).map((t) => (
+                    <label key={t.id} className={`flex items-center gap-2 rounded-lg px-2 py-1 text-xs ${t.source === 'ai' ? 'bg-violet-50 border border-violet-200 text-violet-900' : 'bg-gray-50 border text-gray-700'}`}>
+                      <input type="checkbox" checked={false} onChange={() => toggleTask(t)} />
+                      <ListTodo className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{t.title}</span>
+                      <span className="ml-auto shrink-0 opacity-70">
+                        {t.source === 'ai' ? `🤖 ${t.agentName || 'IA'}` : ''}
+                        {t.dueAt ? ` · vence ${new Date(t.dueAt).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}` : ''}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
+
               {/* In-conversation search bar */}
               {showMsgSearch && (
                 <div className="flex items-center gap-2 pl-2 md:pl-12">
@@ -1065,7 +1193,7 @@ export default function InboxPage() {
                 </div>
               )}
 
-              {groupedMessages(filteredMessages).map((group) => (
+              {groupedMessages(timelineMessages).map((group) => (
                 <div key={group.date}>
                   <div className="flex items-center gap-3 my-3">
                     <div className="flex-1 h-px bg-gray-200" />
@@ -1073,7 +1201,13 @@ export default function InboxPage() {
                     <div className="flex-1 h-px bg-gray-200" />
                   </div>
                   <div className="space-y-2">
-                    {group.msgs.map((msg) => (
+                    {group.msgs.map((msg) => msg.event ? (
+                      <div key={msg.id} className="flex justify-center">
+                        <span className={`rounded-full px-3 py-1 text-[11px] ${msg.event.actorType === 'ai' ? 'bg-violet-50 text-violet-700' : 'bg-gray-100 text-gray-500'}`}>
+                          {eventText(msg.event)} · {formatTime(msg.sentAt)}
+                        </span>
+                      </div>
+                    ) : (
                       <div key={msg.id} className={`flex ${msg.direction === 'OUTBOUND' ? 'justify-end' : 'justify-start'}`}>
                         {msg.isInternal ? (
                           // Internal note
@@ -1085,12 +1219,12 @@ export default function InboxPage() {
                             <p className="text-sm whitespace-pre-wrap break-words text-gray-700">{msg.body}</p>
                             <div className="flex items-center gap-1 mt-1 justify-end">
                               <span className="text-[11px] text-yellow-600">
-                                {formatTime(msg.sentAt)}{msg.sentBy ? ` · ${msg.sentBy.name}` : ''}
+                                {formatTime(msg.sentAt)}{msg.sentBy ? ` · ${msg.sentBy.name}` : msg.aiAgentName ? ` · 🤖 ${msg.aiAgentName}` : ''}
                               </span>
                             </div>
                           </div>
                         ) : (
-                          <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${msg.direction === 'OUTBOUND' ? 'bg-primary-600 text-white rounded-br-sm' : 'bg-white border text-gray-800 rounded-bl-sm shadow-sm'}`}>
+                          <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${msg.direction === 'OUTBOUND' ? `${msg.senderType === 'AI' ? 'bg-violet-600' : 'bg-primary-600'} text-white rounded-br-sm` : 'bg-white border text-gray-800 rounded-bl-sm shadow-sm'}`}>
                             {msg.mediaUrl && (() => {
                               const proxyUrl = `/api/admin/inbox/media?url=${encodeURIComponent(msg.mediaUrl)}&conversationId=${encodeURIComponent(selected.id)}`
                               const kind = msg.mediaType ? kindFromMime(msg.mediaType) : 'image'
@@ -1137,7 +1271,7 @@ export default function InboxPage() {
                             <div className={`flex items-center gap-1 mt-1 ${msg.direction === 'OUTBOUND' ? 'justify-end' : 'justify-start'}`}>
                               <span className={`text-[11px] ${msg.direction === 'OUTBOUND' ? 'text-primary-200' : 'text-gray-400'}`}>
                                 {formatTime(msg.sentAt)}
-                                {msg.direction === 'OUTBOUND' && msg.sentBy ? ` · ${msg.sentBy.name}` : ''}
+                                {msg.direction === 'OUTBOUND' && msg.sentBy ? ` · ${msg.sentBy.name}` : msg.direction === 'OUTBOUND' && msg.aiAgentName ? ` · 🤖 ${msg.aiAgentName}` : ''}
                               </span>
                               {msg.direction === 'OUTBOUND' && (
                                 msg.status === 'DELIVERED'

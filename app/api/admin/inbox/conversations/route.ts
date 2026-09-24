@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
   const baseWhere: Prisma.ConversationWhereInput = {
     ...(workspaceId ? { workspaceId } : workspaceScope(access)),
     ...(status ? { status } : {}),
-    ...(assignedToId === 'none' ? { assignedToId: null } : assignedToId ? { assignedToId } : {}),
+    ...(assignedToId === 'none' ? { assignedToId: null, aiHandled: false } : assignedToId === 'ai' ? { aiHandled: true } : assignedToId ? { assignedToId } : {}),
     ...(connectionId ? { connectionId } : {}),
     ...(tag ? { tags: { has: tag } } : {}),
     ...(unreadOnly ? { unreadCount: { gt: 0 } } : {}),

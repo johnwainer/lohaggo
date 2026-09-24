@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic'
+export const maxDuration = 60
 
 import { createHmac } from 'crypto'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { env } from '@/lib/env'
 import { createLogger } from '@/lib/logger'
@@ -9,6 +10,7 @@ import { emitInboxEvent } from '@/lib/messaging/inbox-emitter'
 import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
 import { scheduleAutomationsForUser } from '@/lib/messaging/automation-service'
 import { getDefaultWorkspaceId } from '@/lib/workspaces'
+import { autopilotCovers, drainAgentTasks, scheduleInboundAgent } from '@/lib/ai/autopilot'
 
 const logger = createLogger('twilio-inbound')
 
@@ -107,6 +109,10 @@ export async function POST(request: NextRequest) {
     autoAssignId = sorted[0]?.id ?? null
   }
 
+  // A conversation an AI autopilot will take must not get a human owner
+  const workspaceId = await getDefaultWorkspaceId()
+  if (await autopilotCovers(workspaceId, channel, null)) autoAssignId = null
+
   // Upsert conversation
   let conversation = await prisma.conversation.findUnique({
     where: { channel_contactPhone: { channel, contactPhone } },
@@ -116,7 +122,7 @@ export async function POST(request: NextRequest) {
     conversation = await prisma.conversation.create({
       data: {
         channel,
-        workspaceId: await getDefaultWorkspaceId(),
+        workspaceId,
         contactPhone,
         contactName: user?.name || null,
         userId: user?.id || null,
@@ -146,10 +152,11 @@ export async function POST(request: NextRequest) {
     })
   }
 
-  await prisma.conversationMessage.create({
+  const inbound = await prisma.conversationMessage.create({
     data: {
       conversationId: conversation.id,
       direction: 'INBOUND',
+      senderType: 'CONTACT',
       body,
       mediaUrl: mediaUrl || null,
       mediaType,
@@ -166,6 +173,13 @@ export async function POST(request: NextRequest) {
   if (user?.id) {
     scheduleAutomationsForUser(user.id, 'INBOUND_MESSAGE', { contextId: conversation.id }).catch(() => null)
   }
+
+  // AI autopilot works after the TwiML response
+  const conversationId = conversation.id
+  after(async () => {
+    scheduleInboundAgent(conversationId, inbound.id)
+    await drainAgentTasks()
+  })
 
   return twiml()
 }

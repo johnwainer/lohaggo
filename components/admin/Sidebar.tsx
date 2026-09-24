@@ -1,6 +1,6 @@
 'use client'
 
-import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, LogOut, Menu, X, Shield, DollarSign, Wallet, MapPin, CreditCard, ChevronDown, ChevronRight, Percent, Megaphone, Activity, Building2, BookOpen, Smartphone, MessageSquare, Inbox, Link2, Zap, Palette, Send, Share2 } from 'lucide-react'
+import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, LogOut, Menu, X, Shield, DollarSign, Wallet, MapPin, CreditCard, ChevronDown, ChevronRight, Percent, Megaphone, Activity, Building2, BookOpen, Smartphone, MessageSquare, Inbox, Link2, Zap, Palette, Send, Share2, Bot, Cpu } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import { useEffect, useState } from 'react'
@@ -99,6 +99,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
         { id: 'ads', label: 'Publicidad', icon: Megaphone, isLink: true, href: '/admin/ads' },
         { id: 'communications', label: 'Comunicaciones', icon: Bell, isLink: true, href: '/admin/communications' },
         { id: 'inbox', label: 'Bandeja de entrada', icon: Inbox, isLink: true, href: '/admin/inbox' },
+        { id: 'ai-agents', label: 'Agentes IA', icon: Bot, isLink: true, href: '/admin/ai-agents' },
         { id: 'messaging', label: 'Mensajería', icon: MessageSquare, isLink: true, href: '/admin/messaging' },
         { id: 'search-analytics', label: 'Búsquedas', icon: BarChart3, isLink: true, href: '/admin/search-analytics' },
         { id: 'pwa-adoption', label: 'Adopción PWA', icon: Smartphone, isLink: true, href: '/admin/pwa-adoption' },
@@ -112,6 +113,7 @@ export default function Sidebar({ activeSection, onSectionChange }: SidebarProps
         { id: 'channels', label: 'Canales', icon: Share2, isLink: true, href: '/admin/channels' },
         { id: 'workspaces', label: 'Workspaces', icon: Users, isLink: true, href: '/admin/workspaces' },
         { id: 'automations', label: 'Automatizaciones', icon: Zap, isLink: true, href: '/admin/automations' },
+        { id: 'ai-settings', label: 'IA · Plataforma', icon: Cpu, isLink: true, href: '/admin/ai-settings' },
         { id: 'commissions', label: 'Comisiones', icon: Percent },
         { id: 'banks', label: 'Bancos', icon: Building2, isLink: true, href: '/admin/banks' },
         { id: 'notifications', label: 'Notificaciones', icon: Bell },

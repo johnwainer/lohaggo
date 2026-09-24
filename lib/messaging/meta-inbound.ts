@@ -6,6 +6,7 @@ import { emitInboxEvent } from '@/lib/messaging/inbox-emitter'
 import type { MetaAppConfig } from '@/lib/messaging/provider-config'
 import { fetchContactProfile, fetchThreadMessages, listPendingConversations, type MetaChannel } from '@/lib/messaging/meta-graph'
 import { getConnectionCredentials, getConnectionMeta, isMetaChannel, requireMetaApp } from '@/lib/messaging/meta-channels'
+import { autopilotCovers, drainAgentTasks, scheduleInboundAgent } from '@/lib/ai/autopilot'
 
 const logger = createLogger('meta-inbound')
 
@@ -137,7 +138,8 @@ async function ensureConversation(params: RecordParams) {
     }
   }
 
-  const assignedToId = await pickAutoAssignAgent()
+  // A conversation an AI autopilot will take must not start with a human owner
+  const assignedToId = (await autopilotCovers(conn.workspaceId, channel, conn.id)) ? null : await pickAutoAssignAgent()
   try {
     conversation = await prisma.conversation.create({
       data: {
@@ -167,8 +169,9 @@ async function ensureConversation(params: RecordParams) {
 export async function recordMetaMessage(params: RecordParams): Promise<boolean> {
   const { conversation } = await ensureConversation(params)
 
+  let messageId: string
   try {
-    await prisma.conversationMessage.create({
+    const created = await prisma.conversationMessage.create({
       data: {
         conversationId: conversation.id,
         direction: params.direction,
@@ -177,10 +180,13 @@ export async function recordMetaMessage(params: RecordParams): Promise<boolean> 
         mediaType: params.mediaType || null,
         providerMessageId: params.providerMessageId,
         status: 'DELIVERED',
+        senderType: params.direction === 'OUTBOUND' ? 'ECHO' : 'CONTACT',
         sentAt: params.sentAt || new Date(),
         deliveredAt: new Date(),
       },
+      select: { id: true },
     })
+    messageId = created.id
   } catch (err) {
     if (SAFE_RETRY_CODES.has((err as { code?: string })?.code || '')) {
       logger.info('Duplicate message ignored', { providerMessageId: params.providerMessageId })
@@ -203,6 +209,7 @@ export async function recordMetaMessage(params: RecordParams): Promise<boolean> 
     },
   })
   emitInboxEvent({ type: 'new-message', conversationId: conversation.id, workspaceId: conversation.workspaceId })
+  if (isInbound) scheduleInboundAgent(conversation.id, messageId)
   return true
 }
 
@@ -424,6 +431,7 @@ export async function processMetaWebhookPayload(channel: MetaChannel, payload: M
       }).catch(() => null),
     ])
   }
+  await drainAgentTasks()
 }
 
 // ─── Pending folder polling ──────────────────────────────────────────────────
@@ -477,6 +485,7 @@ export async function pollPendingFolders() {
     }
   }
 
+  await drainAgentTasks()
   return report
 }
 
