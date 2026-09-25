@@ -129,7 +129,7 @@ export default function Sidebar({ activeSection, collapsed, onToggleCollapsed }:
         </div>
 
         {rail ? (
-          <nav className="hidden flex-1 overflow-y-auto py-3 lg:block" aria-label="Menú">
+          <nav className="hidden flex-1 overflow-y-auto py-3 lg:block [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Menú">
             {ADMIN_MENU.map((group, i) => (
               <div key={group.label} className={i ? 'mt-2 border-t border-white/15 pt-2' : ''} title={group.label}>
                 {group.items.map((item) => itemLink(item, true))}
