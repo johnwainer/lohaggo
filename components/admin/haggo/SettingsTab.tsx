@@ -93,7 +93,7 @@ export function SettingsTab({ config, reload }: { config: HaggoConfig; reload: (
             </tbody>
           </table>
         </div>
-        <p className="text-xs text-gray-500">Por ahora todo lo que Haggo quiera hacer llega como propuesta para que la apruebes, aunque el área esté en autónomo: la autonomía se activa en la siguiente fase. Riesgo alto y máximo siempre piden aprobación.</p>
+        <p className="text-xs text-gray-500">En <strong>autónomo</strong>, Haggo ejecuta solo las acciones de riesgo bajo de esa área (y las de riesgo medio si marcas la casilla), dentro de tus límites y fuera de las horas sin actuar. Lo que pides en la conversación siempre te lo propone. Riesgo alto, riesgo máximo y dinero siempre piden tu aprobación. Después de cada acción, Haggo mide si funcionó; si lo que hizo solo empeoró algo, lo deshace.</p>
       </Section>
 
       <Section title="Frecuencia" hint="Configuración base: revisión cada 15 min, informe diario a las 7:00, revisión semanal los lunes a las 7:00 y disparadores inmediatos encendidos.">

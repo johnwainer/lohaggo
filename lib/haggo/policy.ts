@@ -3,10 +3,11 @@ import { describeRule, ruleMatches, type DirectiveRule } from '@/lib/haggo/direc
 import type { HaggoActionDef } from '@/lib/haggo/actions/types'
 
 /**
- * Autonomy (executing without a click) is phase 4. The policy already computes `execute`, but while this
- * is false the engine turns every `execute` into `propose`.
+ * Autonomy (phase 4): an `execute` verdict runs without a click. It only happens where the superadmin put
+ * a domain in autonomous mode, for low risk (and medium where allowed), never for money, high or max
+ * risk, and never from the chat. Setting this to false turns every `execute` back into `propose`.
  */
-export const AUTONOMY_ENABLED = false
+export const AUTONOMY_ENABLED = true
 
 export type Verdict = 'blocked' | 'propose' | 'execute'
 export type Origin = 'cycle' | 'chat' | 'report'
@@ -22,11 +23,16 @@ export type PolicyInput = {
   lastSameActionAt: Date | null
   budgetBlocked: boolean
   quietNow: boolean
+  /** From the proposal: evidence only from third-party text, or confidence below 0.5 */
+  weakEvidence?: boolean
   /** Only true in phase 4 */
   autonomyEnabled?: boolean
 }
 
 export type Decision = { verdict: Verdict; reasons: string[] }
+
+/** Runs without a click only from Haggo's own reviews; in the chat the superadmin approves the card. */
+export const actsAlone = (d: Pick<Decision, 'verdict'>, origin: Origin) => d.verdict === 'execute' && origin !== 'chat'
 
 const H = 3600_000
 
@@ -42,7 +48,7 @@ const H = 3600_000
  * 6. Over the per-cycle or per-day limit → propose (left to the superadmin)
  * 7. Domain mode: observer → blocked (it stays a recommendation); copilot → propose
  * 8. Autonomous: low → execute; medium → execute only with mediumAllowed[domain]; high → propose
- * 9. A directive that requires approval, quiet hours or no budget → at most propose
+ * 9. A directive that requires approval, quiet hours, no budget or weak evidence → at most propose
  * Then, with autonomy disabled (phase 3), execute → propose.
  */
 export function decide(i: PolicyInput): Decision {
@@ -87,6 +93,8 @@ export function decide(i: PolicyInput): Decision {
   if (approval) lower('propose', `La directiva «${approval.text}» pide aprobación`)
   if (i.quietNow) lower('propose', 'Horas sin actuar solo')
   if (i.budgetBlocked) lower('propose', 'Presupuesto de Haggo agotado')
+  // Prompt injection guard: what rests on third-party text or low confidence never runs alone
+  if (i.weakEvidence) lower('propose', 'Evidencia débil o de terceros: necesita tu aprobación')
 
   if (ceiling === 'execute' && !(i.autonomyEnabled ?? AUTONOMY_ENABLED)) lower('propose', 'La autonomía todavía no está activada')
   return { verdict: ceiling, reasons }

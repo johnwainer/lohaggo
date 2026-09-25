@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getAction } from '@/lib/haggo/actions/registry'
 import { STATUS_LABEL, type ActionStatus } from '@/lib/haggo/actions/state'
 import { RISK_LABEL, SIDE_EFFECT_LABEL, type Risk } from '@/lib/haggo/actions/types'
+import { VERDICT_LABEL, isAutonomous } from '@/lib/haggo/actions/verify'
 
 /** What the admin sees of an action: plain data, labels in Spanish, nothing the UI must guess. */
 export function actionView(a: HaggoAction) {
@@ -33,6 +34,11 @@ export function actionView(a: HaggoAction) {
     confidence: a.confidence,
     preview: a.preview as { summary: string; diff: Array<{ field: string; from: unknown; to: unknown }> } | null,
     result: (a.result as { message?: string } | null)?.message ?? null,
+    autonomous: isAutonomous(a.decidedByEmail),
+    verdict: a.verdict,
+    verdictLabel: a.verdict ? VERDICT_LABEL[a.verdict as keyof typeof VERDICT_LABEL] ?? a.verdict : null,
+    evaluation: (a.result as { evaluation?: string } | null)?.evaluation ?? null,
+    verifiedAt: a.verifiedAt,
     error: a.error,
     planId: a.planId,
     planOrder: a.planOrder,

@@ -19,7 +19,8 @@ export type Overview = {
   areas: Array<{ domain: string; critical: number; warning: number; info: number }>
   runs: Run[]
   pendingApprovals: number
-  decisions: Array<{ id: string; tool: string; label: string; status: string; expectedImpact: string | null; updatedAt: string }>
+  decisions: Array<{ id: string; tool: string; label: string; status: string; expectedImpact: string | null; updatedAt: string; autonomous: boolean; verdict: string | null }>
+  autonomousToday: number
 }
 
 function Bar({ value, max }: { value: number; max: number }) {
@@ -64,6 +65,7 @@ export function NowTab({ data, reload }: { data: Overview; reload: () => void })
               </span>
               <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">Modo {MODE_LABEL[c.mode]}</span>
               {data.quietNow && <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700"><Moon size={12} /> Horas sin actuar solo</span>}
+              {data.autonomousToday > 0 && <a href="/admin/haggo?tab=decisions" className="rounded-full bg-violet-100 px-2.5 py-1 text-xs font-semibold text-violet-700">{data.autonomousToday} hechas solo en 24 h</a>}
               {data.pendingApprovals > 0 && <a href="/admin/haggo?tab=proposals" className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">{data.pendingApprovals} por aprobar</a>}
             </div>
             <p className="mt-3 text-lg font-semibold text-gray-900">{data.focus || 'Todavía no ha hecho su primera revisión.'}</p>
@@ -136,7 +138,7 @@ export function NowTab({ data, reload }: { data: Overview; reload: () => void })
             {data.decisions.map((d) => (
               <li key={d.id} className="flex items-start gap-3 py-2">
                 <span className={`w-20 shrink-0 text-xs font-medium ${d.status === 'executed' ? 'text-emerald-700' : d.status === 'failed' ? 'text-rose-600' : 'text-gray-500'}`}>{({ executed: 'Ejecutada', failed: 'Falló', reverted: 'Deshecha', rejected: 'Rechazada' } as Record<string, string>)[d.status] ?? d.status}</span>
-                <span className="min-w-0 flex-1"><span className="block truncate text-gray-900">{d.expectedImpact || d.label}</span><span className="text-xs text-gray-500">{d.label} · {ago(d.updatedAt)}</span></span>
+                <span className="min-w-0 flex-1"><span className="block truncate text-gray-900">{d.expectedImpact || d.label}</span><span className="text-xs text-gray-500">{d.label}{d.autonomous ? ' · actuó solo' : ''}{d.verdict ? ` · ${({ mejoro: 'mejoró', sin_cambio: 'sin cambio', empeoro: 'empeoró', no_medible: 'no medible', sin_verificar: 'sin verificar' } as Record<string, string>)[d.verdict] ?? d.verdict}` : ''} · {ago(d.updatedAt)}</span></span>
               </li>
             ))}
           </ul>

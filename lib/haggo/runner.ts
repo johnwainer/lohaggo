@@ -12,7 +12,8 @@ import { takeSnapshot } from '@/lib/haggo/snapshot'
 import { getHaggoConfig, haggoSpend, withHaggoLock } from '@/lib/haggo/store'
 import { READ_TOOL_DEFS, READ_TOOLS, runReadTool } from '@/lib/haggo/tools/read'
 import { ACTION_REASONING, PROPOSE_ACTION_TOOL } from '@/lib/haggo/actions/registry'
-import { expireActions, proposeAction } from '@/lib/haggo/actions/engine'
+import { closeExpiredVerifications, dueVerifications, expireActions, proposeAction, recordEvaluation } from '@/lib/haggo/actions/engine'
+import { EVALUATE_TOOL, parseEvaluation } from '@/lib/haggo/actions/verify'
 import { ANALYSIS_TOOL, REPORT_TOOL, buildSystem, cycleTask, parseAnalysis, parseReport, reportTask } from '@/lib/haggo/prompt'
 
 const logger = createLogger('haggo')
@@ -57,12 +58,12 @@ async function context(withActions = true) {
  * The investigation loop: read tools as many rounds as needed, then the final tool. An answer without
  * the final tool gets one reminder; results never come from free text.
  */
-type Proposing = { origin: 'cycle' | 'report'; runId: string; counter: { n: number }; ids: string[] }
+type Proposing = { origin: 'cycle' | 'report'; runId: string; counter: { n: number }; ids: string[]; verify?: string[]; verified?: string[] }
 
 async function think(p: { kind: AiCallKind; model: string; system: Anthropic.TextBlockParam[]; task: string; finalTool: Anthropic.Tool; maxTokens: number; effort: Effort; rounds?: number; proposing?: Proposing }, meter: Meter) {
   const maxRounds = p.rounds ?? MAX_ROUNDS
   const messages: Anthropic.MessageParam[] = [{ role: 'user', content: p.task }]
-  const tools = [...READ_TOOL_DEFS, ...(p.proposing ? [PROPOSE_ACTION_TOOL] : []), p.finalTool]
+  const tools = [...READ_TOOL_DEFS, ...(p.proposing ? [PROPOSE_ACTION_TOOL] : []), ...(p.proposing?.verify?.length ? [EVALUATE_TOOL] : []), p.finalTool]
   const toolsUsed: string[] = []
   let reminded = false
   for (let round = 0; round < maxRounds; round++) {
@@ -78,9 +79,14 @@ async function think(p: { kind: AiCallKind; model: string; system: Anthropic.Tex
     const final = uses.find((u) => u.name === p.finalTool.name)
     // Proposals sent together with the final answer still count
     if (final) {
-      if (p.proposing) for (const u of uses.filter((x) => x.name === PROPOSE_ACTION_TOOL.name)) {
-        const res = await proposeAction(u.input, { origin: p.proposing.origin, runId: p.proposing.runId, toolsUsed, cycleCounter: p.proposing.counter }).catch(() => null)
-        if (res?.ok) p.proposing.ids.push(res.id)
+      if (p.proposing) for (const u of uses) {
+        if (u.name === PROPOSE_ACTION_TOOL.name) {
+          const res = await proposeAction(u.input, { origin: p.proposing.origin, runId: p.proposing.runId, toolsUsed, cycleCounter: p.proposing.counter }).catch(() => null)
+          if (res?.ok) p.proposing.ids.push(res.id)
+        } else if (u.name === EVALUATE_TOOL.name) {
+          const ev = parseEvaluation(u.input, (p.proposing.verify ?? []).filter((id) => !(p.proposing!.verified ?? []).includes(id)))
+          if (ev.ok && (await recordEvaluation(ev.evaluation).catch(() => null))?.ok) p.proposing.verified = [...(p.proposing.verified ?? []), ev.evaluation.actionId]
+        }
       }
       return final.input
     }
@@ -94,9 +100,17 @@ async function think(p: { kind: AiCallKind; model: string; system: Anthropic.Tex
     // Reads first (in parallel), then proposals in order: a proposal can cite what this round read
     const results: Array<{ output: string; isError: boolean }> = []
     for (const u of uses) if (READ_TOOLS[u.name] && !toolsUsed.includes(u.name)) toolsUsed.push(u.name)
-    const reads = await Promise.all(uses.map((u) => (u.name === PROPOSE_ACTION_TOOL.name ? null : runReadTool(u.name, u.input))))
+    const reads = await Promise.all(uses.map((u) => (u.name === PROPOSE_ACTION_TOOL.name || u.name === EVALUATE_TOOL.name ? null : runReadTool(u.name, u.input))))
     for (let i = 0; i < uses.length; i++) {
       if (reads[i]) { results.push(reads[i]!); continue }
+      if (uses[i].name === EVALUATE_TOOL.name) {
+        const ev = parseEvaluation(uses[i].input, (p.proposing?.verify ?? []).filter((id) => !(p.proposing?.verified ?? []).includes(id)))
+        if (!ev.ok) { results.push({ output: ev.error, isError: true }); continue }
+        const saved = await recordEvaluation(ev.evaluation).catch((err) => ({ ok: false, message: err instanceof Error ? err.message : 'Error' }))
+        if (saved.ok) p.proposing!.verified = [...(p.proposing!.verified ?? []), ev.evaluation.actionId]
+        results.push({ output: saved.message, isError: !saved.ok })
+        continue
+      }
       if (!p.proposing) { results.push({ output: 'Herramienta no disponible aquí', isError: true }); continue }
       const res = await proposeAction(uses[i].input, { origin: p.proposing.origin, runId: p.proposing.runId, toolsUsed, cycleCounter: p.proposing.counter }).catch((err) => ({ ok: false as const, errors: [err instanceof Error ? err.message : 'Error'] }))
       if (res.ok) p.proposing.ids.push(res.id)
@@ -156,15 +170,18 @@ export async function runCycle(cfg: HaggoConfig, trigger: string, now = new Date
     let summary: string
     let output: unknown = null
     const spend = await haggoSpend(cfg, now)
-    if (!novel.length && !force) {
+    // Actions whose deadline passed are measured even when nothing else is new
+    const toVerify = spend.blocked ? [] : await dueVerifications(now)
+    if (!novel.length && !force && !toVerify.length) {
       status = 'skipped'
       summary = detections.length ? `Sin novedades: ${detections.length} situaciones ya conocidas.` : 'Sin novedades: todo en orden.'
     } else if (spend.blocked) {
       summary = `Presupuesto de Haggo agotado (${spend.blocked === 'month' ? 'mes' : 'día'}): solo reglas. Nuevo: ${novel.map((d) => d.title).join(' · ')}`
     } else {
       const openFindings = await prisma.haggoFinding.findMany({ where: { status: { in: ['new', 'seen'] }, fingerprint: { not: { startsWith: 'rule:' } } }, orderBy: { lastSeenAt: 'desc' }, take: 20, select: { title: true, severity: true } })
-      const proposing: Proposing = { origin: 'cycle', runId: run.id, counter: { n: 0 }, ids: [] }
-      const input = await think({ kind: 'haggo_cycle', model: await modelFor(cfg), system: await context(), task: cycleTask({ snapshot, detections, novel, openFindings, nowText: nowText(now, cfg.timezone) }), finalTool: ANALYSIS_TOOL, maxTokens: 5000, effort: 'medium', proposing }, meter)
+      const proposing: Proposing = { origin: 'cycle', runId: run.id, counter: { n: 0 }, ids: [], verify: toVerify.map((v) => v.id), verified: [] }
+      const verifyTask = toVerify.length ? `\n\nAcciones ejecutadas cuyo plazo ya venció: mide con tus herramientas si se cumplió cada hipótesis y registra cada una con evaluar_resultado (antes y ahora, con cifras). Lo que empeoró y Haggo hizo solo se deshace; lo aprobado por una persona queda como recomendación.\n${toVerify.map((v) => `- ${v.id}: ${v.label} — ${v.what ?? ''}. Ejecutada ${v.executedAt.toISOString()}${v.autonomous ? ' (la hiciste solo)' : ''}. Hipótesis: ${JSON.stringify(v.hypothesis)}`).join('\n')}` : ''
+      const input = await think({ kind: 'haggo_cycle', model: await modelFor(cfg), system: await context(), task: cycleTask({ snapshot, detections, novel, openFindings, nowText: nowText(now, cfg.timezone) }) + verifyTask, finalTool: ANALYSIS_TOOL, maxTokens: 5000, effort: 'medium', proposing }, meter)
       if (proposing.ids.length) logger.info('Cycle proposals', { runId: run.id, n: proposing.ids.length })
       const analysis = parseAnalysis(input)
       if (!analysis) throw new HaggoError('El análisis no es válido')
@@ -249,7 +266,7 @@ export async function tick(now = new Date()) {
     const last = await lastRuns()
     const due = dueJobs(cfg, last, now)
     const trigger = due.cycle ? 'schedule' : await checkTriggers(cfg, last.cycle ?? null)
-    const res: Record<string, unknown> = { due, trigger, expired: await expireActions().catch(() => 0) }
+    const res: Record<string, unknown> = { due, trigger, expired: await expireActions().catch(() => 0), unverifiable: await closeExpiredVerifications(now).catch(() => 0) }
     if (trigger) res.cycle = await runCycle(cfg, trigger, now)
     if (due.daily) res.daily = await runReport(cfg, 'daily', now)
     if (due.weekly) res.weekly = await runReport(cfg, 'weekly', now)

@@ -9,7 +9,7 @@ export type ActionView = {
   status: string; statusLabel: string; origin: string | null; what: string | null; why: string; evidence: Array<{ tool: string; fact: string }>; lowTrust: boolean; forReview: boolean
   risks: string | null; policy: string[]; againBecause: string | null; hypothesis: { metric: string; current: string; expected: string; byHours: number } | null
   alternatives: Array<{ option: string; whyNot: string }>; confidence: number | null; preview: { summary: string; diff: Array<{ field: string; from: unknown; to: unknown }> } | null
-  result: string | null; error: string | null; planId: string | null; planOrder: number | null; decidedByEmail: string | null; decisionNote: string | null
+  result: string | null; autonomous: boolean; verdict: string | null; verdictLabel: string | null; evaluation: string | null; verifiedAt: string | null; error: string | null; planId: string | null; planOrder: number | null; decidedByEmail: string | null; decisionNote: string | null
   createdAt: string; decidedAt: string | null; executedAt: string | null; revertedAt: string | null; expiresAt: string | null; canUndo: boolean; needsTypedConfirm: boolean
 }
 
@@ -54,6 +54,8 @@ export function ActionCard({ a, onChange, compact = false }: { a: ActionView; on
             {a.forReview && a.status === 'proposed' && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">Para revisar</span>}
             {a.planId && <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] text-indigo-700">Plan · paso {a.planOrder ?? '?'}</span>}
             <span className={`text-xs font-medium ${STATUS_CLS[a.status] ?? 'text-gray-600'}`}>{a.statusLabel}</span>
+            {a.autonomous && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-semibold text-violet-700">Actuó solo</span>}
+            {a.verdictLabel && <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${a.verdict === 'mejoro' ? 'bg-emerald-100 text-emerald-800' : a.verdict === 'empeoro' ? 'bg-rose-100 text-rose-700' : 'bg-gray-100 text-gray-600'}`}>{a.verdictLabel}</span>}
           </span>
           <span className="mt-1.5 block text-sm font-semibold text-gray-900">{a.what || a.label}</span>
           <span className="block text-xs text-gray-500">{a.label}{a.origin ? ` · desde ${ORIGIN[a.origin] ?? a.origin}` : ''} · {when(a.createdAt)}</span>
@@ -108,6 +110,7 @@ export function ActionCard({ a, onChange, compact = false }: { a: ActionView; on
           {a.againBecause && <p className="text-xs text-gray-600">Se propone de nuevo porque: {a.againBecause}</p>}
           {a.policy.length > 0 && <p className="text-xs text-gray-500">Política: {a.policy.join(' · ')}</p>}
           {a.result && <p className="text-sm text-emerald-700">Resultado: {a.result}</p>}
+          {a.evaluation && <div className="rounded-xl bg-gray-50 p-3"><p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Verificación ({when(a.verifiedAt)})</p><p className="mt-0.5 text-gray-800">{a.verdictLabel}: {a.evaluation}</p></div>}
           {a.error && <p className="text-sm text-rose-600">{a.error}</p>}
           {a.decidedByEmail && <p className="text-xs text-gray-500">Decidió {a.decidedByEmail} · {when(a.decidedAt)}{a.decisionNote ? ` · «${a.decisionNote}»` : ''}{a.revertedAt ? ` · deshecha ${when(a.revertedAt)}` : ''}</p>}
 

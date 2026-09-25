@@ -9,7 +9,8 @@ vi.mock('@/lib/logger', () => ({ createLogger: () => ({ info() {}, warn() {}, er
 vi.mock('@/lib/admin-utils', () => ({ auditAdminAction: async () => {}, requireAdmin: async () => null }))
 
 import { ACTIONS, MAX_RISK_ACTION_IDS, PROPOSE_ACTION_TOOL, getAction, sanitizeMaxRisk } from '@/lib/haggo/actions/registry'
-import { decide, type PolicyInput } from '@/lib/haggo/policy'
+import { actsAlone, decide, type PolicyInput } from '@/lib/haggo/policy'
+import { dueForVerification, parseEvaluation, shouldAutoUndo, verificationExpired, AUTONOMOUS_ACTOR } from '@/lib/haggo/actions/verify'
 import { nextStatus, type ActionStatus } from '@/lib/haggo/actions/state'
 import { validateProposal } from '@/lib/haggo/actions/proposal'
 import { proposeAction } from '@/lib/haggo/actions/engine'
@@ -85,13 +86,27 @@ describe('política', () => {
     expect(decide(input({ budgetBlocked: true })).verdict).toBe('propose')
   })
 
-  it('en esta fase (autonomía apagada) nada llega a ejecutarse solo', () => {
+  it('con la autonomía apagada nada llega a ejecutarse solo', () => {
     for (const risk of ['low', 'medium', 'high', 'max'] as const) {
       for (const mode of ['observer', 'copilot', 'autonomous'] as const) {
-        const v = decide({ ...input({ action: action({ risk }), config: cfg({ mode, mediumAllowed: { marketing: true }, maxRiskEnabled: { 'marketing.reschedule_post': true } }) }), autonomyEnabled: undefined })
+        const v = decide({ ...input({ action: action({ risk }), config: cfg({ mode, mediumAllowed: { marketing: true }, maxRiskEnabled: { 'marketing.reschedule_post': true } }) }), autonomyEnabled: false })
         expect(v.verdict, `${risk}/${mode}`).not.toBe('execute')
       }
     }
+  })
+
+  it('fase 4: solo ejecuta solo en autónomo, riesgo bajo o medio permitido, y nunca desde el chat', () => {
+    const on = (patch: Partial<PolicyInput>) => decide({ ...input(patch), autonomyEnabled: undefined })
+    expect(on({}).verdict).toBe('execute')
+    expect(on({ config: cfg({ mode: 'copilot' }) }).verdict).toBe('propose')
+    expect(on({ action: action({ risk: 'high' }) }).verdict).toBe('propose')
+    expect(on({ action: action({ id: 'money.remind_cash_payment', domain: 'money' }) }).verdict).toBe('propose')
+    // Evidencia de terceros o confianza baja: nunca sola (defensa contra inyección)
+    expect(on({ weakEvidence: true }).verdict).toBe('propose')
+    expect(actsAlone({ verdict: 'execute' }, 'cycle')).toBe(true)
+    expect(actsAlone({ verdict: 'execute' }, 'report')).toBe(true)
+    expect(actsAlone({ verdict: 'execute' }, 'chat')).toBe(false)
+    expect(actsAlone({ verdict: 'propose' }, 'cycle')).toBe(false)
   })
 })
 
@@ -278,5 +293,34 @@ describe('Haggo puede encontrar lo que cada acción necesita', () => {
         for (const t of tools!) if (t !== 'foto') expect(READ_TOOLS[t], `${t} no existe`).toBeDefined()
       }
     }
+  })
+})
+
+describe('verificación de resultados (fase 4)', () => {
+  const executedAt = bog('2026-10-01T10:00:00')
+  const a = { status: 'executed', executedAt, verifiedAt: null, hypothesis: { byHours: 48 } }
+  it('se verifica cuando vence el plazo de la hipótesis, no antes', () => {
+    expect(dueForVerification(a, bog('2026-10-03T09:00:00'))).toBe(false)
+    expect(dueForVerification(a, bog('2026-10-03T10:00:00'))).toBe(true)
+    expect(dueForVerification({ ...a, verifiedAt: new Date() }, bog('2026-10-05T10:00:00'))).toBe(false)
+    expect(dueForVerification({ ...a, status: 'reverted' }, bog('2026-10-05T10:00:00'))).toBe(false)
+    expect(dueForVerification({ ...a, hypothesis: null }, bog('2026-10-02T10:00:00'))).toBe(true)
+  })
+  it('sin medir tras el plazo más 72 h se cierra como «sin verificar»', () => {
+    expect(verificationExpired(a, bog('2026-10-06T09:00:00'))).toBe(false)
+    expect(verificationExpired(a, bog('2026-10-06T10:00:00'))).toBe(true)
+  })
+  it('se deshace sola solo lo que Haggo hizo solo, es reversible y empeoró', () => {
+    expect(shouldAutoUndo({ decidedByEmail: AUTONOMOUS_ACTOR, reversible: true }, 'empeoro')).toBe(true)
+    expect(shouldAutoUndo({ decidedByEmail: 'admin@x.com', reversible: true }, 'empeoro')).toBe(false)
+    expect(shouldAutoUndo({ decidedByEmail: AUTONOMOUS_ACTOR, reversible: false }, 'empeoro')).toBe(false)
+    expect(shouldAutoUndo({ decidedByEmail: AUTONOMOUS_ACTOR, reversible: true }, 'sin_cambio')).toBe(false)
+  })
+  it('la evaluación del modelo se valida: acción pendiente, resultado válido y evidencia', () => {
+    expect(parseEvaluation({ action_id: 'a1', resultado: 'mejoro', evidencia: 'Alcance 1200 → 1900 (marketing)' }, ['a1']).ok).toBe(true)
+    expect(parseEvaluation({ action_id: 'otra', resultado: 'mejoro', evidencia: 'x' }, ['a1']).ok).toBe(false)
+    expect(parseEvaluation({ action_id: 'a1', resultado: 'genial', evidencia: 'x' }, ['a1']).ok).toBe(false)
+    expect(parseEvaluation({ action_id: 'a1', resultado: 'empeoro' }, ['a1']).ok).toBe(false)
+    expect(parseEvaluation({ action_id: 'a1', resultado: 'no_medible' }, ['a1']).ok).toBe(true)
   })
 })

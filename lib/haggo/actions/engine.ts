@@ -7,11 +7,13 @@ import { bogotaDayStart } from '@/lib/admin/overview-core'
 import { getHaggoConfig, haggoSpend } from '@/lib/haggo/store'
 import { inQuietHours } from '@/lib/haggo/schedule'
 import { parseRule } from '@/lib/haggo/directives'
-import { decide, type Origin } from '@/lib/haggo/policy'
+import { actsAlone, decide, type Origin } from '@/lib/haggo/policy'
 import { getAction } from '@/lib/haggo/actions/registry'
 import { validateProposal } from '@/lib/haggo/actions/proposal'
 import { nextStatus, OPEN_STATUSES, type ActionStatus } from '@/lib/haggo/actions/state'
 import type { Entity, HaggoActionDef } from '@/lib/haggo/actions/types'
+import { AUTONOMOUS_ACTOR, AUTONOMOUS_ID, MAX_VERIFICATIONS_PER_CYCLE, VERDICT_LABEL, dueForVerification, shouldAutoUndo, verificationExpired, type Evaluation } from '@/lib/haggo/actions/verify'
+import type { HaggoAction } from '@prisma/client'
 
 const logger = createLogger('haggo-actions')
 const H = 3600_000
@@ -64,7 +66,7 @@ async function activeDirectives() {
   })
 }
 
-async function policyFor(def: HaggoActionDef, entity: Entity | null, origin: Origin, cycleActions: number) {
+async function policyFor(def: HaggoActionDef, entity: Entity | null, origin: Origin, cycleActions: number, weakEvidence = false) {
   const cfg = await getHaggoConfig()
   const [directives, dayActions, lastHuman, lastSame, spend] = await Promise.all([
     activeDirectives(),
@@ -73,7 +75,7 @@ async function policyFor(def: HaggoActionDef, entity: Entity | null, origin: Ori
     lastSameAction(def.id, entity),
     haggoSpend(cfg),
   ])
-  return { cfg, decision: decide({ action: def, origin, now: new Date(), config: cfg, directives, counters: { cycleActions, dayActions }, lastHumanChangeAt: lastHuman, lastSameActionAt: lastSame, budgetBlocked: Boolean(spend.blocked), quietNow: inQuietHours(cfg.quietHours, cfg.timezone) }) }
+  return { cfg, decision: decide({ action: def, origin, now: new Date(), config: cfg, directives, counters: { cycleActions, dayActions }, lastHumanChangeAt: lastHuman, lastSameActionAt: lastSame, budgetBlocked: Boolean(spend.blocked), quietNow: inQuietHours(cfg.quietHours, cfg.timezone), weakEvidence }) }
 }
 
 const paramsHash = (tool: string, entity: Entity | null, params: unknown) => createHash('sha256').update(`${tool}|${entity?.type}:${entity?.id}|${JSON.stringify(params)}|${new Date().toISOString().slice(0, 10)}`).digest('hex').slice(0, 40)
@@ -103,8 +105,10 @@ export async function proposeAction(raw: unknown, ctx: ProposeContext): Promise<
   const pre = await def.preconditions(parsed.params)
   if (!pre.ok) return { ok: false, errors: [`No aplica ahora: ${pre.reason}`] }
   const preview = await def.preview(parsed.params, pre.before)
-  const { cfg, decision } = await policyFor(def, entity, ctx.origin, ctx.cycleCounter?.n ?? 0)
-  const status: ActionStatus = decision.verdict === 'blocked' ? 'blocked' : 'proposed'
+  const { cfg, decision } = await policyFor(def, entity, ctx.origin, ctx.cycleCounter?.n ?? 0, v.proposal.lowTrust || v.proposal.forReview)
+  // Acting alone only from Haggo's own reviews: in the chat the superadmin is right there to click
+  const autonomous = actsAlone(decision, ctx.origin)
+  const status: ActionStatus = decision.verdict === 'blocked' ? 'blocked' : autonomous ? 'approved' : 'proposed'
   const p = v.proposal
   try {
     const row = await prisma.haggoAction.create({
@@ -114,9 +118,14 @@ export async function proposeAction(raw: unknown, ctx: ProposeContext): Promise<
         hypothesis: json(p.hypothesis), alternatives: json(p.alternatives), confidence: p.confidence, preview: json(preview), before: json(pre.before),
         entityType: entity?.type ?? null, entityId: entity?.id ?? null, planId: p.plan?.id ?? null, planOrder: p.plan?.order ?? null,
         idempotencyKey: paramsHash(def.id, entity, parsed.params), expiresAt: status === 'proposed' ? new Date(Date.now() + cfg.proposalTtlHours * H) : null,
+        ...(autonomous ? { decidedById: AUTONOMOUS_ID, decidedByEmail: AUTONOMOUS_ACTOR, decidedAt: new Date() } : {}),
       },
     })
-    if (status === 'proposed' && ctx.cycleCounter) ctx.cycleCounter.n++
+    if (status !== 'blocked' && ctx.cycleCounter) ctx.cycleCounter.n++
+    if (autonomous) {
+      const done = await runApproved(row, def, SYSTEM, { recheck: false })
+      return { ok: true, id: row.id, status: (done?.status as ActionStatus) ?? 'failed', reasons: decision.reasons, summary: done?.status === 'executed' ? `Hecho solo: ${preview.summary}` : `Intentó hacerlo solo y falló: ${done?.error ?? ''}` }
+    }
     return { ok: true, id: row.id, status, reasons: decision.reasons, summary: preview.summary }
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') return { ok: false, errors: ['Ya propusiste exactamente esto hoy'] }
@@ -127,6 +136,7 @@ export async function proposeAction(raw: unknown, ctx: ProposeContext): Promise<
 // ─── Decide ─────────────────────────────────────────────────────────────────
 
 type Admin = { id: string; email: string | null }
+const SYSTEM: Admin = { id: AUTONOMOUS_ID, email: AUTONOMOUS_ACTOR }
 
 async function transition(id: string, from: ActionStatus, event: Parameters<typeof nextStatus>[1], data: Prisma.HaggoActionUpdateManyMutationInput = {}) {
   const to = nextStatus(from, event)
@@ -155,7 +165,16 @@ export async function approveAction(id: string, admin: Admin, opts: { confirm?: 
     throw new ActionError('La propuesta caducó', 409)
   }
   if (!(await transition(id, 'proposed', 'approve', { decidedById: admin.id, decidedByEmail: admin.email, decidedAt: new Date() }))) throw new ActionError('Esta acción ya se decidió', 409)
+  // The approver is a person: a recent human change warns instead of blocking (origin «chat»)
+  return runApproved(row, def, admin, { recheck: true })
+}
 
+/**
+ * Runs an action already in «approved»: parse and preconditions again (the world may have changed),
+ * the policy again when a person approved a proposal, then execute and record before/after.
+ */
+async function runApproved(row: HaggoAction, def: HaggoActionDef, admin: Admin, opts: { recheck: boolean }) {
+  const id = row.id
   const fail = async (message: string) => {
     await transition(id, 'approved', 'fail', { error: message.slice(0, 1000) }).catch(() => transition(id, 'executing', 'fail', { error: message.slice(0, 1000) }))
     await audit(admin, 'HAGGO_ACTION_FAILED', row, message)
@@ -165,9 +184,10 @@ export async function approveAction(id: string, admin: Admin, opts: { confirm?: 
   if (!parsed.ok) return fail(`Parámetros inválidos: ${parsed.errors.join('; ')}`)
   const pre = await def.preconditions(parsed.params)
   if (!pre.ok) return fail(`Ya no aplica: ${pre.reason}`)
-  // The approver is a person: a recent human change warns instead of blocking (origin «chat»)
-  const { decision } = await policyFor(def, def.entity(parsed.params), 'chat', 0)
-  if (decision.verdict === 'blocked') return fail(`La política la bloquea ahora: ${decision.reasons.join('; ')}`)
+  if (opts.recheck) {
+    const { decision } = await policyFor(def, def.entity(parsed.params), 'chat', 0)
+    if (decision.verdict === 'blocked') return fail(`La política la bloquea ahora: ${decision.reasons.join('; ')}`)
+  }
 
   await transition(id, 'approved', 'start')
   try {
@@ -223,6 +243,55 @@ export async function approvePlan(planId: string, admin: Admin) {
     if (r?.status !== 'executed') break
   }
   return results
+}
+
+// ─── Verification (phase 4) ─────────────────────────────────────────────────
+
+/** Executed actions whose hypothesis deadline passed, for the next cycle to measure. */
+export async function dueVerifications(now = new Date()) {
+  const rows = await prisma.haggoAction.findMany({ where: { status: 'executed', verifiedAt: null }, orderBy: { executedAt: 'asc' }, take: 50 })
+  return rows.filter((r) => dueForVerification(r, now)).slice(0, MAX_VERIFICATIONS_PER_CYCLE).map((r) => ({
+    id: r.id, label: getAction(r.tool)?.label ?? r.tool, what: r.expectedImpact, executedAt: r.executedAt!, hypothesis: r.hypothesis, autonomous: r.decidedByEmail === AUTONOMOUS_ACTOR,
+  }))
+}
+
+/** Measured too late (or never): closed as «sin verificar» so nothing stays pending forever. */
+export async function closeExpiredVerifications(now = new Date()) {
+  const rows = await prisma.haggoAction.findMany({ where: { status: 'executed', verifiedAt: null }, take: 100 })
+  const ids = rows.filter((r) => verificationExpired(r, now)).map((r) => r.id)
+  if (ids.length) await prisma.haggoAction.updateMany({ where: { id: { in: ids } }, data: { verdict: 'sin_verificar', verifiedAt: now } })
+  return ids.length
+}
+
+const MAX_LEARNINGS = 50
+
+/**
+ * Stores the verdict, turns the lesson into memory and, if it got worse: undoes it when Haggo did it on
+ * its own and it is reversible; otherwise leaves a recommendation for the superadmin.
+ */
+export async function recordEvaluation(ev: Evaluation) {
+  const row = await prisma.haggoAction.findUnique({ where: { id: ev.actionId } })
+  if (!row || row.verifiedAt) return { ok: false, message: 'Ya estaba verificada' }
+  const def = getAction(row.tool)
+  const label = def?.label ?? row.tool
+  const prev = (row.result && typeof row.result === 'object' ? row.result : {}) as Record<string, unknown>
+  await prisma.haggoAction.update({ where: { id: row.id }, data: { verdict: ev.verdict, verifiedAt: new Date(), result: json({ ...prev, evaluation: ev.evidence }) } })
+  if (ev.learning) {
+    await prisma.haggoMemory.create({ data: { kind: 'learning', key: row.tool, content: `«${label}» (${VERDICT_LABEL[ev.verdict].toLowerCase()}): ${ev.learning}`.slice(0, 600) } })
+    const old = await prisma.haggoMemory.findMany({ where: { kind: 'learning' }, orderBy: { createdAt: 'desc' }, skip: MAX_LEARNINGS, select: { id: true } })
+    if (old.length) await prisma.haggoMemory.deleteMany({ where: { id: { in: old.map((o) => o.id) } } })
+  }
+  if (ev.verdict !== 'empeoro') return { ok: true, message: `Registrado: ${VERDICT_LABEL[ev.verdict]}` }
+  if (shouldAutoUndo({ decidedByEmail: row.decidedByEmail, reversible: Boolean(def?.undo) }, ev.verdict)) {
+    try {
+      await undoAction(row.id, SYSTEM)
+      return { ok: true, message: 'Empeoró: Haggo la deshizo solo' }
+    } catch (err) {
+      logger.warn('Auto undo failed', { id: row.id, err: err instanceof Error ? err.message : err })
+    }
+  }
+  await prisma.haggoFinding.create({ data: { domain: row.domain, severity: 'warning', title: `Recomendación: revisar «${label}», empeoró`, body: `${row.expectedImpact ?? ''}\n\n${ev.evidence}${def?.undo ? '\n\nPuedes deshacerla en Haggo → Decisiones.' : ''}`.slice(0, 1500), entityType: row.entityType, entityId: row.entityId } })
+  return { ok: true, message: 'Empeoró: quedó como recomendación para el superadmin' }
 }
 
 /** Proposals nobody decided in time. Called on every tick. */

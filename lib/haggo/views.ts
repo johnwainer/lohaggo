@@ -5,6 +5,7 @@ import { getHaggoConfig, getHaggoRow, haggoSpend, HAGGO_KINDS } from '@/lib/hagg
 import { inQuietHours, nextRuns } from '@/lib/haggo/schedule'
 import { DOMAINS } from '@/lib/haggo/config'
 import { actionLabel } from '@/lib/haggo/actions/registry'
+import { AUTONOMOUS_ACTOR } from '@/lib/haggo/actions/verify'
 
 const SEV_ORDER: Record<string, number> = { critical: 0, warning: 1, info: 2 }
 const bySeverity = <T extends { severity: string; lastSeenAt: Date }>(a: T, b: T) => (SEV_ORDER[a.severity] ?? 3) - (SEV_ORDER[b.severity] ?? 3) || b.lastSeenAt.getTime() - a.lastSeenAt.getTime()
@@ -23,11 +24,12 @@ export async function haggoOverview(now = new Date()) {
     prisma.haggoFinding.findMany({ where: { status: { in: ['new', 'seen'] } }, take: 60, select: { id: true, domain: true, severity: true, title: true, body: true, status: true, occurrences: true, createdAt: true, lastSeenAt: true, entityType: true, entityId: true } }),
     prisma.haggoRun.findMany({ orderBy: { startedAt: 'desc' }, take: 15, select: { id: true, type: true, trigger: true, status: true, summary: true, error: true, costUsd: true, startedAt: true, finishedAt: true } }),
     prisma.haggoAction.count({ where: { status: 'proposed' } }),
-    prisma.haggoAction.findMany({ where: { status: { in: ['executed', 'failed', 'reverted', 'rejected'] } }, orderBy: { updatedAt: 'desc' }, take: 5, select: { id: true, tool: true, status: true, expectedImpact: true, updatedAt: true } }),
+    prisma.haggoAction.findMany({ where: { status: { in: ['executed', 'failed', 'reverted', 'rejected'] } }, orderBy: { updatedAt: 'desc' }, take: 5, select: { id: true, tool: true, status: true, expectedImpact: true, updatedAt: true, decidedByEmail: true, verdict: true } }),
   ])
   return {
     config: cfg,
-    decisions: decisions.map((d) => ({ ...d, label: actionLabel(d.tool) })),
+    decisions: decisions.map((d) => ({ ...d, label: actionLabel(d.tool), autonomous: d.decidedByEmail === AUTONOMOUS_ACTOR })),
+    autonomousToday: await prisma.haggoAction.count({ where: { decidedByEmail: AUTONOMOUS_ACTOR, createdAt: { gte: new Date(Date.now() - 24 * 3600_000) } } }),
     focus: row.focus,
     lastSnapshotAt: row.lastSnapshotAt,
     working: Boolean(row.lockedUntil && row.lockedUntil > now),
