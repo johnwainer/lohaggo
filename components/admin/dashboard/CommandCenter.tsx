@@ -16,7 +16,8 @@ const TZ = 'America/Bogota'
 
 const money = (n: number) => (Math.abs(n) >= 1_000_000 ? `$${(n / 1_000_000).toFixed(1).replace('.', ',')} M` : `$${Math.round(n).toLocaleString('es-CO')}`)
 const num = (n: number) => n.toLocaleString('es-CO')
-const usd = (n: number) => `US$${n.toFixed(n < 10 ? 2 : 0)}`
+const usd = (n: number) => `US$${n.toLocaleString('es-CO', { minimumFractionDigits: n < 10 ? 2 : 0, maximumFractionDigits: n < 10 ? 2 : 0 })}`
+const plural = (n: number, one: string, many: string) => `${num(n)} ${n === 1 ? one : many}`
 const time = (d: string | Date) => new Intl.DateTimeFormat('es-CO', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(d))
 const dayLabel = (key: string) => new Intl.DateTimeFormat('es-CO', { timeZone: 'UTC', day: 'numeric', month: 'short' }).format(new Date(`${key}T12:00:00Z`))
 function ago(iso: string, now: number) {
@@ -42,7 +43,8 @@ type Theme = (typeof THEMES)[keyof typeof THEMES]
 
 function Delta({ value, label }: { value: number | null; label: string }) {
   if (value === null) return <span className="text-[11px] text-emerald-500">Nuevo {label}</span>
-  const up = value >= 0
+  if (value === 0) return <span className="text-[11px] font-medium text-gray-400">Igual {label.replace(/^vs /, 'que ')}</span>
+  const up = value > 0
   return (
     <span className={`inline-flex items-center gap-0.5 text-[11px] font-semibold ${up ? 'text-emerald-500' : 'text-rose-500'}`}>
       {up ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}{Math.abs(value).toLocaleString('es-CO')} % {label}
@@ -92,8 +94,6 @@ function Stat({ t, label, value, tone }: { t: Theme; label: string; value: strin
     </div>
   )
 }
-
-const POST_CHANNEL: Record<string, string> = { WEB: 'Blog', FACEBOOK: 'Facebook', INSTAGRAM: 'Instagram' }
 
 const FEED_ICON: Record<string, { icon: typeof Users; cls: string }> = {
   booking: { icon: CalendarCheck, cls: 'text-sky-500 bg-sky-500/15' },
@@ -234,7 +234,7 @@ export default function CommandCenter() {
         <Kpi t={t} tv={tv} icon={CalendarCheck} tone="sky" label="Reservas hoy" value={num(d.bookings.today)} delta={d.bookings.todayDelta} deltaLabel="vs ayer" sub={`${d.bookings.scheduledToday} servicios agendados hoy`} href="/admin?section=bookings" />
         <Kpi t={t} tv={tv} icon={Send} tone="violet" label="Solicitudes activas" value={num(d.requests.active)} sub={`${d.requests.today} nuevas hoy${d.requests.withoutProposals ? ` · ${d.requests.withoutProposals} sin propuestas` : ''}`} href="/admin/service-requests" />
         <Kpi t={t} tv={tv} icon={Inbox} tone={d.inbox.waiting ? 'rose' : 'primary'} label="Bandeja abierta" value={num(d.inbox.open)} sub={`${d.inbox.waiting} esperando · ${d.inbox.unread} sin leer`} href="/admin/inbox" />
-        <Kpi t={t} tv={tv} icon={UserPlus} tone="amber" label="Usuarios nuevos hoy" value={num(d.users.newClientsToday + d.users.newPartnersToday)} sub={`${d.users.newClientsToday} clientes · ${d.users.newPartnersToday} socios`} href="/admin?section=users" />
+        <Kpi t={t} tv={tv} icon={UserPlus} tone="amber" label="Usuarios nuevos hoy" value={num(d.users.newClientsToday + d.users.newPartnersToday)} sub={`${plural(d.users.newClientsToday, 'cliente', 'clientes')} · ${plural(d.users.newPartnersToday, 'socio', 'socios')}`} href="/admin?section=users" />
       </div>
 
       {/* Trend + inbox */}
@@ -303,8 +303,9 @@ export default function CommandCenter() {
           <div className="grid grid-cols-3 gap-2">
             <Stat t={t} label="Activos" value={d.ai.agents.length + d.marketing.agents.length} />
             <Stat t={t} label="Llamadas hoy" value={d.ai.callsToday} />
-            <Stat t={t} label="Costo hoy / mes" value={`${usd(d.ai.costToday)} / ${usd(d.ai.costMonth)}`} />
+            <Stat t={t} label="Costo hoy" value={usd(d.ai.costToday)} />
           </div>
+          <p className={`mt-2 text-xs ${t.muted}`}>Costo de IA del mes: {usd(d.ai.costMonth)}</p>
           <div className="mt-3 space-y-1.5">
             {d.ai.agents.slice(0, 5).map((a) => (
               <div key={a.id} className="flex items-center gap-2 text-sm">
@@ -338,7 +339,7 @@ export default function CommandCenter() {
             {d.marketing.upcoming.map((p) => (
               <div key={p.id} className="flex items-center gap-2 text-sm">
                 <MkChannelIcon channel={p.channel} size={tv ? 20 : 16} />
-                <span className={`flex-1 truncate ${t.text}`}>{p.agent ? '🤖 ' : ''}{p.title}</span>
+                <span className={`flex-1 truncate ${t.text}`}>{p.agent ? '🤖  ' : ''}{p.title}</span>
                 <span className={`text-xs tabular-nums ${t.muted}`}>{new Date(p.at).getTime() - now < 24 * 3600_000 ? time(p.at) : dayLabel(new Date(new Date(p.at).getTime() - 5 * 3600_000).toISOString().slice(0, 10))}</span>
               </div>
             ))}
@@ -376,7 +377,7 @@ export default function CommandCenter() {
                   <span className={`rounded-lg p-1.5 ${meta.cls}`}><Icon size={tv ? 18 : 14} /></span>
                   <div className="min-w-0 flex-1">
                     <p className={`truncate ${tv ? 'text-base' : 'text-sm'} ${t.text}`}>{a.text}</p>
-                    {a.detail && <p className={`truncate text-[11px] ${t.muted}`}>{a.kind === 'post' ? POST_CHANNEL[a.detail] ?? a.detail : a.kind === 'conversation' ? channelLabel(a.detail) : a.detail}</p>}
+                    {a.detail && <p className={`truncate text-[11px] ${t.muted}`}>{a.kind === 'conversation' ? channelLabel(a.detail) : a.detail}</p>}
                   </div>
                   <span className={`shrink-0 text-[11px] tabular-nums ${t.faint}`}>{ago(a.at, now)}</span>
                 </div>

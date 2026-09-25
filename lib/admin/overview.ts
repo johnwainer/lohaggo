@@ -47,16 +47,29 @@ async function activity(since: Date) {
     prisma.payment.findMany({ where: { status: 'APPROVED', paidAt: { gte: since } }, orderBy: { paidAt: 'desc' }, take, select: { id: true, paidAt: true, totalAmount: true, booking: { select: { service: { select: { name: true } } } } } }),
     prisma.user.findMany({ where: { createdAt: { gte: since }, role: { in: ['CLIENT', 'PARTNER'] } }, orderBy: { createdAt: 'desc' }, take, select: { id: true, createdAt: true, role: true, name: true } }),
     prisma.conversation.findMany({ where: { createdAt: { gte: since }, isTest: false, aiSpam: false }, orderBy: { createdAt: 'desc' }, take, select: { id: true, createdAt: true, channel: true, contactName: true } }),
-    prisma.marketingPublication.findMany({ where: { status: 'published', publishedAt: { gte: since } }, orderBy: { publishedAt: 'desc' }, take, select: { id: true, publishedAt: true, channel: true, post: { select: { title: true, origin: true } } } }),
+    prisma.marketingPublication.findMany({ where: { status: 'published', publishedAt: { gte: since } }, orderBy: { publishedAt: 'desc' }, take: take * 3, select: { id: true, publishedAt: true, channel: true, post: { select: { title: true, origin: true } } } }),
     prisma.adminSupportCase.findMany({ where: { createdAt: { gte: since } }, orderBy: { createdAt: 'desc' }, take, select: { id: true, createdAt: true, subject: true, priority: true } }),
   ])
+  // One line per post, with all the channels it went out on (not one per network)
+  const CH: Record<string, string> = { WEB: 'Blog', FACEBOOK: 'Facebook', INSTAGRAM: 'Instagram' }
+  const postGroups = (list: typeof pubs) => {
+    const groups = new Map<string, { at: Date; title: string; agent: boolean; channels: string[]; id: string }>()
+    for (const p of list) {
+      const key = `${p.post.title}:${Math.floor(p.publishedAt!.getTime() / 3_600_000)}`
+      const g = groups.get(key) ?? { at: p.publishedAt!, title: p.post.title, agent: p.post.origin === 'agent', channels: [], id: p.id }
+      if (!g.channels.includes(CH[p.channel] ?? p.channel)) g.channels.push(CH[p.channel] ?? p.channel)
+      if (p.publishedAt! > g.at) g.at = p.publishedAt!
+      groups.set(key, g)
+    }
+    return Array.from(groups.values()).map((g) => ({ id: `m${g.id}`, at: g.at, kind: 'post', text: `${g.agent ? 'El agente publicó' : 'Publicado'}: ${g.title}`, detail: g.channels.join(', ') }))
+  }
   const first = (name?: string | null) => (name || '').trim().split(/\s+/)[0] || 'Alguien'
   const items = [
     ...bookings.map((b) => ({ id: `b${b.id}`, at: b.createdAt, kind: 'booking', text: `Nueva reserva: ${b.service.name}`, detail: `$${Math.round(b.totalPrice).toLocaleString('es-CO')} · ${b.city.charAt(0)}${b.city.slice(1).toLowerCase()}` })),
     ...payments.map((p) => ({ id: `p${p.id}`, at: p.paidAt!, kind: 'payment', text: `Pago recibido: ${p.booking.service.name}`, detail: `$${Math.round(p.totalAmount).toLocaleString('es-CO')}` })),
     ...users.map((u) => ({ id: `u${u.id}`, at: u.createdAt, kind: u.role === 'PARTNER' ? 'partner' : 'client', text: u.role === 'PARTNER' ? `Nuevo socio: ${first(u.name)}` : `Nuevo cliente: ${first(u.name)}`, detail: null })),
     ...convs.map((c) => ({ id: `c${c.id}`, at: c.createdAt, kind: 'conversation', text: `Nueva conversación de ${first(c.contactName)}`, detail: c.channel })),
-    ...pubs.map((p) => ({ id: `m${p.id}`, at: p.publishedAt!, kind: 'post', text: `${p.post.origin === 'agent' ? 'El agente publicó' : 'Publicado'}: ${p.post.title}`, detail: p.channel })),
+    ...postGroups(pubs),
     ...cases.map((c) => ({ id: `s${c.id}`, at: c.createdAt, kind: 'case', text: `Caso de soporte: ${c.subject}`, detail: c.priority })),
   ]
   return items.sort((a, b) => b.at.getTime() - a.at.getTime()).slice(0, 14)
