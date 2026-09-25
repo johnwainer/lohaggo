@@ -1,6 +1,6 @@
 import type Anthropic from '@anthropic-ai/sdk'
 import { prisma } from '@/lib/prisma'
-import { business, cleanFilters, funnelTab } from '@/lib/analytics/queries'
+import { business, cleanFilters, funnelTab, peopleTab, searchTab, serviceTab, supplyTab } from '@/lib/analytics/queries'
 import { parsePeriod } from '@/lib/analytics/core'
 import { systemOverview } from '@/lib/system/health'
 import { periodOf } from '@/lib/ai/pricing'
@@ -105,6 +105,131 @@ export const READ_TOOLS: Record<string, ReadTool> = {
       ])
       const row = (r: { _sum: { costUsd: number | null }; _count: { _all: number } }) => ({ llamadas: r._count._all, costo_usd: Math.round((r._sum.costUsd ?? 0) * 100) / 100 })
       return { por_tipo: byKind.map((r) => ({ tipo: r.kind, ...row(r) })), por_proveedor: byProvider.map((r) => ({ proveedor: r.provider, ...row(r) })) }
+    },
+  },
+  incidentes_abiertos: {
+    def: { name: 'incidentes_abiertos', description: 'Incidentes y casos de soporte abiertos (Casos e incidentes): tipo, gravedad, título, descripción, veces y desde cuándo.', input_schema: { type: 'object', properties: {} } },
+    run: async () => {
+      const [incidents, cases] = await Promise.all([
+        prisma.adminIncident.findMany({ where: { status: { in: ['OPEN', 'ACKNOWLEDGED'] } }, orderBy: [{ severity: 'desc' }, { lastSeenAt: 'desc' }], take: 20, select: { id: true, type: true, severity: true, status: true, title: true, description: true, source: true, route: true, occurrences: true, firstSeenAt: true, lastSeenAt: true } }),
+        prisma.adminSupportCase.findMany({ where: { status: { in: ['OPEN', 'IN_PROGRESS'] } }, orderBy: { createdAt: 'asc' }, take: 15 }).catch(() => []),
+      ])
+      return {
+        incidentes: incidents.map((i) => ({ ...i, description: i.description?.slice(0, 300) ?? null })),
+        casos_soporte: cases.map((c) => {
+          const r = c as Record<string, unknown>
+          return { id: r.id, estado: r.status, prioridad: r.priority ?? null, titulo: untrusted(String(r.title ?? r.subject ?? '').slice(0, 160)), vence: r.slaDueAt ?? null, creado: r.createdAt }
+        }),
+      }
+    },
+  },
+  dinero: {
+    def: { name: 'dinero', description: 'Pagos de clientes de 7 días por estado, pagos rechazados recientes con su motivo, pagos a socios fallidos o pendientes con el mensaje del procesador, pagos en efectivo por confirmar y reembolsos abiertos.', input_schema: { type: 'object', properties: {} } },
+    run: async () => {
+      const since = new Date(Date.now() - 7 * 24 * H)
+      const [byStatus, rejected, payouts, payoutsPending, cash, refunds] = await Promise.all([
+        prisma.payment.groupBy({ by: ['status'], where: { createdAt: { gte: since } }, _count: { _all: true }, _sum: { totalAmount: true } }),
+        prisma.payment.findMany({ where: { status: 'REJECTED', updatedAt: { gte: since } }, orderBy: { updatedAt: 'desc' }, take: 10, select: { id: true, totalAmount: true, paymentMethodType: true, rejectionReason: true, metadata: true, updatedAt: true } }),
+        prisma.payout.findMany({ where: { status: 'FAILED' }, orderBy: { updatedAt: 'desc' }, take: 10, select: { id: true, netAmount: true, processorStatus: true, processorMessage: true, notes: true, updatedAt: true, partner: { select: { id: true, user: { select: { name: true } } } } } }),
+        prisma.payout.aggregate({ where: { status: { in: ['PENDING', 'PROCESSING'] } }, _count: { _all: true }, _sum: { netAmount: true }, _min: { createdAt: true } }),
+        prisma.payment.findMany({ where: { status: 'PENDING', confirmationStatus: { in: ['CLIENT_REPORTED', 'PARTNER_REPORTED'] } }, take: 10, select: { id: true, totalAmount: true, confirmationStatus: true, clientReportedAt: true, reminderCount: true } }),
+        prisma.refundCase.findMany({ where: { status: { in: ['REQUESTED', 'UNDER_REVIEW', 'APPROVED', 'FAILED'] } }, take: 10, select: { id: true, status: true, requestedAmount: true, reason: true, createdAt: true } }).catch(() => []),
+      ])
+      const metaStatus = (m: string | null) => { try { const j = JSON.parse(m ?? '{}'); return j.status_detail ?? j.statusDetail ?? null } catch { return null } }
+      return {
+        pagos_7d: byStatus.map((b) => ({ estado: b.status, cantidad: b._count._all, total_cop: b._sum.totalAmount ?? 0 })),
+        rechazados: rejected.map((p) => ({ id: p.id, monto: p.totalAmount, medio: p.paymentMethodType, motivo: p.rejectionReason ?? metaStatus(p.metadata), fecha: p.updatedAt })),
+        pagos_a_socios_fallidos: payouts.map((p) => ({ id: p.id, socio: p.partner.user.name, neto: p.netAmount, estado_procesador: p.processorStatus, mensaje: p.processorMessage?.slice(0, 200) ?? null, notas: p.notes?.slice(0, 200) ?? null, fecha: p.updatedAt })),
+        pagos_a_socios_pendientes: { cantidad: payoutsPending._count._all, neto_cop: payoutsPending._sum.netAmount ?? 0, mas_antiguo: payoutsPending._min.createdAt },
+        efectivo_por_confirmar: cash,
+        reembolsos_abiertos: refunds.map((r) => ({ ...r, reason: untrusted(r.reason.slice(0, 200)) })),
+      }
+    },
+  },
+  oferta_y_demanda: {
+    def: { name: 'oferta_y_demanda', description: 'Por servicio y ciudad: solicitudes frente a socios disponibles, servicios sin socios y conversión a propuestas y reservas.', input_schema: { type: 'object', properties: { periodo: { type: 'string', enum: ['7d', '30d', '90d'] } } } },
+    run: async (i) => supplyTab(parsePeriod({ preset: period(i.periodo) }), cleanFilters()),
+  },
+  busquedas: {
+    def: { name: 'busquedas', description: 'Qué busca la gente en el sitio: totales, términos más buscados y los que no dan resultados (demanda no atendida).', input_schema: { type: 'object', properties: { periodo: { type: 'string', enum: ['7d', '30d', '90d'] } } } },
+    run: async (i) => searchTab(parsePeriod({ preset: period(i.periodo) })),
+  },
+  personas_y_adquisicion: {
+    def: { name: 'personas_y_adquisicion', description: 'Registros de clientes y socios, de dónde llegan (origen de adquisición), cohortes de recompra y actividad.', input_schema: { type: 'object', properties: { periodo: { type: 'string', enum: ['7d', '30d', '90d'] } } } },
+    run: async (i) => peopleTab(parsePeriod({ preset: period(i.periodo) }), cleanFilters()),
+  },
+  atencion: {
+    def: { name: 'atencion', description: 'Bandeja: conversaciones por canal, tiempos de primera respuesta, qué responde la IA y qué las personas.', input_schema: { type: 'object', properties: { periodo: { type: 'string', enum: ['7d', '30d', '90d'] } } } },
+    run: async (i) => serviceTab(parsePeriod({ preset: period(i.periodo) })),
+  },
+  resenas: {
+    def: { name: 'resenas', description: 'Calificaciones bajas (1 a 2 estrellas) de los últimos 30 días con el socio y el comentario, y los socios peor calificados.', input_schema: { type: 'object', properties: {} } },
+    run: async () => {
+      const since = new Date(Date.now() - 30 * 24 * H)
+      const [low, worst] = await Promise.all([
+        prisma.review.findMany({ where: { clientReviewedAt: { gte: since }, clientToPartnerRating: { lte: 2 } }, orderBy: { clientReviewedAt: 'desc' }, take: 15, select: { clientToPartnerRating: true, clientToPartnerComment: true, clientReviewedAt: true, booking: { select: { id: true, service: { select: { name: true } }, partner: { select: { id: true, user: { select: { name: true } } } } } } } }),
+        prisma.partnerProfile.findMany({ where: { totalReviews: { gte: 3 }, isActive: true }, orderBy: { rating: 'asc' }, take: 5, select: { id: true, rating: true, totalReviews: true, user: { select: { name: true } } } }),
+      ])
+      return {
+        bajas_30d: low.map((r) => ({ estrellas: r.clientToPartnerRating, servicio: r.booking.service?.name ?? null, socio: r.booking.partner?.user.name ?? null, socio_id: r.booking.partner?.id ?? null, comentario: untrusted(r.clientToPartnerComment?.slice(0, 240) ?? ''), fecha: r.clientReviewedAt })),
+        socios_peor_calificados: worst.map((p) => ({ id: p.id, nombre: p.user.name, calificacion: p.rating, resenas: p.totalReviews })),
+      }
+    },
+  },
+  socios: {
+    def: { name: 'socios', description: 'Socios: verificados, disponibles, activos sin verificar, nuevos de 7 días y por ciudad; los que más y menos trabajan.', input_schema: { type: 'object', properties: {} } },
+    run: async () => {
+      const week = new Date(Date.now() - 7 * 24 * H)
+      const [byCity, pending, fresh, top] = await Promise.all([
+        prisma.partnerProfile.groupBy({ by: ['city', 'verified', 'isAvailable'], where: { isActive: true }, _count: { _all: true } }),
+        prisma.partnerProfile.findMany({ where: { verified: false, isActive: true }, orderBy: { createdAt: 'asc' }, take: 10, select: { id: true, city: true, createdAt: true, _count: { select: { documents: true, services: true } } } }),
+        prisma.partnerProfile.count({ where: { createdAt: { gte: week } } }),
+        prisma.partnerProfile.findMany({ where: { isActive: true, verified: true }, orderBy: { completedServicesCount: 'desc' }, take: 5, select: { id: true, completedServicesCount: true, rating: true, user: { select: { name: true } } } }),
+      ])
+      return {
+        por_ciudad: byCity.map((b) => ({ ciudad: b.city, verificado: b.verified, disponible: b.isAvailable, cantidad: b._count._all })),
+        sin_verificar: pending.map((p) => ({ id: p.id, ciudad: p.city, dias: Math.round((Date.now() - p.createdAt.getTime()) / (24 * H)), documentos: p._count.documents, servicios: p._count.services })),
+        nuevos_7d: fresh,
+        los_que_mas_trabajan: top.map((p) => ({ id: p.id, nombre: p.user.name, servicios: p.completedServicesCount, calificacion: p.rating })),
+      }
+    },
+  },
+  mensajeria: {
+    def: { name: 'mensajeria', description: 'Campañas de mensajes recientes (WhatsApp, correo, SMS, push) con enviados y fallidos, y los errores más comunes de envío en 24 h.', input_schema: { type: 'object', properties: {} } },
+    run: async () => {
+      const day = new Date(Date.now() - 24 * H)
+      const [campaigns, errors, byStatus] = await Promise.all([
+        prisma.messagingCampaign.findMany({ where: { updatedAt: { gte: new Date(Date.now() - 7 * 24 * H) } }, orderBy: { updatedAt: 'desc' }, take: 10, select: { id: true, name: true, channel: true, status: true, totalRecipients: true, totalSent: true, totalFailed: true, scheduledAt: true } }),
+        prisma.messagingDelivery.groupBy({ by: ['channel', 'errorCode'], where: { createdAt: { gte: day }, status: 'FAILED' }, _count: { _all: true } }),
+        prisma.messagingDelivery.groupBy({ by: ['channel', 'status'], where: { createdAt: { gte: day } }, _count: { _all: true } }),
+      ])
+      return { campanas_7d: campaigns, envios_24h: byStatus.map((b) => ({ canal: b.channel, estado: b.status, n: b._count._all })), errores_24h: errors.map((e) => ({ canal: e.channel, codigo: e.errorCode, n: e._count._all })) }
+    },
+  },
+  seguridad: {
+    def: { name: 'seguridad', description: 'Eventos de seguridad de 24 h por tipo y gravedad, IP bloqueadas y rutas más atacadas.', input_schema: { type: 'object', properties: {} } },
+    run: async () => {
+      const day = new Date(Date.now() - 24 * H)
+      const [byType, byPath, blocked] = await Promise.all([
+        prisma.securityEvent.groupBy({ by: ['threatType', 'severity'], where: { createdAt: { gte: day } }, _count: { _all: true } }),
+        prisma.securityEvent.groupBy({ by: ['path'], where: { createdAt: { gte: day } }, _count: { _all: true }, orderBy: { _count: { path: 'desc' } }, take: 8 }),
+        prisma.blockedIp.count({ where: { isActive: true } }),
+      ])
+      return { por_tipo: byType.map((b) => ({ tipo: b.threatType, gravedad: b.severity, n: b._count._all })), rutas: byPath.map((b) => ({ ruta: b.path, n: b._count._all })), ip_bloqueadas: blocked }
+    },
+  },
+  agentes_marketing: {
+    def: { name: 'agentes_marketing', description: 'Ejecuciones de los agentes de marketing en 48 h (estrategia, plan, redacción, programación, aprendizaje) con resultado, error y costo, y su gasto del mes.', input_schema: { type: 'object', properties: {} } },
+    run: async () => {
+      const runs = await prisma.marketingAgentRun.findMany({ where: { startedAt: { gte: new Date(Date.now() - 48 * H) } }, orderBy: { startedAt: 'desc' }, take: 30, select: { agentId: true, type: true, status: true, summary: true, error: true, costUsd: true, startedAt: true, agent: { select: { campaign: { select: { name: true } } } } } })
+      return runs.map((r) => ({ campana: r.agent.campaign.name, tipo: r.type, estado: r.status, resumen: r.summary?.slice(0, 160) ?? null, error: r.error?.slice(0, 200) ?? null, costo_usd: r.costUsd, fecha: r.startedAt }))
+    },
+  },
+  publicidad: {
+    def: { name: 'publicidad', description: 'Anuncios internos del sitio (Publicidad): activos, vencidos, impresiones, clics y CTR.', input_schema: { type: 'object', properties: {} } },
+    run: async () => {
+      const ads = await prisma.advertisement.findMany({ orderBy: { updatedAt: 'desc' }, take: 20, select: { id: true, title: true, placement: true, active: true, startDate: true, endDate: true, impressions: true, clicks: true } })
+      return ads.map((a) => ({ ...a, vencido: Boolean(a.endDate && a.endDate < new Date()), ctr: a.impressions ? Math.round((a.clicks / a.impressions) * 1000) / 10 : null }))
     },
   },
   hallazgos_abiertos: {

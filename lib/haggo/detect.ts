@@ -6,13 +6,18 @@ export type Snapshot = {
   sales: { today: number; todayDelta: number | null; month: number; monthDelta: number | null; last7: number; prev7: number }
   bookings: { today: number; pending: number; cancelledToday: number; last7: number; prev7: number }
   requests: { active: number; withoutProposals: number }
-  partners: { available: number; verified: number }
+  partners: { available: number; verified: number; pendingVerification: number }
   payouts: { pending: number; failed: number; paymentsToConfirm: number }
+  payments: { rejected24h: number; pendingOld: number; refundsOpen: number }
+  reviews: { low7d: number }
+  search: { total24h: number; zero24h: number }
+  messaging: { sent24h: number; failed24h: number }
+  security: { events24h: number; high24h: number; blockedIps: number }
   inbox: { open: number; unassigned: number; waiting: number; aiHandling: number; inboundToday: number; handoffsToday: number }
   aiAgents: Array<{ id: string; name: string; messagesToday: number; handoffsToday: number; openGaps: number }>
   aiCost: { today: number; month: number }
   aiProviders: { down: Array<{ name: string; reason: string }>; answering: string | null }
-  marketing: { inReview: number; failedWeek: number; scheduledToday: number; ideasPending: number; degraded: Array<{ id: string; campaign: string; reason: string }> }
+  marketing: { inReview: number; failedWeek: number; scheduledToday: number; ideasPending: number; runErrors24h: number; degraded: Array<{ id: string; campaign: string; reason: string }> }
   quality: { rating: number | null; casesOpen: number; casesSla: number }
   channels: { problems: string[] }
   system: { cronsFailing: number; cronsLate: number; errorsLastHour: number; criticalIncidents: number }
@@ -43,6 +48,14 @@ export function detect(s: Snapshot): Detection[] {
   if (s.requests.withoutProposals) add({ key: 'ops:requests-no-proposals', domain: 'operations', severity: 'warning', title: `${plural(s.requests.withoutProposals, 'solicitud', 'solicitudes')} sin propuestas hace más de 2 h`, detail: `${s.requests.active} solicitudes activas, ${s.partners.available} socios disponibles.` })
   if (s.payouts.failed) add({ key: 'money:payouts-failed', domain: 'money', severity: 'warning', title: `${plural(s.payouts.failed, 'pago a socio falló', 'pagos a socios fallaron')}`, detail: 'Revisar en Pagos a Socios.' })
   if (s.payouts.paymentsToConfirm) add({ key: 'money:payments-to-confirm', domain: 'money', severity: 'info', title: `${plural(s.payouts.paymentsToConfirm, 'pago en efectivo', 'pagos en efectivo')} por confirmar`, detail: 'Reportados por cliente o socio.' })
+  if (s.payments.rejected24h >= 3) add({ key: 'money:payments-rejected', domain: 'money', severity: 'warning', title: `${s.payments.rejected24h} pagos rechazados en 24 h`, detail: 'Puede ser un problema con MercadoPago o con los medios de pago.' })
+  if (s.payments.pendingOld) add({ key: 'money:payments-pending-old', domain: 'money', severity: 'info', title: `${plural(s.payments.pendingOld, 'pago lleva', 'pagos llevan')} más de 24 h pendiente${s.payments.pendingOld === 1 ? '' : 's'}`, detail: 'Pagos sin aprobar ni rechazar.' })
+  if (s.payments.refundsOpen) add({ key: 'money:refunds-open', domain: 'money', severity: 'warning', title: `${plural(s.payments.refundsOpen, 'reembolso abierto', 'reembolsos abiertos')}`, detail: 'Solicitudes de reembolso sin cerrar.' })
+  if (s.reviews.low7d >= 2) add({ key: 'quality:low-reviews', domain: 'operations', severity: 'warning', title: `${s.reviews.low7d} calificaciones de 1 o 2 estrellas en 7 días`, detail: `Calificación de 30 días: ${s.quality.rating ?? 'sin datos'}.` })
+  if (s.search.zero24h >= 5 && s.search.zero24h / Math.max(1, s.search.total24h) >= 0.2) add({ key: 'demand:zero-results', domain: 'operations', severity: 'info', title: `${s.search.zero24h} de ${s.search.total24h} búsquedas sin resultados en 24 h`, detail: 'Demanda que la plataforma no está atendiendo.' })
+  if (s.messaging.failed24h >= 5 && s.messaging.failed24h / Math.max(1, s.messaging.sent24h + s.messaging.failed24h) > 0.2) add({ key: 'sys:deliveries-failing', domain: 'system', severity: 'warning', title: `${s.messaging.failed24h} envíos de mensajes fallaron en 24 h`, detail: `${s.messaging.sent24h} enviados.` })
+  if (s.security.high24h) add({ key: 'sys:security-high', domain: 'system', severity: 'warning', title: `${plural(s.security.high24h, 'evento de seguridad grave', 'eventos de seguridad graves')} en 24 h`, detail: `${s.security.events24h} eventos en total, ${s.security.blockedIps} IP bloqueadas.` })
+  if (s.partners.pendingVerification >= 3) add({ key: 'users:partners-pending', domain: 'users', severity: 'info', title: `${s.partners.pendingVerification} socios activos sin verificar`, detail: 'No reciben solicitudes hasta verificarse.' })
   if (s.quality.casesSla) add({ key: 'ops:cases-sla', domain: 'operations', severity: 'warning', title: `${plural(s.quality.casesSla, 'caso', 'casos')} de soporte con el plazo vencido`, detail: `${s.quality.casesOpen} casos abiertos.` })
 
   for (const a of s.aiAgents) {
@@ -62,6 +75,7 @@ export function detect(s: Snapshot): Detection[] {
 
   if (s.marketing.failedWeek) add({ key: 'mk:failed', domain: 'marketing', severity: 'warning', title: `${plural(s.marketing.failedWeek, 'publicación falló', 'publicaciones fallaron')} en 7 días`, detail: 'Revisar errores de publicación.' })
   for (const d of s.marketing.degraded) add({ key: `mk:degraded:${d.id}`, domain: 'marketing', severity: 'warning', title: `El agente de marketing de «${d.campaign}» está en copiloto forzado`, detail: d.reason, entityType: 'MarketingAgent', entityId: d.id })
+  if (s.marketing.runErrors24h >= 3) add({ key: 'mk:agent-errors', domain: 'marketing', severity: 'warning', title: `El agente de marketing falló ${s.marketing.runErrors24h} veces en 24 h`, detail: 'Revisar sus ejecuciones.' })
   if (s.marketing.inReview >= 5) add({ key: 'mk:review-backlog', domain: 'marketing', severity: 'info', title: `${s.marketing.inReview} publicaciones esperan revisión`, detail: 'Se acumulan borradores sin aprobar.' })
 
   if (s.channels.problems.length) add({ key: `sys:channels:${[...s.channels.problems].sort().join(',')}`, domain: 'system', severity: 'critical', title: `Canales con problemas: ${s.channels.problems.join(', ')}`, detail: 'Hay que reconectarlos.' })

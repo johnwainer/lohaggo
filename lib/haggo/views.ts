@@ -3,6 +3,7 @@ import { bogotaKey } from '@/lib/admin/overview-core'
 import { periodOf } from '@/lib/ai/pricing'
 import { getHaggoConfig, getHaggoRow, haggoSpend, HAGGO_KINDS } from '@/lib/haggo/store'
 import { inQuietHours, nextRuns } from '@/lib/haggo/schedule'
+import { DOMAINS } from '@/lib/haggo/config'
 
 const SEV_ORDER: Record<string, number> = { critical: 0, warning: 1, info: 2 }
 const bySeverity = <T extends { severity: string; lastSeenAt: Date }>(a: T, b: T) => (SEV_ORDER[a.severity] ?? 3) - (SEV_ORDER[b.severity] ?? 3) || b.lastSeenAt.getTime() - a.lastSeenAt.getTime()
@@ -32,6 +33,11 @@ export async function haggoOverview(now = new Date()) {
     next: nextRuns(cfg, { cycle: cycle?.startedAt, daily: daily?.startedAt, weekly: weekly?.startedAt }, now),
     budget: { ...spend, monthlyUsd: cfg.monthlyBudgetUsd, dailyUsd: cfg.dailyBudgetUsd },
     findings: findings.sort(bySeverity),
+    // Every area Haggo watches, with its worst open finding: the whole platform at a glance
+    areas: DOMAINS.map((d) => {
+      const mine = findings.filter((f) => f.domain === d)
+      return { domain: d, critical: mine.filter((f) => f.severity === 'critical').length, warning: mine.filter((f) => f.severity === 'warning').length, info: mine.filter((f) => f.severity === 'info').length }
+    }),
     runs,
     pendingApprovals: pending,
   }

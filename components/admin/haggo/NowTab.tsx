@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { AlertCircle, CalendarClock, Loader2, Moon, Pause, Play, Radar, Wallet } from 'lucide-react'
 import { MODE_LABEL, type HaggoConfig } from '@/lib/haggo/config'
 import { FindingList } from '@/components/admin/haggo/FindingList'
-import { ago, api, btn, btnPrimary, card, RUN_TYPE, runStatus, TRIGGER, until, usd, when, type Finding, type Run } from '@/components/admin/haggo/shared'
+import { ago, api, btn, btnPrimary, card, domainLabel, RUN_TYPE, runStatus, TRIGGER, until, usd, when, type Finding, type Run } from '@/components/admin/haggo/shared'
 
 export type Overview = {
   config: HaggoConfig
@@ -16,6 +16,7 @@ export type Overview = {
   next: Record<'cycle' | 'daily' | 'weekly', string | null>
   budget: { monthUsd: number; todayUsd: number; calls: number; blocked: 'month' | 'day' | null; monthlyUsd: number; dailyUsd: number }
   findings: Finding[]
+  areas: Array<{ domain: string; critical: number; warning: number; info: number }>
   runs: Run[]
   pendingApprovals: number
 }
@@ -78,6 +79,25 @@ export function NowTab({ data, reload }: { data: Overview; reload: () => void })
         </div>
         {running && <p className="mt-3 text-xs text-gray-500">Haggo está investigando con sus herramientas; puede tardar uno o dos minutos.</p>}
         {msg && <p className={`mt-3 flex items-center gap-1.5 text-sm ${msg.ok ? 'text-emerald-700' : 'text-rose-600'}`}>{!msg.ok && <AlertCircle size={15} />}{msg.text}</p>}
+      </section>
+
+      <section className={`${card} p-5`}>
+        <div className="mb-3 flex flex-wrap items-baseline gap-2">
+          <h2 className="font-semibold text-gray-900">Toda la plataforma</h2>
+          <span className="text-xs text-gray-500">Cada revisión valida todas las áreas{data.lastSnapshotAt ? ` · última ${ago(data.lastSnapshotAt)}` : ''}</span>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {data.areas.map((a) => {
+            const tone = a.critical ? 'border-rose-200 bg-rose-50' : a.warning ? 'border-amber-200 bg-amber-50' : 'border-emerald-200 bg-emerald-50'
+            const dot = a.critical ? 'bg-rose-500' : a.warning ? 'bg-amber-500' : 'bg-emerald-500'
+            return (
+              <div key={a.domain} className={`rounded-xl border px-3 py-2.5 ${tone}`}>
+                <p className="flex items-center gap-1.5 text-sm font-medium text-gray-900"><span className={`h-2 w-2 rounded-full ${dot}`} />{domainLabel(a.domain)}</p>
+                <p className="mt-0.5 text-xs text-gray-600">{a.critical || a.warning || a.info ? [a.critical && `${a.critical} crítico${a.critical > 1 ? 's' : ''}`, a.warning && `${a.warning} aviso${a.warning > 1 ? 's' : ''}`, a.info && `${a.info} info`].filter(Boolean).join(' · ') : 'En orden'}</p>
+              </div>
+            )
+          })}
+        </div>
       </section>
 
       <div className="grid gap-4 md:grid-cols-2">

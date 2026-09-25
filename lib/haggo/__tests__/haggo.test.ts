@@ -1,8 +1,13 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+vi.mock('@/lib/prisma', () => ({ prisma: {} }))
+vi.mock('@/lib/logger', () => ({ createLogger: () => ({ info() {}, warn() {}, error() {} }) }))
 import { DEFAULT_CONFIG, modeFor, normalizeConfig, parseQuietHours } from '@/lib/haggo/config'
 import { dueJobs, inQuietHours, localParts, nextRuns } from '@/lib/haggo/schedule'
 import { detect, novelDetections, type Snapshot } from '@/lib/haggo/detect'
-import { parseAnalysis, parseReport, untrusted } from '@/lib/haggo/prompt'
+import { parseAnalysis, parseReport, REVIEW_CHECKLIST, untrusted } from '@/lib/haggo/prompt'
+import { READ_TOOLS } from '@/lib/haggo/tools/read'
+import { DOMAINS } from '@/lib/haggo/config'
 
 // Bogotá is UTC-5 all year
 const bog = (iso: string) => new Date(`${iso}-05:00`)
@@ -93,13 +98,18 @@ const base: Snapshot = {
   sales: { today: 0, todayDelta: null, month: 0, monthDelta: null, last7: 0, prev7: 0 },
   bookings: { today: 0, pending: 0, cancelledToday: 0, last7: 0, prev7: 0 },
   requests: { active: 0, withoutProposals: 0 },
-  partners: { available: 5, verified: 8 },
+  partners: { available: 5, verified: 8, pendingVerification: 0 },
   payouts: { pending: 0, failed: 0, paymentsToConfirm: 0 },
+  payments: { rejected24h: 0, pendingOld: 0, refundsOpen: 0 },
+  reviews: { low7d: 0 },
+  search: { total24h: 0, zero24h: 0 },
+  messaging: { sent24h: 0, failed24h: 0 },
+  security: { events24h: 0, high24h: 0, blockedIps: 0 },
   inbox: { open: 0, unassigned: 0, waiting: 0, aiHandling: 0, inboundToday: 0, handoffsToday: 0 },
   aiAgents: [],
   aiCost: { today: 0, month: 0 },
   aiProviders: { down: [], answering: null },
-  marketing: { inReview: 0, failedWeek: 0, scheduledToday: 0, ideasPending: 0, degraded: [] },
+  marketing: { inReview: 0, failedWeek: 0, scheduledToday: 0, ideasPending: 0, runErrors24h: 0, degraded: [] },
   quality: { rating: null, casesOpen: 0, casesSla: 0 },
   channels: { problems: [] },
   system: { cronsFailing: 0, cronsLate: 0, errorsLastHour: 0, criticalIncidents: 0 },
@@ -144,7 +154,21 @@ describe('reglas de detección', () => {
   })
 
   it('sin socios disponibles con solicitudes activas es crítico', () => {
-    expect(keys({ partners: { available: 0, verified: 3 }, requests: { active: 3, withoutProposals: 0 } })).toEqual(['ops:no-partners'])
+    expect(keys({ partners: { available: 0, verified: 3, pendingVerification: 0 }, requests: { active: 3, withoutProposals: 0 } })).toEqual(['ops:no-partners'])
+  })
+
+  it('dinero, calidad, demanda, mensajería, seguridad, socios y agente de marketing', () => {
+    expect(keys({
+      payments: { rejected24h: 3, pendingOld: 1, refundsOpen: 2 },
+      reviews: { low7d: 2 },
+      search: { total24h: 20, zero24h: 6 },
+      messaging: { sent24h: 10, failed24h: 5 },
+      security: { events24h: 40, high24h: 1, blockedIps: 2 },
+      partners: { available: 5, verified: 8, pendingVerification: 3 },
+      marketing: { ...base.marketing, runErrors24h: 3 },
+    })).toEqual(['money:payments-rejected', 'money:payments-pending-old', 'money:refunds-open', 'quality:low-reviews', 'demand:zero-results', 'sys:deliveries-failing', 'sys:security-high', 'users:partners-pending', 'mk:agent-errors'])
+    // Pocas búsquedas sin resultado sobre muchas no es señal
+    expect(keys({ search: { total24h: 200, zero24h: 6 } })).toEqual([])
   })
 
   it('novedad: lo que no estaba antes o empeoró', () => {
@@ -174,5 +198,25 @@ describe('lo que devuelve el modelo', () => {
   it('informe: exige título y cuerpo', () => {
     expect(parseReport({ titulo: 'Jueves', informe: 'Ventas estables', resumen: 'ok', foco: 'x', recomendaciones: [{ dominio: 'marketing', titulo: 'Más reels', por_que: 'rinden' }, { dominio: 'nada', titulo: 'x' }] })?.recommendations).toEqual([{ domain: 'marketing', title: 'Más reels', why: 'rinden' }])
     expect(parseReport({ titulo: 'x' })).toBeNull()
+  })
+})
+
+describe('visión completa', () => {
+  it('la revisión completa cubre las áreas con herramientas que existen, y todas las herramientas se usan', () => {
+    const listed = REVIEW_CHECKLIST.flatMap((c) => c.tools)
+    for (const t of listed) expect(READ_TOOLS[t], t).toBeDefined()
+    const unused = Object.keys(READ_TOOLS).filter((t) => !listed.includes(t) && t !== 'hallazgos_abiertos')
+    expect(unused).toEqual([])
+  })
+
+  it('las reglas cubren todas las áreas de Haggo', () => {
+    const hot: Snapshot = {
+      ...base,
+      inbox: { ...base.inbox, waiting: 1 }, requests: { active: 1, withoutProposals: 1 }, payouts: { pending: 0, failed: 1, paymentsToConfirm: 0 },
+      aiAgents: [{ id: 'a', name: 'A', messagesToday: 0, handoffsToday: 5, openGaps: 0 }], marketing: { ...base.marketing, failedWeek: 1 },
+      system: { ...base.system, cronsFailing: 1 }, partners: { available: 5, verified: 5, pendingVerification: 3 },
+    }
+    const covered = new Set(detect(hot).map((d) => d.domain))
+    expect(DOMAINS.filter((d) => d !== 'config' && !covered.has(d))).toEqual([])
   })
 })

@@ -16,6 +16,8 @@ import { ANALYSIS_TOOL, REPORT_TOOL, buildSystem, cycleTask, parseAnalysis, pars
 const logger = createLogger('haggo')
 const H = 3600_000
 const MAX_ROUNDS = 8
+/** The full review goes through every area: more rounds, several tools per round */
+const REPORT_ROUNDS = 14
 const CALL_TIMEOUT_MS = 150_000
 
 export type RunType = 'cycle' | 'daily' | 'weekly'
@@ -52,11 +54,12 @@ async function context() {
  * The investigation loop: read tools as many rounds as needed, then the final tool. An answer without
  * the final tool gets one reminder; results never come from free text.
  */
-async function think(p: { kind: AiCallKind; model: string; system: Anthropic.TextBlockParam[]; task: string; finalTool: Anthropic.Tool; maxTokens: number; effort: Effort }, meter: Meter) {
+async function think(p: { kind: AiCallKind; model: string; system: Anthropic.TextBlockParam[]; task: string; finalTool: Anthropic.Tool; maxTokens: number; effort: Effort; rounds?: number }, meter: Meter) {
+  const maxRounds = p.rounds ?? MAX_ROUNDS
   const messages: Anthropic.MessageParam[] = [{ role: 'user', content: p.task }]
   const tools = [...READ_TOOL_DEFS, p.finalTool]
   let reminded = false
-  for (let round = 0; round < MAX_ROUNDS; round++) {
+  for (let round = 0; round < maxRounds; round++) {
     let r: CallResult
     try {
       r = await callAI({ model: p.model, system: p.system, messages, tools, maxTokens: p.maxTokens, effort: p.effort, timeoutMs: CALL_TIMEOUT_MS }, { kind: p.kind })
@@ -78,7 +81,7 @@ async function think(p: { kind: AiCallKind; model: string; system: Anthropic.Tex
     const results = await Promise.all(uses.map((u) => runReadTool(u.name, u.input)))
     messages.push({ role: 'assistant', content: r.message.content })
     const blocks: Anthropic.ContentBlockParam[] = uses.map((u, i) => ({ type: 'tool_result', tool_use_id: u.id, content: results[i].output, ...(results[i].isError ? { is_error: true } : {}) }))
-    if (round >= MAX_ROUNDS - 2) blocks.push({ type: 'text', text: `No hay más consultas: entrega el resultado ahora con ${p.finalTool.name}.` })
+    if (round >= maxRounds - 2) blocks.push({ type: 'text', text: `No hay más consultas: entrega el resultado ahora con ${p.finalTool.name}.` })
     messages.push({ role: 'user', content: blocks })
   }
   throw new HaggoError('El análisis no terminó en el número de vueltas permitido')
@@ -188,7 +191,7 @@ export async function runReport(cfg: HaggoConfig, kind: 'daily' | 'weekly', now 
       await prisma.haggoRun.update({ where: { id: run.id }, data: { status: 'ok', summary: 'Informe solo con reglas (presupuesto agotado)', report: body, finishedAt: new Date() } })
       return { status: 'ok', summary: 'Informe solo con reglas', costUsd: 0 }
     }
-    const input = await think({ kind: 'haggo_report', model: await modelFor(cfg), system: await context(), task: reportTask({ kind, snapshot, runs, findings, nowText: nowText(now, cfg.timezone) }), finalTool: REPORT_TOOL, maxTokens: 8000, effort: 'high' }, meter)
+    const input = await think({ kind: 'haggo_report', model: await modelFor(cfg), system: await context(), task: reportTask({ kind, snapshot, runs, findings, nowText: nowText(now, cfg.timezone) }), finalTool: REPORT_TOOL, maxTokens: 10000, effort: 'high', rounds: REPORT_ROUNDS }, meter)
     const report = parseReport(input)
     if (!report) throw new HaggoError('El informe no es válido')
     await prisma.haggoSettings.update({ where: { id: 'platform' }, data: { focus: report.focus || undefined } })
