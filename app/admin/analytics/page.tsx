@@ -81,7 +81,7 @@ function AnalyticsInner() {
   const [city, setCity] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [options, setOptions] = useState<{ categories: Array<{ id: string; name: string }>; cities: string[] } | null>(null)
-  const [data, setData] = useState<{ period: { label: string }; data: Record<string, unknown> & { configured?: boolean } } | null>(null)
+  const [data, setData] = useState<{ tab: Tab; period: { label: string }; data: Record<string, unknown> & { configured?: boolean } } | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const meta = TABS.find((t) => t.key === tab)!
@@ -100,7 +100,7 @@ function AnalyticsInner() {
       const res = await fetch(`/api/admin/analytics?${q}`)
       const d = await res.json()
       if (!res.ok) throw new Error(d.error || `Error ${res.status}`)
-      setData(d)
+      setData({ ...d, tab })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error')
       setData(null)
@@ -110,7 +110,8 @@ function AnalyticsInner() {
   }, [tab, preset, custom, city, categoryId, meta.filters])
   useEffect(() => { setData(null); load() }, [load])
 
-  const d = data?.data
+  // Only the data fetched for this tab: another tab's shape would break the charts while switching
+  const d = data?.tab === tab ? data.data : undefined
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
