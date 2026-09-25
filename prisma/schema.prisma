@@ -1630,6 +1630,7 @@ model Workspace {
   marketingCampaigns  MarketingCampaign[]
   marketingPosts      MarketingPost[]
   marketingBrandKit   MarketingBrandKit?
+  marketingAgents     MarketingAgent[]
 
   @@index([isDefault])
 }
@@ -2033,6 +2034,7 @@ model MarketingCampaign {
   updatedAt   DateTime        @updatedAt
   workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   posts       MarketingPost[]
+  agent       MarketingAgent?
 
   @@index([workspaceId, status])
 }
@@ -2049,10 +2051,24 @@ model MarketingPost {
   createdById  String?
   approvedById String?
   approvedAt   DateTime?
+  /// human | agent
+  origin            String                 @default("human")
+  agentId           String?
+  ideaId            String?
+  pillar            String?
+  /// Supervised mode: goes out unless someone cancels or edits it before this
+  optOutDeadline    DateTime?
+  agentNoticeSentAt DateTime?
+  rejectedReason    String?
+  /// Variables the agent learns from: pillar, format, channel, slot, length, hashtags, image source, service, CTA
+  features          Json?
+  /// Agent's own notes: confidence, risks, hypothesis, why this time, guardrail issues
+  agentMeta         Json?
   createdAt    DateTime               @default(now())
   updatedAt    DateTime               @updatedAt
   workspace    Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   campaign     MarketingCampaign?     @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  agent        MarketingAgent?        @relation(fields: [agentId], references: [id], onDelete: SetNull)
   variants     MarketingPostVariant[]
   media        MarketingMedia[]
   publications MarketingPublication[]
@@ -2060,6 +2076,7 @@ model MarketingPost {
   @@index([workspaceId, status])
   @@index([campaignId])
   @@index([scheduledAt])
+  @@index([agentId, status])
 }
 
 model MarketingPostVariant {
@@ -2203,4 +2220,151 @@ model MarketingBrandKit {
   autoApply    Boolean   @default(true)
   updatedAt    DateTime  @updatedAt
   workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+// ─── Marketing agent: strategist that plans, writes, schedules and learns for one campaign ─────
+
+/// The agent's mind for one campaign: onboarding config, approved strategy, autonomy and limits
+model MarketingAgent {
+  id                    String                   @id @default(cuid())
+  workspaceId           String
+  campaignId            String                   @unique
+  /// draft | active | paused | finished
+  status                String                   @default("draft")
+  /// copilot | supervised | autopilot
+  mode                  String                   @default("copilot")
+  /// Optional stricter mode per channel: { "WEB": "copilot" }
+  modeByChannel         Json?
+  /// Onboarding answers (validated by lib/marketing/agent-input.ts)
+  config                Json
+  strategy              Json?
+  strategyProposedAt    DateTime?
+  strategyApprovedAt    DateTime?
+  strategyApprovedById  String?
+  trialPostsRemaining   Int                      @default(5)
+  optOutHours           Int                      @default(24)
+  monthlyBudgetUsd      Float                    @default(10)
+  confidenceThreshold   Float                    @default(0.7)
+  exploreRatio          Float                    @default(0.3)
+  horizonDays           Int                      @default(14)
+  /// Who confirmed supervised/autopilot and when (audit)
+  autonomyConfirmedAt   DateTime?
+  autonomyConfirmedById String?
+  /// Set while the agent is forced to copilot (budget, broken token); null when it runs in its mode
+  degradedReason        String?
+  budgetWarnedPeriod    String?
+  lastPlannedAt         DateTime?
+  lastLearnedAt         DateTime?
+  lastRunAt             DateTime?
+  /// Cron lock: one run per agent at a time
+  lockedUntil           DateTime?
+  createdById           String?
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+  workspace             Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  campaign              MarketingCampaign        @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  posts                 MarketingPost[]
+  ideas                 MarketingIdea[]
+  runs                  MarketingAgentRun[]
+  learnings             MarketingAgentLearning[]
+  notices               MarketingAgentNotice[]
+
+  @@index([status])
+  @@index([workspaceId])
+}
+
+/// Backlog of the agent: what to publish, why, and when
+model MarketingIdea {
+  id             String         @id @default(cuid())
+  agentId        String
+  pillar         String
+  service        String?
+  angle          String
+  hypothesis     String?
+  channels       String[]       @default([])
+  /// Format per channel: { "INSTAGRAM": "feed", "WEB": "guía" }
+  formats        Json?
+  targetDate     DateTime
+  /// morning | midday | evening
+  slotHint       String?
+  rationale      String?
+  /// proposed | accepted | rejected | drafted | discarded
+  status         String         @default("proposed")
+  rejectedReason String?
+  postId         String?        @unique
+  score          Float          @default(0)
+  explore        Boolean        @default(false)
+  decidedById    String?
+  decidedAt      DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  agent          MarketingAgent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([agentId, status])
+  @@index([agentId, targetDate])
+}
+
+/// One execution of the agent (strategy, plan, draft, schedule, learn, notice): what it did, why and at what cost
+model MarketingAgentRun {
+  id         String         @id @default(cuid())
+  agentId    String
+  /// strategy | plan | draft | schedule | learn | notice
+  type       String
+  /// running | ok | skipped | error
+  status     String         @default("running")
+  summary    String?
+  input      Json?
+  output     Json?
+  costUsd    Float          @default(0)
+  tokensIn   Int            @default(0)
+  tokensOut  Int            @default(0)
+  model      String?
+  error      String?
+  startedAt  DateTime       @default(now())
+  finishedAt DateTime?
+  agent      MarketingAgent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([agentId, startedAt])
+}
+
+/// Weekly retrospective: results by dimension, findings and the changes it recommends
+model MarketingAgentLearning {
+  id                 String         @id @default(cuid())
+  agentId            String
+  periodStart        DateTime
+  periodEnd          DateTime
+  sampleSize         Int            @default(0)
+  metricsByDimension Json
+  insights           String
+  recommendations    Json
+  applied            Boolean        @default(false)
+  appliedAt          DateTime?
+  appliedById        String?
+  createdAt          DateTime       @default(now())
+  agent              MarketingAgent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([agentId, createdAt])
+}
+
+/// What the agent tells people (in the app and by email): kept apart from customer/partner notifications
+model MarketingAgentNotice {
+  id           String         @id @default(cuid())
+  agentId      String
+  workspaceId  String
+  postId       String?
+  /// approval_needed | opt_out_window | published | failed | budget | learning | ideas | degraded
+  type         String
+  title        String
+  body         String?
+  url          String?
+  /// Same notice once: e.g. "optout:<postId>", "budget80:<period>"
+  dedupeKey    String?        @unique
+  channelsSent String[]       @default([])
+  readAt       DateTime?
+  actionedAt   DateTime?
+  createdAt    DateTime       @default(now())
+  agent        MarketingAgent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, readAt])
+  @@index([agentId, createdAt])
 }

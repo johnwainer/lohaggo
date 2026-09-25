@@ -56,4 +56,12 @@ export type Post = {
   media: Media[]
   publications: Publication[]
   updatedAt: string
+  origin?: string
+  agentId?: string | null
+  pillar?: string | null
+  optOutDeadline?: string | null
+  agentMeta?: {
+    confidence?: number; risks?: string[]; hypothesis?: string | null; rationale?: string | null; service?: string | null
+    guardrails?: Array<{ message: string; severity: string }>; validation?: string[]; slots?: Array<{ channel: MkChannel; reason: string }>; scheduleProblems?: string[]
+  } | null
 }

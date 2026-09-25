@@ -15,7 +15,10 @@ type Item = {
   campaign: { id: string; name: string; color: string } | null
   variants: Array<{ channel: MkChannel }>
   publications: Array<{ channel: MkChannel; status: string; connection: { name: string } | null }>
+  origin?: string
+  slots?: Array<{ channel: MkChannel; reason: string }>
 }
+type IdeaItem = { id: string; angle: string; pillar: string; channels: MkChannel[]; targetDate: string; status: string; agentId: string; agent: { campaign: { color: string; name: string } } }
 type Ws = { id: string; name: string; permissions: string[] }
 
 const TZ = 'America/Bogota'
@@ -47,6 +50,7 @@ export default function CalendarTab({ workspaceId, campaigns, workspace, canEdit
   const [anchor, setAnchor] = useState(() => new Date())
   const [campaignId, setCampaignId] = useState('')
   const [items, setItems] = useState<Item[]>([])
+  const [ideas, setIdeas] = useState<IdeaItem[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
@@ -61,8 +65,9 @@ export default function CalendarTab({ workspaceId, campaigns, workspace, canEdit
       const q = new URLSearchParams({ from: atMidnight(days[0]).toISOString(), to: new Date(atMidnight(days[days.length - 1]).getTime() + DAY - 1).toISOString() })
       if (workspaceId) q.set('workspaceId', workspaceId)
       if (campaignId) q.set('campaignId', campaignId)
-      const d = await api<{ items: Item[] }>(`/api/admin/marketing/calendar?${q}`)
+      const d = await api<{ items: Item[]; ideas?: IdeaItem[] }>(`/api/admin/marketing/calendar?${q}`)
       setItems(d.items)
+      setIdeas(d.ideas ?? [])
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error')
@@ -80,6 +85,11 @@ export default function CalendarTab({ workspaceId, campaigns, workspace, canEdit
     }
     return m
   }, [items])
+  const ideasByDay = useMemo(() => {
+    const m = new Map<string, IdeaItem[]>()
+    for (const it of ideas) m.set(dayKey(new Date(it.targetDate)), [...(m.get(dayKey(new Date(it.targetDate))) || []), it])
+    return m
+  }, [ideas])
 
   async function drop(day: string) {
     const item = items.find((i) => i.id === dragId)
@@ -119,13 +129,14 @@ export default function CalendarTab({ workspaceId, campaigns, workspace, canEdit
         onDragEnd={() => setDragId(null)}
         className={`block rounded-lg border-l-4 bg-white px-1.5 py-1 text-[11px] shadow-sm hover:shadow ${locked ? 'opacity-90' : 'cursor-grab'} ${it.status === 'failed' ? 'ring-1 ring-red-300' : ''}`}
         style={{ borderLeftColor: it.campaign?.color || '#CBD5E1' }}
-        title={`${it.title} · ${POST_STATUS[it.status]?.label || it.status}${it.campaign ? ` · ${it.campaign.name}` : ''}`}
+        title={`${it.title} · ${POST_STATUS[it.status]?.label || it.status}${it.campaign ? ` · ${it.campaign.name}` : ''}${it.slots?.length ? `\n${it.slots.map((s) => s.reason).join('\n')}` : ''}`}
       >
         <span className="flex items-center gap-1">
           <span className="text-gray-500 tabular-nums">{timeOf(new Date(it.at))}</span>
           <span className="flex -space-x-1">{channels.map((c) => <MkChannelIcon key={c} channel={c} size={12} />)}</span>
           {it.status === 'published' && <span className="text-emerald-600">✓</span>}
           {it.status === 'failed' && <span className="text-red-600">!</span>}
+          {it.origin === 'agent' && <span title="Creada por el agente">🤖</span>}
         </span>
         <span className="block truncate font-medium text-gray-800">{it.title}</span>
       </Link>
@@ -151,7 +162,7 @@ export default function CalendarTab({ workspaceId, campaigns, workspace, canEdit
         </div>
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
-      <p className="text-xs text-gray-500">Arrastra una publicación a otro día para reprogramarla (conserva la hora). Lo ya publicado no se mueve. Horario de Bogotá.</p>
+      <p className="text-xs text-gray-500">Arrastra una publicación a otro día para reprogramarla (conserva la hora). Lo ya publicado no se mueve. Las tarjetas punteadas son ideas del agente. Horario de Bogotá.</p>
 
       <div className="overflow-x-auto">
         <div className="grid min-w-[760px] grid-cols-7 gap-px overflow-hidden rounded-2xl border border-gray-200 bg-gray-200">
@@ -174,6 +185,12 @@ export default function CalendarTab({ workspaceId, campaigns, workspace, canEdit
                 </div>
                 <div className="mt-1 space-y-1">
                   {(view === 'month' ? list.slice(0, 3) : list).map((it) => <Card key={it.id} it={it} />)}
+                  {(ideasByDay.get(day) || []).slice(0, view === 'month' ? 2 : 10).map((idea) => (
+                    <span key={idea.id} title={`Idea del agente (${idea.status === 'proposed' ? 'por revisar' : 'aceptada, se redactará antes de la fecha'}) · ${idea.agent.campaign.name}\n${idea.pillar}`} className="block rounded-lg border border-dashed px-1.5 py-1 text-[11px] text-gray-500" style={{ borderColor: idea.agent.campaign.color }}>
+                      <span className="flex items-center gap-1">🤖 <span className="flex -space-x-1">{idea.channels.map((c) => <MkChannelIcon key={c} channel={c} size={11} />)}</span>{idea.status === 'proposed' && <span className="text-amber-600">idea</span>}</span>
+                      <span className="block truncate">{idea.angle}</span>
+                    </span>
+                  ))}
                   {view === 'month' && list.length > 3 && <button onClick={() => { setAnchor(atMidnight(day)); setView('week') }} className="text-[11px] text-primary-700 hover:underline">+{list.length - 3} más</button>}
                 </div>
               </div>

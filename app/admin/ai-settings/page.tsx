@@ -42,6 +42,10 @@ const KIND_LABEL: Record<string, string> = {
   comment_suggestion: 'Sugerencia para comentario',
   copywriting: 'Redacción de publicaciones',
   image_generation: 'Imágenes generadas',
+  marketing_agent_strategy: 'Agente de marketing: estrategia',
+  marketing_agent_plan: 'Agente de marketing: planificación',
+  marketing_agent_draft: 'Agente de marketing: redacción',
+  marketing_agent_learn: 'Agente de marketing: aprendizaje',
 }
 
 const usd = (n: number) => `$${n.toFixed(n < 1 ? 4 : 2)}`

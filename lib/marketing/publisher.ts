@@ -74,9 +74,10 @@ function brokenToken(conn: ChannelConnection) {
 /**
  * Creates one publication per target (channel + account) at `when`. Validates every target first and
  * refuses the whole schedule if one has errors, so nothing goes out half-checked. Previously
- * scheduled publications of the post that did not run yet are replaced.
+ * scheduled publications of the post that did not run yet are replaced (with `keepOtherTargets`, only
+ * those of the same channel and account: the agent schedules each channel at its own hour).
  */
-export async function schedulePost(postId: string, targets: Target[], when: Date) {
+export async function schedulePost(postId: string, targets: Target[], when: Date, opts: { keepOtherTargets?: boolean } = {}) {
   const post = await prisma.marketingPost.findUnique({ where: { id: postId }, include: postInclude })
   if (!post) throw new Error('Publicación no encontrada')
   if (!targets.length) throw new PublishValidationError([{ channel: '—', message: 'Elige al menos un canal' }])
@@ -106,12 +107,19 @@ export async function schedulePost(postId: string, targets: Target[], when: Date
   }
   if (issues.length) throw new PublishValidationError(issues)
 
+  const replaced: Prisma.MarketingPublicationWhereInput = opts.keepOtherTargets
+    ? { postId, status: 'scheduled', OR: rows.map((r) => ({ channel: r.channel, connectionId: r.connectionId })) }
+    : { postId, status: 'scheduled' }
+  const earliestOther = opts.keepOtherTargets
+    ? await prisma.marketingPublication.findFirst({ where: { postId, status: 'scheduled', NOT: { OR: rows.map((r) => ({ channel: r.channel, connectionId: r.connectionId })) } }, orderBy: { scheduledAt: 'asc' }, select: { scheduledAt: true } })
+    : null
+  const postWhen = earliestOther && earliestOther.scheduledAt < when ? earliestOther.scheduledAt : when
   await prisma.$transaction([
-    prisma.marketingPublication.updateMany({ where: { postId, status: 'scheduled' }, data: { status: 'cancelled', lastError: 'Reprogramada' } }),
+    prisma.marketingPublication.updateMany({ where: replaced, data: { status: 'cancelled', lastError: 'Reprogramada' } }),
     prisma.marketingPublication.createMany({
       data: rows.map((r) => ({ postId, variantId: r.variantId, channel: r.channel, connectionId: r.connectionId, scheduledAt: when, idempotencyKey: `${postId}:${r.channel}:${r.connectionId || 'web'}:${randomUUID()}` })),
     }),
-    prisma.marketingPost.update({ where: { id: postId }, data: { scheduledAt: when } }),
+    prisma.marketingPost.update({ where: { id: postId }, data: { scheduledAt: postWhen } }),
   ])
   await refreshPostStatus(postId)
   return prisma.marketingPublication.findMany({ where: { postId, status: { not: 'cancelled' } }, orderBy: { createdAt: 'desc' } })

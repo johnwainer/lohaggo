@@ -16,6 +16,7 @@ export type PostRow = {
   scheduledAt: string | null
   publishedAt: string | null
   updatedAt: string
+  origin?: string
   campaign: { id: string; name: string; color: string } | null
   variants: Array<{ channel: MkChannel }>
   media: Array<{ url: string; kind: string }>
@@ -158,6 +159,7 @@ export default function PostsTab({ posts, campaigns, filters, setFilters, worksp
                 <div className="min-w-0 flex-1 space-y-1.5">
                   <div className="flex items-center gap-2">
                     <StatusChip status={p.status} />
+                    {p.origin === 'agent' && <span className="inline-flex rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-semibold text-primary-700">🤖 Agente</span>}
                     {p.campaign && <span className="inline-flex items-center gap-1 truncate text-[11px] text-gray-500"><span className="h-2 w-2 rounded-full shrink-0" style={{ background: p.campaign.color }} />{p.campaign.name}</span>}
                   </div>
                   <p className="font-semibold text-gray-900 truncate group-hover:text-primary-700">{p.title}</p>

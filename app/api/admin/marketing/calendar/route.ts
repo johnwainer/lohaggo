@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       ],
     },
     select: {
-      id: true, title: true, status: true, scheduledAt: true, publishedAt: true,
+      id: true, title: true, status: true, scheduledAt: true, publishedAt: true, origin: true, agentMeta: true,
       campaign: { select: { id: true, name: true, color: true } },
       variants: { select: { channel: true } },
       media: { select: { url: true, kind: true }, orderBy: { position: 'asc' }, take: 1 },
@@ -39,12 +39,23 @@ export async function GET(request: NextRequest) {
     },
     take: 500,
   })
-  const items = posts.map((p) => {
+  const items = posts.map(({ agentMeta, ...p }) => {
     const dates = p.publications.map((x) => x.publishedAt ?? x.scheduledAt).filter(Boolean) as Date[]
     const at = dates.sort((a, b) => a.getTime() - b.getTime())[0] ?? p.publishedAt ?? p.scheduledAt
-    return { ...p, at }
+    // Why the agent chose this time, per channel (shown on the card)
+    const slots = ((agentMeta as { slots?: Array<{ channel: string; reason: string }> } | null)?.slots ?? []).map((s) => ({ channel: s.channel, reason: s.reason }))
+    return { ...p, at, slots }
   }).filter((p) => p.at)
-  return NextResponse.json({ items })
+  // The agent's open ideas: dotted cards on their target day
+  const ideas = await prisma.marketingIdea.findMany({
+    where: {
+      status: { in: ['proposed', 'accepted'] }, targetDate: { gte: from, lte: to },
+      agent: { ...(scope ? { workspaceId: { in: scope } } : {}), ...(campaignId ? { campaignId } : {}) },
+    },
+    select: { id: true, angle: true, pillar: true, channels: true, targetDate: true, status: true, agentId: true, agent: { select: { campaign: { select: { color: true, name: true } } } } },
+    take: 200,
+  })
+  return NextResponse.json({ items, ideas })
 }
 
 /** Drag & drop in the calendar: move a post (and what is still scheduled of it) to another date. */

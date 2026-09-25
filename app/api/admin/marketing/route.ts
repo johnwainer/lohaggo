@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
       orderBy: [{ updatedAt: 'desc' }],
       take: 200,
       select: {
-        id: true, workspaceId: true, title: true, status: true, scheduledAt: true, publishedAt: true, updatedAt: true,
+        id: true, workspaceId: true, title: true, status: true, scheduledAt: true, publishedAt: true, updatedAt: true, origin: true,
         campaign: { select: { id: true, name: true, color: true } },
         variants: { select: { channel: true } },
         media: { select: { url: true, kind: true }, orderBy: { position: 'asc' }, take: 1 },

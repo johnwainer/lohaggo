@@ -10,9 +10,10 @@ import ChannelEditor from '@/components/admin/marketing/editor/ChannelEditor'
 import MediaManager from '@/components/admin/marketing/editor/MediaManager'
 import CopilotPanel from '@/components/admin/marketing/editor/CopilotPanel'
 import PublishPanel from '@/components/admin/marketing/editor/PublishPanel'
+import AgentPanel, { type AgentIdea } from '@/components/admin/marketing/editor/AgentPanel'
 import type { Media, Post, Validation, Variant } from '@/components/admin/marketing/editor/types'
 
-type Detail = { post: Post; campaigns: Array<{ id: string; name: string; color: string }>; accounts: Account[]; permissions: { edit: boolean; publish: boolean } }
+type Detail = { post: Post; campaigns: Array<{ id: string; name: string; color: string }>; accounts: Account[]; permissions: { edit: boolean; publish: boolean }; idea?: AgentIdea | null; agent?: { id: string; mode: string; status: string } | null }
 
 const VARIANT_FIELDS: Array<keyof Variant> = ['body', 'format', 'linkUrl', 'mediaIds', 'slug', 'seoTitle', 'seoDescription', 'excerpt', 'coverUrl', 'category', 'tags', 'canonicalUrl', 'noindex', 'aiGenerated']
 const LOCKED = ['publishing']
@@ -193,6 +194,7 @@ export default function PostEditorPage({ params }: { params: Promise<{ id: strin
       <div className="flex items-center gap-3 flex-wrap">
         <Link href="/admin/marketing" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800"><ArrowLeft size={14} /> Publicaciones</Link>
         <StatusChip status={post.status} />
+        {post.origin === 'agent' && <span className="inline-flex rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-semibold text-primary-700">🤖 Agente</span>}
         <span className="text-xs text-gray-400">
           {saveState === 'saving' ? 'Guardando…' : saveState === 'saved' && !dirty.post && !dirty.channels.length ? 'Guardado' : dirty.post || dirty.channels.length ? 'Cambios sin guardar' : saveState === 'error' ? 'Error al guardar' : ''}
         </span>
@@ -272,6 +274,9 @@ export default function PostEditorPage({ params }: { params: Promise<{ id: strin
         </div>
 
         <div className="space-y-4">
+          {post.origin === 'agent' && detail.agent && (
+            <AgentPanel post={post} idea={detail.idea ?? null} agentId={detail.agent.id} canEdit={detail.permissions.edit} onChanged={load} onRejected={() => router.push('/admin/marketing')} />
+          )}
           {detail.permissions.edit && current && (
             <CopilotPanel
               post={{ ...post, title, variants: post.variants.map((v) => drafts[v.channel] ?? v) }}

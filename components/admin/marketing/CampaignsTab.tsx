@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Loader2, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { Bot, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { CAMPAIGN_STATUS, MkChannelIcon, OBJECTIVES, api, fmtDate, input, num } from '@/components/admin/marketing/shared'
 import { NewPostModal } from '@/components/admin/marketing/PostsTab'
 
@@ -131,7 +131,7 @@ function CampaignDetail({ campaign, onClose }: { campaign: Campaign; onClose: ()
   )
 }
 
-export default function CampaignsTab({ campaigns, workspace, canEdit, onChanged }: { campaigns: Campaign[]; workspace: Ws | null; canEdit: boolean; onChanged: () => void }) {
+export default function CampaignsTab({ campaigns, workspace, canEdit, onChanged, onCreateWithAgent }: { campaigns: Campaign[]; workspace: Ws | null; canEdit: boolean; onChanged: () => void; onCreateWithAgent?: () => void }) {
   const [editing, setEditing] = useState<Campaign | 'new' | null>(null)
   const [open, setOpen] = useState<Campaign | null>(null)
   const [newPostFor, setNewPostFor] = useState<Campaign | null>(null)
@@ -147,7 +147,10 @@ export default function CampaignsTab({ campaigns, workspace, canEdit, onChanged 
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-gray-500">Agrupa publicaciones con un mismo objetivo para planificarlas juntas y medirlas en conjunto.</p>
         {canEdit && workspace && (
-          <button onClick={() => setEditing('new')} className="inline-flex items-center gap-2 rounded-full bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700"><Plus size={15} /> Nueva campaña</button>
+          <div className="flex flex-wrap gap-2">
+            {onCreateWithAgent && <button onClick={onCreateWithAgent} className="inline-flex items-center gap-2 rounded-full border border-primary-200 bg-primary-50 px-4 py-2 text-sm font-semibold text-primary-700 hover:bg-primary-100"><Bot size={15} /> Crear campaña con agente</button>}
+            <button onClick={() => setEditing('new')} className="inline-flex items-center gap-2 rounded-full bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700"><Plus size={15} /> Nueva campaña</button>
+          </div>
         )}
       </div>
       {!workspace && canEdit === false && campaigns.length === 0 && <p className="text-sm text-gray-500">Elige un workspace para crear campañas.</p>}

@@ -7,6 +7,7 @@ import { sanitizePostInput, sanitizeVariantInput } from '@/lib/marketing/input'
 import { canEditPost, type PostStatus } from '@/lib/marketing/publisher-core'
 import { refreshPostStatus } from '@/lib/marketing/publisher'
 import { revalidateLiveArticle } from '@/lib/marketing/blog'
+import { scheduleApproved } from '@/lib/marketing/agent'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,12 +23,14 @@ export async function GET(_request: NextRequest, context: Ctx) {
     await refreshPostStatus(id)
     post = (await loadPostDetail(id)) ?? post
   }
-  const [campaigns, accounts] = await Promise.all([
+  const [campaigns, accounts, idea, agent] = await Promise.all([
     prisma.marketingCampaign.findMany({ where: { workspaceId: post.workspaceId, status: { not: 'done' } }, select: { id: true, name: true, color: true }, orderBy: { createdAt: 'desc' } }),
     workspaceAccounts(post.workspaceId),
+    post.ideaId ? prisma.marketingIdea.findUnique({ where: { id: post.ideaId }, select: { pillar: true, service: true, angle: true, hypothesis: true, rationale: true, explore: true } }) : null,
+    post.agentId ? prisma.marketingAgent.findUnique({ where: { id: post.agentId }, select: { id: true, mode: true, status: true } }) : null,
   ])
   return NextResponse.json({
-    post, campaigns, accounts,
+    post, campaigns, accounts, idea, agent,
     permissions: { edit: mkCan(auth.access, post.workspaceId, 'marketing.edit'), publish: mkCan(auth.access, post.workspaceId, 'marketing.publish') },
   })
 }
@@ -37,7 +40,7 @@ export async function PATCH(request: NextRequest, context: Ctx) {
   const auth = await marketingAuth()
   if (!auth.ok) return auth.response
   const { id } = await context.params
-  const existing = await prisma.marketingPost.findUnique({ where: { id }, select: { workspaceId: true, status: true } })
+  const existing = await prisma.marketingPost.findUnique({ where: { id }, select: { workspaceId: true, status: true, origin: true } })
   if (!existing || !mkCan(auth.access, existing.workspaceId, 'marketing.view')) return NextResponse.json({ error: 'No encontrada' }, { status: 404 })
   if (!mkCan(auth.access, existing.workspaceId, 'marketing.edit')) return forbidden()
   if (!canEditPost(existing.status as PostStatus)) return NextResponse.json({ error: 'No se puede editar mientras se publica' }, { status: 409 })
@@ -63,6 +66,8 @@ export async function PATCH(request: NextRequest, context: Ctx) {
     if (data.status === 'archived') await refreshPostStatus(id)
     // A live article shows the edit right away (and the sitemap its new date)
     if (contentChanged) await revalidateLiveArticle(id)
+    // An agent post approved here gets its time from the agent right away
+    if (data.status === 'approved' && existing.origin === 'agent') await scheduleApproved(id)
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Datos inválidos' }, { status: 400 })
   }

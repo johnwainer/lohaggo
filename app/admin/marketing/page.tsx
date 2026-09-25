@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { AlertTriangle, BarChart3, CalendarDays, FileText, Loader2, Megaphone, Palette, ShieldCheck } from 'lucide-react'
+import { AlertTriangle, BarChart3, Bot, CalendarDays, FileText, Loader2, Megaphone, Palette, ShieldCheck } from 'lucide-react'
 import { api, type Account } from '@/components/admin/marketing/shared'
 import PostsTab, { type PostRow } from '@/components/admin/marketing/PostsTab'
 import CalendarTab from '@/components/admin/marketing/CalendarTab'
@@ -10,6 +10,8 @@ import CampaignsTab, { type Campaign } from '@/components/admin/marketing/Campai
 import StatsTab from '@/components/admin/marketing/StatsTab'
 import PermissionsTab from '@/components/admin/marketing/PermissionsTab'
 import BrandTab from '@/components/admin/marketing/BrandTab'
+import AgentTab from '@/components/admin/marketing/agent/AgentTab'
+import NoticesBell from '@/components/admin/marketing/agent/NoticesBell'
 
 type Workspace = { id: string; name: string; permissions: string[]; canManagePermissions: boolean }
 type Overview = { workspaces: Workspace[]; posts: PostRow[]; campaigns: Campaign[]; accounts: Account[] }
@@ -18,6 +20,7 @@ const TABS = [
   ['posts', 'Publicaciones', FileText],
   ['calendar', 'Parrilla', CalendarDays],
   ['campaigns', 'Campañas', Megaphone],
+  ['agent', 'Agente IA', Bot],
   ['stats', 'Estadísticas', BarChart3],
   ['brand', 'Marca e imágenes', Palette],
   ['permissions', 'Permisos', ShieldCheck],
@@ -31,6 +34,7 @@ export default function MarketingPage() {
   const [filters, setFilters] = useState<{ status: string; campaignId: string; channel: string; q: string }>({ status: '', campaignId: '', channel: '', q: '' })
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [agentTarget, setAgentTarget] = useState<{ id?: string; wizard?: boolean } | null>(null)
 
   useEffect(() => {
     try {
@@ -40,7 +44,14 @@ export default function MarketingPage() {
     } catch {
       // storage unavailable
     }
+    // Links from the agent's notices and emails: /admin/marketing?agente=<id>
+    const agent = new URLSearchParams(window.location.search).get('agente')
+    if (agent) {
+      setTab('agent')
+      setAgentTarget({ id: agent })
+    }
   }, [])
+  const openAgent = (id: string) => { setTab('agent'); setAgentTarget({ id }) }
   useEffect(() => { try { localStorage.setItem('mk.tab', tab) } catch { /* noop */ } }, [tab])
 
   const load = useCallback(async () => {
@@ -76,12 +87,15 @@ export default function MarketingPage() {
           <h1 className="text-2xl font-bold text-gray-900">Publicaciones y campañas</h1>
           <p className="text-sm text-gray-500 mt-1">Crea una vez y publica en el blog, Facebook e Instagram; programa, agrupa en campañas y mide.</p>
         </div>
+        <div className="flex items-center gap-2">
+        {ws.length > 0 && <NoticesBell workspaceId={workspaceId} onOpenAgent={openAgent} />}
         {ws.length > 1 && (
           <select className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm" value={workspaceId} onChange={(e) => { setWorkspaceId(e.target.value); try { localStorage.setItem('mk.ws', e.target.value) } catch { /* noop */ } }}>
             <option value="">Todos los workspaces</option>
             {ws.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
           </select>
         )}
+        </div>
       </div>
 
       {problems.length > 0 && (
@@ -114,7 +128,8 @@ export default function MarketingPage() {
             />
           )}
           {tab === 'calendar' && <CalendarTab workspaceId={workspaceId} campaigns={data.campaigns} workspace={activeWs} canEdit={can('edit')} />}
-          {tab === 'campaigns' && <CampaignsTab campaigns={data.campaigns} workspace={activeWs} canEdit={can('edit')} onChanged={load} />}
+          {tab === 'campaigns' && <CampaignsTab campaigns={data.campaigns} workspace={activeWs} canEdit={can('edit')} onChanged={load} onCreateWithAgent={() => { setTab('agent'); setAgentTarget({ wizard: true }) }} />}
+          {tab === 'agent' && <AgentTab workspaceId={workspaceId} workspace={activeWs} openAgentId={agentTarget?.id} openWizard={agentTarget?.wizard} onOpened={() => setAgentTarget(null)} />}
           {tab === 'stats' && <StatsTab workspaceId={workspaceId} campaigns={data.campaigns} />}
           {tab === 'brand' && <BrandTab workspaces={activeWs ? [activeWs] : ws} />}
           {tab === 'permissions' && <PermissionsTab workspaces={ws.filter((w) => w.canManagePermissions)} />}
