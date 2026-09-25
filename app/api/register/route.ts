@@ -1,3 +1,4 @@
+import { acquisitionFrom } from '@/lib/analytics/acquisition'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from "@/lib/prisma"
 import { City } from "@prisma/client"
@@ -155,8 +156,9 @@ async function handlePOST(request: NextRequest) {
       }
     }
 
+    const acquisition = acquisitionFrom(request, body)
     const user = await prisma.user.create({
-      data: userData,
+      data: { ...userData, ...(acquisition ? { acquisition } : {}) },
       include: {
         partnerProfile: true
       }

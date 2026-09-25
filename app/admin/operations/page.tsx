@@ -99,8 +99,8 @@ export default function AdminOperationsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Centro de Operaciones</h1>
-        <p className="text-gray-600 mt-1">Centro operativo unificado para monitorear y resolver incidencias.</p>
+        <h1 className="text-3xl font-bold text-gray-900">Casos e incidentes</h1>
+        <p className="text-gray-600 mt-1">Casos de soporte, incidentes de la plataforma (incluidas tareas automáticas que fallan) y registro de acciones del equipo.</p>
       </div>
 
       {loading ? (

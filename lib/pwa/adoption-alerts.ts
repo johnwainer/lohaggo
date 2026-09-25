@@ -80,7 +80,7 @@ export async function runPwaAdoptionAlerts(options?: { installThreshold?: number
         title: `Caída en adopción PWA (${alert.metric})`,
         description: `Métrica ${alert.metric} en ${alert.rate}% (umbral ${alert.threshold}%) durante los últimos 7 días.`,
         source: 'pwa-adoption-alerts',
-        route: '/admin/pwa-adoption',
+        route: '/admin/analytics?tab=app',
         metadata: JSON.stringify({ totalSignups, installRate, pushRate, checkedAt: now.toISOString() }),
         occurrences: 1,
         firstSeenAt: now,

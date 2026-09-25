@@ -2,13 +2,14 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 300
 
 import { NextRequest, NextResponse } from 'next/server'
+import { cronRoute } from '@/lib/system/cron'
 import { createLogger } from '@/lib/logger'
 import { runTokenHealth } from '@/lib/marketing/token-health'
 
 const logger = createLogger('cron-channel-health')
 
 /** Daily: token validity of every Meta account, renewal of user tokens before they expire. */
-export async function POST(request: NextRequest) {
+async function handle(request: NextRequest) {
   // Fails closed: these jobs publish to the networks and rewrite account tokens
   const cronSecret = process.env.CRON_SECRET
   if (!cronSecret) {
@@ -28,6 +29,5 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
-  return POST(request)
-}
+export const GET = cronRoute('channel-health', handle)
+export const POST = GET

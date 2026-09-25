@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cronRoute } from '@/lib/system/cron'
 import { processDueAutomations } from '@/lib/messaging/automation-service'
 import { createLogger } from '@/lib/logger'
 
@@ -6,7 +7,7 @@ export const dynamic = 'force-dynamic'
 
 const logger = createLogger('cron-automations')
 
-export async function POST(request: NextRequest) {
+async function handle(request: NextRequest) {
   // Verify Vercel cron secret
   const secret = request.headers.get('authorization')
   const cronSecret = process.env.CRON_SECRET
@@ -25,6 +26,5 @@ export async function POST(request: NextRequest) {
 }
 
 // Also allow GET for Vercel cron (it sends GET by default for crons)
-export async function GET(request: NextRequest) {
-  return POST(request)
-}
+export const GET = cronRoute('automations', handle)
+export const POST = GET

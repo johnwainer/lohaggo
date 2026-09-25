@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
 import { NextRequest, NextResponse } from 'next/server'
+import { cronRoute } from '@/lib/system/cron'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
 import { indexPending } from '@/lib/ai/knowledge'
@@ -10,7 +11,7 @@ import { runReengagement } from '@/lib/ai/autopilot'
 const logger = createLogger('cron-ai-maintenance')
 
 /** Knowledge indexing left pending + one-time re-engagement follow-ups. */
-export async function POST(request: NextRequest) {
+async function handle(request: NextRequest) {
   const secret = request.headers.get('authorization')
   const cronSecret = process.env.CRON_SECRET
   if (cronSecret && secret !== `Bearer ${cronSecret}`) {
@@ -31,6 +32,5 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
-  return POST(request)
-}
+export const GET = cronRoute('ai-maintenance', handle)
+export const POST = GET

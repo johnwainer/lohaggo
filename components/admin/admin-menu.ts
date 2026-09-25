@@ -1,4 +1,4 @@
-import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, Shield, DollarSign, Wallet, MapPin, CreditCard, Percent, Megaphone, Activity, Building2, BookOpen, Smartphone, MessageSquare, Inbox, Link2, Zap, Palette, Send, Share2, Bot, Cpu, Newspaper, type LucideIcon } from 'lucide-react'
+import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, Shield, DollarSign, Wallet, MapPin, CreditCard, Percent, Megaphone, Activity, HeartPulse, LifeBuoy, ToggleRight, Building2, BookOpen, Smartphone, MessageSquare, Inbox, Link2, Zap, Palette, Send, Share2, Bot, Cpu, Newspaper, type LucideIcon } from 'lucide-react'
 
 export interface MenuItem {
   id: string
@@ -20,8 +20,8 @@ export const ADMIN_MENU: MenuGroup[] = [
     hint: 'Vista global y salud del sistema',
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { id: 'analytics', label: 'Analíticas', icon: BarChart3 },
-      { id: 'monitoring', label: 'Monitoreo', icon: Activity, href: '/admin/monitoring' },
+      { id: 'analytics', label: 'Analítica', icon: BarChart3, href: '/admin/analytics' },
+      { id: 'system', label: 'Salud del sistema', icon: HeartPulse, href: '/admin/system' },
     ],
   },
   {
@@ -30,11 +30,10 @@ export const ADMIN_MENU: MenuGroup[] = [
     items: [
       { id: 'service-requests', label: 'Solicitudes', icon: Send, href: '/admin/service-requests' },
       { id: 'bookings', label: 'Reservas', icon: Calendar },
-      { id: 'workflow', label: 'Workflow', icon: Calendar, href: '/admin/workflow' },
       { id: 'payments', label: 'Pagos', icon: DollarSign },
       { id: 'payouts', label: 'Pagos a Socios', icon: Wallet },
       { id: 'finance-ops', label: 'Finanzas', icon: CreditCard, href: '/admin/finance-ops' },
-      { id: 'operations', label: 'Centro Ops', icon: Activity, href: '/admin/operations' },
+      { id: 'operations', label: 'Casos e incidentes', icon: LifeBuoy, href: '/admin/operations' },
     ],
   },
   {
@@ -43,7 +42,6 @@ export const ADMIN_MENU: MenuGroup[] = [
     items: [
       { id: 'users', label: 'Usuarios', icon: Users },
       { id: 'partners', label: 'Socios', icon: UserCheck },
-      { id: 'compliance', label: 'KYC / KYB', icon: Shield, href: '/admin/compliance' },
       { id: 'documents', label: 'Documentos', icon: BookOpen, href: '/admin/documents' },
     ],
   },
@@ -65,8 +63,6 @@ export const ADMIN_MENU: MenuGroup[] = [
       { id: 'inbox', label: 'Bandeja de entrada', icon: Inbox, href: '/admin/inbox' },
       { id: 'ai-agents', label: 'Agentes IA', icon: Bot, href: '/admin/ai-agents' },
       { id: 'messaging', label: 'Mensajería', icon: MessageSquare, href: '/admin/messaging' },
-      { id: 'search-analytics', label: 'Búsquedas', icon: BarChart3, href: '/admin/search-analytics' },
-      { id: 'pwa-adoption', label: 'Adopción PWA', icon: Smartphone, href: '/admin/pwa-adoption' },
     ],
   },
   {
@@ -82,8 +78,7 @@ export const ADMIN_MENU: MenuGroup[] = [
       { id: 'banks', label: 'Bancos', icon: Building2, href: '/admin/banks' },
       { id: 'notifications', label: 'Notificaciones', icon: Bell },
       { id: 'security', label: 'Seguridad', icon: Shield, href: '/admin/security' },
-      { id: 'risk-control', label: 'Riesgo y Cohortes', icon: Shield, href: '/admin/risk-control' },
-      { id: 'platform-control', label: 'Control Plataforma', icon: Settings, href: '/admin/platform-control' },
+      { id: 'platform-control', label: 'Funciones y botones', icon: ToggleRight, href: '/admin/platform-control' },
       { id: 'appearance', label: 'Apariencia', icon: Palette, href: '/admin/appearance' },
       { id: 'training', label: 'Entrenamiento', icon: BookOpen, href: '/admin/training' },
       { id: 'settings', label: 'Ajustes', icon: Settings },
@@ -99,6 +94,8 @@ const ALIASES: Array<[prefix: string, id: string]> = [
   ['/admin/payment-config', 'connections'],
   ['/admin/commissions', 'commissions'],
   ['/admin/payouts', 'payouts'],
+  ['/admin/search-analytics', 'analytics'],
+  ['/admin/pwa-adoption', 'analytics'],
 ]
 
 export const itemHref = (item: MenuItem) => item.href ?? `/admin?section=${item.id}`

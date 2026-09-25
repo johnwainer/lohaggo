@@ -1,13 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import CommandCenter from '@/components/admin/dashboard/CommandCenter'
 import BookingsSection from '@/components/admin/sections/BookingsSection'
 import UsersSection from '@/components/admin/sections/UsersSection'
 import PartnersSection from '@/components/admin/sections/PartnersSection'
 import ServicesSection from '@/components/admin/sections/ServicesSection'
-import AnalyticsSection from '@/components/admin/sections/AnalyticsSection'
 import NotificationsSection from '@/components/admin/sections/NotificationsSection'
 import SettingsSection from '@/components/admin/sections/SettingsSection'
 import CommissionsSection from '@/components/admin/sections/CommissionsSection'
@@ -23,7 +22,6 @@ const VALID_SECTIONS = new Set([
   'services',
   'cities',
   'payments',
-  'analytics',
   'notifications',
   'settings',
   'commissions',
@@ -32,10 +30,16 @@ const VALID_SECTIONS = new Set([
 
 export default function AdminDashboard() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const [activeSection, setActiveSection] = useState('dashboard')
 
   useEffect(() => {
     const sectionFromQuery = searchParams.get('section')
+    // The old analytics section now has its own page
+    if (sectionFromQuery === 'analytics') {
+      router.replace('/admin/analytics')
+      return
+    }
     if (sectionFromQuery && VALID_SECTIONS.has(sectionFromQuery)) {
       setActiveSection(sectionFromQuery)
     } else {
@@ -52,7 +56,6 @@ export default function AdminDashboard() {
       case 'services': return <ServicesSection />
       case 'cities': return <CitiesSection />
       case 'payments': return <PaymentsSection />
-      case 'analytics': return <AnalyticsSection />
       case 'notifications': return <NotificationsSection />
       case 'settings': return <SettingsSection />
       case 'commissions': return <CommissionsSection />

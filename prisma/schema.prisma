@@ -31,6 +31,8 @@ model User {
   completedServicesCount            Int                         @default(0)
   createdAt                         DateTime                    @default(now())
   updatedAt                         DateTime                    @updatedAt
+  /// First visit that brought the person: utm_*, referrer, landing page (first touch)
+  acquisition                       Json?
   mercadopagoCustomerId             String?                     @unique
   addresses                         Address[]
   bookings                          Booking[]
@@ -2367,4 +2369,68 @@ model MarketingAgentNotice {
 
   @@index([workspaceId, readAt])
   @@index([agentId, createdAt])
+}
+
+// ─── Analytics and system health ─────────────────────────────────────────────
+
+/// Every search on the site, visitors included, for analytics. SearchHistory stays the person's own recent searches.
+model SearchEvent {
+  id          String   @id @default(cuid())
+  query       String
+  /// Lowercase, no accents, single spaces: groups "Plomero" and "plomero "
+  normalized  String
+  resultCount Int
+  userId      String?
+  /// Anonymous visitor id (first-party cookie), to count unique searchers without an account
+  visitorId   String?
+  role        String?
+  city        String?
+  source      String   @default("servicios")
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([normalized, createdAt])
+}
+
+/// One execution of a scheduled job: when it ran, how long, how it ended
+model CronRun {
+  id         String    @id @default(cuid())
+  job        String
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  durationMs Int?
+  /// running | ok | error
+  status     String    @default("running")
+  summary    Json?
+  error      String?
+
+  @@index([job, startedAt])
+  @@index([startedAt])
+}
+
+/// Application errors grouped by fingerprint (server logger and browser), with count and last occurrence
+model AppErrorGroup {
+  id          String    @id @default(cuid())
+  fingerprint String    @unique
+  /// server | client
+  source      String
+  context     String?
+  message     String
+  route       String?
+  count       Int       @default(1)
+  firstSeenAt DateTime  @default(now())
+  lastSeenAt  DateTime  @default(now())
+  sample      Json?
+  resolvedAt  DateTime?
+
+  @@index([lastSeenAt])
+}
+
+/// Platform-wide analytics connections (Google Analytics 4 Data API; the service account is stored encrypted)
+model AnalyticsSettings {
+  id                      String   @id @default("platform")
+  ga4PropertyId           String?
+  ga4CredentialsEncrypted String?
+  updatedByEmail          String?
+  updatedAt               DateTime @updatedAt
 }

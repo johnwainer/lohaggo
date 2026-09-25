@@ -4,7 +4,6 @@ import CredentialsProvider from "next-auth/providers/credentials"
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
 import { env } from "@/lib/env"
-import { recordOperationalMetric } from "@/lib/monitoring-metrics"
 import {
   getClientIpFromHeaders,
   isLikelyBotSubmission,
@@ -43,7 +42,6 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) {
-          recordOperationalMetric('login_failure')
           throw new Error("Email y contraseña requeridos")
         }
 
@@ -52,7 +50,6 @@ export const authOptions: NextAuthOptions = {
         const loginLimitKey = `${normalizedEmail}:${clientIp}`
 
         if (isLoginLimited(loginLimitKey)) {
-          recordOperationalMetric('login_failure')
           throw new Error("Demasiados intentos. Intenta nuevamente en unos minutos.")
         }
 
@@ -67,7 +64,6 @@ export const authOptions: NextAuthOptions = {
               formStartedAt: credentials.formStartedAt,
             })
           ) {
-            recordOperationalMetric('login_failure')
             throw new Error("No fue posible validar el acceso. Intenta nuevamente.")
           }
 
@@ -78,7 +74,6 @@ export const authOptions: NextAuthOptions = {
           })
 
           if (!isCaptchaValid) {
-            recordOperationalMetric('login_failure')
             throw new Error("Verificación anti-bot inválida.")
           }
         }
@@ -89,7 +84,6 @@ export const authOptions: NextAuthOptions = {
         })
 
         if (!user) {
-          recordOperationalMetric('login_failure')
           throw new Error("Usuario no encontrado")
         }
 
@@ -99,7 +93,6 @@ export const authOptions: NextAuthOptions = {
         )
 
         if (!isPasswordValid) {
-          recordOperationalMetric('login_failure')
           throw new Error("Contraseña incorrecta")
         }
 

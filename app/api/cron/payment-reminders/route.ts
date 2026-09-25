@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cronRoute } from '@/lib/system/cron'
 import { prisma } from '@/lib/prisma'
 import { createNotification } from '@/lib/notifications/notificationService'
 import { createLogger } from '@/lib/logger'
@@ -54,7 +55,7 @@ async function run() {
   return { scanned: pending.length, sent }
 }
 
-export async function POST(request: NextRequest) {
+async function handle(request: NextRequest) {
   const secret = request.headers.get('authorization')
   const cronSecret = process.env.CRON_SECRET
   if (cronSecret && secret !== `Bearer ${cronSecret}`) {
@@ -70,6 +71,5 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
-  return POST(request)
-}
+export const GET = cronRoute('payment-reminders', handle)
+export const POST = GET

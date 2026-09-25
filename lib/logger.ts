@@ -1,9 +1,16 @@
 import pino from 'pino'
 import { env } from './env'
-import { recordOperationalMetric } from './monitoring-metrics'
 
 const sensitiveKeys = [
   'password',
+  'phone',
+  'email',
+  'cedula',
+  'document',
+  'documentNumber',
+  'bankAccount',
+  'accountNumber',
+  'address',
   'token',
   'secret',
   'apiKey',
@@ -124,13 +131,19 @@ export function sanitizeError(error: any): any {
   return error
 }
 
+type ErrorSink = (e: { context: string; message: string; error?: unknown; data?: unknown }) => void
+let errorSink: ErrorSink | null = null
+/** Set once on the server (instrumentation.ts): every logger.error also lands in Salud del sistema. */
+export function setErrorSink(sink: ErrorSink) {
+  errorSink = sink
+}
+
 export function createLogger(context: string) {
   return {
     info: (message: string, data?: any) => {
       logger.info({ context, ...sanitizeForLog(data) }, message)
     },
     error: (message: string, error?: any, data?: any) => {
-      recordOperationalMetric('api_error')
       logger.error(
         {
           context,
@@ -139,6 +152,7 @@ export function createLogger(context: string) {
         },
         message
       )
+      try { errorSink?.({ context, message, error, data }) } catch { /* never let reporting break logging */ }
     },
     warn: (message: string, data?: any) => {
       logger.warn({ context, ...sanitizeForLog(data) }, message)

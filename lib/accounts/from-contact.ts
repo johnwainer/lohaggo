@@ -106,6 +106,8 @@ export async function createAccountFromContact(input: CreateAccountInput): Promi
       phone: valid.phone,
       password,
       role: input.role,
+      // Created from an inbox conversation: that is where the person came from
+      acquisition: { source: 'inbox', medium: 'conversation', campaign: null, content: null, term: null, referrer: null, landing: null, at: new Date().toISOString() },
       ...(input.role === 'PARTNER' ? { partnerProfile: { create: { bio: '', rating: 0, totalReviews: 0, verified: false, city } } } : {}),
     },
     include: { partnerProfile: { select: { id: true } } },

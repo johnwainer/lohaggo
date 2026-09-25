@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 import { env } from './lib/env'
-import { recordAuthSessionMetric, recordOperationalMetric } from './lib/monitoring-metrics'
 
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
 const blockedIpCache = new Map<string, { blocked: boolean; expiresAt: number }>()
@@ -71,7 +70,6 @@ function getOriginRoute(request: NextRequest): string {
 }
 
 function logAuthSessionTelemetry(request: NextRequest, status: number, rateLimitHit: boolean) {
-  // Telemetría persistida por recordAuthSessionMetric/recordOperationalMetric.
   // Evitamos console output en runtime productivo.
   return
 }
@@ -253,8 +251,6 @@ export async function proxy(request: NextRequest) {
       const key = getRateLimitKey(request)
       const allowed = checkRateLimit(key, 300, 5 * 60 * 1000)
       if (!allowed) {
-        recordAuthSessionMetric(429, true)
-        recordOperationalMetric('auth_session_429')
         await reportSecurityThreat(request, {
           ipAddress: ip,
           threatType: 'rate_limit_auth_session',
@@ -272,8 +268,6 @@ export async function proxy(request: NextRequest) {
           }
         )
       }
-
-      recordAuthSessionMetric(200, false)
       logAuthSessionTelemetry(request, 200, false)
     } else if (pathname === '/api/auth/csrf' || pathname === '/api/auth/providers') {
       const key = getRateLimitKey(request)

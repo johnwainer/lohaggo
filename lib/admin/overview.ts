@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { periodOf } from '@/lib/ai/pricing'
 import { latestSnapshots } from '@/lib/marketing/metrics'
+import { systemAlerts } from '@/lib/system/health'
 import { alertsFrom, bogotaKey, delta, fillSeries, lastDays, windows } from '@/lib/admin/overview-core'
 
 const OPEN = ['OPEN', 'IN_PROGRESS'] as const
@@ -95,7 +96,7 @@ export async function platformOverview(now = new Date()) {
     mkScheduledToday, mkUpcoming, mkPublishedWeek, mkInReview, mkFailedWeek, mkAgents, mkIdeasPending, blogViews,
     casesOpen, casesSla, reviews30, reviewsWeek,
     connections,
-    rawSeries, feed,
+    rawSeries, feed, sys,
   ] = await Promise.all([
     sales(w.today), sales(w.yesterday, w.yesterdaySameTime), sales(w.week), sales(w.month), sales(w.prevMonth, w.prevMonthEnd),
     prisma.booking.count({ where: { createdAt: range(w.today) } }),
@@ -142,6 +143,7 @@ export async function platformOverview(now = new Date()) {
     prisma.channelConnection.findMany({ select: { id: true, name: true, channel: true, status: true, enabled: true } }),
     series(w.days14),
     activity(new Date(now.getTime() - 3 * 24 * 3600_000)),
+    systemAlerts(now),
   ])
 
   const agentNames = new Map(aiAgents.map((a) => [a.id, a.name]))
@@ -226,6 +228,9 @@ export async function platformOverview(now = new Date()) {
       agentsDegraded: mkAgents.filter((a) => a.degradedReason).length,
       requestsWithoutProposals: requestsNoProposals,
       paymentsToConfirm,
+      cronsFailing: sys.cronsFailing,
+      cronsLate: sys.cronsLate,
+      errorsLastHour: sys.errorsLastHour,
     }),
   }
 }

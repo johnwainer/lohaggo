@@ -1,12 +1,10 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin, auditAdminAction } from '@/lib/admin-utils'
 import { processCampaign } from '@/lib/messaging/campaign-service'
+import { cronRoute } from '@/lib/system/cron'
 
-export async function POST(request: Request) {
-  const admin = await requireAdmin()
-  if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
+async function runScheduled() {
   const now = new Date()
   const scheduled = await prisma.messagingCampaign.findMany({
     where: { status: 'SCHEDULED', scheduledAt: { lte: now } },
@@ -24,7 +22,14 @@ export async function POST(request: Request) {
       failed: processed.totalFailed,
     })
   }
+  return results
+}
 
+/** Manual run from the admin (audited). */
+export async function POST() {
+  const admin = await requireAdmin()
+  if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const results = await runScheduled()
   await auditAdminAction({
     actorId: admin.id,
     actorEmail: admin.email,
@@ -35,3 +40,9 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ ok: true, processed: results.length, results })
 }
+
+/** Vercel cron (GET with CRON_SECRET): before, the schedule hit an admin-only POST and never ran. */
+export const GET = cronRoute('admin-messaging-run-scheduled', async () => {
+  const results = await runScheduled()
+  return NextResponse.json({ ok: true, processed: results.length, results })
+})

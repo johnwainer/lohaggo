@@ -2,13 +2,14 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 300
 
 import { NextRequest, NextResponse } from 'next/server'
+import { cronRoute } from '@/lib/system/cron'
 import { createLogger } from '@/lib/logger'
 import { runMarketingAgents } from '@/lib/marketing/agent'
 
 const logger = createLogger('cron-marketing-agent')
 
 /** Every 30 min: each active marketing agent plans, writes, schedules and learns within its limits. */
-export async function POST(request: NextRequest) {
+async function handle(request: NextRequest) {
   // Fails closed: the agent spends on the model and can queue posts for the networks
   const cronSecret = process.env.CRON_SECRET
   if (!cronSecret) {
@@ -28,6 +29,5 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
-  return POST(request)
-}
+export const GET = cronRoute('marketing-agent', handle)
+export const POST = GET

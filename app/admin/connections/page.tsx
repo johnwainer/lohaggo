@@ -241,7 +241,7 @@ export default function ConnectionsPage() {
         providers.push.hasVapidPrivateKey ? 'VAPID Private Key: ✓' : 'VAPID Private Key: faltante',
         'Configurable en variables de entorno (Vercel)',
       ],
-      href: '/admin/pwa-adoption',
+      href: '/admin/analytics?tab=app',
     },
   ] : []
 

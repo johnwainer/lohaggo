@@ -2,13 +2,14 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 300
 
 import { NextRequest, NextResponse } from 'next/server'
+import { cronRoute } from '@/lib/system/cron'
 import { createLogger } from '@/lib/logger'
 import { runDuePublications } from '@/lib/marketing/publisher'
 
 const logger = createLogger('cron-publisher')
 
 /** Scheduled posts that are due (and Instagram videos Meta finished processing). */
-export async function POST(request: NextRequest) {
+async function handle(request: NextRequest) {
   // Fails closed: these jobs publish to the networks and rewrite account tokens
   const cronSecret = process.env.CRON_SECRET
   if (!cronSecret) {
@@ -28,6 +29,5 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
-  return POST(request)
-}
+export const GET = cronRoute('publisher', handle)
+export const POST = GET

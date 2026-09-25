@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
 import { NextRequest, NextResponse } from 'next/server'
+import { cronRoute } from '@/lib/system/cron'
 import { createLogger } from '@/lib/logger'
 import { drainAgentTasks } from '@/lib/ai/autopilot'
 import { runCopilotTakeovers } from '@/lib/ai/copilot'
@@ -9,7 +10,7 @@ import { runCopilotTakeovers } from '@/lib/ai/copilot'
 const logger = createLogger('cron-copilot')
 
 /** Copilot: take over (or flag) conversations whose client has waited longer than the agent's limit. */
-export async function POST(request: NextRequest) {
+async function handle(request: NextRequest) {
   const secret = request.headers.get('authorization')
   const cronSecret = process.env.CRON_SECRET
   if (cronSecret && secret !== `Bearer ${cronSecret}`) {
@@ -26,6 +27,5 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
-  return POST(request)
-}
+export const GET = cronRoute('copilot', handle)
+export const POST = GET

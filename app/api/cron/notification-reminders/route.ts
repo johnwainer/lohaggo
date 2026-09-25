@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cronRoute } from '@/lib/system/cron'
 import { prisma } from '@/lib/prisma'
 import { createNotification } from '@/lib/notifications/notificationService'
 import { createLogger } from '@/lib/logger'
@@ -192,5 +193,5 @@ async function handler(req: NextRequest) {
   }
 }
 
-export const GET = handler
-export const POST = handler
+export const GET = cronRoute('notification-reminders', handler)
+export const POST = GET

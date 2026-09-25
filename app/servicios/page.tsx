@@ -335,6 +335,15 @@ export function ServiciosContent({
     }
   }
 
+  // Analítica: one event per finished search (not per keystroke), visitors included
+  const searchLogTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const logSearchEvent = (query: string, resultCount: number) => {
+    if (searchLogTimer.current) clearTimeout(searchLogTimer.current)
+    searchLogTimer.current = setTimeout(() => {
+      fetch('/api/search-events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: query.trim(), resultCount, source: 'servicios' }), keepalive: true }).catch(() => null)
+    }, 1500)
+  }
+
   const saveSearchHistory = async (query: string, hasResults: boolean = true) => {
     if (!session?.user || !query.trim() || query.trim().length < 2) return
 
@@ -419,6 +428,7 @@ export function ServiciosContent({
 
       if (searchTerm && searchTerm.length >= 2) {
         saveSearchHistory(searchTerm, resultServices.length > 0)
+        logSearchEvent(searchTerm, resultServices.length)
       }
     } catch (error) {
     } finally {
