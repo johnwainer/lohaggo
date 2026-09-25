@@ -369,7 +369,9 @@ async function attachImages(agent: Agent, config: AgentConfig, postId: string, d
     }
     if (!picked.length) return { source: null, error: 'Pexels no devolvió fotos para este servicio' }
     for (const c of picked) {
-      await importImage({ workspaceId: agent.workspaceId, postId, brand, candidate: { source: 'pexels', url: c.fullUrl, width: c.width, height: c.height, alt: c.alt || alt, credit: c.credit, creditUrl: c.creditUrl } })
+      // Instagram: Pexels' CDN crops to 4:5 (its portrait photos are 2:3 or 9:16, which Instagram would pad with bars)
+      const url = orientation === 'portrait' && !fits(c.width, c.height) ? `${c.fullUrl.split('?')[0]}?auto=compress&cs=tinysrgb&fit=crop&w=1600&h=2000` : c.fullUrl
+      await importImage({ workspaceId: agent.workspaceId, postId, brand, candidate: { source: 'pexels', url, width: c.width, height: c.height, alt: c.alt || alt, credit: c.credit, creditUrl: c.creditUrl } })
     }
     // Fewer photos than a carousel needs: a single-image post instead of a validation error
     if (carousel && picked.length < 2) await saveVariants(postId, [{ channel: 'INSTAGRAM', format: 'feed' }])

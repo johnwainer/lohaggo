@@ -28,7 +28,7 @@ function PostCard({ post, children }: { post: AgentPost; children?: React.ReactN
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-4 space-y-3">
       <div className="flex items-start gap-3">
-        {post.media[0] && <img src={post.media[0].url} alt="" className="h-20 w-16 shrink-0 rounded-xl object-cover bg-gray-100" />}
+        {post.media[0] && <img src={post.media[0].url.replace('/image/upload/', '/image/upload/c_fill,w_160,h_200,f_auto/')} alt="" className="h-20 w-16 shrink-0 rounded-xl object-cover bg-gray-100" />}
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <StatusChip status={post.status} />
