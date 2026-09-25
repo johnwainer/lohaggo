@@ -12,6 +12,7 @@ const H = 3600_000
 const MAX_OUTPUT = 8000
 const limit = (v: unknown, def: number, max: number) => (Number.isInteger(v) && (v as number) > 0 ? Math.min(v as number, max) : def)
 const period = (v: unknown) => (['7d', '30d', '90d'].includes(String(v)) ? String(v) : '30d')
+const bogotaTime = (d: Date) => new Intl.DateTimeFormat('es-CO', { timeZone: 'America/Bogota', weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(d)
 const mins = (d: Date | null | undefined) => (d ? Math.round((Date.now() - d.getTime()) / 60_000) : null)
 
 /**
@@ -58,28 +59,39 @@ export const READ_TOOLS: Record<string, ReadTool> = {
       const id = String(i.id ?? '')
       const since = new Date(Date.now() - 7 * 24 * H)
       const [agent, replies, handoffs, cost, gaps] = await Promise.all([
-        prisma.aiAgent.findUnique({ where: { id }, select: { id: true, name: true, status: true, autopilot: true, model: true, conversations: true, handoffs: true } }),
+        prisma.aiAgent.findUnique({ where: { id }, select: { id: true, workspaceId: true, name: true, status: true, autopilot: true, model: true, conversations: true, handoffs: true } }),
         prisma.conversationMessage.count({ where: { aiAgentId: id, direction: 'OUTBOUND', sentAt: { gte: since } } }),
         prisma.conversation.count({ where: { aiAgentId: id, aiHandoffAt: { gte: since }, isTest: false } }),
         prisma.aiCall.aggregate({ where: { agentId: id, createdAt: { gte: since } }, _sum: { costUsd: true }, _count: { _all: true } }),
-        prisma.aiKnowledgeGap.findMany({ where: { agentId: id, status: 'open' }, orderBy: { createdAt: 'desc' }, take: 10, select: { question: true, createdAt: true } }),
+        prisma.aiKnowledgeGap.findMany({ where: { agentId: id, status: 'open' }, orderBy: { createdAt: 'desc' }, take: 10, select: { id: true, question: true, createdAt: true } }),
       ])
       if (!agent) return { error: 'Agente no encontrado' }
-      return { agente: agent, ultimos_7_dias: { respuestas: replies, traspasos: handoffs, llamadas_ia: cost._count._all, costo_usd: Math.round((cost._sum.costUsd ?? 0) * 100) / 100 }, preguntas_sin_respuesta: gaps.map((g) => untrusted(g.question.slice(0, 200))) }
+      return { agente: agent, ultimos_7_dias: { respuestas: replies, traspasos: handoffs, llamadas_ia: cost._count._all, costo_usd: Math.round((cost._sum.costUsd ?? 0) * 100) / 100 }, preguntas_sin_respuesta: gaps.map((g) => ({ gapId: g.id, pregunta: untrusted(g.question.slice(0, 200)) })) }
     },
   },
   marketing: {
-    def: { name: 'marketing', description: 'Publicaciones esperando revisión, publicaciones fallidas de 7 días con su error y estado de los agentes de marketing (modo, degradación, gasto).', input_schema: { type: 'object', properties: {} } },
-    run: async () => {
+    def: { name: 'marketing', description: 'Publicaciones programadas de los próximos días (id, título, canales, hora, agente), esperando revisión, fallidas de 7 días con su error, y los agentes de marketing (modo, degradación, gasto). Usa el id de la publicación (postId) o de la publicación fallida para proponer acciones.', input_schema: { type: 'object', properties: { dias: { type: 'integer', minimum: 1, maximum: 30, description: 'Días hacia adelante para las programadas (7 por defecto)' } } } },
+    run: async (i) => {
       const since = new Date(Date.now() - 7 * 24 * H)
-      const [review, failed, agents] = await Promise.all([
+      const until = new Date(Date.now() + limit(i.dias, 7, 30) * 24 * H)
+      const [scheduled, review, failed, agents] = await Promise.all([
+        prisma.marketingPublication.findMany({ where: { status: 'scheduled', scheduledAt: { lte: until } }, orderBy: { scheduledAt: 'asc' }, take: 60, select: { id: true, channel: true, scheduledAt: true, post: { select: { id: true, title: true, status: true, agentId: true, campaign: { select: { name: true } } } } } }),
         prisma.marketingPost.findMany({ where: { status: 'review' }, orderBy: { updatedAt: 'asc' }, take: 10, select: { id: true, title: true, origin: true, updatedAt: true } }),
         prisma.marketingPublication.findMany({ where: { status: 'failed', updatedAt: { gte: since } }, orderBy: { updatedAt: 'desc' }, take: 10, select: { id: true, channel: true, lastError: true, post: { select: { id: true, title: true } } } }),
         prisma.marketingAgent.findMany({ where: { status: { not: 'archived' } }, select: { id: true, status: true, mode: true, degradedReason: true, monthlyBudgetUsd: true, campaign: { select: { name: true, objective: true } } } }),
       ])
+      // One entry per post: its channels and the earliest pending time
+      const byPost = new Map<string, { postId: string; titulo: string; estado: string; campana: string | null; de_agente: boolean; canales: string[]; hora: string; hora_iso: string }>()
+      for (const p of scheduled) {
+        const cur = byPost.get(p.post.id)
+        if (cur) { if (!cur.canales.includes(p.channel)) cur.canales.push(p.channel); continue }
+        byPost.set(p.post.id, { postId: p.post.id, titulo: p.post.title, estado: p.post.status, campana: p.post.campaign?.name ?? null, de_agente: Boolean(p.post.agentId), canales: [p.channel], hora: bogotaTime(p.scheduledAt), hora_iso: p.scheduledAt.toISOString() })
+      }
       return {
-        en_revision: review.map((p) => ({ id: p.id, titulo: p.title, origen: p.origin, horas_esperando: Math.round((Date.now() - p.updatedAt.getTime()) / H) })),
-        fallidas_7d: failed.map((f) => ({ id: f.id, canal: f.channel, publicacion: f.post.title, error: f.lastError?.slice(0, 200) ?? null })),
+        ahora: bogotaTime(new Date()),
+        programadas: Array.from(byPost.values()),
+        en_revision: review.map((p) => ({ postId: p.id, titulo: p.title, origen: p.origin, horas_esperando: Math.round((Date.now() - p.updatedAt.getTime()) / H) })),
+        fallidas_7d: failed.map((f) => ({ publicationId: f.id, postId: f.post.id, canal: f.channel, publicacion: f.post.title, error: f.lastError?.slice(0, 200) ?? null })),
         agentes: agents.map((a) => ({ id: a.id, campana: a.campaign.name, objetivo: a.campaign.objective, estado: a.status, modo: a.mode, degradado: a.degradedReason, presupuesto_mensual_usd: a.monthlyBudgetUsd })),
       }
     },
@@ -231,6 +243,18 @@ export const READ_TOOLS: Record<string, ReadTool> = {
       const ads = await prisma.advertisement.findMany({ orderBy: { updatedAt: 'desc' }, take: 20, select: { id: true, title: true, placement: true, active: true, startDate: true, endDate: true, impressions: true, clicks: true } })
       return ads.map((a) => ({ ...a, vencido: Boolean(a.endDate && a.endDate < new Date()), ctr: a.impressions ? Math.round((a.clicks / a.impressions) * 1000) / 10 : null }))
     },
+  },
+  equipo: {
+    def: { name: 'equipo', description: 'Personas del equipo que pueden atender conversaciones (admins activos): id, nombre, cuentas a las que pertenecen y cuántas conversaciones abiertas tienen asignadas. Úsalo antes de proponer asignar una conversación.', input_schema: { type: 'object', properties: {} } },
+    run: async () => {
+      const people = await prisma.user.findMany({ where: { role: 'ADMIN', isActive: true }, take: 40, select: { id: true, name: true, isSuperAdmin: true, workspaceMemberships: { select: { workspace: { select: { id: true, name: true } } } } } })
+      const load = await prisma.conversation.groupBy({ by: ['assignedToId'], where: { status: { in: ['OPEN', 'IN_PROGRESS'] }, assignedToId: { in: people.map((p) => p.id) } }, _count: { _all: true } })
+      return people.map((p) => ({ userId: p.id, nombre: p.name, superadmin: p.isSuperAdmin, cuentas: p.workspaceMemberships.map((m) => ({ id: m.workspace.id, nombre: m.workspace.name })), conversaciones_abiertas: load.find((l) => l.assignedToId === p.id)?._count._all ?? 0 }))
+    },
+  },
+  funciones: {
+    def: { name: 'funciones', description: 'Funciones y botones de la plataforma (interruptores): clave, nombre, descripción y si están encendidos. Úsalo antes de proponer encender o apagar una.', input_schema: { type: 'object', properties: {} } },
+    run: async () => (await prisma.featureFlag.findMany({ orderBy: { key: 'asc' }, take: 60, select: { key: true, name: true, description: true, enabled: true, updatedAt: true } })).map((f) => ({ ...f, description: f.description?.slice(0, 200) ?? null })),
   },
   hallazgos_abiertos: {
     def: { name: 'hallazgos_abiertos', description: 'Los hallazgos que Haggo ya tiene abiertos, para no repetirlos.', input_schema: { type: 'object', properties: {} } },

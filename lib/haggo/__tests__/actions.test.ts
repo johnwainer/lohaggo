@@ -253,3 +253,22 @@ describe('el chat no ejecuta', () => {
     expect(CHAT_TOOLS.some((t) => /ejecutar|execute|aprobar/i.test(t.name))).toBe(false)
   })
 })
+
+describe('Haggo puede encontrar lo que cada acción necesita', () => {
+  // Where each identifier comes from: a read tool that returns it (or the snapshot for inbox agents)
+  const SOURCES: Record<string, string[]> = {
+    postId: ['marketing'], publicationId: ['marketing'], agentId: ['marketing', 'foto'], gapId: ['agente_ia'], workspaceId: ['agente_ia', 'equipo'],
+    conversationId: ['conversaciones_en_espera'], userId: ['equipo'], serviceRequestId: ['solicitudes_sin_propuestas'], incidentId: ['incidentes_abiertos'],
+    key: ['funciones'], partnerId: ['socios', 'resenas'], paymentId: ['dinero'],
+  }
+  it('todo identificador requerido tiene una herramienta de lectura que lo muestra', () => {
+    for (const a of ACTIONS) {
+      for (const [name, prop] of Object.entries((a.schema.properties ?? {}) as Record<string, { type?: string; enum?: unknown[] }>)) {
+        if (prop.type !== 'string' || prop.enum || !/Id$|^key$/.test(name)) continue
+        const tools = SOURCES[name]
+        expect(tools, `${a.id}.${name} no tiene de dónde salir`).toBeDefined()
+        for (const t of tools!) if (t !== 'foto') expect(READ_TOOLS[t], `${t} no existe`).toBeDefined()
+      }
+    }
+  })
+})

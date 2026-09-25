@@ -72,12 +72,13 @@ export const REVIEW_CHECKLIST: Array<{ area: string; tools: string[] }> = [
   { area: 'Clientes y adquisición: registros, origen, recompra', tools: ['personas_y_adquisicion'] },
   { area: 'Calidad: reseñas bajas y socios peor calificados', tools: ['resenas'] },
   { area: 'Dinero: pagos, rechazos, pagos a socios, efectivo, reembolsos', tools: ['dinero'] },
-  { area: 'Bandeja y atención: esperas, tiempos de respuesta, IA frente a personas', tools: ['conversaciones_en_espera', 'atencion'] },
+  { area: 'Bandeja y atención: esperas, tiempos de respuesta, IA frente a personas, carga del equipo', tools: ['conversaciones_en_espera', 'atencion', 'equipo'] },
   { area: 'Agentes de IA de la bandeja: traspasos, vacíos de conocimiento, costo', tools: ['agente_ia'] },
   { area: 'Marketing: publicaciones, revisión, fallos, agentes de marketing y publicidad', tools: ['marketing', 'agentes_marketing', 'publicidad'] },
   { area: 'Mensajería: campañas y envíos fallidos', tools: ['mensajeria'] },
   { area: 'Sistema: tareas automáticas, errores, integraciones, incidentes y casos', tools: ['salud_sistema', 'incidentes_abiertos'] },
   { area: 'Seguridad: ataques e IP bloqueadas', tools: ['seguridad'] },
+  { area: 'Configuración: funciones y botones encendidos o apagados', tools: ['funciones'] },
   { area: 'Costos de IA por tipo y proveedor', tools: ['costos_ia'] },
 ]
 
