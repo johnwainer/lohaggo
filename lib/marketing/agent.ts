@@ -78,6 +78,10 @@ const MAX_IDEAS = 12
 const MAX_DRAFTS_PER_CYCLE = 2
 /** Share of slots used to try little-tested hours once the agent has data. */
 const SLOT_EXPLORE = 0.2
+/** Model calls of the agent run outside a chat: they may take minutes (the routes allow 300 s). */
+const CALL_TIMEOUT_MS = 150_000
+/** Room for thinking + the answer; one retry doubles the call's own budget up to this. */
+const MAX_OUTPUT_TOKENS = 16_000
 /** An idea not written this long after its day is dropped (its moment passed). */
 const IDEA_STALE_MS = 2 * DAY
 
@@ -199,18 +203,28 @@ async function withRun<T>(agent: Agent, type: RunType, input: unknown, fn: (m: M
  * the prompt asks for it and an answer without it is an error (nothing is created from free text).
  */
 async function callTool(agent: Agent, model: string, p: { kind: AiCallKind; system: Anthropic.TextBlockParam[]; task: string; tool: Anthropic.Tool; maxTokens: number; effort: Effort }, meter: Meter) {
-  let result: CallResult
-  try {
-    result = await callClaude({ model, system: p.system, messages: [{ role: 'user', content: p.task }], tools: [p.tool], maxTokens: p.maxTokens, effort: p.effort }, { kind: p.kind, workspaceId: agent.workspaceId })
-  } catch (err) {
-    throw new AgentError(describeApiError(err))
+  let maxTokens = p.maxTokens
+  for (let attempt = 0; ; attempt++) {
+    let result: CallResult
+    try {
+      result = await callClaude(
+        { model, system: p.system, messages: [{ role: 'user', content: p.task }], tools: [p.tool], maxTokens, effort: p.effort, timeoutMs: CALL_TIMEOUT_MS },
+        { kind: p.kind, workspaceId: agent.workspaceId },
+      )
+    } catch (err) {
+      throw new AgentError(describeApiError(err))
+    }
+    meter.add(result)
+    if (result.message.stop_reason === 'refusal') throw new AgentError('El modelo no quiso hacer esta tarea')
+    // Thinking counts against the limit: one more try with twice the room before giving up
+    if (result.message.stop_reason === 'max_tokens') {
+      if (attempt === 0 && maxTokens < MAX_OUTPUT_TOKENS) { maxTokens = Math.min(MAX_OUTPUT_TOKENS, maxTokens * 2); continue }
+      throw new AgentError('La respuesta salió demasiado larga incluso con más espacio; inténtalo de nuevo')
+    }
+    const input = toolInput(result.message.content, p.tool.name)
+    if (input === null) throw new AgentError('El modelo no entregó la respuesta en el formato pedido')
+    return input
   }
-  meter.add(result)
-  if (result.message.stop_reason === 'refusal') throw new AgentError('El modelo no quiso hacer esta tarea')
-  if (result.message.stop_reason === 'max_tokens') throw new AgentError('La respuesta se cortó por larga; se reintentará en la próxima ejecución')
-  const input = toolInput(result.message.content, p.tool.name)
-  if (input === null) throw new AgentError('El modelo no entregó la respuesta en el formato pedido')
-  return input
 }
 
 async function promptContext(agent: Agent, now = new Date(), opts: { withStrategy?: boolean } = {}) {
@@ -229,7 +243,7 @@ export async function generateStrategy(agent: Agent, instruction?: string | null
   return withRun(agent, 'strategy', { instruction: instruction ?? null }, async (meter) => {
     const ai = await assertCanSpend(agent)
     const ctx = await promptContext(agent, new Date(), { withStrategy: false })
-    const input = await callTool(agent, ai.defaultModel, { kind: 'marketing_agent_strategy', system: ctx.system, task: strategyTask(instruction), tool: STRATEGY_TOOL, maxTokens: 4000, effort: 'high' }, meter)
+    const input = await callTool(agent, ai.defaultModel, { kind: 'marketing_agent_strategy', system: ctx.system, task: strategyTask(instruction), tool: STRATEGY_TOOL, maxTokens: 8000, effort: 'high' }, meter)
     const parsed = parseStrategy(input)
     if (!parsed.ok) throw new AgentError(`La estrategia no es válida: ${parsed.errors.join(' · ')}`)
     const known = new Set(ctx.catalog.services.map((s) => s.name))
@@ -262,7 +276,7 @@ export async function planIdeas(agent: Agent, now = new Date()) {
     const fromDay = addDays(bogota(now).key, 1)
     const toDay = bogota(new Date(now.getTime() + agent.horizonDays * DAY)).key
     const input = await callTool(agent, ai.defaultModel, {
-      kind: 'marketing_agent_plan', system: ctx.system, tool: PLAN_TOOL, maxTokens: 3500, effort: 'medium',
+      kind: 'marketing_agent_plan', system: ctx.system, tool: PLAN_TOOL, maxTokens: 7000, effort: 'medium',
       task: planTask({ gaps, order, exploreCount: Math.round(maxIdeas * agent.exploreRatio), fromDay, toDay, maxIdeas }),
     }, meter)
     const parsed = parseIdeas(input, { pillars: strategy.pillars.map((p) => p.name), channels: enabledChannels(config), services: ctx.catalog.services.map((s) => s.name), fromDay, toDay, max: maxIdeas })
@@ -439,7 +453,7 @@ export async function draftIdea(agent: Agent, ideaId: string, opts: { instructio
     const previous = existing ? existing.variants.map((v) => `${v.channel}:\n${v.body}`).join('\n\n') : null
     const utmNote = 'Los enlaces a lohaggo.com escríbelos sin parámetros: la plataforma les añade el seguimiento de la campaña (UTM).'
     const ask = async (corrections: string[] | null, prev: string | null) => callTool(agent, ai.defaultModel, {
-      kind: 'marketing_agent_draft', system: ctx.system, tool: DRAFT_TOOL, maxTokens: channels.includes('WEB') ? 6000 : 2200, effort: 'medium',
+      kind: 'marketing_agent_draft', system: ctx.system, tool: DRAFT_TOOL, maxTokens: channels.includes('WEB') ? 9000 : 4000, effort: 'medium',
       task: draftTask({ idea: ideaInfo, utmNote, instruction: opts.instruction, corrections, previous: prev }),
     }, meter)
 
@@ -669,7 +683,7 @@ export async function learn(agent: Agent, now = new Date()) {
     const ctx = await promptContext(agent, now)
     const from = agent.lastLearnedAt ?? rows[rows.length - 1].publishedAt
     const input = await callTool(agent, ai.defaultModel, {
-      kind: 'marketing_agent_learn', system: ctx.system, tool: LEARN_TOOL, maxTokens: 2500, effort: 'medium',
+      kind: 'marketing_agent_learn', system: ctx.system, tool: LEARN_TOOL, maxTokens: 5000, effort: 'medium',
       task: learnTask({ from: bogota(from).key, to: bogota(now).key, table: statsTable(stats) }),
     }, meter)
     const parsed = parseRetrospective(input)

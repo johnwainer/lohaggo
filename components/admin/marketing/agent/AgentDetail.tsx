@@ -181,7 +181,7 @@ export default function AgentDetail({ agentId, onBack, onEdit }: { agentId: stri
               <p className="font-medium text-gray-900">El agente aún no tiene estrategia</p>
               <p className="text-sm text-gray-600">La propone a partir del objetivo y de lo que configuraste. Tú la revisas y la apruebas; sin eso no planifica nada.</p>
               {can.edit && <button onClick={() => act('strategy', {}, 'strategy')} disabled={Boolean(busy)} className="inline-flex items-center gap-2 rounded-full bg-primary-600 px-5 py-2 text-sm font-semibold text-white hover:bg-primary-700">{busy === 'strategy' ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />} Proponer estrategia</button>}
-              {busy === 'strategy' && <p className="text-xs text-gray-500">Puede tardar hasta un minuto.</p>}
+              {busy === 'strategy' && <p className="text-xs text-gray-500">Puede tardar 1 o 2 minutos.</p>}
             </div>
           )}
           {a.strategy && !a.strategyApprovedAt && (

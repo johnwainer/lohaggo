@@ -65,7 +65,7 @@ export default function AgentTab({ workspaceId, workspace, openAgentId, openWiza
   return (
     <div className="space-y-4">
       {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
-      {generating && <div className="flex items-center gap-2 rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 text-sm text-primary-800"><Loader2 size={16} className="animate-spin" /> El agente está preparando la estrategia (puede tardar hasta un minuto)…</div>}
+      {generating && <div className="flex items-center gap-2 rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 text-sm text-primary-800"><Loader2 size={16} className="animate-spin" /> El agente está preparando la estrategia (puede tardar 1 o 2 minutos)…</div>}
 
       {open ? (
         <AgentDetail key={`${open}:${detailKey}`} agentId={open} onBack={() => { setOpen(null); load() }} onEdit={(d) => setWizard({ existing: d })} />

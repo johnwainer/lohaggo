@@ -14,6 +14,8 @@ export type CallParams = {
   tools?: Anthropic.Tool[]
   maxTokens: number
   effort: Effort
+  /** Longer than the client's 60 s default, for long jobs (marketing agent) outside a live chat */
+  timeoutMs?: number
 }
 
 export type CallContext = {
@@ -71,7 +73,7 @@ export async function callClaude(p: CallParams, ctx: CallContext): Promise<CallR
   const { client, settings } = await requireAnthropic()
   const plan = buildAttemptPlan(p.model, ctx.allowFallback === false ? null : settings.fallbackModel)
   const started = Date.now()
-  const { result: message } = await runWithFallback(plan, (model) => client.messages.create(buildRequest(p, model)))
+  const { result: message } = await runWithFallback(plan, (model) => client.messages.create(buildRequest(p, model), p.timeoutMs ? { timeout: p.timeoutMs } : undefined))
   const latencyMs = Date.now() - started
   const usage = usageOf(message)
   const costUsd = await logAiCall({
@@ -128,6 +130,7 @@ export function describeApiError(err: unknown) {
   if (err instanceof Anthropic.RateLimitError) return 'Límite de peticiones alcanzado (429)'
   if (err instanceof Anthropic.BadRequestError) return `Petición rechazada (400): ${err.message}`
   if (err instanceof Anthropic.APIError && (err.status === 529 || err.status === 503)) return 'Modelo sobrecargado (529), prueba de nuevo'
+  if (err instanceof Anthropic.APIConnectionTimeoutError) return 'Anthropic tardó demasiado en responder; inténtalo de nuevo'
   if (err instanceof Anthropic.APIConnectionError) return 'No se pudo conectar con Anthropic'
   if (err instanceof Anthropic.APIError) return `Error de la API (${err.status ?? '?'}): ${err.message}`
   return err instanceof Error ? err.message : 'Error desconocido'

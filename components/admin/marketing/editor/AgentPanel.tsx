@@ -65,7 +65,7 @@ export default function AgentPanel({ post, idea, agentId, canEdit, onChanged, on
               {busy === 'reject' ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={12} />} Rechazar
             </button>
           </div>
-          {busy === 'redraft' && <p className="text-[11px] text-gray-500">Reescribiendo (hasta un minuto). Reemplaza el texto de todos los canales.</p>}
+          {busy === 'redraft' && <p className="text-[11px] text-gray-500">Reescribiendo (1 o 2 minutos). Reemplaza el texto de todos los canales.</p>}
         </div>
       )}
       {error && <p className="text-xs text-red-600">{error}</p>}
