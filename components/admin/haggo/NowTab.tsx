@@ -19,6 +19,7 @@ export type Overview = {
   areas: Array<{ domain: string; critical: number; warning: number; info: number }>
   runs: Run[]
   pendingApprovals: number
+  decisions: Array<{ id: string; tool: string; label: string; status: string; expectedImpact: string | null; updatedAt: string }>
 }
 
 function Bar({ value, max }: { value: number; max: number }) {
@@ -63,7 +64,7 @@ export function NowTab({ data, reload }: { data: Overview; reload: () => void })
               </span>
               <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">Modo {MODE_LABEL[c.mode]}</span>
               {data.quietNow && <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700"><Moon size={12} /> Horas sin actuar solo</span>}
-              {data.pendingApprovals > 0 && <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">{data.pendingApprovals} por aprobar</span>}
+              {data.pendingApprovals > 0 && <a href="/admin/haggo?tab=proposals" className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">{data.pendingApprovals} por aprobar</a>}
             </div>
             <p className="mt-3 text-lg font-semibold text-gray-900">{data.focus || 'Todavía no ha hecho su primera revisión.'}</p>
             <p className="mt-1 text-sm text-gray-500">
@@ -127,6 +128,20 @@ export function NowTab({ data, reload }: { data: Overview; reload: () => void })
         </div>
         <FindingList findings={data.findings} onChange={reload} />
       </section>
+
+      {data.decisions.length > 0 && (
+        <section className={`${card} p-5`}>
+          <div className="mb-3 flex items-center justify-between"><h2 className="font-semibold text-gray-900">Últimas decisiones</h2><a href="/admin/haggo?tab=decisions" className="text-xs text-primary-600 hover:underline">Ver todas</a></div>
+          <ul className="divide-y divide-gray-100 text-sm">
+            {data.decisions.map((d) => (
+              <li key={d.id} className="flex items-start gap-3 py-2">
+                <span className={`w-20 shrink-0 text-xs font-medium ${d.status === 'executed' ? 'text-emerald-700' : d.status === 'failed' ? 'text-rose-600' : 'text-gray-500'}`}>{({ executed: 'Ejecutada', failed: 'Falló', reverted: 'Deshecha', rejected: 'Rechazada' } as Record<string, string>)[d.status] ?? d.status}</span>
+                <span className="min-w-0 flex-1"><span className="block truncate text-gray-900">{d.expectedImpact || d.label}</span><span className="text-xs text-gray-500">{d.label} · {ago(d.updatedAt)}</span></span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className={`${card} p-5`}>
         <h2 className="mb-3 font-semibold text-gray-900">Últimas ejecuciones</h2>

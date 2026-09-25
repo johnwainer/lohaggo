@@ -51,6 +51,14 @@ export async function assignToAi(conversation: Conversation, actor: Actor, prefe
   return { ok: true as const, conversation: updated, agent, pendingMessageId }
 }
 
+/** Who can take a conversation: an active admin who is a member of its workspace (or a superadmin). */
+export async function isValidAssignee(workspaceId: string, userId: string) {
+  const user = await prisma.user.findFirst({ where: { id: userId, role: 'ADMIN', isActive: true }, select: { isSuperAdmin: true } })
+  if (!user) return false
+  if (user.isSuperAdmin) return true
+  return Boolean(await prisma.workspaceMember.findUnique({ where: { workspaceId_userId: { workspaceId, userId } }, select: { userId: true } }))
+}
+
 /** Assigns a person (or nobody). A person in charge switches the AI off for the conversation. */
 export async function assignToPerson(conversation: Conversation, actor: Actor, userId: string | null) {
   const updated = await prisma.conversation.update({

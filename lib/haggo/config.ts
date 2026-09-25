@@ -46,6 +46,7 @@ export type HaggoConfig = {
   dailyReportHour: number | null
   weeklyReviewDay: number | null
   weeklyReviewHour: number
+  proposalTtlHours: number
   triggers: Record<Trigger, boolean>
   quietHours: QuietWindow[]
   timezone: string
@@ -68,6 +69,7 @@ export const DEFAULT_CONFIG: HaggoConfig = {
   dailyReportHour: 7,
   weeklyReviewDay: 1,
   weeklyReviewHour: 7,
+  proposalTtlHours: 48,
   triggers: { critical_incident: true, ai_down: true, error_spike: true },
   quietHours: [],
   timezone: 'America/Bogota',
@@ -129,6 +131,7 @@ export function normalizeConfig(raw: Record<string, unknown> | null | undefined,
     dailyReportHour: nullableHour('dailyReportHour'),
     weeklyReviewDay: has('weeklyReviewDay') ? (r.weeklyReviewDay === null ? null : int(r.weeklyReviewDay, 0, 6, base.weeklyReviewDay ?? 1)) : base.weeklyReviewDay,
     weeklyReviewHour: has('weeklyReviewHour') ? int(r.weeklyReviewHour, 0, 23, base.weeklyReviewHour) : base.weeklyReviewHour,
+    proposalTtlHours: has('proposalTtlHours') ? int(r.proposalTtlHours, 1, 720, base.proposalTtlHours) : base.proposalTtlHours,
     triggers: has('triggers') ? { ...base.triggers, ...boolMap(r.triggers, TRIGGERS) } : base.triggers,
     quietHours: has('quietHours') ? parseQuietHours(r.quietHours) : base.quietHours,
     timezone: typeof r.timezone === 'string' && /^[A-Za-z_]+\/[A-Za-z_]+$/.test(r.timezone) ? r.timezone : base.timezone,

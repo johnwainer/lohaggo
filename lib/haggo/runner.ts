@@ -10,7 +10,9 @@ import { detect, novelDetections, type Detection, type Snapshot } from '@/lib/ha
 import { dueJobs, type LastRuns } from '@/lib/haggo/schedule'
 import { takeSnapshot } from '@/lib/haggo/snapshot'
 import { getHaggoConfig, haggoSpend, withHaggoLock } from '@/lib/haggo/store'
-import { READ_TOOL_DEFS, runReadTool } from '@/lib/haggo/tools/read'
+import { READ_TOOL_DEFS, READ_TOOLS, runReadTool } from '@/lib/haggo/tools/read'
+import { ACTION_REASONING, PROPOSE_ACTION_TOOL } from '@/lib/haggo/actions/registry'
+import { expireActions, proposeAction } from '@/lib/haggo/actions/engine'
 import { ANALYSIS_TOOL, REPORT_TOOL, buildSystem, cycleTask, parseAnalysis, parseReport, reportTask } from '@/lib/haggo/prompt'
 
 const logger = createLogger('haggo')
@@ -42,22 +44,26 @@ class Meter {
   }
 }
 
-async function context() {
+async function context(withActions = true) {
   const [directives, memory] = await Promise.all([
     prisma.haggoDirective.findMany({ where: { active: true }, orderBy: { createdAt: 'asc' }, take: 50, select: { text: true } }),
     prisma.haggoMemory.findMany({ where: { kind: { not: 'chat_summary' } }, orderBy: { updatedAt: 'desc' }, take: 20, select: { content: true } }),
   ])
-  return buildSystem({ directives, memory })
+  const system = buildSystem({ directives, memory })
+  return withActions ? [...system, { type: 'text' as const, text: ACTION_REASONING }] : system
 }
 
 /**
  * The investigation loop: read tools as many rounds as needed, then the final tool. An answer without
  * the final tool gets one reminder; results never come from free text.
  */
-async function think(p: { kind: AiCallKind; model: string; system: Anthropic.TextBlockParam[]; task: string; finalTool: Anthropic.Tool; maxTokens: number; effort: Effort; rounds?: number }, meter: Meter) {
+type Proposing = { origin: 'cycle' | 'report'; runId: string; counter: { n: number }; ids: string[] }
+
+async function think(p: { kind: AiCallKind; model: string; system: Anthropic.TextBlockParam[]; task: string; finalTool: Anthropic.Tool; maxTokens: number; effort: Effort; rounds?: number; proposing?: Proposing }, meter: Meter) {
   const maxRounds = p.rounds ?? MAX_ROUNDS
   const messages: Anthropic.MessageParam[] = [{ role: 'user', content: p.task }]
-  const tools = [...READ_TOOL_DEFS, p.finalTool]
+  const tools = [...READ_TOOL_DEFS, ...(p.proposing ? [PROPOSE_ACTION_TOOL] : []), p.finalTool]
+  const toolsUsed: string[] = []
   let reminded = false
   for (let round = 0; round < maxRounds; round++) {
     let r: CallResult
@@ -70,7 +76,14 @@ async function think(p: { kind: AiCallKind; model: string; system: Anthropic.Tex
     if (r.message.stop_reason === 'refusal') throw new HaggoError('El modelo no quiso hacer esta tarea')
     const uses = r.message.content.filter((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use')
     const final = uses.find((u) => u.name === p.finalTool.name)
-    if (final) return final.input
+    // Proposals sent together with the final answer still count
+    if (final) {
+      if (p.proposing) for (const u of uses.filter((x) => x.name === PROPOSE_ACTION_TOOL.name)) {
+        const res = await proposeAction(u.input, { origin: p.proposing.origin, runId: p.proposing.runId, toolsUsed, cycleCounter: p.proposing.counter }).catch(() => null)
+        if (res?.ok) p.proposing.ids.push(res.id)
+      }
+      return final.input
+    }
     if (!uses.length) {
       if (reminded || r.message.stop_reason === 'max_tokens') throw new HaggoError('El modelo no entregó el resultado en el formato pedido')
       reminded = true
@@ -78,7 +91,17 @@ async function think(p: { kind: AiCallKind; model: string; system: Anthropic.Tex
       messages.push({ role: 'user', content: `Entrega el resultado ahora con la herramienta ${p.finalTool.name}.` })
       continue
     }
-    const results = await Promise.all(uses.map((u) => runReadTool(u.name, u.input)))
+    // Reads first (in parallel), then proposals in order: a proposal can cite what this round read
+    const results: Array<{ output: string; isError: boolean }> = []
+    for (const u of uses) if (READ_TOOLS[u.name] && !toolsUsed.includes(u.name)) toolsUsed.push(u.name)
+    const reads = await Promise.all(uses.map((u) => (u.name === PROPOSE_ACTION_TOOL.name ? null : runReadTool(u.name, u.input))))
+    for (let i = 0; i < uses.length; i++) {
+      if (reads[i]) { results.push(reads[i]!); continue }
+      if (!p.proposing) { results.push({ output: 'Herramienta no disponible aquí', isError: true }); continue }
+      const res = await proposeAction(uses[i].input, { origin: p.proposing.origin, runId: p.proposing.runId, toolsUsed, cycleCounter: p.proposing.counter }).catch((err) => ({ ok: false as const, errors: [err instanceof Error ? err.message : 'Error'] }))
+      if (res.ok) p.proposing.ids.push(res.id)
+      results.push({ output: JSON.stringify(res), isError: !res.ok })
+    }
     messages.push({ role: 'assistant', content: r.message.content })
     const blocks: Anthropic.ContentBlockParam[] = uses.map((u, i) => ({ type: 'tool_result', tool_use_id: u.id, content: results[i].output, ...(results[i].isError ? { is_error: true } : {}) }))
     if (round >= maxRounds - 2) blocks.push({ type: 'text', text: `No hay más consultas: entrega el resultado ahora con ${p.finalTool.name}.` })
@@ -140,7 +163,9 @@ export async function runCycle(cfg: HaggoConfig, trigger: string, now = new Date
       summary = `Presupuesto de Haggo agotado (${spend.blocked === 'month' ? 'mes' : 'día'}): solo reglas. Nuevo: ${novel.map((d) => d.title).join(' · ')}`
     } else {
       const openFindings = await prisma.haggoFinding.findMany({ where: { status: { in: ['new', 'seen'] }, fingerprint: { not: { startsWith: 'rule:' } } }, orderBy: { lastSeenAt: 'desc' }, take: 20, select: { title: true, severity: true } })
-      const input = await think({ kind: 'haggo_cycle', model: await modelFor(cfg), system: await context(), task: cycleTask({ snapshot, detections, novel, openFindings, nowText: nowText(now, cfg.timezone) }), finalTool: ANALYSIS_TOOL, maxTokens: 4000, effort: 'medium' }, meter)
+      const proposing: Proposing = { origin: 'cycle', runId: run.id, counter: { n: 0 }, ids: [] }
+      const input = await think({ kind: 'haggo_cycle', model: await modelFor(cfg), system: await context(), task: cycleTask({ snapshot, detections, novel, openFindings, nowText: nowText(now, cfg.timezone) }), finalTool: ANALYSIS_TOOL, maxTokens: 5000, effort: 'medium', proposing }, meter)
+      if (proposing.ids.length) logger.info('Cycle proposals', { runId: run.id, n: proposing.ids.length })
       const analysis = parseAnalysis(input)
       if (!analysis) throw new HaggoError('El análisis no es válido')
       await saveAnalysis(run.id, analysis, detections)
@@ -191,7 +216,7 @@ export async function runReport(cfg: HaggoConfig, kind: 'daily' | 'weekly', now 
       await prisma.haggoRun.update({ where: { id: run.id }, data: { status: 'ok', summary: 'Informe solo con reglas (presupuesto agotado)', report: body, finishedAt: new Date() } })
       return { status: 'ok', summary: 'Informe solo con reglas', costUsd: 0 }
     }
-    const input = await think({ kind: 'haggo_report', model: await modelFor(cfg), system: await context(), task: reportTask({ kind, snapshot, runs, findings, nowText: nowText(now, cfg.timezone) }), finalTool: REPORT_TOOL, maxTokens: 10000, effort: 'high', rounds: REPORT_ROUNDS }, meter)
+    const input = await think({ kind: 'haggo_report', model: await modelFor(cfg), system: await context(), task: reportTask({ kind, snapshot, runs, findings, nowText: nowText(now, cfg.timezone) }), finalTool: REPORT_TOOL, maxTokens: 10000, effort: 'high', rounds: REPORT_ROUNDS, proposing: { origin: 'report', runId: run.id, counter: { n: 0 }, ids: [] } }, meter)
     const report = parseReport(input)
     if (!report) throw new HaggoError('El informe no es válido')
     await prisma.haggoSettings.update({ where: { id: 'platform' }, data: { focus: report.focus || undefined } })
@@ -224,7 +249,7 @@ export async function tick(now = new Date()) {
     const last = await lastRuns()
     const due = dueJobs(cfg, last, now)
     const trigger = due.cycle ? 'schedule' : await checkTriggers(cfg, last.cycle ?? null)
-    const res: Record<string, unknown> = { due, trigger }
+    const res: Record<string, unknown> = { due, trigger, expired: await expireActions().catch(() => 0) }
     if (trigger) res.cycle = await runCycle(cfg, trigger, now)
     if (due.daily) res.daily = await runReport(cfg, 'daily', now)
     if (due.weekly) res.weekly = await runReport(cfg, 'weekly', now)

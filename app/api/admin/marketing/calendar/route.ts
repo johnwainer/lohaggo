@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { auditAdminAction } from '@/lib/admin-utils'
 import { prisma } from '@/lib/prisma'
 import { marketingAuth, mkCan, mkWorkspacesWith } from '@/lib/marketing/permissions'
 
@@ -75,5 +76,6 @@ export async function PATCH(request: NextRequest) {
     await prisma.marketingPublication.updateMany({ where: { postId: post.id, status: 'scheduled' }, data: { scheduledAt: when } })
   }
   await prisma.marketingPost.update({ where: { id: post.id }, data: { scheduledAt: when } })
+  await auditAdminAction({ actorId: auth.admin.id, actorEmail: auth.admin.email, action: 'MARKETING_POST_RESCHEDULE', entityType: 'MarketingPost', entityId: post.id, details: when.toISOString(), request })
   return NextResponse.json({ ok: true })
 }

@@ -4,6 +4,7 @@ import { periodOf } from '@/lib/ai/pricing'
 import { getHaggoConfig, getHaggoRow, haggoSpend, HAGGO_KINDS } from '@/lib/haggo/store'
 import { inQuietHours, nextRuns } from '@/lib/haggo/schedule'
 import { DOMAINS } from '@/lib/haggo/config'
+import { actionLabel } from '@/lib/haggo/actions/registry'
 
 const SEV_ORDER: Record<string, number> = { critical: 0, warning: 1, info: 2 }
 const bySeverity = <T extends { severity: string; lastSeenAt: Date }>(a: T, b: T) => (SEV_ORDER[a.severity] ?? 3) - (SEV_ORDER[b.severity] ?? 3) || b.lastSeenAt.getTime() - a.lastSeenAt.getTime()
@@ -16,15 +17,17 @@ async function lastOf(type: string) {
 export async function haggoOverview(now = new Date()) {
   const row = await getHaggoRow()
   const cfg = await getHaggoConfig(row)
-  const [spend, cycle, daily, weekly, findings, runs, pending] = await Promise.all([
+  const [spend, cycle, daily, weekly, findings, runs, pending, decisions] = await Promise.all([
     haggoSpend(cfg, now),
     lastOf('cycle'), lastOf('daily'), lastOf('weekly'),
     prisma.haggoFinding.findMany({ where: { status: { in: ['new', 'seen'] } }, take: 60, select: { id: true, domain: true, severity: true, title: true, body: true, status: true, occurrences: true, createdAt: true, lastSeenAt: true, entityType: true, entityId: true } }),
     prisma.haggoRun.findMany({ orderBy: { startedAt: 'desc' }, take: 15, select: { id: true, type: true, trigger: true, status: true, summary: true, error: true, costUsd: true, startedAt: true, finishedAt: true } }),
     prisma.haggoAction.count({ where: { status: 'proposed' } }),
+    prisma.haggoAction.findMany({ where: { status: { in: ['executed', 'failed', 'reverted', 'rejected'] } }, orderBy: { updatedAt: 'desc' }, take: 5, select: { id: true, tool: true, status: true, expectedImpact: true, updatedAt: true } }),
   ])
   return {
     config: cfg,
+    decisions: decisions.map((d) => ({ ...d, label: actionLabel(d.tool) })),
     focus: row.focus,
     lastSnapshotAt: row.lastSnapshotAt,
     working: Boolean(row.lockedUntil && row.lockedUntil > now),
@@ -90,7 +93,7 @@ export async function haggoBrief() {
       enabled: cfg.enabled, mode: cfg.mode, focus: row.focus, lastCycleAt: cycle?.startedAt ?? null, lastStatus: cycle?.status ?? null, lastSummary: cycle?.summary ?? null,
       findings: findings.sort(bySeverity).slice(0, 5).map((f) => ({ ...f, lastSeenAt: f.lastSeenAt.toISOString() })),
       counts: { critical: findings.filter((f) => f.severity === 'critical').length, warning: findings.filter((f) => f.severity === 'warning').length },
-      decisions: decisions.map((d) => ({ ...d, updatedAt: d.updatedAt.toISOString() })),
+      decisions: decisions.map((d) => ({ ...d, label: actionLabel(d.tool), updatedAt: d.updatedAt.toISOString() })),
       pendingApprovals: pending,
       budget: { monthUsd: spend.monthUsd, monthlyUsd: cfg.monthlyBudgetUsd, blocked: spend.blocked },
     }

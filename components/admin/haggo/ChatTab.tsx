@@ -4,10 +4,11 @@ import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Brain, Check, Lightbulb, Loader2, Search, Send, Sparkles, X } from 'lucide-react'
 import { api, card, usd, when } from '@/components/admin/haggo/shared'
+import { ActionCard, type ActionView } from '@/components/admin/haggo/ActionCard'
 
 type Proposal = { id: string; text: string; rule: unknown; status: 'pending' | 'saved' | 'discarded'; directiveId?: string }
 type RunOut = { tools: string[]; proposals: Proposal[]; recommendations: string[]; remembered: string[] }
-type Message = { id: string; role: 'user' | 'assistant'; content: string; createdAt: string; run: { id: string; costUsd: number; status: string; model: string | null; output: RunOut | null } | null }
+type Message = { id: string; role: 'user' | 'assistant'; content: string; createdAt: string; actions?: ActionView[]; run: { id: string; costUsd: number; status: string; model: string | null; output: RunOut | null } | null }
 
 const TOOL_LABEL: Record<string, string> = {
   tendencias_negocio: 'negocio', salud_sistema: 'salud del sistema', conversaciones_en_espera: 'bandeja', agente_ia: 'agente IA', marketing: 'marketing',
@@ -136,6 +137,7 @@ export function ChatTab() {
                   {!!m.run?.output?.tools.length && <p className="mb-2 flex flex-wrap items-center gap-1 text-[11px] text-gray-500"><Search size={11} /> Consultó: {m.run.output.tools.map((t) => TOOL_LABEL[t] ?? t).join(', ')}</p>}
                   <div className={m.run?.status === 'error' ? 'text-rose-700' : 'text-gray-800'}><Rich text={m.content} /></div>
                   {m.run?.output?.proposals.map((p) => <ProposalCard key={p.id} runId={m.run!.id} p={p} onDone={load} />)}
+                  {!!m.actions?.length && <div className="mt-2 space-y-2">{m.actions.map((a) => <ActionCard key={a.id} a={a} onChange={load} />)}</div>}
                   {!!m.run?.output?.recommendations.length && <p className="mt-2 flex items-center gap-1 text-xs text-gray-500"><Lightbulb size={12} /> Dejé {m.run.output.recommendations.length === 1 ? 'una recomendación' : `${m.run.output.recommendations.length} recomendaciones`} en <a href="/admin/haggo?tab=analysis" className="underline">Análisis</a>.</p>}
                   {!!m.run?.output?.remembered.length && <p className="mt-1 flex items-center gap-1 text-xs text-gray-500"><Brain size={12} /> Guardé en mi memoria: «{m.run.output.remembered.join('» · «')}»</p>}
                   <p className="mt-2 text-[11px] text-gray-400">{when(m.createdAt)}{m.run?.costUsd ? ` · ${usd(m.run.costUsd)}` : ''}</p>

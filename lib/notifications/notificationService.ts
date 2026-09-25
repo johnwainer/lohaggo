@@ -433,7 +433,13 @@ async function dispatchAutomaticNotificationChannels(params: {
   }
 }
 
-export async function notifyNewServiceRequest(serviceRequestId: string) {
+/**
+ * Tells the matching partners about a request and confirms it to the client. With `partnersOnly` (a
+ * reminder about a request without proposals) the client is not written to again. Returns how many
+ * partners were notified.
+ */
+export async function notifyNewServiceRequest(serviceRequestId: string, opts: { partnersOnly?: boolean } = {}): Promise<number> {
+  let notified = 0
   try {
     const serviceRequest = await prisma.serviceRequest.findUnique({
       where: { id: serviceRequestId },
@@ -468,7 +474,7 @@ export async function notifyNewServiceRequest(serviceRequestId: string) {
       }
     })
 
-    if (!serviceRequest) return
+    if (!serviceRequest) return 0
 
     const { sendNuevaSolicitudSocio, sendSolicitudEnviadaCliente } = await import('@/lib/messaging/whatsapp-templates')
     const serviceName = serviceRequest.service.name
@@ -484,6 +490,7 @@ export async function notifyNewServiceRequest(serviceRequestId: string) {
     }
 
     const notifyPartner = async (partner: { user: { id: string; name: string; phone: string | null } }, isDirect: boolean) => {
+      notified++
       await createNotification({
         userId: partner.user.id,
         type: "NEW_SERVICE_REQUEST",
@@ -515,6 +522,8 @@ export async function notifyNewServiceRequest(serviceRequestId: string) {
       }
     }
 
+    if (opts.partnersOnly) return notified
+
     // Notify the client in-app that their request has been submitted
     await createNotification({
       userId: serviceRequest.user.id,
@@ -530,6 +539,7 @@ export async function notifyNewServiceRequest(serviceRequestId: string) {
   } catch (error) {
     logger.error("Error notifying new service request", { serviceRequestId, error })
   }
+  return notified
 }
 
 export async function notifyNewProposal(proposalId: string) {

@@ -26,7 +26,7 @@ export async function saveHaggoConfig(patch: Record<string, unknown>, email: str
     enabled: next.enabled, mode: next.mode, domainModes: json(next.domainModes), mediumAllowed: json(next.mediumAllowed), maxRiskEnabled: json(next.maxRiskEnabled),
     monthlyBudgetUsd: next.monthlyBudgetUsd, dailyBudgetUsd: next.dailyBudgetUsd, maxActionsPerCycle: next.maxActionsPerCycle, maxActionsPerDay: next.maxActionsPerDay,
     humanCooldownHours: next.humanCooldownHours, repeatCooldownHours: next.repeatCooldownHours, cycleMinutes: next.cycleMinutes,
-    dailyReportHour: next.dailyReportHour, weeklyReviewDay: next.weeklyReviewDay, weeklyReviewHour: next.weeklyReviewHour,
+    dailyReportHour: next.dailyReportHour, weeklyReviewDay: next.weeklyReviewDay, weeklyReviewHour: next.weeklyReviewHour, proposalTtlHours: next.proposalTtlHours,
     triggers: json(next.triggers), quietHours: json(next.quietHours), timezone: next.timezone, model: next.model, updatedByEmail: email,
   }
   await prisma.haggoSettings.upsert({ where: { id: ID }, create: { id: ID, ...data }, update: data })

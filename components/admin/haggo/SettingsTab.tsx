@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Loader2, Plus, Save, Trash2 } from 'lucide-react'
 import { CYCLE_OPTIONS, DOMAINS, DOMAIN_LABEL, MODES, MODE_LABEL, TRIGGERS, TRIGGER_LABEL, type HaggoConfig, type QuietWindow } from '@/lib/haggo/config'
 import { api, btn, btnPrimary, card } from '@/components/admin/haggo/shared'
@@ -40,6 +40,8 @@ export function SettingsTab({ config, reload }: { config: HaggoConfig; reload: (
   const [c, setC] = useState<HaggoConfig>(config)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const [catalog, setCatalog] = useState<{ actionsByDomain: Record<string, Array<{ id: string; label: string; risk: string }>>; maxRiskActions: string[] } | null>(null)
+  useEffect(() => { api<{ actionsByDomain: Record<string, Array<{ id: string; label: string; risk: string }>>; maxRiskActions: string[] }>('/api/admin/haggo/settings').then(setCatalog).catch(() => null) }, [])
   const set = (patch: Partial<HaggoConfig>) => setC((prev) => ({ ...prev, ...patch }))
   const setWindow = (i: number, patch: Partial<QuietWindow>) => set({ quietHours: c.quietHours.map((w, j) => (j === i ? { ...w, ...patch } : w)) })
 
@@ -75,7 +77,10 @@ export function SettingsTab({ config, reload }: { config: HaggoConfig; reload: (
             <tbody>
               {DOMAINS.map((d) => (
                 <tr key={d} className="border-t border-gray-100">
-                  <td className="py-2">{DOMAIN_LABEL[d]}</td>
+                  <td className="py-2 pr-3 align-top">
+                    <span className="block">{DOMAIN_LABEL[d]}</span>
+                    {catalog && <span className="block max-w-xs text-[11px] leading-snug text-gray-500">{catalog.actionsByDomain[d]?.length ? catalog.actionsByDomain[d].map((a) => `${a.label} (${({ low: 'bajo', medium: 'medio', high: 'alto', max: 'máximo' } as Record<string, string>)[a.risk] ?? a.risk})`).join(' · ') : 'Sin acciones todavía'}</span>}
+                  </td>
                   <td>
                     <select value={c.domainModes[d] ?? ''} onChange={(e) => set({ domainModes: { ...c.domainModes, [d]: (e.target.value || undefined) as HaggoConfig["mode"] | undefined } })} className={`${input} py-1.5`}>
                       <option value="">Igual que el general ({MODE_LABEL[c.mode]})</option>
@@ -88,7 +93,7 @@ export function SettingsTab({ config, reload }: { config: HaggoConfig; reload: (
             </tbody>
           </table>
         </div>
-        <p className="text-xs text-gray-500">Las acciones llegan en las próximas fases; por ahora Haggo observa, analiza e informa en cualquier modo.</p>
+        <p className="text-xs text-gray-500">Por ahora todo lo que Haggo quiera hacer llega como propuesta para que la apruebes, aunque el área esté en autónomo: la autonomía se activa en la siguiente fase. Riesgo alto y máximo siempre piden aprobación.</p>
       </Section>
 
       <Section title="Frecuencia" hint="Configuración base: revisión cada 15 min, informe diario a las 7:00, revisión semanal los lunes a las 7:00 y disparadores inmediatos encendidos.">
@@ -147,6 +152,7 @@ export function SettingsTab({ config, reload }: { config: HaggoConfig; reload: (
           <NumberField label="Acciones por día" value={c.maxActionsPerDay} onChange={(n) => set({ maxActionsPerDay: n })} />
           <NumberField label="No tocar lo que una persona cambió hace menos de" value={c.humanCooldownHours} onChange={(n) => set({ humanCooldownHours: n })} suffix="horas" />
           <NumberField label="Esperar antes de repetir una acción sobre lo mismo" value={c.repeatCooldownHours} onChange={(n) => set({ repeatCooldownHours: n })} suffix="horas" />
+          <NumberField label="Una propuesta sin decidir caduca a las" value={c.proposalTtlHours} min={1} onChange={(n) => set({ proposalTtlHours: n })} suffix="horas" />
         </div>
         <label className="block max-w-sm text-sm"><span className="text-gray-700">Modelo de IA (opcional)</span>
           <input value={c.model ?? ''} onChange={(e) => set({ model: e.target.value.trim() || null })} placeholder="Vacío = el modelo por defecto de IA · Plataforma" className={`${input} mt-1 w-full`} />
@@ -155,7 +161,21 @@ export function SettingsTab({ config, reload }: { config: HaggoConfig; reload: (
       </Section>
 
       <Section title="Acciones de riesgo máximo" hint="Dinero, borrar datos, claves, seguridad y permisos. Vienen apagadas; solo tú puedes encenderlas una por una y, aun encendidas, siempre piden tu aprobación.">
-        <p className="text-sm text-gray-500">Se podrán encender cuando existan estas acciones (fase de propuestas). Haggo nunca puede cambiar estos ajustes.</p>
+        {!catalog ? <p className="text-sm text-gray-500">Cargando…</p> : catalog.maxRiskActions.length === 0 ? (
+          <p className="text-sm text-gray-500">Todavía no hay acciones de riesgo máximo en el catálogo. Reintentar pagos a socios quedó fuera hasta diseñar bien ese flujo con Mercado Pago. Haggo nunca puede cambiar estos ajustes.</p>
+        ) : (
+          <div className="space-y-2">
+            {catalog.maxRiskActions.map((id) => (
+              <label key={id} className="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" checked={Boolean(c.maxRiskEnabled[id])} onChange={(e) => {
+                  if (e.target.checked && window.prompt('Escribe ENCENDER para permitir que Haggo proponga esta acción de riesgo máximo') !== 'ENCENDER') return
+                  set({ maxRiskEnabled: { ...c.maxRiskEnabled, [id]: e.target.checked } })
+                }} /> {id}
+              </label>
+            ))}
+            <p className="text-xs text-gray-500">Aun encendidas, siempre piden tu aprobación escribiendo APROBAR.</p>
+          </div>
+        )}
       </Section>
 
       <div className="flex flex-wrap items-center gap-3">

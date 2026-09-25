@@ -4,6 +4,7 @@ import { auditAdminAction } from '@/lib/admin-utils'
 import { marketingAuth, mkCan, type MarketingPermission } from '@/lib/marketing/permissions'
 import { AgentError, MANUAL_LEARN_EVERY_MS, MAX_ACTIVE_AGENTS, applyLearning, cancelPost, decideIdeas, draftIdea, generateStrategy, learn, loadAgent, planIdeas, rejectPost, scheduleApproved, withAgentLock } from '@/lib/marketing/agent'
 import { agentDetail, agentFor } from '@/lib/marketing/agent-views'
+import { approvePost } from '@/lib/marketing/ops'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
@@ -97,8 +98,7 @@ export async function POST(request: NextRequest, context: Ctx) {
         const post = await ownPost(body.postId)
         if (!post) throw new AgentError('Publicación no encontrada')
         if (post.status !== 'review') throw new AgentError('Solo se aprueba lo que está esperando aprobación')
-        await prisma.marketingPost.update({ where: { id: post.id }, data: { status: 'approved', approvedById: auth.admin.id, approvedAt: new Date() } })
-        const r = await scheduleApproved(post.id)
+        const r = await approvePost(post.id, auth.admin.id)
         await auditAdminAction({ actorId: auth.admin.id, actorEmail: auth.admin.email, action: 'MARKETING_AGENT_POST_APPROVE', entityType: 'MarketingPost', entityId: post.id, details: post.title, request })
         message = r?.ok ? `Aprobada y programada: ${r.message}` : `Aprobada, pero no se pudo programar: ${r?.message ?? '—'}`
         break

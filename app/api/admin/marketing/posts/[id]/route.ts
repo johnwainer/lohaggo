@@ -68,6 +68,7 @@ export async function PATCH(request: NextRequest, context: Ctx) {
     if (contentChanged) await revalidateLiveArticle(id)
     // An agent post approved here gets its time from the agent right away
     if (data.status === 'approved' && existing.origin === 'agent') await scheduleApproved(id)
+    await auditAdminAction({ actorId: auth.admin.id, actorEmail: auth.admin.email, action: 'MARKETING_POST_UPDATE', entityType: 'MarketingPost', entityId: id, details: JSON.stringify({ fields: Object.keys(data), variants: variants.length, status: data.status ?? null }).slice(0, 500), request })
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Datos inválidos' }, { status: 400 })
   }

@@ -68,4 +68,4 @@ export function rateLimited(sentLastMinute: number) {
 
 /** What the chat run stores: which tools it used, the directives it proposed (pending until confirmed). */
 export type Proposal = { id: string; text: string; rule: unknown; status: 'pending' | 'saved' | 'discarded'; directiveId?: string }
-export type ChatRunOutput = { tools: string[]; proposals: Proposal[]; recommendations: string[]; remembered: string[] }
+export type ChatRunOutput = { tools: string[]; proposals: Proposal[]; recommendations: string[]; remembered: string[]; actions?: string[] }

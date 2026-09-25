@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { AlertCircle, Loader2, RefreshCw, Sparkles } from 'lucide-react'
 import { NowTab, type Overview } from '@/components/admin/haggo/NowTab'
 import { ChatTab } from '@/components/admin/haggo/ChatTab'
+import { DecisionsTab, ProposalsTab } from '@/components/admin/haggo/ActionsTabs'
 import { AnalysisTab } from '@/components/admin/haggo/AnalysisTab'
 import { CostTab } from '@/components/admin/haggo/CostTab'
 import { SettingsTab } from '@/components/admin/haggo/SettingsTab'
@@ -12,6 +13,8 @@ import { api } from '@/components/admin/haggo/shared'
 const TABS = [
   { id: 'now', label: 'Ahora' },
   { id: 'chat', label: 'Conversación' },
+  { id: 'proposals', label: 'Propuestas' },
+  { id: 'decisions', label: 'Decisiones' },
   { id: 'analysis', label: 'Análisis' },
   { id: 'cost', label: 'Costo' },
   { id: 'settings', label: 'Ajustes' },
@@ -68,7 +71,9 @@ export default function HaggoPage() {
 
       <div className="flex gap-1 overflow-x-auto rounded-2xl bg-gray-100 p-1">
         {TABS.map((t) => (
-          <button key={t.id} onClick={() => choose(t.id)} className={`whitespace-nowrap rounded-xl px-4 py-2 text-sm font-medium ${tab === t.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>{t.label}</button>
+          <button key={t.id} onClick={() => choose(t.id)} className={`whitespace-nowrap rounded-xl px-4 py-2 text-sm font-medium ${tab === t.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>
+            {t.label}{t.id === 'proposals' && data?.pendingApprovals ? <span className="ml-1.5 rounded-full bg-primary-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{data.pendingApprovals}</span> : null}
+          </button>
         ))}
       </div>
 
@@ -76,6 +81,8 @@ export default function HaggoPage() {
       {!data && !error && <div className="flex items-center gap-2 p-6 text-gray-500"><Loader2 size={16} className="animate-spin" /> Cargando…</div>}
       {data && tab === 'now' && <NowTab data={data} reload={load} />}
       {data && tab === 'chat' && <ChatTab />}
+      {data && tab === 'proposals' && <ProposalsTab onChange={load} />}
+      {data && tab === 'decisions' && <DecisionsTab onChange={load} />}
       {data && tab === 'analysis' && <AnalysisTab />}
       {data && tab === 'cost' && <CostTab />}
       {data && tab === 'settings' && <SettingsTab key={JSON.stringify(data.config)} config={data.config} reload={load} />}

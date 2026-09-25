@@ -10,6 +10,10 @@ import { cleanDirectiveText, describeRule, parseRule } from '@/lib/haggo/directi
 import { buildSystem } from '@/lib/haggo/prompt'
 import { getHaggoConfig, haggoSpend } from '@/lib/haggo/store'
 import { READ_TOOL_DEFS, READ_TOOLS, runReadTool } from '@/lib/haggo/tools/read'
+import { ACTION_REASONING, PROPOSE_ACTION_TOOL } from '@/lib/haggo/actions/registry'
+import { proposeAction } from '@/lib/haggo/actions/engine'
+import { actionsByIds } from '@/lib/haggo/actions/views'
+import { SUPERADMIN_ORDER } from '@/lib/haggo/actions/proposal'
 
 const logger = createLogger('haggo-chat')
 const MAX_ROUNDS = 10
@@ -26,7 +30,9 @@ const CHAT_PROMPT = `Estás conversando con el superadmin de LoHaggo, tu jefe. L
 - Responde con cifras reales de tus herramientas o de la foto de abajo; si no tienes el dato, dilo. Nada inventado.
 - Sé breve y directo: párrafos cortos y listas con "- ". Sin tablas ni encabezados. **Negrita** solo para lo clave.
 - Enlaza a las páginas del admin con [texto](/ruta), solo con rutas de la lista de enlaces permitidos.
-- En esta fase NO puedes ejecutar acciones en la plataforma. Si te pide actuar: explica exactamente qué harías y por qué, registra la recomendación con dejar_recomendacion y dile que podrás ejecutarla cuando se activen las acciones.
+- Si te pide actuar (o tú ves que hace falta): investiga lo necesario y propón la acción con proponer_accion. Aparece una tarjeta para que él la apruebe; tú nunca ejecutas. Nunca digas que ya lo hiciste: di que quedó lista para su aprobación. Su orden cuenta como evidencia con la herramienta "${SUPERADMIN_ORDER}", pero verifica con tus herramientas que tiene sentido (por ejemplo, que la publicación existe y está programada).
+- Si el servidor rechaza la propuesta, explícale por qué en palabras simples (por ejemplo, una directiva lo prohíbe o ya no aplica).
+- Si no hay una acción en el catálogo para lo que pide, dilo y registra la recomendación con dejar_recomendacion.
 - Si dice algo con forma de regla permanente ("nunca…", "siempre…", "no hagas… sin preguntarme"), llama a proponer_directiva. Queda pendiente hasta que él la confirme en la tarjeta: nunca digas que ya está activa.
 - Si te pide recordar algo, usa recordar.`
 
@@ -73,7 +79,8 @@ const RECOMMEND_TOOL: Anthropic.Tool = {
 
 /** Tools that only write Haggo's own notes (proposals, memory, findings), never the platform. */
 export const HAGGO_INTERNAL_TOOLS = [PROPOSE_TOOL, REMEMBER_TOOL, RECOMMEND_TOOL]
-export const CHAT_TOOLS: Anthropic.Tool[] = [...READ_TOOL_DEFS, ...HAGGO_INTERNAL_TOOLS]
+/** Proposing never executes: the server validates, the policy decides and the superadmin approves the card. */
+export const CHAT_TOOLS: Anthropic.Tool[] = [...READ_TOOL_DEFS, ...HAGGO_INTERNAL_TOOLS, PROPOSE_ACTION_TOOL]
 
 const str = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
 const json = (v: unknown) => JSON.parse(JSON.stringify(v)) as Prisma.InputJsonValue
@@ -162,10 +169,10 @@ export async function converse(userId: string, raw: unknown) {
   const sent = await prisma.haggoMessage.count({ where: { role: 'user', createdAt: { gte: new Date(Date.now() - 60_000) } } })
   if (rateLimited(sent)) throw new ChatError('Demasiados mensajes seguidos; espera un minuto', 429)
 
-  await prisma.haggoMessage.create({ data: { role: 'user', content: text, userId } })
+  const userMessage = await prisma.haggoMessage.create({ data: { role: 'user', content: text, userId } })
   const cfg = await getHaggoConfig()
   const run = await prisma.haggoRun.create({ data: { type: 'chat', trigger: 'manual' } })
-  const out: ChatRunOutput = { tools: [], proposals: [], recommendations: [], remembered: [] }
+  const out: ChatRunOutput = { tools: [], proposals: [], recommendations: [], remembered: [], actions: [] }
   let cost = 0
   let tokensIn = 0
   let tokensOut = 0
@@ -173,7 +180,7 @@ export async function converse(userId: string, raw: unknown) {
 
   const finish = async (answer: string, status: 'ok' | 'error' | 'skipped', error?: string) => {
     const content = sanitizeLinks(answer).slice(0, 12_000)
-    const message = await prisma.haggoMessage.create({ data: { role: 'assistant', content, runId: run.id } })
+    const message = await prisma.haggoMessage.create({ data: { role: 'assistant', content, runId: run.id, actionIds: out.actions ?? [] } })
     await prisma.haggoRun.update({ where: { id: run.id }, data: { status, summary: text.slice(0, 300), output: json(out), costUsd: Math.round(cost * 1e6) / 1e6, tokensIn, tokensOut, model, error: error?.slice(0, 1000) ?? null, finishedAt: new Date() } })
     return { message, run: { id: run.id, costUsd: cost, output: out } }
   }
@@ -189,7 +196,7 @@ export async function converse(userId: string, raw: unknown) {
     prisma.haggoMemory.findMany({ where: { kind: { not: 'chat_summary' } }, orderBy: { updatedAt: 'desc' }, take: 20, select: { content: true } }),
     prisma.haggoMessage.findMany({ orderBy: { createdAt: 'desc' }, take: WINDOW, select: { role: true, content: true } }),
   ])
-  const system: Anthropic.TextBlockParam[] = [...buildSystem({ directives, memory }), { type: 'text', text: `${CHAT_PROMPT}\n\n${ctx.text}` }]
+  const system: Anthropic.TextBlockParam[] = [...buildSystem({ directives, memory }), { type: 'text', text: ACTION_REASONING, cache_control: { type: 'ephemeral' } }, { type: 'text', text: `${CHAT_PROMPT}\n\n${ctx.text}` }]
   const messages: Anthropic.MessageParam[] = buildWindow(history.reverse() as ChatTurn[]).map((t) => ({ role: t.role, content: t.content }))
   const modelId = cfg.model || (await getAiSettings()).defaultModel
 
@@ -216,6 +223,11 @@ export async function converse(userId: string, raw: unknown) {
         if (READ_TOOLS[u.name]) {
           if (!out.tools.includes(u.name)) out.tools.push(u.name)
           return runReadTool(u.name, input)
+        }
+        if (u.name === PROPOSE_ACTION_TOOL.name) {
+          const res = await proposeAction(input, { origin: 'chat', runId: run.id, messageId: userMessage.id, toolsUsed: out.tools }).catch((err) => ({ ok: false as const, errors: [err instanceof Error ? err.message : 'Error'] }))
+          if (res.ok) out.actions!.push(res.id)
+          return { output: JSON.stringify(res), isError: !res.ok }
         }
         return (await runInternalTool(u.name, input, out, run.id, text)) ?? { output: `Herramienta desconocida: ${u.name}`, isError: true }
       }))
@@ -263,8 +275,9 @@ export async function chatHistory(take = 60, before?: string) {
   const runIds = rows.map((r) => r.runId).filter((x): x is string => Boolean(x))
   const runs = runIds.length ? await prisma.haggoRun.findMany({ where: { id: { in: runIds } }, select: { id: true, costUsd: true, output: true, status: true, model: true } }) : []
   const byId = new Map(runs.map((r) => [r.id, r]))
+  const actions = new Map((await actionsByIds(rows.flatMap((r) => r.actionIds))).map((a) => [a.id, a]))
   return rows.reverse().map((m) => {
     const run = m.runId ? byId.get(m.runId) : null
-    return { id: m.id, role: m.role, content: m.content, createdAt: m.createdAt, run: run ? { id: run.id, costUsd: run.costUsd, status: run.status, model: run.model, output: run.output as ChatRunOutput | null } : null }
+    return { id: m.id, role: m.role, content: m.content, createdAt: m.createdAt, actions: m.actionIds.map((id) => actions.get(id)).filter(Boolean), run: run ? { id: run.id, costUsd: run.costUsd, status: run.status, model: run.model, output: run.output as ChatRunOutput | null } : null }
   })
 }

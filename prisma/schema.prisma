@@ -1070,6 +1070,7 @@ model AdminAuditLog {
   @@index([createdAt])
   @@index([action])
   @@index([entityType])
+  @@index([entityType, entityId, createdAt])
 }
 
 model AdminIncident {
@@ -2476,6 +2477,7 @@ model HaggoSettings {
   dailyReportHour     Int?      @default(7)
   weeklyReviewDay     Int?      @default(1)
   weeklyReviewHour    Int       @default(7)
+  proposalTtlHours    Int       @default(48)
   triggers            Json?
   quietHours          Json?
   timezone            String    @default("America/Bogota")
@@ -2557,9 +2559,19 @@ model HaggoAction {
   decisionNote   String?
   executedAt     DateTime?
   revertedAt     DateTime?
+  confidence     Float?
+  hypothesis     Json?
+  alternatives   Json?
+  preview        Json?
+  origin         String?
+  planId         String?
+  planOrder      Int?
+  idempotencyKey String?   @unique
+  expiresAt      DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
+  @@index([planId])
   @@index([status, createdAt])
   @@index([entityType, entityId])
   @@index([createdAt])

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { aiAuth, can, forbidden } from '@/lib/ai/route-auth'
 import { resolutionRate, sanitizeAgentInput } from '@/lib/ai/agent-input'
 import { getAiSettings } from '@/lib/ai/settings'
+import { releaseAgentConversations } from '@/lib/ai/agent-ops'
 import { assertPublicHttpsUrl } from '@/lib/ai/net'
 
 type RouteContext = { params: Promise<{ id: string }> }
@@ -56,6 +57,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   }
 
   const agent = await prisma.aiAgent.update({ where: { id }, data })
+  // Paused: its open conversations go back to people instead of waiting for an answer that never comes
+  if (data.status === 'paused' && existing.status !== 'paused') await releaseAgentConversations(id)
   if (data.isDefault === true) await prisma.aiAgent.updateMany({ where: { workspaceId: agent.workspaceId, id: { not: id } }, data: { isDefault: false } })
   await auditAdminAction({
     actorId: auth.admin.id, actorEmail: auth.admin.email, action: 'AI_AGENT_UPDATE', entityType: 'AiAgent', entityId: id,

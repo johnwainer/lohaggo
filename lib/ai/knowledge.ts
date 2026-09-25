@@ -112,6 +112,30 @@ export async function indexDoc(docId: string) {
   }
 }
 
+/** Answers a gap once (only while it is open) and indexes the new document right away. */
+export async function answerOpenGap(params: { gapId: string; answer: string; title?: string; createdByEmail?: string | null }) {
+  const gap = await prisma.aiKnowledgeGap.findUnique({ where: { id: params.gapId }, select: { status: true } })
+  if (!gap) throw new Error('Hueco no encontrado')
+  if (gap.status !== 'open') throw new Error('Ese hueco ya no está abierto')
+  const doc = await answerGap(params)
+  await indexDoc(doc.id)
+  return doc
+}
+
+/** Undo of answerOpenGap: the document goes (its chunks with it) and the gap is open again. */
+export async function reopenGap(gapId: string, docId: string) {
+  await prisma.aiKnowledgeDoc.delete({ where: { id: docId } }).catch(() => null)
+  await prisma.aiKnowledgeGap.update({ where: { id: gapId }, data: { status: 'open', answerDocId: null, answeredAt: null } })
+}
+
+/** Marks every document of a workspace (or only those an agent uses) for indexing and drains the queue. */
+export async function reindexKnowledge(workspaceId: string, agentId?: string | null) {
+  const where = { workspaceId, ...(agentId ? { OR: [{ agentIds: { isEmpty: true } }, { agentIds: { has: agentId } }] } : {}) }
+  const { count } = await prisma.aiKnowledgeDoc.updateMany({ where, data: { status: 'pending' } })
+  for (let i = 0; i < 40 && (await indexPending(5)) > 0; i++) { /* drain, bounded */ }
+  return count
+}
+
 export async function indexPending(limit = 5) {
   const docs = await prisma.aiKnowledgeDoc.findMany({ where: { status: 'pending' }, orderBy: { createdAt: 'asc' }, take: limit, select: { id: true } })
   for (const d of docs) await indexDoc(d.id)

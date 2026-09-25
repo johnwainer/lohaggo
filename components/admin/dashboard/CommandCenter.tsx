@@ -418,7 +418,7 @@ export default function CommandCenter() {
 
   const hg = d.haggo
   const haggo = hg ? (
-    <section className={`${t.card} flex items-center gap-4 px-4 ${tv ? 'py-3' : 'py-3 flex-wrap'}`}>
+    <section className={`${t.card} flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3`}>
       <Link href="/admin/haggo" className="flex shrink-0 items-center gap-2">
         <span className={`flex items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-orange-400 text-white ${tv ? 'h-11 w-11' : 'h-9 w-9'}`}><Sparkles size={px(18)} /></span>
         <span>
@@ -430,10 +430,15 @@ export default function CommandCenter() {
       <div className="flex shrink-0 items-center gap-2">
         {hg.counts.critical > 0 && <span className="rounded-full bg-rose-500/15 px-2.5 py-1 text-xs font-semibold text-rose-500">{plural(hg.counts.critical, 'crítico', 'críticos')}</span>}
         {hg.counts.warning > 0 && <span className="rounded-full bg-amber-500/15 px-2.5 py-1 text-xs font-semibold text-amber-500">{plural(hg.counts.warning, 'aviso', 'avisos')}</span>}
-        {hg.pendingApprovals > 0 && <span className="rounded-full bg-primary-500/15 px-2.5 py-1 text-xs font-semibold text-primary-500">{plural(hg.pendingApprovals, 'aprobación pendiente', 'aprobaciones pendientes')}</span>}
+        {hg.pendingApprovals > 0 && (tv
+          ? <span className="rounded-full bg-primary-500/15 px-2.5 py-1 text-xs font-semibold text-primary-500">{plural(hg.pendingApprovals, 'aprobación pendiente', 'aprobaciones pendientes')}</span>
+          : <Link href="/admin/haggo?tab=proposals" className="rounded-full bg-primary-500/15 px-2.5 py-1 text-xs font-semibold text-primary-500">{plural(hg.pendingApprovals, 'aprobación pendiente', 'aprobaciones pendientes')}</Link>)}
         <span className={`text-xs tabular-nums ${t.muted}`}>{usd(hg.budget.monthUsd)} de {usd(hg.budget.monthlyUsd)}</span>
         {!tv && <Link href="/admin/haggo?tab=chat" className="inline-flex items-center gap-1.5 rounded-full bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-gray-800"><MessageSquare size={13} /> Hablar con Haggo</Link>}
       </div>
+      {hg.decisions.length > 0 && (
+        <p className={`basis-full truncate ${tv ? 'text-sm' : 'text-xs'} ${t.muted}`}>Últimas decisiones: {hg.decisions.slice(0, tv ? 3 : 5).map((d) => `${d.label} (${({ executed: 'hecha', failed: 'falló', reverted: 'deshecha' } as Record<string, string>)[d.status] ?? d.status})`).join(' · ')}</p>
+      )}
       {!tv && hg.findings.length > 0 && (
         <div className="basis-full flex flex-wrap gap-1.5">
           {hg.findings.map((f) => (

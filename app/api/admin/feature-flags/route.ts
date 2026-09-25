@@ -61,7 +61,8 @@ export async function PATCH(request: NextRequest) {
       rolloutPercentage: body.rolloutPercentage,
       targetRole: body.targetRole,
       targetCity: body.targetCity,
-      metadata: body.metadata ? JSON.stringify(body.metadata) : null,
+      // Absent = keep (a bare on/off toggle used to erase the buttons' phone and message)
+      metadata: body.metadata === undefined ? undefined : body.metadata ? JSON.stringify(body.metadata) : null,
     },
   })
 

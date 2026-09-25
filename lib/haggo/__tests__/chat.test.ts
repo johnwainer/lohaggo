@@ -74,7 +74,8 @@ describe('el chat no escribe en la plataforma', () => {
   it('cada herramienta es de lectura o una nota interna de Haggo', () => {
     const internal = HAGGO_INTERNAL_TOOLS.map((t) => t.name)
     expect(internal.sort()).toEqual(['dejar_recomendacion', 'proponer_directiva', 'recordar'])
-    for (const t of CHAT_TOOLS) expect(Boolean(READ_TOOLS[t.name]) || internal.includes(t.name), t.name).toBe(true)
+    // Fase 3: proponer_accion solo propone; ejecutar requiere el clic del superadmin (ver actions.test.ts)
+    for (const t of CHAT_TOOLS) expect(Boolean(READ_TOOLS[t.name]) || internal.includes(t.name) || t.name === 'proponer_accion', t.name).toBe(true)
   })
 
   it('proponer_directiva deja una propuesta pendiente y nunca crea la directiva', async () => {

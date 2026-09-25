@@ -5,7 +5,8 @@ import { auditAdminAction } from '@/lib/admin-utils'
 import { marketingAuth, mkCan } from '@/lib/marketing/permissions'
 import { sanitizeCampaignInput } from '@/lib/marketing/input'
 import { raisesAutonomy, sanitizeAgentConfig, sanitizeAgentSettings } from '@/lib/marketing/agent-input'
-import { MAX_ACTIVE_AGENTS, configOf, pauseAgent, settingsOf } from '@/lib/marketing/agent'
+import { configOf, pauseAgent, settingsOf } from '@/lib/marketing/agent'
+import { activationError } from '@/lib/marketing/ops'
 import { agentDetail, agentFor } from '@/lib/marketing/agent-views'
 
 export const dynamic = 'force-dynamic'
@@ -68,7 +69,8 @@ export async function PATCH(request: NextRequest, context: Ctx) {
       if (!agent.strategyApprovedAt) return NextResponse.json({ error: 'Primero aprueba la estrategia' }, { status: 400 })
       const mode = (data.mode as string | undefined) ?? agent.mode
       if (mode !== 'copilot' && !canPublish) return NextResponse.json({ error: 'Solo quien puede publicar activa un agente que publica solo' }, { status: 403 })
-      if (agent.status !== 'active' && (await prisma.marketingAgent.count({ where: { workspaceId: agent.workspaceId, status: 'active' } })) >= MAX_ACTIVE_AGENTS) return NextResponse.json({ error: `Ya hay ${MAX_ACTIVE_AGENTS} agentes trabajando en este workspace: pausa uno antes` }, { status: 409 })
+      const blocked = await activationError(agent)
+      if (blocked) return NextResponse.json({ error: blocked.startsWith('Ya hay') ? `${blocked}: pausa uno antes` : blocked }, { status: 409 })
       data.status = 'active'
       audit.push('activado')
     }

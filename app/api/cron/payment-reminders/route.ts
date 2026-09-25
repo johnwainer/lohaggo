@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cronRoute } from '@/lib/system/cron'
 import { prisma } from '@/lib/prisma'
-import { createNotification } from '@/lib/notifications/notificationService'
+import { MAX_REMINDERS, REMINDER_INTERVAL_HOURS, sendPaymentReminder } from '@/lib/ops/platform-ops'
 import { createLogger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
 const logger = createLogger('cron-payment-reminders')
-
-const REMINDER_INTERVAL_HOURS = 24
-const MAX_REMINDERS = 5
 
 async function run() {
   const cutoff = new Date(Date.now() - REMINDER_INTERVAL_HOURS * 60 * 60 * 1000)
@@ -31,25 +28,7 @@ async function run() {
 
   let sent = 0
   for (const payment of pending) {
-    const partnerUserId = payment.booking.partner?.user?.id
-    if (!partnerUserId) continue
-
-    await createNotification({
-      userId: partnerUserId,
-      type: 'PAYMENT_PENDING_REMINDER',
-      title: 'Recordatorio: confirma el pago del cliente',
-      message: `El cliente reporto haber pagado en ${payment.clientReportedMethod === 'CASH' ? 'efectivo' : 'transferencia'}. Confirma o rechaza desde tu panel.`,
-      data: { bookingId: payment.bookingId, kind: 'PAYMENT_REMINDER' },
-    })
-
-    await prisma.payment.update({
-      where: { id: payment.id },
-      data: {
-        lastReminderAt: new Date(),
-        reminderCount: { increment: 1 },
-      },
-    })
-    sent++
+    if (await sendPaymentReminder({ id: payment.id, bookingId: payment.bookingId, clientReportedMethod: payment.clientReportedMethod, partnerUserId: payment.booking.partner?.user?.id ?? null })) sent++
   }
 
   return { scanned: pending.length, sent }
