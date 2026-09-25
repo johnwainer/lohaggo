@@ -1,7 +1,11 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import Sidebar from '@/components/admin/Sidebar'
+import { activeSectionFor } from '@/components/admin/admin-menu'
+
+const COLLAPSED_KEY = 'admin.sidebar.collapsed'
 
 export default function AdminLayoutClient({
   children,
@@ -10,71 +14,32 @@ export default function AdminLayoutClient({
 }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const activeSection = activeSectionFor(pathname, searchParams.get('section'))
 
-  const getActiveSectionFromPath = () => {
-    const sectionFromQuery = searchParams.get('section')
-    const querySections = new Set([
-      'dashboard',
-      'analytics',
-      'bookings',
-      'users',
-      'partners',
-      'services',
-      'cities',
-      'payments',
-      'notifications',
-      'settings',
-      'commissions',
-      'payouts',
-    ])
-
-    if (pathname === '/admin' && sectionFromQuery && querySections.has(sectionFromQuery)) {
-      return sectionFromQuery
-    }
-    if (pathname === '/admin') return 'dashboard'
-    if (pathname.startsWith('/admin/users/')) return 'users'
-    if (pathname.startsWith('/admin/monitoring')) return 'monitoring'
-    if (pathname.startsWith('/admin/operations')) return 'operations'
-    if (pathname.startsWith('/admin/training')) return 'training'
-    if (pathname.startsWith('/admin/workflow')) return 'workflow'
-    if (pathname.startsWith('/admin/ads')) return 'ads'
-    if (pathname.startsWith('/admin/search-analytics')) return 'search-analytics'
-    if (pathname.startsWith('/admin/platform-control')) return 'platform-control'
-    if (pathname.startsWith('/admin/communications')) return 'communications'
-    if (pathname.startsWith('/admin/pwa-adoption')) return 'pwa-adoption'
-    if (pathname.startsWith('/admin/payment-config')) return 'payment-config'
-    if (pathname.startsWith('/admin/banks')) return 'banks'
-    if (pathname.startsWith('/admin/finance-ops')) return 'finance-ops'
-    if (pathname.startsWith('/admin/compliance')) return 'compliance'
-    if (pathname.startsWith('/admin/security')) return 'security'
-    if (pathname.startsWith('/admin/commissions')) return 'commissions'
-    if (pathname.startsWith('/admin/payouts')) return 'payouts'
-    if (pathname.startsWith('/admin/documents')) return 'documents'
-    if (pathname.startsWith('/admin/risk-control')) return 'risk-control'
-    if (pathname.startsWith('/admin/messaging')) return 'messaging'
-    if (pathname.startsWith('/admin/inbox')) return 'inbox'
-    if (pathname.startsWith('/admin/connections')) return 'connections'
-    if (pathname.startsWith('/admin/automations')) return 'automations'
-    if (pathname.startsWith('/admin/ai-agents')) return 'ai-agents'
-    if (pathname.startsWith('/admin/ai-settings')) return 'ai-settings'
-    if (pathname.startsWith('/admin/appearance')) return 'appearance'
-    if (pathname.startsWith('/admin/payment-config')) return 'connections'
-    return 'dashboard'
+  // Desktop rail, remembered per browser
+  const [collapsed, setCollapsed] = useState(false)
+  useEffect(() => {
+    try { setCollapsed(localStorage.getItem(COLLAPSED_KEY) === '1') } catch { /* storage unavailable */ }
+  }, [])
+  const toggleCollapsed = () => {
+    setCollapsed((c) => {
+      try { localStorage.setItem(COLLAPSED_KEY, c ? '0' : '1') } catch { /* noop */ }
+      return !c
+    })
   }
-
-  const activeSection = getActiveSectionFromPath()
 
   // Full-bleed pages need no padding or max-width wrapper
   const isFullBleed = pathname.startsWith('/admin/inbox')
+  const offset = collapsed ? 'lg:ml-20' : 'lg:ml-64'
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <Sidebar activeSection={activeSection} />
-      <main className={isFullBleed ? 'fixed inset-0 lg:left-64 overflow-hidden flex flex-col' : 'flex-1 ml-0 lg:ml-64 overflow-auto'}>
+      <Sidebar activeSection={activeSection} collapsed={collapsed} onToggleCollapsed={toggleCollapsed} />
+      <main className={isFullBleed ? `fixed inset-0 ${collapsed ? 'lg:left-20' : 'lg:left-64'} overflow-hidden flex flex-col transition-all duration-300` : `flex-1 min-w-0 ml-0 ${offset} overflow-auto transition-all duration-300`}>
         {isFullBleed ? (
           children
         ) : (
-          <div className="p-3 sm:p-6 lg:p-8">
+          <div className="px-3 pb-3 pt-16 sm:px-6 sm:pb-6 lg:p-8">
             <div className="mx-auto w-full max-w-7xl">
               {children}
             </div>

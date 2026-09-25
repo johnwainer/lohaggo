@@ -1,6 +1,7 @@
-const CACHE_NAME = 'lohaggo-v5';
-const RUNTIME_CACHE = 'lohaggo-runtime-v5';
-const IMAGE_CACHE = 'lohaggo-images-v5';
+// v6: stops caching API responses and Next.js RSC payloads (a stale payload left pages unclickable after navigating back)
+const CACHE_NAME = 'lohaggo-v6';
+const RUNTIME_CACHE = 'lohaggo-runtime-v6';
+const IMAGE_CACHE = 'lohaggo-images-v6';
 
 const PRECACHE_URLS = [
   '/manifest.json',
@@ -61,12 +62,19 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  if (request.method !== 'GET') {
+  if (request.method !== 'GET' || url.origin !== location.origin) {
     return;
   }
 
-  if (url.pathname.startsWith('/api/')) {
-    event.respondWith(networkFirst(request, RUNTIME_CACHE));
+  // Never cache API data (it is per user) nor Next.js router payloads (RSC): a stale payload served
+  // from cache no longer matches the page and React stops responding to clicks. The browser handles them.
+  if (
+    url.pathname.startsWith('/api/') ||
+    url.searchParams.has('_rsc') ||
+    request.headers.get('RSC') === '1' ||
+    request.headers.get('Next-Router-Prefetch') ||
+    request.headers.get('Next-Router-State-Tree')
+  ) {
     return;
   }
 
@@ -76,17 +84,21 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Build files have a content hash in their name: safe to keep
+  if (url.pathname.startsWith('/_next/static/')) {
+    event.respondWith(cacheFirst(request, CACHE_NAME));
+    return;
+  }
+
   if (request.destination === 'image') {
     event.respondWith(cacheFirst(request, IMAGE_CACHE));
     return;
   }
 
-  if (url.origin === location.origin) {
+  // Everything else (manifest, icons, public files): fresh when online, cache only as offline fallback
+  if (PRECACHE_URLS.includes(url.pathname)) {
     event.respondWith(staleWhileRevalidate(request, CACHE_NAME));
-    return;
   }
-
-  event.respondWith(fetch(request));
 });
 
 async function cacheFirst(request, cacheName) {

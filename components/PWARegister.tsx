@@ -25,12 +25,9 @@ export default function PWARegister() {
             const newWorker = registration.installing
             if (newWorker) {
               newWorker.addEventListener('statechange', () => {
+                // The worker activates itself (skipWaiting); no blocking confirm() on each deploy
                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  // New service worker available, show update notification
-                  if (confirm('Nueva versión disponible. ¿Actualizar ahora?')) {
-                    newWorker.postMessage({ type: 'SKIP_WAITING' })
-                    window.location.reload()
-                  }
+                  newWorker.postMessage({ type: 'SKIP_WAITING' })
                 }
               })
             }
@@ -38,8 +35,12 @@ export default function PWARegister() {
         })
         .catch(() => undefined)
 
-      // Handle service worker controller change
+      // A new worker took over: reload once so the page and the worker match (not on the first install)
+      const hadController = Boolean(navigator.serviceWorker.controller)
+      let reloaded = false
       navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!hadController || reloaded) return
+        reloaded = true
         window.location.reload()
       })
 
