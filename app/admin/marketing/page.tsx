@@ -1,8 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { AlertTriangle, BarChart3, Bot, CalendarDays, FileText, Loader2, Megaphone, Palette, ShieldCheck } from 'lucide-react'
+import { AlertTriangle, BarChart3, Bot, CalendarDays, ChevronDown, FileText, Loader2, Megaphone, Palette, Settings, ShieldCheck } from 'lucide-react'
 import { api, type Account } from '@/components/admin/marketing/shared'
 import PostsTab, { type PostRow } from '@/components/admin/marketing/PostsTab'
 import CalendarTab from '@/components/admin/marketing/CalendarTab'
@@ -41,15 +41,16 @@ const GROUPS: Array<{ label: string; tabs: TabDef[] }> = [
       { key: 'stats', label: 'Resultados', icon: BarChart3, help: 'Alcance, interacción, visitas al blog y conversaciones en la bandeja, por canal, publicación y campaña.' },
     ],
   },
-  {
+]
+/** Rarely used: in a menu next to the bell instead of the main bar. */
+const SETTINGS: { label: string; tabs: TabDef[] } = {
     label: 'Ajustes',
     tabs: [
       { key: 'brand', label: 'Marca e imágenes', icon: Palette, help: 'El logo que se pone en las imágenes y de dónde salen las fotos (Pexels o IA).' },
       { key: 'permissions', label: 'Permisos', icon: ShieldCheck, help: 'Quién puede ver, editar y publicar en cada workspace.' },
     ],
-  },
-]
-const TABS = GROUPS.flatMap((g) => g.tabs)
+}
+const TABS = [...GROUPS.flatMap((g) => g.tabs), ...SETTINGS.tabs]
 
 export default function MarketingPage() {
   const [tab, setTab] = useState<Tab>('posts')
@@ -59,6 +60,13 @@ export default function MarketingPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [agentTarget, setAgentTarget] = useState<{ id?: string; wizard?: boolean } | null>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const settingsRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const close = (e: MouseEvent) => { if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) setSettingsOpen(false) }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [])
 
   useEffect(() => {
     try {
@@ -116,6 +124,23 @@ export default function MarketingPage() {
         </div>
         <div className="flex items-center gap-2">
         {ws.length > 0 && <NoticesBell workspaceId={workspaceId} onOpenAgent={openAgent} />}
+        {ws.length > 0 && (
+          <div className="relative" ref={settingsRef}>
+            <button onClick={() => setSettingsOpen((o) => !o)} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-sm ${SETTINGS.tabs.some((t) => t.key === tab) ? 'border-primary-300 bg-primary-50 text-primary-700' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'}`}>
+              <Settings size={16} /> <span className="hidden sm:inline">Ajustes</span> <ChevronDown size={14} />
+            </button>
+            {settingsOpen && (
+              <div className="absolute right-0 z-40 mt-2 w-64 overflow-hidden rounded-2xl border border-gray-200 bg-white py-1 shadow-xl">
+                {SETTINGS.tabs.filter((t) => showTab(t.key)).map(({ key, label, icon: Icon, help }) => (
+                  <button key={key} onClick={() => { setTab(key); setSettingsOpen(false) }} className={`flex w-full items-start gap-3 px-4 py-2.5 text-left hover:bg-gray-50 ${tab === key ? 'bg-primary-50' : ''}`}>
+                    <Icon size={16} className="mt-0.5 shrink-0 text-gray-500" />
+                    <span><span className="block text-sm font-medium text-gray-900">{label}</span><span className="block text-xs text-gray-500">{help}</span></span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         {ws.length > 1 && (
           <select className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm" value={workspaceId} onChange={(e) => { setWorkspaceId(e.target.value); try { localStorage.setItem('mk.ws', e.target.value) } catch { /* noop */ } }}>
             <option value="">Todos los workspaces</option>
@@ -135,25 +160,25 @@ export default function MarketingPage() {
       {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
       <nav className="space-y-2" aria-label="Secciones">
-        <div className="flex gap-2 overflow-x-auto rounded-2xl border border-gray-200 bg-white p-1.5 sm:gap-3">
+        <div className="flex gap-2 overflow-x-auto rounded-2xl border border-gray-200 bg-white p-1.5 sm:gap-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {GROUPS.map((g) => {
             const tabs = g.tabs.filter((t) => showTab(t.key))
             if (!tabs.length) return null
             return (
-              <div key={g.label} className={`flex shrink-0 items-center gap-1 ${g.label === 'Ajustes' ? 'lg:ml-auto' : ''}`}>
+              <div key={g.label} className="flex shrink-0 items-center gap-1">
                 <span className="hidden px-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400 md:inline">{g.label}</span>
                 {tabs.map(({ key, label, icon: Icon }) => (
                   <button
                     key={key}
                     onClick={() => setTab(key)}
                     aria-current={tab === key ? 'page' : undefined}
-                    className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-2 text-sm transition ${tab === key ? 'bg-primary-600 font-semibold text-white shadow-sm' : g.label === 'Ajustes' ? 'text-gray-500 hover:bg-gray-100' : 'text-gray-700 hover:bg-gray-100'}`}
+                    className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-2 text-sm transition ${tab === key ? 'bg-primary-600 font-semibold text-white shadow-sm' : 'text-gray-700 hover:bg-gray-100'}`}
                   >
                     <Icon size={15} /> {label}
                     {key === 'posts' && inReview > 0 && <span className={`rounded-full px-1.5 text-[10px] font-bold ${tab === key ? 'bg-white text-primary-700' : 'bg-amber-500 text-white'}`} title="En revisión">{inReview}</span>}
                   </button>
                 ))}
-                {g.label !== 'Ajustes' && <span className="ml-1 hidden h-6 w-px bg-gray-200 sm:block" />}
+                {g !== GROUPS[GROUPS.length - 1] && <span className="ml-1 hidden h-6 w-px bg-gray-200 sm:block" />}
               </div>
             )
           })}
