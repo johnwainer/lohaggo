@@ -243,7 +243,7 @@ export async function generateStrategy(agent: Agent, instruction?: string | null
   return withRun(agent, 'strategy', { instruction: instruction ?? null }, async (meter) => {
     const ai = await assertCanSpend(agent)
     const ctx = await promptContext(agent, new Date(), { withStrategy: false })
-    const input = await callTool(agent, ai.defaultModel, { kind: 'marketing_agent_strategy', system: ctx.system, task: strategyTask(instruction), tool: STRATEGY_TOOL, maxTokens: 8000, effort: 'high' }, meter)
+    const input = await callTool(agent, ai.defaultModel, { kind: 'marketing_agent_strategy', system: ctx.system, task: strategyTask(instruction, strategyOf(agent)), tool: STRATEGY_TOOL, maxTokens: 8000, effort: 'high' }, meter)
     const parsed = parseStrategy(input)
     if (!parsed.ok) throw new AgentError(`La estrategia no es válida: ${parsed.errors.join(' · ')}`)
     const known = new Set(ctx.catalog.services.map((s) => s.name))

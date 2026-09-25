@@ -292,9 +292,10 @@ export const LEARN_TOOL: Anthropic.Tool = {
 
 // ─── Tasks (user message of each call) ──────────────────────────────────────
 
-export function strategyTask(extra?: string | null) {
+export function strategyTask(extra?: string | null, previous?: Strategy | null) {
   return [
     'Propón la estrategia de contenido de esta campaña con la herramienta proponer_estrategia.',
+    previous ? `Ya hay una propuesta. Mejórala manteniéndote en el objetivo y el tema de la campaña; cambia solo lo que pida la indicación del equipo (si no hay indicación, propón una alternativa con otro enfoque, sin salirte del tema).\n<datos tipo="propuesta anterior">\n${strategyText(previous)}\n</datos>` : '',
     'De 3 a 5 pilares con su porcentaje (suman 100), mensajes clave por segmento, mezcla de formatos por canal, una semana tipo, el KPI con su meta y las hipótesis que vamos a probar.',
     'Los servicios de cada pilar, con su nombre exacto del catálogo.',
     extra ? `<datos tipo="indicación del equipo">${extra}</datos>` : '',
