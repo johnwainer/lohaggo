@@ -432,6 +432,7 @@ export default function CommandCenter() {
         {hg.counts.warning > 0 && <span className="rounded-full bg-amber-500/15 px-2.5 py-1 text-xs font-semibold text-amber-500">{plural(hg.counts.warning, 'aviso', 'avisos')}</span>}
         {hg.pendingApprovals > 0 && <span className="rounded-full bg-primary-500/15 px-2.5 py-1 text-xs font-semibold text-primary-500">{plural(hg.pendingApprovals, 'aprobación pendiente', 'aprobaciones pendientes')}</span>}
         <span className={`text-xs tabular-nums ${t.muted}`}>{usd(hg.budget.monthUsd)} de {usd(hg.budget.monthlyUsd)}</span>
+        {!tv && <Link href="/admin/haggo?tab=chat" className="inline-flex items-center gap-1.5 rounded-full bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-gray-800"><MessageSquare size={13} /> Hablar con Haggo</Link>}
       </div>
       {!tv && hg.findings.length > 0 && (
         <div className="basis-full flex flex-wrap gap-1.5">

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { AlertCircle, Loader2, RefreshCw, Sparkles } from 'lucide-react'
 import { NowTab, type Overview } from '@/components/admin/haggo/NowTab'
+import { ChatTab } from '@/components/admin/haggo/ChatTab'
 import { AnalysisTab } from '@/components/admin/haggo/AnalysisTab'
 import { CostTab } from '@/components/admin/haggo/CostTab'
 import { SettingsTab } from '@/components/admin/haggo/SettingsTab'
@@ -10,6 +11,7 @@ import { api } from '@/components/admin/haggo/shared'
 
 const TABS = [
   { id: 'now', label: 'Ahora' },
+  { id: 'chat', label: 'Conversación' },
   { id: 'analysis', label: 'Análisis' },
   { id: 'cost', label: 'Costo' },
   { id: 'settings', label: 'Ajustes' },
@@ -37,8 +39,10 @@ export default function HaggoPage() {
   }, [])
 
   useEffect(() => {
+    // ?tab=chat (from the dashboard) wins over the last tab used
+    const fromUrl = new URLSearchParams(window.location.search).get('tab')
     try {
-      const saved = localStorage.getItem(TAB_KEY)
+      const saved = fromUrl || localStorage.getItem(TAB_KEY)
       if (saved && TABS.some((t) => t.id === saved)) setTab(saved as Tab)
     } catch {}
     load()
@@ -71,6 +75,7 @@ export default function HaggoPage() {
       {error && <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"><AlertCircle size={16} /> {error}</div>}
       {!data && !error && <div className="flex items-center gap-2 p-6 text-gray-500"><Loader2 size={16} className="animate-spin" /> Cargando…</div>}
       {data && tab === 'now' && <NowTab data={data} reload={load} />}
+      {data && tab === 'chat' && <ChatTab />}
       {data && tab === 'analysis' && <AnalysisTab />}
       {data && tab === 'cost' && <CostTab />}
       {data && tab === 'settings' && <SettingsTab key={JSON.stringify(data.config)} config={data.config} reload={load} />}

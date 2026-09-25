@@ -45,7 +45,7 @@ class Meter {
 async function context() {
   const [directives, memory] = await Promise.all([
     prisma.haggoDirective.findMany({ where: { active: true }, orderBy: { createdAt: 'asc' }, take: 50, select: { text: true } }),
-    prisma.haggoMemory.findMany({ orderBy: { updatedAt: 'desc' }, take: 20, select: { content: true } }),
+    prisma.haggoMemory.findMany({ where: { kind: { not: 'chat_summary' } }, orderBy: { updatedAt: 'desc' }, take: 20, select: { content: true } }),
   ])
   return buildSystem({ directives, memory })
 }

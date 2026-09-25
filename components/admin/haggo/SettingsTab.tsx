@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Loader2, Plus, Save, Trash2 } from 'lucide-react'
 import { CYCLE_OPTIONS, DOMAINS, DOMAIN_LABEL, MODES, MODE_LABEL, TRIGGERS, TRIGGER_LABEL, type HaggoConfig, type QuietWindow } from '@/lib/haggo/config'
 import { api, btn, btnPrimary, card } from '@/components/admin/haggo/shared'
+import { DirectivesSection } from '@/components/admin/haggo/DirectivesSection'
 
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 const DAY_NAMES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
@@ -162,6 +163,8 @@ export function SettingsTab({ config, reload }: { config: HaggoConfig; reload: (
         <button onClick={() => setC(config)} disabled={saving} className={btn}>Descartar cambios</button>
         {msg && <span className={`text-sm ${msg.ok ? 'text-emerald-700' : 'text-rose-600'}`}>{msg.text}</span>}
       </div>
+
+      <DirectivesSection />
     </div>
   )
 }
