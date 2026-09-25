@@ -75,7 +75,9 @@ export async function indexDoc(docId: string) {
 
     const voyage = await getVoyage()
     let embeddingModel: string | null = null
-    if (voyage && created.length) {
+    let embedError: string | null = null
+    // Voyage failing (credit, key, outage) must not lose the document: it stays usable by word search
+    if (voyage && created.length) try {
       const dim = voyageDim(voyage.model)
       const ordered = [...created].sort((a, b) => a.idx - b.idx)
       for (let i = 0; i < ordered.length; i += 64) {
@@ -94,11 +96,14 @@ export async function indexDoc(docId: string) {
         }
       }
       embeddingModel = voyage.model
+    } catch (err) {
+      embedError = `Sin embeddings (Voyage: ${err instanceof Error ? err.message : 'error'}); se usa la búsqueda por palabras. Reindexa cuando Voyage responda.`.slice(0, 500)
+      logger.warn('Embedding failed, document kept for lexical search', { docId, err: err instanceof Error ? err.message : err })
     }
 
     await prisma.aiKnowledgeDoc.update({
       where: { id: docId },
-      data: { content, status: 'indexed', chunkCount: created.length, embeddingModel, indexedAt: new Date(), error: null },
+      data: { content, status: 'indexed', chunkCount: created.length, embeddingModel, indexedAt: new Date(), error: embedError },
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Error indexando'

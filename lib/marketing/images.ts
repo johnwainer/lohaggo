@@ -4,6 +4,7 @@ import { decryptConfig, encryptConfig } from '@/lib/secure-config'
 import { cloudinaryService } from '@/lib/cloudinary'
 import { logFixedCostCall } from '@/lib/ai/calls'
 import { checkWorkspaceBudget } from '@/lib/ai/limits'
+import { getAiSettings } from '@/lib/ai/settings'
 import { isCloudinaryUrl } from '@/lib/marketing/media'
 import { mediaFolder } from '@/lib/marketing/service'
 import {
@@ -33,6 +34,8 @@ export type ImageSettings = {
   models: Partial<Record<ImageProvider, string>>
   cloudflareAccountId: string | null
   costPerImageUsd: number
+  /** The text-AI OpenAI key (IA · Plataforma): image backup when there is no OpenAI key for images */
+  textOpenaiKey: string | null
 }
 
 let cache: { at: number; value: ImageSettings } | null = null
@@ -48,6 +51,7 @@ export async function getImageSettings(force = false): Promise<ImageSettings> {
     models: (row.models as Partial<Record<ImageProvider, string>> | null) || {},
     cloudflareAccountId: row.cloudflareAccountId,
     costPerImageUsd: row.costPerImageUsd,
+    textOpenaiKey: (await getAiSettings().catch(() => null))?.openaiKey ?? null,
   }
   cache = { at: Date.now(), value }
   return value
@@ -81,11 +85,32 @@ export async function saveImageSettings(input: { keys?: Partial<Record<keyof Key
   cache = null
 }
 
+type GenProvider = Exclude<ImageProvider, 'none'>
+const GEN_PROVIDERS: GenProvider[] = ['openai', 'gemini', 'cloudflare']
+
+function keyFor(s: ImageSettings, p: GenProvider) {
+  return (p === 'openai' ? s.keys.openai || s.textOpenaiKey : s.keys[p]) || null
+}
+
+/**
+ * The providers to try, in order: the chosen one first, then every other one with a key. "Ninguno"
+ * means no AI images at all, so nothing is tried.
+ */
+export function imageChain(s: ImageSettings): Array<{ provider: GenProvider; key: string }> {
+  if (s.provider === 'none') return []
+  const order = [s.provider, ...GEN_PROVIDERS.filter((p) => p !== s.provider)]
+  return order.flatMap((p) => {
+    const key = keyFor(s, p)
+    return key && (p !== 'cloudflare' || s.cloudflareAccountId) ? [{ provider: p, key }] : []
+  })
+}
+
 export function providerReady(s: ImageSettings) {
   if (s.provider === 'none') return { ready: false, reason: 'No hay un proveedor de IA de imágenes configurado' }
+  if (imageChain(s).length) return { ready: true, reason: null }
   if (!s.keys[s.provider]) return { ready: false, reason: `Falta la clave de ${IMAGE_PROVIDERS[s.provider].label}` }
   if (s.provider === 'cloudflare' && !s.cloudflareAccountId) return { ready: false, reason: 'Falta el Account ID de Cloudflare' }
-  return { ready: true, reason: null }
+  return { ready: false, reason: 'Ningún proveedor de imágenes tiene clave' }
 }
 
 // ─── Pexels ──────────────────────────────────────────────────────────────────
@@ -185,8 +210,19 @@ async function cloudflare(token: string, accountId: string, model: string, promp
   return { dataUri: `data:image/jpeg;base64,${b64}` }
 }
 
+async function generateWith(s: ImageSettings, provider: GenProvider, key: string, prompt: string, params: { orientation: Orientation; n: number }, ref: Awaited<ReturnType<typeof fetchReference>> | null) {
+  const model = s.models[provider]?.trim() || IMAGE_PROVIDERS[provider].defaultModel
+  if (provider === 'openai') return { model, images: await openai(key, model, prompt, params.orientation, params.n, ref) }
+  const one = () => (provider === 'gemini' ? gemini(key, model, prompt, params.orientation, ref) : cloudflare(key, s.cloudflareAccountId!, model, prompt))
+  const settled = await Promise.allSettled(Array.from({ length: params.n }, one))
+  const images = settled.filter((r): r is PromiseFulfilledResult<Generated> => r.status === 'fulfilled').map((r) => r.value)
+  if (!images.length) throw (settled.find((r) => r.status === 'rejected') as PromiseRejectedResult).reason
+  return { model, images }
+}
+
 /**
- * Generates `n` images with the configured provider, stores them in the post's Cloudinary folder
+ * Generates `n` images with the configured provider (and, if it fails — no credit, bad key, outage —
+ * with every other provider that has a key, before giving up), stores them in the post's Cloudinary folder
  * (so the preview is fast and choosing one needs no re-upload) and logs the cost.
  */
 export async function generateImages(params: { workspaceId: string; postId: string; prompt: string; style?: string | null; orientation: Orientation; n: number; referenceUrl?: string | null }): Promise<ImageCandidate[]> {
@@ -198,22 +234,30 @@ export async function generateImages(params: { workspaceId: string; postId: stri
   // Independent of the monthly cap (which may be unset): a hard daily limit per workspace
   const today = await prisma.aiCall.count({ where: { workspaceId: params.workspaceId, kind: 'image_generation', createdAt: { gte: new Date(Date.now() - 24 * 3600_000) } } })
   if (today >= DAILY_GENERATIONS) throw new ImageError(`Límite diario de generación alcanzado (${DAILY_GENERATIONS} pedidos en 24 h). Usa fotos de Pexels o inténtalo mañana.`)
-  const provider = s.provider as Exclude<ImageProvider, 'none'>
-  const meta = IMAGE_PROVIDERS[provider]
-  const model = s.models[provider]?.trim() || meta.defaultModel
-  const ref = params.referenceUrl && meta.supportsReference ? await fetchReference(params.referenceUrl) : null
-  const prompt = finalPrompt(params.prompt, { style: params.style, orientation: params.orientation, withReference: Boolean(ref) })
-  const key = s.keys[provider]!
+  const chain = imageChain(s)
+  const ref = params.referenceUrl && chain.some((c) => IMAGE_PROVIDERS[c.provider].supportsReference) ? await fetchReference(params.referenceUrl) : null
   const started = Date.now()
 
-  let images: Generated[]
-  if (provider === 'openai') images = await openai(key, model, prompt, params.orientation, params.n, ref)
-  else {
-    const one = () => (provider === 'gemini' ? gemini(key, model, prompt, params.orientation, ref) : cloudflare(key, s.cloudflareAccountId!, model, prompt))
-    const settled = await Promise.allSettled(Array.from({ length: params.n }, one))
-    images = settled.filter((r): r is PromiseFulfilledResult<Generated> => r.status === 'fulfilled').map((r) => r.value)
-    if (!images.length) throw (settled.find((r) => r.status === 'rejected') as PromiseRejectedResult).reason
+  let provider: GenProvider | null = null
+  let model = ''
+  let images: Generated[] = []
+  const failures: string[] = []
+  for (const c of chain) {
+    const withRef = IMAGE_PROVIDERS[c.provider].supportsReference ? ref : null
+    try {
+      const r = await generateWith(s, c.provider, c.key, finalPrompt(params.prompt, { style: params.style, orientation: params.orientation, withReference: Boolean(withRef) }), params, withRef)
+      provider = c.provider
+      model = r.model
+      images = r.images
+      break
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      failures.push(message)
+      logger.warn('Image provider failed, trying the next one', { provider: c.provider, err: message })
+    }
   }
+  if (!provider) throw new ImageError(failures.length > 1 ? `Ningún proveedor de imágenes respondió: ${failures.join(' · ')}` : failures[0] || 'No hay un proveedor de IA de imágenes configurado')
+  const meta = IMAGE_PROVIDERS[provider]
   const folder = `${mediaFolder(params.workspaceId, params.postId)}/ia`
   const uploaded = (await Promise.all(images.map((g) => cloudinaryService.uploadRemote(g.dataUri, folder).catch((err) => { logger.warn('Upload of generated image failed', { err: err instanceof Error ? err.message : err }); return null }))))
     .filter((u): u is NonNullable<typeof u> => Boolean(u))

@@ -275,3 +275,20 @@ describe('ajustes', () => {
     expect(openaiEquivalent('gpt-4.1', s)).toBe('gpt-4.1')
   })
 })
+
+describe('imágenes: todos los proveedores con clave antes de rendirse', async () => {
+  const { imageChain, providerReady } = await import('@/lib/marketing/images')
+  const base = { keys: {}, provider: 'gemini' as const, models: {}, cloudflareAccountId: null, costPerImageUsd: 0.04, textOpenaiKey: null }
+
+  it('el elegido primero, luego los demás con clave; OpenAI usa la clave de texto si no hay la de imágenes', () => {
+    const s = { ...base, keys: { gemini: 'g' }, textOpenaiKey: 'sk-texto' }
+    expect(imageChain(s)).toEqual([{ provider: 'gemini', key: 'g' }, { provider: 'openai', key: 'sk-texto' }])
+    expect(imageChain({ ...s, keys: { gemini: 'g', openai: 'sk-img' } })[1]).toEqual({ provider: 'openai', key: 'sk-img' })
+  })
+
+  it('el elegido sin clave: sigue listo con el respaldo; Cloudflare exige Account ID; «Ninguno» no genera', () => {
+    expect(providerReady({ ...base, textOpenaiKey: 'sk' }).ready).toBe(true)
+    expect(imageChain({ ...base, keys: { cloudflare: 'cf' } })).toEqual([])
+    expect(providerReady({ ...base, provider: 'none', textOpenaiKey: 'sk' }).ready).toBe(false)
+  })
+})
