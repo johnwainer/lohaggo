@@ -70,15 +70,16 @@ export const READ_TOOLS: Record<string, ReadTool> = {
     },
   },
   marketing: {
-    def: { name: 'marketing', description: 'Publicaciones programadas de los próximos días (id, título, canales, hora, agente), esperando revisión, fallidas de 7 días con su error, y los agentes de marketing (modo, degradación, gasto). Usa el id de la publicación (postId) o de la publicación fallida para proponer acciones.', input_schema: { type: 'object', properties: { dias: { type: 'integer', minimum: 1, maximum: 30, description: 'Días hacia adelante para las programadas (7 por defecto)' } } } },
+    def: { name: 'marketing', description: 'Publicaciones programadas de los próximos días (id, título, canales, hora, agente), ideas de los agentes por decidir y por redactar (ideaId), esperando revisión, fallidas de 7 días con su error, y los agentes de marketing (modo, degradación, gasto). Usa el id de la publicación (postId) o de la publicación fallida para proponer acciones.', input_schema: { type: 'object', properties: { dias: { type: 'integer', minimum: 1, maximum: 30, description: 'Días hacia adelante para las programadas (7 por defecto)' } } } },
     run: async (i) => {
       const since = new Date(Date.now() - 7 * 24 * H)
       const until = new Date(Date.now() + limit(i.dias, 7, 30) * 24 * H)
-      const [scheduled, review, failed, agents] = await Promise.all([
+      const [scheduled, review, failed, agents, ideas] = await Promise.all([
         prisma.marketingPublication.findMany({ where: { status: 'scheduled', scheduledAt: { lte: until } }, orderBy: { scheduledAt: 'asc' }, take: 60, select: { id: true, channel: true, scheduledAt: true, post: { select: { id: true, title: true, status: true, agentId: true, campaign: { select: { name: true } } } } } }),
         prisma.marketingPost.findMany({ where: { status: 'review' }, orderBy: { updatedAt: 'asc' }, take: 10, select: { id: true, title: true, origin: true, updatedAt: true } }),
         prisma.marketingPublication.findMany({ where: { status: 'failed', updatedAt: { gte: since } }, orderBy: { updatedAt: 'desc' }, take: 10, select: { id: true, channel: true, lastError: true, post: { select: { id: true, title: true } } } }),
         prisma.marketingAgent.findMany({ where: { status: { not: 'archived' } }, select: { id: true, status: true, mode: true, degradedReason: true, monthlyBudgetUsd: true, campaign: { select: { name: true, objective: true } } } }),
+        prisma.marketingIdea.findMany({ where: { status: { in: ['proposed', 'accepted'] } }, orderBy: { targetDate: 'asc' }, take: 40, select: { id: true, agentId: true, status: true, pillar: true, service: true, angle: true, channels: true, targetDate: true, score: true, explore: true, rationale: true } }),
       ])
       // One entry per post: its channels and the earliest pending time
       const byPost = new Map<string, { postId: string; titulo: string; estado: string; campana: string | null; de_agente: boolean; canales: string[]; hora: string; hora_iso: string }>()
@@ -90,6 +91,9 @@ export const READ_TOOLS: Record<string, ReadTool> = {
       return {
         ahora: bogotaTime(new Date()),
         programadas: Array.from(byPost.values()),
+        // proposed = waits for the team's decision; accepted = waits to be written (draft)
+        ideas_por_decidir: ideas.filter((x) => x.status === 'proposed').map((x) => ({ ideaId: x.id, agentId: x.agentId, pilar: x.pillar, servicio: x.service, angulo: x.angle.slice(0, 200), canales: x.channels, para: bogotaTime(x.targetDate), puntaje: Math.round(x.score * 100) / 100, exploracion: x.explore, por_que: x.rationale?.slice(0, 200) ?? null })),
+        ideas_por_redactar: ideas.filter((x) => x.status === 'accepted').map((x) => ({ ideaId: x.id, agentId: x.agentId, pilar: x.pillar, servicio: x.service, angulo: x.angle.slice(0, 200), canales: x.channels, para: bogotaTime(x.targetDate) })),
         en_revision: review.map((p) => ({ postId: p.id, titulo: p.title, origen: p.origin, horas_esperando: Math.round((Date.now() - p.updatedAt.getTime()) / H) })),
         fallidas_7d: failed.map((f) => ({ publicationId: f.id, postId: f.post.id, canal: f.channel, publicacion: f.post.title, error: f.lastError?.slice(0, 200) ?? null })),
         agentes: agents.map((a) => ({ id: a.id, campana: a.campaign.name, objetivo: a.campaign.objective, estado: a.status, modo: a.mode, degradado: a.degradedReason, presupuesto_mensual_usd: a.monthlyBudgetUsd })),

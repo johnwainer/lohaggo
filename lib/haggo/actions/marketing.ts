@@ -1,9 +1,9 @@
 import { prisma } from '@/lib/prisma'
-import { configOf, loadAgent, pauseAgent, planIdeas, scheduleApproved, withAgentLock, cancelPost } from '@/lib/marketing/agent'
+import { configOf, decideIdeas, draftIdea, loadAgent, pauseAgent, planIdeas, scheduleApproved, withAgentLock, cancelPost } from '@/lib/marketing/agent'
 import { AGENT_CHANNELS, sanitizeAgentConfig, type AgentConfig } from '@/lib/marketing/agent-input'
 import { activateAgent, activationError, approvePost, fitsAgentSchedule, reschedulePost, retryPublication, returnToReview } from '@/lib/marketing/ops'
 import type { MarketingChannel } from '@prisma/client'
-import { done, isObj, parseDate, parseId, requireObj, when, type HaggoActionDef } from '@/lib/haggo/actions/types'
+import { ID, done, isObj, parseDate, parseId, parseText, requireObj, when, type HaggoActionDef } from '@/lib/haggo/actions/types'
 
 const DONE_POST = ['published', 'partial', 'publishing', 'archived']
 const json = (v: unknown) => JSON.parse(JSON.stringify(v))
@@ -323,4 +323,84 @@ const requestPlan: HaggoActionDef<{ agentId: string }> = {
   },
 }
 
-export const MARKETING_ACTIONS = [reschedule, retry, approve, cancel, pause, activate, updateSchedule, requestPlan] as unknown as HaggoActionDef[]
+type IdeasParams = { agentId: string; ideaIds: string[]; decision: 'accept' | 'reject'; reason?: string }
+
+const decideIdeasAction: HaggoActionDef<IdeasParams> = {
+  id: 'marketing.decide_ideas',
+  domain: 'marketing',
+  risk: 'medium',
+  label: 'Aceptar o rechazar ideas de un agente de marketing',
+  hint: 'Decide ideas propuestas por un agente (máximo 10 a la vez). Las aceptadas pasan a redacción; al rechazar, el motivo le enseña al agente.',
+  schema: { type: 'object', properties: { agentId: { type: 'string' }, ideaIds: { type: 'array', items: { type: 'string' } }, decision: { type: 'string', enum: ['accept', 'reject'] }, reason: { type: 'string', description: 'Obligatorio al rechazar' } }, required: ['agentId', 'ideaIds', 'decision'] },
+  sideEffects: [],
+  parse: (raw) => {
+    const r = requireObj(raw)
+    if (!r) return { ok: false, errors: ['Parámetros inválidos'] }
+    const e: string[] = []
+    const ids = Array.isArray(r.ideaIds) ? Array.from(new Set(r.ideaIds.filter((x): x is string => typeof x === 'string' && ID.test(x)))) : []
+    if (!ids.length || ids.length > 10 || (Array.isArray(r.ideaIds) && ids.length !== new Set(r.ideaIds).size)) e.push('ideaIds: de 1 a 10 identificadores válidos')
+    const decision = r.decision === 'accept' || r.decision === 'reject' ? r.decision : (e.push('decision: accept o reject'), 'accept' as const)
+    const reason = parseText(r, 'reason', e, { min: 5, max: 500, optional: decision === 'accept' })
+    return done(e, { agentId: parseId(r, 'agentId', e), ideaIds: ids, decision, ...(reason ? { reason } : {}) })
+  },
+  describe: (p) => `${p.decision === 'accept' ? 'Aceptar' : 'Rechazar'} ${p.ideaIds.length} ${p.ideaIds.length === 1 ? 'idea' : 'ideas'} del agente`,
+  entity: (p) => ({ type: 'MarketingAgent', id: p.agentId }),
+  preconditions: async (p) => {
+    const ideas = await prisma.marketingIdea.findMany({ where: { id: { in: p.ideaIds }, agentId: p.agentId }, select: { id: true, status: true, angle: true } })
+    if (ideas.length !== p.ideaIds.length) return { ok: false, reason: 'Alguna idea no existe o no es de ese agente' }
+    const notPending = ideas.filter((x) => x.status !== 'proposed')
+    if (notPending.length) return { ok: false, reason: `${notPending.length} de esas ideas ya se decidieron` }
+    return { ok: true, before: { ideas: ideas.map((x) => ({ id: x.id, angle: x.angle.slice(0, 160) })) } }
+  },
+  preview: async (p, before) => {
+    const ideas = (before as { ideas: Array<{ angle: string }> }).ideas
+    return { summary: `${p.decision === 'accept' ? 'Pasan a redacción' : 'Se descartan'}: ${ideas.map((x) => `«${x.angle}»`).join(', ')}`, diff: ideas.map((x) => ({ field: x.angle, from: 'por decidir', to: p.decision === 'accept' ? 'aceptada' : `rechazada${p.reason ? ` (${p.reason})` : ''}` })) }
+  },
+  execute: async (p, ctx) => {
+    const agent = await loadAgent(p.agentId)
+    if (!agent) throw new Error('El agente no existe')
+    const n = await decideIdeas(agent, p.ideaIds, p.decision, ctx.approverId, p.reason ?? null)
+    return { after: { status: p.decision === 'accept' ? 'accepted' : 'rejected' }, result: `${n} ${n === 1 ? 'idea' : 'ideas'} ${p.decision === 'accept' ? 'aceptada(s)' : 'rechazada(s)'}` }
+  },
+  unchanged: async (p, after) => {
+    const want = (after as { status: string }).status
+    const ideas = await prisma.marketingIdea.findMany({ where: { id: { in: p.ideaIds } }, select: { status: true, postId: true } })
+    return ideas.length === p.ideaIds.length && ideas.every((x) => x.status === want && !x.postId)
+  },
+  undo: async (p) => { await prisma.marketingIdea.updateMany({ where: { id: { in: p.ideaIds }, postId: null }, data: { status: 'proposed', rejectedReason: null, decidedById: null, decidedAt: null } }) },
+}
+
+const draftIdeaAction: HaggoActionDef<{ agentId: string; ideaId: string; instruction?: string }> = {
+  id: 'marketing.draft_idea',
+  domain: 'marketing',
+  risk: 'medium',
+  label: 'Pedir a un agente de marketing que redacte una idea',
+  hint: 'El agente escribe ya una idea aceptada (textos por canal e imagen). Según su modo queda en revisión o se programa sola. Gasta de su presupuesto.',
+  schema: { type: 'object', properties: { agentId: { type: 'string' }, ideaId: { type: 'string' }, instruction: { type: 'string', description: 'Opcional: indicación para el agente' } }, required: ['agentId', 'ideaId'] },
+  sideEffects: ['spends', 'publishes'],
+  parse: (raw) => { const r = requireObj(raw); const e: string[] = []; if (!r) return { ok: false, errors: ['Parámetros inválidos'] }; const instruction = parseText(r, 'instruction', e, { max: 1000, optional: true }); return done(e, { agentId: parseId(r, 'agentId', e), ideaId: parseId(r, 'ideaId', e), ...(instruction ? { instruction } : {}) }) },
+  describe: () => 'Redactar la idea ahora',
+  entity: (p) => ({ type: 'MarketingIdea', id: p.ideaId }),
+  preconditions: async (p) => {
+    const idea = await prisma.marketingIdea.findFirst({ where: { id: p.ideaId, agentId: p.agentId }, select: { status: true, angle: true, agent: { select: { mode: true, status: true, campaign: { select: { name: true } } } } } })
+    if (!idea) return { ok: false, reason: 'La idea no existe o no es de ese agente' }
+    if (idea.status !== 'accepted') return { ok: false, reason: idea.status === 'proposed' ? 'La idea todavía no está aceptada' : 'La idea ya se redactó o se descartó' }
+    return { ok: true, before: { angle: idea.angle.slice(0, 200), mode: idea.agent.mode, campaign: idea.agent.campaign.name } }
+  },
+  preview: async (_p, before) => {
+    const b = before as { angle: string; mode: string; campaign: string }
+    return { summary: `El agente de «${b.campaign}» redacta «${b.angle}»`, diff: [{ field: 'Después', from: 'idea aceptada', to: b.mode === 'copilot' ? 'borrador en revisión' : b.mode === 'supervised' ? 'se programa y sale si nadie la frena' : 'se programa y publica sola' }] }
+  },
+  execute: async (p) => {
+    const r = await withAgentLock(p.agentId, async () => {
+      const agent = await loadAgent(p.agentId)
+      if (!agent) throw new Error('El agente no existe')
+      return draftIdea(agent, p.ideaId, { instruction: p.instruction ?? null })
+    })
+    if (!r) throw new Error('El agente está ocupado; inténtalo en unos minutos')
+    if (!r.ok) throw new Error(r.error)
+    return { after: null, result: r.summary }
+  },
+}
+
+export const MARKETING_ACTIONS = [reschedule, retry, approve, cancel, pause, activate, updateSchedule, requestPlan, decideIdeasAction, draftIdeaAction] as unknown as HaggoActionDef[]

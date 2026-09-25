@@ -118,6 +118,8 @@ const FIXTURES: Record<string, { raw: Record<string, unknown>; before: unknown }
   'marketing.activate_agent': { raw: { agentId: 'agent_123456' }, before: { campaign: 'Plomería', status: 'paused', mode: 'copilot' } },
   'marketing.update_schedule': { raw: { agentId: 'agent_123456', days: [1, 3, 5], perWeek: { INSTAGRAM: 4 } }, before: { campaign: 'Plomería', config: {} } },
   'marketing.request_plan': { raw: { agentId: 'agent_123456' }, before: { campaign: 'Plomería' } },
+  'marketing.decide_ideas': { raw: { agentId: 'agent_123456', ideaIds: ['idea_123456'], decision: 'reject', reason: 'Ya se habló de eso' }, before: { ideas: [{ id: 'idea_123456', angle: 'Goteras en invierno' }] } },
+  'marketing.draft_idea': { raw: { agentId: 'agent_123456', ideaId: 'idea_123456' }, before: { angle: 'Goteras', mode: 'supervised', campaign: 'Consejos' } },
   'ai_agents.pause': { raw: { agentId: 'agent_123456' }, before: { name: 'Soporte', status: 'active', open: 3 } },
   'ai_agents.activate': { raw: { agentId: 'agent_123456' }, before: { name: 'Soporte', status: 'paused', open: 0 } },
   'ai_agents.update_instructions': { raw: { agentId: 'agent_123456', tone: 'Cercano' }, before: { name: 'Soporte', instructions: 'a', goal: 'b', tone: 'Formal' } },
@@ -167,6 +169,12 @@ describe('registro de acciones', () => {
       if (a.undo) expect(a.unchanged, `${a.id} deshace sin comprobar cambios posteriores`).toBeDefined()
       if (a.sideEffects.includes('irreversible') || a.sideEffects.includes('changes_money')) expect(['high', 'max'], a.id).toContain(a.risk)
     }
+  })
+
+  it('rechazar ideas exige motivo (el agente aprende de él)', () => {
+    expect(getAction('marketing.decide_ideas')!.parse({ agentId: 'agent_123456', ideaIds: ['idea_123456'], decision: 'reject' }).ok).toBe(false)
+    expect(getAction('marketing.decide_ideas')!.parse({ agentId: 'agent_123456', ideaIds: ['idea_123456'], decision: 'accept' }).ok).toBe(true)
+    expect(getAction('marketing.decide_ideas')!.parse({ agentId: 'agent_123456', ideaIds: Array.from({ length: 11 }, (_, i) => `idea_12345${i}`), decision: 'accept' }).ok).toBe(false)
   })
 
   it('respuestas de vacíos e instrucciones de agentes son de riesgo alto (las leen clientes)', () => {
@@ -257,7 +265,7 @@ describe('el chat no ejecuta', () => {
 describe('Haggo puede encontrar lo que cada acción necesita', () => {
   // Where each identifier comes from: a read tool that returns it (or the snapshot for inbox agents)
   const SOURCES: Record<string, string[]> = {
-    postId: ['marketing'], publicationId: ['marketing'], agentId: ['marketing', 'foto'], gapId: ['agente_ia'], workspaceId: ['agente_ia', 'equipo'],
+    postId: ['marketing'], publicationId: ['marketing'], ideaId: ['marketing'], agentId: ['marketing', 'foto'], gapId: ['agente_ia'], workspaceId: ['agente_ia', 'equipo'],
     conversationId: ['conversaciones_en_espera'], userId: ['equipo'], serviceRequestId: ['solicitudes_sin_propuestas'], incidentId: ['incidentes_abiertos'],
     key: ['funciones'], partnerId: ['socios', 'resenas'], paymentId: ['dinero'],
   }
