@@ -26,9 +26,10 @@ export function evaluateBudget(
   return { state: 'ok', pct }
 }
 
+/** Text calls count on both providers: failing over to OpenAI must not escape the monthly cap. */
 export async function workspaceUsage(workspaceId: string, period = periodOf(new Date())) {
   const agg = await prisma.aiCall.aggregate({
-    where: { workspaceId, period, provider: 'anthropic' },
+    where: { workspaceId, period, provider: { in: ['anthropic', 'openai'] }, kind: { not: 'image_generation' } },
     _sum: { costUsd: true },
     _count: { _all: true },
   })

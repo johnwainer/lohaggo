@@ -6,7 +6,7 @@ import { callClaude, describeApiError, type CallResult, type Effort } from '@/li
 import type { AiCallKind } from '@/lib/ai/calls'
 import { checkWorkspaceBudget } from '@/lib/ai/limits'
 import { periodOf } from '@/lib/ai/pricing'
-import { getAiSettings } from '@/lib/ai/settings'
+import { getAiSettings, hasTextProvider } from '@/lib/ai/settings'
 import type { MarketingChannel } from '@/lib/marketing/channel-rules'
 import { SITE_URL, slugify } from '@/lib/marketing/seo'
 import { sanitizeVariantInput, type VariantPatch } from '@/lib/marketing/input'
@@ -169,7 +169,7 @@ class Meter {
 /** Refuses before calling the model if any limit is reached: platform key, agent budget, workspace cap, daily runs. */
 async function assertCanSpend(agent: Agent) {
   const settings = await getAiSettings()
-  if (!settings.anthropicKey) throw new AgentError('La IA no está configurada (falta la clave de Anthropic en IA · Plataforma)')
+  if (!hasTextProvider(settings)) throw new AgentError('La IA no está configurada (falta la clave de Anthropic u OpenAI en IA · Plataforma)')
   const spent = await agentSpend(agent.id)
   if (spent >= agent.monthlyBudgetUsd) throw new AgentError(`Presupuesto mensual del agente agotado ($${spent.toFixed(2)} de $${agent.monthlyBudgetUsd})`)
   const ws = await checkWorkspaceBudget(agent.workspaceId)

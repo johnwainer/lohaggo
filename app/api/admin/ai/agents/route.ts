@@ -5,7 +5,7 @@ import { aiAuth, can, forbidden } from '@/lib/ai/route-auth'
 import { aiWorkspacesWith, canManageAiPermissions, AI_PERMISSION_LABELS } from '@/lib/ai/permissions'
 import { AGENT_CHANNELS, AGENT_COMMENT_CHANNELS, AVATARS, LANGUAGES, resolutionRate, sanitizeAgentInput } from '@/lib/ai/agent-input'
 import { CRM_MODULES, TOOL_CATALOG, TOOL_NAMES } from '@/lib/ai/tools'
-import { getAiSettings } from '@/lib/ai/settings'
+import { getAiSettings, hasTextProvider } from '@/lib/ai/settings'
 import { assertPublicHttpsUrl } from '@/lib/ai/net'
 import { checkWorkspaceBudget, workspaceUsage } from '@/lib/ai/limits'
 import { commentChannelOf, commentSettingsOf } from '@/lib/ai/comments-core'
@@ -78,7 +78,7 @@ export async function GET() {
       tools: TOOL_NAMES.map((n) => ({ name: n, label: TOOL_CATALOG[n].label, description: TOOL_CATALOG[n].description, writes: TOOL_CATALOG[n].writes })),
       crmModules: Object.entries(CRM_MODULES).map(([key, label]) => ({ key, label })),
     },
-    platform: { allowAgentModelOverride: settings.allowAgentModelOverride, defaultModel: settings.defaultModel, hasAnthropicKey: Boolean(settings.anthropicKey), hasVoyageKey: Boolean(settings.voyageKey) },
+    platform: { allowAgentModelOverride: settings.allowAgentModelOverride, defaultModel: settings.defaultModel, hasAnthropicKey: hasTextProvider(settings), hasVoyageKey: Boolean(settings.voyageKey) },
     me: { isSuperAdmin: auth.access.isSuperAdmin },
   })
 }

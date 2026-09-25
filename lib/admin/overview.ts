@@ -231,6 +231,8 @@ export async function platformOverview(now = new Date()) {
       cronsFailing: sys.cronsFailing,
       cronsLate: sys.cronsLate,
       errorsLastHour: sys.errorsLastHour,
+      aiDown: sys.aiDown,
+      aiAnswering: sys.aiAnswering,
     }),
   }
 }

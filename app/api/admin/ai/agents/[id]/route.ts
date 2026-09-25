@@ -17,10 +17,14 @@ export async function GET(_request: NextRequest, context: RouteContext) {
   const monthStart = new Date()
   monthStart.setUTCDate(1)
   monthStart.setUTCHours(0, 0, 0, 0)
-  const cost = await prisma.aiCall.aggregate({ where: { agentId: id, createdAt: { gte: monthStart } }, _sum: { costUsd: true }, _count: { _all: true } })
+  const [cost, byProvider, last] = await Promise.all([
+    prisma.aiCall.aggregate({ where: { agentId: id, createdAt: { gte: monthStart } }, _sum: { costUsd: true }, _count: { _all: true } }),
+    prisma.aiCall.groupBy({ by: ['provider'], where: { agentId: id, createdAt: { gte: monthStart }, provider: { in: ['anthropic', 'openai'] } }, _count: { _all: true } }),
+    prisma.aiCall.findFirst({ where: { agentId: id, provider: { in: ['anthropic', 'openai'] } }, orderBy: { createdAt: 'desc' }, select: { provider: true, model: true, createdAt: true } }),
+  ])
   return NextResponse.json({
     agent: { ...agent, resolution: resolutionRate(agent.conversations, agent.handoffs) },
-    monthCost: { costUsd: cost._sum.costUsd ?? 0, calls: cost._count._all },
+    monthCost: { costUsd: cost._sum.costUsd ?? 0, calls: cost._count._all, byProvider: byProvider.map((r) => ({ provider: r.provider, calls: r._count._all })), last },
     permissions: {
       edit: can(auth, agent.workspaceId, 'ai.edit'),
       knowledge: can(auth, agent.workspaceId, 'ai.knowledge'),

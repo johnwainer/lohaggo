@@ -14,9 +14,10 @@ vi.mock('@/lib/logger', () => ({ createLogger: () => ({ info() {}, warn() {}, er
 vi.mock('@/lib/ai/calls', () => ({ logAiCall: async () => 0, AUX_KINDS: [] }))
 vi.mock('@/lib/ai/settings', () => {
   const client = new Anthropic({ apiKey: process.env.AI_TEST_ANTHROPIC_KEY || 'missing', maxRetries: 0 })
-  const settings = { anthropicKey: 'x', voyageKey: null, defaultModel: 'claude-opus-5', fallbackModel: 'claude-haiku-4-5', embeddingModel: 'voyage-3', allowAgentModelOverride: false, auxDailyBudgetUsd: 5 }
-  return { requireAnthropic: async () => ({ client, settings }), getAiSettings: async () => settings }
+  const settings = { anthropicKey: 'x', voyageKey: null, defaultModel: 'claude-opus-5', fallbackModel: 'claude-haiku-4-5', embeddingModel: 'voyage-3', allowAgentModelOverride: false, auxDailyBudgetUsd: 5, openaiKey: null, openaiModel: 'gpt-6-sol', openaiFallbackModel: 'gpt-6-luna', providerOrder: ['anthropic', 'openai'], failoverEnabled: false }
+  return { requireAnthropic: async () => ({ client, settings }), getAiSettings: async () => settings, anthropicClient: () => client, openaiClient: () => null, AiNotConfiguredError: Error }
 })
+vi.mock('@/lib/ai/providers/state', () => ({ getProviderStates: async () => ({}), providerIsDown: () => false, recordProviderError: async () => {}, recordProviderOk: async () => {} }))
 
 import { buildRequest, callClaude, textOf } from '@/lib/ai/anthropic'
 import { buildAttemptPlan, runWithFallback } from '@/lib/ai/retry'

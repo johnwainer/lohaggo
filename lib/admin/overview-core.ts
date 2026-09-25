@@ -86,9 +86,14 @@ export function alertsFrom(s: {
   cronsFailing?: number
   cronsLate?: number
   errorsLastHour?: number
+  /** Text AI providers marked down, and who answers meanwhile (null: nobody) */
+  aiDown?: Array<{ name: string; reason: string }>
+  aiAnswering?: string | null
 }): Alert[] {
   const out: Alert[] = []
   const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
+  if (s.aiDown?.length && !s.aiAnswering) out.push({ level: 'critical', text: 'La IA no tiene proveedor disponible: los agentes pasan las conversaciones a personas', href: '/admin/ai-settings' })
+  else for (const d of s.aiDown ?? []) out.push({ level: 'critical', text: `${d.name} ${d.reason}: los agentes están respondiendo con ${s.aiAnswering}`, href: '/admin/ai-settings' })
   if (s.waitingCustomers) out.push({ level: 'critical', text: `${plural(s.waitingCustomers, 'cliente espera', 'clientes esperan')} respuesta hace más de 15 min`, href: '/admin/inbox' })
   if (s.cronsFailing) out.push({ level: 'critical', text: `${plural(s.cronsFailing, 'tarea automática falla', 'tareas automáticas fallan')}`, href: '/admin/system' })
   if (s.slaBreached) out.push({ level: 'critical', text: `${plural(s.slaBreached, 'caso de soporte', 'casos de soporte')} con el plazo vencido`, href: '/admin/operations' })

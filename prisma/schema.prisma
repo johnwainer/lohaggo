@@ -1798,8 +1798,29 @@ model AiSettings {
   modelsCachedAt          DateTime?
   defaultModelCheckedAt   DateTime?
   defaultModelCheckOk     Boolean?
+  openaiKeyEncrypted      String?
+  openaiModel             String?
+  openaiFallbackModel     String?
+  openaiModelsCache       Json?
+  openaiModelsCachedAt    DateTime?
+  providerOrder           String    @default("anthropic,openai")
+  failoverEnabled         Boolean   @default(true)
   updatedByEmail          String?
   updatedAt               DateTime  @updatedAt
+}
+
+/// Circuit breaker per text-AI provider: while `down` and before `downUntil`, calls skip it.
+model AiProviderState {
+  provider    String    @id
+  status      String    @default("ok")
+  reason      String?
+  detail      String?
+  downUntil   DateTime?
+  lastErrorAt DateTime?
+  lastOkAt    DateTime?
+  failures    Int       @default(0)
+  notifiedAt  DateTime?
+  updatedAt   DateTime  @updatedAt
 }
 
 model AiPricing {

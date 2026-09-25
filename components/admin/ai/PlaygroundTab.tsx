@@ -19,6 +19,7 @@ type Result = {
   chunks: Chunk[]
   knowledgeMode?: string
   model: string | null
+  provider?: 'anthropic' | 'openai' | null
   requestedModel?: string
   costUsd: number
   rounds?: number
@@ -104,7 +105,7 @@ export default function PlaygroundTab({ agentId, canTest, dirty }: { agentId: st
                 {t.content}
                 {t.result && (
                   <span className="block mt-1 text-[10px] text-gray-400">
-                    {t.result.model || 'sin modelo'} · {usd(t.result.costUsd)}
+                    {t.result.model || 'sin modelo'}{t.result.provider === 'openai' ? ' (OpenAI)' : ''} · {usd(t.result.costUsd)}
                     {t.result.handoff ? ` · traspaso (${REASON[t.result.handoffReason || ''] || t.result.handoffReason})` : ''}
                     {t.result.done ? ' · objetivo cumplido' : ''}
                   </span>
@@ -137,8 +138,9 @@ export default function PlaygroundTab({ agentId, canTest, dirty }: { agentId: st
               </div>
             )}
             <dl className="grid grid-cols-2 gap-y-1 text-xs">
-              <dt className="text-gray-500">Modelo que respondió</dt><dd className="font-mono">{detail.model || '—'}</dd>
-              {detail.requestedModel && detail.model && detail.requestedModel !== detail.model && (<><dt className="text-gray-500">Pedido</dt><dd className="font-mono text-amber-700">{detail.requestedModel} (reserva)</dd></>)}
+              <dt className="text-gray-500">Modelo que respondió</dt><dd className="font-mono">{detail.model || '—'}{detail.provider ? ` · ${detail.provider === 'openai' ? 'OpenAI' : 'Claude'}` : ''}</dd>
+              {detail.provider === 'openai' && (<><dt className="text-gray-500">Proveedor</dt><dd className="text-amber-700">OpenAI respondió porque Claude no estaba disponible (o OpenAI es el principal)</dd></>)}
+              {detail.provider !== 'openai' && detail.requestedModel && detail.model && detail.requestedModel !== detail.model && (<><dt className="text-gray-500">Pedido</dt><dd className="font-mono text-amber-700">{detail.requestedModel} (reserva)</dd></>)}
               <dt className="text-gray-500">Vueltas</dt><dd>{detail.rounds ?? 0}</dd>
               <dt className="text-gray-500">Motivo de parada</dt><dd>{detail.stopReason || '—'}</dd>
               <dt className="text-gray-500">Coste</dt><dd>{usd(detail.costUsd)}</dd>

@@ -17,6 +17,13 @@ export const DEFAULT_PRICING: Record<string, Pricing> = {
   'anthropic:claude-opus-5': { inputPerMTok: 5, outputPerMTok: 25, cacheReadPerMTok: 0.5, cacheWritePerMTok: 6.25 },
   'anthropic:claude-haiku-4-5': { inputPerMTok: 1, outputPerMTok: 5, cacheReadPerMTok: 0.1, cacheWritePerMTok: 1.25 },
   'anthropic:claude-sonnet-5': { inputPerMTok: 2, outputPerMTok: 10, cacheReadPerMTok: 0.2, cacheWritePerMTok: 2.5 },
+  // OpenAI (Standard, prompts up to 272K); cache writes at 1.25x input
+  'openai:gpt-6-astra': { inputPerMTok: 10, outputPerMTok: 50, cacheReadPerMTok: 1, cacheWritePerMTok: 12.5 },
+  'openai:gpt-6-sol': { inputPerMTok: 2, outputPerMTok: 10, cacheReadPerMTok: 0.2, cacheWritePerMTok: 2.5 },
+  'openai:gpt-6-luna': { inputPerMTok: 0.1, outputPerMTok: 0.5, cacheReadPerMTok: 0.01, cacheWritePerMTok: 0.125 },
+  'openai:gpt-5.6-terra': { inputPerMTok: 2, outputPerMTok: 12, cacheReadPerMTok: 0.2, cacheWritePerMTok: 2.5 },
+  'openai:gpt-5.6-luna': { inputPerMTok: 0.2, outputPerMTok: 1.2, cacheReadPerMTok: 0.02, cacheWritePerMTok: 0.25 },
+  'openai:gpt-5.5': { inputPerMTok: 5, outputPerMTok: 30, cacheReadPerMTok: 0.5, cacheWritePerMTok: 6.25 },
   'voyage:voyage-3': { inputPerMTok: 0.06, outputPerMTok: 0, cacheReadPerMTok: 0, cacheWritePerMTok: 0 },
   'voyage:voyage-3-large': { inputPerMTok: 0.18, outputPerMTok: 0, cacheReadPerMTok: 0, cacheWritePerMTok: 0 },
   'voyage:voyage-3-lite': { inputPerMTok: 0.02, outputPerMTok: 0, cacheReadPerMTok: 0, cacheWritePerMTok: 0 },

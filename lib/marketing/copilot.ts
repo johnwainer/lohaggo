@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { callClaude, describeApiError, textOf } from '@/lib/ai/anthropic'
-import { getAiSettings } from '@/lib/ai/settings'
+import { getAiSettings, hasTextProvider } from '@/lib/ai/settings'
 import { checkWorkspaceBudget } from '@/lib/ai/limits'
 import { SITE_URL, slugify } from '@/lib/marketing/seo'
 import { cleanText, maxTokensFor, parseHashtags, parseJson, systemPrompt, userPrompt, type CopilotRequest } from '@/lib/marketing/copilot-core'
@@ -24,7 +24,7 @@ async function brandContext(workspaceId: string) {
 /** One call to the platform's model; cost logged as "copywriting" and counted against the workspace cap. */
 export async function runCopywriting(workspaceId: string, req: CopilotRequest) {
   const settings = await getAiSettings()
-  if (!settings.anthropicKey) throw new CopywritingError('La IA no está configurada (falta la clave de Anthropic en IA · Plataforma)')
+  if (!hasTextProvider(settings)) throw new CopywritingError('La IA no está configurada (falta la clave de Anthropic u OpenAI en IA · Plataforma)')
   const budget = await checkWorkspaceBudget(workspaceId)
   if (budget.state === 'blocked') throw new CopywritingError(`Tope mensual de IA alcanzado (${budget.pct}%)`)
 

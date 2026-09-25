@@ -103,7 +103,7 @@ export default function AiAgentDetailPage({ params }: { params: Promise<{ id: st
   const [agent, setAgent] = useState<Agent | null>(null)
   const [draft, setDraft] = useState<Partial<Agent>>({})
   const [perm, setPerm] = useState({ edit: false, knowledge: false, test: false })
-  const [monthCost, setMonthCost] = useState<{ costUsd: number; calls: number } | null>(null)
+  const [monthCost, setMonthCost] = useState<{ costUsd: number; calls: number; byProvider?: Array<{ provider: string; calls: number }>; last?: { provider: string; model: string; createdAt: string } | null } | null>(null)
   const [catalog, setCatalog] = useState<Catalog | null>(null)
   const [accounts, setAccounts] = useState<Account[]>([])
   const [platform, setPlatform] = useState<{ allowAgentModelOverride: boolean; defaultModel: string } | null>(null)
@@ -184,6 +184,12 @@ export default function AiAgentDetailPage({ params }: { params: Promise<{ id: st
             {v.conversations} conversaciones · {v.handoffs} traspasos · resolución {v.resolution == null ? '—' : `${v.resolution}%`}
             {monthCost ? ` · este mes ${usd(monthCost.costUsd)} (${monthCost.calls} llamadas)` : ''}
           </p>
+          {monthCost?.last && (
+            <p className="text-xs text-gray-500 mt-0.5">
+              Última respuesta con {monthCost.last.provider === 'openai' ? 'OpenAI' : 'Claude'} ({monthCost.last.model}, {new Date(monthCost.last.createdAt).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })})
+              {(monthCost.byProvider?.length ?? 0) > 1 ? ` · este mes: ${monthCost.byProvider!.map((p) => `${p.provider === 'openai' ? 'OpenAI' : 'Claude'} ${p.calls}`).join(', ')} llamadas` : ''}
+            </p>
+          )}
         </div>
         <button disabled={ro} onClick={() => set({ status: v.status === 'active' ? 'paused' : 'active' })} className={`px-3 py-1.5 rounded-full text-sm font-medium ${v.status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
           {v.status === 'active' ? '● Activo' : '○ Pausado'}

@@ -8,7 +8,7 @@ import { callClaude, textOf } from '@/lib/ai/anthropic'
 import { applySignature, formatForChannel, parseMarkers } from '@/lib/ai/format'
 import { buildSystem } from '@/lib/ai/prompt'
 import { retrieve } from '@/lib/ai/knowledge'
-import { getAiSettings } from '@/lib/ai/settings'
+import { getAiSettings, hasTextProvider } from '@/lib/ai/settings'
 import { auxBudgetAvailable } from '@/lib/ai/limits'
 import { isCommentChannel } from '@/lib/ai/comments-core'
 import {
@@ -225,7 +225,7 @@ export async function runReengagement(limit = 30) {
   const agents = await prisma.aiAgent.findMany({ where: { status: 'active', reengageAfterHours: { gt: 0 } } })
   if (!agents.length) return { sent: 0 }
   const settings = await getAiSettings()
-  if (!settings.anthropicKey) return { sent: 0 }
+  if (!hasTextProvider(settings)) return { sent: 0 }
   let sent = 0
 
   for (const agent of agents) {

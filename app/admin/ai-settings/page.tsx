@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { AlertCircle, CheckCircle2, KeyRound, Loader2, PlugZap, RefreshCw, Save, Trash2, XCircle } from 'lucide-react'
+import { AlertCircle, ArrowLeftRight, CheckCircle2, KeyRound, Loader2, PlugZap, RefreshCw, RotateCcw, Save, Trash2, XCircle, Zap } from 'lucide-react'
 
 type Settings = {
   anthropicKey: string | null
@@ -14,7 +14,14 @@ type Settings = {
   auxDailyBudgetUsd: number
   defaultModelCheckedAt: string | null
   defaultModelCheckOk: boolean | null
+  openaiKey: string | null
+  openaiModel: string
+  openaiFallbackModel: string
+  providerOrder: ProviderId[]
+  failoverEnabled: boolean
 }
+type ProviderId = 'anthropic' | 'openai'
+type ProviderState = { provider: ProviderId; status: 'ok' | 'degraded' | 'down'; reasonLabel: string | null; detail: string | null; downUntil: string | null; lastErrorAt: string | null; lastOkAt: string | null; failures: number }
 type ModelOption = { id: string; displayName: string }
 type PriceRow = { id: string | null; provider: string; model: string; inputPerMTok: number; outputPerMTok: number; cacheReadPerMTok: number; cacheWritePerMTok: number }
 type CostRow = { calls: number; costUsd: number; inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheWriteTokens: number }
@@ -24,6 +31,7 @@ type Costs = {
   byAgent: Array<CostRow & { agentId: string | null; name: string }>
   byKind: Array<CostRow & { kind: string }>
   byModel: Array<CostRow & { provider: string; model: string }>
+  byProvider?: Array<CostRow & { provider: string }>
   budgets: Array<{ workspaceId: string; name: string; costCapUsd: number | null; callCap: number | null; costUsd: number; calls: number; state: string; pct: number }>
 }
 type TestResult = { ok: boolean; latencyMs?: number; error?: string; model?: string }
@@ -46,6 +54,17 @@ const KIND_LABEL: Record<string, string> = {
   marketing_agent_plan: 'Agente de marketing: planificación',
   marketing_agent_draft: 'Agente de marketing: redacción',
   marketing_agent_learn: 'Agente de marketing: aprendizaje',
+}
+
+const PROVIDER_NAME: Record<string, string> = { anthropic: 'Claude (Anthropic)', openai: 'OpenAI', voyage: 'Voyage (embeddings)' }
+const hhmm = (d: string | null) => (d ? new Date(d).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) : '')
+
+function ProviderStatus({ state, hasKey }: { state: ProviderState | undefined; hasKey: boolean }) {
+  if (!hasKey) return <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">Sin clave</span>
+  if (!state || state.status === 'ok') return <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Funcionando</span>
+  const down = state.status === 'down' && state.downUntil && new Date(state.downUntil).getTime() > Date.now()
+  if (down) return <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700"><span className="h-1.5 w-1.5 rounded-full bg-red-500" /> Caído: {state.reasonLabel} · se reintenta a las {hhmm(state.downUntil)}</span>
+  return <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700"><span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> {state.status === 'down' ? 'Se probará en la próxima llamada' : `Con fallos (${state.failures} seguidos)`}{state.reasonLabel ? `: ${state.reasonLabel}` : ''}</span>
 }
 
 const usd = (n: number) => `$${n.toFixed(n < 1 ? 4 : 2)}`
@@ -72,6 +91,10 @@ export default function AiSettingsPage() {
   const [costs, setCosts] = useState<Costs | null>(null)
   const [period, setPeriod] = useState(() => new Date().toISOString().slice(0, 7))
 
+  const [providers, setProviders] = useState<ProviderState[]>([])
+  const [openaiModels, setOpenaiModels] = useState<ModelOption[]>([])
+  const [openaiModelsWarning, setOpenaiModelsWarning] = useState<string | null>(null)
+  const [openaiKey, setOpenaiKey] = useState('')
   const [anthropicKey, setAnthropicKey] = useState('')
   const [voyageKey, setVoyageKey] = useState('')
   const [form, setForm] = useState<Partial<Settings>>({})
@@ -92,6 +115,9 @@ export default function AiSettingsPage() {
     setModels(data.models || [])
     setModelsSource(data.source || '')
     setModelsWarning(data.warning || null)
+    const o = await fetch(`/api/admin/ai/models?provider=openai${refresh ? '&refresh=1' : ''}`).then((r) => r.json()).catch(() => ({}))
+    setOpenaiModels(o.models || [])
+    setOpenaiModelsWarning(o.warning || null)
   }, [])
 
   const load = useCallback(async () => {
@@ -103,6 +129,7 @@ export default function AiSettingsPage() {
       if (!s.ok) throw new Error(sd.error || 'No se pudo cargar')
       setSettings(sd.settings)
       setVoyageModels(sd.voyageModels || [])
+      setProviders(sd.providers || [])
       setForm({})
       const pd = await p.json().catch(() => ({}))
       setPricing(pd.pricing || [])
@@ -125,11 +152,14 @@ export default function AiSettingsPage() {
       const body: Record<string, unknown> = { ...form, ...extra }
       if (anthropicKey.trim()) body.anthropicKey = anthropicKey.trim()
       if (voyageKey.trim()) body.voyageKey = voyageKey.trim()
+      if (openaiKey.trim()) body.openaiKey = openaiKey.trim()
       const res = await fetch('/api/admin/ai/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'No se pudo guardar')
       setAnthropicKey('')
       setVoyageKey('')
+      setOpenaiKey('')
+      if (data.openaiModelCheck) setTests((t) => ({ ...t, [`model:${data.openaiModelCheck.model}`]: data.openaiModelCheck }))
       if (data.defaultModelCheck) setTests((t) => ({ ...t, [`model:${data.defaultModelCheck.model}`]: data.defaultModelCheck }))
       setNotice('Ajustes guardados.')
       await load()
@@ -140,9 +170,18 @@ export default function AiSettingsPage() {
     }
   }
 
-  async function testProvider(provider: 'anthropic' | 'voyage') {
+  async function providerAction(provider: ProviderId, action: 'reset' | 'simulate_down') {
+    if (action === 'simulate_down' && !window.confirm(`¿Simular una caída de ${PROVIDER_NAME[provider]} durante 5 minutos? Las llamadas irán al otro proveedor (puede tardar hasta 15 s en aplicarse en todos los servidores).`)) return
+    const res = await fetch('/api/admin/ai/providers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ provider, action }) })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) { setError(data.error || 'Error'); return }
+    setNotice(action === 'reset' ? `${PROVIDER_NAME[provider]}: se probará de nuevo en la próxima llamada.` : `${PROVIDER_NAME[provider]} marcado como caído durante 5 minutos (prueba).`)
+    await load()
+  }
+
+  async function testProvider(provider: 'anthropic' | 'voyage' | 'openai') {
     setTesting(provider)
-    const key = provider === 'anthropic' ? anthropicKey : voyageKey
+    const key = provider === 'anthropic' ? anthropicKey : provider === 'openai' ? openaiKey : voyageKey
     const res = await fetch('/api/admin/ai/settings/test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ provider, key: key || undefined, model: value('embeddingModel') }) })
     const data = await res.json().catch(() => ({ ok: false, error: 'Error' }))
     setTests((t) => ({ ...t, [provider]: data }))
@@ -180,10 +219,10 @@ export default function AiSettingsPage() {
     return <div className="p-6 flex items-center gap-2 text-gray-500"><Loader2 className="animate-spin" size={18} /> Cargando…</div>
   }
 
-  const modelSelect = (key: 'defaultModel' | 'fallbackModel') => (
+  const modelSelect = (key: 'defaultModel' | 'fallbackModel' | 'openaiModel' | 'openaiFallbackModel', list: ModelOption[] = models) => (
     <div className="flex items-center gap-2 flex-wrap">
       <select value={value(key) || ''} onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))} className="border border-gray-200 rounded-xl px-3 py-2 text-sm min-w-[240px]">
-        {[...models, ...(models.some((m) => m.id === value(key)) ? [] : [{ id: value(key) || '', displayName: value(key) || '' }])].map((m) => (
+        {[...list, ...(list.some((m) => m.id === value(key)) ? [] : [{ id: value(key) || '', displayName: value(key) || '' }])].map((m) => (
           <option key={m.id} value={m.id}>{m.displayName} · {m.id}</option>
         ))}
       </select>
@@ -212,39 +251,116 @@ export default function AiSettingsPage() {
       {error && <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><AlertCircle size={16} /> {error}</div>}
       {notice && <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"><CheckCircle2 size={16} /> {notice}</div>}
 
-      {/* Keys */}
-      <section className="bg-white rounded-2xl border border-gray-200 p-6 space-y-6">
-        <h2 className="font-semibold text-gray-900 flex items-center gap-2"><KeyRound size={18} /> Claves (cifradas en base de datos)</h2>
-        {([
-          ['anthropic', 'Anthropic (Claude)', settings?.anthropicKey, anthropicKey, setAnthropicKey, 'sk-ant-…'],
-          ['voyage', 'Voyage AI (embeddings)', settings?.voyageKey, voyageKey, setVoyageKey, 'pa-…'],
-        ] as const).map(([provider, label, masked, draft, setDraft, placeholder]) => (
-          <div key={provider} className="space-y-2">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <label className="text-sm font-medium text-gray-700">{label}</label>
-              <span className="text-xs text-gray-500">{masked ? `Guardada: ${masked}` : 'Sin configurar'}</span>
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              <input type="password" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={masked ? 'Escribe una nueva para reemplazarla' : placeholder} className="flex-1 min-w-[240px] border border-gray-200 rounded-xl px-3 py-2 text-sm" autoComplete="off" />
-              <button onClick={() => testProvider(provider)} disabled={testing !== null || (!draft && !masked)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50">
-                {testing === provider ? <Loader2 size={14} className="animate-spin" /> : <PlugZap size={14} />} Probar conexión
-              </button>
-              {masked && (
-                <button onClick={() => { if (window.confirm(`¿Eliminar la clave de ${label}?`)) save({ [provider === 'anthropic' ? 'anthropicKey' : 'voyageKey']: null }) }} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-red-200 text-sm text-red-600 hover:bg-red-50">
-                  <Trash2 size={14} /> Quitar
-                </button>
-              )}
-            </div>
-            <TestBadge result={tests[provider]} />
-            {provider === 'voyage' && !masked && <p className="text-xs text-amber-700">Sin clave de Voyage la base de conocimiento funciona en modo léxico (búsqueda por palabras).</p>}
+      {/* Text providers */}
+      <section className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h2 className="font-semibold text-gray-900 flex items-center gap-2"><ArrowLeftRight size={18} /> Proveedores de IA de texto</h2>
+            <p className="text-xs text-gray-500 mt-1 max-w-2xl">Si el primero falla por falta de crédito, clave inválida, límite o caída, la misma respuesta se pide al segundo antes de pasar la conversación a una persona. El tope mensual de cada cuenta suma los dos y nunca cambia de proveedor.</p>
           </div>
-        ))}
+          <div className="flex items-center gap-3 flex-wrap">
+            <label className="text-sm text-gray-700 flex items-center gap-2">
+              Primero
+              <select value={(value('providerOrder') || ['anthropic', 'openai'])[0]} onChange={(e) => setForm((f) => ({ ...f, providerOrder: e.target.value === 'openai' ? ['openai', 'anthropic'] : ['anthropic', 'openai'] }))} className="border border-gray-200 rounded-xl px-3 py-1.5 text-sm">
+                <option value="anthropic">Claude (Anthropic)</option>
+                <option value="openai">OpenAI</option>
+              </select>
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input type="checkbox" checked={value('failoverEnabled') !== false} onChange={(e) => setForm((f) => ({ ...f, failoverEnabled: e.target.checked }))} />
+              Cambiar automáticamente al otro si falla
+            </label>
+          </div>
+        </div>
+        <div className="grid lg:grid-cols-2 gap-4">
+          {([
+            ['anthropic', settings?.anthropicKey, anthropicKey, setAnthropicKey, 'sk-ant-…'],
+            ['openai', settings?.openaiKey, openaiKey, setOpenaiKey, 'sk-…'],
+          ] as const).map(([provider, masked, draft, setDraft, placeholder]) => {
+            const state = providers.find((p) => p.provider === provider)
+            const position = (value('providerOrder') || ['anthropic', 'openai']).indexOf(provider)
+            return (
+              <div key={provider} className="rounded-2xl border border-gray-200 p-4 space-y-3">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-gray-900">{PROVIDER_NAME[provider]}</span>
+                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600">{position === 0 ? 'Principal' : 'Respaldo'}</span>
+                  </div>
+                  <ProviderStatus state={state} hasKey={Boolean(masked)} />
+                </div>
+                {state?.detail && state.status !== 'ok' && <p className="text-xs text-gray-500 break-words">{state.detail}</p>}
+                <div className="flex items-center justify-between text-xs text-gray-500">
+                  <span><KeyRound size={12} className="inline mr-1" />{masked ? `Guardada: ${masked}` : 'Sin clave'}</span>
+                  {state?.lastOkAt && <span>Última respuesta: {new Date(state.lastOkAt).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })}</span>}
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  <input type="password" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={masked ? 'Escribe una nueva para reemplazarla' : placeholder} className="flex-1 min-w-[200px] border border-gray-200 rounded-xl px-3 py-2 text-sm" autoComplete="off" />
+                  <button onClick={() => testProvider(provider)} disabled={testing !== null || (!draft && !masked)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50">
+                    {testing === provider ? <Loader2 size={14} className="animate-spin" /> : <PlugZap size={14} />} Probar clave
+                  </button>
+                  {masked && (
+                    <button onClick={() => { if (window.confirm(`¿Eliminar la clave de ${PROVIDER_NAME[provider]}?`)) save({ [provider === 'anthropic' ? 'anthropicKey' : 'openaiKey']: null }) }} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-red-200 text-sm text-red-600 hover:bg-red-50">
+                      <Trash2 size={14} /> Quitar
+                    </button>
+                  )}
+                </div>
+                <TestBadge result={tests[provider]} />
+                {provider === 'openai' && (
+                  <div className="space-y-3 pt-1">
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-gray-700">Modelo principal (reemplaza a los modelos grandes de Claude)</label>
+                      {modelSelect('openaiModel', openaiModels)}
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-gray-700">Modelo económico (reemplaza al modelo de reserva y a Haiku; resúmenes)</label>
+                      {modelSelect('openaiFallbackModel', openaiModels)}
+                    </div>
+                    {openaiModelsWarning && <p className="text-xs text-gray-500">{openaiModelsWarning}</p>}
+                  </div>
+                )}
+                {masked && (
+                  <div className="flex gap-2 flex-wrap pt-1">
+                    {state && state.status !== 'ok' && (
+                      <button onClick={() => providerAction(provider, 'reset')} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 text-xs text-gray-700 hover:bg-gray-50"><RotateCcw size={13} /> Forzar reintento</button>
+                    )}
+                    <button onClick={() => providerAction(provider, 'simulate_down')} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-gray-300 text-xs text-gray-500 hover:bg-gray-50"><Zap size={13} /> Simular caída 5 min (prueba)</button>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+        <button onClick={() => save()} disabled={saving} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-600 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50">
+          {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />} Guardar proveedores
+        </button>
+      </section>
+
+      {/* Embeddings key */}
+      <section className="bg-white rounded-2xl border border-gray-200 p-6 space-y-2">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h2 className="font-semibold text-gray-900 flex items-center gap-2"><KeyRound size={18} /> Voyage AI (embeddings del conocimiento)</h2>
+          <span className="text-xs text-gray-500">{settings?.voyageKey ? `Guardada: ${settings.voyageKey}` : 'Sin configurar'}</span>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <input type="password" value={voyageKey} onChange={(e) => setVoyageKey(e.target.value)} placeholder={settings?.voyageKey ? 'Escribe una nueva para reemplazarla' : 'pa-…'} className="flex-1 min-w-[240px] border border-gray-200 rounded-xl px-3 py-2 text-sm" autoComplete="off" />
+          <button onClick={() => testProvider('voyage')} disabled={testing !== null || (!voyageKey && !settings?.voyageKey)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50">
+            {testing === 'voyage' ? <Loader2 size={14} className="animate-spin" /> : <PlugZap size={14} />} Probar conexión
+          </button>
+          {voyageKey && <button onClick={() => save()} disabled={saving} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary-600 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50"><Save size={14} /> Guardar</button>}
+          {settings?.voyageKey && (
+            <button onClick={() => { if (window.confirm('¿Eliminar la clave de Voyage AI?')) save({ voyageKey: null }) }} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-red-200 text-sm text-red-600 hover:bg-red-50">
+              <Trash2 size={14} /> Quitar
+            </button>
+          )}
+        </div>
+        <TestBadge result={tests.voyage} />
+        <p className="text-xs text-gray-500">Los embeddings siempre van con Voyage: mezclar vectores de dos modelos rompe la búsqueda. {settings?.voyageKey ? 'Si Voyage falla, el agente busca por palabras.' : 'Sin clave, el conocimiento funciona en modo léxico (búsqueda por palabras).'}</p>
       </section>
 
       {/* Models */}
       <section className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
         <div className="flex items-center justify-between flex-wrap gap-2">
-          <h2 className="font-semibold text-gray-900">Modelos</h2>
+          <h2 className="font-semibold text-gray-900">Modelos de Claude</h2>
           <button onClick={() => loadModels(true)} className="inline-flex items-center gap-1.5 text-xs text-primary-600 hover:underline"><RefreshCw size={12} /> Releer de la API</button>
         </div>
         <p className="text-xs text-gray-500">
@@ -309,7 +425,7 @@ export default function AiSettingsPage() {
                     <td className="py-2 pr-3">
                       {isNew ? (
                         <select value={row.provider} onChange={(e) => update({ provider: e.target.value })} className="border border-gray-200 rounded-lg px-2 py-1">
-                          <option value="anthropic">anthropic</option><option value="voyage">voyage</option>
+                          <option value="anthropic">anthropic</option><option value="openai">openai</option><option value="voyage">voyage</option>
                         </select>
                       ) : row.provider}
                     </td>
@@ -341,6 +457,7 @@ export default function AiSettingsPage() {
               ['Por cuenta (workspace)', costs.byWorkspace.map((r) => ({ label: r.name, ...r }))],
               ['Por agente', costs.byAgent.map((r) => ({ label: r.name, ...r }))],
               ['Por tipo de llamada', costs.byKind.map((r) => ({ label: KIND_LABEL[r.kind] || r.kind, ...r }))],
+              ['Por proveedor (el que respondió)', (costs.byProvider ?? []).map((r) => ({ label: PROVIDER_NAME[r.provider] ?? r.provider, ...r }))],
               ['Por modelo (el que respondió)', costs.byModel.map((r) => ({ label: `${r.provider} · ${r.model}`, ...r }))],
             ] as const).map(([title, rows]) => (
               <div key={title}>

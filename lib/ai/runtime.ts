@@ -13,6 +13,7 @@ import { buildToolDefs, executeTool, isWriteTool, toolGuidance, type ToolCallRec
 import { auxBudgetAvailable, checkWorkspaceBudget } from '@/lib/ai/limits'
 import type { UsageTokens } from '@/lib/ai/pricing'
 import type { AiCallKind } from '@/lib/ai/calls'
+import type { ProviderId } from '@/lib/ai/providers/types'
 import {
   describeNow,
   effectiveWindow,
@@ -58,6 +59,8 @@ export type ReplyResult = {
   costUsd: number
   /** Model that really answered the last round (what gets billed) */
   model: string | null
+  /** Provider that answered the last round: OpenAI when Claude failed over */
+  provider: ProviderId | null
   requestedModel: string
   rounds: number
   stopReason: string | null
@@ -179,7 +182,7 @@ export const AgentRuntimeService = {
     const result: ReplyResult = {
       ok: true, text: '', handoff: false, handoffReason: null, handoffDetail: null, done: false, spam: false,
       toolsUsed: [], chunks: [], knowledgeMode: 'none', chosenOutput: null, usage: emptyUsage(), costUsd: 0,
-      model: null, requestedModel, rounds: 0, stopReason: null, error: null,
+      model: null, provider: null, requestedModel, rounds: 0, stopReason: null, error: null,
     }
 
     // Monthly cap: stop answering and hand off, never fail silently
@@ -231,6 +234,7 @@ export const AgentRuntimeService = {
         )
         result.rounds = round + 1
         result.model = call.model
+        result.provider = call.provider
         result.costUsd += call.costUsd
         for (const k of Object.keys(result.usage) as Array<keyof UsageTokens>) result.usage[k] += call.usage[k]
         final = call.message

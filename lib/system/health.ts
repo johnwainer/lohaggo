@@ -5,6 +5,8 @@ import { getImageSettings } from '@/lib/marketing/images'
 import { getGa4Settings } from '@/lib/analytics/ga4'
 import { CRON_JOBS, JOB_LABEL } from '@/lib/system/cron'
 import { cronHealth, type CronHealth } from '@/lib/system/core'
+import { getProviderStates, providerIsDown, reasonLabel } from '@/lib/ai/providers/state'
+import { PROVIDER_LABEL, type ProviderId } from '@/lib/ai/providers/types'
 
 const H = 3600_000
 export type Level = 'ok' | 'warning' | 'error' | 'off'
@@ -33,19 +35,33 @@ export async function cronStatus(now = new Date()) {
   })
 }
 
+const hhmm = (d: Date | null) => (d ? d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' }) : '')
+
+/** Text AI: which providers are down, why, and who is answering now (the first one up with a key). */
+export async function aiProviderStatus(now = new Date()) {
+  const [ai, states] = await Promise.all([getAiSettings().catch(() => null), getProviderStates().catch(() => null)])
+  const hasKey = (p: ProviderId) => Boolean(p === 'anthropic' ? ai?.anthropicKey : ai?.openaiKey)
+  const order = ai?.providerOrder ?? ['anthropic', 'openai']
+  const down = order.filter((p) => hasKey(p) && states && providerIsDown(states, p, now)).map((p) => ({ provider: p, name: PROVIDER_LABEL[p], reason: reasonLabel(states![p].reason) ?? 'no responde', since: states![p].lastErrorAt, until: states![p].downUntil }))
+  const usable = order.filter((p) => hasKey(p) && !down.some((d) => d.provider === p))
+  const answering = ai?.failoverEnabled === false ? (usable[0] === order.find(hasKey) ? usable[0] ?? null : null) : usable[0] ?? null
+  return { ai, states, order, hasKey, down, answering: answering ? PROVIDER_LABEL[answering] : null }
+}
+
 /** Each external service the platform depends on: configured, and working lately. */
 export async function integrations(now = new Date()): Promise<Integration[]> {
   const since = new Date(now.getTime() - 24 * H)
   const t0 = Date.now()
   const dbOk = await prisma.$queryRaw`SELECT 1`.then(() => true).catch(() => false)
   const dbMs = Date.now() - t0
-  const [ai, msg, img, ga4, channels, lastAi, deliveries, lastPayment, webhookErrors] = await Promise.all([
-    getAiSettings().catch(() => null),
+  const [aiStatus, msg, img, ga4, channels, lastAi, lastOpenai, deliveries, lastPayment, webhookErrors] = await Promise.all([
+    aiProviderStatus(now),
     getMessagingProviderRuntimeConfig().catch(() => null),
     getImageSettings().catch(() => null),
     getGa4Settings().catch(() => null),
     prisma.channelConnection.findMany({ where: { enabled: true }, select: { name: true, channel: true, status: true, lastError: true, capabilities: true } }),
     prisma.aiCall.findFirst({ where: { provider: 'anthropic' }, orderBy: { createdAt: 'desc' }, select: { createdAt: true } }),
+    prisma.aiCall.findFirst({ where: { provider: 'openai', kind: { not: 'image_generation' } }, orderBy: { createdAt: 'desc' }, select: { createdAt: true } }),
     prisma.messagingDelivery.groupBy({ by: ['status'], where: { createdAt: { gte: since } }, _count: { _all: true } }).catch(() => []),
     prisma.payment.findFirst({ where: { status: 'APPROVED', mercadopagoId: { not: null } }, orderBy: { updatedAt: 'desc' }, select: { updatedAt: true } }),
     prisma.webhookEvent.count({ where: { createdAt: { gte: since }, status: { not: 'OK' } } }).catch(() => 0),
@@ -56,12 +72,27 @@ export async function integrations(now = new Date()): Promise<Integration[]> {
     const m = Math.round((now.getTime() - d.getTime()) / 60_000)
     return m < 60 ? `último uso hace ${m} min` : m < 1440 ? `último uso hace ${Math.round(m / 60)} h` : `último uso hace ${Math.round(m / 1440)} d`
   }
+  const { ai } = aiStatus
+  const aiEntry = (p: ProviderId, name: string, model: string | undefined, last: Date | null | undefined): Integration => {
+    const other = PROVIDER_LABEL[p === 'anthropic' ? 'openai' : 'anthropic']
+    const backup = aiStatus.hasKey(p === 'anthropic' ? 'openai' : 'anthropic') && ai?.failoverEnabled !== false
+    if (!aiStatus.hasKey(p)) {
+      if (p === 'openai') return { key: p, name, level: 'off', detail: 'no configurado: sin respaldo si Claude falla' }
+      return { key: p, name, level: backup ? 'warning' : 'error', detail: backup ? `sin clave: responde ${other}` : 'falta la clave en IA · Plataforma' }
+    }
+    const d = aiStatus.down.find((x) => x.provider === p)
+    if (d) return { key: p, name, level: 'error', detail: `${d.reason} desde las ${hhmm(d.since)}, se reintenta a las ${hhmm(d.until)}${backup ? ` · usando ${other}` : ''}` }
+    const st = aiStatus.states?.[p]
+    if (st?.status === 'degraded') return { key: p, name, level: 'warning', detail: `${reasonLabel(st.reason) ?? 'fallos'} (${st.failures} seguidos) · ${model}` }
+    return { key: p, name, level: 'ok', detail: `${model} · ${agoLabel(last)}` }
+  }
   const brokenChannels = channels.filter((c) => c.status === 'ERROR' || (c.capabilities as { tokenHealth?: { valid?: boolean } } | null)?.tokenHealth?.valid === false)
   const failed = deliveries.find((d) => d.status === 'FAILED')?._count._all ?? 0
   const sent = deliveries.reduce((a, d) => a + d._count._all, 0)
   const out: Integration[] = [
     { key: 'db', name: 'Base de datos', level: !dbOk ? 'error' : dbMs > 1500 ? 'warning' : 'ok', detail: dbOk ? `responde en ${dbMs} ms` : 'no responde' },
-    { key: 'anthropic', name: 'IA (Anthropic)', level: !ai?.anthropicKey ? 'error' : 'ok', detail: ai?.anthropicKey ? `${ai.defaultModel} · ${agoLabel(lastAi?.createdAt)}` : 'falta la clave en IA · Plataforma' },
+    aiEntry('anthropic', 'IA (Anthropic)', ai?.defaultModel, lastAi?.createdAt),
+    aiEntry('openai', 'IA (OpenAI)', ai?.openaiModel, lastOpenai?.createdAt),
     { key: 'meta', name: 'Canales de Meta (FB, IG, Messenger)', level: !channels.length ? 'off' : brokenChannels.length ? 'error' : 'ok', detail: !channels.length ? 'sin cuentas conectadas' : brokenChannels.length ? `${brokenChannels.map((c) => c.name).join(', ')}: reconectar` : `${channels.length} cuentas activas` },
     { key: 'whatsapp', name: 'WhatsApp (Meta / Twilio)', level: msg?.metaWhatsApp.active || msg?.twilio.active ? 'ok' : 'off', detail: msg?.metaWhatsApp.active ? 'API de WhatsApp de Meta activa' : msg?.twilio.active ? 'Twilio activo' : 'sin proveedor activo' },
     { key: 'email', name: 'Correo (SendGrid)', level: msg?.sendgrid.active ? 'ok' : 'off', detail: msg?.sendgrid.active ? 'activo' : 'no configurado: los avisos solo llegan dentro de la app' },
@@ -108,12 +139,14 @@ export async function systemOverview(now = new Date()) {
 
 /** For the dashboard: jobs failing or late, and integrations down. Light: no external calls. */
 export async function systemAlerts(now = new Date()) {
-  const crons = await cronStatus(now).catch(() => [])
+  const [crons, ai] = await Promise.all([cronStatus(now).catch(() => []), aiProviderStatus(now).catch(() => null)])
   const noHistory = crons.every((c) => c.health === 'never')
   return {
     // Before the first recorded run (right after deploying) nothing is "late" yet
     cronsFailing: noHistory ? 0 : crons.filter((c) => c.health === 'failing' || c.health === 'stuck').length,
     cronsLate: noHistory ? 0 : crons.filter((c) => c.health === 'late').length,
     errorsLastHour: await prisma.appErrorGroup.count({ where: { resolvedAt: null, lastSeenAt: { gte: new Date(now.getTime() - H) } } }).catch(() => 0),
+    aiDown: ai?.down.map((d) => ({ name: d.name, reason: d.reason })) ?? [],
+    aiAnswering: ai?.answering ?? null,
   }
 }

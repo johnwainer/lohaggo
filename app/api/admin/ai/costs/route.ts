@@ -5,7 +5,7 @@ import { periodOf } from '@/lib/ai/pricing'
 import { aiWorkspacesWith, getAiAccess } from '@/lib/ai/permissions'
 import { evaluateBudget } from '@/lib/ai/limits'
 
-/** Cost report for a period (YYYY-MM): by workspace, agent, call kind and model. */
+/** Cost report for a period (YYYY-MM): by workspace, agent, call kind, model and provider. */
 export async function GET(request: NextRequest) {
   const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -17,11 +17,12 @@ export async function GET(request: NextRequest) {
 
   const where = { period, ...(scope === null ? {} : { workspaceId: { in: scope } }) }
   const sum = { costUsd: true, inputTokens: true, outputTokens: true, cacheReadTokens: true, cacheWriteTokens: true } as const
-  const [byWorkspace, byAgent, byKind, byModel, workspaces, agents] = await Promise.all([
+  const [byWorkspace, byAgent, byKind, byModel, byProvider, workspaces, agents] = await Promise.all([
     prisma.aiCall.groupBy({ by: ['workspaceId'], where, _sum: sum, _count: { _all: true } }),
     prisma.aiCall.groupBy({ by: ['agentId'], where, _sum: sum, _count: { _all: true } }),
     prisma.aiCall.groupBy({ by: ['kind'], where, _sum: sum, _count: { _all: true } }),
     prisma.aiCall.groupBy({ by: ['provider', 'model'], where, _sum: sum, _count: { _all: true } }),
+    prisma.aiCall.groupBy({ by: ['provider'], where, _sum: sum, _count: { _all: true } }),
     prisma.workspace.findMany({
       where: scope === null ? {} : { id: { in: scope } },
       select: { id: true, name: true, aiMonthlyCostCapUsd: true, aiMonthlyCallCap: true },
@@ -52,6 +53,7 @@ export async function GET(request: NextRequest) {
     byAgent: byAgent.map((r) => ({ agentId: r.agentId, name: r.agentId ? agentName.get(r.agentId) ?? 'Agente eliminado' : 'Sin agente', ...row(r) })),
     byKind: byKind.map((r) => ({ kind: r.kind, ...row(r) })),
     byModel: byModel.map((r) => ({ provider: r.provider, model: r.model, ...row(r) })),
+    byProvider: byProvider.map((r) => ({ provider: r.provider, ...row(r) })),
     budgets,
   })
 }

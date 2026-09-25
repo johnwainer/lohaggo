@@ -133,7 +133,7 @@ export default function AiAgentsPage() {
       {error && <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><AlertCircle size={16} /> {error}</div>}
       {platform && !platform.hasAnthropicKey && (
         <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          <AlertTriangle size={16} /> Falta la clave de Anthropic: los agentes no pueden responder hasta que el administrador de la plataforma la configure.
+          <AlertTriangle size={16} /> Falta la clave de IA (Anthropic u OpenAI): los agentes no pueden responder hasta que el administrador de la plataforma la configure.
         </div>
       )}
 

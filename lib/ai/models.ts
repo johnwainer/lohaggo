@@ -1,6 +1,9 @@
 export const DEFAULT_MODEL = 'claude-opus-5'
 export const FALLBACK_MODEL = 'claude-haiku-4-5'
 export const DEFAULT_EMBEDDING_MODEL = 'voyage-3'
+/** OpenAI backup: GPT-6 Sol (similar price to Sonnet) and Luna for cheap calls (developers.openai.com/api/docs/pricing, 2026-09) */
+export const DEFAULT_OPENAI_MODEL = 'gpt-6-sol'
+export const DEFAULT_OPENAI_FALLBACK_MODEL = 'gpt-6-luna'
 
 export type ModelOption = { id: string; displayName: string; source: 'api' | 'static' }
 
@@ -9,6 +12,14 @@ export const STATIC_MODELS: ModelOption[] = [
   { id: 'claude-opus-5', displayName: 'Claude Opus 5', source: 'static' },
   { id: 'claude-sonnet-5', displayName: 'Claude Sonnet 5', source: 'static' },
   { id: 'claude-haiku-4-5', displayName: 'Claude Haiku 4.5', source: 'static' },
+]
+
+export const OPENAI_STATIC_MODELS: ModelOption[] = [
+  { id: 'gpt-6-astra', displayName: 'GPT-6 Astra', source: 'static' },
+  { id: 'gpt-6-sol', displayName: 'GPT-6 Sol', source: 'static' },
+  { id: 'gpt-6-luna', displayName: 'GPT-6 Luna', source: 'static' },
+  { id: 'gpt-5.6-terra', displayName: 'GPT-5.6 Terra', source: 'static' },
+  { id: 'gpt-5.6-luna', displayName: 'GPT-5.6 Luna', source: 'static' },
 ]
 
 export const VOYAGE_MODELS: Array<{ id: string; dim: number; label: string }> = [

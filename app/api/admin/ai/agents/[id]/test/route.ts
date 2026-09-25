@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { aiAuth, can, forbidden } from '@/lib/ai/route-auth'
 import { AgentRuntimeService } from '@/lib/ai/runtime'
-import { getAiSettings } from '@/lib/ai/settings'
+import { getAiSettings, hasTextProvider } from '@/lib/ai/settings'
 import { formatForChannel } from '@/lib/ai/format'
 
 export const maxDuration = 60
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
   if (!can(auth, agent.workspaceId, 'ai.test')) return forbidden('Probar agentes consume saldo: necesitas el permiso "Probar agentes"')
 
   const settings = await getAiSettings()
-  if (!settings.anthropicKey) return NextResponse.json({ error: 'Falta la clave de Anthropic (Agentes IA → Plataforma)' }, { status: 409 })
+  if (!hasTextProvider(settings)) return NextResponse.json({ error: 'Falta la clave de Anthropic u OpenAI (IA · Plataforma)' }, { status: 409 })
 
   const body = await request.json().catch(() => ({}))
   const text = typeof body.text === 'string' ? body.text.trim().slice(0, 4000) : ''
