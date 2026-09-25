@@ -30,6 +30,11 @@
 - ✅ Si un commit de tooling-only se debe saltar, validar con `git diff --name-only HEAD^ HEAD` que solo aparecen archivos en la lista de skip.
 - ✅ Tras un push, si quieres confirmar que el build se completó/saltó: `curl -s "https://api.github.com/repos/johnwainer/lohaggo/commits/<sha>/status"` muestra el estado de Vercel sin necesidad del dashboard.
 
+#### Reglas duras aprendidas (incidente del 2026-09-24 — clics perdidos al navegar y volver)
+- ❌ **NUNCA** hacer que `public/sw.js` responda desde caché a `/api/*` (son datos de cada usuario) ni a los datos internos de Next.js: peticiones con `?_rsc=`, header `RSC: 1`, `Next-Router-Prefetch` o `Next-Router-State-Tree`. Un payload RSC viejo servido desde caché deja la página visible pero sin responder a clics, sin errores en consola (pasó en admin, sitio, clientes y socios).
+- ✅ El SW solo cachea `/_next/static/` (cache-first), imágenes y los archivos de `PRECACHE_URLS`; las navegaciones van network-first (offline como respaldo).
+- ✅ Cualquier cambio de estrategia de caché en `sw.js` sube la versión (`lohaggo-vN`) para purgar las cachés viejas en los navegadores.
+
 ### 4. Dirección de diseño y producto
 
 **Look & feel: estilo Rappi.** Decidido tras research de competidores directos (TaskRabbit, Thumbtack, Angi, IguanaFix, Habitissimo — ninguno usa mapa principal en home services).
