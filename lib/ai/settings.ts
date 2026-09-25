@@ -132,8 +132,8 @@ export function openaiClient(key: string) {
 }
 
 export class AiNotConfiguredError extends Error {
-  constructor(what = 'Anthropic ni de OpenAI') {
-    super(`La clave de ${what} no está configurada en IA · Plataforma`)
+  constructor(message = 'No hay una clave de IA que funcione (ni de Anthropic ni de OpenAI) en IA · Plataforma') {
+    super(message)
   }
 }
 
@@ -142,6 +142,6 @@ export const hasTextProvider = (s: Pick<AiRuntimeSettings, 'anthropicKey' | 'ope
 
 export async function requireAnthropic() {
   const settings = await getAiSettings()
-  if (!settings.anthropicKey) throw new AiNotConfiguredError()
+  if (!settings.anthropicKey) throw new AiNotConfiguredError('Falta la clave de Anthropic en IA · Plataforma')
   return { settings, client: anthropicClient(settings.anthropicKey) }
 }
