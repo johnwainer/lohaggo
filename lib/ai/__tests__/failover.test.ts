@@ -268,11 +268,13 @@ describe('ajustes', () => {
   })
 
   it('equivalencia de modelos: el económico va al de respaldo de OpenAI', () => {
-    const s = { fallbackModel: 'claude-haiku-4-5', openaiModel: 'gpt-main', openaiFallbackModel: 'gpt-cheap' }
+    const s = { defaultModel: 'claude-opus-5', fallbackModel: 'claude-haiku-4-5', openaiModel: 'gpt-main', openaiFallbackModel: 'gpt-cheap' }
     expect(openaiEquivalent('claude-opus-5', s)).toBe('gpt-main')
     expect(openaiEquivalent('claude-sonnet-5', s)).toBe('gpt-main')
     expect(openaiEquivalent('claude-haiku-4-5', s)).toBe('gpt-cheap')
     expect(openaiEquivalent('gpt-4.1', s)).toBe('gpt-4.1')
+    // Mismo modelo por defecto y de reserva (así está en producción): el principal gana
+    expect(openaiEquivalent('claude-sonnet-5', { ...s, defaultModel: 'claude-sonnet-5', fallbackModel: 'claude-sonnet-5' })).toBe('gpt-main')
   })
 })
 

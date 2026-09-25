@@ -38,11 +38,13 @@ export type CallResult = {
 export const isOpenAIModel = (model: string) => /^(gpt-|o\d|chatgpt-)/i.test(model)
 
 /**
- * The OpenAI model that takes a Claude model's place: the platform's cheap model (and Haiku) maps to
- * the OpenAI fallback model, anything else to the main one. An OpenAI id is used as is.
+ * The OpenAI model that takes a Claude model's place: the platform's default model maps to the main
+ * one (even when the fallback is set to the same model), the cheap model and Haiku to the OpenAI
+ * fallback, anything else to the main one. An OpenAI id is used as is.
  */
-export function openaiEquivalent(model: string, s: Pick<AiRuntimeSettings, 'fallbackModel' | 'openaiModel' | 'openaiFallbackModel'>) {
+export function openaiEquivalent(model: string, s: Pick<AiRuntimeSettings, 'defaultModel' | 'fallbackModel' | 'openaiModel' | 'openaiFallbackModel'>) {
   if (isOpenAIModel(model)) return model
+  if (model === s.defaultModel) return s.openaiModel
   return model === s.fallbackModel || /haiku/i.test(model) ? s.openaiFallbackModel : s.openaiModel
 }
 
