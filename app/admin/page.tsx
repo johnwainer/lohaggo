@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import DashboardSection from '@/components/admin/sections/DashboardSection'
+import CommandCenter from '@/components/admin/dashboard/CommandCenter'
 import BookingsSection from '@/components/admin/sections/BookingsSection'
 import UsersSection from '@/components/admin/sections/UsersSection'
 import PartnersSection from '@/components/admin/sections/PartnersSection'
@@ -45,7 +45,7 @@ export default function AdminDashboard() {
 
   const renderSection = () => {
     switch (activeSection) {
-      case 'dashboard': return <DashboardSection />
+      case 'dashboard': return <CommandCenter />
       case 'bookings': return <BookingsSection />
       case 'users': return <UsersSection />
       case 'partners': return <PartnersSection />
@@ -57,7 +57,7 @@ export default function AdminDashboard() {
       case 'settings': return <SettingsSection />
       case 'commissions': return <CommissionsSection />
       case 'payouts': return <PayoutsSection />
-      default: return <DashboardSection />
+      default: return <CommandCenter />
     }
   }
 
