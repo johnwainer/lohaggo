@@ -16,16 +16,40 @@ import NoticesBell from '@/components/admin/marketing/agent/NoticesBell'
 type Workspace = { id: string; name: string; permissions: string[]; canManagePermissions: boolean }
 type Overview = { workspaces: Workspace[]; posts: PostRow[]; campaigns: Campaign[]; accounts: Account[] }
 
-const TABS = [
-  ['posts', 'Publicaciones', FileText],
-  ['calendar', 'Parrilla', CalendarDays],
-  ['campaigns', 'Campañas', Megaphone],
-  ['agent', 'Agente IA', Bot],
-  ['stats', 'Estadísticas', BarChart3],
-  ['brand', 'Marca e imágenes', Palette],
-  ['permissions', 'Permisos', ShieldCheck],
-] as const
-type Tab = (typeof TABS)[number][0]
+type Tab = 'posts' | 'calendar' | 'campaigns' | 'agent' | 'stats' | 'brand' | 'permissions'
+type TabDef = { key: Tab; label: string; icon: typeof FileText; help: string }
+
+/** Sections grouped by what the person is doing: create, plan, measure; settings apart. */
+const GROUPS: Array<{ label: string; tabs: TabDef[] }> = [
+  {
+    label: 'Crear',
+    tabs: [
+      { key: 'posts', label: 'Publicaciones', icon: FileText, help: 'Todo lo que se escribe: borradores, en revisión, programado y publicado. Crea una vez y adáptala al blog, Facebook e Instagram.' },
+      { key: 'calendar', label: 'Calendario', icon: CalendarDays, help: 'Qué sale y cuándo. Arrastra una publicación a otro día para moverla; las tarjetas punteadas son ideas del agente.' },
+    ],
+  },
+  {
+    label: 'Planificar',
+    tabs: [
+      { key: 'campaigns', label: 'Campañas', icon: Megaphone, help: 'Agrupa publicaciones con un mismo objetivo para planificarlas juntas y medir sus resultados en conjunto.' },
+      { key: 'agent', label: 'Agente IA', icon: Bot, help: 'Un estratega con IA por campaña: propone ideas, redacta, elige imagen y horario, y publica según la autonomía que le des.' },
+    ],
+  },
+  {
+    label: 'Medir',
+    tabs: [
+      { key: 'stats', label: 'Resultados', icon: BarChart3, help: 'Alcance, interacción, visitas al blog y conversaciones en la bandeja, por canal, publicación y campaña.' },
+    ],
+  },
+  {
+    label: 'Ajustes',
+    tabs: [
+      { key: 'brand', label: 'Marca e imágenes', icon: Palette, help: 'El logo que se pone en las imágenes y de dónde salen las fotos (Pexels o IA).' },
+      { key: 'permissions', label: 'Permisos', icon: ShieldCheck, help: 'Quién puede ver, editar y publicar en cada workspace.' },
+    ],
+  },
+]
+const TABS = GROUPS.flatMap((g) => g.tabs)
 
 export default function MarketingPage() {
   const [tab, setTab] = useState<Tab>('posts')
@@ -39,7 +63,7 @@ export default function MarketingPage() {
   useEffect(() => {
     try {
       const t = localStorage.getItem('mk.tab') as Tab | null
-      if (t && TABS.some(([k]) => k === t)) setTab(t)
+      if (t && TABS.some((x) => x.key === t)) setTab(t)
       setWorkspaceId(localStorage.getItem('mk.ws') || '')
     } catch {
       // storage unavailable
@@ -78,14 +102,17 @@ export default function MarketingPage() {
   const activeWs = ws.find((w) => w.id === workspaceId) || (ws.length === 1 ? ws[0] : null)
   const can = (p: string) => Boolean(activeWs?.permissions.includes(`marketing.${p}`))
   const problems = (data?.accounts || []).filter((a) => a.problem)
-  const visibleTabs = TABS.filter(([k]) => k !== 'permissions' || ws.some((w) => w.canManagePermissions))
+  const showTab = (k: Tab) => k !== 'permissions' || ws.some((w) => w.canManagePermissions)
+  const current = TABS.find((x) => x.key === tab)
+  // Pieces waiting for someone to approve them: shown on "Publicaciones"
+  const inReview = (data?.posts || []).filter((p) => p.status === 'review').length
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-5 pb-24">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Publicaciones y campañas</h1>
-          <p className="text-sm text-gray-500 mt-1">Crea una vez y publica en el blog, Facebook e Instagram; programa, agrupa en campañas y mide.</p>
+          <p className="text-sm text-gray-500 mt-1">Blog, Facebook e Instagram en un solo lugar.</p>
         </div>
         <div className="flex items-center gap-2">
         {ws.length > 0 && <NoticesBell workspaceId={workspaceId} onOpenAgent={openAgent} />}
@@ -107,13 +134,32 @@ export default function MarketingPage() {
       )}
       {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
-      <div className="flex gap-1 overflow-x-auto border-b border-gray-200">
-        {visibleTabs.map(([key, label, Icon]) => (
-          <button key={key} onClick={() => setTab(key)} className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm whitespace-nowrap border-b-2 -mb-px ${tab === key ? 'border-primary-600 text-primary-700 font-medium' : 'border-transparent text-gray-500 hover:text-gray-800'}`}>
-            <Icon size={15} /> {label}
-          </button>
-        ))}
-      </div>
+      <nav className="space-y-2" aria-label="Secciones">
+        <div className="flex gap-2 overflow-x-auto rounded-2xl border border-gray-200 bg-white p-1.5 sm:gap-3">
+          {GROUPS.map((g) => {
+            const tabs = g.tabs.filter((t) => showTab(t.key))
+            if (!tabs.length) return null
+            return (
+              <div key={g.label} className={`flex shrink-0 items-center gap-1 ${g.label === 'Ajustes' ? 'lg:ml-auto' : ''}`}>
+                <span className="hidden px-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400 md:inline">{g.label}</span>
+                {tabs.map(({ key, label, icon: Icon }) => (
+                  <button
+                    key={key}
+                    onClick={() => setTab(key)}
+                    aria-current={tab === key ? 'page' : undefined}
+                    className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-2 text-sm transition ${tab === key ? 'bg-primary-600 font-semibold text-white shadow-sm' : g.label === 'Ajustes' ? 'text-gray-500 hover:bg-gray-100' : 'text-gray-700 hover:bg-gray-100'}`}
+                  >
+                    <Icon size={15} /> {label}
+                    {key === 'posts' && inReview > 0 && <span className={`rounded-full px-1.5 text-[10px] font-bold ${tab === key ? 'bg-white text-primary-700' : 'bg-amber-500 text-white'}`} title="En revisión">{inReview}</span>}
+                  </button>
+                ))}
+                {g.label !== 'Ajustes' && <span className="ml-1 hidden h-6 w-px bg-gray-200 sm:block" />}
+              </div>
+            )
+          })}
+        </div>
+        {current && <p className="px-1 text-sm text-gray-500">{current.help}</p>}
+      </nav>
 
       {!data ? (
         <div className="flex items-center gap-2 text-gray-500 py-10 justify-center">{loading ? <><Loader2 className="animate-spin" size={18} /> Cargando…</> : null}</div>

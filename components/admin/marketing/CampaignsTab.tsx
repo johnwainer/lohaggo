@@ -71,7 +71,7 @@ function CampaignForm({ initial, workspaceId, onClose, onSaved }: { initial?: Ca
           {field('Estado', <select className={input} value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}>{Object.entries(CAMPAIGN_STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>)}
         </div>
         <div className="space-y-1">
-          <span className="text-sm font-medium text-gray-700">Color en la parrilla</span>
+          <span className="text-sm font-medium text-gray-700">Color en el calendario</span>
           <div className="flex gap-2">{COLORS.map((c) => <button key={c} type="button" onClick={() => setF({ ...f, color: c })} className={`h-7 w-7 rounded-full ${f.color === c ? 'ring-2 ring-offset-2 ring-gray-800' : ''}`} style={{ background: c }} aria-label={c} />)}</div>
         </div>
         {error && <p className="text-sm text-red-600">{error}</p>}

@@ -766,7 +766,7 @@ export async function runAgentCycle(agentId: string, deadline = Date.now() + 240
     if (agent.campaign.endsAt && agent.campaign.endsAt.getTime() < now.getTime() && !config.alwaysOn) {
       await pauseAgent(agent.id)
       await prisma.marketingAgent.update({ where: { id: agent.id }, data: { status: 'finished' } })
-      await notify(noticeTarget(agent), { type: 'learning', title: `La campaña terminó: ${agent.campaign.name}`, body: 'El agente se detuvo. Revisa los resultados en Estadísticas.', url: agentUrl(agent.id), dedupeKey: `finished:${agent.id}` })
+      await notify(noticeTarget(agent), { type: 'learning', title: `La campaña terminó: ${agent.campaign.name}`, body: 'El agente se detuvo. Revisa sus resultados en Publicaciones → Resultados.', url: agentUrl(agent.id), dedupeKey: `finished:${agent.id}` })
       return { agentId, finished: true }
     }
     const deg = await refreshDegradation(agent, now)
