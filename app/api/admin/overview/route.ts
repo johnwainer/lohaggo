@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/admin-utils'
 import { createLogger } from '@/lib/logger'
 import { platformOverview, type PlatformOverview } from '@/lib/admin/overview'
+import { haggoBrief, type HaggoBrief } from '@/lib/haggo/views'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,6 +11,7 @@ const logger = createLogger('admin-overview')
 /** Several screens (a TV, admins' laptops) refresh every 30 s: one computation serves them all for 15 s. */
 let cache: { at: number; data: PlatformOverview } | null = null
 let inflight: Promise<PlatformOverview> | null = null
+let haggoCache: { at: number; data: HaggoBrief | null } | null = null
 
 export async function GET() {
   const admin = await requireAdmin()
@@ -19,7 +21,13 @@ export async function GET() {
       inflight ??= platformOverview().finally(() => { inflight = null })
       cache = { at: Date.now(), data: await inflight }
     }
-    return NextResponse.json(cache.data, { headers: { 'Cache-Control': 'no-store' } })
+    // Haggo is the superadmin's: other admins do not get its block
+    let haggo: HaggoBrief | null = null
+    if (admin.isSuperAdmin) {
+      if (!haggoCache || Date.now() - haggoCache.at > 15_000) haggoCache = { at: Date.now(), data: await haggoBrief() }
+      haggo = haggoCache.data
+    }
+    return NextResponse.json({ ...cache.data, haggo }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (err) {
     logger.error('Overview failed', { err: err instanceof Error ? err.message : err })
     return NextResponse.json({ error: 'No se pudo cargar el resumen' }, { status: 500 })

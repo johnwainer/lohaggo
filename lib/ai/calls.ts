@@ -4,7 +4,7 @@ import { DEFAULT_PRICING, computeCost, periodOf, resolvePricing, type Pricing, t
 
 const logger = createLogger('ai-calls')
 
-export type AiCallKind = 'agent_reply' | 'tools_round' | 'summary' | 'reengagement' | 'flow_step' | 'playground' | 'embedding' | 'model_test' | 'copilot_suggestion' | 'comment_reply' | 'comment_suggestion' | 'copywriting' | 'image_generation' | 'marketing_agent_strategy' | 'marketing_agent_plan' | 'marketing_agent_draft' | 'marketing_agent_learn'
+export type AiCallKind = 'agent_reply' | 'tools_round' | 'summary' | 'reengagement' | 'flow_step' | 'playground' | 'embedding' | 'model_test' | 'copilot_suggestion' | 'comment_reply' | 'comment_suggestion' | 'copywriting' | 'image_generation' | 'marketing_agent_strategy' | 'marketing_agent_plan' | 'marketing_agent_draft' | 'marketing_agent_learn' | 'haggo_cycle' | 'haggo_chat' | 'haggo_report'
 
 export const AUX_KINDS: AiCallKind[] = ['summary', 'reengagement']
 

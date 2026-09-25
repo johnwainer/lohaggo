@@ -22,6 +22,7 @@ export const JOB_LABEL: Record<string, string> = {
   'marketing-metrics': 'Métricas de publicaciones',
   'channel-health': 'Salud de tokens de canales',
   'marketing-agent': 'Agente de marketing',
+  haggo: 'Haggo (agente maestro)',
 }
 
 async function trackIncident(job: string, ok: boolean, error: string | null) {

@@ -54,6 +54,9 @@ const KIND_LABEL: Record<string, string> = {
   marketing_agent_plan: 'Agente de marketing: planificación',
   marketing_agent_draft: 'Agente de marketing: redacción',
   marketing_agent_learn: 'Agente de marketing: aprendizaje',
+  haggo_cycle: 'Haggo: ciclos de revisión',
+  haggo_chat: 'Haggo: conversación',
+  haggo_report: 'Haggo: informes',
 }
 
 const PROVIDER_NAME: Record<string, string> = { anthropic: 'Claude (Anthropic)', openai: 'OpenAI', voyage: 'Voyage (embeddings)' }

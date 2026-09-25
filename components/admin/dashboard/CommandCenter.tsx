@@ -10,6 +10,9 @@ import {
 import { ChannelIcon, channelLabel } from '@/components/admin/ChannelIcon'
 import { MkChannelIcon } from '@/components/admin/marketing/shared'
 import type { PlatformOverview } from '@/lib/admin/overview'
+import type { HaggoBrief } from '@/lib/haggo/views'
+
+type Overview = PlatformOverview & { haggo?: HaggoBrief | null }
 
 const REFRESH_MS = 30_000
 const TZ = 'America/Bogota'
@@ -112,7 +115,7 @@ const FEED_ICON: Record<string, { icon: typeof Users; cls: string }> = {
  * keeps the display awake, for a TV on the wall.
  */
 export default function CommandCenter() {
-  const [data, setData] = useState<PlatformOverview | null>(null)
+  const [data, setData] = useState<Overview | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [tv, setTv] = useState(false)
@@ -413,6 +416,33 @@ export default function CommandCenter() {
     </Panel>
   )
 
+  const hg = d.haggo
+  const haggo = hg ? (
+    <section className={`${t.card} flex items-center gap-4 px-4 ${tv ? 'py-3' : 'py-3 flex-wrap'}`}>
+      <Link href="/admin/haggo" className="flex shrink-0 items-center gap-2">
+        <span className={`flex items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-orange-400 text-white ${tv ? 'h-11 w-11' : 'h-9 w-9'}`}><Sparkles size={px(18)} /></span>
+        <span>
+          <span className={`block font-semibold ${tv ? 'text-lg' : 'text-sm'} ${t.text}`}>Haggo</span>
+          <span className={`block text-[0.6875rem] ${!hg.enabled ? 'text-rose-500' : t.muted}`}>{!hg.enabled ? 'Detenido' : hg.mode === 'autonomous' ? 'Autónomo' : hg.mode === 'observer' ? 'Observador' : 'Copiloto'}{hg.lastCycleAt ? ` · revisó ${ago(new Date(hg.lastCycleAt).toISOString(), now)}` : ''}</span>
+        </span>
+      </Link>
+      <p className={`min-w-0 flex-1 ${tv ? 'truncate text-base' : 'text-sm'} ${t.text}`}>{hg.budget.blocked ? 'Presupuesto de Haggo agotado: solo observa con reglas.' : hg.focus || hg.lastSummary || 'Todavía no ha hecho su primera revisión.'}</p>
+      <div className="flex shrink-0 items-center gap-2">
+        {hg.counts.critical > 0 && <span className="rounded-full bg-rose-500/15 px-2.5 py-1 text-xs font-semibold text-rose-500">{plural(hg.counts.critical, 'crítico', 'críticos')}</span>}
+        {hg.counts.warning > 0 && <span className="rounded-full bg-amber-500/15 px-2.5 py-1 text-xs font-semibold text-amber-500">{plural(hg.counts.warning, 'aviso', 'avisos')}</span>}
+        {hg.pendingApprovals > 0 && <span className="rounded-full bg-primary-500/15 px-2.5 py-1 text-xs font-semibold text-primary-500">{plural(hg.pendingApprovals, 'aprobación pendiente', 'aprobaciones pendientes')}</span>}
+        <span className={`text-xs tabular-nums ${t.muted}`}>{usd(hg.budget.monthUsd)} de {usd(hg.budget.monthlyUsd)}</span>
+      </div>
+      {!tv && hg.findings.length > 0 && (
+        <div className="basis-full flex flex-wrap gap-1.5">
+          {hg.findings.map((f) => (
+            <Link key={f.id} href="/admin/haggo" className={`truncate rounded-full border px-2.5 py-1 text-xs ${f.severity === 'critical' ? 'border-rose-200 text-rose-600' : f.severity === 'warning' ? 'border-amber-200 text-amber-700' : 'border-gray-200 text-gray-600'} max-w-[22rem]`}>{f.title}</Link>
+          ))}
+        </div>
+      )}
+    </section>
+  ) : null
+
   // TV: a fixed 16:9 canvas (120 × 67.5 rem = 1920 × 1080 at scale 1) that fits any screen
   if (tv) {
     return (
@@ -420,6 +450,7 @@ export default function CommandCenter() {
         <div className="flex flex-col gap-4 p-6" style={{ width: '120rem', height: '67.5rem' }}>
           {header}
           {alerts}
+          {haggo}
           {kpis}
           <div className="grid min-h-0 flex-1 grid-cols-4 grid-rows-2 gap-4">
             {trend}
@@ -438,6 +469,7 @@ export default function CommandCenter() {
     <div ref={rootRef} className="space-y-5">
       {header}
       {alerts}
+      {haggo}
       {kpis}
       <div className="grid gap-3 xl:grid-cols-3">
         {trend}

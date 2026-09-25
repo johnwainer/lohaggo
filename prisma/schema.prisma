@@ -2455,3 +2455,147 @@ model AnalyticsSettings {
   updatedByEmail          String?
   updatedAt               DateTime @updatedAt
 }
+
+// ─── Haggo: master agent ─────────────────────────────────────────────────────
+
+/// Single row: how Haggo works (mode per domain, limits, budget, schedule). Only the superadmin edits it.
+model HaggoSettings {
+  id                  String    @id @default("platform")
+  enabled             Boolean   @default(true)
+  mode                String    @default("copilot")
+  domainModes         Json?
+  mediumAllowed       Json?
+  maxRiskEnabled      Json?
+  monthlyBudgetUsd    Float     @default(50)
+  dailyBudgetUsd      Float     @default(5)
+  maxActionsPerCycle  Int       @default(3)
+  maxActionsPerDay    Int       @default(20)
+  humanCooldownHours  Int       @default(24)
+  repeatCooldownHours Int       @default(6)
+  cycleMinutes        Int       @default(15)
+  dailyReportHour     Int?      @default(7)
+  weeklyReviewDay     Int?      @default(1)
+  weeklyReviewHour    Int       @default(7)
+  triggers            Json?
+  quietHours          Json?
+  timezone            String    @default("America/Bogota")
+  model               String?
+  focus               String?
+  lastSnapshot        Json?
+  lastSnapshotAt      DateTime?
+  lockedUntil         DateTime?
+  updatedByEmail      String?
+  updatedAt           DateTime  @updatedAt
+}
+
+model HaggoRun {
+  id          String    @id @default(cuid())
+  type        String
+  trigger     String?
+  status      String    @default("running")
+  summary     String?
+  report      String?
+  detections  Json?
+  output      Json?
+  model       String?
+  costUsd     Float     @default(0)
+  tokensIn    Int       @default(0)
+  tokensOut   Int       @default(0)
+  error       String?
+  startedAt   DateTime  @default(now())
+  finishedAt  DateTime?
+
+  @@index([type, startedAt])
+  @@index([startedAt])
+}
+
+model HaggoFinding {
+  id          String   @id @default(cuid())
+  runId       String?
+  domain      String
+  severity    String   @default("info")
+  title       String
+  body        String?
+  evidence    Json?
+  status      String   @default("new")
+  entityType  String?
+  entityId    String?
+  fingerprint String?
+  occurrences Int      @default(1)
+  lastSeenAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status, lastSeenAt])
+  @@index([fingerprint])
+}
+
+model HaggoAction {
+  id             String    @id @default(cuid())
+  runId          String?
+  messageId      String?
+  tool           String
+  params         Json?
+  domain         String
+  risk           String
+  status         String    @default("proposed")
+  reason         String
+  expectedImpact String?
+  evidence       Json?
+  before         Json?
+  after          Json?
+  undo           Json?
+  result         Json?
+  verdict        String?
+  verifiedAt     DateTime?
+  error          String?
+  entityType     String?
+  entityId       String?
+  decidedById    String?
+  decidedByEmail String?
+  decidedAt      DateTime?
+  decisionNote   String?
+  executedAt     DateTime?
+  revertedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([status, createdAt])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model HaggoMessage {
+  id        String   @id @default(cuid())
+  role      String
+  content   String
+  userId    String?
+  runId     String?
+  actionIds String[] @default([])
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model HaggoDirective {
+  id             String   @id @default(cuid())
+  text           String
+  rule           Json?
+  active         Boolean  @default(true)
+  createdById    String?
+  createdByEmail String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model HaggoMemory {
+  id        String   @id @default(cuid())
+  kind      String
+  key       String?
+  content   String
+  data      Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([kind, updatedAt])
+}
