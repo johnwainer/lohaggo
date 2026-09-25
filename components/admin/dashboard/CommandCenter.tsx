@@ -35,7 +35,7 @@ const THEMES = {
     divider: 'border-gray-100', soft: 'bg-gray-50', bar: 'bg-gray-100', grid: '#E5E7EB', axis: '#9CA3AF', h1: 'text-2xl', kpi: 'text-2xl', label: 'text-xs',
   },
   tv: {
-    page: 'fixed inset-0 z-[80] overflow-y-auto bg-slate-950 p-6 space-y-5 [scrollbar-width:none]', card: 'rounded-2xl border border-white/10 bg-white/[0.04]', text: 'text-white', muted: 'text-slate-400', faint: 'text-slate-500',
+    page: 'fixed inset-0 z-[80] overflow-y-auto bg-slate-950 p-6 space-y-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden', card: 'rounded-2xl border border-white/10 bg-white/[0.04]', text: 'text-white', muted: 'text-slate-400', faint: 'text-slate-500',
     divider: 'border-white/10', soft: 'bg-white/[0.05]', bar: 'bg-white/10', grid: '#1E293B', axis: '#64748B', h1: 'text-3xl', kpi: 'text-4xl', label: 'text-sm',
   },
 } as const
@@ -142,6 +142,21 @@ export default function CommandCenter() {
     document.addEventListener('visibilitychange', onVisible)
     return () => { clearInterval(refresh); clearInterval(clock); document.removeEventListener('visibilitychange', onVisible) }
   }, [load])
+
+  // TV: no page scrollbar behind, and a slow scroll down/up every 20 s when the content is taller than the screen
+  useEffect(() => {
+    if (!tv) return
+    const prev = document.documentElement.style.overflow
+    document.documentElement.style.overflow = 'hidden'
+    let down = true
+    const cycle = setInterval(() => {
+      const el = rootRef.current
+      if (!el || el.scrollHeight <= el.clientHeight + 8) return
+      el.scrollTo({ top: down ? el.scrollHeight : 0, behavior: 'smooth' })
+      down = !down
+    }, 20_000)
+    return () => { clearInterval(cycle); document.documentElement.style.overflow = prev }
+  }, [tv])
 
   // Leaving full screen (Esc on the TV remote/keyboard) leaves TV mode too
   useEffect(() => {
