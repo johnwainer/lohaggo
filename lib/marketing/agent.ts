@@ -358,10 +358,14 @@ async function attachImages(agent: Agent, config: AgentConfig, postId: string, d
     }
     const queries = Array.from(new Set([service, draft.image.query].filter((q): q is string => Boolean(q?.trim()))))
     const picked: Array<Awaited<ReturnType<typeof searchPexels>>['results'][number]> = []
+    // Photos Instagram takes as they are first (4:5 to 1.91:1; Pexels "portrait" is often 9:16), closest to the target shape
+    const target = orientation === 'portrait' ? 0.8 : 1.78
+    const fits = (w: number | null, h: number | null) => (w && h ? w / h >= 0.79 && w / h <= 1.92 : false)
+    const rank = (c: { width: number | null; height: number | null }) => (fits(c.width, c.height) ? 0 : 10) + Math.abs((c.width && c.height ? c.width / c.height : 1) - target)
     for (const q of queries) {
       if (picked.length >= n) break
-      const { results } = await searchPexels(q, orientation, 1, 15)
-      for (const r of results) if (picked.length < n && !picked.some((p) => p.id === r.id)) picked.push(r)
+      const { results } = await searchPexels(q, orientation, 1, 30)
+      for (const r of [...results].sort((a, b) => rank(a) - rank(b))) if (picked.length < n && !picked.some((p) => p.id === r.id)) picked.push(r)
     }
     if (!picked.length) return { source: null, error: 'Pexels no devolvió fotos para este servicio' }
     for (const c of picked) {
