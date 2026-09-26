@@ -80,7 +80,7 @@ export default function HaggoPage() {
       {error && <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"><AlertCircle size={16} /> {error}</div>}
       {!data && !error && <div className="flex items-center gap-2 p-6 text-gray-500"><Loader2 size={16} className="animate-spin" /> Cargando…</div>}
       {data && tab === 'now' && <NowTab data={data} reload={load} />}
-      {data && tab === 'chat' && <ChatTab />}
+      {data && tab === 'chat' && <ChatTab onExit={() => choose('now')} />}
       {data && tab === 'proposals' && <ProposalsTab onChange={load} />}
       {data && tab === 'decisions' && <DecisionsTab onChange={load} />}
       {data && tab === 'analysis' && <AnalysisTab />}

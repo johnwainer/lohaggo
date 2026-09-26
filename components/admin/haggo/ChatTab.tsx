@@ -2,7 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Brain, Check, Lightbulb, Loader2, Search, Send, Sparkles, X } from 'lucide-react'
+import { ArrowLeft, Brain, Check, Lightbulb, Loader2, Search, Send, Sparkles, X } from 'lucide-react'
 import { api, card, usd, when } from '@/components/admin/haggo/shared'
 import { ActionCard, type ActionView } from '@/components/admin/haggo/ActionCard'
 
@@ -86,7 +86,8 @@ function ProposalCard({ runId, p, onDone }: { runId: string; p: Proposal; onDone
 }
 
 /** Talk to Haggo: questions answered with real numbers, rules that become directives once confirmed. */
-export function ChatTab() {
+/** `onExit`: phone and tablet, where the chat takes the whole screen, go back to Haggo's tabs. */
+export function ChatTab({ onExit }: { onExit?: () => void } = {}) {
   const [messages, setMessages] = useState<Message[] | null>(null)
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
@@ -120,8 +121,13 @@ export function ChatTab() {
 
   if (!messages) return <div className="flex items-center gap-2 p-6 text-gray-500"><Loader2 size={16} className="animate-spin" /> Cargando…</div>
   return (
-    <section className={`${card} flex h-[calc(100dvh-6rem)] min-h-[20rem] sm:h-[calc(100dvh-16rem)] sm:min-h-[28rem] flex-col`}>
-      <div className="flex-1 space-y-4 overflow-y-auto overscroll-contain p-3 sm:p-5">
+    // Phone and tablet: full screen under the admin's top bar, so the input is always in view (also with the keyboard)
+    <section className={`fixed inset-x-0 bottom-0 top-14 z-20 flex flex-col bg-white lg:static lg:z-auto lg:h-[calc(100dvh-16rem)] lg:min-h-[28rem] lg:rounded-2xl lg:border lg:border-gray-200`}>
+      <div className="flex items-center gap-2 border-b border-gray-100 px-2 py-2 lg:hidden">
+        {onExit && <button onClick={onExit} className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100"><ArrowLeft size={16} /> Haggo</button>}
+        <p className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-900">Conversación</p>
+      </div>
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-3 sm:p-5">
         {messages.length === 0 && (
           <div className="py-8 text-center">
             <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-orange-400 text-white"><Sparkles size={22} /></span>
@@ -149,7 +155,7 @@ export function ChatTab() {
         {sending && <div className="flex items-center gap-2 text-sm text-gray-500"><Loader2 size={15} className="animate-spin" /> Haggo está investigando…</div>}
         <div ref={endRef} />
       </div>
-      <div className="border-t border-gray-100 p-3 sm:p-4">
+      <div className="border-t border-gray-100 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4">
         {messages.length === 0 && (
           <div className="mb-3 flex flex-wrap gap-2">
             {SUGGESTIONS.map((s) => <button key={s} onClick={() => send(s)} disabled={sending} className="rounded-full border border-gray-200 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50">{s}</button>)}
