@@ -314,3 +314,12 @@ describe('aprendizaje del agente con los pedidos del editor', () => {
     expect(momentBlock({ now: new Date(), calendar: [], learnings: null, stats: null, best: [], worst: [], rejected: [] })).not.toMatch(/editor/)
   })
 })
+
+describe('prompt del editor', () => {
+  it('solo pide lo que el redactor puede cambiar: textos, nunca imágenes', async () => {
+    const { editorSystem } = await import('@/lib/marketing/editorial-prompt')
+    const s = editorSystem({ brand: 'LoHaggo', settings: DEFAULT_EDITORIAL, criteria: defaultRubric(), treatment: 'tú', context: 'x' })
+    expect(s).toMatch(/nunca pidas cambios de imágenes/)
+    expect(s).toMatch(/debe poder cumplirse reescribiendo texto/)
+  })
+})

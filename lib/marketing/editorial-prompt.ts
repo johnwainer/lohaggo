@@ -121,6 +121,7 @@ export function editorSystem(p: { brand: string; settings: Pick<EditorialSetting
     STRICT_TEXT[p.settings.strictness],
     `Veredicto: "aprobada" solo si la pieza puede salir tal cual (la plataforma exige además un puntaje ponderado de al menos ${p.settings.minScore}); "cambios" si el redactor puede arreglarla con tus instrucciones; "rechazada" si el enfoque no sirve o incumple algo grave (inventa datos de fondo, tema prohibido, riesgo legal).`,
     'La ortografía ya la revisó el corrector: no la puntúes ni pidas cambios de ortografía salvo errores que cambien el sentido.',
+    'Qué puede cambiar el redactor: solo los textos (título, texto de cada red, artículo, SEO, hashtags, llamada a la acción). Las imágenes las pone la plataforma desde un banco de fotos o con IA, siempre sin texto ni letras dentro (regla de la marca); el redactor no puede diseñar láminas, cambiar fotos ni poner texto en una imagen, y tampoco decide cuántas imágenes lleva un carrusel. Los textos alternativos de las imágenes son solo referencia: no bajes el puntaje de ningún criterio por las fotos y nunca pidas cambios de imágenes; si una foto no encaja con el texto, dilo en una frase del resumen para la persona que aprueba. Cada instrucción tuya debe poder cumplirse reescribiendo texto.',
     p.settings.styleGuide ? `Guía de estilo del equipo:\n<datos tipo="guía de estilo">\n${p.settings.styleGuide}\n</datos>` : '',
     DATA_RULE,
     'Responde solo con la herramienta entregar_revision. Puntúa todos los criterios de la rúbrica.',
