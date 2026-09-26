@@ -77,7 +77,7 @@ export function NowTab({ data, reload }: { data: Overview; reload: () => void })
             <button onClick={() => run('cycle')} disabled={Boolean(running) || data.working} className={`${btnPrimary} justify-center whitespace-nowrap`}>
               {running === 'cycle' ? <Loader2 size={15} className="animate-spin" /> : <Radar size={15} />} Revisar ahora
             </button>
-            <button onClick={toggle} className={`${c.enabled ? `${btn} text-rose-600` : btn} justify-center whitespace-nowrap`}>{c.enabled ? <><Pause size={15} /> Detener<span className="hidden sm:inline">&nbsp;a Haggo</span></> : <><Play size={15} /> Reanudar</>}</button>
+            <button onClick={toggle} className={`${c.enabled ? `${btn} text-rose-600` : btn} justify-center whitespace-nowrap`}>{c.enabled ? <><Pause size={15} /> <span>Detener<span className="hidden sm:inline"> a Haggo</span></span></> : <><Play size={15} /> Reanudar</>}</button>
           </div>
         </div>
         {running && <p className="mt-3 text-xs text-gray-500">Haggo está investigando con sus herramientas; puede tardar uno o dos minutos.</p>}
