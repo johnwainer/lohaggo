@@ -286,6 +286,8 @@ export default function PostEditorPage({ params }: { params: Promise<{ id: strin
           <ReviewPanel
             post={post}
             reviews={detail.reviews ?? []}
+            agentId={post.origin === 'agent' ? detail.agent?.id ?? null : null}
+            onReload={(message) => { load(); setNotice(message); setTimeout(() => setNotice(null), 5000) }}
             canEdit={detail.permissions.edit}
             canPublish={detail.permissions.publish}
             beforeAction={save}

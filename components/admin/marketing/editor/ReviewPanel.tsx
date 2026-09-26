@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { AlertTriangle, CheckCircle2, Loader2, RefreshCw, ShieldCheck, SpellCheck } from 'lucide-react'
+import { AlertTriangle, Bot, CheckCircle2, Loader2, RefreshCw, ShieldCheck, SpellCheck } from 'lucide-react'
 import { CHANNEL_NAME, ReviewChip, api, fmtDateTime } from '@/components/admin/marketing/shared'
 import { CRITERION_LABEL, PASSING, formatScore, type CriterionId, type ReviewStatus } from '@/lib/marketing/editorial-rubric'
 import type { Post, ReviewRow } from '@/components/admin/marketing/editor/types'
@@ -28,16 +28,20 @@ function fieldLabel(key: string) {
  * The editorial review of this post: the editor's verdict and scores per round, the proofreader's
  * corrections (before → after), and the buttons to run it again, only proofread, or approve anyway.
  */
-export default function ReviewPanel({ post, reviews, canEdit, canPublish, beforeAction, onDone }: {
+export default function ReviewPanel({ post, reviews, agentId, canEdit, canPublish, beforeAction, onDone, onReload }: {
   post: Post
   reviews: ReviewRow[]
+  /** The agent that wrote it: it can apply the editor's asks */
+  agentId?: string | null
   canEdit: boolean
   canPublish: boolean
   /** Saves pending edits first; null = the save failed */
   beforeAction: () => Promise<unknown>
   onDone: (d: { post: Post; reviews: ReviewRow[]; message: string }) => void
+  /** Reloads the whole post (after the agent wrote a new version) */
+  onReload: (message: string) => void
 }) {
-  const [busy, setBusy] = useState<'review' | 'spelling' | 'override' | null>(null)
+  const [busy, setBusy] = useState<'review' | 'spelling' | 'override' | 'apply' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const closed = ['publishing', 'published', 'partial', 'archived'].includes(post.status)
   const status = post.reviewStatus ?? null
@@ -53,6 +57,23 @@ export default function ReviewPanel({ post, reviews, canEdit, canPublish, before
   const lastSpelling = spelling[0] ?? null
   const corrections = spelling.filter((r) => r.changes?.length).slice(0, 3).flatMap((r) => (r.changes ?? []).map((c) => ({ ...c, at: r.createdAt })))
   const cost = reviews.reduce((n, r) => n + r.costUsd, 0)
+
+  const canApply = Boolean(agentId && canEdit && last && ['changes', 'rejected'].includes(last.verdict) && last.instructions?.length)
+
+  async function apply() {
+    if (!window.confirm('El agente escribe una versión nueva con lo que pidió el editor (reemplaza los textos de todos los canales). La versión nueva se revisa otra vez y queda para que la apruebes. ¿Continuar?')) return
+    setBusy('apply')
+    setError(null)
+    try {
+      if ((await beforeAction()) === null) return
+      const d = await api<{ message: string }>(`/api/admin/marketing/agents/${agentId}/actions`, { method: 'POST', json: { action: 'apply_editor', postId: post.id } })
+      onReload(d.message || 'Nueva versión lista')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error')
+    } finally {
+      setBusy(null)
+    }
+  }
 
   async function run(action: 'review' | 'spelling' | 'override') {
     if (action === 'override' && !window.confirm('Apruebas estos textos exactos aunque la revisión editorial no los aprobó. Queda registrado a tu nombre. ¿Continuar?')) return
@@ -139,6 +160,12 @@ export default function ReviewPanel({ post, reviews, canEdit, canPublish, before
       )}
       {lastSpelling && !corrections.length && lastSpelling.verdict === 'clean' && <p className="flex items-center gap-1.5 text-xs text-emerald-700"><CheckCircle2 size={13} /> Sin errores de ortografía</p>}
 
+      {!closed && canApply && (
+        <button onClick={apply} disabled={Boolean(busy)} className="inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-primary-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">
+          {busy === 'apply' ? <Loader2 size={13} className="animate-spin" /> : <Bot size={13} />} Aplicar sugerencias con el agente
+        </button>
+      )}
+      {busy === 'apply' && <p className="text-[11px] text-gray-500">El agente reescribe y el editor la revisa otra vez (1 a 3 minutos).</p>}
       {!closed && (canEdit || canPublish) && (
         <div className="flex flex-wrap items-center gap-2 pt-1">
           {canEdit && (

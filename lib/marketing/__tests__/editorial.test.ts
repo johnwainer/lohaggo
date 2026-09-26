@@ -5,6 +5,7 @@ const db = vi.hoisted(() => ({
   settings: null as null | Record<string, unknown>,
   reviews: [] as Array<Record<string, unknown>>,
   variantUpdates: [] as Array<{ id: string; data: Record<string, unknown> }>,
+  lastEditor: null as null | Record<string, unknown>,
 }))
 const ai = vi.hoisted(() => ({ answers: [] as unknown[], calls: [] as Array<{ kind: string; model: string }> }))
 
@@ -23,7 +24,7 @@ vi.mock('@/lib/prisma', () => ({
       }),
     },
     marketingMedia: { updateMany: vi.fn(async () => ({ count: 1 })) },
-    marketingReview: { create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => { db.reviews.push(data); return data }) },
+    marketingReview: { create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => { db.reviews.push(data); return data }), findFirst: vi.fn(async () => db.lastEditor) },
   },
 }))
 vi.mock('@/lib/ai/settings', () => ({ getAiSettings: vi.fn(async () => ({ defaultModel: 'claude-opus-5', fallbackModel: 'claude-haiku-4-5' })) }))
@@ -54,7 +55,7 @@ import {
   type Correction,
 } from '@/lib/marketing/editorial-core'
 import { DEFAULT_EDITORIAL, defaultRubric, editorialFromRow, reviewApplies, sanitizeEditorial } from '@/lib/marketing/editorial-rubric'
-import { editorialGate, reviewPass, type ReviewEnv } from '@/lib/marketing/editorial'
+import { editorialGate, latestEditorAsks, reviewPass, type ReviewEnv } from '@/lib/marketing/editorial'
 import { nextAgentState } from '@/lib/marketing/agent-core'
 
 const fix = (field: string, original: string, corrected: string): Correction => ({ field, channel: null, original, corrected, reason: 'test' })
@@ -321,5 +322,16 @@ describe('prompt del editor', () => {
     const s = editorSystem({ brand: 'LoHaggo', settings: DEFAULT_EDITORIAL, criteria: defaultRubric(), treatment: 'tú', context: 'x' })
     expect(s).toMatch(/nunca pidas cambios de imágenes/)
     expect(s).toMatch(/debe poder cumplirse reescribiendo texto/)
+  })
+})
+
+describe('aplicar las sugerencias del editor', () => {
+  it('solo hay algo que aplicar si la última revisión del editor pidió cambios con instrucciones', async () => {
+    db.lastEditor = null
+    expect(await latestEditorAsks('p1')).toBeNull()
+    db.lastEditor = { verdict: 'approved', instructions: [] }
+    expect(await latestEditorAsks('p1')).toBeNull()
+    db.lastEditor = { verdict: 'changes', instructions: [{ channel: 'WEB', field: 'WEB.seoTitle', change: 'Cambia «7 señales» por «6 señales»', reason: 'El artículo trae seis' }, { change: '  ' }] }
+    expect((await latestEditorAsks('p1'))?.map((i) => i.change)).toEqual(['Cambia «7 señales» por «6 señales»'])
   })
 })

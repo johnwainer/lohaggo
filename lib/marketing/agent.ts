@@ -64,7 +64,7 @@ import {
 } from '@/lib/marketing/agent-prompt'
 import { brandName, catalogFor, learningRows, momentFacts, plannedPieces, recentTopics, rejectionsFor, takenSlots } from '@/lib/marketing/agent-data'
 import { agentUrl, notify, postUrl, type NoticeType } from '@/lib/marketing/agent-notices'
-import { editorialGate, getEditorialSettings, hashOf, loadReviewPost, reviewPass, saveReviewState, type PassResult, type ReviewEnv } from '@/lib/marketing/editorial'
+import { editorialGate, getEditorialSettings, hashOf, latestEditorAsks, loadReviewPost, reviewPass, saveReviewState, type PassResult, type ReviewEnv } from '@/lib/marketing/editorial'
 import { gateReason, instructionsForAgent, nextReviewStep, type Instruction } from '@/lib/marketing/editorial-core'
 import { reviewApplies, type EditorialSettings } from '@/lib/marketing/editorial-rubric'
 
@@ -286,7 +286,7 @@ export async function agentReviewPass(agent: Agent, postId: string, editorial: E
  * cover these texts (never reviewed, failed, or edited since), it runs again. What the editor already held
  * and nobody changed stays held: the person edits it or approves it anyway.
  */
-export async function ensureAgentReview(agent: Agent, postId: string, userId: string | null, trigger: ReviewEnv['trigger'] = 'publish'): Promise<{ ok: true } | { ok: false; message: string }> {
+export async function ensureAgentReview(agent: Agent, postId: string, userId: string | null, trigger: ReviewEnv['trigger'] = 'publish'): Promise<{ ok: true } | { ok: false; message: string; status?: PassResult['status'] }> {
   const s = await getEditorialSettings(agent.workspaceId)
   const post = await loadReviewPost(postId)
   if (!post) return { ok: false, message: 'Publicación no encontrada' }
@@ -299,7 +299,21 @@ export async function ensureAgentReview(agent: Agent, postId: string, userId: st
   await saveReviewState(postId, pass.status, { score: pass.score, rounds: 0 })
   if (pass.status === 'approved') return { ok: true }
   const detail = pass.status === 'failed' ? `la revisión no se pudo hacer (${pass.error})` : pass.status === 'rejected' ? `el editor la rechazó: ${pass.summary}` : `el editor pide cambios: ${pass.instructions.slice(0, 3).map((i) => i.change).join(' · ') || pass.summary}`
-  return { ok: false, message: `No se programó: ${detail}`.slice(0, 900) }
+  return { ok: false, message: `No se programó: ${detail}`.slice(0, 900), status: pass.status }
+}
+
+/**
+ * «Aplicar sugerencias»: the agent writes a new version with exactly what the editor asked in its last
+ * review. The new version goes through the review again (with its rounds) and ends with a person, like
+ * any version asked for.
+ */
+export async function applyEditorSuggestions(agent: Agent, postId: string) {
+  const post = await prisma.marketingPost.findFirst({ where: { id: postId, agentId: agent.id }, select: { ideaId: true, status: true } })
+  if (!post?.ideaId) throw new AgentError('Publicación no encontrada o sin idea del agente')
+  if (['publishing', 'published', 'partial', 'archived'].includes(post.status)) throw new AgentError('Ya salió o está archivada: no se puede rehacer')
+  const asks = await latestEditorAsks(postId)
+  if (!asks) throw new AgentError('El editor no tiene cambios pendientes para esta pieza')
+  return draftIdea(agent, post.ideaId, { postId, editorNotes: instructionsForAgent(asks) })
 }
 
 // ─── Strategy ───────────────────────────────────────────────────────────────
@@ -501,8 +515,8 @@ const postStatusFor = (state: AgentState) => (state === 'scheduled' ? 'approved'
  * Writes one accepted idea as a post (or a new version of an agent post), attaches images, validates,
  * gives the model one chance to fix what failed, and moves it on by the autonomy rules.
  */
-export async function draftIdea(agent: Agent, ideaId: string, opts: { instruction?: string | null; postId?: string | null } = {}) {
-  return withRun(agent, 'draft', { ideaId, postId: opts.postId ?? null, instruction: opts.instruction ?? null }, async (meter) => {
+export async function draftIdea(agent: Agent, ideaId: string, opts: { instruction?: string | null; postId?: string | null; editorNotes?: string[] | null } = {}) {
+  return withRun(agent, 'draft', { ideaId, postId: opts.postId ?? null, instruction: opts.instruction ?? null, editorNotes: opts.editorNotes ?? null }, async (meter) => {
     const idea = await prisma.marketingIdea.findFirst({ where: { id: ideaId, agentId: agent.id } })
     if (!idea) throw new AgentError('Idea no encontrada')
     const existing = opts.postId ? await prisma.marketingPost.findFirst({ where: { id: opts.postId, agentId: agent.id }, include: { variants: true } }) : null
@@ -522,8 +536,10 @@ export async function draftIdea(agent: Agent, ideaId: string, opts: { instructio
       task: draftTask({ idea: ideaInfo, utmNote, instruction: opts.instruction, corrections, previous: prev, editor }),
     }, meter)
 
-    let parsed = parseDraft(await ask(null, previous), channels)
-    if (!parsed.ok) parsed = parseDraft(await ask(parsed.errors, previous), channels)
+    // A new version asked to apply the editor's last review starts from its asks
+    const editorAsks = opts.editorNotes?.length ? opts.editorNotes : null
+    let parsed = parseDraft(await ask(null, previous, editorAsks), channels)
+    if (!parsed.ok) parsed = parseDraft(await ask(parsed.errors, previous, editorAsks), channels)
     if (!parsed.ok) throw new AgentError(`La pieza no vino completa: ${parsed.errors.join(' · ')}`)
     let draft = parsed.value
 
@@ -933,10 +949,25 @@ export async function runAgentCycle(agentId: string, deadline = Date.now() + 240
         if (timeLeft() < 150_000) break
         const r = await ensureAgentReview(agent, p.id, null, 'agent')
         if (r.ok) { report.push(`revisión ${p.id}: aprobada`); continue }
+        // Changes asked: the agent applies them in a later step (below); a rejection or a failed review waits for a person
+        const willRewrite = r.status === 'changes'
+        const current = await prisma.marketingPost.findUnique({ where: { id: p.id }, select: { agentMeta: true } })
         await prisma.marketingPublication.updateMany({ where: { postId: p.id, status: 'scheduled' }, data: { status: 'cancelled', lastError: 'La revisión editorial no la aprobó' } })
-        await prisma.marketingPost.update({ where: { id: p.id }, data: { status: 'review', approvedAt: null, approvedById: null, scheduledAt: null } })
-        await notify(noticeTarget(agent), { type: 'editorial_review', title: `El editor retuvo «${p.title}»`, body: r.message, url: postUrl(p.id), postId: p.id, dedupeKey: `edqueue:${p.id}:${bogota(now).key}` })
+        await prisma.marketingPost.update({ where: { id: p.id }, data: { status: 'review', approvedAt: null, approvedById: null, scheduledAt: null, agentMeta: json({ ...((current?.agentMeta as object | null) ?? {}), editorPending: willRewrite }) } })
+        await notify(noticeTarget(agent), { type: 'editorial_review', title: `El editor retuvo «${p.title}»`, body: `${r.message}${willRewrite ? ' El agente la reescribirá con esos pedidos y te la dejará para aprobar.' : ''}`.slice(0, 900), url: postUrl(p.id), postId: p.id, dedupeKey: `edqueue:${p.id}:${bogota(now).key}` })
         report.push(`revisión ${p.id}: retenida`)
+      }
+      // Held from the queue with changes asked: the agent rewrites one per cycle with the editor's asks
+      const held = await prisma.marketingPost.findFirst({ where: { agentId: agent.id, status: 'review', agentMeta: { path: ['editorPending'], equals: true } }, orderBy: { reviewedAt: 'asc' }, select: { id: true, title: true, agentMeta: true } })
+      if (held && timeLeft() > 200_000) {
+        // Marked first: whatever happens, the agent tries once, never in a loop
+        await prisma.marketingPost.update({ where: { id: held.id }, data: { agentMeta: json({ ...((held.agentMeta as object | null) ?? {}), editorPending: false }) } })
+        const r = await applyEditorSuggestions(agent, held.id).catch((err: unknown) => ({ ok: false as const, error: err instanceof Error ? err.message : 'error' }))
+        report.push(`aplicar pedidos del editor ${held.id}: ${r.ok ? r.summary : r.error}`)
+        await notify(noticeTarget(agent), {
+          type: 'editorial_review', title: r.ok ? `Nueva versión de «${held.title}» con lo que pidió el editor` : `No se pudo reescribir «${held.title}»`,
+          body: r.ok ? `${r.summary}. Revísala y apruébala.` : r.error, url: postUrl(held.id), postId: held.id, dedupeKey: `edapply:${held.id}:${bogota(now).key}`,
+        })
       }
     }
 

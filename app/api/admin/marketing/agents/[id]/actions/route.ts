@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auditAdminAction } from '@/lib/admin-utils'
 import { marketingAuth, mkCan, type MarketingPermission } from '@/lib/marketing/permissions'
-import { AgentError, MANUAL_LEARN_EVERY_MS, MAX_ACTIVE_AGENTS, applyLearning, cancelPost, decideIdeas, draftIdea, generateStrategy, learn, loadAgent, planIdeas, rejectPost, scheduleApproved, withAgentLock } from '@/lib/marketing/agent'
+import { AgentError, MANUAL_LEARN_EVERY_MS, MAX_ACTIVE_AGENTS, applyEditorSuggestions, applyLearning, cancelPost, decideIdeas, draftIdea, generateStrategy, learn, loadAgent, planIdeas, rejectPost, scheduleApproved, withAgentLock } from '@/lib/marketing/agent'
 import { agentDetail, agentFor } from '@/lib/marketing/agent-views'
 import { approvePost } from '@/lib/marketing/ops'
 
@@ -19,6 +19,7 @@ const PERMISSION: Record<string, MarketingPermission> = {
   ideas: 'marketing.edit',
   draft: 'marketing.edit',
   redraft: 'marketing.edit',
+  apply_editor: 'marketing.edit',
   approve_post: 'marketing.publish',
   reject_post: 'marketing.edit',
   cancel_post: 'marketing.edit',
@@ -27,7 +28,7 @@ const PERMISSION: Record<string, MarketingPermission> = {
 }
 
 /** Actions that call the model: one at a time per agent (the budget checks must see the previous cost). */
-const PAID = ['strategy', 'plan', 'draft', 'redraft', 'learn']
+const PAID = ['strategy', 'plan', 'draft', 'redraft', 'apply_editor', 'learn']
 
 const text = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '')
 
@@ -90,6 +91,14 @@ export async function POST(request: NextRequest, context: Ctx) {
         if (!post?.ideaId) throw new AgentError('Publicación no encontrada')
         if (['publishing', 'published', 'partial', 'archived'].includes(post.status)) throw new AgentError('Ya salió o está archivada: no se puede rehacer')
         const r = await draftIdea(agent, post.ideaId, { postId: post.id, instruction: text(body.instruction, 1000) || null })
+        if (!r.ok) throw new AgentError(r.error)
+        message = r.summary
+        break
+      }
+      case 'apply_editor': {
+        const post = await ownPost(body.postId)
+        if (!post) throw new AgentError('Publicación no encontrada')
+        const r = await applyEditorSuggestions(agent, post.id)
         if (!r.ok) throw new AgentError(r.error)
         message = r.summary
         break

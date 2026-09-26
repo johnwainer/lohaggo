@@ -272,6 +272,14 @@ export async function holdForReview(postId: string, reason: string) {
 
 // ─── What people see ────────────────────────────────────────────────────────
 
+/** What the editor asked in its last review of the post (changes or rejection), or null if nothing is pending. */
+export async function latestEditorAsks(postId: string) {
+  const r = await prisma.marketingReview.findFirst({ where: { postId, reviewer: 'editor', verdict: { not: 'error' } }, orderBy: { createdAt: 'desc' }, select: { verdict: true, instructions: true } })
+  if (!r || r.verdict === 'approved') return null
+  const asks = ((r.instructions as Instruction[] | null) ?? []).filter((i) => i && typeof i.change === 'string' && i.change.trim())
+  return asks.length ? asks : null
+}
+
 export async function reviewsOf(postId: string) {
   return prisma.marketingReview.findMany({ where: { postId }, orderBy: { createdAt: 'desc' }, take: 30 })
 }
