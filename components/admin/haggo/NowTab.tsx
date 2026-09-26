@@ -56,9 +56,9 @@ export function NowTab({ data, reload }: { data: Overview; reload: () => void })
   return (
     <div className="space-y-5">
       <section className={`${card} p-4 sm:p-5`}>
-        <div className="flex flex-wrap items-start gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2 text-sm">
+            <div className="flex flex-wrap items-center gap-1.5 text-sm sm:gap-2">
               <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${!c.enabled ? 'bg-rose-100 text-rose-700' : data.working ? 'bg-primary-50 text-primary-700' : 'bg-emerald-50 text-emerald-700'}`}>
                 {data.working ? <Loader2 size={12} className="animate-spin" /> : <span className={`h-1.5 w-1.5 rounded-full ${c.enabled ? 'bg-emerald-500' : 'bg-rose-500'}`} />}
                 {!c.enabled ? 'Detenido' : data.working ? 'Trabajando' : 'Vigilando'}
@@ -68,24 +68,24 @@ export function NowTab({ data, reload }: { data: Overview; reload: () => void })
               {data.autonomousToday > 0 && <a href="/admin/haggo?tab=decisions" className="rounded-full bg-violet-100 px-2.5 py-1 text-xs font-semibold text-violet-700">{data.autonomousToday} hechas solo en 24 h</a>}
               {data.pendingApprovals > 0 && <a href="/admin/haggo?tab=proposals" className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">{data.pendingApprovals} por aprobar</a>}
             </div>
-            <p className="mt-3 text-lg font-semibold text-gray-900">{data.focus || 'Todavía no ha hecho su primera revisión.'}</p>
-            <p className="mt-1 text-sm text-gray-500">
-              {data.last.cycle ? <>Última revisión {ago(data.last.cycle.startedAt)}: {data.last.cycle.summary || data.last.cycle.error}</> : 'Sin revisiones todavía.'}
+            <p className="mt-3 text-base font-semibold leading-snug text-gray-900 sm:text-lg">{data.focus || 'Todavía no ha hecho su primera revisión.'}</p>
+            <p className="mt-2 border-t border-gray-100 pt-2 text-xs text-gray-500 sm:mt-1 sm:border-0 sm:pt-0 sm:text-sm">
+              {data.last.cycle ? <><span className="font-medium text-gray-600">Última revisión {ago(data.last.cycle.startedAt)}:</span> {data.last.cycle.summary || data.last.cycle.error}</> : 'Sin revisiones todavía.'}
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button onClick={() => run('cycle')} disabled={Boolean(running) || data.working} className={btnPrimary}>
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0">
+            <button onClick={() => run('cycle')} disabled={Boolean(running) || data.working} className={`${btnPrimary} justify-center whitespace-nowrap`}>
               {running === 'cycle' ? <Loader2 size={15} className="animate-spin" /> : <Radar size={15} />} Revisar ahora
             </button>
-            <button onClick={toggle} className={c.enabled ? `${btn} text-rose-600` : btn}>{c.enabled ? <><Pause size={15} /> Detener a Haggo</> : <><Play size={15} /> Reanudar</>}</button>
+            <button onClick={toggle} className={`${c.enabled ? `${btn} text-rose-600` : btn} justify-center whitespace-nowrap`}>{c.enabled ? <><Pause size={15} /> Detener<span className="hidden sm:inline">&nbsp;a Haggo</span></> : <><Play size={15} /> Reanudar</>}</button>
           </div>
         </div>
         {running && <p className="mt-3 text-xs text-gray-500">Haggo está investigando con sus herramientas; puede tardar uno o dos minutos.</p>}
         {msg && <p className={`mt-3 flex items-center gap-1.5 text-sm ${msg.ok ? 'text-emerald-700' : 'text-rose-600'}`}>{!msg.ok && <AlertCircle size={15} />}{msg.text}</p>}
       </section>
 
-      <section className={`${card} p-5`}>
-        <div className="mb-3 flex flex-wrap items-baseline gap-2">
+      <section className={`${card} p-4 sm:p-5`}>
+        <div className="mb-3 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
           <h2 className="font-semibold text-gray-900">Toda la plataforma</h2>
           <span className="text-xs text-gray-500">Cada revisión valida todas las áreas{data.lastSnapshotAt ? ` · última ${ago(data.lastSnapshotAt)}` : ''}</span>
         </div>
@@ -95,7 +95,7 @@ export function NowTab({ data, reload }: { data: Overview; reload: () => void })
             const dot = a.critical ? 'bg-rose-500' : a.warning ? 'bg-amber-500' : 'bg-emerald-500'
             return (
               <div key={a.domain} className={`rounded-xl border px-3 py-2.5 ${tone}`}>
-                <p className="flex items-center gap-1.5 text-sm font-medium text-gray-900"><span className={`h-2 w-2 rounded-full ${dot}`} />{domainLabel(a.domain)}</p>
+                <p className="flex items-start gap-1.5 text-sm font-medium leading-tight text-gray-900"><span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${dot}`} /><span className="min-w-0">{domainLabel(a.domain)}</span></p>
                 <p className="mt-0.5 text-xs text-gray-600">{a.critical || a.warning || a.info ? [a.critical && `${a.critical} crítico${a.critical > 1 ? 's' : ''}`, a.warning && `${a.warning} aviso${a.warning > 1 ? 's' : ''}`, a.info && `${a.info} info`].filter(Boolean).join(' · ') : 'En orden'}</p>
               </div>
             )
@@ -104,7 +104,7 @@ export function NowTab({ data, reload }: { data: Overview; reload: () => void })
       </section>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <section className={`${card} p-5`}>
+        <section className={`${card} p-4 sm:p-5`}>
           <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900"><CalendarClock size={17} /> Próximas ejecuciones</h2>
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between gap-3"><dt className="text-gray-500">Revisión (cada {c.cycleMinutes} min)</dt><dd className="text-right text-gray-900">{c.enabled ? until(data.next.cycle) : '—'}</dd></div>
@@ -113,7 +113,7 @@ export function NowTab({ data, reload }: { data: Overview; reload: () => void })
           </dl>
           <p className="mt-3 text-xs text-gray-500">Solo llama a la IA cuando detecta algo nuevo; si no, revisa con reglas y no cuesta.</p>
         </section>
-        <section className={`${card} p-5`}>
+        <section className={`${card} p-4 sm:p-5`}>
           <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900"><Wallet size={17} /> Presupuesto de IA</h2>
           <div className="space-y-3 text-sm">
             <div><div className="mb-1 flex justify-between"><span className="text-gray-500">Este mes</span><span className="font-medium text-gray-900">{usd(data.budget.monthUsd)} de {usd(data.budget.monthlyUsd)}</span></div><Bar value={data.budget.monthUsd} max={data.budget.monthlyUsd} /></div>
@@ -123,7 +123,7 @@ export function NowTab({ data, reload }: { data: Overview; reload: () => void })
         </section>
       </div>
 
-      <section className={`${card} p-5`}>
+      <section className={`${card} p-4 sm:p-5`}>
         <div className="mb-1 flex items-center justify-between gap-3">
           <h2 className="font-semibold text-gray-900">Lo que Haggo tiene abierto</h2>
           <span className="shrink-0 text-xs text-gray-500">{data.findings.length} situaciones</span>
@@ -132,7 +132,7 @@ export function NowTab({ data, reload }: { data: Overview; reload: () => void })
       </section>
 
       {data.decisions.length > 0 && (
-        <section className={`${card} p-5`}>
+        <section className={`${card} p-4 sm:p-5`}>
           <div className="mb-3 flex items-center justify-between"><h2 className="font-semibold text-gray-900">Últimas decisiones</h2><a href="/admin/haggo?tab=decisions" className="text-xs text-primary-600 hover:underline">Ver todas</a></div>
           <ul className="divide-y divide-gray-100 text-sm">
             {data.decisions.map((d) => (
@@ -145,7 +145,7 @@ export function NowTab({ data, reload }: { data: Overview; reload: () => void })
         </section>
       )}
 
-      <section className={`${card} p-5`}>
+      <section className={`${card} p-4 sm:p-5`}>
         <h2 className="mb-3 font-semibold text-gray-900">Últimas ejecuciones</h2>
         <ul className="divide-y divide-gray-100 text-sm">
           {data.runs.length === 0 && <li className="py-4 text-center text-gray-500">Aún no hay ejecuciones.</li>}

@@ -60,13 +60,13 @@ export default function HaggoPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-5 sm:space-y-6 sm:p-6">
-      <div className="flex flex-wrap items-center gap-4">
-        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-orange-400 text-white shadow-sm"><Sparkles size={24} /></span>
+      <div className="flex items-start gap-3 sm:items-center sm:gap-4">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-orange-400 text-white shadow-sm sm:h-12 sm:w-12"><Sparkles size={22} /></span>
         <div className="min-w-0 flex-1">
-          <h1 className="text-2xl font-bold text-gray-900">Haggo</h1>
-          <p className="text-sm text-gray-500">El agente maestro: vigila toda la plataforma, analiza lo que pasa y te dice qué hacer.</p>
+          <h1 className="text-xl font-bold leading-tight text-gray-900 sm:text-2xl">Haggo</h1>
+          <p className="mt-0.5 text-sm text-gray-500">El agente maestro: vigila toda la plataforma, analiza lo que pasa y te dice qué hacer.</p>
         </div>
-        <button onClick={load} disabled={loading} className="rounded-full border border-gray-200 bg-white p-2.5 text-gray-600 hover:bg-gray-50" title="Actualizar"><RefreshCw size={16} className={loading ? 'animate-spin' : ''} /></button>
+        <button onClick={load} disabled={loading} className="shrink-0 rounded-full border border-gray-200 bg-white p-2.5 text-gray-600 hover:bg-gray-50" title="Actualizar"><RefreshCw size={16} className={loading ? 'animate-spin' : ''} /></button>
       </div>
 
       <div className="flex flex-wrap gap-1 rounded-2xl bg-gray-100 p-1">
