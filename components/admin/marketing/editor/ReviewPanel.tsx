@@ -90,6 +90,9 @@ export default function ReviewPanel({ post, reviews, agentId, canEdit, canPublis
     }
   }
 
+  // Published or archived before the review existed: nothing to show or do here
+  if (closed && !status && !reviews.length) return null
+
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-4 space-y-3">
       <div className="flex items-center gap-2 flex-wrap">
@@ -97,7 +100,7 @@ export default function ReviewPanel({ post, reviews, agentId, canEdit, canPublis
         <ReviewChip status={status} score={post.reviewScore} />
       </div>
 
-      {!status && !reviews.length && <p className="text-xs text-gray-500">Aún no se ha revisado. Las piezas del agente se revisan solas al redactarse; esta puedes revisarla con los botones de abajo.</p>}
+      {!status && !reviews.length && <p className="text-xs text-gray-500">Aún no se ha revisado. Las piezas del agente se revisan solas al redactarse{canEdit ? '; esta puedes revisarla con los botones de abajo' : ''}.</p>}
       {status === 'stale' && <p className="flex gap-1.5 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900"><AlertTriangle size={13} className="mt-0.5 shrink-0" /> Cambió después de la revisión: se revisa otra vez al aprobarla o publicarla, o ahora con «Volver a revisar».</p>}
       {status === 'overridden' && <p className="rounded-xl bg-violet-50 px-3 py-2 text-xs text-violet-800">Una persona la aprobó sin la revisión para estos textos exactos. Si se edita, vuelve a necesitar revisión.</p>}
       {status === 'failed' && <p className="flex gap-1.5 rounded-xl bg-rose-50 px-3 py-2 text-xs text-rose-800"><AlertTriangle size={13} className="mt-0.5 shrink-0" /> La revisión no se pudo hacer{last?.error ? `: ${last.error}` : lastSpelling?.error ? `: ${lastSpelling.error}` : ''}. No sale hasta revisarla.</p>}
