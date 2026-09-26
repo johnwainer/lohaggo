@@ -69,7 +69,7 @@ export default function HaggoPage() {
         <button onClick={load} disabled={loading} className="rounded-full border border-gray-200 bg-white p-2.5 text-gray-600 hover:bg-gray-50" title="Actualizar"><RefreshCw size={16} className={loading ? 'animate-spin' : ''} /></button>
       </div>
 
-      <div className="flex gap-1 overflow-x-auto rounded-2xl bg-gray-100 p-1">
+      <div className="flex flex-wrap gap-1 rounded-2xl bg-gray-100 p-1">
         {TABS.map((t) => (
           <button key={t.id} onClick={() => choose(t.id)} className={`whitespace-nowrap rounded-xl px-4 py-2 text-sm font-medium ${tab === t.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>
             {t.label}{t.id === 'proposals' && data?.pendingApprovals ? <span className="ml-1.5 rounded-full bg-primary-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{data.pendingApprovals}</span> : null}

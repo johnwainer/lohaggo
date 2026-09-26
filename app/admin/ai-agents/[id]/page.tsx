@@ -48,7 +48,7 @@ type Catalog = {
 const TABS = [
   ['identity', 'Identidad'],
   ['model', 'Modelo'],
-  ['channels', 'Canales y piloto automático'],
+  ['channels', 'Canales y piloto'],
   ['comments', 'Comentarios'],
   ['handoff', 'Traspaso'],
   ['hours', 'Horario'],
@@ -199,9 +199,10 @@ export default function AiAgentDetailPage({ params }: { params: Promise<{ id: st
       {error && <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><AlertCircle size={16} /> {error}</div>}
       {ro && <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">Solo lectura: no tienes permiso para editar agentes en este workspace.</div>}
 
-      <div className="flex gap-1 overflow-x-auto border-b border-gray-200">
+      {/* Wraps to a second line on narrow screens instead of scrolling sideways */}
+      <div className="flex flex-wrap gap-1 rounded-2xl bg-gray-100 p-1">
         {TABS.map(([key, label]) => (
-          <button key={key} onClick={() => setTab(key)} className={`px-3 py-2 text-sm whitespace-nowrap border-b-2 -mb-px ${tab === key ? 'border-primary-600 text-primary-700 font-medium' : 'border-transparent text-gray-500 hover:text-gray-800'}`}>{label}</button>
+          <button key={key} onClick={() => setTab(key)} className={`whitespace-nowrap rounded-xl px-3 py-1.5 text-sm font-medium ${tab === key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>{label}</button>
         ))}
       </div>
 
