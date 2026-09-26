@@ -451,8 +451,8 @@ export default function CommandCenter() {
           <span className={`block text-[0.6875rem] ${!hg.enabled ? 'text-rose-500' : t.muted}`}>{!hg.enabled ? 'Detenido' : hg.mode === 'autonomous' ? 'Autónomo' : hg.mode === 'observer' ? 'Observador' : 'Copiloto'}{hg.lastCycleAt ? ` · revisó ${ago(new Date(hg.lastCycleAt).toISOString(), now)}` : ''}</span>
         </span>
       </Link>
-      <p className={`min-w-0 flex-1 ${tv ? 'truncate text-base' : 'basis-full text-sm sm:basis-0'} ${t.text}`}>{hg.budget.blocked ? 'Presupuesto de Haggo agotado: solo observa con reglas.' : hg.focus || hg.lastSummary || 'Todavía no ha hecho su primera revisión.'}</p>
-      <div className={`flex items-center gap-2 ${tv ? 'shrink-0' : 'flex-wrap sm:shrink-0'}`}>
+      <p className={`min-w-0 flex-1 ${tv ? 'truncate text-base' : 'basis-full text-sm lg:basis-0'} ${t.text}`}>{hg.budget.blocked ? 'Presupuesto de Haggo agotado: solo observa con reglas.' : hg.focus || hg.lastSummary || 'Todavía no ha hecho su primera revisión.'}</p>
+      <div className={`flex items-center gap-2 ${tv ? 'shrink-0' : 'flex-wrap lg:shrink-0'}`}>
         {hg.counts.critical > 0 && <span className="rounded-full bg-rose-500/15 px-2.5 py-1 text-xs font-semibold text-rose-500">{plural(hg.counts.critical, 'crítico', 'críticos')}</span>}
         {hg.counts.warning > 0 && <span className="rounded-full bg-amber-500/15 px-2.5 py-1 text-xs font-semibold text-amber-500">{plural(hg.counts.warning, 'aviso', 'avisos')}</span>}
         {hg.pendingApprovals > 0 && (tv

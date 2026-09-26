@@ -56,7 +56,7 @@ export function NowTab({ data, reload }: { data: Overview; reload: () => void })
   return (
     <div className="space-y-5">
       <section className={`${card} p-4 sm:p-5`}>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-1.5 text-sm sm:gap-2">
               <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${!c.enabled ? 'bg-rose-100 text-rose-700' : data.working ? 'bg-primary-50 text-primary-700' : 'bg-emerald-50 text-emerald-700'}`}>
@@ -73,7 +73,7 @@ export function NowTab({ data, reload }: { data: Overview; reload: () => void })
               {data.last.cycle ? <><span className="font-medium text-gray-600">Última revisión {ago(data.last.cycle.startedAt)}:</span> {data.last.cycle.summary || data.last.cycle.error}</> : 'Sin revisiones todavía.'}
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0">
+          <div className="grid grid-cols-2 gap-2 sm:flex lg:shrink-0">
             <button onClick={() => run('cycle')} disabled={Boolean(running) || data.working} className={`${btnPrimary} justify-center whitespace-nowrap`}>
               {running === 'cycle' ? <Loader2 size={15} className="animate-spin" /> : <Radar size={15} />} Revisar ahora
             </button>
