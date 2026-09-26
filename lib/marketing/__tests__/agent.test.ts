@@ -226,6 +226,26 @@ describe('repetición y huecos del calendario', () => {
     for (const d of ig.dates) expect([1, 2, 3, 4, 5]).toContain(new Date(`${d}T12:00:00Z`).getUTCDay())
     expect(gaps.find((g) => g.channel === 'WEB')!.needed).toBe(2)
   })
+
+  it('revisa semana por semana: piezas amontonadas al inicio no tapan una semana vacía', () => {
+    const c = defaultAgentConfig('reach')
+    c.channels.INSTAGRAM = { ...c.channels.INSTAGRAM, enabled: true, perWeek: 4 }
+    const now = at('2026-09-26T10:00:00-05:00')
+    // 8 Instagram pieces, all in the first week: the whole horizon's count, but week 2 is empty
+    const planned = Array.from({ length: 8 }, (_, i) => ({ channel: 'INSTAGRAM' as const, at: new Date(now.getTime() + (1 + (i % 6)) * 86400_000) }))
+    const ig = calendarGaps({ now, horizonDays: 14, channels: c.channels, planned, days: [0, 1, 2, 3, 4, 5, 6] }).find((g) => g.channel === 'INSTAGRAM')!
+    expect(ig.needed).toBe(4)
+    for (const d of ig.dates) expect(d >= '2026-10-04').toBe(true)
+  })
+
+  it('no planifica después del fin de la campaña', () => {
+    const c = defaultAgentConfig('reach')
+    c.channels.INSTAGRAM = { ...c.channels.INSTAGRAM, enabled: true, perWeek: 7 }
+    const now = at('2026-09-26T10:00:00-05:00')
+    const ig = calendarGaps({ now, horizonDays: 14, channels: c.channels, planned: [], days: [0, 1, 2, 3, 4, 5, 6], endsAt: at('2026-09-30T23:59:59-05:00') }).find((g) => g.channel === 'INSTAGRAM')!
+    expect(ig.needed).toBe(4)
+    for (const d of ig.dates) expect(d <= '2026-09-30').toBe(true)
+  })
 })
 
 describe('aprendizaje', () => {

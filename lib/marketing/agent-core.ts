@@ -336,27 +336,42 @@ export function isRepeat(idea: { service: string | null; angle: string; at: Date
  * Pieces still missing per channel in the planning horizon (frequency minus what is already planned),
  * with target days spread over the horizon on allowed weekdays.
  */
-export function calendarGaps(p: { now: Date; horizonDays: number; channels: Record<MarketingChannel, ChannelPlan>; planned: Array<{ channel: MarketingChannel; at: Date }>; days: number[] }) {
-  const end = p.now.getTime() + p.horizonDays * DAY
+/**
+ * What is missing in the calendar, week by week: each 7-day window of the horizon must reach its channel's
+ * pieces per week. Counting the whole horizon at once let pieces piled up in the first days hide empty
+ * weeks at the end. `endsAt` (the campaign's end) cuts the horizon short.
+ */
+export function calendarGaps(p: { now: Date; horizonDays: number; channels: Record<MarketingChannel, ChannelPlan>; planned: Array<{ channel: MarketingChannel; at: Date }>; days: number[]; endsAt?: Date | null }) {
+  const end = Math.min(p.now.getTime() + p.horizonDays * DAY, p.endsAt ? p.endsAt.getTime() : Infinity)
   const today = bogota(p.now).key
+  const totalDays = Math.max(0, Math.floor((end - p.now.getTime()) / DAY))
   const out: Array<{ channel: MarketingChannel; needed: number; dates: string[] }> = []
+  if (!totalDays) return out
   for (const channel of AGENT_CHANNELS) {
     const plan = p.channels[channel]
     if (!plan.enabled || plan.perWeek <= 0) continue
     const planned = p.planned.filter((x) => x.channel === channel && x.at.getTime() >= p.now.getTime() && x.at.getTime() <= end)
-    const target = Math.round((plan.perWeek * p.horizonDays) / 7)
-    const needed = Math.max(0, target - planned.length)
-    if (!needed) continue
     const taken = new Set(planned.map((x) => bogota(x.at).key))
-    const step = p.horizonDays / target
     const dates: string[] = []
-    for (let i = 0; i < target && dates.length < needed; i++) {
-      let key = addDays(today, Math.max(1, Math.round(1 + i * step)))
-      for (let guard = 0; guard < 7 && (!p.days.includes(weekdayOf(key)) || taken.has(key) || dates.includes(key)); guard++) key = addDays(key, 1)
-      if (Date.parse(`${key}T00:00:00-05:00`) > end) break
-      if (!taken.has(key) && !dates.includes(key)) dates.push(key)
+    let needed = 0
+    // Windows of 7 days starting tomorrow; the last one may be shorter (its target is prorated)
+    for (let from = 1; from <= totalDays; from += 7) {
+      const to = Math.min(totalDays, from + 6)
+      const span = to - from + 1
+      const keys = Array.from({ length: span }, (_, i) => addDays(today, from + i))
+      const inWindow = planned.filter((x) => keys.includes(bogota(x.at).key)).length
+      const target = Math.round((plan.perWeek * span) / 7)
+      const missing = Math.max(0, target - inWindow)
+      if (!missing) continue
+      needed += missing
+      const free = keys.filter((k) => p.days.includes(weekdayOf(k)) && !taken.has(k))
+      // Spread over the window's free days
+      for (let i = 0; i < missing && free.length; i++) {
+        const k = free[Math.min(free.length - 1, Math.floor(((i + 0.5) * free.length) / missing))]
+        if (!dates.includes(k)) dates.push(k)
+      }
     }
-    out.push({ channel, needed, dates })
+    if (needed) out.push({ channel, needed, dates })
   }
   return out
 }

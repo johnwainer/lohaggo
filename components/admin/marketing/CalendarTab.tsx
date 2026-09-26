@@ -9,13 +9,15 @@ import type { Campaign } from '@/components/admin/marketing/CampaignsTab'
 import { formatScore, reviewBadge } from '@/lib/marketing/editorial-rubric'
 
 type Item = {
+  /** One card per post and day it goes out (the agent gives each channel its own day) */
+  key: string
   id: string
   title: string
   status: string
   at: string
   campaign: { id: string; name: string; color: string } | null
   variants: Array<{ channel: MkChannel }>
-  publications: Array<{ channel: MkChannel; status: string; connection: { name: string } | null }>
+  publications: Array<{ id: string; channel: MkChannel; status: string; scheduledAt: string; connection: { name: string } | null }>
   origin?: string
   reviewStatus?: string | null
   reviewScore?: number | null
@@ -56,7 +58,8 @@ export default function CalendarTab({ workspaceId, campaigns, workspace, canEdit
   const [ideas, setIdeas] = useState<IdeaItem[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [dragId, setDragId] = useState<string | null>(null)
+  const [drag, setDrag] = useState<{ kind: 'post' | 'idea'; id: string } | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const [newOn, setNewOn] = useState<string | null>(null)
 
   const days = useMemo(() => (view === 'month' ? monthGrid(anchor) : weekGrid(anchor)), [view, anchor])
@@ -95,20 +98,35 @@ export default function CalendarTab({ workspaceId, campaigns, workspace, canEdit
   }, [ideas])
 
   async function drop(day: string) {
-    const item = items.find((i) => i.id === dragId)
-    setDragId(null)
-    if (!item || dayKey(new Date(item.at)) === day) return
-    // Same time of day, another date
-    const time = timeOf(new Date(item.at))
-    const when = new Date(`${day}T${time}:00-05:00`)
-    setItems((list) => list.map((i) => (i.id === item.id ? { ...i, at: when.toISOString() } : i)))
+    const d = drag
+    setDrag(null)
+    if (!d) return
+    if (day < today) { setError('Solo se puede mover a hoy o después'); return }
+    setNotice(null)
     try {
-      await api('/api/admin/marketing/calendar', { method: 'PATCH', json: { postId: item.id, when: when.toISOString() } })
+      if (d.kind === 'idea') {
+        const idea = ideas.find((i) => i.id === d.id)
+        if (!idea || dayKey(new Date(idea.targetDate)) === day) return
+        setIdeas((list) => list.map((i) => (i.id === idea.id ? { ...i, targetDate: `${day}T17:00:00.000Z` } : i)))
+        await api('/api/admin/marketing/calendar', { method: 'PATCH', json: { ideaId: idea.id, when: new Date(`${day}T12:00:00-05:00`).toISOString() } })
+        setNotice('Idea movida: el agente la redactará para ese día.')
+      } else {
+        const item = items.find((i) => i.key === d.id)
+        if (!item || dayKey(new Date(item.at)) === day) return
+        // Same time of day, another date; only this day's sends of the post (the other channels keep their day)
+        const when = new Date(`${day}T${timeOf(new Date(item.at))}:00-05:00`)
+        const publicationIds = item.publications.filter((p) => p.status === 'scheduled').map((p) => p.id)
+        setItems((list) => list.map((i) => (i.key === item.key ? { ...i, at: when.toISOString() } : i)))
+        const r = await api<{ warning?: string | null }>('/api/admin/marketing/calendar', { method: 'PATCH', json: { postId: item.id, when: when.toISOString(), ...(publicationIds.length ? { publicationIds } : {}) } })
+        setNotice(r.warning || null)
+      }
+      setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo mover')
     }
     load()
   }
+  const movable = (it: Item) => canEdit && (it.publications.some((p) => p.status === 'scheduled') || (!it.publications.length && ['draft', 'review', 'approved'].includes(it.status)))
 
   const shift = (dir: number) => {
     const d = new Date(anchor)
@@ -123,13 +141,13 @@ export default function CalendarTab({ workspaceId, campaigns, workspace, canEdit
 
   const Card = ({ it }: { it: Item }) => {
     const channels = (it.publications.length ? it.publications.map((p) => p.channel) : it.variants.map((v) => v.channel)).filter((c, i, a) => a.indexOf(c) === i)
-    const locked = ['published', 'partial', 'publishing'].includes(it.status)
+    const locked = !movable(it)
     return (
       <Link
         href={`/admin/marketing/posts/${it.id}`}
-        draggable={canEdit && !locked}
-        onDragStart={() => setDragId(it.id)}
-        onDragEnd={() => setDragId(null)}
+        draggable={!locked}
+        onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; setDrag({ kind: 'post', id: it.key }) }}
+        onDragEnd={() => setDrag(null)}
         className={`block rounded-lg border-l-4 bg-white px-1.5 py-1 text-[11px] shadow-sm hover:shadow ${locked ? 'opacity-90' : 'cursor-grab'} ${it.status === 'failed' ? 'ring-1 ring-red-300' : ''}`}
         style={{ borderLeftColor: it.campaign?.color || '#CBD5E1' }}
         title={`${it.title} · ${POST_STATUS[it.status]?.label || it.status}${reviewBadge(it.reviewStatus, it.reviewScore) ? ` · ${reviewBadge(it.reviewStatus, it.reviewScore)!.label}` : ''}${it.campaign ? ` · ${it.campaign.name}` : ''}${it.slots?.length ? `\n${it.slots.map((s) => s.reason).join('\n')}` : ''}`}
@@ -137,8 +155,8 @@ export default function CalendarTab({ workspaceId, campaigns, workspace, canEdit
         <span className="flex items-center gap-1">
           <span className="text-gray-500 tabular-nums">{timeOf(new Date(it.at))}</span>
           <span className="flex -space-x-1">{channels.map((c) => <MkChannelIcon key={c} channel={c} size={12} />)}</span>
-          {it.status === 'published' && <span className="text-emerald-600">✓</span>}
-          {it.status === 'failed' && <span className="text-red-600">!</span>}
+          {(it.publications.length ? it.publications.every((p) => p.status === 'published') : it.status === 'published') && <span className="text-emerald-600" title="Publicada">✓</span>}
+          {(it.publications.some((p) => p.status === 'failed') || (!it.publications.length && it.status === 'failed')) && <span className="text-red-600" title="Falló">!</span>}
           {it.origin === 'agent' && <span title="Creada por el agente">🤖</span>}
           {it.reviewStatus && !['approved', 'overridden'].includes(it.reviewStatus) && !['published', 'partial'].includes(it.status) && <span className="text-amber-600" title={reviewBadge(it.reviewStatus, it.reviewScore)?.label}>✎</span>}
           {it.reviewStatus === 'approved' && it.reviewScore != null && !['published', 'partial'].includes(it.status) && <span className="text-emerald-700 tabular-nums" title="Revisada por el editor">{formatScore(it.reviewScore)}</span>}
@@ -167,7 +185,8 @@ export default function CalendarTab({ workspaceId, campaigns, workspace, canEdit
         </div>
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
-      <p className="text-xs text-gray-500">Arrastra una publicación a otro día para reprogramarla (conserva la hora). Lo ya publicado no se mueve. Las tarjetas punteadas son ideas del agente. Horario de Bogotá.</p>
+      {notice && <p className="text-sm text-amber-700">{notice}</p>}
+      <p className="text-xs text-gray-500">Cada red aparece el día en que sale. Arrastra una publicación a otro día para moverla (conserva la hora; los demás canales de esa pieza mantienen su día) o una idea punteada del agente para cambiar su fecha. El agente lo tiene en cuenta al planificar. Lo ya publicado no se mueve. Horario de Bogotá.</p>
 
       <div className="overflow-x-auto">
         <div className="grid min-w-[760px] grid-cols-7 gap-px overflow-hidden rounded-2xl border border-gray-200 bg-gray-200">
@@ -178,9 +197,9 @@ export default function CalendarTab({ workspaceId, campaigns, workspace, canEdit
             return (
               <div
                 key={day}
-                onDragOver={(e) => { if (dragId) e.preventDefault() }}
-                onDrop={() => drop(day)}
-                className={`group relative bg-white p-1.5 ${view === 'month' ? 'min-h-[112px]' : 'min-h-[420px]'} ${inMonth ? '' : 'bg-gray-50/70'} ${dragId ? 'hover:bg-primary-50' : ''}`}
+                onDragOver={(e) => { if (drag && day >= today) e.preventDefault() }}
+                onDrop={(e) => { e.preventDefault(); drop(day) }}
+                className={`group relative bg-white p-1.5 ${view === 'month' ? 'min-h-[112px]' : 'min-h-[420px]'} ${inMonth ? '' : 'bg-gray-50/70'} ${drag && day >= today ? 'hover:bg-primary-50' : ''}`}
               >
                 <div className="flex items-center justify-between">
                   <span className={`text-xs ${day === today ? 'rounded-full bg-primary-600 px-1.5 font-semibold text-white' : inMonth ? 'text-gray-700' : 'text-gray-300'}`}>{Number(day.slice(8))}</span>
@@ -189,9 +208,17 @@ export default function CalendarTab({ workspaceId, campaigns, workspace, canEdit
                   )}
                 </div>
                 <div className="mt-1 space-y-1">
-                  {(view === 'month' ? list.slice(0, 3) : list).map((it) => <Card key={it.id} it={it} />)}
+                  {(view === 'month' ? list.slice(0, 3) : list).map((it) => <Card key={it.key} it={it} />)}
                   {(ideasByDay.get(day) || []).slice(0, view === 'month' ? 2 : 10).map((idea) => (
-                    <span key={idea.id} title={`Idea del agente (${idea.status === 'proposed' ? 'por revisar' : 'aceptada, se redactará antes de la fecha'}) · ${idea.agent.campaign.name}\n${idea.pillar}`} className="block rounded-lg border border-dashed px-1.5 py-1 text-[11px] text-gray-500" style={{ borderColor: idea.agent.campaign.color }}>
+                    <span
+                      key={idea.id}
+                      draggable={canEdit}
+                      onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; setDrag({ kind: 'idea', id: idea.id }) }}
+                      onDragEnd={() => setDrag(null)}
+                      title={`Idea del agente (${idea.status === 'proposed' ? 'por revisar' : 'aceptada, se redactará antes de la fecha'}) · ${idea.agent.campaign.name}\n${idea.pillar}${canEdit ? '\nArrástrala a otro día para cambiar su fecha' : ''}`}
+                      className={`block rounded-lg border border-dashed px-1.5 py-1 text-[11px] text-gray-500 ${canEdit ? 'cursor-grab' : ''}`}
+                      style={{ borderColor: idea.agent.campaign.color }}
+                    >
                       <span className="flex items-center gap-1">🤖 <span className="flex -space-x-1">{idea.channels.map((c) => <MkChannelIcon key={c} channel={c} size={11} />)}</span>{idea.status === 'proposed' && <span className="text-amber-600">idea</span>}</span>
                       <span className="block truncate">{idea.angle}</span>
                     </span>

@@ -342,7 +342,9 @@ export async function planIdeas(agent: Agent, now = new Date()) {
     if (!agent.strategyApprovedAt || !strategy) throw new AgentError('Falta aprobar la estrategia')
     const config = configOf(agent)
     const planned = await plannedPieces(agent.id, now, agent.horizonDays)
-    const gaps = calendarGaps({ now, horizonDays: agent.horizonDays, channels: config.channels, planned, days: config.schedule.days })
+    // The campaign's last day bounds the plan (unless the agent runs always)
+    const endsAt = config.alwaysOn ? null : agent.campaign.endsAt
+    const gaps = calendarGaps({ now, horizonDays: agent.horizonDays, channels: config.channels, planned, days: config.schedule.days, endsAt })
     if (!gaps.length) {
       await prisma.marketingAgent.update({ where: { id: agent.id }, data: { lastPlannedAt: now } })
       return { summary: 'El calendario del horizonte ya está cubierto', value: 0, skipped: true }
@@ -353,7 +355,7 @@ export async function planIdeas(agent: Agent, now = new Date()) {
     const order = pillarDeficit(strategy.pillars, (await prisma.marketingIdea.findMany({ where: { agentId: agent.id, createdAt: { gte: new Date(now.getTime() - 30 * DAY) }, status: { not: 'rejected' } }, select: { pillar: true } })))
     const maxIdeas = Math.min(MAX_IDEAS, Math.max(...gaps.map((g) => g.needed)) + 2)
     const fromDay = addDays(bogota(now).key, 1)
-    const toDay = bogota(new Date(now.getTime() + agent.horizonDays * DAY)).key
+    const toDay = bogota(new Date(Math.min(now.getTime() + agent.horizonDays * DAY, endsAt ? endsAt.getTime() : Infinity))).key
     const input = await callTool(agent, ai.defaultModel, {
       kind: 'marketing_agent_plan', system: ctx.system, tool: PLAN_TOOL, maxTokens: 7000, effort: 'medium',
       task: planTask({ gaps, order, exploreCount: Math.round(maxIdeas * agent.exploreRatio), fromDay, toDay, maxIdeas }),
