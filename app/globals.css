@@ -355,3 +355,9 @@ textarea .emoji {
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 }
+
+/* Admin: a grid cell may shrink below its content (long names, badges) instead of pushing the card
+   past the screen on a phone. Zero specificity: any min-w-* utility still wins. */
+:where([data-admin-main] .grid) > * {
+  min-width: 0;
+}

@@ -61,6 +61,7 @@ export default function Sidebar({ activeSection, collapsed, onToggleCollapsed }:
 
   // The rail applies on desktop only; the mobile drawer is always full width
   const rail = collapsed && !isOpen
+  const currentLabel = ADMIN_MENU.flatMap((g) => g.items).find((i) => i.id === activeSection)?.label ?? 'Panel de control'
 
   const itemLink = (item: MenuItem, compact: boolean) => {
     const Icon = item.icon
@@ -93,14 +94,21 @@ export default function Sidebar({ activeSection, collapsed, onToggleCollapsed }:
 
   return (
     <>
-      {/* Mobile Menu Button */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        aria-label={isOpen ? 'Cerrar menú' : 'Abrir menú'}
-        className="lg:hidden fixed top-4 left-4 z-50 bg-gradient-to-r from-primary-500 to-secondary-500 text-white p-2.5 rounded-xl shadow-lg"
-      >
-        {isOpen ? <X size={24} /> : <Menu size={24} />}
-      </button>
+      {/* Mobile top bar: menu button and where you are (it never covers the page's own title) */}
+      <header className="lg:hidden fixed inset-x-0 top-0 z-30 flex h-14 items-center gap-3 border-b border-gray-200 bg-white/95 px-3 backdrop-blur">
+        <button
+          onClick={() => setIsOpen(true)}
+          aria-label="Abrir menú"
+          className="relative rounded-xl bg-gradient-to-r from-primary-500 to-secondary-500 p-2 text-white shadow-sm"
+        >
+          <Menu size={20} />
+          {inboxUnread > 0 && <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />}
+        </button>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-gray-900">{currentLabel}</p>
+          <p className="text-[11px] leading-none text-gray-400">LoHaggo Admin</p>
+        </div>
+      </header>
 
       {/* Overlay */}
       {isOpen && (
@@ -111,8 +119,8 @@ export default function Sidebar({ activeSection, collapsed, onToggleCollapsed }:
       )}
 
       {/* Sidebar */}
-      <div className={`${rail ? 'w-64 lg:w-20' : 'w-64'} bg-gradient-to-b from-primary-500 to-secondary-500 text-white h-screen fixed left-0 top-0 flex flex-col shadow-2xl z-40 transition-all duration-300 ${
-        isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+      <div className={`${rail ? 'w-72 max-w-[85vw] lg:w-20' : 'w-72 max-w-[85vw] lg:w-64'} bg-gradient-to-b from-primary-500 to-secondary-500 text-white h-[100dvh] fixed left-0 top-0 flex flex-col z-50 lg:z-40 transition-all duration-300 ${
+        isOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0 lg:shadow-2xl'
       }`}>
         <div className={`border-b border-white/20 ${rail ? 'p-4 lg:px-2 lg:py-5' : 'p-4 sm:p-6'}`}>
           {rail ? (
@@ -121,10 +129,13 @@ export default function Sidebar({ activeSection, collapsed, onToggleCollapsed }:
               <p className="hidden text-center text-lg font-black tracking-tight lg:block" title="LoHaggo Admin">LH</p>
             </>
           ) : (
-            <>
-              <h1 className="text-xl sm:text-2xl font-black tracking-tight">LoHaggo Admin</h1>
-              <p className="text-white/80 text-xs sm:text-sm mt-1 font-medium">Panel de Control</p>
-            </>
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <h1 className="text-xl sm:text-2xl font-black tracking-tight">LoHaggo Admin</h1>
+                <p className="text-white/80 text-xs sm:text-sm mt-1 font-medium">Panel de Control</p>
+              </div>
+              <button onClick={() => setIsOpen(false)} aria-label="Cerrar menú" className="lg:hidden rounded-lg p-1.5 text-white/90 hover:bg-white/15"><X size={22} /></button>
+            </div>
           )}
         </div>
 
