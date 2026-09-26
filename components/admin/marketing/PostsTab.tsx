@@ -121,21 +121,23 @@ export default function PostsTab({ posts, campaigns, filters, setFilters, worksp
           <Search size={15} className="absolute left-3 top-2.5 text-gray-400" />
           <input className={`${input} pl-9`} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por título" />
         </form>
-        <select className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm sm:flex-none" value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
+        <div className="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto">
+        <select className="w-full min-w-0 truncate rounded-xl border border-gray-200 bg-white px-2 py-2 text-sm sm:w-auto sm:px-3" value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
           <option value="">Todos los estados</option>
           {Object.entries(POST_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
         </select>
-        <select className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm sm:flex-none" value={filters.channel} onChange={(e) => setFilters({ ...filters, channel: e.target.value })}>
+        <select className="w-full min-w-0 truncate rounded-xl border border-gray-200 bg-white px-2 py-2 text-sm sm:w-auto sm:px-3" value={filters.channel} onChange={(e) => setFilters({ ...filters, channel: e.target.value })}>
           <option value="">Todos los canales</option>
           {MK_CHANNELS.map((c) => <option key={c} value={c}>{CHANNEL_NAME[c]}</option>)}
         </select>
-        <select className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm sm:flex-none" value={filters.campaignId} onChange={(e) => setFilters({ ...filters, campaignId: e.target.value })}>
+        <select className="w-full min-w-0 truncate rounded-xl border border-gray-200 bg-white px-2 py-2 text-sm sm:w-auto sm:px-3" value={filters.campaignId} onChange={(e) => setFilters({ ...filters, campaignId: e.target.value })}>
           <option value="">Todas las campañas</option>
           <option value="none">Sin campaña</option>
           {campaigns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
+        </div>
         {anyEditable && (
-          <button onClick={() => setCreating(true)} className="inline-flex items-center gap-2 rounded-full bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700">
+          <button onClick={() => setCreating(true)} className="inline-flex w-full items-center justify-center gap-2 sm:w-auto rounded-full bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700">
             <Plus size={15} /> Nueva publicación
           </button>
         )}
