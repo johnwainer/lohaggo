@@ -152,6 +152,9 @@ function CommentsBox({ conn, busy, onPatch, reconnectHref }: { conn: Connection;
       {enabled && (
         <>
           <Row checked={s.includeAds !== false} disabled={ro} onChange={(v) => onPatch({ includeAds: v })} label="Incluir anuncios pagados" hint="Si lo apagas, los comentarios en anuncios no llegan a la bandeja." />
+          {s.includeAds !== false && Array.isArray(s.grantedScopes) && !s.grantedScopes.includes('ads_read') && (
+            <p className="text-[11px] text-amber-800">Para asegurar los comentarios de anuncios{conn.channel === 'INSTAGRAM' ? ' de Instagram' : ''} Meta puede pedir el permiso <span className="font-mono">ads_read</span>: <a href={reconnectHref} className="font-semibold underline">reconecta la cuenta</a> para concederlo.</p>
+          )}
           {conn.channel === 'INSTAGRAM' && (
             <Row checked={s.mentions === true} disabled={ro} onChange={(v) => onPatch({ mentions: v })} label="Menciones" hint="Cuando alguien menciona a la cuenta en una publicación suya. Necesita un permiso adicional." />
           )}

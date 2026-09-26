@@ -1635,6 +1635,7 @@ model Workspace {
   marketingBrandKit   MarketingBrandKit?
   marketingAgents     MarketingAgent[]
   marketingEditorial  MarketingEditorialSettings?
+  marketingAdDrafts   MarketingAdDraft[]
 
   @@index([isDefault])
 }
@@ -2256,6 +2257,34 @@ model MarketingBrandKit {
   autoApply    Boolean   @default(true)
   updatedAt    DateTime  @updatedAt
   workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+/// A paid ad package the ad agent wrote (copy variants, audience, AI images) for a person to copy into Meta Ads
+model MarketingAdDraft {
+  id          String    @id @default(cuid())
+  workspaceId String
+  campaignId  String?
+  title       String
+  /// generating | ready | failed | used | archived
+  status      String    @default("generating")
+  /// What the person asked: service, city, objective, offer, audience notes, formats, variants
+  input       Json
+  /// The package: strategy, audience, placements, budget, copy variants, destination URL, checklist, risks
+  output      Json?
+  /// [{ url, originalUrl, publicId, ratio, prompt, alt }]
+  images      Json?
+  /// Guardrail issues found in the copy
+  issues      Json?
+  costUsd     Float     @default(0)
+  model       String?
+  error       String?
+  createdById String?
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
 }
 
 /// Editorial review of the workspace: spelling proofreader + expert editor before anything goes out
