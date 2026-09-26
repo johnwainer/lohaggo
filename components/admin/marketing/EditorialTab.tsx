@@ -44,9 +44,9 @@ function Toggle({ on, onChange, disabled, label, help }: { on: boolean; onChange
 
 function Kpi({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4">
+    <div className="rounded-2xl border border-gray-200 bg-white p-3 sm:p-4">
       <p className="text-xs text-gray-500">{label}</p>
-      <p className="mt-1 text-2xl font-bold tabular-nums text-gray-900">{value}</p>
+      <p className="mt-1 text-xl font-bold tabular-nums text-gray-900 break-words sm:text-2xl">{value}</p>
       {hint && <p className="text-[11px] text-gray-400">{hint}</p>}
     </div>
   )
@@ -130,7 +130,7 @@ export default function EditorialTab({ workspaces }: { workspaces: Array<{ id: s
       )}
 
       <fieldset disabled={ro} className="grid gap-5 lg:grid-cols-2">
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 space-y-4">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 space-y-4">
           <h3 className="font-semibold text-gray-900">Corrector de ortografía</h3>
           <Toggle on={s.spellingEnabled} onChange={(v) => set({ spellingEnabled: v })} label="Corregir solo cada pieza" help="Ortografía, tildes, gramática y puntuación, sin cambiar el sentido. Nunca toca enlaces, @menciones, #hashtags, cifras ni nombres del catálogo." />
           <div className="grid gap-3 sm:grid-cols-2">
@@ -152,7 +152,7 @@ export default function EditorialTab({ workspaces }: { workspaces: Array<{ id: s
           </label>
         </div>
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 space-y-4">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 space-y-4">
           <h3 className="font-semibold text-gray-900">Editor experto</h3>
           <Toggle on={s.editorEnabled} onChange={(v) => set({ editorEnabled: v })} label="Calificar cada pieza" help="Aprueba, pide cambios concretos al agente o la rechaza." />
           <div className="grid gap-3 sm:grid-cols-3">
@@ -190,7 +190,7 @@ export default function EditorialTab({ workspaces }: { workspaces: Array<{ id: s
           </label>
         </div>
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 space-y-4 lg:col-span-2">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 space-y-4 lg:col-span-2">
           <h3 className="font-semibold text-gray-900">Cuándo aplica</h3>
           <div className="grid gap-4 md:grid-cols-2">
             <Toggle on={s.required} onChange={(v) => set({ required: v })} label="Revisión obligatoria antes de publicar" help="Nada de lo que está en el alcance se programa ni se publica sin una aprobación del editor de exactamente esos textos (o un «Aprobar de todos modos»)." />

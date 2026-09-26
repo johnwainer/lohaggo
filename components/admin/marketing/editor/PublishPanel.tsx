@@ -91,7 +91,7 @@ export default function PublishPanel({ post, accounts, validations, canPublish, 
             <button
               onClick={() => { const d = fromLocalInput(when); if (d) onPublish('schedule', targets, d.toISOString()) }}
               disabled={busy || !targets.length || uniqueBlocking.length > 0 || !when}
-              className="inline-flex items-center gap-1.5 rounded-full border border-primary-200 px-3 py-2 text-sm font-semibold text-primary-700 hover:bg-primary-50 disabled:opacity-50"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-primary-200 px-3 py-2 text-sm font-semibold text-primary-700 hover:bg-primary-50 disabled:opacity-50"
             >
               <CalendarClock size={15} /> Programar
             </button>
@@ -104,7 +104,7 @@ export default function PublishPanel({ post, accounts, validations, canPublish, 
 
       {(post.publications.length > 0 || webLive) && (
         <div className="space-y-2 border-t border-gray-100 pt-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs font-semibold text-gray-700">Envíos</p>
             {canPublish && scheduled.length > 0 && <button onClick={() => onPublish('cancel', [])} disabled={busy} className="inline-flex items-center gap-1 text-[11px] text-red-600 hover:underline"><XCircle size={12} /> Cancelar programación</button>}
           </div>
@@ -115,14 +115,14 @@ export default function PublishPanel({ post, accounts, validations, canPublish, 
             <div key={p.id} className={`rounded-xl bg-gray-50 px-3 py-2 text-xs space-y-1 ${superseded ? 'opacity-50' : ''}`}>
               <div className="flex items-center gap-2">
                 <MkChannelIcon channel={p.channel} size={14} />
-                <span className="flex-1 truncate text-gray-800">{p.connection?.name || CHANNEL_NAME[p.channel]}</span>
+                <span className="min-w-0 flex-1 truncate text-gray-800">{p.connection?.name || CHANNEL_NAME[p.channel]}</span>
                 <span className={superseded ? 'text-gray-500' : PUB_STATUS[p.status]?.cls || 'text-gray-500'}>{superseded ? 'Reemplazado por un envío posterior' : PUB_STATUS[p.status]?.label || p.status}</span>
               </div>
               <p className="text-gray-500">
                 {p.status === 'published' ? fmtDateTime(p.publishedAt) : `Para ${fmtDateTime(p.scheduledAt)}`}{p.attempts > 1 ? ` · intento ${p.attempts}` : ''}
                 {p.permalink?.startsWith('https://') && <> · <a href={p.permalink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-primary-700 hover:underline">Ver <ExternalLink size={10} /></a></>}
               </p>
-              {p.lastError && p.status !== 'published' && <p className={superseded ? 'text-gray-500' : 'text-red-600'}>{p.lastError}</p>}
+              {p.lastError && p.status !== 'published' && <p className={`break-words ${superseded ? 'text-gray-500' : 'text-red-600'}`}>{p.lastError}</p>}
               {p.metrics && (
                 <p className="text-gray-600">
                   {num(p.metrics.reach)} alcance · {num(p.metrics.likes)} reacciones · {num(p.metrics.comments)} comentarios · {num(p.metrics.shares)} compartidos{p.metrics.saves ? ` · ${num(p.metrics.saves)} guardados` : ''}{p.metrics.clicks ? ` · ${num(p.metrics.clicks)} clics` : ''}

@@ -19,7 +19,7 @@ const MODE_HINT: Record<string, string> = {
 
 function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return (
-    <section className={`${card} space-y-4 p-5`}>
+    <section className={`${card} space-y-4 p-4 sm:p-5`}>
       <div><h2 className="font-semibold text-gray-900">{title}</h2>{hint && <p className="mt-0.5 text-xs text-gray-500">{hint}</p>}</div>
       {children}
     </section>
@@ -72,7 +72,7 @@ export function SettingsTab({ config, reload }: { config: HaggoConfig; reload: (
           ))}
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[34rem] text-sm">
             <thead className="text-xs text-gray-500"><tr className="text-left"><th className="py-1">Área</th><th>Modo</th><th title="Solo cuenta si el área está en Autónomo. Encendido: Haggo también hace solo las acciones de riesgo medio de esa área. Apagado: esas te las propone.">En autónomo, también riesgo medio</th></tr></thead>
             <tbody>
               {DOMAINS.map((d) => (
@@ -142,9 +142,9 @@ export function SettingsTab({ config, reload }: { config: HaggoConfig; reload: (
           <div className="space-y-2">
             {c.quietHours.map((w, i) => (
               <div key={i} className="flex flex-wrap items-center gap-2 rounded-xl bg-gray-50 p-2">
-                <div className="flex gap-1">
+                <div className="flex flex-wrap gap-1">
                   {DAYS.map((d, day) => (
-                    <button key={d} onClick={() => setWindow(i, { days: w.days.includes(day) ? w.days.filter((x) => x !== day) : [...w.days, day].sort() })} className={`h-8 w-10 rounded-lg text-xs font-medium ${w.days.includes(day) ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>{d}</button>
+                    <button key={d} onClick={() => setWindow(i, { days: w.days.includes(day) ? w.days.filter((x) => x !== day) : [...w.days, day].sort() })} className={`h-9 w-9 rounded-lg text-xs font-medium sm:h-8 sm:w-10 ${w.days.includes(day) ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>{d}</button>
                   ))}
                 </div>
                 <span className="text-xs text-gray-500">de</span><input type="time" value={w.from} onChange={(e) => setWindow(i, { from: e.target.value })} className={`${input} py-1`} />

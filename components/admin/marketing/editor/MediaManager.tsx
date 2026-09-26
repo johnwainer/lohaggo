@@ -116,7 +116,7 @@ export default function MediaManager({ post, editable, onChange, channel, format
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-semibold text-gray-900">Imágenes y videos <span className="font-normal text-gray-400">({post.media.length}/10)</span></p>
         {editable && post.media.length < 10 && (
           <div className="flex items-center gap-2">
@@ -131,7 +131,7 @@ export default function MediaManager({ post, editable, onChange, channel, format
       {error && <p className="text-xs text-red-600">{error}</p>}
       {uploads.map((u) => (
         <div key={u.name} className="rounded-xl bg-gray-50 px-3 py-2 text-xs">
-          <div className="flex justify-between"><span className="truncate">{u.name}</span><span className={u.error ? 'text-red-600' : 'text-gray-500'}>{u.error || `${u.progress}%`}</span></div>
+          <div className="flex justify-between gap-2"><span className="min-w-0 truncate">{u.name}</span><span className={u.error ? 'text-red-600' : 'text-gray-500'}>{u.error || `${u.progress}%`}</span></div>
           {!u.error && <div className="mt-1 h-1 rounded bg-gray-200"><div className="h-1 rounded bg-primary-500" style={{ width: `${u.progress}%` }} /></div>}
           {u.error && <button onClick={() => setUploads((l) => l.filter((x) => x.name !== u.name))} className="mt-1 text-gray-500 underline">Quitar</button>}
         </div>
@@ -147,7 +147,7 @@ export default function MediaManager({ post, editable, onChange, channel, format
               <span className="absolute right-1 top-1 rounded bg-black/50 px-1 text-[10px] text-white">{i + 1}</span>
               {m.branded && <span className="absolute left-1 bottom-6 inline-flex items-center gap-0.5 rounded bg-white/90 px-1 text-[9px] text-gray-700"><BadgeCheck size={9} /> logo</span>}
               {editable && (
-                <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/50 px-1 py-0.5 opacity-0 group-hover:opacity-100 transition">
+                <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/50 px-1 py-0.5 opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition">
                   <button onClick={() => move(m, -1)} disabled={i === 0} className="text-white disabled:opacity-30"><ChevronLeft size={14} /></button>
                   <button onClick={() => { const alt = window.prompt('Texto alternativo (describe la imagen para accesibilidad y SEO)', m.alt || ''); if (alt !== null) mutate(api(`/api/admin/marketing/posts/${post.id}/media`, { method: 'PATCH', json: { mediaId: m.id, alt } }), m.id) }} className="text-[10px] text-white underline">alt</button>
                   {m.kind === 'image' && <button onClick={() => mutate(api(`/api/admin/marketing/posts/${post.id}/media`, { method: 'PATCH', json: { mediaId: m.id, brand: !m.branded } }), m.id)} className="text-[10px] text-white underline" title={m.branded ? 'Quitar el logo' : 'Poner el logo'}>{m.branded ? '−logo' : '+logo'}</button>}

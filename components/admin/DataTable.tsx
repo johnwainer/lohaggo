@@ -79,9 +79,9 @@ export default function DataTable({
 
   return (
     <div className="bg-white rounded-xl shadow-md overflow-hidden">
-      <div className="p-4 border-b bg-gray-50 flex items-center justify-between flex-wrap gap-4">
+      <div className="p-3 sm:p-4 border-b bg-gray-50 flex items-center justify-between flex-wrap gap-3 sm:gap-4">
         {searchable && (
-          <div className="relative flex-1 min-w-[200px] max-w-md">
+          <div className="relative flex-1 min-w-0 sm:min-w-[200px] max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
             <input
               type="text"
@@ -112,7 +112,40 @@ export default function DataTable({
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="divide-y divide-gray-200 md:hidden">
+        {paginatedData.length === 0 ? (
+          <div className="px-4 py-12 text-center text-sm text-gray-500">No se encontraron resultados</div>
+        ) : (
+          paginatedData.map((row, idx) => (
+            <div
+              key={idx}
+              onClick={() => onRowClick?.(row)}
+              className={`space-y-2 px-4 py-3 ${onRowClick ? 'cursor-pointer active:bg-gray-50' : ''}`}
+            >
+              {columns.map((column, colIdx) => {
+                const content = column.render ? column.render(row[column.key], row) : row[column.key]
+                if (colIdx === 0) {
+                  return (
+                    <div key={column.key} className="min-w-0 break-words text-sm font-medium text-gray-900">
+                      {content}
+                    </div>
+                  )
+                }
+                return (
+                  <div key={column.key} className="flex items-start justify-between gap-3 text-sm">
+                    <span className="shrink-0 pt-0.5 text-xs font-medium uppercase tracking-wider text-gray-500">
+                      {column.label}
+                    </span>
+                    <div className="min-w-0 break-words text-right text-gray-900 [&>div]:flex-wrap [&>div]:justify-end">{content}</div>
+                  </div>
+                )
+              })}
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="hidden overflow-x-auto md:block">
         <table className="w-full">
           <thead className="bg-gray-50 border-b">
             <tr>
@@ -161,7 +194,7 @@ export default function DataTable({
       </div>
 
       {totalPages > 1 && (
-        <div className="px-6 py-4 border-t bg-gray-50 flex items-center justify-between">
+        <div className="px-4 sm:px-6 py-4 border-t bg-gray-50 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm text-gray-700">
             Mostrando {startIndex + 1} a {Math.min(startIndex + itemsPerPage, sortedData.length)} de {sortedData.length} resultados
           </div>
@@ -173,7 +206,10 @@ export default function DataTable({
             >
               <ChevronLeft size={20} />
             </button>
-            <div className="flex items-center gap-1">
+            <span className="px-2 text-sm text-gray-700 sm:hidden">
+              {currentPage} / {totalPages}
+            </span>
+            <div className="hidden flex-wrap items-center gap-1 sm:flex">
               {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
                 <button
                   key={page}

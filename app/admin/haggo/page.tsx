@@ -59,10 +59,10 @@ export default function HaggoPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 p-6">
+    <div className="mx-auto max-w-6xl space-y-5 sm:space-y-6 sm:p-6">
       <div className="flex flex-wrap items-center gap-4">
         <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-orange-400 text-white shadow-sm"><Sparkles size={24} /></span>
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold text-gray-900">Haggo</h1>
           <p className="text-sm text-gray-500">El agente maestro: vigila toda la plataforma, analiza lo que pasa y te dice qué hacer.</p>
         </div>
@@ -71,7 +71,7 @@ export default function HaggoPage() {
 
       <div className="flex flex-wrap gap-1 rounded-2xl bg-gray-100 p-1">
         {TABS.map((t) => (
-          <button key={t.id} onClick={() => choose(t.id)} className={`whitespace-nowrap rounded-xl px-4 py-2 text-sm font-medium ${tab === t.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>
+          <button key={t.id} onClick={() => choose(t.id)} className={`whitespace-nowrap rounded-xl px-3 py-2 sm:px-4 text-sm font-medium ${tab === t.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>
             {t.label}{t.id === 'proposals' && data?.pendingApprovals ? <span className="ml-1.5 rounded-full bg-primary-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{data.pendingApprovals}</span> : null}
           </button>
         ))}

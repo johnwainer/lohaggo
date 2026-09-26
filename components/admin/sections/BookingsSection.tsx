@@ -214,12 +214,12 @@ export default function BookingsSection() {
 
   return (
     <div className="space-y-6">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Gestión de Reservas</h1>
+      <div className="mb-4 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Gestión de Reservas</h1>
         <p className="text-gray-600">Administra todas las reservas de la plataforma</p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-4 mb-6 sm:mb-8">
         <div className="bg-white rounded-xl shadow-md p-4">
           <p className="text-gray-600 text-xs mb-1">Total</p>
           <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
@@ -244,7 +244,7 @@ export default function BookingsSection() {
           <p className="text-red-700 text-xs mb-1">Canceladas</p>
           <p className="text-2xl font-bold text-red-800">{stats.cancelled}</p>
         </div>
-        <div className="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl shadow-md p-4">
+        <div className="col-span-2 md:col-span-1 bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl shadow-md p-4">
           <p className="text-green-100 text-xs mb-1">Ingresos</p>
           <p className="text-xl font-bold">{formatCurrency(stats.totalRevenue)}</p>
         </div>

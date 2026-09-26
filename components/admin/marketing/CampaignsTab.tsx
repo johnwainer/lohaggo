@@ -57,16 +57,16 @@ function CampaignForm({ initial, workspaceId, onClose, onSaved }: { initial?: Ca
   )
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 sm:p-4" onClick={onClose}>
-      <div className="w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl bg-white p-6 space-y-4 max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{initial ? 'Editar campaña' : 'Nueva campaña'}</h2><button onClick={onClose}><X size={18} className="text-gray-400" /></button></div>
+      <div className="w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl bg-white p-5 sm:p-6 space-y-4 max-h-[92dvh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{initial ? 'Editar campaña' : 'Nueva campaña'}</h2><button onClick={onClose} className="-m-2 p-2" aria-label="Cerrar"><X size={18} className="text-gray-400" /></button></div>
         {field('Nombre', <input className={input} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Ej. Temporada de lluvias" />)}
         {field('Objetivo', <select className={input} value={f.objective} onChange={(e) => setF({ ...f, objective: e.target.value })}>{Object.entries(OBJECTIVES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>, 'Sirve para leer las estadísticas: alcance, clics o conversaciones según lo que buscas.')}
         {field('Descripción', <textarea className={input} rows={3} value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} placeholder="Mensaje, público y qué queremos lograr" />, 'El asistente de IA la usa como contexto al redactar las publicaciones de la campaña.')}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {field('Inicio', <input type="date" className={input} value={f.startsAt} onChange={(e) => setF({ ...f, startsAt: e.target.value })} />)}
           {field('Fin', <input type="date" className={input} value={f.endsAt} onChange={(e) => setF({ ...f, endsAt: e.target.value })} />)}
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {field('Presupuesto (COP, opcional)', <input type="number" min={0} className={input} value={f.budget} onChange={(e) => setF({ ...f, budget: e.target.value })} />)}
           {field('Estado', <select className={input} value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}>{Object.entries(CAMPAIGN_STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>)}
         </div>
@@ -92,14 +92,14 @@ function CampaignDetail({ campaign, onClose }: { campaign: Campaign; onClose: ()
   const t = stats?.totals
   return (
     <div className="fixed inset-0 z-40 flex justify-end bg-black/30" onClick={onClose}>
-      <div className="h-full w-full max-w-2xl overflow-y-auto bg-white p-6 space-y-5" onClick={(e) => e.stopPropagation()}>
+      <div className="h-full w-full max-w-2xl overflow-y-auto bg-white p-4 sm:p-6 space-y-5" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3">
-          <div>
+          <div className="min-w-0">
             <p className="text-xs text-gray-500">{OBJECTIVES[campaign.objective] || campaign.objective} · {CAMPAIGN_STATUS[campaign.status]}</p>
-            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2"><span className="h-3 w-3 rounded-full" style={{ background: campaign.color }} />{campaign.name}</h2>
+            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 break-words"><span className="h-3 w-3 shrink-0 rounded-full" style={{ background: campaign.color }} />{campaign.name}</h2>
             <p className="text-sm text-gray-500">{fmtDate(campaign.startsAt)} – {fmtDate(campaign.endsAt)}{campaign.budget != null ? ` · Presupuesto $${num(campaign.budget)}` : ''}</p>
           </div>
-          <button onClick={onClose}><X size={20} className="text-gray-400" /></button>
+          <button onClick={onClose} className="-m-2 p-2" aria-label="Cerrar"><X size={20} className="text-gray-400" /></button>
         </div>
         {campaign.description && <p className="text-sm text-gray-700 whitespace-pre-wrap">{campaign.description}</p>}
         {error && <p className="text-sm text-red-600">{error}</p>}
@@ -117,9 +117,9 @@ function CampaignDetail({ campaign, onClose }: { campaign: Campaign; onClose: ()
             <div className="space-y-2">
               <h3 className="font-semibold text-gray-900">Publicaciones</h3>
               {stats.posts.length === 0 ? <p className="text-sm text-gray-500">Aún no se ha publicado nada de esta campaña.</p> : stats.posts.map((p) => (
-                <Link key={p.postId} href={`/admin/marketing/posts/${p.postId}`} className="flex items-center gap-3 rounded-xl border border-gray-100 px-3 py-2 hover:bg-gray-50">
+                <Link key={p.postId} href={`/admin/marketing/posts/${p.postId}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-gray-100 px-3 py-2 hover:bg-gray-50 sm:flex-nowrap">
                   <span className="flex gap-1">{p.channels.map((c) => <MkChannelIcon key={c} channel={c} size={16} />)}</span>
-                  <span className="flex-1 truncate text-sm text-gray-900">{p.title}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm text-gray-900">{p.title}</span>
                   <span className="text-xs text-gray-500">{num(p.totals.reach)} alcance · {num(p.totals.webViews)} visitas · {p.inboxConversations} en bandeja</span>
                 </Link>
               ))}
@@ -144,7 +144,7 @@ export default function CampaignsTab({ campaigns, workspace, canEdit, onChanged,
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-gray-500">Agrupa publicaciones con un mismo objetivo para planificarlas juntas y medirlas en conjunto.</p>
         {canEdit && workspace && (
           <div className="flex flex-wrap gap-2">
@@ -161,7 +161,7 @@ export default function CampaignsTab({ campaigns, workspace, canEdit, onChanged,
           {campaigns.map((c) => (
             <div key={c.id} className="rounded-2xl border border-gray-200 bg-white p-4 space-y-3">
               <button onClick={() => setOpen(c)} className="block text-left w-full">
-                <div className="flex items-center gap-2"><span className="h-3 w-3 rounded-full" style={{ background: c.color }} /><p className="font-semibold text-gray-900 truncate">{c.name}</p></div>
+                <div className="flex items-center gap-2"><span className="h-3 w-3 shrink-0 rounded-full" style={{ background: c.color }} /><p className="font-semibold text-gray-900 truncate">{c.name}</p></div>
                 <p className="mt-1 text-xs text-gray-500">{OBJECTIVES[c.objective] || c.objective} · {CAMPAIGN_STATUS[c.status] || c.status}</p>
                 <p className="text-xs text-gray-500">{fmtDate(c.startsAt)} – {fmtDate(c.endsAt)} · {c._count?.posts ?? 0} publicaciones</p>
               </button>

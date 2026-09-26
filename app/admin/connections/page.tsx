@@ -61,20 +61,20 @@ interface PaymentData {
 function StatusBadge({ status }: { status: ProviderStatus }) {
   if (status === 'active') {
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+      <span className="inline-flex flex-shrink-0 items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
         <CheckCircle2 size={12} /> Activo
       </span>
     )
   }
   if (status === 'inactive') {
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+      <span className="inline-flex flex-shrink-0 items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
         <XCircle size={12} /> Sin configurar
       </span>
     )
   }
   return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">
+    <span className="inline-flex flex-shrink-0 items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">
       <AlertCircle size={12} /> Desconocido
     </span>
   )
@@ -82,7 +82,7 @@ function StatusBadge({ status }: { status: ProviderStatus }) {
 
 function IntegrationCard({ integration }: { integration: Integration }) {
   return (
-    <div className={`bg-white rounded-2xl border-2 p-6 flex flex-col gap-4 transition-all ${
+    <div className={`bg-white rounded-2xl border-2 p-4 sm:p-6 flex flex-col gap-4 transition-all ${
       integration.status === 'active'
         ? 'border-green-100 hover:border-green-200'
         : integration.status === 'inactive'
@@ -90,13 +90,13 @@ function IntegrationCard({ integration }: { integration: Integration }) {
         : 'border-gray-100 hover:border-gray-200'
     }`}>
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className={`p-3 rounded-xl ${
+        <div className="flex min-w-0 items-center gap-3">
+          <div className={`flex-shrink-0 p-3 rounded-xl ${
             integration.status === 'active' ? 'bg-green-50' : 'bg-gray-50'
           }`}>
             {integration.icon}
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">{integration.category}</p>
             <h3 className="text-base font-bold text-gray-900">{integration.name}</h3>
           </div>
@@ -109,7 +109,7 @@ function IntegrationCard({ integration }: { integration: Integration }) {
       {integration.details.length > 0 && (
         <ul className="space-y-1">
           {integration.details.map((detail, i) => (
-            <li key={i} className="text-xs text-gray-600 flex items-center gap-2">
+            <li key={i} className="text-xs text-gray-600 flex items-center gap-2 break-all">
               <span className="w-1 h-1 rounded-full bg-gray-300 flex-shrink-0" />
               {detail}
             </li>
@@ -249,7 +249,7 @@ export default function ConnectionsPage() {
   const totalCount = integrations.length
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="max-w-6xl mx-auto sm:p-6">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -271,7 +271,7 @@ export default function ConnectionsPage() {
 
         {/* Summary bar */}
         {!loading && !error && (
-          <div className="mt-5 flex items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
+          <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-1 p-4 bg-gray-50 rounded-xl border border-gray-100">
             <div className={`w-2 h-2 rounded-full ${activeCount === totalCount ? 'bg-green-500' : activeCount > 0 ? 'bg-yellow-500' : 'bg-red-500'}`} />
             <span className="text-sm font-medium text-gray-700">
               {activeCount} de {totalCount} integraciones activas

@@ -612,8 +612,8 @@ export default function AdminFinanceOpsPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Finanzas Operativas</h1>
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Finanzas Operativas</h1>
           <p className="mt-1 text-gray-600">
             Opera incidentes de pago, contracargos, reembolsos y facturación tributaria en un mismo flujo.
           </p>
@@ -632,7 +632,7 @@ export default function AdminFinanceOpsPage() {
         <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <MetricCard title="Incidentes abiertos" value={String(overview.openIncidents)} icon={ShieldAlert} accent="amber" />
         <MetricCard title="Incidentes críticos" value={String(overview.criticalIncidents)} icon={AlertTriangle} accent="red" />
         <MetricCard title="SLA vencidos" value={String(overview.overdueSla)} icon={Clock3} accent="orange" />
@@ -684,7 +684,7 @@ export default function AdminFinanceOpsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)} className="space-y-4">
-        <TabsList className="h-auto w-full justify-start gap-2 overflow-x-auto rounded-xl border bg-white p-1.5">
+        <TabsList className="grid h-auto w-full grid-cols-2 justify-start gap-1 rounded-xl border bg-white p-1.5 sm:flex sm:gap-2 sm:overflow-x-auto">
           <TabsTrigger value="overview" className="rounded-lg px-4 py-2 text-xs font-semibold">Resumen</TabsTrigger>
           <TabsTrigger value="incidents" className="rounded-lg px-4 py-2 text-xs font-semibold">Incidentes</TabsTrigger>
           <TabsTrigger value="refunds" className="rounded-lg px-4 py-2 text-xs font-semibold">Reembolsos</TabsTrigger>
@@ -798,9 +798,9 @@ export default function AdminFinanceOpsPage() {
                 {filteredIncidents.map((item) => (
                   <div key={item.id} className="rounded-xl border p-4">
                     <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                      <div>
+                      <div className="min-w-0">
                         <h3 className="text-sm font-semibold text-gray-900">{item.title}</h3>
-                        <p className="mt-1 text-xs text-gray-600">{item.description}</p>
+                        <p className="mt-1 break-words text-xs text-gray-600">{item.description}</p>
                         <div className="mt-2 flex flex-wrap gap-2 text-xs">
                           <span className="rounded-full bg-blue-100 px-2 py-1 text-blue-700">{incidentTypeLabel[item.incidentType]}</span>
                           <span className={`rounded-full px-2 py-1 ${classForIncidentStatus(item.status)}`}>{statusLabel[item.status]}</span>
@@ -810,7 +810,7 @@ export default function AdminFinanceOpsPage() {
                             <span className="rounded-full bg-amber-100 px-2 py-1 text-amber-700">SLA: {formatDate(item.slaDueAt)}</span>
                           ) : null}
                         </div>
-                        <div className="mt-2 text-xs text-gray-500">
+                        <div className="mt-2 break-all text-xs text-gray-500">
                           Cliente: {item.user?.name || '-'} · Socio: {item.partner?.user?.name || '-'} · Pago: {item.payment?.id || '-'}
                         </div>
                       </div>
@@ -865,7 +865,7 @@ export default function AdminFinanceOpsPage() {
                         <p className="mb-1 text-xs font-medium text-gray-600">Timeline (últimos eventos)</p>
                         <div className="max-h-[120px] space-y-1 overflow-y-auto rounded-lg border p-2">
                           {item.events.map((evt) => (
-                            <div key={evt.id} className="text-xs text-gray-600">
+                            <div key={evt.id} className="break-words text-xs text-gray-600">
                               <span className="font-medium">{evt.action}</span> · {evt.actorEmail || 'system'} · {new Date(evt.createdAt).toLocaleString('es-CO')}
                               {evt.note ? <div className="text-gray-500">{evt.note}</div> : null}
                             </div>
@@ -943,7 +943,7 @@ export default function AdminFinanceOpsPage() {
                         </div>
                         <button
                           onClick={() => selectPaymentForRefund(payment)}
-                          className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+                          className="shrink-0 self-start rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 md:self-auto"
                         >
                           Usar pago
                         </button>
@@ -989,13 +989,13 @@ export default function AdminFinanceOpsPage() {
                   return (
                     <div key={item.id} className="rounded-xl border p-4">
                       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                        <div>
-                          <p className="text-sm font-semibold text-gray-900">{item.reason}</p>
+                        <div className="min-w-0">
+                          <p className="break-words text-sm font-semibold text-gray-900">{item.reason}</p>
                           <p className="text-xs text-gray-600">
                             Solicitado por: {item.user?.name || item.requestedBy || 'N/A'} · creado {new Date(item.createdAt).toLocaleString('es-CO')}
                           </p>
                         </div>
-                        <span className={`rounded-full px-2 py-1 text-xs font-medium ${classForRefundStatus(item.status)}`}>
+                        <span className={`self-start rounded-full px-2 py-1 text-xs font-medium md:self-auto ${classForRefundStatus(item.status)}`}>
                           {refundStatusLabel[item.status]}
                         </span>
                       </div>
@@ -1010,7 +1010,7 @@ export default function AdminFinanceOpsPage() {
                           Servicio: <span className="font-semibold">{item.booking?.service?.name || 'N/A'}</span>
                         </div>
                         <div className="rounded border bg-gray-50 px-2 py-1.5">
-                          Pago: <span className="font-semibold">{item.payment?.id || 'N/A'}</span>
+                          Pago: <span className="break-all font-semibold">{item.payment?.id || 'N/A'}</span>
                         </div>
                         <div className="rounded border bg-gray-50 px-2 py-1.5">
                           Payout: <span className="font-semibold">{item.payment?.payout?.status || 'N/A'}</span>
@@ -1117,7 +1117,55 @@ export default function AdminFinanceOpsPage() {
                 <SelectField label="Tipo" value={taxFilters.type} onChange={(value) => setTaxFilters((prev) => ({ ...prev, type: value }))} options={['ALL', ...TAX_TYPES]} />
               </div>
 
-              <div className="overflow-x-auto">
+              <div className="space-y-3 md:hidden">
+                {loading ? (
+                  <div className="rounded-lg border p-4 text-center text-sm text-gray-500">Cargando documentos...</div>
+                ) : filteredTaxDocs.length === 0 ? (
+                  <div className="rounded-lg border p-4 text-center text-sm text-gray-500">Sin documentos para estos filtros.</div>
+                ) : (
+                  filteredTaxDocs.map((doc) => (
+                    <div key={doc.id} className="rounded-xl border p-3 text-sm">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="break-all font-medium text-gray-900">{doc.documentNumber}</div>
+                          <div className="text-xs text-gray-500">{doc.user?.name || doc.generatedBy || '-'}</div>
+                        </div>
+                        <span className={`shrink-0 rounded-full px-2 py-1 text-xs font-medium ${classForTaxStatus(doc.status)}`}>
+                          {taxStatusLabel[doc.status]}
+                        </span>
+                      </div>
+                      <div className="mt-2 flex flex-wrap justify-between gap-x-3 gap-y-1 text-xs text-gray-600">
+                        <span>{taxTypeLabel[doc.type]}</span>
+                        <span className="font-semibold text-gray-900">{formatCurrency(doc.totalAmount)}</span>
+                      </div>
+                      <div className="mt-1 text-xs text-gray-500">
+                        Emisión: {formatDate(doc.issueDate)} · Envío: {formatDate(doc.sentAt)}
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <select
+                          value={doc.status}
+                          onChange={(e) => void changeTaxDoc(doc.id, { status: e.target.value as TaxDocumentStatus })}
+                          className="min-w-0 rounded-lg border px-2 py-2 text-xs"
+                          disabled={saving}
+                        >
+                          {TAX_STATUSES.map((status) => (
+                            <option key={status} value={status}>{taxStatusLabel[status]}</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => void changeTaxDoc(doc.id, { issueDate: new Date().toISOString(), sentAt: new Date().toISOString(), status: 'SENT' })}
+                          className="rounded-lg border px-2 py-2 text-xs hover:bg-gray-50"
+                          disabled={saving}
+                        >
+                          Marcar enviado
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="hidden overflow-x-auto md:block">
                 <table className="w-full min-w-[980px] text-sm">
                   <thead>
                     <tr className="border-b bg-gray-50 text-left">
@@ -1188,7 +1236,7 @@ export default function AdminFinanceOpsPage() {
       </Tabs>
 
       {saving ? (
-        <div className="fixed bottom-4 right-4 z-50 rounded-lg border bg-white px-4 py-2 text-xs shadow">
+        <div className="fixed bottom-4 right-4 z-50 max-w-[calc(100vw-2rem)] rounded-lg border bg-white px-4 py-2 text-xs shadow">
           Guardando cambios operativos...
         </div>
       ) : null}
@@ -1216,12 +1264,12 @@ function MetricCard({
 
   return (
     <Card>
-      <CardContent className="flex items-center justify-between p-4">
-        <div>
+      <CardContent className="flex items-center justify-between gap-2 p-4">
+        <div className="min-w-0">
           <div className="text-xs font-medium text-gray-500">{title}</div>
-          <div className="mt-1 text-2xl font-bold text-gray-900">{value}</div>
+          <div className="mt-1 break-words text-xl font-bold text-gray-900 sm:text-2xl">{value}</div>
         </div>
-        <div className={`rounded-lg p-2 ${accents[accent]}`}>
+        <div className={`shrink-0 rounded-lg p-2 ${accents[accent]}`}>
           <Icon className="h-5 w-5" />
         </div>
       </CardContent>
@@ -1244,7 +1292,7 @@ function ActionCard({
     <div className="rounded-xl border bg-white p-4">
       <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
       <p className="mt-1 text-xs text-gray-600">{description}</p>
-      <button onClick={onAction} className="mt-3 rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-gray-50">
+      <button onClick={onAction} className="mt-3 rounded-lg border px-3 py-2 text-xs font-medium hover:bg-gray-50 sm:py-1.5">
         {actionLabel}
       </button>
     </div>

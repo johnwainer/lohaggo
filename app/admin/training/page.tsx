@@ -78,11 +78,11 @@ const investorHighlights = [
 export default function AdminTrainingPage() {
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border bg-white p-6">
+      <div className="rounded-2xl border bg-white p-4 sm:p-6">
         <div className="flex items-start gap-3">
-          <BookOpen className="h-7 w-7 text-primary-600 mt-1" />
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Centro de Entrenamiento Admin</h1>
+          <BookOpen className="h-7 w-7 shrink-0 text-primary-600 mt-1" />
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Centro de Entrenamiento Admin</h1>
             <p className="text-gray-600 mt-1">
               Guía oficial para onboarding de administradores, operación diaria y presentación ejecutiva para inversionistas.
             </p>
@@ -94,10 +94,10 @@ export default function AdminTrainingPage() {
         {sectionGuides.map((guide) => {
           const Icon = guide.icon
           return (
-            <section key={guide.title} className="rounded-xl border bg-white p-5 space-y-3">
+            <section key={guide.title} className="rounded-xl border bg-white p-4 sm:p-5 space-y-3">
               <div className="flex items-center gap-2">
-                <Icon className="h-5 w-5 text-primary-600" />
-                <h2 className="text-xl font-semibold text-gray-900">{guide.title}</h2>
+                <Icon className="h-5 w-5 shrink-0 text-primary-600" />
+                <h2 className="text-lg sm:text-xl font-semibold text-gray-900">{guide.title}</h2>
               </div>
               <p className="text-sm text-gray-600">{guide.purpose}</p>
               <ul className="space-y-2 text-sm text-gray-700">
@@ -112,10 +112,10 @@ export default function AdminTrainingPage() {
         })}
       </div>
 
-      <section className="rounded-xl border bg-white p-5 space-y-3">
+      <section className="rounded-xl border bg-white p-4 sm:p-5 space-y-3">
         <div className="flex items-center gap-2">
-          <BarChart3 className="h-5 w-5 text-primary-600" />
-          <h2 className="text-xl font-semibold text-gray-900">Narrativa para Inversionistas</h2>
+          <BarChart3 className="h-5 w-5 shrink-0 text-primary-600" />
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Narrativa para Inversionistas</h2>
         </div>
         <p className="text-sm text-gray-600">
           Esta sección resume cómo el panel administra riesgo, eficiencia operativa y escalabilidad del negocio.
@@ -129,10 +129,10 @@ export default function AdminTrainingPage() {
         </ul>
       </section>
 
-      <section className="rounded-xl border bg-white p-5">
+      <section className="rounded-xl border bg-white p-4 sm:p-5">
         <div className="flex items-center gap-2 mb-2">
-          <Wallet className="h-5 w-5 text-primary-600" />
-          <h2 className="text-xl font-semibold text-gray-900">Checklist de Operación Segura</h2>
+          <Wallet className="h-5 w-5 shrink-0 text-primary-600" />
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Checklist de Operación Segura</h2>
         </div>
         <ol className="text-sm text-gray-700 space-y-2 list-decimal pl-5">
           <li>Revisar alertas de monitoreo y seguridad al inicio del turno.</li>

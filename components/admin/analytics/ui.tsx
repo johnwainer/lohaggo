@@ -27,7 +27,7 @@ export function Kpi({ label, value, change, invert, hint }: { label: string; val
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-4">
       <p className="text-xs font-medium text-gray-500">{label}</p>
-      <p className="mt-1 text-2xl font-bold tabular-nums text-gray-900">{value}</p>
+      <p className="mt-1 break-words text-2xl font-bold tabular-nums text-gray-900">{value}</p>
       <div className="mt-0.5 flex flex-wrap items-center gap-2">
         <Change value={change} invert={invert} />
         {change !== undefined && <span className="text-[11px] text-gray-400">vs periodo anterior</span>}
@@ -39,9 +39,9 @@ export function Kpi({ label, value, change, invert, hint }: { label: string; val
 
 export function Card({ title, subtitle, children, className = '', action }: { title: string; subtitle?: string; children: React.ReactNode; className?: string; action?: React.ReactNode }) {
   return (
-    <section className={`rounded-2xl border border-gray-200 bg-white p-4 ${className}`}>
+    <section className={`min-w-0 rounded-2xl border border-gray-200 bg-white p-4 ${className}`}>
       <div className="mb-3 flex items-start justify-between gap-2">
-        <div>
+        <div className="min-w-0">
           <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
           {subtitle && <p className="text-xs text-gray-500">{subtitle}</p>}
         </div>

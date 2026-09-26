@@ -75,7 +75,7 @@ export default function SettingsSection() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Configuración</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Configuración</h1>
         <p className="text-gray-600 mt-1">Ajustes generales de la plataforma</p>
       </div>
 
@@ -93,9 +93,9 @@ export default function SettingsSection() {
       )}
 
       {/* Rango de precios del servicio */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 sm:p-6">
         <div className="flex items-center gap-3 mb-5">
-          <div className="p-2.5 bg-primary-50 rounded-xl">
+          <div className="shrink-0 p-2.5 bg-primary-50 rounded-xl">
             <DollarSign size={20} className="text-primary-600" />
           </div>
           <div>
@@ -144,9 +144,9 @@ export default function SettingsSection() {
       </div>
 
       {/* Comisiones (solo lectura, redirige a sección Comisiones) */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 sm:p-6">
         <div className="flex items-center gap-3 mb-4">
-          <div className="p-2.5 bg-gray-50 rounded-xl">
+          <div className="shrink-0 p-2.5 bg-gray-50 rounded-xl">
             <Settings size={20} className="text-gray-500" />
           </div>
           <div>
@@ -163,7 +163,7 @@ export default function SettingsSection() {
             <p className="text-xs font-semibold text-purple-500 uppercase tracking-wide mb-1">Socio</p>
             <p className="text-2xl font-black text-purple-700">{config?.partnerCommissionRate ?? 0}%</p>
           </div>
-          <div className="rounded-xl bg-gray-50 border border-gray-100 p-4">
+          <div className="col-span-2 sm:col-span-1 rounded-xl bg-gray-50 border border-gray-100 p-4">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Plataforma</p>
             <p className="text-2xl font-black text-gray-700">{config?.commissionRate ?? 0}%</p>
           </div>
@@ -174,7 +174,7 @@ export default function SettingsSection() {
         <button
           onClick={handleSave}
           disabled={status === 'saving'}
-          className="inline-flex items-center gap-2 px-6 py-2.5 bg-primary-600 text-white rounded-xl font-semibold text-sm hover:bg-primary-700 transition-all disabled:opacity-50"
+          className="inline-flex w-full items-center justify-center gap-2 px-6 py-2.5 sm:w-auto bg-primary-600 text-white rounded-xl font-semibold text-sm hover:bg-primary-700 transition-all disabled:opacity-50"
         >
           {status === 'saving' ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
           {status === 'saving' ? 'Guardando…' : 'Guardar cambios'}

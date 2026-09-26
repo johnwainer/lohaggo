@@ -36,7 +36,7 @@ export function AnalysisTab() {
   if (!data) return <div className="flex items-center gap-2 p-6 text-gray-500"><Loader2 size={16} className="animate-spin" /> Cargando…</div>
   return (
     <div className="space-y-5">
-      <section className={`${card} p-5`}>
+      <section className={`${card} p-4 sm:p-5`}>
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <h2 className="flex flex-1 items-center gap-2 font-semibold text-gray-900"><FileText size={17} /> Informes</h2>
           <button onClick={() => generate('daily')} disabled={Boolean(running)} className={btn}>{running === 'daily' && <Loader2 size={14} className="animate-spin" />} Generar informe diario ahora</button>
@@ -50,15 +50,15 @@ export function AnalysisTab() {
             const expanded = open === r.id
             return (
               <li key={r.id} className="py-3">
-                <button onClick={() => setOpen(expanded ? null : r.id)} className="flex w-full items-start gap-3 text-left">
-                  <span className="w-32 shrink-0 text-xs text-gray-500">{when(r.startedAt)}<span className="block">{RUN_TYPE[r.type]}</span></span>
+                <button onClick={() => setOpen(expanded ? null : r.id)} className="flex w-full flex-wrap items-start gap-x-3 gap-y-1 text-left sm:flex-nowrap">
+                  <span className="w-full shrink-0 text-xs text-gray-500 sm:w-32">{when(r.startedAt)}<span className="block">{RUN_TYPE[r.type]}</span></span>
                   <span className={`min-w-0 flex-1 text-sm ${r.status === 'error' ? 'text-rose-600' : 'text-gray-900'}`}>{r.summary || r.error}</span>
                   <span className="shrink-0 text-xs text-gray-400">{r.costUsd ? usd(r.costUsd) : ''}</span>
                   <ChevronDown size={16} className={`shrink-0 text-gray-400 transition ${expanded ? 'rotate-180' : ''}`} />
                 </button>
                 {expanded && (
-                  <div className="mt-3 space-y-4 rounded-xl bg-gray-50 p-4">
-                    {r.report && <div className="whitespace-pre-line text-sm leading-relaxed text-gray-800">{r.report}</div>}
+                  <div className="mt-3 space-y-4 rounded-xl bg-gray-50 p-3 sm:p-4">
+                    {r.report && <div className="whitespace-pre-line break-words text-sm leading-relaxed text-gray-800">{r.report}</div>}
                     {!!r.output?.recommendations?.length && (
                       <div>
                         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Recomendaciones</p>
@@ -77,7 +77,7 @@ export function AnalysisTab() {
         </ul>
       </section>
 
-      <section className={`${card} p-5`}>
+      <section className={`${card} p-4 sm:p-5`}>
         <div className="mb-1 flex items-center gap-2">
           <h2 className="flex-1 font-semibold text-gray-900">Hallazgos</h2>
           {(['open', 'closed'] as const).map((s) => (

@@ -36,11 +36,11 @@ function PostCard({ post, children }: { post: AgentPost; children?: React.ReactN
             {post.pillar && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600">{post.pillar}</span>}
             {meta.confidence != null && <span className={`text-[11px] ${meta.confidence < 0.7 ? 'text-amber-700' : 'text-gray-500'}`}>Confianza {Math.round(meta.confidence * 100)} %</span>}
           </div>
-          <Link href={`/admin/marketing/posts/${post.id}`} className="block font-semibold text-gray-900 hover:text-primary-700">{post.title}</Link>
+          <Link href={`/admin/marketing/posts/${post.id}`} className="block break-words font-semibold text-gray-900 hover:text-primary-700">{post.title}</Link>
           {(meta.hypothesis || meta.rationale) && <p className="text-xs text-gray-500">{meta.rationale || meta.hypothesis}</p>}
         </div>
       </div>
-      <div className="flex gap-1">
+      <div className="flex flex-wrap gap-1">
         {post.variants.map((x) => (
           <button key={x.channel} onClick={() => setChannel(x.channel)} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs ${channel === x.channel ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'}`}><MkChannelIcon channel={x.channel} size={12} /> {CHANNEL_NAME[x.channel]}</button>
         ))}
@@ -112,9 +112,9 @@ export default function AgentDetail({ agentId, onBack, onEdit }: { agentId: stri
   ]
 
   const ideaRow = (i: Idea) => (
-    <label key={i.id} className="flex items-start gap-3 rounded-xl border border-gray-100 px-3 py-2 hover:bg-gray-50">
+    <label key={i.id} className="flex flex-wrap items-start gap-x-3 gap-y-1.5 rounded-xl border border-gray-100 px-3 py-2 hover:bg-gray-50 sm:flex-nowrap">
       {i.status === 'proposed' && can.edit && <input type="checkbox" className="mt-1" checked={selected.includes(i.id)} onChange={() => setSelected((s) => (s.includes(i.id) ? s.filter((x) => x !== i.id) : [...s, i.id]))} />}
-      <div className="min-w-0 flex-1 space-y-0.5">
+      <div className="min-w-[60%] flex-1 space-y-0.5 sm:min-w-0">
         <p className="text-sm font-medium text-gray-900">{i.angle}</p>
         <p className="text-xs text-gray-500">{fmtDate(i.targetDate)} · {i.pillar}{i.service ? ` · ${i.service}` : ''}{i.explore ? ' · prueba' : ''}</p>
         {i.rationale && <p className="text-xs text-gray-600">{i.rationale}</p>}
@@ -140,7 +140,7 @@ export default function AgentDetail({ agentId, onBack, onEdit }: { agentId: stri
             <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${MODE_INFO[a.effectiveMode].cls}`}>{MODE_INFO[a.effectiveMode].label}{a.effectiveMode !== a.mode ? ` (configurado: ${MODE_INFO[a.mode].label})` : ''}</span>
             {a.trialPostsRemaining > 0 && a.mode !== 'copilot' && <span className="text-[11px] text-gray-500">Período de prueba: {a.trialPostsRemaining} piezas</span>}
           </div>
-          <h2 className="mt-1 flex items-center gap-2 text-xl font-bold text-gray-900"><span className="h-3 w-3 rounded-full" style={{ background: a.campaign.color }} />{a.campaign.name}</h2>
+          <h2 className="mt-1 flex items-center gap-2 text-xl font-bold text-gray-900 break-words"><span className="h-3 w-3 shrink-0 rounded-full" style={{ background: a.campaign.color }} />{a.campaign.name}</h2>
           <p className="text-sm text-gray-500">{OBJECTIVES[a.campaign.objective] || a.campaign.objective} · {fmtDate(a.campaign.startsAt)} – {a.config.alwaysOn ? 'siempre activa' : fmtDate(a.campaign.endsAt)}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -160,7 +160,7 @@ export default function AgentDetail({ agentId, onBack, onEdit }: { agentId: stri
       {error && <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><AlertTriangle size={16} className="mt-0.5 shrink-0" /><span className="flex-1">{error}</span><button onClick={() => setError(null)}><X size={14} /></button></div>}
       {notice && <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"><CheckCircle2 size={16} /> {notice}</div>}
 
-      <div className="flex gap-1 overflow-x-auto border-b border-gray-200">
+      <div className="flex flex-wrap gap-x-1 border-b border-gray-200 sm:flex-nowrap sm:overflow-x-auto">
         {SECTIONS.map(([k, label, n]) => (
           <button key={k} onClick={() => setSection(k)} className={`inline-flex items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2 text-sm -mb-px ${section === k ? 'border-primary-600 font-medium text-primary-700' : 'border-transparent text-gray-500 hover:text-gray-800'}`}>
             {label}{n ? <span className="rounded-full bg-primary-600 px-1.5 text-[10px] font-bold text-white">{n}</span> : null}
@@ -201,7 +201,7 @@ export default function AgentDetail({ agentId, onBack, onEdit }: { agentId: stri
               <h3 className="font-semibold text-gray-900">Lo último publicado</h3>
               {d.recent.map((p) => (
                 <Link key={p.id} href={`/admin/marketing/posts/${p.id}`} className="flex items-center gap-3 rounded-xl border border-gray-100 px-3 py-2 hover:bg-gray-50">
-                  <StatusChip status={p.status} /><span className="flex-1 truncate text-sm text-gray-900">{p.title}</span><span className="text-xs text-gray-500">{fmtDateTime(p.publishedAt)}</span>
+                  <StatusChip status={p.status} /><span className="min-w-0 flex-1 truncate text-sm text-gray-900">{p.title}</span><span className="shrink-0 text-xs text-gray-500">{fmtDateTime(p.publishedAt)}</span>
                 </Link>
               ))}
             </div>
@@ -213,7 +213,7 @@ export default function AgentDetail({ agentId, onBack, onEdit }: { agentId: stri
         <div className="space-y-4">
           {!a.strategy ? <p className="text-sm text-gray-500">Aún no hay estrategia.</p> : (
             <>
-              <div className="rounded-2xl border border-gray-200 bg-white p-5 space-y-4">
+              <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 space-y-4">
                 <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
                   {a.strategyApprovedAt ? <span className="inline-flex items-center gap-1 text-emerald-700"><CheckCircle2 size={13} /> Aprobada el {fmtDateTime(a.strategyApprovedAt)}</span> : <span className="text-amber-700">Propuesta el {fmtDateTime(a.strategyProposedAt)}: falta aprobarla</span>}
                 </div>
@@ -246,7 +246,7 @@ export default function AgentDetail({ agentId, onBack, onEdit }: { agentId: stri
           )}
           {can.edit && (
             <div className="flex flex-wrap gap-2">
-              <input className={`${input} max-w-md`} value={instruction} onChange={(e) => setInstruction(e.target.value)} placeholder="Indicación para una nueva propuesta (opcional)" />
+              <input className={`${input} min-w-0 sm:max-w-md`} value={instruction} onChange={(e) => setInstruction(e.target.value)} placeholder="Indicación para una nueva propuesta (opcional)" />
               <button onClick={() => act('strategy', { instruction }, 'strategy')} disabled={Boolean(busy)} className="inline-flex items-center gap-1.5 rounded-full border border-primary-200 px-4 py-2 text-sm text-primary-700 hover:bg-primary-50">{busy === 'strategy' ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />} {a.strategy ? 'Proponer otra' : 'Proponer estrategia'}</button>
             </div>
           )}
@@ -325,7 +325,7 @@ export default function AgentDetail({ agentId, onBack, onEdit }: { agentId: stri
 
       {section === 'activity' && (
         <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[560px] text-sm">
             <thead className="bg-gray-50 text-left text-xs text-gray-500"><tr><th className="px-3 py-2">Cuándo</th><th className="px-3 py-2">Qué</th><th className="px-3 py-2">Resultado</th><th className="px-3 py-2 text-right">Costo</th></tr></thead>
             <tbody>
               {d.runs.map((r) => (
@@ -350,7 +350,7 @@ export default function AgentDetail({ agentId, onBack, onEdit }: { agentId: stri
           </div>
           {!latest ? <p className="rounded-2xl border border-dashed border-gray-200 p-8 text-center text-sm text-gray-500">Aún no hay aprendizajes: hacen falta al menos 3 envíos con 48 h publicados.</p> : (
             <>
-              <div className="rounded-2xl border border-gray-200 bg-white p-5 space-y-3">
+              <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 space-y-3">
                 <p className="text-xs text-gray-500">{fmtDate(latest.periodStart)} – {fmtDate(latest.periodEnd)} · {latest.sampleSize} envíos medidos</p>
                 <div className="whitespace-pre-wrap text-sm text-gray-800">{latest.insights}</div>
                 {latest.recommendations.length > 0 && (
@@ -371,9 +371,9 @@ export default function AgentDetail({ agentId, onBack, onEdit }: { agentId: stri
                     <p className="mb-2 text-sm font-semibold text-gray-900">{DIMENSION_LABEL[dim]}</p>
                     {latest.metricsByDimension.byDimension[dim].slice(0, 6).map((x) => (
                       <div key={x.value} className="flex items-center gap-2 text-sm">
-                        <span className="w-32 truncate text-gray-700">{x.value.replace(/^(WEB|INSTAGRAM|FACEBOOK):/, (m) => `${CHANNEL_NAME[m.slice(0, -1) as 'WEB']} · `)}</span>
+                        <span className="w-24 shrink-0 truncate text-gray-700 sm:w-32">{x.value.replace(/^(WEB|INSTAGRAM|FACEBOOK):/, (m) => `${CHANNEL_NAME[m.slice(0, -1) as 'WEB']} · `)}</span>
                         <div className="h-2 flex-1 rounded-full bg-gray-100"><div className={`h-2 rounded-full ${x.smoothedLift >= 1 ? 'bg-emerald-500' : 'bg-orange-400'}`} style={{ width: `${Math.min(100, x.smoothedLift * 50)}%` }} /></div>
-                        <span className="w-20 text-right text-xs text-gray-500">{x.smoothedLift.toFixed(2)}× ({x.n}){x.lowData ? '*' : ''}</span>
+                        <span className="w-20 shrink-0 text-right text-xs text-gray-500">{x.smoothedLift.toFixed(2)}× ({x.n}){x.lowData ? '*' : ''}</span>
                       </div>
                     ))}
                   </div>

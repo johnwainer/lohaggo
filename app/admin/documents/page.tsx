@@ -272,6 +272,59 @@ export default function AdminDocumentsPage() {
 
   const pendingCount = documents.filter(d => d.status === 'PENDING').length
 
+  const renderDocActions = (doc: Document) => (
+    <div className="flex items-center gap-2">
+      <a
+        href={`/api/documents/view/${doc.id}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex h-9 w-9 items-center justify-center text-blue-600 hover:text-blue-900 md:h-auto md:w-auto"
+        title="Ver documento"
+      >
+        <Eye className="w-5 h-5" />
+      </a>
+      {doc.status === 'PENDING' && (
+        <>
+          <button
+            onClick={() => {
+              setSelectedDocument(doc)
+              setReviewAction('APPROVED')
+              setShowReviewModal(true)
+            }}
+            className="inline-flex h-9 w-9 items-center justify-center text-green-600 hover:text-green-900 md:h-auto md:w-auto"
+            title="Aprobar"
+          >
+            <CheckCircle className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => {
+              setSelectedDocument(doc)
+              setReviewAction('REJECTED')
+              setShowReviewModal(true)
+            }}
+            className="inline-flex h-9 w-9 items-center justify-center text-red-600 hover:text-red-900 md:h-auto md:w-auto"
+            title="Rechazar"
+          >
+            <XCircle className="w-5 h-5" />
+          </button>
+        </>
+      )}
+      {doc.status === 'APPROVED' &&
+        ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP'].includes(doc.type) &&
+        !doc.partner.verified && (
+        <button
+          onClick={() => handleActivatePartner(doc.partner.id)}
+          disabled={activatingPartnerId === doc.partner.id}
+          title="Verificar y activar socio en plataforma"
+          className="flex items-center gap-1 text-xs font-semibold bg-primary-600 hover:bg-primary-700 disabled:bg-gray-300 text-white px-2 py-1 rounded-lg transition-colors"
+        >
+          <Zap className="w-3.5 h-3.5" />
+          {activatingPartnerId === doc.partner.id ? 'Activando...' : 'Activar'}
+        </button>
+      )}
+    </div>
+  )
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -283,7 +336,7 @@ export default function AdminDocumentsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Gestión de Documentos</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2 sm:text-3xl">Gestión de Documentos</h1>
         <p className="text-gray-600">
           Revisa y aprueba los documentos de verificación de los socios
         </p>
@@ -291,7 +344,7 @@ export default function AdminDocumentsPage() {
 
       {/* Tabs */}
       <div className="border-b border-gray-200">
-        <nav className="-mb-px flex gap-6">
+        <nav className="-mb-px flex flex-wrap gap-x-6 gap-y-1">
           <button
             onClick={() => setActiveTab('documents')}
             className={`flex items-center gap-2 py-3 px-1 border-b-2 text-sm font-medium transition-colors ${
@@ -329,37 +382,37 @@ export default function AdminDocumentsPage() {
 
       {activeTab === 'documents' && (
         <>
-          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
+          <div className="bg-white rounded-lg shadow-md p-4 mb-6 sm:p-6">
+            <div className="grid grid-cols-3 gap-2 mb-4 sm:gap-4 sm:mb-6">
+              <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200 sm:p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-yellow-600 font-medium">Pendientes</p>
+                    <p className="text-xs text-yellow-600 font-medium sm:text-sm">Pendientes</p>
                     <p className="text-2xl font-bold text-yellow-900">{pendingCount}</p>
                   </div>
-                  <Clock className="w-8 h-8 text-yellow-600" />
+                  <Clock className="hidden w-8 h-8 text-yellow-600 sm:block" />
                 </div>
               </div>
-              <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+              <div className="bg-green-50 rounded-lg p-3 border border-green-200 sm:p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-green-600 font-medium">Aprobados</p>
+                    <p className="text-xs text-green-600 font-medium sm:text-sm">Aprobados</p>
                     <p className="text-2xl font-bold text-green-900">
                       {documents.filter(d => d.status === 'APPROVED').length}
                     </p>
                   </div>
-                  <CheckCircle className="w-8 h-8 text-green-600" />
+                  <CheckCircle className="hidden w-8 h-8 text-green-600 sm:block" />
                 </div>
               </div>
-              <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+              <div className="bg-red-50 rounded-lg p-3 border border-red-200 sm:p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-red-600 font-medium">Rechazados</p>
+                    <p className="text-xs text-red-600 font-medium sm:text-sm">Rechazados</p>
                     <p className="text-2xl font-bold text-red-900">
                       {documents.filter(d => d.status === 'REJECTED').length}
                     </p>
                   </div>
-                  <XCircle className="w-8 h-8 text-red-600" />
+                  <XCircle className="hidden w-8 h-8 text-red-600 sm:block" />
                 </div>
               </div>
             </div>
@@ -395,7 +448,36 @@ export default function AdminDocumentsPage() {
                 <p className="text-gray-500">No hay documentos para mostrar</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <>
+              <ul className="divide-y divide-gray-200 md:hidden">
+                {filteredDocuments.map((doc) => (
+                  <li key={doc.id} className="p-4 space-y-2">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 h-9 w-9 bg-gray-200 rounded-full flex items-center justify-center">
+                        <User className="w-5 h-5 text-gray-600" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium text-gray-900 flex flex-wrap items-center gap-1.5 break-words">
+                          {doc.partner.user.name}
+                          {doc.partner.verified
+                            ? <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">Verificado</span>
+                            : <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-medium">Sin verificar</span>
+                          }
+                        </div>
+                        <div className="text-xs text-gray-500 break-all">{doc.partner.user.email}</div>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 text-sm text-gray-900">
+                      {getDocumentIcon(doc.type)}
+                      <span>{DOCUMENT_LABELS[doc.type]}</span>
+                      {getStatusBadge(doc.status)}
+                      <span className="text-xs text-gray-500">{new Date(doc.createdAt).toLocaleDateString('es-CO')}</span>
+                    </div>
+                    <div className="text-sm font-medium">{renderDocActions(doc)}</div>
+                  </li>
+                ))}
+              </ul>
+              <div className="hidden overflow-x-auto md:block">
                 <table className="w-full">
                   <thead className="bg-gray-50 border-b">
                     <tr>
@@ -449,62 +531,14 @@ export default function AdminDocumentsPage() {
                           {new Date(doc.createdAt).toLocaleDateString('es-CO')}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <div className="flex items-center gap-2">
-                            <a
-                              href={`/api/documents/view/${doc.id}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-900"
-                              title="Ver documento"
-                            >
-                              <Eye className="w-5 h-5" />
-                            </a>
-                            {doc.status === 'PENDING' && (
-                              <>
-                                <button
-                                  onClick={() => {
-                                    setSelectedDocument(doc)
-                                    setReviewAction('APPROVED')
-                                    setShowReviewModal(true)
-                                  }}
-                                  className="text-green-600 hover:text-green-900"
-                                  title="Aprobar"
-                                >
-                                  <CheckCircle className="w-5 h-5" />
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setSelectedDocument(doc)
-                                    setReviewAction('REJECTED')
-                                    setShowReviewModal(true)
-                                  }}
-                                  className="text-red-600 hover:text-red-900"
-                                  title="Rechazar"
-                                >
-                                  <XCircle className="w-5 h-5" />
-                                </button>
-                              </>
-                            )}
-                            {doc.status === 'APPROVED' &&
-                              ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP'].includes(doc.type) &&
-                              !doc.partner.verified && (
-                              <button
-                                onClick={() => handleActivatePartner(doc.partner.id)}
-                                disabled={activatingPartnerId === doc.partner.id}
-                                title="Verificar y activar socio en plataforma"
-                                className="flex items-center gap-1 text-xs font-semibold bg-primary-600 hover:bg-primary-700 disabled:bg-gray-300 text-white px-2 py-1 rounded-lg transition-colors"
-                              >
-                                <Zap className="w-3.5 h-3.5" />
-                                {activatingPartnerId === doc.partner.id ? 'Activando...' : 'Activar'}
-                              </button>
-                            )}
-                          </div>
+                          {renderDocActions(doc)}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+              </>
             )}
           </div>
         </>
@@ -512,7 +546,7 @@ export default function AdminDocumentsPage() {
 
       {activeTab === 'pending-background' && (
         <div className="space-y-4">
-          <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
             <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between mb-4">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">Socios sin antecedentes</h2>
@@ -555,7 +589,52 @@ export default function AdminDocumentsPage() {
             </div>
           ) : (
             <div className="bg-white rounded-lg shadow-md overflow-hidden">
-              <table className="w-full">
+              <ul className="divide-y divide-gray-200 md:hidden">
+                {pendingPartners.map((partner) => (
+                  <li key={partner.id} className="p-4 space-y-2">
+                    <div className="flex items-start gap-3">
+                      <div className="h-9 w-9 bg-gray-200 rounded-full flex items-center justify-center shrink-0">
+                        <User className="w-5 h-5 text-gray-600" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium text-gray-900 break-words">{partner.user.name}</div>
+                        <div className="text-xs text-gray-500 break-all">{partner.user.email}</div>
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                          <span>{partner.services[0]?.service.name ?? '—'}</span>
+                          {partner.isActive
+                            ? <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">Activo</span>
+                            : <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium">Inactivo</span>
+                          }
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      {partner.identityDoc && (
+                        <a
+                          href={partner.identityDoc.documentUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          {DOCUMENT_LABELS[partner.identityDoc.type] ?? partner.identityDoc.type}
+                        </a>
+                      )}
+                      <button
+                        onClick={() => {
+                          setSelectedPartner(partner)
+                          setShowBackgroundModal(true)
+                        }}
+                        className="flex min-h-9 items-center gap-1.5 text-xs font-semibold bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg transition-colors"
+                      >
+                        <Shield className="w-3.5 h-3.5" />
+                        Subir antecedentes
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <table className="hidden w-full md:table">
                 <thead className="bg-gray-50 border-b">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -647,7 +726,7 @@ export default function AdminDocumentsPage() {
             <div className="bg-gray-50 rounded-lg p-4">
               <p className="text-sm text-gray-600 mb-2">Socio</p>
               <p className="font-medium">{selectedDocument.partner.user.name}</p>
-              <p className="text-sm text-gray-600">{selectedDocument.partner.user.email}</p>
+              <p className="text-sm text-gray-600 break-all">{selectedDocument.partner.user.email}</p>
             </div>
 
             <div className="bg-gray-50 rounded-lg p-4">
@@ -670,14 +749,14 @@ export default function AdminDocumentsPage() {
               </div>
             )}
 
-            <div className="flex gap-4 pt-4">
+            <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row sm:gap-4">
               <button
                 onClick={() => {
                   setShowReviewModal(false)
                   setSelectedDocument(null)
                   setRejectionReason('')
                 }}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors sm:py-2"
               >
                 Cancelar
               </button>
@@ -732,7 +811,7 @@ export default function AdminDocumentsPage() {
             {selectedPartner && (
               <div className="bg-green-50 rounded-lg p-4 border border-green-200 space-y-2">
                 <p className="text-sm text-green-700 font-medium">{selectedPartner.user.name}</p>
-                <p className="text-xs text-green-600">{selectedPartner.user.email}</p>
+                <p className="text-xs text-green-600 break-all">{selectedPartner.user.email}</p>
                 {selectedPartner.identityDoc && (
                   <a
                     href={selectedPartner.identityDoc.documentUrl}
@@ -755,18 +834,18 @@ export default function AdminDocumentsPage() {
                 type="file"
                 accept=".pdf,application/pdf,image/*"
                 onChange={(e) => setBackgroundFile(e.target.files?.[0] || null)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full min-w-0 px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
 
-            <div className="flex gap-4 pt-4">
+            <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row sm:gap-4">
               <button
                 onClick={() => {
                   setShowBackgroundModal(false)
                   setSelectedPartner(null)
                   setBackgroundFile(null)
                 }}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors sm:py-2"
               >
                 Cancelar
               </button>

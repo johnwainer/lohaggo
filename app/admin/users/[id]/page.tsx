@@ -228,8 +228,8 @@ function Section({ title, children, empty }: { title: string; children?: React.R
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-start gap-3 px-5 py-3">
-      <span className="text-xs text-gray-500 w-36 flex-shrink-0 pt-0.5">{label}</span>
-      <div className="flex-1 text-sm text-gray-800">{children}</div>
+      <span className="text-xs text-gray-500 w-28 sm:w-36 flex-shrink-0 pt-0.5">{label}</span>
+      <div className="min-w-0 flex-1 break-words text-sm text-gray-800">{children}</div>
     </div>
   )
 }
@@ -308,16 +308,16 @@ export default function UserProfilePage({ params }: { params: Promise<{ id: stri
   return (
     <div className="space-y-6 pb-16">
       {/* Header */}
-      <div className="flex items-start gap-4">
+      <div className="flex flex-wrap items-start gap-3 sm:flex-nowrap sm:gap-4">
         <button
           onClick={() => router.back()}
-          className="mt-1 p-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
+          className="mt-1 shrink-0 p-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
         >
           <ArrowLeft size={18} className="text-gray-600" />
         </button>
-        <div className="flex-1">
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-bold text-gray-900">{user.name}</h1>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <h1 className="break-words text-xl sm:text-2xl font-bold text-gray-900">{user.name}</h1>
             <Badge
               label={user.role === 'PARTNER' ? 'Socio' : user.role === 'ADMIN' ? 'Admin' : 'Cliente'}
               cls={user.role === 'PARTNER' ? 'bg-purple-100 text-purple-800' : user.role === 'ADMIN' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}
@@ -327,9 +327,9 @@ export default function UserProfilePage({ params }: { params: Promise<{ id: stri
               <Badge label="Verificado" cls="bg-green-100 text-green-700" />
             )}
           </div>
-          <p className="text-gray-500 text-sm mt-0.5">{user.email} · ID: {user.id}</p>
+          <p className="break-all text-gray-500 text-sm mt-0.5">{user.email} · ID: {user.id}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0 sm:flex-nowrap">
           {isPartner && (
             user.partnerProfile?.slug ? (
               <a
@@ -374,15 +374,15 @@ export default function UserProfilePage({ params }: { params: Promise<{ id: stri
       </div>
 
       {/* Avatar + stats strip */}
-      <div className="flex items-center gap-5 p-5 rounded-2xl bg-white border border-gray-200">
+      <div className="flex items-center gap-4 p-4 sm:gap-5 sm:p-5 rounded-2xl bg-white border border-gray-200">
         {user.image ? (
-          <img src={user.image} alt={user.name} className="w-16 h-16 rounded-full object-cover flex-shrink-0" />
+          <img src={user.image} alt={user.name} className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover flex-shrink-0" />
         ) : (
-          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary-400 to-secondary-400 text-white flex items-center justify-center text-xl font-bold flex-shrink-0">
+          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-primary-400 to-secondary-400 text-white flex items-center justify-center text-lg sm:text-xl font-bold flex-shrink-0">
             {initials}
           </div>
         )}
-        <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="min-w-0 flex-1 grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
           <Stat label="Reservas" value={user._count.bookings} />
           <Stat label="Pagos" value={user._count.payments} />
           <Stat label="Conversaciones" value={user._count.conversations} />
@@ -391,7 +391,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ id: stri
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-1 overflow-x-auto rounded-2xl bg-gray-100 p-1">
+      <div className="flex flex-wrap gap-1 rounded-2xl bg-gray-100 p-1">
         {visibleTabs.map(t => (
           <button
             key={t.id}
@@ -494,14 +494,14 @@ function MagicLinkModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90dvh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2">
             <Link2 size={18} className="text-primary-600" />
             <h2 className="font-semibold text-gray-900">Generar Magic Link</h2>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100">
+          <button onClick={onClose} className="-m-1 p-2 sm:m-0 sm:p-1 rounded-lg hover:bg-gray-100">
             <X size={18} className="text-gray-500" />
           </button>
         </div>
@@ -627,7 +627,7 @@ function TabResumen({ user, allTags }: { user: UserProfile; allTags: string[] })
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
       <Section title="Información personal">
         <Row label="Nombre">{user.name}</Row>
-        <Row label="Email"><span className="flex items-center gap-1"><Mail size={13} />{user.email}</span></Row>
+        <Row label="Email"><span className="flex items-center gap-1"><Mail size={13} className="shrink-0" /><span className="break-all">{user.email}</span></span></Row>
         <Row label="Teléfono"><span className="flex items-center gap-1"><Phone size={13} />{user.phone || '—'}</span></Row>
         <Row label="Rol">
           <Badge
@@ -638,7 +638,7 @@ function TabResumen({ user, allTags }: { user: UserProfile; allTags: string[] })
         <Row label="Estado"><Badge label={user.isActive ? 'Activo' : 'Inactivo'} cls={user.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'} /></Row>
         <Row label="Registro">{fmt(user.createdAt)}</Row>
         <Row label="Última actualiz.">{fmt(user.updatedAt)}</Row>
-        <Row label="MP Customer ID"><span className="font-mono text-xs">{user.mercadopagoCustomerId || '—'}</span></Row>
+        <Row label="MP Customer ID"><span className="break-all font-mono text-xs">{user.mercadopagoCustomerId || '—'}</span></Row>
       </Section>
 
       <Section title="Notificaciones">
@@ -675,7 +675,7 @@ function TabResumen({ user, allTags }: { user: UserProfile; allTags: string[] })
         {user.addresses.length === 0 ? 'Sin direcciones registradas' : null}
         {user.addresses.map(addr => (
           <div key={addr.id} className="px-5 py-3">
-            <div className="flex items-center gap-2 mb-0.5">
+            <div className="flex flex-wrap items-center gap-2 mb-0.5">
               <MapPin size={13} className="text-gray-400" />
               <span className="font-medium text-sm">{addr.label || `${addr.city}`}</span>
               {addr.isPrimary && <Badge label="Principal" cls="bg-blue-100 text-blue-700" />}
@@ -721,7 +721,7 @@ function BookingTable({ title, bookings, mode }: { title: string; bookings: any[
         <p className="p-5 text-sm text-gray-400">Sin reservas</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[640px] text-sm">
             <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
               <tr>
                 <th className="px-4 py-2 text-left">Servicio</th>
@@ -786,8 +786,8 @@ function TabConversaciones({ conversations }: { conversations: Conversation[] })
             {allNotes.map(note => (
               <div key={note.id} className="px-5 py-3">
                 <div className="flex items-start gap-2">
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-800 whitespace-pre-wrap">{note.body}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="break-words text-sm text-gray-800 whitespace-pre-wrap">{note.body}</p>
                     <p className="text-xs text-amber-600 mt-1">
                       {note.sentBy?.name ?? 'Admin'} · {fmtDateTime(note.sentAt)} · {note.channel}
                     </p>
@@ -835,7 +835,7 @@ function TabConversaciones({ conversations }: { conversations: Conversation[] })
                         )}
                       </div>
                       <p className="text-sm text-gray-700 truncate mt-0.5">{c.lastMessageBody || '—'}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{c._count.messages} mensajes · {c.contactPhone} · {fmtDateTime(c.lastMessageAt)}</p>
+                      <p className="break-words text-xs text-gray-400 mt-0.5">{c._count.messages} mensajes · {c.contactPhone} · {fmtDateTime(c.lastMessageAt)}</p>
                     </div>
                     <a
                       href={`/admin/inbox?conversationId=${c.id}`}
@@ -883,7 +883,7 @@ function TabPagos({ payments }: { payments: Payment[] }) {
         <p className="p-5 text-sm text-gray-400">Sin pagos</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[640px] text-sm">
             <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
               <tr>
                 <th className="px-4 py-2 text-left">Servicio</th>
@@ -962,15 +962,15 @@ function TabActividad({ fraudSignals, magicTokens, optOuts }: { fraudSignals: Fr
           <div className="divide-y divide-gray-50">
             {fraudSignals.map(f => (
               <div key={f.id} className="px-5 py-3 flex items-start gap-3">
-                <AlertTriangle size={15} className={f.severity === 'CRITICAL' || f.severity === 'HIGH' ? 'text-red-500 mt-0.5' : 'text-yellow-500 mt-0.5'} />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
+                <AlertTriangle size={15} className={f.severity === 'CRITICAL' || f.severity === 'HIGH' ? 'shrink-0 text-red-500 mt-0.5' : 'shrink-0 text-yellow-500 mt-0.5'} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium text-sm">{f.type}</span>
                     <Badge label={f.severity} cls={SEVERITY_CLS[f.severity] ?? 'bg-gray-100 text-gray-600'} />
                     {f.status === 'CLOSED' && <Badge label="Resuelto" cls="bg-green-100 text-green-700" />}
                   </div>
-                  <p className="text-xs text-gray-500 mt-0.5">{f.reason}</p>
-                  {f.details && <p className="text-xs text-gray-400 mt-0.5">{f.details}</p>}
+                  <p className="break-words text-xs text-gray-500 mt-0.5">{f.reason}</p>
+                  {f.details && <p className="break-words text-xs text-gray-400 mt-0.5">{f.details}</p>}
                   <p className="text-xs text-gray-400">{fmtDateTime(f.createdAt)}</p>
                 </div>
               </div>
@@ -1021,9 +1021,9 @@ function TabActividad({ fraudSignals, magicTokens, optOuts }: { fraudSignals: Fr
         ) : (
           <div className="divide-y divide-gray-50">
             {optOuts.map(o => (
-              <div key={o.id} className="px-5 py-3 flex items-center gap-3">
-                <XCircle size={14} className={o.isActive ? 'text-red-500' : 'text-gray-300'} />
-                <div className="flex-1">
+              <div key={o.id} className="px-5 py-3 flex flex-wrap items-center gap-x-3 gap-y-1 sm:flex-nowrap">
+                <XCircle size={14} className={`shrink-0 ${o.isActive ? 'text-red-500' : 'text-gray-300'}`} />
+                <div className="min-w-0 flex-1 break-all">
                   <span className="text-sm font-medium text-gray-700">{o.channel}</span>
                   <span className="text-gray-400 text-sm"> · {o.destination}</span>
                 </div>
@@ -1115,15 +1115,15 @@ function TabSocio({ profile }: { profile: PartnerProfile }) {
               return (
                 <div key={d.id} className="px-5 py-3 flex items-center gap-3">
                   <FileText size={14} className="text-gray-400 flex-shrink-0" />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="text-sm font-medium">{d.type}</span>
                       <Badge label={ds.label} cls={ds.cls} />
                     </div>
                     {d.rejectionReason && <p className="text-xs text-red-500 mt-0.5">{d.rejectionReason}</p>}
                     <p className="text-xs text-gray-400">{fmt(d.createdAt)}{d.reviewedAt ? ` · revisado ${fmt(d.reviewedAt)}` : ''}</p>
                   </div>
-                  <a href={d.documentUrl} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
+                  <a href={d.documentUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
                     <ExternalLink size={13} />
                   </a>
                 </div>
@@ -1152,7 +1152,7 @@ function TabSocio({ profile }: { profile: PartnerProfile }) {
                   {!b.isActive && <Badge label="Inactiva" cls="bg-red-100 text-red-600" />}
                   {b.verifiedAt && <Badge label="Verificada" cls="bg-green-100 text-green-700" />}
                 </div>
-                <p className="text-xs text-gray-500 ml-5">{b.accountHolderName} · {b.holderDocumentType} {b.holderDocumentNumber}</p>
+                <p className="break-words text-xs text-gray-500 ml-5">{b.accountHolderName} · {b.holderDocumentType} {b.holderDocumentNumber}</p>
                 <p className="text-xs font-mono text-gray-400 ml-5">****{b.accountNumber.slice(-4)}</p>
               </div>
             ))}
@@ -1169,7 +1169,7 @@ function TabSocio({ profile }: { profile: PartnerProfile }) {
           <p className="p-5 text-sm text-gray-400">Sin pagos</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[640px] text-sm">
               <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
                 <tr>
                   <th className="px-4 py-2 text-left">Servicio</th>
@@ -1206,11 +1206,11 @@ function TabSocio({ profile }: { profile: PartnerProfile }) {
           <div className="px-5 py-3 border-b border-gray-100 bg-gray-50">
             <h3 className="font-semibold text-gray-700 text-sm uppercase tracking-wide">Logros ({profile.achievements.length})</h3>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 sm:p-5">
             {profile.achievements.map(a => (
               <div key={a.id} className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50">
-                <span className="text-2xl">{a.achievement.icon || '🏆'}</span>
-                <div>
+                <span className="shrink-0 text-2xl">{a.achievement.icon || '🏆'}</span>
+                <div className="min-w-0">
                   <p className="text-sm font-semibold text-gray-800">{a.achievement.name}</p>
                   <p className="text-xs text-gray-500">{a.achievement.description}</p>
                   <p className="text-xs text-gray-400 mt-0.5">{fmt(a.unlockedAt)}</p>
@@ -1227,7 +1227,7 @@ function TabSocio({ profile }: { profile: PartnerProfile }) {
           <div className="px-5 py-3 border-b border-gray-100 bg-gray-50">
             <h3 className="font-semibold text-gray-700 text-sm uppercase tracking-wide">Fotos de trabajo ({profile.workPhotos.length})</h3>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 p-5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 p-4 sm:p-5">
             {profile.workPhotos.map(p => (
               <a key={p.id} href={p.url} target="_blank" rel="noopener noreferrer" className="group block rounded-xl overflow-hidden border border-gray-200">
                 <img src={p.url} alt={p.caption || 'Foto'} className="w-full h-28 object-cover group-hover:opacity-90 transition-opacity" />

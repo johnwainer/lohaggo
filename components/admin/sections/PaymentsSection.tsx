@@ -142,83 +142,83 @@ export default function PaymentsSection() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <div>
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-gray-900">Pagos</h1>
           <p className="text-gray-600 mt-1">Gestiona todos los pagos de la plataforma</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
-            <div>
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
               <p className="text-sm font-medium text-gray-600">Total Pagos</p>
               <p className="text-2xl font-bold text-gray-900 mt-2">{stats.total}</p>
             </div>
-            <div className="bg-blue-100 p-3 rounded-lg">
+            <div className="hidden shrink-0 bg-blue-100 p-3 rounded-lg sm:block">
               <DollarSign className="w-6 h-6 text-blue-600" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
-            <div>
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
               <p className="text-sm font-medium text-gray-600">Pendientes</p>
               <p className="text-2xl font-bold text-yellow-600 mt-2">{stats.pending}</p>
               <p className="text-xs text-gray-500 mt-1">{formatCurrency(stats.totalPending)}</p>
             </div>
-            <div className="bg-yellow-100 p-3 rounded-lg">
+            <div className="hidden shrink-0 bg-yellow-100 p-3 rounded-lg sm:block">
               <Clock className="w-6 h-6 text-yellow-600" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
-            <div>
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
               <p className="text-sm font-medium text-gray-600">Aprobados</p>
               <p className="text-2xl font-bold text-green-600 mt-2">{stats.approved}</p>
               <p className="text-xs text-gray-500 mt-1">{formatCurrency(stats.totalApproved)}</p>
             </div>
-            <div className="bg-green-100 p-3 rounded-lg">
+            <div className="hidden shrink-0 bg-green-100 p-3 rounded-lg sm:block">
               <CheckCircle className="w-6 h-6 text-green-600" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
-            <div>
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
               <p className="text-sm font-medium text-gray-600">Comisión por Clientes</p>
-              <p className="text-2xl font-bold text-purple-600 mt-2">{formatCurrency(stats.totalClientCommission)}</p>
+              <p className="break-words text-xl sm:text-2xl font-bold text-purple-600 mt-2">{formatCurrency(stats.totalClientCommission)}</p>
             </div>
-            <div className="bg-purple-100 p-3 rounded-lg">
+            <div className="hidden shrink-0 bg-purple-100 p-3 rounded-lg sm:block">
               <TrendingUp className="w-6 h-6 text-purple-600" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
-            <div>
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
               <p className="text-sm font-medium text-gray-600">Comisión por Socios</p>
-              <p className="text-2xl font-bold text-primary-600 mt-2">{formatCurrency(stats.totalPartnerCommission)}</p>
+              <p className="break-words text-xl sm:text-2xl font-bold text-primary-600 mt-2">{formatCurrency(stats.totalPartnerCommission)}</p>
             </div>
-            <div className="bg-primary-100 p-3 rounded-lg">
+            <div className="hidden shrink-0 bg-primary-100 p-3 rounded-lg sm:block">
               <TrendingUp className="w-6 h-6 text-primary-600" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
-            <div>
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
               <p className="text-sm font-medium text-gray-600">Ganancia Total</p>
-              <p className="text-2xl font-bold text-primary-600 mt-2">{formatCurrency(stats.totalAppRevenue)}</p>
+              <p className="break-words text-xl sm:text-2xl font-bold text-primary-600 mt-2">{formatCurrency(stats.totalAppRevenue)}</p>
               <p className="text-xs text-gray-500 mt-1">Clientes + Socios</p>
             </div>
-            <div className="bg-red-100 p-3 rounded-lg">
+            <div className="hidden shrink-0 bg-red-100 p-3 rounded-lg sm:block">
               <DollarSign className="w-6 h-6 text-primary-600" />
             </div>
           </div>
@@ -226,9 +226,9 @@ export default function PaymentsSection() {
       </div>
 
       <div className="bg-white rounded-lg shadow">
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
+        <div className="p-4 sm:p-6 border-b border-gray-200">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+            <div className="min-w-0 flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
@@ -240,7 +240,7 @@ export default function PaymentsSection() {
                 />
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setFilter('ALL')}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
@@ -275,7 +275,74 @@ export default function PaymentsSection() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="divide-y divide-gray-200 md:hidden">
+          {filteredPayments.length === 0 ? (
+            <div className="px-4 py-12 text-center text-sm text-gray-500">No se encontraron pagos</div>
+          ) : (
+            filteredPayments.map((payment) => {
+              const appRevenue = payment.clientCommission + (payment.payout?.partnerCommission || 0)
+              return (
+                <div key={payment.id} className="space-y-3 px-4 py-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-gray-900">{payment.booking.user.name}</div>
+                      <div className="break-all text-xs text-gray-500">{payment.booking.user.email}</div>
+                    </div>
+                    <div className="shrink-0">{getStatusBadge(payment.status)}</div>
+                  </div>
+                  <div className="text-sm text-gray-700">
+                    {payment.booking.service.name}
+                    <span className="text-gray-400"> · </span>
+                    {payment.booking.partner?.user.name || 'Sin asignar'}
+                  </div>
+                  <dl className="grid grid-cols-2 gap-x-3 gap-y-2 rounded-lg bg-gray-50 p-3 text-xs">
+                    <div>
+                      <dt className="text-gray-500">Valor Servicio</dt>
+                      <dd className="text-sm font-medium text-gray-900">{formatCurrency(payment.serviceAmount)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-gray-500">Total Cobrado</dt>
+                      <dd className="text-sm font-bold text-gray-900">{formatCurrency(payment.totalAmount)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-gray-500">Comisión por Cliente</dt>
+                      <dd className="text-sm font-medium text-purple-600">
+                        {formatCurrency(payment.clientCommission)} <span className="text-xs text-gray-500">{payment.clientCommissionRate}%</span>
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-gray-500">Comisión por Socio</dt>
+                      <dd className="text-sm font-medium text-primary-600">
+                        {payment.payout ? (
+                          <>
+                            {formatCurrency(payment.payout.partnerCommission)} <span className="text-xs text-gray-500">{payment.payout.partnerCommissionRate}%</span>
+                          </>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-gray-500">Pago a Socio</dt>
+                      <dd className="text-sm font-medium text-green-600">
+                        {payment.payout ? formatCurrency(payment.payout.netAmount) : <span className="text-gray-400">-</span>}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-gray-500">Ganancia App</dt>
+                      <dd className="text-sm font-bold text-primary-600">{formatCurrency(appRevenue)}</dd>
+                    </div>
+                  </dl>
+                  <div className="text-xs text-gray-500">
+                    {payment.paidAt ? formatDate(payment.paidAt) : formatDate(payment.createdAt)}
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
+
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>

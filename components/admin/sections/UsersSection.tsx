@@ -284,14 +284,14 @@ export default function UsersSection() {
       )}
 
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Gestión de Usuarios</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Gestión de Usuarios</h1>
         <p className="text-gray-600 mt-1">Administra todos los usuarios de la plataforma</p>
       </div>
 
-      <div className="mb-6 flex gap-2">
+      <div className="mb-6 flex flex-wrap gap-2">
         <button
           onClick={() => setFilter('all')}
-          className={`px-4 py-2 rounded-xl font-medium transition-colors ${
+          className={`px-4 py-2 rounded-xl font-medium whitespace-nowrap transition-colors ${
             filter === 'all'
               ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white'
               : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
@@ -301,7 +301,7 @@ export default function UsersSection() {
         </button>
         <button
           onClick={() => setFilter('CLIENT')}
-          className={`px-4 py-2 rounded-xl font-medium transition-colors ${
+          className={`px-4 py-2 rounded-xl font-medium whitespace-nowrap transition-colors ${
             filter === 'CLIENT'
               ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white'
               : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
@@ -311,7 +311,7 @@ export default function UsersSection() {
         </button>
         <button
           onClick={() => setFilter('PARTNER')}
-          className={`px-4 py-2 rounded-xl font-medium transition-colors ${
+          className={`px-4 py-2 rounded-xl font-medium whitespace-nowrap transition-colors ${
             filter === 'PARTNER'
               ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white'
               : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
@@ -321,7 +321,7 @@ export default function UsersSection() {
         </button>
         <button
           onClick={() => setFilter('ADMIN')}
-          className={`px-4 py-2 rounded-xl font-medium transition-colors ${
+          className={`px-4 py-2 rounded-xl font-medium whitespace-nowrap transition-colors ${
             filter === 'ADMIN'
               ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white'
               : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'

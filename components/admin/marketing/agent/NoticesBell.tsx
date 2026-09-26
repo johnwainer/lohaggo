@@ -45,7 +45,7 @@ export default function NoticesBell({ workspaceId, onOpenAgent }: { workspaceId:
         {Boolean(data?.unread) && <span className="absolute -right-1 -top-1 min-w-[18px] rounded-full bg-red-600 px-1 text-center text-[10px] font-bold leading-[18px] text-white">{data!.unread > 99 ? '99+' : data!.unread}</span>}
       </button>
       {open && (
-        <div className="absolute right-0 z-40 mt-2 w-[min(92vw,380px)] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl">
+        <div className="absolute left-0 z-40 mt-2 w-[min(92vw,380px)] sm:left-auto sm:right-0 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl">
           <p className="border-b border-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-900">Avisos del agente de marketing</p>
           <div className="max-h-[60vh] overflow-y-auto">
             {!data?.notices.length && <p className="px-4 py-6 text-center text-sm text-gray-500">Sin avisos.</p>}

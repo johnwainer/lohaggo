@@ -46,7 +46,7 @@ export default function PermissionsTab({ workspaces }: { workspaces: Array<{ id:
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 flex-wrap">
-        <p className="text-sm text-gray-500 flex-1">Los propietarios del workspace tienen todos los permisos. «Publicar» es aparte para que alguien pueda redactar y dejar la publicación en revisión sin publicarla.</p>
+        <p className="text-sm text-gray-500 flex-1 min-w-[240px]">Los propietarios del workspace tienen todos los permisos. «Publicar» es aparte para que alguien pueda redactar y dejar la publicación en revisión sin publicarla.</p>
         {workspaces.length > 1 && (
           <select className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm" value={wsId} onChange={(e) => setWsId(e.target.value)}>{workspaces.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select>
         )}
@@ -59,7 +59,7 @@ export default function PermissionsTab({ workspaces }: { workspaces: Array<{ id:
             <tbody>
               {members.map((m) => (
                 <tr key={m.id} className="border-t border-gray-100">
-                  <td className="p-3"><p className="font-medium text-gray-900">{m.user.name}</p><p className="text-xs text-gray-500">{m.user.email}{m.role === 'OWNER' ? ' · propietario' : ''}</p></td>
+                  <td className="p-3"><p className="font-medium text-gray-900">{m.user.name}</p><p className="text-xs text-gray-500 break-all">{m.user.email}{m.role === 'OWNER' ? ' · propietario' : ''}</p></td>
                   {Object.keys(labels).map((perm) => (
                     <td key={perm} className="p-3">
                       <input type="checkbox" disabled={m.role === 'OWNER' || saving === m.id} checked={m.effective.includes(perm)} onChange={() => toggle(m, perm)} />

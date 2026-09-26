@@ -77,7 +77,7 @@ export default function AgentTab({ workspaceId, workspace, openAgentId, openWiza
             {canEdit && !workspace && <p className="text-xs text-gray-500">Elige un workspace para crear un agente.</p>}
           </div>
           {!agents ? <Loader2 className="animate-spin text-gray-400" /> : agents.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-gray-200 bg-white p-10 text-center space-y-2">
+            <div className="rounded-3xl border border-dashed border-gray-200 bg-white p-6 sm:p-10 text-center space-y-2">
               <Bot className="mx-auto text-primary-500" size={32} />
               <p className="font-medium text-gray-800">Aún no hay agentes</p>
               <p className="text-sm text-gray-500">Crea uno: en 6 pasos le cuentas el objetivo, la oferta, la audiencia, la voz, los canales y cuánta autonomía tiene.</p>
@@ -95,7 +95,7 @@ export default function AgentTab({ workspaceId, workspace, openAgentId, openWiza
                         <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${MODE_INFO[a.effectiveMode].cls}`}>{MODE_INFO[a.effectiveMode].label}</span>
                         <span className="ml-auto flex gap-1">{a.channels.map((c) => <MkChannelIcon key={c} channel={c} size={16} />)}</span>
                       </div>
-                      <p className="flex items-center gap-2 font-semibold text-gray-900"><span className="h-2.5 w-2.5 rounded-full" style={{ background: a.campaign.color }} />{a.campaign.name}</p>
+                      <p className="flex items-center gap-2 font-semibold text-gray-900 break-words"><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: a.campaign.color }} />{a.campaign.name}</p>
                       <p className="text-xs text-gray-500">{OBJECTIVES[a.campaign.objective] || a.campaign.objective} · {a.kpi.label}: <strong className="text-gray-800">{kpi}</strong>{a.kpi.goal != null ? ` de ${num(a.kpi.goal)}` : ''}</p>
                       {a.degradedReason && <p className="flex items-center gap-1 text-xs text-amber-700"><AlertTriangle size={12} /> {a.degradedReason}</p>}
                       {!a.strategyReady && <p className="text-xs text-amber-700">Falta la estrategia</p>}
@@ -107,7 +107,7 @@ export default function AgentTab({ workspaceId, workspace, openAgentId, openWiza
                       <div className="rounded-xl bg-gray-50 py-2"><p className="text-lg font-bold text-gray-900">{a.counts.upcoming}</p><p className="text-[11px] text-gray-500">programadas</p></div>
                     </div>
                     <div className="space-y-1">
-                      <div className="flex justify-between text-[11px] text-gray-500"><span>IA este mes: ${a.spentUsd.toFixed(2)} de ${a.monthlyBudgetUsd}</span><span>{a.nextPlanAt ? `Planifica ${fmtDateTime(a.nextPlanAt)}` : ''}</span></div>
+                      <div className="flex flex-wrap justify-between gap-x-2 text-[11px] text-gray-500"><span>IA este mes: ${a.spentUsd.toFixed(2)} de ${a.monthlyBudgetUsd}</span><span>{a.nextPlanAt ? `Planifica ${fmtDateTime(a.nextPlanAt)}` : ''}</span></div>
                       <div className="h-1.5 rounded-full bg-gray-100"><div className={`h-1.5 rounded-full ${pct >= 80 ? 'bg-amber-500' : 'bg-primary-500'}`} style={{ width: `${pct}%` }} /></div>
                     </div>
                     <div className="flex items-center gap-2 border-t border-gray-100 pt-2">

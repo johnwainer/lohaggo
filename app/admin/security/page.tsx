@@ -111,10 +111,10 @@ export default function AdminSecurityPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-            <ShieldAlert className="w-8 h-8 text-primary-600" />
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2 sm:text-3xl">
+            <ShieldAlert className="w-7 h-7 flex-shrink-0 text-primary-600 sm:w-8 sm:h-8" />
             Seguridad Operativa
           </h1>
           <p className="text-gray-600 mt-1">
@@ -123,25 +123,25 @@ export default function AdminSecurityPage() {
         </div>
         <button
           onClick={load}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary-600 text-white px-4 py-2"
+          className="inline-flex items-center justify-center gap-2 self-start rounded-lg bg-primary-600 text-white px-4 py-2 sm:self-auto"
         >
           <RefreshCw size={16} />
           Actualizar
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="rounded-xl border bg-white p-4">
-          <p className="text-sm text-gray-500">Eventos (24h)</p>
-          <p className="text-3xl font-bold">{summary.last24hCount}</p>
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
+        <div className="rounded-xl border bg-white p-3 sm:p-4">
+          <p className="text-xs text-gray-500 sm:text-sm">Eventos (24h)</p>
+          <p className="text-2xl sm:text-3xl font-bold">{summary.last24hCount}</p>
         </div>
-        <div className="rounded-xl border bg-white p-4">
-          <p className="text-sm text-gray-500">Alta severidad (24h)</p>
-          <p className="text-3xl font-bold text-amber-600">{summary.highSeverity24hCount}</p>
+        <div className="rounded-xl border bg-white p-3 sm:p-4">
+          <p className="text-xs text-gray-500 sm:text-sm">Alta severidad (24h)</p>
+          <p className="text-2xl sm:text-3xl font-bold text-amber-600">{summary.highSeverity24hCount}</p>
         </div>
-        <div className="rounded-xl border bg-white p-4">
-          <p className="text-sm text-gray-500">IPs bloqueadas activas</p>
-          <p className="text-3xl font-bold text-red-600">{summary.openBlocksCount}</p>
+        <div className="rounded-xl border bg-white p-3 sm:p-4">
+          <p className="text-xs text-gray-500 sm:text-sm">IPs bloqueadas activas</p>
+          <p className="text-2xl sm:text-3xl font-bold text-red-600">{summary.openBlocksCount}</p>
         </div>
       </div>
 
@@ -155,19 +155,19 @@ export default function AdminSecurityPage() {
             value={newIp}
             onChange={(e) => setNewIp(e.target.value)}
             placeholder="IP (ej: 190.24.1.10)"
-            className="border rounded-lg px-3 py-2 text-sm"
+            className="w-full min-w-0 border rounded-lg px-3 py-2 text-sm"
           />
           <input
             value={newReason}
             onChange={(e) => setNewReason(e.target.value)}
             placeholder="Motivo del bloqueo"
-            className="border rounded-lg px-3 py-2 text-sm"
+            className="w-full min-w-0 border rounded-lg px-3 py-2 text-sm"
           />
           <input
             value={newExpiresAt}
             onChange={(e) => setNewExpiresAt(e.target.value)}
             type="datetime-local"
-            className="border rounded-lg px-3 py-2 text-sm"
+            className="w-full min-w-0 border rounded-lg px-3 py-2 text-sm"
           />
           <button onClick={blockIp} className="rounded-lg bg-red-600 text-white px-3 py-2 text-sm">
             Bloquear
@@ -184,13 +184,13 @@ export default function AdminSecurityPage() {
           {blockedIps.length === 0 && <p className="text-sm text-gray-500">No hay IPs bloqueadas registradas.</p>}
           {blockedIps.map((item) => (
             <div key={item.id} className="border rounded-lg p-3 flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="font-medium">{item.ipAddress}</p>
+              <div className="min-w-0 break-words">
+                <p className="font-medium break-all">{item.ipAddress}</p>
                 <p className="text-xs text-gray-500">
                   {item.reason} · fuente: {item.blockSource} · {item.isActive ? 'ACTIVO' : 'INACTIVO'}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {item.expiresAt && (
                   <span className="text-xs text-gray-500">
                     vence {new Date(item.expiresAt).toLocaleString('es-CO')}
@@ -214,20 +214,20 @@ export default function AdminSecurityPage() {
       <section className="rounded-xl border bg-white p-4 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg font-semibold">Eventos de seguridad</h2>
-          <div className="flex flex-wrap gap-2">
-            <div className="relative">
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+            <div className="relative min-w-0 flex-1 sm:flex-none">
               <Search size={14} className="absolute left-2 top-2.5 text-gray-400" />
               <input
                 value={ipFilter}
                 onChange={(e) => setIpFilter(e.target.value)}
                 placeholder="Filtrar por IP"
-                className="border rounded-lg pl-7 pr-3 py-2 text-sm"
+                className="w-full border rounded-lg pl-7 pr-3 py-2 text-sm"
               />
             </div>
             <select
               value={threatFilter}
               onChange={(e) => setThreatFilter(e.target.value)}
-              className="border rounded-lg px-3 py-2 text-sm"
+              className="min-w-0 max-w-full border rounded-lg px-3 py-2 text-sm"
             >
               <option value="">Todos los tipos</option>
               {threatTypes.map((threat) => (
@@ -242,7 +242,24 @@ export default function AdminSecurityPage() {
         {loading ? (
           <p className="text-sm text-gray-500">Cargando eventos...</p>
         ) : (
-          <div className="overflow-auto">
+          <>
+          <div className="space-y-2 md:hidden">
+            {filteredEvents.map((event) => (
+              <div key={event.id} className="rounded-lg border p-3 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-medium break-all">{event.ipAddress}</span>
+                  <span className="text-xs text-gray-500">{new Date(event.createdAt).toLocaleString('es-CO')}</span>
+                </div>
+                <p className="mt-1 text-xs text-gray-700 break-all">
+                  <span className="font-semibold">{event.method}</span> {event.path}
+                </p>
+                <p className="mt-1 text-xs text-gray-500 break-words">
+                  {event.threatType} · {event.severity} · {event.blocked ? 'Bloqueado' : 'Detectado'}
+                </p>
+              </div>
+            ))}
+          </div>
+          <div className="hidden overflow-auto md:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-left">
@@ -272,6 +289,7 @@ export default function AdminSecurityPage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </section>
     </div>

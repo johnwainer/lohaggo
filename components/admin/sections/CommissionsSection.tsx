@@ -78,7 +78,7 @@ export default function CommissionsSection() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Configuración de Comisiones</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Configuración de Comisiones</h1>
         <p className="text-gray-600 mt-1">
           Define los porcentajes de comisión para clientes y socios
         </p>
@@ -92,15 +92,15 @@ export default function CommissionsSection() {
               : 'bg-red-50 text-red-800 border border-red-200'
           }`}
         >
-          <AlertCircle className="w-5 h-5" />
-          <span>{message.text}</span>
+          <AlertCircle className="w-5 h-5 shrink-0" />
+          <span className="min-w-0">{message.text}</span>
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 bg-blue-100 rounded-lg">
+            <div className="shrink-0 p-3 bg-blue-100 rounded-lg">
               <DollarSign className="w-6 h-6 text-blue-600" />
             </div>
             <div>
@@ -143,9 +143,9 @@ export default function CommissionsSection() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 bg-purple-100 rounded-lg">
+            <div className="shrink-0 p-3 bg-purple-100 rounded-lg">
               <TrendingUp className="w-6 h-6 text-purple-600" />
             </div>
             <div>
@@ -189,7 +189,7 @@ export default function CommissionsSection() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
         <h3 className="font-semibold text-gray-900 mb-4">Metodos de pago habilitados</h3>
         <p className="text-sm text-gray-600 mb-4">
           Controla que metodos puede usar el cliente al reportar el pago. La transferencia muestra los datos
@@ -228,7 +228,7 @@ export default function CommissionsSection() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
         <h3 className="font-semibold text-gray-900 mb-4">Resumen del Flujo de Pagos</h3>
         <div className="space-y-3 text-sm text-gray-700">
           <div className="flex items-start gap-2">
@@ -262,7 +262,7 @@ export default function CommissionsSection() {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="flex items-center gap-2 px-6 py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="flex w-full items-center justify-center gap-2 px-6 py-3 bg-primary-500 text-white rounded-lg sm:w-auto hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           <Save className="w-5 h-5" />
           {saving ? 'Guardando...' : 'Guardar Configuración'}

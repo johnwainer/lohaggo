@@ -55,10 +55,10 @@ function StatCard({
   }[color]
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex flex-col gap-1">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</span>
-        {icon && <span className="text-gray-300">{icon}</span>}
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 sm:p-5 flex flex-col gap-1">
+      <div className="flex items-center justify-between gap-2">
+        <span className="min-w-0 text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</span>
+        {icon && <span className="shrink-0 text-gray-300">{icon}</span>}
       </div>
       <span className={`text-3xl font-black ${textColor}`}>{value}</span>
       {sub && <span className="text-xs text-gray-400">{sub}</span>}
@@ -236,7 +236,7 @@ export default function PartnersSection() {
       render: (value: any, row: Partner) => {
         const initials = value.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
         return (
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3">
             {value.image ? (
               <img src={value.image} alt={value.name} className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
             ) : (
@@ -244,12 +244,12 @@ export default function PartnersSection() {
                 {initials}
               </div>
             )}
-            <div>
+            <div className="min-w-0">
               <div className="font-medium text-gray-900 flex items-center gap-1.5">
                 {value.name}
                 {row.verified && <ShieldCheck size={14} className="text-green-600" />}
               </div>
-              <div className="text-xs text-gray-400">{value.email}</div>
+              <div className="text-xs text-gray-400 break-all">{value.email}</div>
               {value.phone && <div className="text-xs text-gray-400">{value.phone}</div>}
             </div>
           </div>
@@ -383,7 +383,7 @@ export default function PartnersSection() {
       </div>
 
       {/* ── KPIs principales ── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <StatCard label="Total socios" value={stats.total} icon={<Users size={22} />} />
         <StatCard label="Verificados" value={stats.verified}
           sub={`${stats.total > 0 ? Math.round((stats.verified / stats.total) * 100) : 0}% del total`}
@@ -394,7 +394,7 @@ export default function PartnersSection() {
         <StatCard label="Nuevos (7 días)" value={stats.new7d} color="purple" icon={<TrendingUp size={22} />} />
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <StatCard label="Sin verificar" value={stats.total - stats.verified} color="red" icon={<Shield size={22} />} />
         <StatCard label="Sin servicios" value={stats.total - stats.withServices}
           sub="No configuraron oficio" color="red" icon={<AlertCircle size={22} />} />
@@ -460,7 +460,7 @@ export default function PartnersSection() {
       </div>
 
       {/* ── Tabla con filtros ── */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-3 sm:p-5">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
           <h3 className="text-sm font-black text-gray-800 uppercase tracking-wide">
             Lista de socios

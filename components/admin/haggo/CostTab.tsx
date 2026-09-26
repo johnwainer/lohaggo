@@ -26,14 +26,14 @@ export function CostTab() {
         ))}
       </div>
 
-      <section className={`${card} p-5`}>
+      <section className={`${card} p-4 sm:p-5`}>
         <h2 className="mb-4 font-semibold text-gray-900">Por día ({data.period})</h2>
         {data.perDay.length === 0 ? <p className="text-sm text-gray-500">Sin gasto este mes.</p> : (
-          <div className="flex h-40 items-end gap-1">
-            {data.perDay.map((d) => (
-              <div key={d.day} className="group flex flex-1 flex-col items-center justify-end" title={`${d.day}: ${usd(d.costUsd)}`}>
+          <div className="flex h-40 items-end gap-0.5 sm:gap-1">
+            {data.perDay.map((d, i) => (
+              <div key={d.day} className="group flex min-w-0 flex-1 flex-col items-center justify-end" title={`${d.day}: ${usd(d.costUsd)}`}>
                 <div className="w-full rounded-t bg-primary-500/80 group-hover:bg-primary-600" style={{ height: `${Math.max(2, (d.costUsd / max) * 100)}%` }} />
-                <span className="mt-1 text-[10px] text-gray-400">{d.day.slice(8)}</span>
+                <span className={`mt-1 text-[10px] text-gray-400 ${i % 5 ? 'invisible sm:visible' : ''}`}>{d.day.slice(8)}</span>
               </div>
             ))}
           </div>
@@ -42,9 +42,10 @@ export function CostTab() {
       </section>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <section className={`${card} p-5`}>
+        <section className={`${card} p-4 sm:p-5`}>
           <h2 className="mb-3 font-semibold text-gray-900">Por tipo</h2>
-          <table className="w-full text-sm">
+          <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+          <table className="w-full min-w-[28rem] text-sm">
             <thead className="text-xs text-gray-500"><tr className="text-left"><th className="py-1">Tipo</th><th>Proveedor</th><th>Llamadas</th><th>Tokens (ent/sal)</th><th className="text-right">Costo</th></tr></thead>
             <tbody>
               {data.byKind.length === 0 && <tr><td colSpan={5} className="py-3 text-center text-gray-500">Sin llamadas este mes.</td></tr>}
@@ -53,8 +54,9 @@ export function CostTab() {
               ))}
             </tbody>
           </table>
+          </div>
         </section>
-        <section className={`${card} p-5`}>
+        <section className={`${card} p-4 sm:p-5`}>
           <h2 className="mb-3 font-semibold text-gray-900">Ejecuciones del mes</h2>
           <table className="w-full text-sm">
             <thead className="text-xs text-gray-500"><tr className="text-left"><th className="py-1">Tipo</th><th>Resultado</th><th>Veces</th><th className="text-right">Costo</th></tr></thead>

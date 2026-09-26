@@ -43,7 +43,7 @@ export default function AgentPanel({ post, idea, agentId, canEdit, onChanged, on
   return (
     <div className="rounded-2xl border border-primary-200 bg-primary-50/40 p-4 space-y-3">
       <p className="flex items-center gap-2 text-sm font-semibold text-gray-900"><Bot size={16} className="text-primary-600" /> Pieza del agente</p>
-      <div className="space-y-1 text-xs text-gray-700">
+      <div className="space-y-1 break-words text-xs text-gray-700">
         {(post.pillar || idea?.pillar) && <p><strong>Pilar:</strong> {post.pillar || idea?.pillar}{idea?.service ? ` · ${idea.service}` : ''}{idea?.explore ? ' · prueba' : ''}</p>}
         {idea?.angle && <p><strong>Idea:</strong> {idea.angle}</p>}
         {(idea?.rationale || meta.rationale) && <p><strong>Por qué:</strong> {idea?.rationale || meta.rationale}</p>}
@@ -57,7 +57,7 @@ export default function AgentPanel({ post, idea, agentId, canEdit, onChanged, on
       {canEdit && !closed && (
         <div className="space-y-2">
           <textarea className={input} rows={2} value={instruction} onChange={(e) => setInstruction(e.target.value)} placeholder="Qué cambiar: más corto, otro enfoque, sin precio…" />
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button onClick={() => run('redraft')} disabled={Boolean(busy) || !instruction.trim()} className="inline-flex items-center gap-1.5 rounded-full border border-primary-300 bg-white px-3 py-1.5 text-xs font-semibold text-primary-700 disabled:opacity-50">
               {busy === 'redraft' ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />} Pedir otra versión
             </button>

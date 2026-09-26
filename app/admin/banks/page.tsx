@@ -143,10 +143,10 @@ export default function AdminBanksPage() {
         confirmText="Eliminar"
       />
 
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <Building2 className="w-8 h-8 text-primary-600" />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-3">
+            <Building2 className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-primary-600" />
             Catálogo de Bancos
           </h1>
           <p className="text-gray-600 mt-1">
@@ -159,7 +159,7 @@ export default function AdminBanksPage() {
 
         <button
           onClick={() => setShowCreate(true)}
-          className="inline-flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-xl font-semibold hover:bg-primary-700 transition"
+          className="inline-flex shrink-0 items-center justify-center gap-2 self-start whitespace-nowrap bg-primary-600 text-white px-4 py-2.5 sm:py-2 rounded-xl font-semibold hover:bg-primary-700 transition"
         >
           <Plus size={18} />
           Nuevo banco
@@ -171,19 +171,19 @@ export default function AdminBanksPage() {
       )}
 
       {showCreate && (
-        <div className="bg-white border border-gray-200 rounded-xl p-4 grid md:grid-cols-4 gap-3">
-          <input className="border rounded-lg px-3 py-2" placeholder="Código (ej: NEQUI)" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} />
-          <input className="border rounded-lg px-3 py-2 md:col-span-2" placeholder="Nombre del banco" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          <input className="border rounded-lg px-3 py-2" placeholder="País" value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value.toUpperCase() })} />
-          <input type="number" className="border rounded-lg px-3 py-2" placeholder="Orden" value={form.sortOrder} onChange={(e) => setForm({ ...form, sortOrder: Number(e.target.value) || 0 })} />
-          <input type="number" className="border rounded-lg px-3 py-2" placeholder="Min cuenta" value={form.accountNumberMinLength} onChange={(e) => setForm({ ...form, accountNumberMinLength: Number(e.target.value) || 8 })} />
-          <input type="number" className="border rounded-lg px-3 py-2" placeholder="Max cuenta" value={form.accountNumberMaxLength} onChange={(e) => setForm({ ...form, accountNumberMaxLength: Number(e.target.value) || 20 })} />
-          <div className="flex items-center gap-4 md:col-span-2 text-sm">
+        <div className="bg-white border border-gray-200 rounded-xl p-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+          <input className="min-w-0 border rounded-lg px-3 py-2" placeholder="Código (ej: NEQUI)" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} />
+          <input className="col-span-2 min-w-0 border rounded-lg px-3 py-2" placeholder="Nombre del banco" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <input className="min-w-0 border rounded-lg px-3 py-2" placeholder="País" value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value.toUpperCase() })} />
+          <input type="number" className="min-w-0 border rounded-lg px-3 py-2" placeholder="Orden" value={form.sortOrder} onChange={(e) => setForm({ ...form, sortOrder: Number(e.target.value) || 0 })} />
+          <input type="number" className="min-w-0 border rounded-lg px-3 py-2" placeholder="Min cuenta" value={form.accountNumberMinLength} onChange={(e) => setForm({ ...form, accountNumberMinLength: Number(e.target.value) || 8 })} />
+          <input type="number" className="min-w-0 border rounded-lg px-3 py-2" placeholder="Max cuenta" value={form.accountNumberMaxLength} onChange={(e) => setForm({ ...form, accountNumberMaxLength: Number(e.target.value) || 20 })} />
+          <div className="col-span-2 flex flex-wrap items-center gap-4 text-sm">
             <label className="flex items-center gap-2"><input type="checkbox" checked={form.supportsSavings} onChange={(e) => setForm({ ...form, supportsSavings: e.target.checked })} /> Ahorros</label>
             <label className="flex items-center gap-2"><input type="checkbox" checked={form.supportsChecking} onChange={(e) => setForm({ ...form, supportsChecking: e.target.checked })} /> Corriente</label>
             <label className="flex items-center gap-2"><input type="checkbox" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} /> Activo</label>
           </div>
-          <div className="md:col-span-4 flex items-center gap-2 justify-end">
+          <div className="col-span-2 md:col-span-4 flex flex-wrap items-center gap-2 justify-end">
             <button onClick={() => { setShowCreate(false); setForm(EMPTY_FORM) }} className="inline-flex items-center gap-1 px-3 py-2 border rounded-lg text-gray-700">
               <X size={16} /> Cancelar
             </button>
@@ -194,7 +194,60 @@ export default function AdminBanksPage() {
         </div>
       )}
 
-      <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
+      <div className="space-y-3 md:hidden">
+        {banks.map((bank) => {
+          const isEditing = editingId === bank.id
+          return (
+            <div key={bank.id} className="bg-white border border-gray-200 rounded-xl p-4 text-sm">
+              {isEditing ? (
+                <div className="grid grid-cols-2 gap-2">
+                  <input className="min-w-0 border rounded-lg px-3 py-2" value={editing.code ?? bank.code} onChange={(e) => setEditing({ ...editing, code: e.target.value.toUpperCase() })} />
+                  <input className="min-w-0 border rounded-lg px-3 py-2" value={editing.country ?? bank.country} onChange={(e) => setEditing({ ...editing, country: e.target.value.toUpperCase() })} />
+                  <input className="col-span-2 min-w-0 border rounded-lg px-3 py-2" value={editing.name ?? bank.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
+                  <input type="number" className="min-w-0 border rounded-lg px-3 py-2" value={editing.accountNumberMinLength ?? bank.accountNumberMinLength} onChange={(e) => setEditing({ ...editing, accountNumberMinLength: Number(e.target.value) })} />
+                  <input type="number" className="min-w-0 border rounded-lg px-3 py-2" value={editing.accountNumberMaxLength ?? bank.accountNumberMaxLength} onChange={(e) => setEditing({ ...editing, accountNumberMaxLength: Number(e.target.value) })} />
+                  <div className="col-span-2 flex flex-wrap items-center gap-4 py-1">
+                    <label className="flex items-center gap-1"><input type="checkbox" checked={editing.supportsSavings ?? bank.supportsSavings} onChange={(e) => setEditing({ ...editing, supportsSavings: e.target.checked })} /> Ahorros</label>
+                    <label className="flex items-center gap-1"><input type="checkbox" checked={editing.supportsChecking ?? bank.supportsChecking} onChange={(e) => setEditing({ ...editing, supportsChecking: e.target.checked })} /> Corriente</label>
+                    <label className="flex items-center gap-1"><input type="checkbox" checked={editing.isActive ?? bank.isActive} onChange={(e) => setEditing({ ...editing, isActive: e.target.checked })} /> Activo</label>
+                  </div>
+                  <div className="col-span-2 flex flex-wrap justify-end gap-2">
+                    <button onClick={() => { setEditingId(null); setEditing({}) }} className="inline-flex items-center gap-1 px-3 py-2 border rounded-lg">
+                      <X size={14} /> Cancelar
+                    </button>
+                    <button onClick={() => handleSave(bank.id)} className="inline-flex items-center gap-1 px-3 py-2 bg-primary-600 text-white rounded-lg" disabled={saving}>
+                      <Save size={14} /> Guardar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-gray-900 break-words">{bank.name}</p>
+                      <p className="text-xs text-gray-500">{bank.code} · {bank.country}</p>
+                    </div>
+                    <span className={`inline-flex shrink-0 px-2 py-1 rounded-full text-xs font-semibold ${bank.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                      {bank.isActive ? 'Activo' : 'Inactivo'}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-xs text-gray-600">
+                    Cuenta {bank.accountNumberMinLength}-{bank.accountNumberMaxLength} · {bank.supportsSavings ? 'Ahorros' : ''}{bank.supportsSavings && bank.supportsChecking ? ' · ' : ''}{bank.supportsChecking ? 'Corriente' : ''}
+                  </p>
+                  <div className="mt-3 flex gap-2">
+                    <button onClick={() => { setEditingId(bank.id); setEditing({}) }} className="flex-1 px-3 py-2 border rounded-lg">Editar</button>
+                    <button onClick={() => setDeleteTarget(bank)} className="inline-flex flex-1 items-center justify-center gap-1 px-3 py-2 border border-red-200 text-red-600 rounded-lg">
+                      <Trash2 size={14} /> Eliminar
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="hidden bg-white border border-gray-200 rounded-xl overflow-x-auto md:block">
         <table className="min-w-full text-sm">
           <thead className="bg-gray-50">
             <tr>

@@ -465,7 +465,7 @@ export default function ChannelsPage() {
     .filter((g) => g.items.length > 0)
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-8">
+    <div className="max-w-6xl mx-auto space-y-8 sm:p-6">
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
@@ -501,10 +501,10 @@ export default function ChannelsPage() {
       )}
 
       {/* ── Meta App config ── */}
-      <section className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 space-y-5">
+      <section className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-6 space-y-5">
         <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-blue-50 flex items-center justify-center">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="h-10 w-10 shrink-0 rounded-xl bg-blue-50 flex items-center justify-center">
               <KeyRound size={20} className="text-blue-600" />
             </div>
             <div>
@@ -552,7 +552,7 @@ export default function ChannelsPage() {
             <span className="text-xs font-medium text-gray-600">Verify token (webhook)</span>
             <div className="flex gap-2">
               <input
-                className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-500"
                 value={form.verifyToken}
                 onChange={(e) => setForm((f) => ({ ...f, verifyToken: e.target.value }))}
                 placeholder="Cadena secreta que pegas en la consola de Meta"
@@ -570,7 +570,7 @@ export default function ChannelsPage() {
             <label className="flex flex-col gap-1">
               <span className="text-xs font-medium text-gray-600">Versión Graph API</span>
               <input
-                className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="w-full min-w-0 rounded-lg border border-gray-200 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-500"
                 value={form.graphVersion}
                 onChange={(e) => setForm((f) => ({ ...f, graphVersion: e.target.value }))}
                 placeholder="v26.0"
@@ -579,7 +579,7 @@ export default function ChannelsPage() {
             <label className="flex flex-col gap-1">
               <span className="text-xs font-medium text-gray-600">Config ID <span className="text-gray-400">(opcional)</span></span>
               <input
-                className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="w-full min-w-0 rounded-lg border border-gray-200 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-500"
                 value={form.configId}
                 onChange={(e) => setForm((f) => ({ ...f, configId: e.target.value }))}
                 placeholder="Solo Embedded Signup"
@@ -757,7 +757,7 @@ export default function ChannelsPage() {
           ))
         )}
 
-        <div className="rounded-xl bg-gray-50 border border-gray-100 p-4 text-xs text-gray-500 space-y-1">
+        <div className="rounded-xl bg-gray-50 border border-gray-100 p-4 text-xs text-gray-500 space-y-1 break-words">
           <p className="font-medium text-gray-600 flex items-center gap-1.5"><ShieldCheck size={13} /> Recordatorios de Meta</p>
           <p>• <strong>Instagram</strong>: la suscripción al objeto <code>instagram</code> se configura en la consola de Meta (Webhooks), no por API: marca <code>messages, messaging_postbacks, messaging_referral, message_reactions, messaging_seen</code>.</p>
           <p>• Las <strong>solicitudes de mensaje</strong> (carpeta pendientes) no generan webhook; se revisan cada 2 minutos automáticamente.</p>
@@ -773,7 +773,7 @@ export default function ChannelsPage() {
         ) : (
           <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-xs">
+              <table className="w-full min-w-[560px] text-xs">
                 <thead className="bg-gray-50 text-gray-500">
                   <tr>
                     <th className="text-left px-3 py-2 font-medium">Cuándo</th>
@@ -787,7 +787,7 @@ export default function ChannelsPage() {
                   {events.map((ev) => (
                     <tr key={ev.id} className="border-t border-gray-100">
                       <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{timeAgo(ev.createdAt)}</td>
-                      <td className="px-3 py-2"><span className="inline-flex items-center gap-1"><ChannelIcon channel={ev.channel} size={13} /> {CHANNEL_LABEL[ev.channel]}</span></td>
+                      <td className="px-3 py-2 whitespace-nowrap"><span className="inline-flex items-center gap-1"><ChannelIcon channel={ev.channel} size={13} /> {CHANNEL_LABEL[ev.channel]}</span></td>
                       <td className="px-3 py-2 font-mono text-gray-600">{ev.externalId || '—'}</td>
                       <td className="px-3 py-2"><span className={`rounded-full px-2 py-0.5 font-semibold ${EVENT_STATUS_STYLE[ev.status]}`}>{ev.status}</span></td>
                       <td className="px-3 py-2 text-gray-600 max-w-[380px] truncate" title={ev.detail || ''}>{ev.detail || '—'}</td>
@@ -803,7 +803,7 @@ export default function ChannelsPage() {
       {/* ── Selection modal (step 2 of OAuth) ── */}
       {sessionId && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
-          <div className="w-full sm:max-w-lg max-h-[90vh] flex flex-col rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl">
+          <div className="w-full sm:max-w-lg max-h-[90dvh] flex flex-col rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl">
             <div className="flex items-center justify-between px-5 py-4 border-b">
               <div className="flex items-center gap-2 min-w-0">
                 {sessionChannel && <ChannelIcon channel={sessionChannel} />}
@@ -812,9 +812,9 @@ export default function ChannelsPage() {
                   {sessionWorkspaceName && <span className="text-gray-400 font-normal"> · {sessionWorkspaceName}</span>}
                 </h3>
               </div>
-              <button onClick={() => { setSessionId(null); setCandidates(null) }} className="text-gray-400 hover:text-gray-600">✕</button>
+              <button onClick={() => { setSessionId(null); setCandidates(null) }} className="-mr-2 p-2 text-gray-400 hover:text-gray-600">✕</button>
             </div>
-            <div className="flex-1 overflow-y-auto p-5 space-y-2">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-2">
               {candidates === null ? (
                 <div className="flex items-center justify-center py-8 text-gray-400"><Loader2 size={22} className="animate-spin mr-2" /> Leyendo tus páginas…</div>
               ) : sessionError ? (
@@ -829,7 +829,7 @@ export default function ChannelsPage() {
                   const checked = selected.has(c.id)
                   const blocked = Boolean(c.takenByWorkspace)
                   return (
-                    <label key={c.id} className={`flex items-center gap-3 rounded-xl border p-3 transition ${blocked ? 'border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed' : checked ? 'border-primary-400 bg-primary-50 cursor-pointer' : 'border-gray-200 hover:bg-gray-50 cursor-pointer'}`}>
+                    <label key={c.id} className={`flex flex-wrap items-center gap-3 rounded-xl border p-3 sm:flex-nowrap transition ${blocked ? 'border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed' : checked ? 'border-primary-400 bg-primary-50 cursor-pointer' : 'border-gray-200 hover:bg-gray-50 cursor-pointer'}`}>
                       <input
                         type="checkbox"
                         className="h-4 w-4 accent-primary-600"
@@ -858,7 +858,7 @@ export default function ChannelsPage() {
                 })
               )}
             </div>
-            <div className="flex items-center justify-between gap-3 px-5 py-4 border-t">
+            <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 border-t sm:px-5">
               <span className="text-xs text-gray-500">{selected.size} seleccionada(s)</span>
               <div className="flex gap-2">
                 <button onClick={() => { setSessionId(null); setCandidates(null) }} className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">Cancelar</button>

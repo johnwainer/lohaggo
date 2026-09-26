@@ -109,7 +109,7 @@ export default function ReviewPanel({ post, reviews, agentId, canEdit, canPublis
       {last && last.verdict !== 'error' && (
         <div className="space-y-2">
           <div className="flex items-baseline justify-between gap-2">
-            <p className={`text-sm font-semibold ${VERDICT[last.verdict]?.cls ?? ''}`}>Editor: {VERDICT[last.verdict]?.label ?? last.verdict}</p>
+            <p className={`min-w-0 text-sm font-semibold ${VERDICT[last.verdict]?.cls ?? ''}`}>Editor: {VERDICT[last.verdict]?.label ?? last.verdict}</p>
             {last.score != null && <p className="text-lg font-bold tabular-nums text-gray-900">{formatScore(last.score)}<span className="text-xs font-normal text-gray-400">/10</span></p>}
           </div>
           {last.summary && <p className="text-xs text-gray-700">{last.summary}</p>}
@@ -118,11 +118,11 @@ export default function ReviewPanel({ post, reviews, agentId, canEdit, canPublis
               {last.scores.map((s) => (
                 <li key={s.id} className="text-xs">
                   <div className="flex items-center gap-2">
-                    <span className="w-32 shrink-0 text-gray-600">{CRITERION_LABEL[s.id as CriterionId] ?? s.id}</span>
+                    <span className="w-28 shrink-0 text-gray-600 sm:w-32">{CRITERION_LABEL[s.id as CriterionId] ?? s.id}</span>
                     <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-100"><span className={`block h-full rounded-full ${s.score >= 8 ? 'bg-emerald-500' : s.score >= 6 ? 'bg-amber-400' : 'bg-rose-500'}`} style={{ width: `${s.score * 10}%` }} /></span>
                     <span className="w-7 text-right tabular-nums text-gray-700">{formatScore(s.score)}</span>
                   </div>
-                  {s.comment && <p className="ml-[8.5rem] text-[11px] text-gray-500">{s.comment}</p>}
+                  {s.comment && <p className="mt-0.5 text-[11px] text-gray-500 sm:mt-0 sm:ml-[8.5rem]">{s.comment}</p>}
                 </li>
               ))}
             </ul>

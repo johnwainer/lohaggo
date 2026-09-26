@@ -62,11 +62,11 @@ export default function StatsTab({ workspaceId, campaigns }: { workspaceId: stri
   return (
     <div className="space-y-5">
       <div className="flex gap-2 flex-wrap items-center">
-        <select className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm" value={range} onChange={(e) => setRange(e.target.value)}>{RANGES.map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
-        <select className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm" value={channel} onChange={(e) => setChannel(e.target.value)}>
+        <select className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm sm:flex-none" value={range} onChange={(e) => setRange(e.target.value)}>{RANGES.map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
+        <select className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm sm:flex-none" value={channel} onChange={(e) => setChannel(e.target.value)}>
           <option value="">Todos los canales</option>{MK_CHANNELS.map((c) => <option key={c} value={c}>{CHANNEL_NAME[c]}</option>)}
         </select>
-        <select className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm" value={campaignId} onChange={(e) => setCampaignId(e.target.value)}>
+        <select className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm sm:flex-none" value={campaignId} onChange={(e) => setCampaignId(e.target.value)}>
           <option value="">Todas las campañas</option>{campaigns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
         {loading && <Loader2 size={16} className="animate-spin text-gray-400" />}
@@ -78,9 +78,9 @@ export default function StatsTab({ workspaceId, campaigns }: { workspaceId: stri
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {kpis.map(([label, value, hint]) => (
-              <div key={label} className="rounded-2xl border border-gray-200 bg-white p-4">
+              <div key={label} className="rounded-2xl border border-gray-200 bg-white p-3 sm:p-4">
                 <p className="text-xs text-gray-500">{label}</p>
-                <p className="mt-1 text-2xl font-bold text-gray-900">{value}</p>
+                <p className="mt-1 text-xl font-bold text-gray-900 break-words sm:text-2xl">{value}</p>
                 {hint && <p className="text-[11px] text-gray-400">{hint}</p>}
               </div>
             ))}
@@ -110,7 +110,7 @@ export default function StatsTab({ workspaceId, campaigns }: { workspaceId: stri
             <div className="rounded-2xl border border-gray-200 bg-white p-4">
               <p className="text-sm font-semibold text-gray-900 mb-3">Por canal</p>
               {stats!.byChannel.length === 0 ? <p className="text-sm text-gray-500">Sin publicaciones en el periodo.</p> : (
-                <table className="w-full text-sm">
+                <div className="overflow-x-auto"><table className="w-full min-w-[420px] text-sm">
                   <thead><tr className="text-left text-xs text-gray-500"><th className="pb-2">Canal</th><th className="pb-2 text-right">Publ.</th><th className="pb-2 text-right">Alcance</th><th className="pb-2 text-right">Interacc.</th><th className="pb-2 text-right">Tasa</th></tr></thead>
                   <tbody>
                     {stats!.byChannel.map((c) => (
@@ -123,13 +123,13 @@ export default function StatsTab({ workspaceId, campaigns }: { workspaceId: stri
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </table></div>
               )}
             </div>
             <div className="rounded-2xl border border-gray-200 bg-white p-4">
               <p className="text-sm font-semibold text-gray-900 mb-3">Por campaña</p>
               {stats!.campaigns.length === 0 ? <p className="text-sm text-gray-500">Ninguna publicación del periodo pertenece a una campaña.</p> : (
-                <table className="w-full text-sm">
+                <div className="overflow-x-auto"><table className="w-full min-w-[420px] text-sm">
                   <thead><tr className="text-left text-xs text-gray-500"><th className="pb-2">Campaña</th><th className="pb-2 text-right">Posts</th><th className="pb-2 text-right">Alcance</th><th className="pb-2 text-right">Visitas</th><th className="pb-2 text-right">Tasa</th></tr></thead>
                   <tbody>
                     {stats!.campaigns.map((c) => (
@@ -142,7 +142,7 @@ export default function StatsTab({ workspaceId, campaigns }: { workspaceId: stri
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </table></div>
               )}
             </div>
           </div>

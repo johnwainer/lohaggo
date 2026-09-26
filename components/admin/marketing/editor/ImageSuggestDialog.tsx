@@ -102,13 +102,13 @@ export default function ImageSuggestDialog({ post, channel, format, text, brief,
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 sm:p-4" onClick={onClose}>
-      <div className="w-full sm:max-w-3xl max-h-[94vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-white p-5 sm:p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full sm:max-w-3xl max-h-[94dvh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-white p-4 sm:p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900"><ImageIcon size={18} /> Sugerir imágenes</h2>
-          <button onClick={onClose}><X size={18} className="text-gray-400" /></button>
+          <button onClick={onClose} className="-m-2 p-2" aria-label="Cerrar"><X size={18} className="text-gray-400" /></button>
         </div>
 
-        <div className="flex gap-1 border-b border-gray-200">
+        <div className="flex flex-wrap gap-x-1 border-b border-gray-200">
           {tabBtn('pexels', 'Fotos gratis (Pexels)', !summary.pexels, summary.pexels ? null : 'Falta la clave de Pexels')}
           {tabBtn('ai', `Generar con IA${summary.providerReady ? ` · ${summary.providerLabel}` : ''}`, !summary.providerReady, summary.providerReason)}
         </div>
@@ -158,11 +158,11 @@ export default function ImageSuggestDialog({ post, channel, format, text, brief,
         {tab === 'pexels' ? (
           <div className="space-y-2">
             <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); search() }}>
-              <div className="relative flex-1">
+              <div className="relative min-w-0 flex-1">
                 <Search size={15} className="absolute left-3 top-2.5 text-gray-400" />
                 <input className={`${input} pl-9`} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Qué buscar (por defecto, el nombre del servicio)" />
               </div>
-              <button disabled={busy === 'search' || !query.trim()} className="inline-flex items-center gap-1.5 rounded-full bg-primary-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+              <button disabled={busy === 'search' || !query.trim()} className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
                 {busy === 'search' ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />} Buscar
               </button>
             </form>

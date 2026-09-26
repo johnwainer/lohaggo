@@ -171,8 +171,8 @@ export default function PayoutsSection() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Pagos Pendientes</p>
@@ -184,7 +184,7 @@ export default function PayoutsSection() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Total Pendiente</p>
@@ -196,7 +196,7 @@ export default function PayoutsSection() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Pagos Completados</p>
@@ -209,13 +209,13 @@ export default function PayoutsSection() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center gap-4 mb-6">
-          <Filter className="w-5 h-5 text-gray-400" />
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
+          <Filter className="w-5 h-5 shrink-0 text-gray-400" />
           <select
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            className="min-w-0 flex-1 sm:flex-none px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
           >
             <option value="">Todos</option>
             <option value="PENDING">Pendientes</option>
@@ -226,7 +226,7 @@ export default function PayoutsSection() {
           <button
             onClick={handleProcessBatch}
             disabled={processing === 'batch' || selectedPayoutIds.length === 0}
-            className="px-4 py-2 bg-primary-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            className="whitespace-nowrap px-4 py-2 bg-primary-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {processing === 'batch' ? 'Procesando lote...' : `Procesar lote (${selectedPayoutIds.length})`}
           </button>
@@ -242,7 +242,91 @@ export default function PayoutsSection() {
             <p className="text-gray-600">No hay pagos para mostrar</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="-mx-4 divide-y divide-gray-100 border-t border-gray-100 md:hidden">
+            {payouts.map((payout) => (
+              <div key={payout.id} className="space-y-3 px-4 py-4">
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4 shrink-0"
+                    aria-label="Seleccionar"
+                    disabled={payout.status !== 'PENDING'}
+                    checked={selectedPayoutIds.includes(payout.id)}
+                    onChange={(e) => toggleSelection(payout.id, e.target.checked)}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-gray-900">{payout.partner.user.name}</p>
+                    <p className="break-all text-xs text-gray-600">{payout.partner.user.email}</p>
+                  </div>
+                  <span
+                    className={`inline-flex shrink-0 items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${getStatusBadge(
+                      payout.status
+                    )}`}
+                  >
+                    {getStatusIcon(payout.status)}
+                    {payout.status}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{payout.payment.booking.service.name}</p>
+                  {payout.payment.refundCases && payout.payment.refundCases.length > 0 ? (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {payout.payment.refundCases.slice(0, 2).map((refund) => (
+                        <span
+                          key={refund.id}
+                          className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700"
+                        >
+                          Reembolso {refund.status}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+                <dl className="grid grid-cols-3 gap-2 rounded-lg bg-gray-50 p-3 text-xs">
+                  <div className="min-w-0">
+                    <dt className="text-gray-500">Monto Servicio</dt>
+                    <dd className="text-sm font-medium text-gray-900">${payout.amount.toLocaleString('es-CO')}</dd>
+                  </div>
+                  <div className="min-w-0">
+                    <dt className="text-gray-500">Comisión ({payout.partnerCommissionRate}%)</dt>
+                    <dd className="text-sm text-red-600">-${payout.partnerCommission.toLocaleString('es-CO')}</dd>
+                  </div>
+                  <div className="min-w-0">
+                    <dt className="text-gray-500">Pago Neto</dt>
+                    <dd className="text-sm font-bold text-green-600">${payout.netAmount.toLocaleString('es-CO')}</dd>
+                  </div>
+                </dl>
+                <div className="space-y-0.5 break-words text-xs text-gray-600">
+                  {payout.partner.bankAccounts?.[0] ? (
+                    <p>
+                      {payout.partner.bankAccounts[0].bankName} · {payout.partner.bankAccounts[0].accountType} · ****{payout.partner.bankAccounts[0].accountNumber.slice(-4)}
+                    </p>
+                  ) : (
+                    <p className="text-red-600">Sin cuenta bancaria activa</p>
+                  )}
+                  {payout.externalTransferId && <p className="break-all">ID: {payout.externalTransferId}</p>}
+                  {payout.processorStatus && <p>{payout.processorStatus}</p>}
+                  {payout.processorMessage && <p>{payout.processorMessage}</p>}
+                </div>
+                {payout.status === 'PENDING' && (
+                  <button
+                    onClick={() => handleProcessPayout(payout.id)}
+                    disabled={processing === payout.id}
+                    className="w-full px-4 py-2.5 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm transition-colors"
+                  >
+                    {processing === payout.id ? 'Procesando...' : 'Procesar Pago'}
+                  </button>
+                )}
+                {payout.status === 'COMPLETED' && payout.processedAt && (
+                  <p className="text-xs text-gray-500">
+                    {new Date(payout.processedAt).toLocaleDateString('es-CO')}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200">
@@ -373,6 +457,7 @@ export default function PayoutsSection() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
     </div>

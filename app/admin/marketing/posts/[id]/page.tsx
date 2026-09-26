@@ -195,7 +195,7 @@ export default function PostEditorPage({ params }: { params: Promise<{ id: strin
   const accountFor = (ch: MkChannel) => detail.accounts.find((a) => a.channel === ch)?.name || (ch === 'INSTAGRAM' ? '@lohaggo_' : 'LoHaggo')
 
   return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-4 pb-24">
+    <div className="py-1 sm:p-6 max-w-7xl mx-auto space-y-4 pb-24">
       <div className="flex items-center gap-3 flex-wrap">
         <Link href="/admin/marketing" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800"><ArrowLeft size={14} /> Publicaciones</Link>
         <StatusChip status={post.status} />
@@ -204,8 +204,8 @@ export default function PostEditorPage({ params }: { params: Promise<{ id: strin
         <span className="text-xs text-gray-400">
           {saveState === 'saving' ? 'Guardando…' : saveState === 'saved' && !dirty.post && !dirty.channels.length ? 'Guardado' : dirty.post || dirty.channels.length ? 'Cambios sin guardar' : saveState === 'error' ? 'Error al guardar' : ''}
         </span>
-        <div className="ml-auto flex items-center gap-2 flex-wrap">
-          <select className="rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-sm" disabled={!detail.permissions.edit} value={post.campaignId || ''} onChange={(e) => setCampaign(e.target.value)}>
+        <div className="flex w-full items-center gap-2 flex-wrap sm:ml-auto sm:w-auto">
+          <select className="min-w-0 max-w-full rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-sm" disabled={!detail.permissions.edit} value={post.campaignId || ''} onChange={(e) => setCampaign(e.target.value)}>
             <option value="">Sin campaña</option>
             {detail.campaigns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             {post.campaign && !detail.campaigns.some((c) => c.id === post.campaign!.id) && <option value={post.campaign.id}>{post.campaign.name}</option>}
@@ -213,18 +213,18 @@ export default function PostEditorPage({ params }: { params: Promise<{ id: strin
           {detail.permissions.edit && ['draft', 'failed'].includes(post.status) && <button onClick={() => setStatus('review')} className="rounded-full border border-amber-300 px-3 py-1.5 text-sm text-amber-800 hover:bg-amber-50">Enviar a revisión</button>}
           {detail.permissions.publish && post.status === 'review' && <button onClick={() => setStatus('approved')} className="rounded-full border border-sky-300 px-3 py-1.5 text-sm text-sky-800 hover:bg-sky-50">Aprobar</button>}
           {detail.permissions.edit && ['review', 'approved'].includes(post.status) && <button onClick={() => setStatus('draft')} className="text-sm text-gray-500 hover:underline">Volver a borrador</button>}
-          {detail.permissions.edit && <button onClick={remove} className="text-gray-400 hover:text-red-600" title="Eliminar"><Trash2 size={16} /></button>}
+          {detail.permissions.edit && <button onClick={remove} className="ml-auto p-2 -m-2 text-gray-400 hover:text-red-600 sm:ml-0" title="Eliminar" aria-label="Eliminar"><Trash2 size={16} /></button>}
         </div>
       </div>
 
       <input
-        className="w-full bg-transparent text-2xl font-bold text-gray-900 outline-none placeholder:text-gray-300"
+        className="w-full bg-transparent text-xl font-bold text-gray-900 outline-none placeholder:text-gray-300 sm:text-2xl"
         value={title}
         disabled={!editable}
         onChange={(e) => { setTitle(e.target.value); touchPost() }}
         placeholder="Título"
       />
-      {error && <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><AlertCircle size={16} className="mt-0.5 shrink-0" /><span className="flex-1">{error}</span><button onClick={() => setError(null)}><X size={14} /></button></div>}
+      {error && <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><AlertCircle size={16} className="mt-0.5 shrink-0" /><span className="min-w-0 flex-1 break-words">{error}</span><button onClick={() => setError(null)} aria-label="Cerrar"><X size={14} /></button></div>}
       {notice && <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"><CheckCircle2 size={16} /> {notice}</div>}
       {post.status === 'publishing' && <div className="rounded-xl bg-blue-50 px-4 py-2 text-sm text-blue-800">Se está publicando: la edición se bloquea hasta que termine.</div>}
       {current && current.channel !== 'WEB' && post.publications.some((p) => p.channel === current.channel && p.status === 'published') && (
@@ -236,7 +236,7 @@ export default function PostEditorPage({ params }: { params: Promise<{ id: strin
 
       <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
         <div className="space-y-4 min-w-0">
-          <div className="flex items-center gap-1 overflow-x-auto border-b border-gray-200">
+          <div className="flex flex-wrap items-center gap-x-1 border-b border-gray-200 sm:flex-nowrap sm:overflow-x-auto">
             {post.variants.map((v) => {
               const val = validations[v.channel]
               return (
@@ -279,7 +279,7 @@ export default function PostEditorPage({ params }: { params: Promise<{ id: strin
           </div>
         </div>
 
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-4">
           {post.origin === 'agent' && detail.agent && (
             <AgentPanel post={post} idea={detail.idea ?? null} agentId={detail.agent.id} canEdit={detail.permissions.edit} onChanged={load} onRejected={() => router.push('/admin/marketing')} />
           )}

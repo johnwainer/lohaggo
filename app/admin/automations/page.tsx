@@ -194,16 +194,16 @@ function RuleCard({
 
   return (
     <div className={`bg-white rounded-2xl border-2 transition-all ${rule.isActive ? 'border-gray-100' : 'border-dashed border-gray-200 opacity-60'}`}>
-      <div className="p-5 flex items-start gap-4">
+      <div className="flex flex-wrap items-start gap-3 p-4 sm:flex-nowrap sm:gap-4 sm:p-5">
         <button
           onClick={() => onToggle(rule.id, !rule.isActive)}
-          className={`mt-0.5 flex-shrink-0 transition-colors ${rule.isActive ? 'text-primary-600' : 'text-gray-300'}`}
+          className={`order-1 mt-0.5 flex-shrink-0 transition-colors ${rule.isActive ? 'text-primary-600' : 'text-gray-300'}`}
           title={rule.isActive ? 'Desactivar' : 'Activar'}
         >
           {rule.isActive ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
         </button>
 
-        <div className="flex-1 min-w-0">
+        <div className="order-3 min-w-0 basis-full sm:order-2 sm:basis-auto sm:flex-1">
           <div className="flex flex-wrap items-center gap-2 mb-1">
             {rule.targetRole && (
               <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${rule.targetRole === 'PARTNER' ? 'bg-amber-100 text-amber-700' : 'bg-sky-100 text-sky-700'}`}>
@@ -228,14 +228,14 @@ function RuleCard({
           <h3 className="font-bold text-gray-900 text-sm">{rule.name}</h3>
           {rule.description && <p className="text-xs text-gray-500 mt-0.5">{rule.description}</p>}
 
-          <div className="mt-3 flex items-center gap-4 text-xs text-gray-500">
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
             <span className="flex items-center gap-1"><CheckCircle2 size={12} className="text-green-500" />{rule.stats.sent} enviados</span>
             <span className="flex items-center gap-1"><Clock size={12} className="text-yellow-500" />{rule.stats.pending} pendientes</span>
             {rule.stats.failed > 0 && <span className="flex items-center gap-1"><XCircle size={12} className="text-red-500" />{rule.stats.failed} fallidos</span>}
           </div>
         </div>
 
-        <div className="flex items-center gap-1 flex-shrink-0">
+        <div className="order-2 ml-auto flex items-center gap-1 flex-shrink-0 sm:order-3 sm:ml-0">
           <button onClick={() => setExpanded(e => !e)} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
             {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </button>
@@ -249,7 +249,7 @@ function RuleCard({
       </div>
 
       {expanded && (
-        <div className="px-5 pb-5 pt-0 border-t border-gray-50 mt-2">
+        <div className="px-4 pb-4 pt-0 border-t border-gray-50 mt-2 sm:px-5 sm:pb-5">
           <div className="space-y-2 text-xs text-gray-600 mt-3">
             {rule.channels.includes('WHATSAPP') && (
               <div>
@@ -369,12 +369,12 @@ function RuleModal({
   const twilioTemplates = waTemplates.filter(t => t.source === 'twilio')
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-gray-100">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-3 sm:p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90dvh] overflow-y-auto">
+        <div className="p-4 border-b border-gray-100 sm:p-6">
           <h2 className="text-lg font-bold text-gray-900">{isNew ? 'Nueva regla de automatización' : 'Editar regla'}</h2>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="p-4 space-y-5 sm:p-6">
 
           {/* Name */}
           <div>
@@ -698,7 +698,7 @@ export default function AutomationsPage() {
   })).filter(g => g.rules.length > 0)
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto sm:p-6">
       {/* Header */}
       <div className="mb-6 flex items-start justify-between gap-4 flex-wrap">
         <div>
@@ -709,7 +709,7 @@ export default function AutomationsPage() {
             Mensajes automáticos que se envían a socios y clientes en momentos clave del ciclo de vida.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button onClick={load} disabled={loading} className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-600 hover:bg-gray-50 transition-all">
             {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
           </button>

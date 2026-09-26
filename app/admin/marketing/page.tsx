@@ -118,13 +118,13 @@ export default function MarketingPage() {
   const inReview = (data?.posts || []).filter((p) => p.status === 'review').length
 
   return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-5 pb-24">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
+    <div className="py-1 sm:p-6 max-w-7xl mx-auto space-y-5 pb-24">
+      <div className="flex items-start justify-between gap-3 sm:gap-4 flex-wrap">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-gray-900">Publicaciones y campañas</h1>
           <p className="text-sm text-gray-500 mt-1">Blog, Facebook e Instagram en un solo lugar.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
         {ws.length > 0 && <NoticesBell workspaceId={workspaceId} onOpenAgent={openAgent} />}
         {ws.length > 0 && (
           <div className="relative" ref={settingsRef}>
@@ -132,7 +132,7 @@ export default function MarketingPage() {
               <Settings size={16} /> <span className="hidden sm:inline">Ajustes</span> <ChevronDown size={14} />
             </button>
             {settingsOpen && (
-              <div className="absolute right-0 z-40 mt-2 w-64 overflow-hidden rounded-2xl border border-gray-200 bg-white py-1 shadow-xl">
+              <div className="absolute left-0 z-40 mt-2 w-64 max-w-[calc(100vw-1.5rem)] overflow-hidden sm:left-auto sm:right-0 rounded-2xl border border-gray-200 bg-white py-1 shadow-xl">
                 {SETTINGS.tabs.filter((t) => showTab(t.key)).map(({ key, label, icon: Icon, help }) => (
                   <button key={key} onClick={() => { setTab(key); setSettingsOpen(false) }} className={`flex w-full items-start gap-3 px-4 py-2.5 text-left hover:bg-gray-50 ${tab === key ? 'bg-primary-50' : ''}`}>
                     <Icon size={16} className="mt-0.5 shrink-0 text-gray-500" />
@@ -144,7 +144,7 @@ export default function MarketingPage() {
           </div>
         )}
         {ws.length > 1 && (
-          <select className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm" value={workspaceId} onChange={(e) => { setWorkspaceId(e.target.value); try { localStorage.setItem('mk.ws', e.target.value) } catch { /* noop */ } }}>
+          <select className="max-w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm" value={workspaceId} onChange={(e) => { setWorkspaceId(e.target.value); try { localStorage.setItem('mk.ws', e.target.value) } catch { /* noop */ } }}>
             <option value="">Todos los workspaces</option>
             {ws.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
           </select>
@@ -162,12 +162,12 @@ export default function MarketingPage() {
       {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
       <nav className="space-y-2" aria-label="Secciones">
-        <div className="flex gap-2 overflow-x-auto rounded-2xl border border-gray-200 bg-white p-1.5 sm:gap-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex flex-wrap gap-1 rounded-2xl border border-gray-200 bg-white p-1.5 sm:flex-nowrap sm:gap-3 sm:overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {GROUPS.map((g) => {
             const tabs = g.tabs.filter((t) => showTab(t.key))
             if (!tabs.length) return null
             return (
-              <div key={g.label} className="flex shrink-0 items-center gap-1">
+              <div key={g.label} className="contents sm:flex sm:shrink-0 sm:items-center sm:gap-1">
                 <span className="hidden px-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400 md:inline">{g.label}</span>
                 {tabs.map(({ key, label, icon: Icon }) => (
                   <button

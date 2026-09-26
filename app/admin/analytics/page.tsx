@@ -42,7 +42,7 @@ function Ga4Connect({ onSaved }: { onSaved: () => void }) {
   }
   if (!info) return <Loader2 className="animate-spin text-gray-400" />
   return (
-    <div className="max-w-2xl space-y-4 rounded-2xl border border-gray-200 bg-white p-6">
+    <div className="max-w-2xl space-y-4 rounded-2xl border border-gray-200 bg-white p-4 sm:p-6">
       <div>
         <h3 className="font-semibold text-gray-900">Conectar Google Analytics 4</h3>
         <p className="mt-1 text-sm text-gray-600">El sitio ya envía visitas a Google Analytics. Para verlas aquí, el admin las lee con una cuenta de servicio de solo lectura.</p>
@@ -52,7 +52,7 @@ function Ga4Connect({ onSaved }: { onSaved: () => void }) {
         <li>En Google Analytics: Administrar → Acceso a la propiedad → agrega el correo de esa cuenta como <strong>Lector</strong>.</li>
         <li>Copia el ID de la propiedad (Administrar → Detalles de la propiedad; son solo números) y pega aquí el ID y el JSON.</li>
       </ol>
-      {info.serviceAccountEmail && <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800">Cuenta de servicio guardada: {info.serviceAccountEmail}</p>}
+      {info.serviceAccountEmail && <p className="break-all rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800">Cuenta de servicio guardada: {info.serviceAccountEmail}</p>}
       {!info.canEdit ? <p className="text-sm text-amber-700">Solo un superadmin puede conectar Google Analytics.</p> : (
         <>
           <label className="block space-y-1"><span className="text-sm font-medium text-gray-800">ID de la propiedad</span>
@@ -121,37 +121,37 @@ function AnalyticsInner() {
         </div>
         {tab !== 'app' && (
           <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex rounded-xl border border-gray-200 bg-white p-0.5 text-sm">
+            <div className="flex w-full rounded-xl border border-gray-200 bg-white p-0.5 text-sm sm:inline-flex sm:w-auto">
               {PRESETS.map(([k, label]) => (
-                <button key={k} onClick={() => { setCustom(null); setPreset(k) }} className={`rounded-lg px-3 py-1.5 ${!custom && preset === k ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>{label}</button>
+                <button key={k} onClick={() => { setCustom(null); setPreset(k) }} className={`flex-1 whitespace-nowrap rounded-lg px-2 py-1.5 sm:flex-none sm:px-3 ${!custom && preset === k ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>{label}</button>
               ))}
             </div>
-            <div className="flex items-center gap-1 text-sm">
-              <input type="date" className="rounded-xl border border-gray-200 px-2 py-1.5" value={custom?.from ?? ''} onChange={(e) => setCustom((c) => ({ from: e.target.value, to: c?.to || e.target.value }))} />
+            <div className="flex w-full items-center gap-1 text-sm sm:w-auto">
+              <input type="date" className="min-w-0 flex-1 rounded-xl border border-gray-200 px-2 py-1.5 sm:flex-none" value={custom?.from ?? ''} onChange={(e) => setCustom((c) => ({ from: e.target.value, to: c?.to || e.target.value }))} />
               <span className="text-gray-400">–</span>
-              <input type="date" className="rounded-xl border border-gray-200 px-2 py-1.5" value={custom?.to ?? ''} onChange={(e) => setCustom((c) => ({ from: c?.from || e.target.value, to: e.target.value }))} />
+              <input type="date" className="min-w-0 flex-1 rounded-xl border border-gray-200 px-2 py-1.5 sm:flex-none" value={custom?.to ?? ''} onChange={(e) => setCustom((c) => ({ from: c?.from || e.target.value, to: e.target.value }))} />
             </div>
           </div>
         )}
       </div>
 
-      <nav className="flex gap-1 overflow-x-auto rounded-2xl border border-gray-200 bg-white p-1.5 [scrollbar-width:none]" aria-label="Pestañas">
+      <nav className="flex flex-wrap gap-1 rounded-2xl border border-gray-200 bg-white p-1.5 sm:flex-nowrap sm:overflow-x-auto sm:[scrollbar-width:none]" aria-label="Pestañas">
         {TABS.map(({ key, label, icon: Icon }) => (
-          <button key={key} onClick={() => router.replace(`/admin/analytics?tab=${key}`, { scroll: false })} className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-sm ${tab === key ? 'bg-primary-600 font-semibold text-white' : 'text-gray-700 hover:bg-gray-100'}`}>
+          <button key={key} onClick={() => router.replace(`/admin/analytics?tab=${key}`, { scroll: false })} className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-2.5 py-2 text-sm sm:px-3 ${tab === key ? 'bg-primary-600 font-semibold text-white' : 'text-gray-700 hover:bg-gray-100'}`}>
             <Icon size={15} /> {label}
           </button>
         ))}
       </nav>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-gray-500">{meta.help}{data?.period && tab !== 'app' ? <span className="ml-2 text-gray-400">· {data.period.label}</span> : null}</p>
+        <p className="text-sm text-gray-500">{meta.help}{data?.period && tab !== 'app' ? <span className="ml-2 whitespace-nowrap text-gray-400">· {data.period.label}</span> : null}</p>
         {meta.filters && options && (
-          <div className="flex items-center gap-2 text-sm">
-            <Filter size={14} className="text-gray-400" />
-            <select className="rounded-xl border border-gray-200 bg-white px-3 py-1.5" value={city} onChange={(e) => setCity(e.target.value)}>
+          <div className="flex w-full items-center gap-2 text-sm sm:w-auto">
+            <Filter size={14} className="shrink-0 text-gray-400" />
+            <select className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 py-1.5 sm:flex-none" value={city} onChange={(e) => setCity(e.target.value)}>
               <option value="">Todas las ciudades</option>
               {options.cities.map((c) => <option key={c} value={c}>{CITY_LABEL[c] ?? c}</option>)}
             </select>
-            <select className="rounded-xl border border-gray-200 bg-white px-3 py-1.5" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+            <select className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 py-1.5 sm:flex-none" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
               <option value="">Todas las categorías</option>
               {options.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>

@@ -33,9 +33,9 @@ function SocialPreview({ channel, body, media, accountName, link }: { channel: '
   return (
     <div className="mx-auto w-full max-w-[380px] overflow-hidden rounded-2xl border border-gray-200 bg-white text-[13px] shadow-sm">
       <div className="flex items-center gap-2 px-3 py-2">
-        <span className="h-7 w-7 rounded-full bg-gradient-to-br from-primary-500 to-secondary-500" />
-        <span className="font-semibold text-gray-900">{accountName}</span>
-        <span className="ml-auto text-[11px] text-gray-400">Vista previa aproximada</span>
+        <span className="h-7 w-7 shrink-0 rounded-full bg-gradient-to-br from-primary-500 to-secondary-500" />
+        <span className="min-w-0 truncate font-semibold text-gray-900">{accountName}</span>
+        <span className="ml-auto shrink-0 text-[11px] text-gray-400">Vista previa aproximada</span>
       </div>
       {channel === 'FACEBOOK' && <p className="whitespace-pre-wrap break-words px-3 pb-2 text-gray-900">{text}{body.length > cut && <button onClick={() => setMore(!more)} className="text-gray-500">{more ? ' ver menos' : 'ver más'}</button>}</p>}
       {media[0] ? (
@@ -144,15 +144,15 @@ export default function ChannelEditor({ post, variant, validation, editable, acc
         <label className="block space-y-1">
           <span className="text-sm font-medium text-gray-700">URL</span>
           <div className="flex items-center rounded-xl border border-gray-200 text-sm focus-within:ring-2 focus-within:ring-primary-500">
-            <span className="pl-3 text-gray-400 whitespace-nowrap">lohaggo.com/blog/</span>
+            <span className="shrink-0 pl-3 text-gray-400 whitespace-nowrap">lohaggo.com/blog/</span>
             <input className="flex-1 min-w-0 rounded-r-xl py-2 pr-3 outline-none" disabled={!editable} value={variant.slug || ''} onChange={(e) => { slugTouched.current = true; onChange({ slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') }) }} />
           </div>
           {variant.webPublishedAt && <span className="block text-xs text-gray-500">Si cambias la URL de un artículo publicado, la anterior redirige a la nueva (301).</span>}
         </label>
         <div className="space-y-1">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-sm font-medium text-gray-700">Contenido</span>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {!preview && editable && <MarkdownToolbar textarea={bodyRef} onChange={(body) => onChange({ body })} />}
               <button type="button" onClick={() => setPreview(!preview)} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2 py-1 text-xs text-gray-600">{preview ? <><Pencil size={12} /> Editar</> : <><Eye size={12} /> Vista previa</>}</button>
             </div>
@@ -168,11 +168,11 @@ export default function ChannelEditor({ post, variant, validation, editable, acc
         <div className="rounded-2xl border border-gray-200 p-4 space-y-3">
           <p className="text-sm font-semibold text-gray-900">SEO y redes</p>
           <label className="block space-y-1">
-            <span className="flex justify-between text-xs font-medium text-gray-700">Título SEO <Counter value={Array.from(seoTitle).length} max={LIMITS.WEB.seoTitleMax} label="car." /></span>
+            <span className="flex flex-wrap justify-between gap-x-2 text-xs font-medium text-gray-700">Título SEO <Counter value={Array.from(seoTitle).length} max={LIMITS.WEB.seoTitleMax} label="car." /></span>
             <input className={input} disabled={!editable} value={variant.seoTitle || ''} onChange={(e) => onChange({ seoTitle: e.target.value })} placeholder={post.title} />
           </label>
           <label className="block space-y-1">
-            <span className="flex justify-between text-xs font-medium text-gray-700">Meta descripción <Counter value={Array.from(variant.seoDescription || '').length} max={LIMITS.WEB.seoDescriptionMax} label="car." /></span>
+            <span className="flex flex-wrap justify-between gap-x-2 text-xs font-medium text-gray-700">Meta descripción <Counter value={Array.from(variant.seoDescription || '').length} max={LIMITS.WEB.seoDescriptionMax} label="car." /></span>
             <textarea className={input} rows={2} disabled={!editable} value={variant.seoDescription || ''} onChange={(e) => onChange({ seoDescription: e.target.value })} placeholder="Lo que Google muestra bajo el título (120–160 caracteres)" />
           </label>
           <label className="block space-y-1">
@@ -224,11 +224,11 @@ export default function ChannelEditor({ post, variant, validation, editable, acc
   return (
     <div className="space-y-4">
       <div className="grid lg:grid-cols-[1fr_380px] gap-4">
-        <div className="space-y-3">
+        <div className="min-w-0 space-y-3">
           <label className="block space-y-1">
-            <span className="flex justify-between text-sm font-medium text-gray-700">
+            <span className="flex flex-wrap justify-between gap-x-3 gap-y-0.5 text-sm font-medium text-gray-700">
               Texto
-              <span className="flex gap-3 text-xs font-normal">
+              <span className="flex flex-wrap gap-x-3 text-xs font-normal">
                 {L ? <Counter value={s?.chars ?? 0} max={L.caption} label="car." /> : <span className="text-gray-500">{s?.chars ?? 0} car.</span>}
                 {L ? <Counter value={s?.hashtags ?? 0} max={L.hashtags} label="#" /> : <Counter value={s?.hashtags ?? 0} max={LIMITS.FACEBOOK.recommendedHashtags} label="# recomendados" />}
                 {L && <Counter value={s?.mentions ?? 0} max={L.mentions} label="@" />}

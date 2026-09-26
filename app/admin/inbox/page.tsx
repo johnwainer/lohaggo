@@ -264,6 +264,7 @@ export default function InboxPage() {
   const [bulkBusy, setBulkBusy] = useState(false)
   const [bulkNotice, setBulkNotice] = useState<string | null>(null)
   const [showContact, setShowContact] = useState(false)
+  const [showDetails, setShowDetails] = useState(false)
   const [usedSuggestionId, setUsedSuggestionId] = useState<string | null>(null)
   const [suggesting, setSuggesting] = useState(false)
   const [nowTick, setNowTick] = useState(() => Date.now())
@@ -915,13 +916,13 @@ export default function InboxPage() {
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-[100dvh] bg-gray-50 overflow-hidden">
+    <div className="flex h-full min-h-0 flex-1 bg-gray-50 overflow-hidden">
 
       {/* ── Left sidebar: conversation list ── */}
       <aside className={`flex flex-col w-full md:w-80 shrink-0 border-r bg-white ${mobileView === 'chat' ? 'hidden md:flex' : 'flex'}`}>
 
         {/* Header */}
-        <div className="pl-16 pr-4 md:px-4 py-3 border-b">
+        <div className="px-3 md:px-4 py-3 border-b">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Inbox className="h-5 w-5 text-gray-700" />
@@ -932,21 +933,21 @@ export default function InboxPage() {
                 </span>
               )}
             </div>
-            <button onClick={() => loadConversations()} className="rounded-lg p-1.5 hover:bg-gray-100 transition text-gray-500">
+            <button onClick={() => loadConversations()} aria-label="Actualizar" className="rounded-lg p-2 md:p-1.5 hover:bg-gray-100 transition text-gray-500">
               <RefreshCw className="h-4 w-4" />
             </button>
           </div>
 
           <div className="relative mb-2">
-            <Search className="absolute left-2.5 top-2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
-              className="w-full border rounded-lg pl-8 pr-8 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
+              className="w-full border rounded-lg pl-8 pr-8 py-2 md:py-1.5 text-base md:text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
               placeholder="Buscar nombre, teléfono, email o mensaje…"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
             />
             {searchInput && (
-              <button onClick={() => { setSearchInput(''); setSearch('') }} className="absolute right-2 top-1.5 rounded p-0.5 text-gray-400 hover:text-gray-600" title="Limpiar búsqueda">
+              <button onClick={() => { setSearchInput(''); setSearch('') }} className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 hover:text-gray-600" title="Limpiar búsqueda">
                 <X className="h-4 w-4" />
               </button>
             )}
@@ -974,7 +975,7 @@ export default function InboxPage() {
             ))}
           </div>
 
-          <div className="flex items-center gap-1.5 mt-2">
+          <div className="flex flex-wrap items-center gap-1.5 mt-2">
             <button
               onClick={() => setFilterUnread((v) => !v)}
               className={`rounded-lg px-2 py-1 text-xs border transition ${filterUnread ? 'bg-red-50 border-red-300 text-red-700 font-semibold' : 'text-gray-600 hover:bg-gray-50'}`}
@@ -1060,7 +1061,7 @@ export default function InboxPage() {
                 <button onClick={() => setCheckedIds([])} className="text-gray-500 hover:text-gray-800">Cancelar</button>
               </div>
               <div className="flex gap-1.5">
-                <select className="flex-1 min-w-0 border rounded-lg px-2 py-1 text-xs bg-white" value={bulkTarget} onChange={(e) => setBulkTarget(e.target.value)}>
+                <select className="flex-1 min-w-0 border rounded-lg px-2 py-1.5 md:py-1 text-xs bg-white" value={bulkTarget} onChange={(e) => setBulkTarget(e.target.value)}>
                   <option value="">¿Quién las atiende?</option>
                   {aiAgents.length > 0 && (
                     <optgroup label="Agentes IA">
@@ -1195,7 +1196,7 @@ export default function InboxPage() {
         {!selected ? (
           <div className="flex flex-col flex-1">
             {/* Back button for mobile loading state */}
-            <div className="md:hidden flex items-center gap-2 pl-16 pr-3 py-3 border-b bg-white">
+            <div className="md:hidden flex items-center gap-2 px-3 py-3 border-b bg-white">
               <button
                 onClick={() => setMobileView('list')}
                 className="shrink-0 rounded-lg p-1.5 hover:bg-gray-100 text-gray-500"
@@ -1212,7 +1213,7 @@ export default function InboxPage() {
         ) : (
           <>
             {/* Chat header */}
-            <div className="pl-16 pr-3 md:px-5 py-3 border-b bg-white space-y-2">
+            <div className="px-3 md:px-5 py-2.5 md:py-3 border-b bg-white space-y-2">
               <div className="flex items-center gap-2 md:gap-3">
                 {/* Back button — mobile only */}
                 <button
@@ -1228,14 +1229,14 @@ export default function InboxPage() {
                     : displayName(selected).replace(/^[@+]/, '').charAt(0).toUpperCase()}
                 </button>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="font-semibold text-gray-900 truncate">{displayName(selected)}</p>
-                    {selected.contact?.user && <RoleBadge user={selected.contact.user} />}
-                    <ChannelIcon channel={selected.channel} size={16} />
-                    <span className={`text-xs font-medium ${CHANNEL_META[selected.channel]?.text ?? 'text-gray-500'}`}>{channelLabel(selected.channel)}</span>
-                    {selected.connection?.name && <span className="text-xs text-gray-400 truncate">· {selected.connection.name}</span>}
+                  <div className="flex items-center gap-2 min-w-0">
+                    <p className="font-semibold text-gray-900 truncate min-w-0">{displayName(selected)}</p>
+                    {selected.contact?.user && <span className="hidden sm:inline-flex shrink-0"><RoleBadge user={selected.contact.user} /></span>}
+                    <ChannelIcon channel={selected.channel} size={16} className="shrink-0" />
+                    <span className={`hidden sm:inline text-xs font-medium ${CHANNEL_META[selected.channel]?.text ?? 'text-gray-500'}`}>{channelLabel(selected.channel)}</span>
+                    {selected.connection?.name && <span className="hidden sm:inline text-xs text-gray-400 truncate">· {selected.connection.name}</span>}
                   </div>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 truncate">
                     {isCommentChannel(selected.channel)
                       ? selected.commentKind === 'mention' ? 'Mención en una publicación de otra cuenta' : 'Comentario en una publicación'
                       : isMetaChannel(selected.channel) ? `ID ${selected.contactPhone}` : selected.contactPhone}
@@ -1243,10 +1244,21 @@ export default function InboxPage() {
                   </p>
                 </div>
 
+                {/* Mobile: tags, owner, tasks and user bar live behind this toggle */}
+                <button
+                  onClick={() => setShowDetails((v) => !v)}
+                  className={`md:hidden shrink-0 rounded-lg p-2 transition ${showDetails ? 'bg-primary-100 text-primary-600' : 'hover:bg-gray-100 text-gray-400'}`}
+                  title="Detalles"
+                  aria-label="Detalles de la conversación"
+                  aria-expanded={showDetails}
+                >
+                  {showDetails ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </button>
+
                 {/* Contact panel: edit data, link platform user, other channels */}
                 <button
                   onClick={() => setShowContact((v) => !v)}
-                  className={`rounded-lg p-1.5 transition ${showContact ? 'bg-primary-100 text-primary-600' : 'hover:bg-gray-100 text-gray-400'}`}
+                  className={`shrink-0 rounded-lg p-2 md:p-1.5 transition ${showContact ? 'bg-primary-100 text-primary-600' : 'hover:bg-gray-100 text-gray-400'}`}
                   title="Contacto"
                 >
                   <User className="h-4 w-4" />
@@ -1255,7 +1267,7 @@ export default function InboxPage() {
                 {/* In-conversation search */}
                 <button
                   onClick={() => { setShowMsgSearch((v) => !v); setMsgSearch('') }}
-                  className={`rounded-lg p-1.5 transition ${showMsgSearch ? 'bg-primary-100 text-primary-600' : 'hover:bg-gray-100 text-gray-400'}`}
+                  className={`shrink-0 rounded-lg p-2 md:p-1.5 transition ${showMsgSearch ? 'bg-primary-100 text-primary-600' : 'hover:bg-gray-100 text-gray-400'}`}
                   title="Buscar en conversación (Ctrl+F)"
                 >
                   <Search className="h-4 w-4" />
@@ -1281,18 +1293,6 @@ export default function InboxPage() {
                   </select>
                 </div>
 
-                {/* Status — dropdown on mobile, buttons on desktop */}
-                <div className="shrink-0 sm:hidden">
-                  <select
-                    value={selected.status}
-                    onChange={(e) => updateStatus(e.target.value as ConvStatus)}
-                    className="border rounded-lg px-2 py-1 text-xs"
-                  >
-                    {(Object.keys(STATUS_LABELS) as ConvStatus[]).map((s) => (
-                      <option key={s} value={s}>{STATUS_LABELS[s]}</option>
-                    ))}
-                  </select>
-                </div>
                 <div className="hidden sm:flex items-center gap-1 shrink-0">
                   {(Object.keys(STATUS_LABELS) as ConvStatus[]).map((s) => (
                     <button
@@ -1306,8 +1306,38 @@ export default function InboxPage() {
                 </div>
               </div>
 
+              {/* Mobile: status + who handles it */}
+              <div className={`${showDetails ? 'grid' : 'hidden'} sm:hidden grid-cols-2 gap-2`}>
+                <select
+                  value={selected.status}
+                  onChange={(e) => updateStatus(e.target.value as ConvStatus)}
+                  className="min-w-0 border rounded-lg px-2 py-2 text-xs bg-white"
+                  aria-label="Estado"
+                >
+                  {(Object.keys(STATUS_LABELS) as ConvStatus[]).map((s) => (
+                    <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+                  ))}
+                </select>
+                <select
+                  className="min-w-0 border rounded-lg px-2 py-2 text-xs bg-white"
+                  aria-label="Asignar a"
+                  value={selected.aiHandled && selected.aiAgentId ? `ai:${selected.aiAgentId}` : selected.assignedToId || ''}
+                  onChange={(e) => e.target.value.startsWith('ai:') ? aiAction('return', e.target.value.slice(3)) : assignAgent(e.target.value)}
+                >
+                  <option value="">Sin asignar</option>
+                  {aiAgents.filter((a) => !selected.workspace || a.workspaceId === selected.workspace.id).length > 0 && (
+                    <optgroup label="Agentes IA">
+                      {aiAgents.filter((a) => !selected.workspace || a.workspaceId === selected.workspace.id).map((a) => <option key={a.id} value={`ai:${a.id}`}>🤖 {a.name}</option>)}
+                    </optgroup>
+                  )}
+                  <optgroup label="Personas">
+                    {agents.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </optgroup>
+                </select>
+              </div>
+
               {/* Tags row */}
-              <div className="flex items-center gap-1.5 flex-wrap pl-2 md:pl-12">
+              <div className={`${showDetails ? 'flex' : 'hidden'} md:flex items-center gap-1.5 flex-wrap pl-0 md:pl-12`}>
                 {(selected.tags || []).map((tag) => (
                   <button
                     key={tag}
@@ -1327,7 +1357,7 @@ export default function InboxPage() {
                     Etiqueta
                   </button>
                   {showTagPicker && (
-                    <div className="absolute top-7 left-0 z-20 bg-white border rounded-xl shadow-lg p-2 flex flex-wrap gap-1.5 w-56">
+                    <div className="absolute top-7 left-0 z-20 bg-white border rounded-xl shadow-lg p-2 flex flex-wrap gap-1.5 w-56 max-w-[80vw]">
                       {PRESET_TAGS.map((tag) => (
                         <button
                           key={tag}
@@ -1343,7 +1373,7 @@ export default function InboxPage() {
               </div>
 
               {/* AI agent bar: who handles it, intervene / return, automations, tasks */}
-              <div className="flex items-center gap-2 flex-wrap pl-2 md:pl-12 text-xs">
+              <div className={`${showDetails ? 'flex' : 'hidden'} md:flex items-center gap-2 flex-wrap pl-0 md:pl-12 text-xs`}>
                 {(() => {
                   const owner = ownerLabel(selected)
                   return (
@@ -1368,7 +1398,7 @@ export default function InboxPage() {
                 {selected.aiSpam && <span className="rounded-full bg-gray-100 text-gray-600 px-2 py-0.5">Marcada como publicidad</span>}
               </div>
               {(selected.tasks || []).some((t) => !t.doneAt) && (
-                <div className="pl-2 md:pl-12 space-y-1">
+                <div className={`${showDetails ? 'block' : 'hidden'} md:block pl-0 md:pl-12 space-y-1`}>
                   {(selected.tasks || []).filter((t) => !t.doneAt).map((t) => (
                     <label key={t.id} className={`flex items-center gap-2 rounded-lg px-2 py-1 text-xs ${t.source === 'ai' ? 'bg-violet-50 border border-violet-200 text-violet-900' : 'bg-gray-50 border text-gray-700'}`}>
                       <input type="checkbox" checked={false} onChange={() => toggleTask(t)} />
@@ -1385,12 +1415,12 @@ export default function InboxPage() {
 
               {/* In-conversation search bar */}
               {showMsgSearch && (
-                <div className="flex items-center gap-2 pl-2 md:pl-12">
+                <div className="flex items-center gap-2 pl-0 md:pl-12">
                   <div className="relative flex-1 max-w-xs">
-                    <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-gray-400" />
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
                     <input
                       autoFocus
-                      className="w-full border rounded-lg pl-8 pr-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
+                      className="w-full border rounded-lg pl-8 pr-3 py-1.5 text-base md:text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
                       placeholder="Buscar en mensajes…"
                       value={msgSearch}
                       onChange={(e) => setMsgSearch(e.target.value)}
@@ -1407,7 +1437,7 @@ export default function InboxPage() {
 
             {/* Comments: the post (or ad) the conversation is about */}
             {commentConv && (
-              <div className="flex items-center gap-3 px-3 md:px-5 py-2 bg-gray-50 border-b text-xs text-gray-600">
+              <div className="flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-1 px-3 md:px-5 py-2 bg-gray-50 border-b text-xs text-gray-600">
                 {(selected.postMediaUrl || selected.postId) && (
                   // Served by our server: Meta's CDN refuses to be embedded and its URLs expire
                   <img
@@ -1434,11 +1464,11 @@ export default function InboxPage() {
 
             {/* User info bar */}
             {selected.user && (
-              <div className="flex flex-wrap items-center gap-2 px-3 md:px-5 py-2 bg-amber-50 border-b text-xs text-amber-800">
+              <div className={`${showDetails ? 'flex' : 'hidden'} md:flex flex-wrap items-center gap-2 px-3 md:px-5 py-2 bg-amber-50 border-b text-xs text-amber-800`}>
                 <User className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate max-w-[200px] md:max-w-none"><b>{selected.user.name}</b> · {selected.user.email} · {selected.user.role}</span>
+                <span className="min-w-0 flex-1 truncate md:flex-none md:max-w-none"><b>{selected.user.name}</b> · {selected.user.email} · {selected.user.role}</span>
                 {selected.user.phone && <span className="hidden sm:flex items-center gap-1"><Phone className="h-3 w-3" />{selected.user.phone}</span>}
-                <div className="ml-auto flex items-center gap-2">
+                <div className="ml-auto flex flex-wrap items-center gap-2">
                   <button
                     onClick={() => toggleMarketingExclusion(!selected.user!.excludedFromMarketing)}
                     title={selected.user!.excludedFromMarketing
@@ -1636,7 +1666,7 @@ export default function InboxPage() {
                   <Search className="h-3.5 w-3.5 text-gray-400" />
                   <input
                     autoFocus
-                    className="flex-1 text-sm outline-none"
+                    className="flex-1 min-w-0 text-base md:text-sm outline-none"
                     placeholder="Buscar respuesta…"
                     value={cannedSearch}
                     onChange={(e) => setCannedSearch(e.target.value)}
@@ -1674,7 +1704,7 @@ export default function InboxPage() {
               </div>
             ) : (
               /* Message input */
-              <div className="px-3 md:px-5 pb-4 pt-2 border-t bg-white">
+              <div className="px-3 md:px-5 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pb-4 pt-2 border-t bg-white">
                 {/* Pending attachment */}
                 {attachment && (
                   <div className="mb-2 flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2">
@@ -1855,7 +1885,7 @@ export default function InboxPage() {
                           <div key={key} className="flex items-center gap-2">
                             <span className="text-xs text-gray-500 w-8 shrink-0">{`{{${key}}}`}</span>
                             <input
-                              className="flex-1 border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500"
+                              className="flex-1 min-w-0 border rounded px-2 py-1 text-base md:text-xs focus:outline-none focus:ring-1 focus:ring-primary-500"
                               placeholder={`Valor para ${key}`}
                               value={templateVars[key] || ''}
                               onChange={(e) => setTemplateVars((prev) => ({ ...prev, [key]: e.target.value }))}
@@ -1903,7 +1933,7 @@ export default function InboxPage() {
                     : isInternalNote ? 'bg-yellow-50 border-yellow-200' : 'bg-gray-50 border-gray-200'
                 }`}>
                   {/* Row 1: action toolbar */}
-                  <div className="flex items-center gap-1 px-2 pt-2 pb-1">
+                  <div className="flex items-center gap-0.5 sm:gap-1 px-1.5 sm:px-2 pt-2 pb-1">
                     {/* Copilot: suggest a reply on demand */}
                     {selected.copilot && !selected.aiHandled && (
                       <button
@@ -2018,7 +2048,7 @@ export default function InboxPage() {
                   <div className="flex items-end gap-2 px-3 pb-3 pt-1">
                     <textarea
                       ref={inputRef}
-                      className="flex-1 bg-transparent resize-none text-sm outline-none min-h-[40px] max-h-32 py-1 placeholder:text-gray-400"
+                      className="flex-1 min-w-0 bg-transparent resize-none text-base md:text-sm outline-none min-h-[40px] max-h-32 py-1 placeholder:text-gray-400"
                       placeholder={isInternalNote ? 'Escribe una nota interna…' : aiLocked ? 'La IA lleva esta conversación — pulsa Intervenir para escribir' : windowClosed ? 'Ventana cerrada — usa una plantilla' : commentConv ? (replyVisibility === 'private' ? 'Mensaje privado…' : 'Respuesta pública…') : `Escribe un mensaje…`}
                       value={messageText}
                       rows={1}
@@ -2051,15 +2081,15 @@ export default function InboxPage() {
       {/* ── Quick Profile Modal ── */}
       {profileModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-4"
           onClick={() => setProfileModal(null)}
         >
           <div
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto"
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90dvh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-start gap-4 p-5 border-b">
+            <div className="flex items-start gap-3 sm:gap-4 p-4 sm:p-5 border-b">
               <div className="h-14 w-14 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold text-xl shrink-0 overflow-hidden">
                 {profileModal.image
                   ? <img src={profileModal.image} alt="" className="h-full w-full object-cover" />
@@ -2073,7 +2103,7 @@ export default function InboxPage() {
                   </span>
                   {!profileModal.isActive && <span className="rounded-full px-2 py-0.5 text-xs font-medium bg-red-100 text-red-700">Inactivo</span>}
                 </div>
-                <p className="text-sm text-gray-500 mt-0.5">{profileModal.email}</p>
+                <p className="text-sm text-gray-500 mt-0.5 break-all">{profileModal.email}</p>
                 {profileModal.phone && (
                   <p className="text-sm text-gray-500 flex items-center gap-1 mt-0.5">
                     <Phone className="h-3 w-3" />{profileModal.phone}
@@ -2092,7 +2122,7 @@ export default function InboxPage() {
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-3 p-5 pb-0">
+            <div className="grid grid-cols-3 gap-2 sm:gap-3 p-4 sm:p-5 pb-0 sm:pb-0">
               <div className="rounded-xl bg-gray-50 p-3 text-center">
                 <p className="text-lg font-bold text-gray-900">{profileModal._count.bookings}</p>
                 <p className="text-xs text-gray-500">Reservas</p>
@@ -2333,8 +2363,8 @@ function InboxMagicLinkModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90dvh] overflow-y-auto">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2">
             <Link2 className="h-4 w-4 text-primary-600" />

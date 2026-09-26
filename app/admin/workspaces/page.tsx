@@ -104,20 +104,20 @@ export default function WorkspacesPage() {
   const availableAdmins = managed ? admins.filter((a) => !managed.members.some((m) => m.user.id === a.id)) : []
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-8">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
+    <div className="max-w-6xl mx-auto space-y-6 sm:space-y-8 sm:p-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:flex-wrap">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-gray-900">Espacios de trabajo</h1>
           <p className="text-gray-500 mt-1 text-sm">
             Cada workspace agrupa cuentas conectadas y sus conversaciones. Solo sus miembros las ven en la{' '}
             <Link href="/admin/inbox" className="text-primary-600 font-medium hover:underline">bandeja</Link>; el propietario decide quién entra.
           </p>
         </div>
-        <div className="flex gap-2">
-          <button onClick={load} disabled={loading} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50">
+        <div className="flex flex-wrap gap-2">
+          <button onClick={load} disabled={loading} className="inline-flex items-center gap-2 whitespace-nowrap px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50">
             {loading ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />} Actualizar
           </button>
-          <button onClick={() => setCreating(true)} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-600 text-sm font-semibold text-white hover:bg-primary-700">
+          <button onClick={() => setCreating(true)} className="inline-flex items-center gap-2 whitespace-nowrap px-4 py-2 rounded-xl bg-primary-600 text-sm font-semibold text-white hover:bg-primary-700">
             <Plus size={15} /> Nuevo workspace
           </button>
         </div>
@@ -152,7 +152,7 @@ export default function WorkspacesPage() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {workspaces.map((w) => (
-            <div key={w.id} className="rounded-2xl border border-gray-200 bg-white p-5 flex flex-col gap-3">
+            <div key={w.id} className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 flex flex-col gap-3">
               <div className="flex items-start gap-3">
                 <div className="h-10 w-10 rounded-xl bg-primary-50 flex items-center justify-center shrink-0">
                   <Users size={20} className="text-primary-600" />
@@ -163,14 +163,14 @@ export default function WorkspacesPage() {
                     {w.isDefault && <span className="rounded-full bg-gray-100 text-gray-600 px-2 py-0.5 text-[10px] font-semibold">Por defecto · WhatsApp/SMS</span>}
                     {w.myRole && <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${w.myRole === 'OWNER' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-700'}`}>{ROLE_LABEL[w.myRole]}</span>}
                   </div>
-                  {w.description && <p className="text-xs text-gray-500 mt-0.5">{w.description}</p>}
+                  {w.description && <p className="text-xs text-gray-500 mt-0.5 break-words">{w.description}</p>}
                 </div>
               </div>
 
-              <div className="flex items-center gap-4 text-xs text-gray-500">
-                <span className="inline-flex items-center gap-1"><Users size={12} /> {w.members.length} miembro{w.members.length === 1 ? '' : 's'}</span>
-                <span className="inline-flex items-center gap-1"><Link2 size={12} /> {w.counts.connections} cuenta{w.counts.connections === 1 ? '' : 's'}</span>
-                <span className="inline-flex items-center gap-1"><Inbox size={12} /> {w.counts.conversations} conversaciones</span>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
+                <span className="inline-flex items-center gap-1 whitespace-nowrap"><Users size={12} /> {w.members.length} miembro{w.members.length === 1 ? '' : 's'}</span>
+                <span className="inline-flex items-center gap-1 whitespace-nowrap"><Link2 size={12} /> {w.counts.connections} cuenta{w.counts.connections === 1 ? '' : 's'}</span>
+                <span className="inline-flex items-center gap-1 whitespace-nowrap"><Inbox size={12} /> {w.counts.conversations} conversaciones</span>
               </div>
 
               <div className="flex flex-wrap gap-1.5">
@@ -183,7 +183,7 @@ export default function WorkspacesPage() {
                 {w.members.length > 6 && <span className="text-[11px] text-gray-400">+{w.members.length - 6}</span>}
               </div>
 
-              <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
+              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100">
                 {w.canManage ? (
                   <button onClick={() => setManageId(w.id)} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
                     <UserPlus size={13} /> Gestionar miembros
@@ -206,7 +206,7 @@ export default function WorkspacesPage() {
       )}
 
       {me?.isSuperAdmin && admins.length > 0 && (
-        <section className="rounded-2xl border border-gray-200 bg-white p-5 space-y-3">
+        <section className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 space-y-3">
           <div>
             <h2 className="font-semibold text-gray-900 flex items-center gap-2"><Shield size={16} /> Superadmins</h2>
             <p className="text-xs text-gray-500">Ven todos los workspaces y editan la configuración de la App de Meta. Debe quedar al menos uno.</p>
@@ -218,7 +218,7 @@ export default function WorkspacesPage() {
                   <p className="text-sm text-gray-800 truncate">{a.name}</p>
                   <p className="text-xs text-gray-400 truncate">{a.email}</p>
                 </div>
-                <label className="inline-flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
+                <label className="inline-flex shrink-0 items-center gap-2 text-xs text-gray-600 cursor-pointer">
                   <input
                     type="checkbox"
                     className="h-4 w-4 accent-primary-600"
@@ -237,10 +237,10 @@ export default function WorkspacesPage() {
       {/* Create modal */}
       {creating && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
-          <div className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl">
+          <div className="w-full sm:max-w-md max-h-[90dvh] overflow-y-auto rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl">
             <div className="flex items-center justify-between px-5 py-4 border-b">
               <h3 className="font-semibold text-gray-900">Nuevo workspace</h3>
-              <button onClick={() => setCreating(false)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+              <button onClick={() => setCreating(false)} className="-m-2 p-2 text-gray-400 hover:text-gray-600"><X size={18} /></button>
             </div>
             <div className="p-5 space-y-3">
               <label className="flex flex-col gap-1">
@@ -266,16 +266,16 @@ export default function WorkspacesPage() {
       {/* Manage members modal */}
       {managed && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
-          <div className="w-full sm:max-w-lg max-h-[90vh] flex flex-col rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between px-5 py-4 border-b">
+          <div className="w-full sm:max-w-lg max-h-[90dvh] flex flex-col rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between gap-3 px-5 py-4 border-b">
               <h3 className="font-semibold text-gray-900 truncate">{managed.name}</h3>
-              <button onClick={() => setManageId(null)} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+              <button onClick={() => setManageId(null)} className="-m-2 shrink-0 p-2 text-gray-400 hover:text-gray-600"><X size={18} /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-5">
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-gray-600 flex items-center gap-1.5"><Pencil size={12} /> Datos</p>
                 <div className="flex gap-2">
-                  <input className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" value={editName} onChange={(e) => setEditName(e.target.value)} maxLength={80} />
+                  <input className="flex-1 min-w-0 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" value={editName} onChange={(e) => setEditName(e.target.value)} maxLength={80} />
                   <button
                     disabled={busy || !editName.trim() || (editName.trim() === managed.name && (editDesc || '') === (managed.description || ''))}
                     onClick={() => call(`/api/admin/workspaces/${managed.id}`, { method: 'PATCH', body: JSON.stringify({ name: editName, description: editDesc }) }, 'Workspace actualizado.')}
@@ -292,12 +292,12 @@ export default function WorkspacesPage() {
                 {availableAdmins.length === 0 ? (
                   <p className="text-xs text-gray-400">Todos los admins activos ya son miembros. Para añadir a alguien nuevo, créalo primero como usuario ADMIN.</p>
                 ) : (
-                  <div className="flex gap-2">
-                    <select className="flex-1 min-w-0 rounded-lg border border-gray-200 px-2 py-2 text-sm" value={inviteUserId} onChange={(e) => setInviteUserId(e.target.value)}>
+                  <div className="flex flex-wrap gap-2 sm:flex-nowrap">
+                    <select className="w-full min-w-0 sm:w-auto sm:flex-1 rounded-lg border border-gray-200 px-2 py-2 text-sm" value={inviteUserId} onChange={(e) => setInviteUserId(e.target.value)}>
                       <option value="">Elige un admin…</option>
                       {availableAdmins.map((a) => <option key={a.id} value={a.id}>{a.name} · {a.email}</option>)}
                     </select>
-                    <select className="rounded-lg border border-gray-200 px-2 py-2 text-sm" value={inviteRole} onChange={(e) => setInviteRole(e.target.value as Role)}>
+                    <select className="flex-1 rounded-lg border border-gray-200 px-2 py-2 text-sm sm:flex-none" value={inviteRole} onChange={(e) => setInviteRole(e.target.value as Role)}>
                       <option value="MEMBER">Miembro</option>
                       <option value="OWNER">Propietario</option>
                     </select>
@@ -307,7 +307,7 @@ export default function WorkspacesPage() {
                         const ok = await call(`/api/admin/workspaces/${managed.id}/members`, { method: 'POST', body: JSON.stringify({ userId: inviteUserId, role: inviteRole }) })
                         if (ok) setInviteUserId('')
                       }}
-                      className="rounded-lg bg-primary-600 px-3 text-xs font-semibold text-white hover:bg-primary-700 disabled:opacity-40"
+                      className="rounded-lg bg-primary-600 px-3 py-2 text-xs font-semibold sm:py-0 text-white hover:bg-primary-700 disabled:opacity-40"
                     >
                       Añadir
                     </button>

@@ -20,7 +20,7 @@ function Preview({ kit }: { kit: Kit }) {
     [h === 'west' ? 'left' : 'right']: `${(kit.logoMargin / 1080) * 100}%`,
   }
   return (
-    <div className="relative aspect-[4/5] w-full max-w-[260px] overflow-hidden rounded-2xl bg-gradient-to-br from-sky-200 via-amber-100 to-emerald-200">
+    <div className="relative mx-auto aspect-[4/5] w-full max-w-[260px] overflow-hidden md:mx-0 rounded-2xl bg-gradient-to-br from-sky-200 via-amber-100 to-emerald-200">
       <div className="absolute inset-x-6 bottom-10 top-16 rounded-xl bg-white/40" />
       {kit.logoUrl ? <img src={kit.logoUrl} alt="Logo" className="absolute h-auto" style={pos} /> : <span className="absolute inset-0 flex items-center justify-center text-xs text-gray-500">Sin logo</span>}
     </div>
@@ -105,7 +105,7 @@ export default function BrandTab({ workspaces }: { workspaces: Array<{ id: strin
     <div className="space-y-5">
       {msg && <div className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm ${msg.ok ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-700'}`}>{msg.ok ? <CheckCircle2 size={15} /> : <XCircle size={15} />} {msg.text}</div>}
 
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 space-y-4">
+      <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 space-y-4">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
             <h3 className="font-semibold text-gray-900">Kit de marca</h3>
@@ -116,7 +116,7 @@ export default function BrandTab({ workspaces }: { workspaces: Array<{ id: strin
         <div className="grid md:grid-cols-[260px_1fr] gap-6">
           <Preview kit={kit} />
           <fieldset disabled={ro} className="space-y-4">
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <input ref={fileRef} type="file" accept="image/png,image/webp,image/jpeg" className="hidden" onChange={(e) => { uploadLogo(e.target.files?.[0]); e.target.value = '' }} />
               <button onClick={() => fileRef.current?.click()} className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-sm hover:bg-gray-50">
                 {busy === 'logo' ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} {kit.logoUrl ? 'Cambiar logo' : 'Subir logo'}
@@ -144,7 +144,7 @@ export default function BrandTab({ workspaces }: { workspaces: Array<{ id: strin
         {ro && <p className="text-xs text-gray-500">Solo quien tiene permiso de publicar cambia el kit de marca.</p>}
       </div>
 
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 space-y-4">
+      <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 space-y-4">
         <div>
           <h3 className="font-semibold text-gray-900">Fuentes de imágenes</h3>
           <p className="text-xs text-gray-500">

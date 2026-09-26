@@ -81,8 +81,8 @@ export default function CopilotPanel({ post, channel, currentText, brief, setBri
             {QUICK.map((q) => <button key={q} disabled={!!loading} onClick={() => run('improve', { text: currentText, instruction: q })} className="rounded-full bg-white px-2.5 py-1 text-[11px] text-gray-700 border border-gray-200 hover:bg-gray-50 disabled:opacity-50">{q}</button>)}
           </div>
           <form className="flex gap-1.5" onSubmit={(e) => { e.preventDefault(); if (instruction.trim()) run('improve', { text: currentText, instruction }) }}>
-            <input className={`${input} py-1.5 text-xs`} value={instruction} onChange={(e) => setInstruction(e.target.value)} placeholder="Otra indicación: menciona Medellín, añade un dato…" />
-            <button disabled={!!loading || !instruction.trim()} className="rounded-xl bg-violet-600 px-3 text-xs font-semibold text-white disabled:opacity-50">{spin('improve') || 'Ir'}</button>
+            <input className={`${input} min-w-0 py-1.5 text-xs`} value={instruction} onChange={(e) => setInstruction(e.target.value)} placeholder="Otra indicación: menciona Medellín, añade un dato…" />
+            <button disabled={!!loading || !instruction.trim()} className="shrink-0 rounded-xl bg-violet-600 px-3 text-xs font-semibold text-white disabled:opacity-50">{spin('improve') || 'Ir'}</button>
           </form>
         </div>
       )}
@@ -93,7 +93,7 @@ export default function CopilotPanel({ post, channel, currentText, brief, setBri
           {result.kind === 'text' && (
             <>
               <p className="whitespace-pre-wrap break-words text-sm text-gray-800 max-h-80 overflow-y-auto">{result.text}</p>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button onClick={() => { onApplyText(result.text); setResult(null) }} className="rounded-lg bg-violet-600 px-3 py-1 text-xs font-semibold text-white hover:bg-violet-700">{currentText.trim() ? 'Reemplazar texto' : 'Usar'}</button>
                 {currentText.trim() && <button onClick={() => { onAppendText(result.text); setResult(null) }} className="rounded-lg border border-violet-200 px-3 py-1 text-xs text-violet-800">Añadir al final</button>}
                 <button onClick={() => setResult(null)} className="ml-auto text-xs text-gray-500">Descartar</button>
@@ -103,7 +103,7 @@ export default function CopilotPanel({ post, channel, currentText, brief, setBri
           {result.kind === 'hashtags' && (
             <>
               <p className="text-sm text-gray-800 break-words">{result.hashtags.join(' ')}</p>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button onClick={() => { onAppendText(result.hashtags.join(' ')); setResult(null) }} className="rounded-lg bg-violet-600 px-3 py-1 text-xs font-semibold text-white">Añadir al texto</button>
                 <button onClick={() => setResult(null)} className="ml-auto text-xs text-gray-500">Descartar</button>
               </div>
@@ -128,7 +128,7 @@ export default function CopilotPanel({ post, channel, currentText, brief, setBri
                 <div><dt className="font-medium text-gray-500">URL</dt><dd className="text-gray-900">/blog/{result.seo.slug}</dd></div>
                 <div><dt className="font-medium text-gray-500">Etiquetas</dt><dd className="text-gray-900">{result.seo.tags.join(', ')}</dd></div>
               </dl>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button onClick={() => { onApplySeo(result.seo); setResult(null) }} className="rounded-lg bg-violet-600 px-3 py-1 text-xs font-semibold text-white">Aplicar</button>
                 <button onClick={() => setResult(null)} className="ml-auto text-xs text-gray-500">Descartar</button>
               </div>

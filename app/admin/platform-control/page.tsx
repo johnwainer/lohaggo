@@ -96,7 +96,7 @@ export default function AdminPlatformControlPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Funciones y botones</h1>
+        <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Funciones y botones</h1>
         <p className="text-gray-600 mt-1">Enciende o apaga funciones del sitio y configura los botones flotantes, sin desplegar.</p>
       </div>
 
@@ -109,12 +109,12 @@ export default function AdminPlatformControlPage() {
         </div>
         <div className="space-y-2">
           {flags.map((flag) => (
-            <div key={flag.id} className="flex items-center justify-between border rounded-lg p-3">
-              <div>
-                <p className="font-medium">{flag.name}</p>
-                <p className="text-sm text-gray-500">{flag.key} · rollout {flag.rolloutPercentage}%</p>
+            <div key={flag.id} className="flex items-center justify-between gap-3 border rounded-lg p-3">
+              <div className="min-w-0">
+                <p className="font-medium break-words">{flag.name}</p>
+                <p className="text-sm text-gray-500 break-all">{flag.key} · rollout {flag.rolloutPercentage}%</p>
               </div>
-              <button onClick={() => toggleFlag(flag)} className={`px-3 py-1 rounded text-sm ${flag.enabled ? 'bg-red-600 text-white' : 'bg-green-600 text-white'}`}>
+              <button onClick={() => toggleFlag(flag)} className={`flex-shrink-0 min-h-9 px-3 py-1 rounded text-sm sm:min-h-0 ${flag.enabled ? 'bg-red-600 text-white' : 'bg-green-600 text-white'}`}>
                 {flag.enabled ? 'Desactivar' : 'Activar'}
               </button>
             </div>
@@ -129,12 +129,12 @@ export default function AdminPlatformControlPage() {
 
         {/* WhatsApp */}
         <div className="rounded-xl border border-green-200 bg-green-50 p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2">
               <span className="text-lg">💬</span>
               <h3 className="font-semibold text-gray-800">Botón WhatsApp</h3>
             </div>
-            <label className="flex items-center gap-2 cursor-pointer">
+            <label className="flex flex-shrink-0 items-center gap-2 cursor-pointer">
               <span className="text-sm text-gray-600">{waBtn.enabled ? 'Visible' : 'Oculto'}</span>
               <div
                 onClick={() => setWaBtn(b => ({ ...b, enabled: !b.enabled }))}
@@ -175,15 +175,15 @@ export default function AdminPlatformControlPage() {
 
         {/* Help / Tutorial */}
         <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2">
               <span className="text-lg">❓</span>
               <div>
                 <h3 className="font-semibold text-gray-800">Botón de Tutorial</h3>
                 <p className="text-xs text-gray-500">Muestra u oculta el botón flotante del tutorial interactivo</p>
               </div>
             </div>
-            <label className="flex items-center gap-2 cursor-pointer">
+            <label className="flex flex-shrink-0 items-center gap-2 cursor-pointer">
               <span className="text-sm text-gray-600">{helpBtn.enabled ? 'Visible' : 'Oculto'}</span>
               <div
                 onClick={() => setHelpBtn(b => ({ ...b, enabled: !b.enabled }))}

@@ -24,7 +24,7 @@ export type ContactDetail = {
 type SearchUser = { id: string; name: string; email: string; phone: string | null; role: string; isActive: boolean; partnerProfile: { verified: boolean; city: string } | null }
 
 const ROLE: Record<string, string> = { CLIENT: 'Cliente', PARTNER: 'Socio', ADMIN: 'Equipo' }
-const input = 'w-full border border-gray-200 rounded-xl px-3 py-2 text-sm'
+const input = 'w-full border border-gray-200 rounded-xl px-3 py-2 text-base sm:text-sm'
 
 export function RoleBadge({ user }: { user: { role: string; partnerProfile?: { verified: boolean } | null } }) {
   const partner = user.role === 'PARTNER'
@@ -131,7 +131,7 @@ export default function ContactPanel({
     <aside className="absolute inset-y-0 right-0 z-30 w-full sm:w-[380px] bg-white border-l shadow-xl flex flex-col">
       <div className="flex items-center justify-between px-4 py-3 border-b">
         <h3 className="font-semibold text-gray-900 flex items-center gap-2"><User className="h-4 w-4" /> Contacto</h3>
-        <button onClick={onClose} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"><X className="h-4 w-4" /></button>
+        <button onClick={onClose} aria-label="Cerrar" className="-mr-1 rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700"><X className="h-4 w-4" /></button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-5 text-sm">
@@ -180,14 +180,14 @@ export default function ContactPanel({
                 <RoleBadge user={contact.user} />
                 {!contact.user.isActive && <span className="rounded-full bg-red-100 text-red-700 px-2 py-0.5 text-[11px]">Cuenta inactiva</span>}
               </div>
-              <p className="text-xs text-gray-500">{contact.user.email}{contact.user.phone ? ` · ${contact.user.phone}` : ''}</p>
+              <p className="text-xs text-gray-500 break-all">{contact.user.email}{contact.user.phone ? ` · ${contact.user.phone}` : ''}</p>
               <p className="text-xs text-gray-500">
                 {contact.user.role === 'PARTNER' && contact.user.partnerProfile
                   ? `${contact.user.partnerProfile.city} · ${contact.user.partnerProfile.totalReviews ? `${contact.user.partnerProfile.rating.toFixed(1)} ★ (${contact.user.partnerProfile.totalReviews})` : 'sin reseñas'}`
                   : `${contact.user._count.bookings} reserva(s) · ${contact.user._count.serviceRequests} solicitud(es)`}
                 {' · desde '}{new Date(contact.user.createdAt).toLocaleDateString('es-CO')}
               </p>
-              <div className="flex gap-3 text-xs pt-1">
+              <div className="flex flex-wrap gap-3 text-xs pt-1">
                 <button onClick={() => onOpenProfile(contact.user!.id)} className="text-primary-600 hover:underline">Ver perfil completo</button>
                 <button onClick={() => patch({ userId: null }, 'Usuario desvinculado.')} className="inline-flex items-center gap-1 text-gray-500 hover:underline"><Unlink className="h-3 w-3" /> Desvincular</button>
               </div>
@@ -247,7 +247,7 @@ export default function ContactPanel({
               </button>
             ))}
             {contact.identities.filter((i) => !contact.conversations.some((c) => c.channel === i.channel)).map((i) => (
-              <div key={i.id} className="flex items-center gap-2 px-3 py-2 text-xs text-gray-500">
+              <div key={i.id} className="flex items-center gap-2 px-3 py-2 text-xs text-gray-500 break-all">
                 <ChannelIcon channel={i.channel} size={16} /> {CHANNEL_META[i.channel]?.label ?? i.channel} · {i.externalId}
               </div>
             ))}

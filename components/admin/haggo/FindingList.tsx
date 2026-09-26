@@ -38,17 +38,17 @@ export function FindingList({ findings, onChange, empty = 'Nada abierto: todo en
               <ChevronDown size={16} className={`mt-0.5 shrink-0 text-gray-400 transition ${expanded ? 'rotate-180' : ''}`} />
             </button>
             {expanded && (
-              <div className="mt-2 space-y-3 pl-[4.5rem]">
+              <div className="mt-2 space-y-3 sm:pl-[4.5rem]">
                 {f.body && <p className="whitespace-pre-line text-sm text-gray-700">{f.body}</p>}
                 <div className="flex flex-wrap gap-2">
                   {!closed ? (
                     <>
-                      {f.status === 'new' && <button disabled={busy === f.id} onClick={() => set(f.id, 'seen')} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1 text-xs text-gray-700 hover:bg-gray-50"><Check size={13} /> Visto</button>}
-                      <button disabled={busy === f.id} onClick={() => set(f.id, 'resolved')} className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 px-2.5 py-1 text-xs text-emerald-700 hover:bg-emerald-50"><Check size={13} /> Resuelto</button>
-                      <button disabled={busy === f.id} onClick={() => set(f.id, 'dismissed')} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1 text-xs text-gray-500 hover:bg-gray-50"><EyeOff size={13} /> Descartar</button>
+                      {f.status === 'new' && <button disabled={busy === f.id} onClick={() => set(f.id, 'seen')} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs sm:py-1 text-gray-700 hover:bg-gray-50"><Check size={13} /> Visto</button>}
+                      <button disabled={busy === f.id} onClick={() => set(f.id, 'resolved')} className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 px-2.5 py-1.5 text-xs sm:py-1 text-emerald-700 hover:bg-emerald-50"><Check size={13} /> Resuelto</button>
+                      <button disabled={busy === f.id} onClick={() => set(f.id, 'dismissed')} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs sm:py-1 text-gray-500 hover:bg-gray-50"><EyeOff size={13} /> Descartar</button>
                     </>
                   ) : (
-                    <button disabled={busy === f.id} onClick={() => set(f.id, 'new')} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1 text-xs text-gray-700 hover:bg-gray-50"><RotateCcw size={13} /> Reabrir</button>
+                    <button disabled={busy === f.id} onClick={() => set(f.id, 'new')} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs sm:py-1 text-gray-700 hover:bg-gray-50"><RotateCcw size={13} /> Reabrir</button>
                   )}
                 </div>
                 <p className="text-[11px] text-gray-400">Si la situación sigue, Haggo la vuelve a marcar en el próximo ciclo.</p>

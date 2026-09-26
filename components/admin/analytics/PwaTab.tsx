@@ -145,7 +145,7 @@ export default function PwaTab() {
                 const width = Math.max(4, Math.round((item.signups / maxDailySignups) * 100))
                 return (
                   <div key={item.date}>
-                    <div className="flex items-center justify-between text-xs mb-1">
+                    <div className="flex items-center justify-between gap-2 text-xs mb-1">
                       <span>{item.date}</span>
                       <span>Reg: {item.signups} · Inst: {item.installs} · Push: {item.pushOptIns}</span>
                     </div>

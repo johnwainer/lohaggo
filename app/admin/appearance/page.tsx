@@ -44,16 +44,16 @@ export default function AppearancePage() {
   }
 
   return (
-    <div className="p-6 max-w-4xl">
-      <div className="mb-8 flex items-start justify-between gap-4">
-        <div>
+    <div className="max-w-4xl sm:p-6">
+      <div className="mb-6 flex flex-col gap-3 sm:mb-8 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-gray-900">Apariencia</h1>
           <p className="text-gray-500 mt-1">Elige el estilo visual de los íconos de servicios en toda la plataforma.</p>
         </div>
         <button
           onClick={handleApply}
           disabled={!hasChanges || saving}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${
+          className={`flex shrink-0 items-center justify-center gap-2 whitespace-nowrap px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${
             hasChanges && !saving
               ? 'bg-primary-600 text-white hover:bg-primary-700 shadow-md hover:shadow-lg'
               : 'bg-gray-100 text-gray-400 cursor-not-allowed'
@@ -77,7 +77,7 @@ export default function AppearancePage() {
       )}
 
       {/* Theme selector */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 sm:mb-10">
         {THEMES.map(t => {
           const isSelected = previewTheme === t.id
           const isActive = activeTheme === t.id
@@ -124,8 +124,8 @@ export default function AppearancePage() {
       </div>
 
       {/* Full preview */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-6">
-        <div className="flex items-center justify-between mb-6">
+      <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6">
+        <div className="flex items-center justify-between gap-3 mb-6">
           <h2 className="text-base font-semibold text-gray-900">Vista previa completa</h2>
           <span className="text-xs text-gray-400 bg-gray-100 px-3 py-1 rounded-full">
             {THEMES.find(t => t.id === previewTheme)?.label}
@@ -134,11 +134,11 @@ export default function AppearancePage() {
 
         <div className="mb-8">
           <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-4">Categorías</p>
-          <div className="flex flex-wrap gap-4">
+          <div className="grid grid-cols-4 gap-3 sm:flex sm:flex-wrap sm:gap-4">
             {Object.entries(CATEGORY_ICONS).map(([slug]) => (
-              <div key={slug} className="flex flex-col items-center gap-1.5 w-16">
+              <div key={slug} className="flex flex-col items-center gap-1.5 sm:w-16">
                 <ServiceIcon slug={slug} isCategory size="lg" themeOverride={previewTheme} />
-                <span className="text-[10px] text-gray-500 text-center capitalize leading-tight">
+                <span className="max-w-full text-[10px] text-gray-500 text-center capitalize leading-tight break-words">
                   {slug.replace(/-/g, ' ')}
                 </span>
               </div>
@@ -148,11 +148,11 @@ export default function AppearancePage() {
 
         <div>
           <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-4">Servicios</p>
-          <div className="flex flex-wrap gap-3">
+          <div className="grid grid-cols-3 gap-3 min-[400px]:grid-cols-4 sm:flex sm:flex-wrap">
             {Object.entries(SERVICE_ICONS).map(([slug]) => (
-              <div key={slug} className="flex flex-col items-center gap-1.5 w-20">
+              <div key={slug} className="flex flex-col items-center gap-1.5 sm:w-20">
                 <ServiceIcon slug={slug} size="md" themeOverride={previewTheme} />
-                <span className="text-[10px] text-gray-400 text-center leading-tight line-clamp-2">
+                <span className="max-w-full text-[10px] text-gray-400 text-center leading-tight line-clamp-2 [overflow-wrap:anywhere]">
                   {slug.replace(/-/g, ' ')}
                 </span>
               </div>

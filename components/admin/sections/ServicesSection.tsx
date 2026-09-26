@@ -232,7 +232,7 @@ export default function ServicesSection() {
       render: (value: string, row: Service) => (
         <div className="flex items-center gap-3">
           <span className="text-3xl">{row.icon}</span>
-          <div>
+          <div className="min-w-0">
             <div className="font-medium text-gray-900">{value}</div>
             <div className="text-sm text-gray-500">{row.category.name}</div>
           </div>
@@ -334,13 +334,13 @@ export default function ServicesSection() {
 
   return (
     <div className="space-y-6">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Gestión de Servicios</h1>
+      <div className="mb-4 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Gestión de Servicios</h1>
         <p className="text-gray-600">Administra todos los servicios disponibles en la plataforma</p>
       </div>
 
       {/* Global visibility config */}
-      <div className="bg-white rounded-xl shadow-md p-5 border-l-4 border-primary-500">
+      <div className="bg-white rounded-xl shadow-md p-4 sm:p-5 border-l-4 border-primary-500">
         <h2 className="font-bold text-gray-900 mb-1">Visibilidad global para clientes</h2>
         <p className="text-gray-500 text-sm mb-4">Aplica a todos los servicios. Si está desactivado, se oculta aunque el servicio individual lo tenga habilitado.</p>
         <div className="flex flex-col sm:flex-row gap-3">
@@ -354,7 +354,7 @@ export default function ServicesSection() {
                 key={key}
                 onClick={() => toggleGlobalFlag(key)}
                 disabled={togglingFlag === key}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 font-semibold text-sm transition-all ${
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-left font-semibold text-sm transition-all ${
                   enabled
                     ? 'border-emerald-400 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
                     : 'border-gray-300 bg-gray-50 text-gray-500 hover:bg-gray-100'
@@ -362,7 +362,7 @@ export default function ServicesSection() {
               >
                 {enabled ? <Eye size={16} /> : <EyeOff size={16} />}
                 {label}
-                <span className={`ml-auto text-xs font-bold px-2 py-0.5 rounded-full ${enabled ? 'bg-emerald-200 text-emerald-800' : 'bg-gray-200 text-gray-600'}`}>
+                <span className={`ml-auto shrink-0 text-xs font-bold px-2 py-0.5 rounded-full ${enabled ? 'bg-emerald-200 text-emerald-800' : 'bg-gray-200 text-gray-600'}`}>
                   {enabled ? 'ON' : 'OFF'}
                 </span>
               </button>
@@ -371,44 +371,44 @@ export default function ServicesSection() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <div className="flex items-center justify-between">
-            <div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
+        <div className="bg-white rounded-xl shadow-md p-4 sm:p-6">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
               <p className="text-gray-600 text-sm mb-1">Total Servicios</p>
-              <p className="text-3xl font-bold text-gray-900">{services.length}</p>
+              <p className="text-2xl sm:text-3xl font-bold text-gray-900">{services.length}</p>
             </div>
-            <Package className="text-primary-600" size={32} />
+            <Package className="hidden shrink-0 text-primary-600 sm:block" size={32} />
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <div className="flex items-center justify-between">
-            <div>
+        <div className="bg-white rounded-xl shadow-md p-4 sm:p-6">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
               <p className="text-gray-600 text-sm mb-1">Servicios Populares</p>
-              <p className="text-3xl font-bold text-yellow-600">{popularServices}</p>
+              <p className="text-2xl sm:text-3xl font-bold text-yellow-600">{popularServices}</p>
             </div>
-            <TrendingUp className="text-yellow-600" size={32} />
+            <TrendingUp className="hidden shrink-0 text-yellow-600 sm:block" size={32} />
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <div className="flex items-center justify-between">
-            <div>
+        <div className="bg-white rounded-xl shadow-md p-4 sm:p-6">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
               <p className="text-gray-600 text-sm mb-1">Total Reservas</p>
-              <p className="text-3xl font-bold text-purple-600">{totalBookings}</p>
+              <p className="text-2xl sm:text-3xl font-bold text-purple-600">{totalBookings}</p>
             </div>
-            <Package className="text-purple-600" size={32} />
+            <Package className="hidden shrink-0 text-purple-600 sm:block" size={32} />
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <div className="flex items-center justify-between">
-            <div>
+        <div className="bg-white rounded-xl shadow-md p-4 sm:p-6">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
               <p className="text-gray-600 text-sm mb-1">Precio Promedio</p>
-              <p className="text-2xl font-bold text-green-600">{formatCurrency(avgPrice)}</p>
+              <p className="break-words text-xl sm:text-2xl font-bold text-green-600">{formatCurrency(avgPrice)}</p>
             </div>
-            <DollarSign className="text-green-600" size={32} />
+            <DollarSign className="hidden shrink-0 text-green-600 sm:block" size={32} />
           </div>
         </div>
       </div>
@@ -421,7 +421,7 @@ export default function ServicesSection() {
         itemsPerPage={15}
       />
 
-      <div className="bg-white rounded-xl shadow-md p-6 space-y-4">
+      <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 space-y-4">
         <div>
           <h2 className="text-xl font-bold text-gray-900">
             {editingServiceId ? 'Editar servicio' : 'Crear servicio'}

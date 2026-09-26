@@ -45,7 +45,7 @@ export function ActionCard({ a, onChange, compact = false }: { a: ActionView; on
 
   const pct = a.confidence != null ? Math.round(a.confidence * 100) : null
   return (
-    <div className={`rounded-2xl border ${a.status === 'proposed' ? 'border-primary-200 bg-white' : 'border-gray-200 bg-white'} p-4`}>
+    <div className={`rounded-2xl border ${a.status === 'proposed' ? 'border-primary-200 bg-white' : 'border-gray-200 bg-white'} p-3 sm:p-4`}>
       <button onClick={() => setOpen(!open)} className="flex w-full items-start gap-3 text-left">
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-1.5">
@@ -57,7 +57,7 @@ export function ActionCard({ a, onChange, compact = false }: { a: ActionView; on
             {a.autonomous && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-semibold text-violet-700">Actuó solo</span>}
             {a.verdictLabel && <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${a.verdict === 'mejoro' ? 'bg-emerald-100 text-emerald-800' : a.verdict === 'empeoro' ? 'bg-rose-100 text-rose-700' : 'bg-gray-100 text-gray-600'}`}>{a.verdictLabel}</span>}
           </span>
-          <span className="mt-1.5 block text-sm font-semibold text-gray-900">{a.what || a.label}</span>
+          <span className="mt-1.5 block break-words text-sm font-semibold text-gray-900">{a.what || a.label}</span>
           <span className="block text-xs text-gray-500">{a.label}{a.origin ? ` · desde ${ORIGIN[a.origin] ?? a.origin}` : ''} · {when(a.createdAt)}</span>
         </span>
         <ChevronDown size={16} className={`mt-1 shrink-0 text-gray-400 transition ${open ? 'rotate-180' : ''}`} />
@@ -67,12 +67,12 @@ export function ActionCard({ a, onChange, compact = false }: { a: ActionView; on
         <div className="mt-3 space-y-3 text-sm">
           {a.preview && (
             <div className="rounded-xl bg-gray-50 p-3">
-              <p className="font-medium text-gray-900">{a.preview.summary}</p>
+              <p className="break-words font-medium text-gray-900">{a.preview.summary}</p>
               {a.preview.diff.length > 0 && (
                 <div className="mt-2 space-y-1.5">
                   {a.preview.diff.map((d, i) => (
                     <div key={i} className="grid gap-1 text-xs sm:grid-cols-[8rem_1fr]">
-                      <span className="text-gray-500">{d.field}</span>
+                      <span className="break-words text-gray-500">{d.field}</span>
                       <span className="min-w-0"><span className="whitespace-pre-wrap break-words text-rose-700 line-through decoration-rose-300">{show(d.from).slice(0, 600)}</span>{' → '}<span className="whitespace-pre-wrap break-words text-emerald-700">{show(d.to).slice(0, 1200)}</span></span>
                     </div>
                   ))}
@@ -85,7 +85,7 @@ export function ActionCard({ a, onChange, compact = false }: { a: ActionView; on
           <div><p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Por qué</p><p className="mt-0.5 whitespace-pre-line text-gray-800">{a.why}</p></div>
           {a.evidence.length > 0 && (
             <div><p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Evidencia</p>
-              <ul className="mt-1 space-y-1">{a.evidence.map((e, i) => <li key={i} className="text-gray-700"><span className="mr-1 rounded bg-gray-100 px-1.5 py-0.5 text-[11px] text-gray-500">{e.tool === 'orden_del_superadmin' ? 'tu orden' : e.tool}</span>{e.fact}</li>)}</ul>
+              <ul className="mt-1 space-y-1">{a.evidence.map((e, i) => <li key={i} className="break-words text-gray-700"><span className="mr-1 rounded bg-gray-100 px-1.5 py-0.5 text-[11px] text-gray-500">{e.tool === 'orden_del_superadmin' ? 'tu orden' : e.tool}</span>{e.fact}</li>)}</ul>
             </div>
           )}
           {a.lowTrust && <p className="flex items-center gap-1.5 text-xs text-amber-700"><AlertTriangle size={13} /> La evidencia viene solo de lo que escribieron clientes o socios: revísala con cuidado.</p>}
@@ -112,19 +112,19 @@ export function ActionCard({ a, onChange, compact = false }: { a: ActionView; on
           {a.result && <p className="text-sm text-emerald-700">Resultado: {a.result}</p>}
           {a.evaluation && <div className="rounded-xl bg-gray-50 p-3"><p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Verificación ({when(a.verifiedAt)})</p><p className="mt-0.5 text-gray-800">{a.verdictLabel}: {a.evaluation}</p></div>}
           {a.error && <p className="text-sm text-rose-600">{a.error}</p>}
-          {a.decidedByEmail && <p className="text-xs text-gray-500">Decidió {a.decidedByEmail} · {when(a.decidedAt)}{a.decisionNote ? ` · «${a.decisionNote}»` : ''}{a.revertedAt ? ` · deshecha ${when(a.revertedAt)}` : ''}</p>}
+          {a.decidedByEmail && <p className="break-words text-xs text-gray-500">Decidió {a.decidedByEmail} · {when(a.decidedAt)}{a.decisionNote ? ` · «${a.decisionNote}»` : ''}{a.revertedAt ? ` · deshecha ${when(a.revertedAt)}` : ''}</p>}
 
           {a.status === 'proposed' && (
             <div className="space-y-2 border-t border-gray-100 pt-3">
               {a.needsTypedConfirm && (
-                <label className="flex items-center gap-2 text-xs text-rose-700"><ShieldAlert size={14} /> Riesgo máximo: escribe APROBAR
+                <label className="flex flex-wrap items-center gap-2 text-xs text-rose-700"><ShieldAlert size={14} /> Riesgo máximo: escribe APROBAR
                   <input value={confirm} onChange={(e) => setConfirm(e.target.value)} className="w-28 rounded-lg border border-rose-200 px-2 py-1 text-sm" />
                 </label>
               )}
               {rejecting ? (
                 <div className="space-y-2">
                   <input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} placeholder="¿Por qué? (opcional: Haggo lo aprende)" className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm" />
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <button disabled={Boolean(busy)} onClick={() => op('reject')} className="inline-flex items-center gap-1 rounded-xl bg-gray-900 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">{busy === 'reject' ? <Loader2 size={13} className="animate-spin" /> : <X size={13} />} Rechazar</button>
                     <button onClick={() => setRejecting(false)} className="rounded-xl border border-gray-200 px-3 py-2 text-xs text-gray-600">Cancelar</button>
                   </div>

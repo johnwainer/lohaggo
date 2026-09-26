@@ -7,7 +7,7 @@ import type { ContactDetail } from '@/components/admin/inbox/ContactPanel'
 type Options = { cities: Array<{ slug: string; name: string; status: string }>; categories: Array<{ name: string; services: Array<{ id: string; name: string }> }>; maxServices: number }
 type Result = { contact: ContactDetail; accessUrl: string; sent: boolean; sendError: string | null }
 
-const input = 'w-full border border-gray-200 rounded-xl px-3 py-2 text-sm'
+const input = 'w-full border border-gray-200 rounded-xl px-3 py-2 text-base sm:text-sm'
 const placeholder = (n: string | null) => !n || /^(Instagram|Messenger|WhatsApp|SMS) · /.test(n) || /^\+?\d[\d\s]+$/.test(n) || n.startsWith('CO.')
 
 export function AccessLinkBox({ url, sent, sendError }: { url: string; sent: boolean; sendError: string | null }) {
@@ -119,7 +119,7 @@ export default function CreateAccountForm({ contact, conversationId, onCreated }
         <input type="checkbox" checked={sendLink} onChange={(e) => setSendLink(e.target.checked)} /> Enviar el enlace de acceso por este chat
       </label>
       {error && <p className="flex items-center gap-1.5 text-xs text-red-600"><AlertCircle className="h-3.5 w-3.5" /> {error}</p>}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <button onClick={create} disabled={!canSubmit || busy} className="inline-flex items-center gap-1.5 rounded-xl bg-primary-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">
           {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserPlus className="h-3.5 w-3.5" />} Crear cuenta de {role === 'CLIENT' ? 'cliente' : 'socio'}
         </button>

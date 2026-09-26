@@ -55,7 +55,7 @@ export function NowTab({ data, reload }: { data: Overview; reload: () => void })
 
   return (
     <div className="space-y-5">
-      <section className={`${card} p-5`}>
+      <section className={`${card} p-4 sm:p-5`}>
         <div className="flex flex-wrap items-start gap-4">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -107,9 +107,9 @@ export function NowTab({ data, reload }: { data: Overview; reload: () => void })
         <section className={`${card} p-5`}>
           <h2 className="mb-3 flex items-center gap-2 font-semibold text-gray-900"><CalendarClock size={17} /> Próximas ejecuciones</h2>
           <dl className="space-y-2 text-sm">
-            <div className="flex justify-between"><dt className="text-gray-500">Revisión (cada {c.cycleMinutes} min)</dt><dd className="text-gray-900">{c.enabled ? until(data.next.cycle) : '—'}</dd></div>
-            <div className="flex justify-between"><dt className="text-gray-500">Informe diario</dt><dd className="text-gray-900">{c.dailyReportHour == null ? 'Apagado' : when(data.next.daily)}</dd></div>
-            <div className="flex justify-between"><dt className="text-gray-500">Revisión semanal</dt><dd className="text-gray-900">{c.weeklyReviewDay == null ? 'Apagada' : when(data.next.weekly)}</dd></div>
+            <div className="flex justify-between gap-3"><dt className="text-gray-500">Revisión (cada {c.cycleMinutes} min)</dt><dd className="text-right text-gray-900">{c.enabled ? until(data.next.cycle) : '—'}</dd></div>
+            <div className="flex justify-between gap-3"><dt className="text-gray-500">Informe diario</dt><dd className="text-right text-gray-900">{c.dailyReportHour == null ? 'Apagado' : when(data.next.daily)}</dd></div>
+            <div className="flex justify-between gap-3"><dt className="text-gray-500">Revisión semanal</dt><dd className="text-right text-gray-900">{c.weeklyReviewDay == null ? 'Apagada' : when(data.next.weekly)}</dd></div>
           </dl>
           <p className="mt-3 text-xs text-gray-500">Solo llama a la IA cuando detecta algo nuevo; si no, revisa con reglas y no cuesta.</p>
         </section>
@@ -124,9 +124,9 @@ export function NowTab({ data, reload }: { data: Overview; reload: () => void })
       </div>
 
       <section className={`${card} p-5`}>
-        <div className="mb-1 flex items-center justify-between">
+        <div className="mb-1 flex items-center justify-between gap-3">
           <h2 className="font-semibold text-gray-900">Lo que Haggo tiene abierto</h2>
-          <span className="text-xs text-gray-500">{data.findings.length} situaciones</span>
+          <span className="shrink-0 text-xs text-gray-500">{data.findings.length} situaciones</span>
         </div>
         <FindingList findings={data.findings} onChange={reload} />
       </section>
@@ -136,9 +136,9 @@ export function NowTab({ data, reload }: { data: Overview; reload: () => void })
           <div className="mb-3 flex items-center justify-between"><h2 className="font-semibold text-gray-900">Últimas decisiones</h2><a href="/admin/haggo?tab=decisions" className="text-xs text-primary-600 hover:underline">Ver todas</a></div>
           <ul className="divide-y divide-gray-100 text-sm">
             {data.decisions.map((d) => (
-              <li key={d.id} className="flex items-start gap-3 py-2">
-                <span className={`w-20 shrink-0 text-xs font-medium ${d.status === 'executed' ? 'text-emerald-700' : d.status === 'failed' ? 'text-rose-600' : 'text-gray-500'}`}>{({ executed: 'Ejecutada', failed: 'Falló', reverted: 'Deshecha', rejected: 'Rechazada' } as Record<string, string>)[d.status] ?? d.status}</span>
-                <span className="min-w-0 flex-1"><span className="block truncate text-gray-900">{d.expectedImpact || d.label}</span><span className="text-xs text-gray-500">{d.label}{d.autonomous ? ' · actuó solo' : ''}{d.verdict ? ` · ${({ mejoro: 'mejoró', sin_cambio: 'sin cambio', empeoro: 'empeoró', no_medible: 'no medible', sin_verificar: 'sin verificar' } as Record<string, string>)[d.verdict] ?? d.verdict}` : ''} · {ago(d.updatedAt)}</span></span>
+              <li key={d.id} className="flex flex-col gap-0.5 py-2 sm:flex-row sm:items-start sm:gap-3">
+                <span className={`shrink-0 text-xs sm:w-20 font-medium ${d.status === 'executed' ? 'text-emerald-700' : d.status === 'failed' ? 'text-rose-600' : 'text-gray-500'}`}>{({ executed: 'Ejecutada', failed: 'Falló', reverted: 'Deshecha', rejected: 'Rechazada' } as Record<string, string>)[d.status] ?? d.status}</span>
+                <span className="min-w-0 flex-1"><span className="block text-gray-900 sm:truncate">{d.expectedImpact || d.label}</span><span className="text-xs text-gray-500">{d.label}{d.autonomous ? ' · actuó solo' : ''}{d.verdict ? ` · ${({ mejoro: 'mejoró', sin_cambio: 'sin cambio', empeoro: 'empeoró', no_medible: 'no medible', sin_verificar: 'sin verificar' } as Record<string, string>)[d.verdict] ?? d.verdict}` : ''} · {ago(d.updatedAt)}</span></span>
               </li>
             ))}
           </ul>
@@ -150,8 +150,8 @@ export function NowTab({ data, reload }: { data: Overview; reload: () => void })
         <ul className="divide-y divide-gray-100 text-sm">
           {data.runs.length === 0 && <li className="py-4 text-center text-gray-500">Aún no hay ejecuciones.</li>}
           {data.runs.map((r) => (
-            <li key={r.id} className="flex items-start gap-3 py-2.5">
-              <span className="w-28 shrink-0 text-xs text-gray-500">{when(r.startedAt)}</span>
+            <li key={r.id} className="flex flex-wrap items-start gap-x-3 gap-y-0.5 py-2.5 sm:flex-nowrap">
+              <span className="w-full shrink-0 text-xs text-gray-500 sm:w-28">{when(r.startedAt)}</span>
               <span className="min-w-0 flex-1">
                 <span className="text-gray-900">{RUN_TYPE[r.type] ?? r.type}</span>
                 {r.trigger && r.trigger !== 'schedule' && <span className="ml-1.5 rounded-full bg-gray-100 px-1.5 text-[11px] text-gray-600">{TRIGGER[r.trigger] ?? r.trigger}</span>}

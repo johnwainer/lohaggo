@@ -107,9 +107,9 @@ export default function AiAgentsPage() {
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
+    <div className="sm:p-6 max-w-6xl mx-auto space-y-5 sm:space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2"><Bot size={24} /> Agentes IA</h1>
           <p className="text-gray-500 mt-1 text-sm">Crea los agentes que quieras y decide en qué canales y cuentas atiende cada uno.</p>
         </div>
@@ -142,7 +142,7 @@ export default function AiAgentsPage() {
         <div className="space-y-2">
           {budgets.filter((b) => b.state !== 'ok').map((b) => (
             <div key={b.workspaceId} className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-sm ${b.state === 'blocked' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
-              <AlertTriangle size={16} />
+              <AlertTriangle size={16} className="shrink-0" />
               {wsName(b.workspaceId)}: {b.pct}% del tope mensual de IA ({usd(b.costUsd)}, {b.calls} llamadas).
               {b.state === 'blocked' ? ' Los agentes están traspasando a personas hasta el próximo mes.' : ''}
             </div>
@@ -170,17 +170,17 @@ export default function AiAgentsPage() {
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {visible.map((a) => (
-            <Link key={a.id} href={`/admin/ai-agents/${a.id}`} className="bg-white rounded-2xl border border-gray-200 p-5 hover:shadow-md hover:border-primary-200 transition space-y-4">
+            <Link key={a.id} href={`/admin/ai-agents/${a.id}`} className="min-w-0 bg-white rounded-2xl border border-gray-200 p-4 sm:p-5 hover:shadow-md hover:border-primary-200 transition space-y-4">
               <div className="flex items-start gap-3">
                 <AgentFace avatar={a.avatar} avatars={avatars} />
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="font-semibold text-gray-900 truncate">{a.name}</p>
-                    {a.isDefault && <span className="text-[10px] rounded-full bg-primary-50 text-primary-700 px-2 py-0.5">Por defecto</span>}
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <p className="min-w-0 max-w-full font-semibold text-gray-900 truncate">{a.name}</p>
+                    {a.isDefault && <span className="shrink-0 whitespace-nowrap text-[10px] rounded-full bg-primary-50 text-primary-700 px-2 py-0.5">Por defecto</span>}
                   </div>
                   <p className="text-xs text-gray-500 truncate">{wsName(a.workspaceId)}</p>
                 </div>
-                <span className={`text-xs rounded-full px-2 py-0.5 ${a.status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>{a.status === 'active' ? 'Activo' : 'Pausado'}</span>
+                <span className={`shrink-0 whitespace-nowrap text-xs rounded-full px-2 py-0.5 ${a.status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>{a.status === 'active' ? 'Activo' : 'Pausado'}</span>
               </div>
               <div className="space-y-1.5">
                 <div className="text-xs text-gray-500">Canales</div>
@@ -218,7 +218,7 @@ export default function AiAgentsPage() {
       )}
 
       {workspaces.some((w) => w.canManagePermissions) && (
-        <section className="bg-white rounded-2xl border border-gray-200 p-6 space-y-3">
+        <section className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 space-y-3">
           <h2 className="font-semibold text-gray-900 flex items-center gap-2"><ShieldCheck size={18} /> Permisos del equipo</h2>
           <p className="text-xs text-gray-500">Los propietarios del workspace tienen todos. A los miembros se les da uno a uno; probar agentes consume saldo.</p>
           <div className="flex gap-2 flex-wrap">
@@ -231,8 +231,8 @@ export default function AiAgentsPage() {
 
       {creating && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setCreating(false)}>
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md space-y-4" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between"><h3 className="font-semibold text-gray-900">Nuevo agente</h3><button onClick={() => setCreating(false)}><X size={18} /></button></div>
+          <div className="bg-white rounded-2xl p-5 sm:p-6 w-full max-w-md space-y-4 max-h-[90dvh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between"><h3 className="font-semibold text-gray-900">Nuevo agente</h3><button onClick={() => setCreating(false)} className="-m-2 p-2 shrink-0"><X size={18} /></button></div>
             <label className="block space-y-1">
               <span className="text-sm text-gray-700">Nombre</span>
               <input autoFocus value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && createAgent()} placeholder="Ej. Sofía de LoHaggo" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm" />
@@ -255,14 +255,15 @@ export default function AiAgentsPage() {
 
       {permWs && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setPermWs(null)}>
-          <div className="bg-white rounded-2xl p-6 w-full max-w-2xl space-y-4 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between"><h3 className="font-semibold text-gray-900">Permisos de IA · {wsName(permWs)}</h3><button onClick={() => setPermWs(null)}><X size={18} /></button></div>
-            <table className="w-full text-sm">
+          <div className="bg-white rounded-2xl p-4 sm:p-6 w-full max-w-2xl space-y-4 max-h-[90dvh] sm:max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between gap-3"><h3 className="min-w-0 break-words font-semibold text-gray-900">Permisos de IA · {wsName(permWs)}</h3><button onClick={() => setPermWs(null)} className="-m-2 p-2 shrink-0"><X size={18} /></button></div>
+            <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+            <table className="w-full min-w-[32rem] text-sm">
               <thead className="text-xs text-gray-500"><tr className="text-left"><th className="py-2">Miembro</th>{Object.entries(permLabels).map(([k, l]) => <th key={k} className="px-2 text-center font-normal">{l}</th>)}</tr></thead>
               <tbody>
                 {members.map((m) => (
                   <tr key={m.id} className="border-t border-gray-100">
-                    <td className="py-2 pr-2"><p className="text-gray-900">{m.user.name}</p><p className="text-xs text-gray-500">{m.role === 'OWNER' ? 'Propietario' : m.user.email}</p></td>
+                    <td className="py-2 pr-2"><p className="text-gray-900">{m.user.name}</p><p className="text-xs text-gray-500 break-all">{m.role === 'OWNER' ? 'Propietario' : m.user.email}</p></td>
                     {Object.keys(permLabels).map((p) => (
                       <td key={p} className="text-center">
                         <input type="checkbox" disabled={m.role === 'OWNER'} checked={m.effective.includes(p)} onChange={() => togglePermission(m, p)} />
@@ -272,6 +273,7 @@ export default function AiAgentsPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
       )}

@@ -7,6 +7,10 @@ import { BarList, CITY_LABEL, Card, Empty, Kpi, axis, dayLabel, hours, minutes, 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Data = any
 
+/** On a phone the tables scroll sideways inside their card instead of squeezing the columns. */
+const TABLE_WRAP = '-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0'
+const tableCls = (min: string) => `w-full ${min} text-sm sm:min-w-0 max-sm:[&_th]:whitespace-nowrap max-sm:[&_th+th]:pl-3 max-sm:[&_td+td]:pl-3`
+
 // ─── Negocio ────────────────────────────────────────────────────────────────
 
 export function BusinessTab({ d }: { d: Data }) {
@@ -67,8 +71,8 @@ export function FunnelTab({ d }: { d: Data }) {
         {!first ? <p className="text-sm text-gray-500">No hubo solicitudes en este periodo.</p> : (
           <div className="space-y-3">
             {d.stages.map((s: Data, i: number) => (
-              <div key={s.key} className="grid grid-cols-[160px_1fr_120px] items-center gap-3 text-sm">
-                <span className="text-gray-700">{s.label}</span>
+              <div key={s.key} className="grid grid-cols-[1fr_7.5rem] items-center gap-x-3 gap-y-1 text-sm sm:grid-cols-[160px_1fr_120px] sm:gap-y-3">
+                <span className="col-span-2 text-gray-700 sm:col-span-1">{s.label}</span>
                 <div className="h-8 rounded-lg bg-gray-100">
                   <div className="flex h-8 items-center rounded-lg bg-gradient-to-r from-primary-500 to-primary-400 px-2 text-xs font-semibold text-white" style={{ width: `${Math.max(3, (s.count / first) * 100)}%` }}>{num(s.count)}</div>
                 </div>
@@ -118,8 +122,8 @@ export function SupplyTab({ d }: { d: Data }) {
       )}
       <Card title="Por servicio" subtitle="Demanda del periodo frente a socios verificados y activos que lo ofrecen">
         {!d.services.length ? <p className="text-sm text-gray-500">Sin solicitudes ni socios con estos filtros.</p> : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className={`${TABLE_WRAP} sm:overflow-x-auto`}>
+            <table className={tableCls('min-w-[36rem]')}>
               <thead className="text-left text-xs text-gray-500"><tr><th className="py-2 pr-3">Servicio</th><th className="px-3 text-right">Solicitudes</th><th className="px-3 text-right">Con propuesta</th><th className="px-3 text-right">1.ª propuesta</th><th className="px-3 text-right">Socios</th><th className="pl-3 text-right">Solicitudes por socio</th></tr></thead>
               <tbody>
                 {d.services.map((s: Data) => (
@@ -177,24 +181,30 @@ export function PeopleTab({ d }: { d: Data }) {
       </Card>
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Cohortes de clientes" subtitle="Por mes de registro: cuántos reservaron en sus primeros 30 días y cuántos volvieron a reservar">
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs text-gray-500"><tr><th className="py-1.5">Mes</th><th className="text-right">Registrados</th><th className="text-right">Reservaron (30 d)</th><th className="text-right">Repitieron</th></tr></thead>
-            <tbody>{d.clientCohorts.map((c: Data) => <tr key={c.month} className="border-t border-gray-100"><td className="py-1.5">{monthLabel(c.month)}</td><td className="text-right tabular-nums">{num(c.users)}</td><td className="text-right tabular-nums">{pct(c.activatedRate)}</td><td className="text-right tabular-nums">{pct(c.repeatRate)}</td></tr>)}</tbody>
-          </table>
+          <div className={TABLE_WRAP}>
+            <table className={tableCls('min-w-[26rem]')}>
+              <thead className="text-left text-xs text-gray-500"><tr><th className="py-1.5">Mes</th><th className="text-right">Registrados</th><th className="text-right">Reservaron (30 d)</th><th className="text-right">Repitieron</th></tr></thead>
+              <tbody>{d.clientCohorts.map((c: Data) => <tr key={c.month} className="border-t border-gray-100"><td className="py-1.5">{monthLabel(c.month)}</td><td className="text-right tabular-nums">{num(c.users)}</td><td className="text-right tabular-nums">{pct(c.activatedRate)}</td><td className="text-right tabular-nums">{pct(c.repeatRate)}</td></tr>)}</tbody>
+            </table>
+          </div>
         </Card>
         <Card title="Cohortes de socios" subtitle="Por mes de registro: cuántos se verificaron y cuántos completaron al menos un trabajo">
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs text-gray-500"><tr><th className="py-1.5">Mes</th><th className="text-right">Registrados</th><th className="text-right">Verificados</th><th className="text-right">Trabajaron</th></tr></thead>
-            <tbody>{d.partnerCohorts.map((c: Data) => <tr key={c.month} className="border-t border-gray-100"><td className="py-1.5">{monthLabel(c.month)}</td><td className="text-right tabular-nums">{num(c.users)}</td><td className="text-right tabular-nums">{pct(c.verifiedRate)}</td><td className="text-right tabular-nums">{pct(c.workedRate)}</td></tr>)}</tbody>
-          </table>
+          <div className={TABLE_WRAP}>
+            <table className={tableCls('min-w-[26rem]')}>
+              <thead className="text-left text-xs text-gray-500"><tr><th className="py-1.5">Mes</th><th className="text-right">Registrados</th><th className="text-right">Verificados</th><th className="text-right">Trabajaron</th></tr></thead>
+              <tbody>{d.partnerCohorts.map((c: Data) => <tr key={c.month} className="border-t border-gray-100"><td className="py-1.5">{monthLabel(c.month)}</td><td className="text-right tabular-nums">{num(c.users)}</td><td className="text-right tabular-nums">{pct(c.verifiedRate)}</td><td className="text-right tabular-nums">{pct(c.workedRate)}</td></tr>)}</tbody>
+            </table>
+          </div>
         </Card>
       </div>
       <Card title="De dónde llegan" subtitle="Cuentas nuevas del periodo según su primera visita (UTM o sitio que las trajo) y cuántas terminaron reservando">
         {!d.sources.length ? <p className="text-sm text-gray-500">Sin cuentas nuevas en el periodo.</p> : (
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs text-gray-500"><tr><th className="py-1.5">Fuente</th><th className="text-right">Clientes</th><th className="text-right">Socios</th><th className="text-right">Reservaron</th><th className="pl-3">Campañas</th></tr></thead>
-            <tbody>{d.sources.map((s: Data) => <tr key={s.source} className="border-t border-gray-100"><td className="py-1.5 text-gray-900">{s.source}</td><td className="text-right tabular-nums">{num(s.clients)}</td><td className="text-right tabular-nums">{num(s.partners)}</td><td className="text-right tabular-nums">{num(s.booked)} <span className="text-xs text-gray-400">({pct(s.conversion)})</span></td><td className="pl-3 text-xs text-gray-500">{s.campaigns.join(', ') || '—'}</td></tr>)}</tbody>
-          </table>
+          <div className={TABLE_WRAP}>
+            <table className={tableCls('min-w-[26rem]')}>
+              <thead className="text-left text-xs text-gray-500"><tr><th className="py-1.5">Fuente</th><th className="text-right">Clientes</th><th className="text-right">Socios</th><th className="text-right">Reservaron</th><th className="pl-3">Campañas</th></tr></thead>
+              <tbody>{d.sources.map((s: Data) => <tr key={s.source} className="border-t border-gray-100"><td className="py-1.5 text-gray-900">{s.source}</td><td className="text-right tabular-nums">{num(s.clients)}</td><td className="text-right tabular-nums">{num(s.partners)}</td><td className="text-right tabular-nums">{num(s.booked)} <span className="text-xs text-gray-400">({pct(s.conversion)})</span></td><td className="pl-3 text-xs text-gray-500">{s.campaigns.join(', ') || '—'}</td></tr>)}</tbody>
+            </table>
+          </div>
         )}
       </Card>
     </div>
@@ -231,10 +241,12 @@ export function ServiceTab({ d }: { d: Data }) {
       </Card>
       <Card title="Por canal">
         {!d.byChannel.length ? <p className="text-sm text-gray-500">Sin conversaciones en el periodo.</p> : (
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs text-gray-500"><tr><th className="py-1.5">Canal</th><th className="text-right">Conversaciones</th><th className="text-right">Solo IA</th><th className="text-right">Pasaron a persona</th></tr></thead>
-            <tbody>{d.byChannel.map((c: Data) => <tr key={c.channel} className="border-t border-gray-100"><td className="py-1.5"><span className="flex items-center gap-2"><ChannelIcon channel={c.channel} size={16} />{channelLabel(c.channel)}</span></td><td className="text-right tabular-nums">{num(c.conversations)}</td><td className="text-right tabular-nums">{pct(c.aiResolved)}</td><td className="text-right tabular-nums">{num(c.handoffs)}</td></tr>)}</tbody>
-          </table>
+          <div className={TABLE_WRAP}>
+            <table className={tableCls('min-w-[26rem]')}>
+              <thead className="text-left text-xs text-gray-500"><tr><th className="py-1.5">Canal</th><th className="text-right">Conversaciones</th><th className="text-right">Solo IA</th><th className="text-right">Pasaron a persona</th></tr></thead>
+              <tbody>{d.byChannel.map((c: Data) => <tr key={c.channel} className="border-t border-gray-100"><td className="py-1.5"><span className="flex items-center gap-2"><ChannelIcon channel={c.channel} size={16} />{channelLabel(c.channel)}</span></td><td className="text-right tabular-nums">{num(c.conversations)}</td><td className="text-right tabular-nums">{pct(c.aiResolved)}</td><td className="text-right tabular-nums">{num(c.handoffs)}</td></tr>)}</tbody>
+            </table>
+          </div>
         )}
       </Card>
     </div>
@@ -273,10 +285,12 @@ export function SearchTab({ d }: { d: Data }) {
       </Card>
       <div className="grid gap-4 lg:grid-cols-3">
         <Card title="Lo más buscado" className="lg:col-span-2">
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs text-gray-500"><tr><th className="py-1.5">Término</th><th className="text-right">Búsquedas</th><th className="text-right">Personas</th><th className="text-right">Resultados (prom.)</th><th className="text-right">Sin resultados</th></tr></thead>
-            <tbody>{d.top.map((t: Data) => <tr key={t.q} className="border-t border-gray-100"><td className="py-1.5 text-gray-900">{t.q}</td><td className="text-right tabular-nums">{num(t.n)}</td><td className="text-right tabular-nums">{num(t.people)}</td><td className="text-right tabular-nums">{num(t.results)}</td><td className={`text-right tabular-nums ${(t.zeroRate ?? 0) > 50 ? 'font-semibold text-amber-600' : ''}`}>{pct(t.zeroRate)}</td></tr>)}</tbody>
-          </table>
+          <div className={TABLE_WRAP}>
+            <table className={tableCls('min-w-[26rem]')}>
+              <thead className="text-left text-xs text-gray-500"><tr><th className="py-1.5">Término</th><th className="text-right">Búsquedas</th><th className="text-right">Personas</th><th className="text-right">Resultados (prom.)</th><th className="text-right">Sin resultados</th></tr></thead>
+              <tbody>{d.top.map((t: Data) => <tr key={t.q} className="border-t border-gray-100"><td className="py-1.5 text-gray-900">{t.q}</td><td className="text-right tabular-nums">{num(t.n)}</td><td className="text-right tabular-nums">{num(t.people)}</td><td className="text-right tabular-nums">{num(t.results)}</td><td className={`text-right tabular-nums ${(t.zeroRate ?? 0) > 50 ? 'font-semibold text-amber-600' : ''}`}>{pct(t.zeroRate)}</td></tr>)}</tbody>
+            </table>
+          </div>
         </Card>
         <div className="space-y-4">
           <Card title="Quién busca"><BarList rows={d.byRole.map((r: Data) => ({ name: ROLE[r.role] ?? r.role, value: r.n }))} /></Card>
@@ -334,10 +348,12 @@ export function TrafficTab({ d }: { d: Data }) {
         </Card>
       </div>
       <Card title="Páginas más vistas">
-        <table className="w-full text-sm">
-          <thead className="text-left text-xs text-gray-500"><tr><th className="py-1.5">Página</th><th className="text-right">Vistas</th><th className="text-right">Usuarios</th></tr></thead>
-          <tbody>{d.pages.map((p: Data) => <tr key={p.path} className="border-t border-gray-100"><td className="max-w-md truncate py-1.5 text-gray-900">{p.path}</td><td className="text-right tabular-nums">{num(p.views)}</td><td className="text-right tabular-nums">{num(p.users)}</td></tr>)}</tbody>
-        </table>
+        <div className={TABLE_WRAP}>
+          <table className={tableCls('min-w-0')}>
+            <thead className="text-left text-xs text-gray-500"><tr><th className="py-1.5">Página</th><th className="text-right">Vistas</th><th className="text-right">Usuarios</th></tr></thead>
+            <tbody>{d.pages.map((p: Data) => <tr key={p.path} className="border-t border-gray-100"><td className="max-w-[11rem] truncate py-1.5 text-gray-900 sm:max-w-md" title={p.path}>{p.path}</td><td className="text-right tabular-nums">{num(p.views)}</td><td className="text-right tabular-nums">{num(p.users)}</td></tr>)}</tbody>
+          </table>
+        </div>
       </Card>
     </div>
   )

@@ -151,13 +151,13 @@ export default function AdminServiceRequestsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Solicitudes de servicio</h1>
+        <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Solicitudes de servicio</h1>
         <p className="text-gray-600 mt-1">
           Cada solicitud creada por un cliente, los socios a quienes se les notificó y las propuestas enviadas.
         </p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:grid-cols-6">
         <StatBox label="Total" value={stats.total} />
         <StatBox label="Activas" value={stats.active} tone="yellow" />
         <StatBox label="Aceptadas" value={stats.accepted} tone="green" />
@@ -197,10 +197,10 @@ export default function AdminServiceRequestsPage() {
             >
               <button
                 onClick={() => toggleExpand(r.id)}
-                className="w-full flex items-center justify-between gap-3 px-4 sm:px-5 py-4 hover:bg-gray-50 transition-colors text-left"
+                className="w-full flex items-center justify-between gap-2 sm:gap-3 px-3 sm:px-5 py-4 hover:bg-gray-50 transition-colors text-left"
               >
                 <div className="flex items-start gap-3 flex-1 min-w-0">
-                  <span className="text-2xl">{r.service.icon}</span>
+                  <span className="text-2xl flex-shrink-0">{r.service.icon}</span>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-semibold text-gray-900 truncate">{r.service.name}</p>
@@ -218,12 +218,12 @@ export default function AdminServiceRequestsPage() {
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-gray-500 mt-0.5 truncate">
+                    <p className="text-xs text-gray-500 mt-0.5 break-words sm:truncate">
                       {r.user.name || r.user.email} · {r.city} · {new Date(r.createdAt).toLocaleString('es-CO')}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-4 text-xs text-gray-500 flex-shrink-0">
+                <div className="flex items-center gap-2 sm:gap-4 text-xs text-gray-500 flex-shrink-0">
                   <span className="flex items-center gap-1">
                     <Send size={14} />
                     {r.notifiedPartners.length}
@@ -237,11 +237,11 @@ export default function AdminServiceRequestsPage() {
               </button>
 
               {isOpen && (
-                <div className="border-t border-gray-100 px-4 sm:px-5 py-4 space-y-5 bg-gray-50/50">
+                <div className="border-t border-gray-100 px-3 sm:px-5 py-4 space-y-5 bg-gray-50/50">
                   <div className="grid md:grid-cols-2 gap-4">
                     <DetailBox title="Cliente">
                       <p className="font-medium text-gray-900">{r.user.name || 'Sin nombre'}</p>
-                      <p className="text-xs text-gray-500">{r.user.email}</p>
+                      <p className="text-xs text-gray-500 break-all">{r.user.email}</p>
                       {r.user.phone && <p className="text-xs text-gray-500">{r.user.phone}</p>}
                     </DetailBox>
                     <DetailBox title="Detalle">
@@ -250,7 +250,7 @@ export default function AdminServiceRequestsPage() {
                         <span>{r.address}</span>
                       </p>
                       {r.preferredDate && (
-                        <p className="text-xs text-gray-700 flex items-center gap-1 mt-1">
+                        <p className="text-xs text-gray-700 flex flex-wrap items-center gap-1 mt-1">
                           <Calendar size={12} />
                           {new Date(r.preferredDate).toLocaleDateString('es-CO')}
                           {r.preferredTime && <> · <Clock size={12} /> {r.preferredTime}</>}
@@ -276,7 +276,7 @@ export default function AdminServiceRequestsPage() {
                       </p>
                     ) : (
                       <div className="overflow-x-auto rounded-lg border border-gray-100 bg-white">
-                        <table className="w-full text-xs">
+                        <table className="w-full min-w-[560px] text-xs">
                           <thead className="bg-gray-50 text-gray-500">
                             <tr>
                               <th className="text-left py-2 px-3 font-semibold uppercase tracking-wide">Socio</th>
@@ -300,7 +300,7 @@ export default function AdminServiceRequestsPage() {
                                   </span>
                                 </td>
                                 <td className="py-2 px-3 text-gray-600">{p.read ? 'Sí' : 'No'}</td>
-                                <td className="py-2 px-3 text-gray-500">
+                                <td className="py-2 px-3 text-gray-500 whitespace-nowrap">
                                   {new Date(p.notifiedAt).toLocaleString('es-CO')}
                                 </td>
                               </tr>
@@ -322,7 +322,7 @@ export default function AdminServiceRequestsPage() {
                       </p>
                     ) : (
                       <div className="overflow-x-auto rounded-lg border border-gray-100 bg-white">
-                        <table className="w-full text-xs">
+                        <table className="w-full min-w-[560px] text-xs">
                           <thead className="bg-gray-50 text-gray-500">
                             <tr>
                               <th className="text-left py-2 px-3 font-semibold uppercase tracking-wide">Socio</th>
@@ -356,7 +356,7 @@ export default function AdminServiceRequestsPage() {
                                 <td className="py-2 px-3 text-gray-600 max-w-[240px] truncate" title={p.notes ?? ''}>
                                   {p.notes || '—'}
                                 </td>
-                                <td className="py-2 px-3 text-gray-500">
+                                <td className="py-2 px-3 text-gray-500 whitespace-nowrap">
                                   {new Date(p.createdAt).toLocaleString('es-CO')}
                                 </td>
                               </tr>
@@ -403,8 +403,8 @@ function StatBox({
     primary: 'bg-primary-50 text-primary-800',
   }
   return (
-    <div className={`rounded-xl border border-gray-100 shadow-sm p-4 ${toneStyles[tone]}`}>
-      <p className="text-[10px] font-semibold uppercase tracking-wide opacity-70">{label}</p>
+    <div className={`rounded-xl border border-gray-100 shadow-sm p-3 sm:p-4 ${toneStyles[tone]}`}>
+      <p className="text-[10px] font-semibold uppercase tracking-wide opacity-70 truncate">{label}</p>
       <p className="text-2xl font-black mt-1">{value}</p>
     </div>
   )

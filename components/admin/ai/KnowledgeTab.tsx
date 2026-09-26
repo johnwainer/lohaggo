@@ -108,7 +108,7 @@ export default function KnowledgeTab({ workspaceId, agentId, agentName }: { work
 
   return (
     <div className="space-y-6">
-      {error && <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><AlertCircle size={16} /> {error}</div>}
+      {error && <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"><AlertCircle size={16} className="shrink-0" /> {error}</div>}
 
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="text-sm text-gray-600 space-y-0.5">
@@ -132,20 +132,20 @@ export default function KnowledgeTab({ workspaceId, agentId, agentName }: { work
 
       {adding && (
         <div className="rounded-2xl border border-primary-200 bg-primary-50/40 p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="font-medium text-gray-900">{adding === 'text' ? 'Nuevo texto' : adding === 'file' ? 'Subir archivo (txt, md, csv, pdf)' : 'Enlace de Google Docs, Sheets o Slides'}</p>
-            <button onClick={() => setAdding(null)}><X size={16} /></button>
+          <div className="flex items-center justify-between gap-3">
+            <p className="min-w-0 font-medium text-gray-900">{adding === 'text' ? 'Nuevo texto' : adding === 'file' ? 'Subir archivo (txt, md, csv, pdf)' : 'Enlace de Google Docs, Sheets o Slides'}</p>
+            <button onClick={() => setAdding(null)} className="-m-2 shrink-0 p-2"><X size={16} /></button>
           </div>
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Título (lo verá el agente junto al fragmento)" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white" />
           {adding === 'text' && <textarea value={content} onChange={(e) => setContent(e.target.value)} rows={8} placeholder="Precios, horarios, políticas, preguntas frecuentes…" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white" />}
-          {adding === 'file' && <input ref={fileRef} type="file" accept=".txt,.md,.csv,.pdf,text/plain,text/markdown,text/csv,application/pdf" className="text-sm" />}
+          {adding === 'file' && <input ref={fileRef} type="file" accept=".txt,.md,.csv,.pdf,text/plain,text/markdown,text/csv,application/pdf" className="w-full min-w-0 text-sm" />}
           {adding === 'gdoc' && (
             <>
               <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://docs.google.com/document/d/…" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white" />
               <p className="text-xs text-gray-500">Compártelo como «Cualquier persona con el enlace». Se relee cada vez que pulsas reindexar.</p>
             </>
           )}
-          <label className="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" checked={onlyThis} onChange={(e) => setOnlyThis(e.target.checked)} /> Solo para {agentName} (si no, lo usan todos los agentes del workspace)</label>
+          <label className="flex items-start gap-2 text-sm text-gray-700 sm:items-center"><input type="checkbox" className="mt-0.5 sm:mt-0" checked={onlyThis} onChange={(e) => setOnlyThis(e.target.checked)} /> Solo para {agentName} (si no, lo usan todos los agentes del workspace)</label>
           <button onClick={submit} disabled={busy} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-600 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50">
             {busy ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} Guardar e indexar
           </button>
@@ -156,22 +156,22 @@ export default function KnowledgeTab({ workspaceId, agentId, agentName }: { work
         {visibleDocs.length === 0 ? (
           <div className="p-8 text-center text-sm text-gray-500"><BookOpen className="mx-auto mb-2 text-gray-300" size={32} />Sin documentos. Sin conocimiento, el agente traspasará todo lo que no pueda responder por sí mismo.</div>
         ) : visibleDocs.map((d) => (
-          <div key={d.id} className="p-4 flex items-start gap-3">
+          <div key={d.id} className="p-3 sm:p-4 flex items-start gap-2 sm:gap-3">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <p className="font-medium text-gray-900 truncate">{d.title}</p>
+                <p className="min-w-0 max-w-full font-medium text-gray-900 truncate" title={d.title}>{d.title}</p>
                 <span className="text-[11px] rounded-full bg-gray-100 text-gray-600 px-2 py-0.5">{KIND[d.kind] || d.kind}</span>
                 <span className={`text-[11px] rounded-full px-2 py-0.5 ${STATUS[d.status]?.cls || ''}`}>{STATUS[d.status]?.label || d.status}</span>
                 {d.agentIds.length > 0 && <span className="text-[11px] rounded-full bg-primary-50 text-primary-700 px-2 py-0.5">Solo este agente</span>}
               </div>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-500 mt-1 break-words">
                 {d.chunkCount} fragmento(s){d.embeddingModel ? ` · ${d.embeddingModel}` : ' · léxico'}{d.indexedAt ? ` · ${new Date(d.indexedAt).toLocaleString('es-CO')}` : ''}
                 {d.sourceUrl ? <> · <a href={d.sourceUrl} target="_blank" rel="noreferrer" className="text-primary-600 hover:underline">abrir</a></> : null}
               </p>
-              {d.error && <p className="text-xs text-red-600 mt-1">{d.error}</p>}
+              {d.error && <p className="text-xs text-red-600 mt-1 break-words">{d.error}</p>}
             </div>
             {canEdit && (
-              <div className="flex gap-1">
+              <div className="flex shrink-0 gap-1">
                 <button title="Reindexar" onClick={() => request(`/api/admin/ai/knowledge/${d.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: '{}' })} className="p-2 rounded-lg text-gray-500 hover:bg-gray-100"><RefreshCw size={15} /></button>
                 <button title="Eliminar" onClick={() => window.confirm(`¿Eliminar "${d.title}"?`) && request(`/api/admin/ai/knowledge/${d.id}`, { method: 'DELETE' })} className="p-2 rounded-lg text-red-500 hover:bg-red-50"><Trash2 size={15} /></button>
               </div>
@@ -188,13 +188,13 @@ export default function KnowledgeTab({ workspaceId, agentId, agentName }: { work
             {gaps.map((g) => (
               <div key={g.id} className="p-4 space-y-2">
                 <div className="flex items-start justify-between gap-3">
-                  <p className="text-sm text-gray-900">“{g.question}”</p>
+                  <p className="min-w-0 break-words text-sm text-gray-900">“{g.question}”</p>
                   <span className="text-xs text-gray-400 whitespace-nowrap">{new Date(g.createdAt).toLocaleDateString('es-CO')}</span>
                 </div>
                 {canEdit && (answering === g.id ? (
                   <div className="space-y-2">
                     <textarea value={answer} onChange={(e) => setAnswer(e.target.value)} rows={3} placeholder="La respuesta correcta que el agente debe dar" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm" />
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <button onClick={() => answerGap(g.id)} disabled={busy || !answer.trim()} className="px-3 py-1.5 rounded-xl bg-primary-600 text-white text-sm disabled:opacity-50">Guardar en el conocimiento</button>
                       <button onClick={() => setAnswering(null)} className="px-3 py-1.5 rounded-xl border border-gray-200 text-sm">Cancelar</button>
                     </div>

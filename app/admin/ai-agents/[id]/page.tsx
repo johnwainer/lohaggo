@@ -173,13 +173,13 @@ export default function AiAgentDetailPage({ params }: { params: Promise<{ id: st
   const autopilotOnAll = v.autopilot && v.autopilotChannels.length === 0
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6 pb-28">
+    <div className="sm:p-6 max-w-5xl mx-auto space-y-5 sm:space-y-6 pb-28">
       <Link href="/admin/ai-agents" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800"><ArrowLeft size={14} /> Agentes IA</Link>
 
       <div className="flex items-center gap-4 flex-wrap">
         <AgentFace avatar={v.avatar} avatars={catalog.avatars} size={56} />
-        <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-bold text-gray-900 truncate">{v.name}</h1>
+        <div className="flex-1 min-w-[calc(100%-4.5rem)] sm:min-w-0">
+          <h1 className="text-2xl font-bold text-gray-900 break-words sm:truncate">{v.name}</h1>
           <p className="text-sm text-gray-500">
             {v.conversations} conversaciones · {v.handoffs} traspasos · resolución {v.resolution == null ? '—' : `${v.resolution}%`}
             {monthCost ? ` · este mes ${usd(monthCost.costUsd)} (${monthCost.calls} llamadas)` : ''}
@@ -191,7 +191,7 @@ export default function AiAgentDetailPage({ params }: { params: Promise<{ id: st
             </p>
           )}
         </div>
-        <button disabled={ro} onClick={() => set({ status: v.status === 'active' ? 'paused' : 'active' })} className={`px-3 py-1.5 rounded-full text-sm font-medium ${v.status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
+        <button disabled={ro} onClick={() => set({ status: v.status === 'active' ? 'paused' : 'active' })} className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-medium ${v.status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
           {v.status === 'active' ? '● Activo' : '○ Pausado'}
         </button>
       </div>
@@ -208,7 +208,7 @@ export default function AiAgentDetailPage({ params }: { params: Promise<{ id: st
 
       <fieldset disabled={ro && tab !== 'knowledge' && tab !== 'test'} className="space-y-5">
         {tab === 'identity' && (
-          <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
+          <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 space-y-5">
             <div className="space-y-2">
               <span className="text-sm font-medium text-gray-700">Cara</span>
               <div className="flex gap-2 flex-wrap">
@@ -234,7 +234,7 @@ export default function AiAgentDetailPage({ params }: { params: Promise<{ id: st
         )}
 
         {tab === 'model' && (
-          <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
+          <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 space-y-5">
             {platform?.allowAgentModelOverride ? (
               <Field label="Modelo" hint={`Vacío = el de la plataforma (${platform.defaultModel}).`}>
                 <select className={input} value={String(v.model ?? '')} onChange={(e) => set({ model: e.target.value || null })}>
@@ -254,7 +254,7 @@ export default function AiAgentDetailPage({ params }: { params: Promise<{ id: st
 
         {tab === 'channels' && (
           <div className="space-y-5">
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
+            <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 space-y-4">
               <h3 className="font-semibold text-gray-900">Canales que atiende</h3>
               <p className="text-xs text-gray-500">Ninguno marcado = todos. Si varios agentes atienden el mismo canal, contesta el que lo declara explícitamente; si no, el agente por defecto.</p>
               <div className="flex gap-2 flex-wrap">
@@ -267,7 +267,7 @@ export default function AiAgentDetailPage({ params }: { params: Promise<{ id: st
               <Toggle checked={Boolean(v.isDefault)} onChange={(x) => set({ isDefault: x })} label="Agente por defecto del workspace" hint="Atiende los canales que ningún otro agente declara." />
             </div>
 
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
+            <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 space-y-4">
               <h3 className="font-semibold text-gray-900">Piloto automático</h3>
               <Toggle checked={Boolean(v.autopilot)} onChange={(x) => set({ autopilot: x })} label="Responder solo a los clientes" hint="Nunca contesta si una persona lleva la conversación, si alguien del equipo escribió en los últimos 30 minutos o si las automatizaciones están pausadas." />
               <div className="space-y-2">
@@ -302,7 +302,7 @@ export default function AiAgentDetailPage({ params }: { params: Promise<{ id: st
                             set({ autopilotAccounts: on ? rest : [...rest, a.key] })
                           }}
                         />
-                        <ChannelIcon channel={a.channel} size={14} /> <span className="truncate">{a.name}</span>
+                        <ChannelIcon channel={a.channel} size={14} /> <span className="min-w-0 truncate">{a.name}</span>
                         {!a.enabled && <span className="text-[10px] text-gray-400">(pausada)</span>}
                       </label>
                     ))}
@@ -318,7 +318,7 @@ export default function AiAgentDetailPage({ params }: { params: Promise<{ id: st
               </Field>
             </div>
 
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
+            <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 space-y-4">
               <h3 className="font-semibold text-gray-900">Copiloto</h3>
               <p className="text-xs text-gray-500">
                 En estos canales la conversación la lleva una persona y el agente la ayuda: le sugiere respuestas en una tarjeta sobre el cuadro de escritura y,
@@ -345,7 +345,7 @@ export default function AiAgentDetailPage({ params }: { params: Promise<{ id: st
                   </Field>
                   <Toggle checked={Boolean(v.copilotTakeover)} onChange={(x) => set({ copilotTakeover: x })} label="Retomar la conversación si nadie responde" hint="Solo dentro del horario del agente y de la ventana de 24 h. Nunca retoma casos que la IA traspasó ni con etiquetas excluidas: en esos avisa al equipo." />
                   {Boolean(v.copilotTakeover) && (
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid sm:grid-cols-2 gap-4">
                       <Field label="Minutos sin respuesta para retomar">
                         <input type="number" min={1} max={720} className={input} value={Number(v.copilotTakeoverMinutes)} onChange={(e) => set({ copilotTakeoverMinutes: Number(e.target.value) })} />
                       </Field>
@@ -362,7 +362,7 @@ export default function AiAgentDetailPage({ params }: { params: Promise<{ id: st
 
         {tab === 'comments' && (
           <div className="space-y-5">
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
+            <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 space-y-4">
               <h3 className="font-semibold text-gray-900">Comentarios en publicaciones y anuncios</h3>
               <p className="text-xs text-gray-500">
                 Cuando alguien comenta una publicación o un anuncio de una página de Facebook o de la cuenta de Instagram, el agente puede contestar en público
@@ -379,7 +379,7 @@ export default function AiAgentDetailPage({ params }: { params: Promise<{ id: st
                   <div key={c} className="rounded-xl border border-gray-200 p-4 space-y-3">
                     <div className="flex items-center gap-2 flex-wrap">
                       <ChannelIcon channel={c} size={18} /> <span className="text-sm font-medium text-gray-900">{CHANNEL_LABEL[c]}</span>
-                      <select className="ml-auto border border-gray-200 rounded-xl px-3 py-1.5 text-sm" value={mode} onChange={(e) => setMode(e.target.value)}>
+                      <select className="w-full sm:w-auto sm:ml-auto border border-gray-200 rounded-xl px-3 py-1.5 text-sm" value={mode} onChange={(e) => setMode(e.target.value)}>
                         <option value="off">Apagado</option>
                         <option value="autopilot">Piloto automático (responde solo)</option>
                         <option value="copilot">Copiloto (sugiere a una persona)</option>
@@ -405,7 +405,7 @@ export default function AiAgentDetailPage({ params }: { params: Promise<{ id: st
                     {accounts.filter((a) => v.commentChannels.includes(a.channel) || v.commentCopilotChannels.includes(a.channel)).map((a) => (
                       <label key={a.key} className="flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm">
                         <input type="checkbox" checked={v.commentAccounts.includes(a.key)} onChange={() => toggleIn('commentAccounts', a.key)} />
-                        <ChannelIcon channel={a.channel} size={14} /> <span className="truncate">{a.name}</span>
+                        <ChannelIcon channel={a.channel} size={14} /> <span className="min-w-0 truncate">{a.name}</span>
                         {!a.enabled && <span className="text-[10px] text-amber-700">(comentarios apagados en Canales)</span>}
                       </label>
                     ))}
@@ -414,7 +414,7 @@ export default function AiAgentDetailPage({ params }: { params: Promise<{ id: st
               )}
             </div>
 
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
+            <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 space-y-4">
               <h3 className="font-semibold text-gray-900">Qué responde</h3>
               <Field label="Comentarios a los que responde" hint="Con «solo los que lo piden» el agente decide: no contesta emojis sueltos, etiquetas a amigos, trolls ni conversaciones entre otras personas. Ante una pregunta o una queja real, responde.">
                 <select className={input} value={String(v.commentScope)} onChange={(e) => set({ commentScope: e.target.value })}>
@@ -434,7 +434,7 @@ export default function AiAgentDetailPage({ params }: { params: Promise<{ id: st
               </Field>
             </div>
 
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
+            <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 space-y-4">
               <h3 className="font-semibold text-gray-900">Temas sensibles y moderación</h3>
               <Field label="Ante reembolsos, quejas, seguridad o datos personales" hint="Nunca se contesta el fondo del tema en público. Las palabras de traspaso (pestaña Traspaso) siempre pasan el caso a una persona.">
                 <select className={input} value={String(v.commentSensitiveAction)} onChange={(e) => set({ commentSensitiveAction: e.target.value })}>
@@ -447,10 +447,10 @@ export default function AiAgentDetailPage({ params }: { params: Promise<{ id: st
               <Toggle checked={Boolean(v.commentHideSpam)} onChange={(x) => set({ commentHideSpam: x })} label="Ocultar spam" hint="Publicidad y enlaces sin relación con el negocio. Si está apagado, solo se registra y no se responde." />
             </div>
 
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
+            <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 space-y-4">
               <h3 className="font-semibold text-gray-900">Límites</h3>
               <p className="text-xs text-gray-500">Frenan una avalancha (un anuncio viral, un ataque de spam). Al llegar al límite la IA deja de responder y avisa con una nota interna.</p>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid sm:grid-cols-2 gap-4">
                 <Field label="Respuestas por publicación y hora"><input type="number" min={1} max={1000} className={input} value={Number(v.commentMaxPerPostPerHour)} onChange={(e) => set({ commentMaxPerPostPerHour: Number(e.target.value) })} /></Field>
                 <Field label="Respuestas por cuenta y día"><input type="number" min={1} max={1000} className={input} value={Number(v.commentMaxPerAccountPerDay)} onChange={(e) => set({ commentMaxPerAccountPerDay: Number(e.target.value) })} /></Field>
               </div>
@@ -459,7 +459,7 @@ export default function AiAgentDetailPage({ params }: { params: Promise<{ id: st
         )}
 
         {tab === 'handoff' && (
-          <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
+          <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 space-y-5">
             <Field label="Palabras que fuerzan el traspaso" hint="Separadas por comas. Se comprueban antes de llamar al modelo (sin coste).">
               <ListInput value={v.handoffKeywords} onChange={(list) => set({ handoffKeywords: list })} placeholder="asesor, humano, persona, queja" />
             </Field>
@@ -492,7 +492,7 @@ export default function AiAgentDetailPage({ params }: { params: Promise<{ id: st
         )}
 
         {tab === 'hours' && (
-          <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
+          <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 space-y-5">
             <Toggle checked={Boolean(v.hoursEnabled)} onChange={(x) => set({ hoursEnabled: x })} label="Atender solo en horario" />
             <Field label="Zona horaria" hint={`Vacío = la de la cuenta (${wsTz}).`}>
               <select className={input} value={String(v.hoursTimezone ?? '')} onChange={(e) => set({ hoursTimezone: e.target.value || null })}>
@@ -504,7 +504,7 @@ export default function AiAgentDetailPage({ params }: { params: Promise<{ id: st
               <span className="text-sm font-medium text-gray-700">Días</span>
               <div className="flex gap-1.5 flex-wrap">
                 {DAYS.map((d, i) => (
-                  <button key={d} type="button" onClick={() => set({ hoursDays: v.hoursDays.includes(i) ? v.hoursDays.filter((x) => x !== i) : [...v.hoursDays, i].sort() })} className={`w-12 py-1.5 rounded-xl text-sm border ${v.hoursDays.includes(i) ? 'border-primary-500 bg-primary-50 text-primary-800' : 'border-gray-200 text-gray-500'}`}>{d}</button>
+                  <button key={d} type="button" onClick={() => set({ hoursDays: v.hoursDays.includes(i) ? v.hoursDays.filter((x) => x !== i) : [...v.hoursDays, i].sort() })} className={`w-10 sm:w-12 py-1.5 rounded-xl text-sm border ${v.hoursDays.includes(i) ? 'border-primary-500 bg-primary-50 text-primary-800' : 'border-gray-200 text-gray-500'}`}>{d}</button>
                 ))}
               </div>
             </div>
@@ -524,14 +524,14 @@ export default function AiAgentDetailPage({ params }: { params: Promise<{ id: st
         )}
 
         {tab === 'tools' && (
-          <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
+          <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 space-y-5">
             <p className="text-xs text-gray-500">El agente solo puede usar las que marques. En «Probar», las que escriben corren en seco.</p>
             <div className="space-y-3">
               {catalog.tools.map((t) => (
                 <label key={t.name} className="flex items-start gap-3 rounded-xl border border-gray-200 p-3 cursor-pointer">
                   <input type="checkbox" className="mt-1" checked={v.tools.includes(t.name)} onChange={() => toggleIn('tools', t.name)} />
-                  <span className="flex-1">
-                    <span className="text-sm font-medium text-gray-900">{t.label}</span> <span className="font-mono text-[11px] text-gray-400">{t.name}</span>
+                  <span className="flex-1 min-w-0">
+                    <span className="text-sm font-medium text-gray-900">{t.label}</span> <span className="font-mono text-[11px] text-gray-400 break-all">{t.name}</span>
                     <span className="block text-xs text-gray-500">{t.description}{t.writes ? '' : ' (solo lectura)'}</span>
                     {t.name === 'consultar_crm' && v.tools.includes(t.name) && (
                       <span className="flex gap-3 flex-wrap mt-2">
@@ -558,9 +558,9 @@ export default function AiAgentDetailPage({ params }: { params: Promise<{ id: st
       {tab === 'test' && <PlaygroundTab agentId={agent.id} canTest={perm.test} dirty={dirty} />}
 
       {perm.edit && tab !== 'knowledge' && tab !== 'test' && (
-        <div className="fixed bottom-0 inset-x-0 lg:left-64 bg-white/95 backdrop-blur border-t border-gray-200 px-6 py-3 flex items-center justify-between gap-3 z-30">
-          <button onClick={remove} className="inline-flex items-center gap-1.5 text-sm text-red-600 hover:underline"><Trash2 size={14} /> Eliminar agente</button>
-          <div className="flex items-center gap-3">
+        <div className="fixed bottom-0 inset-x-0 lg:left-64 bg-white/95 backdrop-blur border-t border-gray-200 px-3 sm:px-6 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex items-center justify-between gap-3 z-30">
+          <button onClick={remove} className="inline-flex shrink-0 items-center gap-1.5 text-sm text-red-600 hover:underline"><Trash2 size={14} /> Eliminar agente</button>
+          <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
             {notice && <span className="text-sm text-emerald-700 inline-flex items-center gap-1"><CheckCircle2 size={14} /> {notice}</span>}
             {dirty && <button onClick={() => setDraft({})} className="text-sm text-gray-500 hover:underline">Descartar</button>}
             <button onClick={save} disabled={!dirty || saving} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-600 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50">

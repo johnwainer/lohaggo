@@ -109,21 +109,21 @@ export default function AgentWizard({ workspace, existing, onClose, onSaved }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 sm:p-4" onClick={onClose}>
-      <div className="flex w-full max-h-[94vh] flex-col rounded-t-3xl sm:max-w-3xl sm:rounded-3xl bg-white" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-start justify-between gap-3 border-b border-gray-100 p-5">
-          <div>
+      <div className="flex w-full max-h-[94dvh] flex-col rounded-t-3xl sm:max-w-3xl sm:rounded-3xl bg-white" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3 border-b border-gray-100 p-4 sm:p-5">
+          <div className="min-w-0">
             <p className="text-xs font-medium text-primary-700">{existing ? 'Configuración del agente' : 'Nuevo agente de marketing'} · Paso {step + 1} de {STEPS.length}</p>
             <h2 className="text-lg font-semibold text-gray-900">{STEPS[step]}</h2>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700" aria-label="Cerrar"><X size={20} /></button>
+          <button onClick={onClose} className="-m-2 p-2 text-gray-400 hover:text-gray-700" aria-label="Cerrar"><X size={20} /></button>
         </div>
-        <div className="flex gap-1 px-5 pt-3">
+        <div className="flex gap-1 px-4 pt-3 sm:px-5">
           {STEPS.map((s, i) => (
             <button key={s} type="button" onClick={() => agentId && setStep(i)} disabled={!agentId} title={s} className={`h-1.5 flex-1 rounded-full ${i <= step ? 'bg-primary-500' : 'bg-gray-200'} ${agentId ? 'cursor-pointer' : ''}`} />
           ))}
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
           {!options && !error && <Loader2 className="animate-spin text-gray-400" />}
 
           {options && step === 0 && (
@@ -206,10 +206,10 @@ export default function AgentWizard({ workspace, existing, onClose, onSaved }: {
                 <span className="text-sm font-medium text-gray-800">Promociones vigentes</span>
                 <p className="text-xs text-gray-500">Son las únicas que el agente puede mencionar. Al vencer, deja de mencionarlas y bloquea cualquier pieza que lo haga.</p>
                 {config.offer.promos.map((p, i) => (
-                  <div key={i} className="flex gap-2">
-                    <input className={input} value={p.text} placeholder="Ej. Código LLUVIA20: 20 % en plomería" onChange={(e) => setOffer({ promos: config.offer.promos.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)) })} />
-                    <input type="date" className="rounded-xl border border-gray-200 px-2 text-sm" value={dateOnly(p.endsAt)} onChange={(e) => setOffer({ promos: config.offer.promos.map((x, j) => (j === i ? { ...x, endsAt: e.target.value || null } : x)) })} />
-                    <button type="button" onClick={() => setOffer({ promos: config.offer.promos.filter((_, j) => j !== i) })} className="text-gray-400 hover:text-red-600"><Trash2 size={15} /></button>
+                  <div key={i} className="flex flex-wrap gap-2 sm:flex-nowrap">
+                    <input className={`${input} sm:min-w-0`} value={p.text} placeholder="Ej. Código LLUVIA20: 20 % en plomería" onChange={(e) => setOffer({ promos: config.offer.promos.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)) })} />
+                    <input type="date" className="min-w-0 flex-1 rounded-xl border border-gray-200 px-2 py-2 text-sm sm:flex-none sm:py-0" value={dateOnly(p.endsAt)} onChange={(e) => setOffer({ promos: config.offer.promos.map((x, j) => (j === i ? { ...x, endsAt: e.target.value || null } : x)) })} />
+                    <button type="button" onClick={() => setOffer({ promos: config.offer.promos.filter((_, j) => j !== i) })} className="shrink-0 px-1 text-gray-400 hover:text-red-600 sm:px-0"><Trash2 size={15} /></button>
                   </div>
                 ))}
                 <button type="button" onClick={() => setOffer({ promos: [...config.offer.promos, { text: '', endsAt: null }] })} className="inline-flex items-center gap-1 text-sm text-primary-700"><Plus size={14} /> Añadir promoción</button>
@@ -220,9 +220,9 @@ export default function AgentWizard({ workspace, existing, onClose, onSaved }: {
                 <span className="text-sm font-medium text-gray-800">Enlaces que puede usar</span>
                 {config.offer.links.map((l, i) => (
                   <div key={i} className="flex gap-2">
-                    <input className="w-40 rounded-xl border border-gray-200 px-3 py-2 text-sm" placeholder="Nombre" value={l.label} onChange={(e) => setOffer({ links: config.offer.links.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) })} />
-                    <input className={input} placeholder="https://www.lohaggo.com/…" value={l.url} onChange={(e) => setOffer({ links: config.offer.links.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)) })} />
-                    <button type="button" onClick={() => setOffer({ links: config.offer.links.filter((_, j) => j !== i) })} className="text-gray-400 hover:text-red-600"><Trash2 size={15} /></button>
+                    <input className="w-28 shrink-0 rounded-xl border border-gray-200 px-3 py-2 text-sm sm:w-40" placeholder="Nombre" value={l.label} onChange={(e) => setOffer({ links: config.offer.links.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) })} />
+                    <input className={`${input} min-w-0`} placeholder="https://www.lohaggo.com/…" value={l.url} onChange={(e) => setOffer({ links: config.offer.links.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)) })} />
+                    <button type="button" onClick={() => setOffer({ links: config.offer.links.filter((_, j) => j !== i) })} className="shrink-0 text-gray-400 hover:text-red-600"><Trash2 size={15} /></button>
                   </div>
                 ))}
                 <button type="button" onClick={() => setOffer({ links: [...config.offer.links, { label: '', url: '' }] })} className="inline-flex items-center gap-1 text-sm text-primary-700"><Plus size={14} /> Añadir enlace</button>
@@ -324,7 +324,7 @@ export default function AgentWizard({ workspace, existing, onClose, onSaved }: {
                 const chAccounts = accounts.filter((a) => a.channel === ch)
                 return (
                   <div key={ch} className={`rounded-2xl border p-4 space-y-3 ${plan.enabled ? 'border-gray-200' : 'border-gray-100 bg-gray-50/60'}`}>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
                       <label className="flex items-center gap-2 font-medium text-gray-900"><input type="checkbox" checked={plan.enabled} onChange={(e) => setChannel(ch, { enabled: e.target.checked })} /><MkChannelIcon channel={ch} size={18} /> {CHANNEL_NAME[ch]}</label>
                       {plan.enabled && <label className="ml-auto flex items-center gap-2 text-sm text-gray-600"><input type="number" min={1} max={14} className="w-16 rounded-lg border border-gray-200 px-2 py-1" value={plan.perWeek} onChange={(e) => setChannel(ch, { perWeek: Number(e.target.value) })} /> por semana</label>}
                     </div>
@@ -359,7 +359,7 @@ export default function AgentWizard({ workspace, existing, onClose, onSaved }: {
               <div className="space-y-2">
                 <span className="text-sm font-medium text-gray-800">Franjas permitidas (hora de Bogotá)</span>
                 {config.schedule.windows.map((w, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm text-gray-700">
+                  <div key={i} className="flex flex-wrap items-center gap-2 text-sm text-gray-700">
                     De <input type="number" min={0} max={23} className="w-16 rounded-lg border border-gray-200 px-2 py-1" value={w.from} onChange={(e) => setSchedule({ windows: config.schedule.windows.map((x, j) => (j === i ? { ...x, from: Number(e.target.value) } : x)) })} />
                     a <input type="number" min={1} max={24} className="w-16 rounded-lg border border-gray-200 px-2 py-1" value={w.to} onChange={(e) => setSchedule({ windows: config.schedule.windows.map((x, j) => (j === i ? { ...x, to: Number(e.target.value) } : x)) })} /> h
                     {config.schedule.windows.length > 1 && <button type="button" onClick={() => setSchedule({ windows: config.schedule.windows.filter((_, j) => j !== i) })} className="text-gray-400 hover:text-red-600"><Trash2 size={14} /></button>}
@@ -450,7 +450,7 @@ export default function AgentWizard({ workspace, existing, onClose, onSaved }: {
           {error && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
         </div>
 
-        <div className="flex items-center justify-between gap-3 border-t border-gray-100 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 p-4">
           <button type="button" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0 || saving} className="inline-flex items-center gap-1 rounded-full px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40"><ChevronLeft size={15} /> Atrás</button>
           {step < STEPS.length - 1 ? (
             <button type="button" onClick={() => save(step + 1)} disabled={saving || (!campaignId && !campaign.name.trim())} className="inline-flex items-center gap-1.5 rounded-full bg-primary-600 px-5 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50">

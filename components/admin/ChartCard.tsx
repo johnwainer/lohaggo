@@ -51,9 +51,9 @@ export default function ChartCard({ title, type, data, options }: ChartCardProps
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-md p-6">
+    <div className="min-w-0 bg-white rounded-xl shadow-md p-4 sm:p-6">
       <h3 className="text-lg font-semibold mb-4 text-gray-800">{title}</h3>
-      <div className="h-[300px]">
+      <div className="relative h-[260px] w-full sm:h-[300px]">
         {type === 'line' && <Line data={data} options={defaultOptions} />}
         {type === 'bar' && <Bar data={data} options={defaultOptions} />}
         {type === 'doughnut' && <Doughnut data={data} options={defaultOptions} />}

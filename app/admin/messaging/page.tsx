@@ -352,7 +352,7 @@ export default function MessagingPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Mensajería</h1>
           <p className="text-gray-500 text-sm mt-0.5">Twilio · WhatsApp Business · SMS</p>
@@ -369,7 +369,7 @@ export default function MessagingPage() {
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-full overflow-x-auto">
+      <div className="flex flex-wrap gap-1 bg-gray-100 p-1 rounded-2xl w-full sm:rounded-xl">
         {TABS.map(tab => (
           <button
             key={tab.id}
@@ -611,9 +611,9 @@ export default function MessagingPage() {
 
             {/* Destinatario */}
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide">Destinatario</label>
-                <div className="flex gap-1">
+                <div className="flex flex-wrap gap-1">
                   {(['contact', 'custom'] as const).map(mode => (
                     <button key={mode} onClick={() => { setPhoneMode(mode); setSelectedContact(null); setCustomPhone('') }}
                       className={`text-xs px-3 py-1 rounded-lg font-semibold border transition-all ${
@@ -648,7 +648,7 @@ export default function MessagingPage() {
                     </div>
                   ) : (
                     <div className="flex gap-2">
-                      <div className="relative flex-1">
+                      <div className="relative min-w-0 flex-1">
                         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                         <input type="text" value={contactSearch}
                           onChange={e => { setContactSearch(e.target.value); setShowContactList(true) }}
@@ -682,7 +682,7 @@ export default function MessagingPage() {
                           </div>
                           <div className="min-w-0">
                             <p className="text-sm font-medium text-gray-800 truncate">{c.name}</p>
-                            <p className="text-xs text-gray-500">{c.phone}{c.service ? ` · ${c.service}` : ''}{c.city ? ` · ${c.city}` : ''}</p>
+                            <p className="text-xs text-gray-500 break-words">{c.phone}{c.service ? ` · ${c.service}` : ''}{c.city ? ` · ${c.city}` : ''}</p>
                           </div>
                           <span className={`ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0 ${
                             c.role === 'PARTNER' ? 'bg-primary-100 text-primary-700' : 'bg-secondary-100 text-secondary-700'
@@ -782,7 +782,7 @@ export default function MessagingPage() {
 
             <button onClick={handleTest}
               disabled={testLoading || !effectiveTo || !isConfigured}
-              className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-secondary-600 rounded-xl hover:bg-secondary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+              className="flex flex-wrap items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-secondary-600 rounded-xl hover:bg-secondary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
               {testLoading ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
               Enviar prueba
               {effectiveTo && <span className="text-secondary-200 text-xs ml-1">→ {effectiveTo}</span>}
@@ -850,7 +850,7 @@ export default function MessagingPage() {
                 return (
                   <div key={t.sid} className="px-5 py-4 space-y-1.5">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-semibold text-gray-800">{t.waName || t.name}</p>
+                      <p className="text-sm font-semibold text-gray-800 break-all">{t.waName || t.name}</p>
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusBadge[t.waStatus]}`}>
                         {t.waStatus === 'approved' ? '✓ Aprobada' :
                          t.waStatus === 'pending' ? '⏳ En revisión' :
@@ -881,7 +881,7 @@ export default function MessagingPage() {
                         <Clock size={11} /> En revisión — las UTILITY suelen aprobarse en minutos
                       </p>
                     )}
-                    <p className="text-xs text-gray-300 font-mono">{t.sid}</p>
+                    <p className="text-xs text-gray-300 font-mono break-all">{t.sid}</p>
                   </div>
                 )
               })}
@@ -898,7 +898,7 @@ export default function MessagingPage() {
               <AlertTriangle size={15} className="text-amber-500" />
               Reglas de Meta / WhatsApp Business
             </div>
-            <div className="p-5 space-y-4 text-sm text-gray-700">
+            <div className="p-4 sm:p-5 space-y-4 text-sm text-gray-700">
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="bg-red-50 border border-red-100 rounded-xl p-4">
                   <p className="font-bold text-red-700 mb-2">⛔ Prohibido</p>
@@ -1035,7 +1035,7 @@ function TestResultCard({ result }: { result: NonNullable<TestResult> }) {
           </span>
         )}
       </div>
-      <div className="text-xs space-y-0.5 text-gray-700">
+      <div className="text-xs space-y-0.5 text-gray-700 break-words">
         {result.from && <p><span className="font-medium">From:</span> {result.from}</p>}
         {result.to && <p><span className="font-medium">To:</span> {result.to}</p>}
         {result.providerMessageId && <p><span className="font-medium">SID:</span> {result.providerMessageId}</p>}

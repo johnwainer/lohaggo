@@ -59,9 +59,9 @@ export function DirectivesSection() {
   const setRule = (patch: Partial<Draft['rule']>) => setDraft((d) => (d ? { ...d, rule: { ...d.rule, ...patch } } : d))
 
   return (
-    <section className={`${card} space-y-4 p-5`}>
+    <section className={`${card} space-y-4 p-4 sm:p-5`}>
       <div className="flex flex-wrap items-start gap-2">
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <h2 className="font-semibold text-gray-900">Directivas</h2>
           <p className="mt-0.5 text-xs text-gray-500">Reglas que Haggo respeta siempre, en cada revisión, informe y conversación. También puedes dictárselas en la conversación y confirmarlas allí. Haggo nunca puede crearlas, cambiarlas ni apagarlas por su cuenta.</p>
         </div>
@@ -88,10 +88,10 @@ export function DirectivesSection() {
                   {DAYS.map((d, i) => <button key={d} type="button" onClick={() => setRule({ days: draft.rule.days.includes(i) ? draft.rule.days.filter((x) => x !== i) : [...draft.rule.days, i].sort() })} className={`h-8 w-11 rounded-lg text-xs font-medium ${draft.rule.days.includes(i) ? 'bg-primary-600 text-white' : 'border border-gray-200 bg-white text-gray-600'}`}>{d}</button>)}
                 </div>
               </div>
-              <div className="flex items-center gap-2 text-sm sm:col-span-2"><span className="text-gray-700">Horario (opcional): de</span><input type="time" value={draft.rule.from} onChange={(e) => setRule({ from: e.target.value })} className={`${input} py-1`} /><span className="text-gray-700">a</span><input type="time" value={draft.rule.to} onChange={(e) => setRule({ to: e.target.value })} className={`${input} py-1`} /></div>
+              <div className="flex flex-wrap items-center gap-2 text-sm sm:col-span-2"><span className="text-gray-700">Horario (opcional): de</span><input type="time" value={draft.rule.from} onChange={(e) => setRule({ from: e.target.value })} className={`${input} py-1`} /><span className="text-gray-700">a</span><input type="time" value={draft.rule.to} onChange={(e) => setRule({ to: e.target.value })} className={`${input} py-1`} /></div>
             </div>
           )}
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button onClick={save} disabled={busy || !draft.text.trim()} className={btnPrimary}>{busy && <Loader2 size={14} className="animate-spin" />} Guardar</button>
             <button onClick={() => { setDraft(null); setError(null) }} className={btn}>Cancelar</button>
           </div>
@@ -106,7 +106,7 @@ export function DirectivesSection() {
               <input type="checkbox" checked={d.active} disabled={busy} title={d.active ? 'Activa' : 'Inactiva'} onChange={(e) => call(() => api(`/api/admin/haggo/directives/${d.id}`, { method: 'PATCH', body: JSON.stringify({ active: e.target.checked }) }))} className="mt-1" />
               <div className="min-w-0 flex-1">
                 <p className={`text-sm ${d.active ? 'text-gray-900' : 'text-gray-400'}`}>{d.text}</p>
-                <p className="text-xs text-gray-500">{d.ruleText ? `${d.ruleText} · ` : 'Solo texto · '}{d.createdByEmail ?? '—'} · {when(d.createdAt)}</p>
+                <p className="break-words text-xs text-gray-500">{d.ruleText ? `${d.ruleText} · ` : 'Solo texto · '}{d.createdByEmail ?? '—'} · {when(d.createdAt)}</p>
               </div>
               <button onClick={() => setDraft(toDraft(d))} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700" title="Editar"><Pencil size={14} /></button>
               <button onClick={() => { if (window.confirm('¿Borrar esta directiva?')) call(() => api(`/api/admin/haggo/directives/${d.id}`, { method: 'DELETE' })) }} className="rounded-lg p-1.5 text-gray-400 hover:bg-rose-50 hover:text-rose-600" title="Borrar"><Trash2 size={14} /></button>

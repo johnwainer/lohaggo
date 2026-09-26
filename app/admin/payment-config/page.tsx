@@ -138,15 +138,15 @@ export default function PaymentConfigPage() {
   return (
     <div className="space-y-6 max-w-5xl">
       <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <CreditCard className="w-8 h-8 text-primary-600" />
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-3">
+            <CreditCard className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-primary-600" />
             Configuración de Pagos
           </h1>
           <p className="mt-2 text-gray-600">
             Configura las credenciales de Mercadopago para ambientes de prueba y producción
           </p>
           {config && (
-            <div className={`mt-3 inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${
+            <div className={`mt-3 inline-flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-lg px-3 py-2 text-sm ${
               config.activeEnvironmentReady
                 ? 'bg-green-50 text-green-700 border border-green-200'
                 : 'bg-red-50 text-red-700 border border-red-200'
@@ -175,7 +175,7 @@ export default function PaymentConfigPage() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Ambiente Activo</h2>
             <div className="space-y-4">
               <div className="flex gap-4">
@@ -210,12 +210,12 @@ export default function PaymentConfigPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
             <div className="flex items-center gap-2 mb-4">
-              <Key className="w-5 h-5 text-blue-500" />
-              <h2 className="text-xl font-semibold text-gray-900">Credenciales de Prueba</h2>
+              <Key className="w-5 h-5 shrink-0 text-blue-500" />
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Credenciales de Prueba</h2>
               {config?.hasTestCredentials && (
-                <span className="ml-auto text-sm bg-green-100 text-green-800 px-2 py-1 rounded">
+                <span className="ml-auto shrink-0 text-sm bg-green-100 text-green-800 px-2 py-1 rounded">
                   Configurado
                 </span>
               )}
@@ -290,12 +290,12 @@ export default function PaymentConfigPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
             <div className="flex items-center gap-2 mb-4">
-              <Key className="w-5 h-5 text-red-500" />
-              <h2 className="text-xl font-semibold text-gray-900">Credenciales de Producción</h2>
+              <Key className="w-5 h-5 shrink-0 text-red-500" />
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Credenciales de Producción</h2>
               {config?.hasProductionCredentials && (
-                <span className="ml-auto text-sm bg-green-100 text-green-800 px-2 py-1 rounded">
+                <span className="ml-auto shrink-0 text-sm bg-green-100 text-green-800 px-2 py-1 rounded">
                   Configurado
                 </span>
               )}

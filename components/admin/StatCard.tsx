@@ -24,13 +24,13 @@ const colorClasses = {
 
 export default function StatCard({ title, value, icon: Icon, trend, color }: StatCardProps) {
   return (
-    <div className={`bg-gradient-to-br ${colorClasses[color]} text-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow duration-300`}>
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex-1">
+    <div className={`bg-gradient-to-br ${colorClasses[color]} text-white rounded-xl shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow duration-300`}>
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <div className="min-w-0 flex-1">
           <p className="text-white/80 text-sm mb-1">{title}</p>
-          <p className="text-3xl font-bold">{value}</p>
+          <p className="break-words text-2xl font-bold sm:text-3xl">{value}</p>
         </div>
-        <div className="bg-white/20 p-3 rounded-lg">
+        <div className="shrink-0 bg-white/20 p-3 rounded-lg">
           <Icon size={28} />
         </div>
       </div>

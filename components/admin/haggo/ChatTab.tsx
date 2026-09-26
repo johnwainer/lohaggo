@@ -74,7 +74,7 @@ function ProposalCard({ runId, p, onDone }: { runId: string; p: Proposal; onDone
       {p.status === 'pending' ? (
         <>
           <textarea value={text} onChange={(e) => setText(e.target.value)} rows={2} className="mt-2 w-full rounded-lg border border-primary-200 bg-white px-2.5 py-1.5 text-sm" />
-          <div className="mt-2 flex gap-2">
+          <div className="mt-2 flex flex-wrap gap-2">
             <button disabled={busy} onClick={() => decide('save')} className="inline-flex items-center gap-1 rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-700 disabled:opacity-50"><Check size={13} /> Guardar directiva</button>
             <button disabled={busy} onClick={() => decide('discard')} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-50 disabled:opacity-50"><X size={13} /> Descartar</button>
           </div>
@@ -120,8 +120,8 @@ export function ChatTab() {
 
   if (!messages) return <div className="flex items-center gap-2 p-6 text-gray-500"><Loader2 size={16} className="animate-spin" /> Cargando…</div>
   return (
-    <section className={`${card} flex h-[calc(100dvh-16rem)] min-h-[28rem] flex-col`}>
-      <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
+    <section className={`${card} flex h-[calc(100dvh-6rem)] min-h-[20rem] sm:h-[calc(100dvh-16rem)] sm:min-h-[28rem] flex-col`}>
+      <div className="flex-1 space-y-4 overflow-y-auto overscroll-contain p-3 sm:p-5">
         {messages.length === 0 && (
           <div className="py-8 text-center">
             <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-orange-400 text-white"><Sparkles size={22} /></span>
@@ -133,7 +133,7 @@ export function ChatTab() {
           <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[92%] sm:max-w-[80%] ${m.role === 'user' ? 'rounded-2xl rounded-br-md bg-gray-900 px-4 py-2.5 text-white' : 'w-full'}`}>
               {m.role === 'user' ? <p className="whitespace-pre-wrap text-sm">{m.content}</p> : (
-                <div className="rounded-2xl rounded-bl-md border border-gray-200 bg-white px-4 py-3">
+                <div className="rounded-2xl rounded-bl-md border border-gray-200 bg-white px-3 py-3 sm:px-4">
                   {!!m.run?.output?.tools.length && <p className="mb-2 flex flex-wrap items-center gap-1 text-[11px] text-gray-500"><Search size={11} /> Consultó: {m.run.output.tools.map((t) => TOOL_LABEL[t] ?? t).join(', ')}</p>}
                   <div className={m.run?.status === 'error' ? 'text-rose-700' : 'text-gray-800'}><Rich text={m.content} /></div>
                   {m.run?.output?.proposals.map((p) => <ProposalCard key={p.id} runId={m.run!.id} p={p} onDone={load} />)}
@@ -164,9 +164,9 @@ export function ChatTab() {
             rows={Math.min(6, Math.max(1, text.split('\n').length))}
             maxLength={4000}
             placeholder="Escríbele a Haggo…"
-            className="flex-1 resize-none rounded-2xl border border-gray-200 px-4 py-2.5 text-sm focus:border-primary-400 focus:outline-none"
+            className="min-w-0 flex-1 resize-none rounded-2xl border border-gray-200 px-4 py-2.5 text-base sm:text-sm focus:border-primary-400 focus:outline-none"
           />
-          <button onClick={() => send()} disabled={sending || !text.trim()} className="rounded-full bg-primary-600 p-3 text-white hover:bg-primary-700 disabled:opacity-40" title="Enviar"><Send size={16} /></button>
+          <button onClick={() => send()} disabled={sending || !text.trim()} className="shrink-0 rounded-full bg-primary-600 p-3 text-white hover:bg-primary-700 disabled:opacity-40" title="Enviar"><Send size={16} /></button>
         </div>
         <p className="mt-1.5 hidden text-[11px] text-gray-400 sm:block">Enter para enviar · Shift+Enter para salto de línea</p>
       </div>

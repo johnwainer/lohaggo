@@ -78,7 +78,7 @@ function Kpi({ t, icon: Icon, label, value, sub, delta, deltaLabel, tone = 'prim
 function Panel({ t, tv, px, title, icon: Icon, href, children, className = '' }: { t: Theme; tv: boolean; px: (n: number) => number; title: string; icon: typeof Users; href?: string; children: React.ReactNode; className?: string }) {
   // TV: panels fill their grid cell and clip what does not fit (lists keep the newest first)
   return (
-    <section className={`${t.card} p-4 ${tv ? 'flex min-h-0 flex-col overflow-hidden' : ''} ${className}`}>
+    <section className={`${t.card} min-w-0 p-4 ${tv ? 'flex min-h-0 flex-col overflow-hidden' : ''} ${className}`}>
       <div className="mb-3 flex shrink-0 items-center gap-2">
         <Icon size={px(16)} className="text-primary-500" />
         <h2 className={`font-semibold ${tv ? 'text-lg' : 'text-sm'} ${t.text}`}>{title}</h2>
@@ -211,7 +211,7 @@ export default function CommandCenter() {
 
   const header = (
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div>
+      <div className="min-w-0">
         <h1 className={`${t.h1} font-bold tracking-tight ${t.text}`}>Centro de control</h1>
         <p className={`text-sm capitalize ${t.muted}`}>{today}</p>
       </div>
@@ -384,11 +384,11 @@ export default function CommandCenter() {
         <Stat t={t} label="Casos de soporte" value={d.quality.casesOpen} tone={d.quality.casesSla ? 'rose' : undefined} />
       </div>
       <div className={`mt-3 space-y-1 border-t pt-3 text-sm ${t.divider} ${tv ? 'min-h-0 flex-1 overflow-hidden' : ''}`}>
-        <p className={`flex justify-between ${t.muted}`}><span>Pagos a socios pendientes</span><span className={`font-semibold tabular-nums ${t.text}`}>{d.payouts.pending} · {money(d.payouts.pendingAmount)}</span></p>
-        <p className={`flex justify-between ${t.muted}`}><span>Socios verificados / disponibles</span><span className={`font-semibold tabular-nums ${t.text}`}>{num(d.users.partnersVerified)} / {num(d.users.partnersAvailable)}</span></p>
-        <p className={`flex justify-between ${t.muted}`}><span>Clientes registrados</span><span className={`font-semibold tabular-nums ${t.text}`}>{num(d.users.clients)} <span className={`text-xs font-normal ${t.muted}`}>(+{num(d.users.newWeek)} en 7 d)</span></span></p>
-        <p className={`flex justify-between ${t.muted}`}><span className="flex items-center gap-1"><Star size={px(13)} className="text-amber-400" /> Calificación (30 d)</span><span className={`font-semibold tabular-nums ${t.text}`}>{d.quality.rating ?? '—'} <span className={`text-xs font-normal ${t.muted}`}>({d.quality.reviews30} reseñas)</span></span></p>
-        <p className={`flex justify-between ${t.muted}`}><span>Canales conectados</span><span className={`font-semibold tabular-nums ${d.channels.problems.length ? 'text-rose-500' : t.text}`}>{d.channels.total}{d.channels.problems.length ? ` · ${d.channels.problems.length} con problemas` : ''}</span></p>
+        <p className={`flex justify-between gap-2 ${t.muted}`}><span>Pagos a socios pendientes</span><span className={`font-semibold tabular-nums ${t.text}`}>{d.payouts.pending} · {money(d.payouts.pendingAmount)}</span></p>
+        <p className={`flex justify-between gap-2 ${t.muted}`}><span>Socios verificados / disponibles</span><span className={`font-semibold tabular-nums ${t.text}`}>{num(d.users.partnersVerified)} / {num(d.users.partnersAvailable)}</span></p>
+        <p className={`flex justify-between gap-2 ${t.muted}`}><span>Clientes registrados</span><span className={`font-semibold tabular-nums ${t.text}`}>{num(d.users.clients)} <span className={`text-xs font-normal ${t.muted}`}>(+{num(d.users.newWeek)} en 7 d)</span></span></p>
+        <p className={`flex justify-between gap-2 ${t.muted}`}><span className="flex items-center gap-1"><Star size={px(13)} className="text-amber-400" /> Calificación (30 d)</span><span className={`font-semibold tabular-nums ${t.text}`}>{d.quality.rating ?? '—'} <span className={`text-xs font-normal ${t.muted}`}>({d.quality.reviews30} reseñas)</span></span></p>
+        <p className={`flex justify-between gap-2 ${t.muted}`}><span>Canales conectados</span><span className={`font-semibold tabular-nums ${d.channels.problems.length ? 'text-rose-500' : t.text}`}>{d.channels.total}{d.channels.problems.length ? ` · ${d.channels.problems.length} con problemas` : ''}</span></p>
       </div>
     </Panel>
   )
@@ -426,8 +426,8 @@ export default function CommandCenter() {
           <span className={`block text-[0.6875rem] ${!hg.enabled ? 'text-rose-500' : t.muted}`}>{!hg.enabled ? 'Detenido' : hg.mode === 'autonomous' ? 'Autónomo' : hg.mode === 'observer' ? 'Observador' : 'Copiloto'}{hg.lastCycleAt ? ` · revisó ${ago(new Date(hg.lastCycleAt).toISOString(), now)}` : ''}</span>
         </span>
       </Link>
-      <p className={`min-w-0 flex-1 ${tv ? 'truncate text-base' : 'text-sm'} ${t.text}`}>{hg.budget.blocked ? 'Presupuesto de Haggo agotado: solo observa con reglas.' : hg.focus || hg.lastSummary || 'Todavía no ha hecho su primera revisión.'}</p>
-      <div className="flex shrink-0 items-center gap-2">
+      <p className={`min-w-0 flex-1 ${tv ? 'truncate text-base' : 'basis-full text-sm sm:basis-0'} ${t.text}`}>{hg.budget.blocked ? 'Presupuesto de Haggo agotado: solo observa con reglas.' : hg.focus || hg.lastSummary || 'Todavía no ha hecho su primera revisión.'}</p>
+      <div className={`flex items-center gap-2 ${tv ? 'shrink-0' : 'flex-wrap sm:shrink-0'}`}>
         {hg.counts.critical > 0 && <span className="rounded-full bg-rose-500/15 px-2.5 py-1 text-xs font-semibold text-rose-500">{plural(hg.counts.critical, 'crítico', 'críticos')}</span>}
         {hg.counts.warning > 0 && <span className="rounded-full bg-amber-500/15 px-2.5 py-1 text-xs font-semibold text-amber-500">{plural(hg.counts.warning, 'aviso', 'avisos')}</span>}
         {hg.pendingApprovals > 0 && (tv
@@ -442,7 +442,7 @@ export default function CommandCenter() {
       {hg.findings.length > 0 && (
         <div className={`basis-full flex gap-1.5 ${tv ? 'flex-nowrap overflow-hidden' : 'flex-wrap'}`}>
           {(tv ? hg.findings.slice(0, 3) : hg.findings).map((f) => {
-            const cls = `truncate rounded-full border px-2.5 py-1 ${tv ? 'text-sm' : 'text-xs'} ${f.severity === 'critical' ? (tv ? 'border-rose-500/40 text-rose-300' : 'border-rose-200 text-rose-600') : f.severity === 'warning' ? (tv ? 'border-amber-500/40 text-amber-300' : 'border-amber-200 text-amber-700') : (tv ? 'border-white/15 text-slate-300' : 'border-gray-200 text-gray-600')} max-w-[22rem]`
+            const cls = `truncate rounded-full border px-2.5 py-1 ${tv ? 'text-sm' : 'text-xs'} ${f.severity === 'critical' ? (tv ? 'border-rose-500/40 text-rose-300' : 'border-rose-200 text-rose-600') : f.severity === 'warning' ? (tv ? 'border-amber-500/40 text-amber-300' : 'border-amber-200 text-amber-700') : (tv ? 'border-white/15 text-slate-300' : 'border-gray-200 text-gray-600')} max-w-full sm:max-w-[22rem]`
             return tv ? <span key={f.id} className={cls}>{f.title}</span> : <Link key={f.id} href="/admin/haggo" className={cls}>{f.title}</Link>
           })}
         </div>

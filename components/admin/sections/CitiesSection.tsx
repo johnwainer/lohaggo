@@ -203,7 +203,7 @@ function CityForm({
         </div>
       </div>
 
-      <div className="flex gap-2 pt-2">
+      <div className="flex flex-wrap gap-2 pt-2">
         <button
           onClick={onSave}
           className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition text-sm font-semibold"
@@ -342,14 +342,14 @@ export default function CitiesSection() {
         </div>
       )}
 
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <h2 className="text-2xl font-bold text-gray-900">Gestión de Ciudades</h2>
           <p className="text-gray-500 mt-1 text-sm">Configura el estado operativo y la disponibilidad para clientes de cada ciudad.</p>
         </div>
         <button
           onClick={() => { setShowAddForm(true); setEditingId(null) }}
-          className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition text-sm font-semibold"
+          className="flex shrink-0 items-center justify-center gap-2 self-start bg-primary-600 text-white px-4 py-2.5 sm:py-2 rounded-lg hover:bg-primary-700 transition text-sm font-semibold whitespace-nowrap"
         >
           <Plus size={18} /> Nueva Ciudad
         </button>
@@ -357,7 +357,7 @@ export default function CitiesSection() {
 
       {/* Formulario nueva ciudad */}
       {showAddForm && (
-        <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-6">
+        <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-4 sm:p-6">
           <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
             <Plus size={18} className="text-primary-600" /> Nueva Ciudad
           </h3>
@@ -380,13 +380,13 @@ export default function CitiesSection() {
           return (
             <div key={city.id} className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
               {/* Header de la card */}
-              <div className="flex items-start justify-between px-6 py-4 border-b border-gray-100">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-primary-100 rounded-xl flex items-center justify-center">
+              <div className="flex items-start justify-between gap-2 px-4 sm:px-6 py-4 border-b border-gray-100">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="w-10 h-10 shrink-0 bg-primary-100 rounded-xl flex items-center justify-center">
                     <MapPin size={20} className="text-primary-600" />
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                       <span className="text-base font-bold text-gray-900">{city.name}</span>
                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${badge.cls}`}>
                         {badge.icon} {badge.label}
@@ -400,7 +400,7 @@ export default function CitiesSection() {
                     <span className="text-xs text-gray-400 font-mono">/{city.slug}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
                   {isEditing ? (
                     <>
                       <button onClick={handleSaveEdit} disabled={saving} className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-xs font-semibold transition disabled:opacity-50">
@@ -425,7 +425,7 @@ export default function CitiesSection() {
 
               {/* Cuerpo */}
               {isEditing && editingData ? (
-                <div className="px-6 py-5">
+                <div className="px-4 sm:px-6 py-5">
                   <CityForm
                     data={editingData}
                     onChange={setEditingData}
@@ -435,7 +435,7 @@ export default function CitiesSection() {
                   />
                 </div>
               ) : (
-                <div className="px-6 py-4 grid grid-cols-3 gap-6 text-sm">
+                <div className="px-4 sm:px-6 py-4 grid grid-cols-2 sm:grid-cols-3 gap-4 sm:gap-6 text-sm">
                   <div>
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 flex items-center gap-1">
                       <Calendar size={11} /> Disponible para clientes

@@ -58,10 +58,10 @@ export function NewPostModal({ workspaces, workspace, campaigns, defaults, onClo
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4" onClick={onClose}>
-      <div className="w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl bg-white p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full sm:max-w-md max-h-[90dvh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-white p-5 sm:p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">Nueva publicación</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700"><X size={18} /></button>
+          <button onClick={onClose} className="-m-2 p-2 text-gray-400 hover:text-gray-700" aria-label="Cerrar"><X size={18} /></button>
         </div>
         {editable.length > 1 && (
           <label className="block space-y-1"><span className="text-sm font-medium text-gray-700">Workspace</span>
@@ -117,19 +117,19 @@ export default function PostsTab({ posts, campaigns, filters, setFilters, worksp
   return (
     <div className="space-y-4">
       <div className="flex gap-2 flex-wrap items-center">
-        <form className="relative flex-1 min-w-[200px]" onSubmit={(e) => { e.preventDefault(); setFilters({ ...filters, q }) }}>
+        <form className="relative w-full sm:w-auto sm:flex-1 sm:min-w-[200px]" onSubmit={(e) => { e.preventDefault(); setFilters({ ...filters, q }) }}>
           <Search size={15} className="absolute left-3 top-2.5 text-gray-400" />
           <input className={`${input} pl-9`} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por título" />
         </form>
-        <select className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm" value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
+        <select className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm sm:flex-none" value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
           <option value="">Todos los estados</option>
           {Object.entries(POST_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
         </select>
-        <select className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm" value={filters.channel} onChange={(e) => setFilters({ ...filters, channel: e.target.value })}>
+        <select className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm sm:flex-none" value={filters.channel} onChange={(e) => setFilters({ ...filters, channel: e.target.value })}>
           <option value="">Todos los canales</option>
           {MK_CHANNELS.map((c) => <option key={c} value={c}>{CHANNEL_NAME[c]}</option>)}
         </select>
-        <select className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm" value={filters.campaignId} onChange={(e) => setFilters({ ...filters, campaignId: e.target.value })}>
+        <select className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm sm:flex-none" value={filters.campaignId} onChange={(e) => setFilters({ ...filters, campaignId: e.target.value })}>
           <option value="">Todas las campañas</option>
           <option value="none">Sin campaña</option>
           {campaigns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -163,7 +163,7 @@ export default function PostsTab({ posts, campaigns, filters, setFilters, worksp
                     <StatusChip status={p.status} />
                     <ReviewChip status={p.reviewStatus} score={p.reviewScore} />
                     {p.origin === 'agent' && <span className="inline-flex rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-semibold text-primary-700">🤖 Agente</span>}
-                    {p.campaign && <span className="inline-flex items-center gap-1 truncate text-[11px] text-gray-500"><span className="h-2 w-2 rounded-full shrink-0" style={{ background: p.campaign.color }} />{p.campaign.name}</span>}
+                    {p.campaign && <span className="inline-flex min-w-0 max-w-full items-center gap-1 truncate text-[11px] text-gray-500"><span className="h-2 w-2 rounded-full shrink-0" style={{ background: p.campaign.color }} />{p.campaign.name}</span>}
                   </div>
                   <p className="font-semibold text-gray-900 truncate group-hover:text-primary-700">{p.title}</p>
                   <div className="flex items-center gap-1.5">
@@ -176,7 +176,7 @@ export default function PostsTab({ posts, campaigns, filters, setFilters, worksp
                         </span>
                       )
                     })}
-                    <span className="ml-auto text-[11px] text-gray-400">{p.publishedAt ? `Publicada ${fmtDateTime(p.publishedAt)}` : p.scheduledAt ? `${p.status === 'scheduled' ? 'Sale' : 'Para'} ${fmtDateTime(p.scheduledAt)}` : `Editada ${fmtDateTime(p.updatedAt)}`}</span>
+                    <span className="ml-auto min-w-0 truncate text-[11px] text-gray-400">{p.publishedAt ? `Publicada ${fmtDateTime(p.publishedAt)}` : p.scheduledAt ? `${p.status === 'scheduled' ? 'Sale' : 'Para'} ${fmtDateTime(p.scheduledAt)}` : `Editada ${fmtDateTime(p.updatedAt)}`}</span>
                   </div>
                 </div>
               </Link>

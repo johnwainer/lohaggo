@@ -91,20 +91,33 @@ export default function SystemHealthPage() {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-gray-900">Salud del sistema</h1>
           <p className="mt-1 text-sm text-gray-500">¿La plataforma funciona por dentro? Tareas automáticas, servicios externos, errores, webhooks y seguridad.</p>
         </div>
         <button onClick={load} disabled={loading} className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"><RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> Actualizar</button>
       </div>
-      <div className={`flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-medium ${banner.cls}`}><banner.icon size={18} /> {banner.text}</div>
+      <div className={`flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-medium ${banner.cls}`}><banner.icon size={18} className="shrink-0" /> {banner.text}</div>
 
       <section className="rounded-2xl border border-gray-200 bg-white p-4">
         <div className="mb-3">
           <h2 className="font-semibold text-gray-900">Tareas automáticas</h2>
           <p className="text-xs text-gray-500">Las que Vercel corre solas. Si una falla dos veces seguidas se abre un incidente en <Link href="/admin/operations" className="underline">Casos e incidentes</Link>, y se cierra cuando vuelve a funcionar.{!hasHistory && ' El registro empieza con esta versión: las verás llenarse en los próximos minutos.'}</p>
         </div>
-        <div className="overflow-x-auto">
+        <div className="divide-y divide-gray-100 md:hidden">
+          {d.crons.map((c) => (
+            <div key={c.key} className="py-2.5 text-sm">
+              <div className="flex items-start justify-between gap-2">
+                <p className="min-w-0 text-gray-900">{c.label}</p>
+                <span className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ${HEALTH[c.health].cls}`}>{HEALTH[c.health].label}</span>
+              </div>
+              <p className="break-all font-mono text-[11px] text-gray-400">{c.path}</p>
+              <p className="mt-1 text-xs text-gray-600">{every(c.everyMs)} · última {ago(c.lastRunAt)} · {dur(c.lastDurationMs)} · 24 h: <span className="tabular-nums text-gray-900">{c.runs24h}</span>{c.failures24h > 0 && <span className="ml-1 font-semibold text-rose-600">({c.failures24h} fallos)</span>}</p>
+              {c.lastError && <p className="mt-1 break-words text-xs text-rose-600">Último error {ago(c.lastErrorAt)}: {c.lastError.slice(0, 180)}</p>}
+            </div>
+          ))}
+        </div>
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full text-sm">
             <thead className="text-left text-xs text-gray-500"><tr><th className="py-2 pr-3">Tarea</th><th className="px-3">Estado</th><th className="px-3">Frecuencia</th><th className="px-3">Última vez</th><th className="px-3 text-right">Duración</th><th className="pl-3 text-right">24 h (fallos)</th></tr></thead>
             <tbody>
@@ -176,7 +189,7 @@ export default function SystemHealthPage() {
                 return (
                   <div key={ch} className="flex items-center gap-2 text-sm">
                     <ChannelIcon channel={ch} size={16} />
-                    <span className="flex-1 text-gray-800">{channelLabel(ch)}</span>
+                    <span className="min-w-0 flex-1 text-gray-800">{channelLabel(ch)}</span>
                     {rows.map((r) => <span key={r.status} className={`rounded-full px-2 py-0.5 text-[11px] ${r.status === 'OK' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'}`}>{r.status} {r.n}</span>)}
                   </div>
                 )
@@ -186,7 +199,7 @@ export default function SystemHealthPage() {
           {d.webhooks.recentErrors.length > 0 && (
             <div className="mt-3 space-y-1 border-t border-gray-100 pt-3">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Últimos con problema</p>
-              {d.webhooks.recentErrors.map((w) => <p key={w.id} className="text-xs text-gray-600"><span className="text-gray-400">{ago(w.createdAt)}</span> · {channelLabel(w.channel)} · {w.status}{w.detail ? `: ${w.detail.slice(0, 140)}` : ''}</p>)}
+              {d.webhooks.recentErrors.map((w) => <p key={w.id} className="break-words text-xs text-gray-600"><span className="text-gray-400">{ago(w.createdAt)}</span> · {channelLabel(w.channel)} · {w.status}{w.detail ? `: ${w.detail.slice(0, 140)}` : ''}</p>)}
             </div>
           )}
           <Link href="/admin/channels" className="mt-3 inline-block text-xs text-primary-700 hover:underline">Ver el registro completo en Canales</Link>
@@ -201,7 +214,7 @@ export default function SystemHealthPage() {
           <Link href="/admin/security" className="mt-3 inline-block text-xs text-primary-700 hover:underline">Abrir Seguridad</Link>
         </section>
       </div>
-      <p className="text-[11px] text-gray-400">Para un monitor externo de disponibilidad (UptimeRobot, Better Stack…): <span className="font-mono">https://www.lohaggo.com/api/health</span> responde 200 si la app y la base de datos funcionan.</p>
+      <p className="text-[11px] text-gray-400">Para un monitor externo de disponibilidad (UptimeRobot, Better Stack…): <span className="break-all font-mono">https://www.lohaggo.com/api/health</span> responde 200 si la app y la base de datos funcionan.</p>
     </div>
   )
 }

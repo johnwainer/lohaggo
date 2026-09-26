@@ -226,7 +226,7 @@ export default function AiSettingsPage() {
 
   const modelSelect = (key: 'defaultModel' | 'fallbackModel' | 'openaiModel' | 'openaiFallbackModel', list: ModelOption[] = models) => (
     <div className="flex items-center gap-2 flex-wrap">
-      <select value={value(key) || ''} onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))} className="border border-gray-200 rounded-xl px-3 py-2 text-sm min-w-[240px]">
+      <select value={value(key) || ''} onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))} className="w-full min-w-0 border border-gray-200 rounded-xl px-3 py-2 text-sm sm:w-auto sm:min-w-[240px]">
         {[...list, ...(list.some((m) => m.id === value(key)) ? [] : [{ id: value(key) || '', displayName: value(key) || '' }])].map((m) => (
           <option key={m.id} value={m.id}>{m.displayName} · {m.id}</option>
         ))}
@@ -239,9 +239,9 @@ export default function AiSettingsPage() {
   )
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-8">
+    <div className="sm:p-6 max-w-6xl mx-auto space-y-6 sm:space-y-8">
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-gray-900">Agentes IA · Plataforma</h1>
           <p className="text-gray-500 mt-1 text-sm">
             Claves, modelos, tarifas y coste. Los agentes se configuran en{' '}
@@ -257,7 +257,7 @@ export default function AiSettingsPage() {
       {notice && <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"><CheckCircle2 size={16} /> {notice}</div>}
 
       {/* Text providers */}
-      <section className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
+      <section className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 space-y-5">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
             <h2 className="font-semibold text-gray-900 flex items-center gap-2"><ArrowLeftRight size={18} /> Proveedores de IA de texto</h2>
@@ -294,12 +294,12 @@ export default function AiSettingsPage() {
                   <ProviderStatus state={state} hasKey={Boolean(masked)} />
                 </div>
                 {state?.detail && state.status !== 'ok' && <p className="text-xs text-gray-500 break-words">{state.detail}</p>}
-                <div className="flex items-center justify-between text-xs text-gray-500">
-                  <span><KeyRound size={12} className="inline mr-1" />{masked ? `Guardada: ${masked}` : 'Sin clave'}</span>
+                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-gray-500">
+                  <span className="min-w-0 break-all"><KeyRound size={12} className="inline mr-1" />{masked ? `Guardada: ${masked}` : 'Sin clave'}</span>
                   {state?.lastOkAt && <span>Última respuesta: {new Date(state.lastOkAt).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })}</span>}
                 </div>
                 <div className="flex gap-2 flex-wrap">
-                  <input type="password" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={masked ? 'Escribe una nueva para reemplazarla' : placeholder} className="flex-1 min-w-[200px] border border-gray-200 rounded-xl px-3 py-2 text-sm" autoComplete="off" />
+                  <input type="password" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={masked ? 'Escribe una nueva para reemplazarla' : placeholder} className="flex-1 min-w-0 basis-full sm:basis-auto sm:min-w-[200px] border border-gray-200 rounded-xl px-3 py-2 text-sm" autoComplete="off" />
                   <button onClick={() => testProvider(provider)} disabled={testing !== null || (!draft && !masked)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50">
                     {testing === provider ? <Loader2 size={14} className="animate-spin" /> : <PlugZap size={14} />} Probar clave
                   </button>
@@ -341,13 +341,13 @@ export default function AiSettingsPage() {
       </section>
 
       {/* Embeddings key */}
-      <section className="bg-white rounded-2xl border border-gray-200 p-6 space-y-2">
+      <section className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 space-y-2">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <h2 className="font-semibold text-gray-900 flex items-center gap-2"><KeyRound size={18} /> Voyage AI (embeddings del conocimiento)</h2>
-          <span className="text-xs text-gray-500">{settings?.voyageKey ? `Guardada: ${settings.voyageKey}` : 'Sin configurar'}</span>
+          <span className="min-w-0 break-all text-xs text-gray-500">{settings?.voyageKey ? `Guardada: ${settings.voyageKey}` : 'Sin configurar'}</span>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <input type="password" value={voyageKey} onChange={(e) => setVoyageKey(e.target.value)} placeholder={settings?.voyageKey ? 'Escribe una nueva para reemplazarla' : 'pa-…'} className="flex-1 min-w-[240px] border border-gray-200 rounded-xl px-3 py-2 text-sm" autoComplete="off" />
+          <input type="password" value={voyageKey} onChange={(e) => setVoyageKey(e.target.value)} placeholder={settings?.voyageKey ? 'Escribe una nueva para reemplazarla' : 'pa-…'} className="flex-1 min-w-0 basis-full sm:basis-auto sm:min-w-[240px] border border-gray-200 rounded-xl px-3 py-2 text-sm" autoComplete="off" />
           <button onClick={() => testProvider('voyage')} disabled={testing !== null || (!voyageKey && !settings?.voyageKey)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50">
             {testing === 'voyage' ? <Loader2 size={14} className="animate-spin" /> : <PlugZap size={14} />} Probar conexión
           </button>
@@ -363,7 +363,7 @@ export default function AiSettingsPage() {
       </section>
 
       {/* Models */}
-      <section className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
+      <section className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 space-y-5">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <h2 className="font-semibold text-gray-900">Modelos de Claude</h2>
           <button onClick={() => loadModels(true)} className="inline-flex items-center gap-1.5 text-xs text-primary-600 hover:underline"><RefreshCw size={12} /> Releer de la API</button>
@@ -409,10 +409,10 @@ export default function AiSettingsPage() {
       </section>
 
       {/* Pricing */}
-      <section className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
+      <section className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 space-y-4">
         <h2 className="font-semibold text-gray-900">Tarifas (USD por millón de tokens)</h2>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+          <table className="w-full min-w-[40rem] text-sm">
             <thead className="text-xs text-gray-500">
               <tr className="text-left">
                 <th className="py-2 pr-3">Proveedor</th><th className="pr-3">Modelo</th><th className="pr-3">Entrada</th><th className="pr-3">Salida</th><th className="pr-3">Caché leída</th><th className="pr-3">Caché escrita</th><th />
@@ -434,7 +434,7 @@ export default function AiSettingsPage() {
                         </select>
                       ) : row.provider}
                     </td>
-                    <td className="pr-3">{isNew ? <input value={row.model} onChange={(e) => update({ model: e.target.value })} placeholder="modelo" className="border border-gray-200 rounded-lg px-2 py-1 w-44" /> : <span className="font-mono text-xs">{row.model}{row.id ? '' : ' (por defecto)'}</span>}</td>
+                    <td className="pr-3">{isNew ? <input value={row.model} onChange={(e) => update({ model: e.target.value })} placeholder="modelo" className="border border-gray-200 rounded-lg px-2 py-1 w-44" /> : <span className="font-mono text-xs whitespace-nowrap">{row.model}{row.id ? '' : ' (por defecto)'}</span>}</td>
                     {(['inputPerMTok', 'outputPerMTok', 'cacheReadPerMTok', 'cacheWritePerMTok'] as const).map((k) => (
                       <td key={k} className="pr-3"><input type="number" step="0.01" min={0} value={row[k]} onChange={(e) => update({ [k]: Number(e.target.value) })} className="border border-gray-200 rounded-lg px-2 py-1 w-20" /></td>
                     ))}
@@ -451,7 +451,7 @@ export default function AiSettingsPage() {
       </section>
 
       {/* Costs */}
-      <section className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
+      <section className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 space-y-5">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <h2 className="font-semibold text-gray-900">Coste</h2>
           <input type="month" value={period} onChange={(e) => { setPeriod(e.target.value); loadCosts(e.target.value) }} className="border border-gray-200 rounded-xl px-3 py-1.5 text-sm" />
@@ -468,20 +468,22 @@ export default function AiSettingsPage() {
               <div key={title}>
                 <h3 className="text-sm font-medium text-gray-700 mb-2">{title}</h3>
                 {rows.length === 0 ? <p className="text-xs text-gray-400">Sin llamadas en este periodo.</p> : (
-                  <table className="w-full text-xs">
+                  <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+                  <table className="w-full min-w-[30rem] text-xs">
                     <thead className="text-gray-500"><tr className="text-left"><th className="py-1">Nombre</th><th>Llamadas</th><th>Tokens (ent/sal)</th><th>Caché leída</th><th className="text-right">Coste</th></tr></thead>
                     <tbody>
                       {[...rows].sort((a, b) => b.costUsd - a.costUsd).map((r) => (
                         <tr key={r.label} className="border-t border-gray-100">
                           <td className="py-1 pr-2">{r.label}</td>
                           <td>{r.calls}</td>
-                          <td>{r.inputTokens.toLocaleString('es-CO')} / {r.outputTokens.toLocaleString('es-CO')}</td>
-                          <td>{r.cacheReadTokens.toLocaleString('es-CO')}</td>
+                          <td className="whitespace-nowrap pr-2">{r.inputTokens.toLocaleString('es-CO')} / {r.outputTokens.toLocaleString('es-CO')}</td>
+                          <td className="whitespace-nowrap pr-2">{r.cacheReadTokens.toLocaleString('es-CO')}</td>
                           <td className="text-right font-medium">{usd(r.costUsd)}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
+                  </div>
                 )}
               </div>
             ))}
@@ -490,11 +492,11 @@ export default function AiSettingsPage() {
       </section>
 
       {/* Caps */}
-      <section className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
+      <section className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 space-y-4">
         <h2 className="font-semibold text-gray-900">Tope mensual por cuenta</h2>
         <p className="text-xs text-gray-500">Aviso al 80 %. Al 100 % los agentes dejan de contestar y traspasan a una persona. Vacío = sin tope.</p>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+          <table className="w-full min-w-[32rem] text-sm">
             <thead className="text-xs text-gray-500"><tr className="text-left"><th className="py-2">Workspace</th><th>Uso del mes</th><th>Tope USD</th><th>Tope llamadas</th><th /></tr></thead>
             <tbody>
               {costs?.budgets.map((b) => {
@@ -504,7 +506,7 @@ export default function AiSettingsPage() {
                   <tr key={b.workspaceId} className="border-t border-gray-100">
                     <td className="py-2 pr-3">{b.name}</td>
                     <td className="pr-3">
-                      <span className={b.state === 'blocked' ? 'text-red-600 font-medium' : b.state === 'warn' ? 'text-amber-600 font-medium' : 'text-gray-700'}>
+                      <span className={`whitespace-nowrap ${b.state === 'blocked' ? 'text-red-600 font-medium' : b.state === 'warn' ? 'text-amber-600 font-medium' : 'text-gray-700'}`}>
                         {usd(b.costUsd)} · {b.calls} llamadas{b.costCapUsd != null || b.callCap != null ? ` · ${b.pct}%` : ''}
                       </span>
                     </td>

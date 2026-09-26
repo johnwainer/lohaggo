@@ -231,14 +231,14 @@ export default function AdsAdminPage() {
         type="danger"
         confirmText="Eliminar"
       />
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col gap-3 mb-8 sm:flex-row sm:justify-between sm:items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Gestión de Publicidad</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Gestión de Publicidad</h1>
           <p className="text-gray-600 mt-2">Administra los banners publicitarios de la plataforma</p>
         </div>
         <button
           onClick={() => setShowForm(true)}
-          className="bg-gradient-to-r from-primary-500 via-secondary-500 to-secondary-500 text-white px-6 py-3 rounded-xl hover:shadow-lg transition-all flex items-center gap-2 font-semibold"
+          className="bg-gradient-to-r from-primary-500 via-secondary-500 to-secondary-500 text-white px-6 py-3 rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2 font-semibold whitespace-nowrap self-start sm:self-auto"
         >
           <Plus className="w-5 h-5" />
           Nuevo Anuncio
@@ -246,9 +246,9 @@ export default function AdsAdminPage() {
       </div>
 
       {showForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <h2 className="text-2xl font-bold mb-6">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="bg-white rounded-2xl p-5 sm:p-8 max-w-2xl w-full max-h-[90dvh] overflow-y-auto">
+            <h2 className="text-xl sm:text-2xl font-bold mb-6">
               {editingAd ? 'Editar Anuncio' : 'Nuevo Anuncio'}
             </h2>
             
@@ -382,7 +382,7 @@ export default function AdsAdminPage() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Fecha de inicio
@@ -435,7 +435,7 @@ export default function AdsAdminPage() {
                 </label>
               </div>
 
-              <div className="flex gap-3 pt-4">
+              <div className="flex flex-col-reverse sm:flex-row gap-3 pt-4">
                 <button
                   type="submit"
                   className="flex-1 bg-gradient-to-r from-primary-500 via-secondary-500 to-secondary-500 text-white py-3 rounded-xl hover:shadow-lg transition-all font-semibold"
@@ -470,12 +470,12 @@ export default function AdsAdminPage() {
           ads.map((ad) => (
             <div
               key={ad.id}
-              className={`bg-white rounded-2xl border-2 p-6 transition-all ${
+              className={`bg-white rounded-2xl border-2 p-4 sm:p-6 transition-all ${
                 ad.active ? 'border-gray-100 hover:border-gray-200' : 'border-dashed border-gray-200 opacity-60'
               }`}
             >
-              <div className="flex gap-6">
-                <div className="w-80 h-32 flex-shrink-0 relative">
+              <div className="flex flex-col gap-4 md:flex-row md:gap-6">
+                <div className="w-full md:w-80 h-32 flex-shrink-0 relative">
                   <img
                     src={ad.imageUrl}
                     alt={ad.title}
@@ -490,13 +490,13 @@ export default function AdsAdminPage() {
                   )}
                 </div>
 
-                <div className="flex-1">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <h3 className={`text-xl font-bold ${ad.active ? 'text-gray-900' : 'text-gray-500'}`}>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <div className="min-w-0">
+                      <h3 className={`text-lg sm:text-xl font-bold break-words ${ad.active ? 'text-gray-900' : 'text-gray-500'}`}>
                         {ad.title}
                       </h3>
-                      <div className="flex items-center gap-3 mt-2 flex-wrap">
+                      <div className="flex items-center gap-2 sm:gap-3 mt-2 flex-wrap">
                         <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">
                           {ad.placement}
                         </span>
@@ -519,7 +519,7 @@ export default function AdsAdminPage() {
                       </div>
                     </div>
 
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap justify-end gap-1 sm:gap-2 shrink-0">
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
@@ -566,29 +566,29 @@ export default function AdsAdminPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4 mt-4">
-                    <div className="bg-blue-50 p-3 rounded-xl">
-                      <div className="flex items-center gap-2 text-blue-600 mb-1">
-                        <TrendingUp className="w-4 h-4" />
-                        <span className="text-xs font-semibold">Impresiones</span>
+                  <div className="grid grid-cols-3 gap-2 sm:gap-4 mt-4">
+                    <div className="bg-blue-50 p-2 sm:p-3 rounded-xl">
+                      <div className="flex items-center gap-1 sm:gap-2 text-blue-600 mb-1 min-w-0">
+                        <TrendingUp className="w-4 h-4 shrink-0" />
+                        <span className="text-xs font-semibold truncate">Impresiones</span>
                       </div>
-                      <p className="text-2xl font-bold text-blue-700">{ad.impressions.toLocaleString()}</p>
+                      <p className="text-lg sm:text-2xl font-bold text-blue-700 break-all">{ad.impressions.toLocaleString()}</p>
                     </div>
 
-                    <div className="bg-green-50 p-3 rounded-xl">
-                      <div className="flex items-center gap-2 text-green-600 mb-1">
-                        <TrendingUp className="w-4 h-4" />
+                    <div className="bg-green-50 p-2 sm:p-3 rounded-xl">
+                      <div className="flex items-center gap-1 sm:gap-2 text-green-600 mb-1 min-w-0">
+                        <TrendingUp className="w-4 h-4 shrink-0" />
                         <span className="text-xs font-semibold">Clicks</span>
                       </div>
-                      <p className="text-2xl font-bold text-green-700">{ad.clicks.toLocaleString()}</p>
+                      <p className="text-lg sm:text-2xl font-bold text-green-700 break-all">{ad.clicks.toLocaleString()}</p>
                     </div>
 
-                    <div className="bg-purple-50 p-3 rounded-xl">
-                      <div className="flex items-center gap-2 text-purple-600 mb-1">
-                        <TrendingUp className="w-4 h-4" />
+                    <div className="bg-purple-50 p-2 sm:p-3 rounded-xl">
+                      <div className="flex items-center gap-1 sm:gap-2 text-purple-600 mb-1 min-w-0">
+                        <TrendingUp className="w-4 h-4 shrink-0" />
                         <span className="text-xs font-semibold">CTR</span>
                       </div>
-                      <p className="text-2xl font-bold text-purple-700">{getCTR(ad)}</p>
+                      <p className="text-lg sm:text-2xl font-bold text-purple-700 break-all">{getCTR(ad)}</p>
                     </div>
                   </div>
 

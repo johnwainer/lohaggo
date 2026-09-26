@@ -174,8 +174,8 @@ export default function CalendarTab({ workspaceId, campaigns, workspace, canEdit
         <button onClick={() => shift(1)} className="rounded-lg border border-gray-200 bg-white p-1.5 hover:bg-gray-50" aria-label="Siguiente"><ChevronRight size={16} /></button>
         <h2 className="text-lg font-semibold capitalize text-gray-900 min-w-[180px]">{title}</h2>
         {loading && <Loader2 size={16} className="animate-spin text-gray-400" />}
-        <div className="ml-auto flex gap-2 items-center">
-          <select className="rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-sm" value={campaignId} onChange={(e) => setCampaignId(e.target.value)}>
+        <div className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto">
+          <select className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-sm sm:flex-none" value={campaignId} onChange={(e) => setCampaignId(e.target.value)}>
             <option value="">Todas las campañas</option>
             {campaigns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
@@ -186,9 +186,42 @@ export default function CalendarTab({ workspaceId, campaigns, workspace, canEdit
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
       {notice && <p className="text-sm text-amber-700">{notice}</p>}
-      <p className="text-xs text-gray-500">Cada red aparece el día en que sale. Arrastra una publicación a otro día para moverla (conserva la hora; los demás canales de esa pieza mantienen su día) o una idea punteada del agente para cambiar su fecha. El agente lo tiene en cuenta al planificar. Lo ya publicado no se mueve. Horario de Bogotá.</p>
+      <p className="hidden text-xs text-gray-500 md:block">Cada red aparece el día en que sale. Arrastra una publicación a otro día para moverla (conserva la hora; los demás canales de esa pieza mantienen su día) o una idea punteada del agente para cambiar su fecha. El agente lo tiene en cuenta al planificar. Lo ya publicado no se mueve. Horario de Bogotá.</p>
 
-      <div className="overflow-x-auto">
+      <div className="space-y-2 md:hidden">
+        <p className="text-xs text-gray-500">Cada red aparece el día en que sale. Para mover una publicación a otro día, ábrela desde un computador y arrástrala en el calendario. Horario de Bogotá.</p>
+        {(() => {
+          const agenda = days.filter((day) => (view === 'week' || day.slice(0, 7) === monthKey) && (view === 'week' || day === today || (byDay.get(day) || []).length || (ideasByDay.get(day) || []).length))
+          if (!agenda.length) return <p className="rounded-2xl border border-dashed border-gray-200 bg-white p-6 text-center text-sm text-gray-500">Nada programado este mes.</p>
+          return agenda.map((day) => {
+            const list = byDay.get(day) || []
+            const dayIdeas = ideasByDay.get(day) || []
+            return (
+              <div key={day} className={`rounded-2xl border bg-white p-3 ${day === today ? 'border-primary-300' : 'border-gray-200'}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className={`text-sm font-semibold capitalize ${day === today ? 'text-primary-700' : 'text-gray-800'}`}>{new Intl.DateTimeFormat('es-CO', { weekday: 'long', day: 'numeric', month: 'short', timeZone: TZ }).format(atMidnight(day))}</span>
+                  {canEdit && workspace && day >= today && (
+                    <button onClick={() => setNewOn(day)} className="-m-1.5 p-1.5 text-gray-400 hover:text-primary-600" aria-label="Nueva publicación este día"><Plus size={18} /></button>
+                  )}
+                </div>
+                {list.length || dayIdeas.length ? (
+                  <div className="mt-2 space-y-1.5">
+                    {list.map((it) => <Card key={it.key} it={it} />)}
+                    {dayIdeas.map((idea) => (
+                      <span key={idea.id} className="block rounded-lg border border-dashed px-1.5 py-1 text-[11px] text-gray-500" style={{ borderColor: idea.agent.campaign.color }}>
+                        <span className="flex items-center gap-1">🤖 <span className="flex -space-x-1">{idea.channels.map((c) => <MkChannelIcon key={c} channel={c} size={11} />)}</span>{idea.status === 'proposed' && <span className="text-amber-600">idea</span>}</span>
+                        <span className="block truncate">{idea.angle}</span>
+                      </span>
+                    ))}
+                  </div>
+                ) : <p className="mt-1 text-xs text-gray-400">Sin publicaciones</p>}
+              </div>
+            )
+          })
+        })()}
+      </div>
+
+      <div className="hidden overflow-x-auto md:block">
         <div className="grid min-w-[760px] grid-cols-7 gap-px overflow-hidden rounded-2xl border border-gray-200 bg-gray-200">
           {WEEKDAYS.map((d) => <div key={d} className="bg-gray-50 px-2 py-1.5 text-center text-xs font-medium text-gray-500">{d}</div>)}
           {days.map((day) => {
@@ -204,7 +237,7 @@ export default function CalendarTab({ workspaceId, campaigns, workspace, canEdit
                 <div className="flex items-center justify-between">
                   <span className={`text-xs ${day === today ? 'rounded-full bg-primary-600 px-1.5 font-semibold text-white' : inMonth ? 'text-gray-700' : 'text-gray-300'}`}>{Number(day.slice(8))}</span>
                   {canEdit && workspace && day >= today && (
-                    <button onClick={() => setNewOn(day)} className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-primary-600" title="Nueva publicación este día"><Plus size={14} /></button>
+                    <button onClick={() => setNewOn(day)} className="opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100 text-gray-400 hover:text-primary-600" title="Nueva publicación este día"><Plus size={14} /></button>
                   )}
                 </div>
                 <div className="mt-1 space-y-1">

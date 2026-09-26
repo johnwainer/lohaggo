@@ -1009,10 +1009,79 @@ export default function AdminCommunicationsPage() {
   ]
 
 
+  const renderCampaignStatus = (s: string) => {
+    const cfg: Record<string, { label: string; cls: string }> = {
+      DRAFT:      { label: 'Borrador',    cls: 'bg-gray-100 text-gray-600' },
+      SCHEDULED:  { label: 'Programada',  cls: 'bg-blue-100 text-blue-700' },
+      PROCESSING: { label: 'Procesando…', cls: 'bg-yellow-100 text-yellow-700 animate-pulse' },
+      SENT:       { label: 'Enviada',     cls: 'bg-emerald-100 text-emerald-700' },
+      PARTIAL:    { label: 'Parcial',     cls: 'bg-orange-100 text-orange-700' },
+      FAILED:     { label: 'Fallida',     cls: 'bg-rose-100 text-rose-700' },
+      CANCELLED:  { label: 'Cancelada',   cls: 'bg-gray-100 text-gray-500' },
+    }
+    const { label, cls } = cfg[s] || { label: s, cls: 'bg-gray-100 text-gray-600' }
+    return <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${cls}`}>{label}</span>
+  }
+
+  const renderCampaignActions = (campaign: Campaign) => (
+    <>
+      <button
+        className="border rounded px-2 py-1 text-xs"
+        onClick={() => setDetailCampaign(campaign)}
+      >
+        Ver
+      </button>
+      <button
+        className="border rounded px-2 py-1 text-xs"
+        onClick={() => void loadRecipientPreview({ forCampaignId: campaign.id, channel: campaign.channel })}
+      >
+        Destinatarios
+      </button>
+      <button className="border rounded px-2 py-1 text-xs" onClick={() => loadMetrics(campaign.id, true)}>
+        Métricas
+      </button>
+      {(() => {
+        const isSending = sendingIds.has(campaign.id)
+        const isProcessing = campaign.status === 'PROCESSING'
+        const isSent = campaign.status === 'SENT'
+        if (isSending) {
+          return (
+            <span className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs bg-primary-100 text-primary-700 font-semibold">
+              <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+              </svg>
+              Enviando…
+            </span>
+          )
+        }
+        if (isProcessing) {
+          return (
+            <span className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs bg-yellow-100 text-yellow-700 font-semibold animate-pulse">
+              <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+              </svg>
+              Procesando…
+            </span>
+          )
+        }
+        return (
+          <button
+            className={`rounded px-2 py-1 text-xs font-semibold text-white transition ${isSent ? 'bg-gray-400 hover:bg-primary-600' : 'bg-primary-600 hover:bg-primary-700'}`}
+            onClick={() => void sendCampaign(campaign.id)}
+          >
+            {isSent ? 'Reenviar' : 'Enviar'}
+          </button>
+        )
+      })()}
+    </>
+  )
+
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold text-gray-900">Comunicaciones Omnicanal</h1>
+        <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Comunicaciones Omnicanal</h1>
         <p className="text-gray-600 mt-1">
           Pilar de comunicacion del admin: credenciales, campañas, ejecucion y analítica operativa por SMS, WhatsApp, Email y PUSH.
         </p>
@@ -1072,8 +1141,8 @@ export default function AdminCommunicationsPage() {
                     Ver todas
                   </button>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full text-sm">
+                <div className="-mx-4 overflow-x-auto sm:mx-0">
+                  <table className="min-w-[560px] w-full text-sm">
                     <thead className="bg-gray-50 text-gray-600">
                       <tr>
                         <th className="px-3 py-2 text-left font-medium">Campaña</th>
@@ -1118,7 +1187,7 @@ export default function AdminCommunicationsPage() {
               <div className="grid lg:grid-cols-2 gap-4">
                 <div className="border rounded-lg p-4 space-y-2">
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <h3 className="font-semibold">Twilio (SMS/WhatsApp)</h3>
                       <span
                         className={`rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -1130,7 +1199,7 @@ export default function AdminCommunicationsPage() {
                         {providers?.twilio?.active && providers?.twilio?.hasAuthToken ? 'Configurado' : 'Incompleto'}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 break-all">
                       SID: {providers?.twilio?.accountSid || 'n/a'} · SMS: {providers?.twilio?.smsFrom || 'n/a'} · WA: {providers?.twilio?.whatsappFrom || 'n/a'}
                     </p>
                   </div>
@@ -1149,7 +1218,7 @@ export default function AdminCommunicationsPage() {
 
                 <div className="border rounded-lg p-4 space-y-2">
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <h3 className="font-semibold">SendGrid (Email)</h3>
                       <span
                         className={`rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -1161,7 +1230,7 @@ export default function AdminCommunicationsPage() {
                         {providers?.sendgrid?.active && providers?.sendgrid?.hasApiKey ? 'Configurado' : 'Incompleto'}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 break-all">
                       From: {providers?.sendgrid?.fromEmail || 'n/a'} · API Key: {providers?.sendgrid?.apiKey || 'n/a'}
                     </p>
                   </div>
@@ -1179,7 +1248,7 @@ export default function AdminCommunicationsPage() {
 
               <div className="border rounded-lg p-4 space-y-2">
                 <div className="space-y-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <h3 className="font-semibold">Meta WhatsApp (Cloud API)</h3>
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -1191,7 +1260,7 @@ export default function AdminCommunicationsPage() {
                       {providers?.metaWhatsApp?.active && providers?.metaWhatsApp?.hasAccessToken ? 'Configurado' : 'Incompleto'}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 break-all">
                     WABA ID: {providers?.metaWhatsApp?.wabaId || 'n/a'} · Phone ID: {providers?.metaWhatsApp?.phoneNumberId || 'n/a'} · Token: {providers?.metaWhatsApp?.hasAccessToken ? 'OK' : 'Falta'}
                   </p>
                 </div>
@@ -1208,7 +1277,7 @@ export default function AdminCommunicationsPage() {
               </div>
 
               <div className="border rounded-lg p-4 space-y-2">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <h3 className="font-semibold">PUSH (Web Push / PWA)</h3>
                   <span
                     className={`rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -1238,7 +1307,7 @@ export default function AdminCommunicationsPage() {
                   <h2 className="text-lg font-semibold">Tabla de campañas</h2>
                   <p className="text-sm text-gray-600">Operación, ejecucion y acceso rapido a metricas.</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <button className="border rounded px-3 py-2 text-sm" onClick={runScheduled}>
                     Ejecutar programadas
                   </button>
@@ -1253,7 +1322,42 @@ export default function AdminCommunicationsPage() {
                   <button className="ml-3 text-xs underline opacity-70 hover:opacity-100" onClick={() => setCampaignFeedback(null)}>Cerrar</button>
                 </div>
               )}
-              <div className="overflow-x-auto">
+              <div className="space-y-2 md:hidden">
+                {orderedCampaigns.map((campaign) => (
+                  <div key={campaign.id} className="rounded-xl border p-3 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-medium text-gray-900 break-words">{campaign.name}</p>
+                        <p className="text-xs text-gray-500 break-words">
+                          {campaign.channel} · {campaign.targetRole || 'ALL'}{campaign.targetCity ? `/${campaign.targetCity}` : ''} · {formatDate(campaign.createdAt)}
+                        </p>
+                      </div>
+                      <div className="shrink-0">{renderCampaignStatus(campaign.status)}</div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600">
+                      <span>Destinatarios: <b>{campaign.totalRecipients}</b></span>
+                      <span>Enviados: <b>{campaign.totalSent}</b></span>
+                      {campaign.totalFailed > 0 ? (
+                        <button
+                          className="rounded border border-rose-200 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100"
+                          onClick={() => void loadFailedDeliveries(campaign)}
+                        >
+                          Fallidos: {campaign.totalFailed}
+                        </button>
+                      ) : (
+                        <span>Fallidos: <b>{campaign.totalFailed}</b></span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-2 [&>*]:py-2 [&>*]:px-3">
+                      {renderCampaignActions(campaign)}
+                    </div>
+                  </div>
+                ))}
+                {orderedCampaigns.length === 0 && (
+                  <p className="px-1 py-4 text-sm text-gray-500">Sin campañas registradas.</p>
+                )}
+              </div>
+              <div className="hidden overflow-x-auto md:block">
                 <table className="min-w-full text-sm">
                   <thead className="bg-gray-50 text-gray-600">
                     <tr>
@@ -1274,22 +1378,7 @@ export default function AdminCommunicationsPage() {
                         <td className="px-3 py-2 font-medium text-gray-900">{campaign.name}</td>
                         <td className="px-3 py-2">{campaign.channel}</td>
                         <td className="px-3 py-2">{campaign.targetRole || 'ALL'} {campaign.targetCity ? `/${campaign.targetCity}` : ''}</td>
-                        <td className="px-3 py-2">
-                          {(() => {
-                            const s = campaign.status
-                            const cfg: Record<string, { label: string; cls: string }> = {
-                              DRAFT:      { label: 'Borrador',    cls: 'bg-gray-100 text-gray-600' },
-                              SCHEDULED:  { label: 'Programada',  cls: 'bg-blue-100 text-blue-700' },
-                              PROCESSING: { label: 'Procesando…', cls: 'bg-yellow-100 text-yellow-700 animate-pulse' },
-                              SENT:       { label: 'Enviada',     cls: 'bg-emerald-100 text-emerald-700' },
-                              PARTIAL:    { label: 'Parcial',     cls: 'bg-orange-100 text-orange-700' },
-                              FAILED:     { label: 'Fallida',     cls: 'bg-rose-100 text-rose-700' },
-                              CANCELLED:  { label: 'Cancelada',   cls: 'bg-gray-100 text-gray-500' },
-                            }
-                            const { label, cls } = cfg[s] || { label: s, cls: 'bg-gray-100 text-gray-600' }
-                            return <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${cls}`}>{label}</span>
-                          })()}
-                        </td>
+                        <td className="px-3 py-2">{renderCampaignStatus(campaign.status)}</td>
                         <td className="px-3 py-2">{campaign.totalRecipients}</td>
                         <td className="px-3 py-2">{campaign.totalSent}</td>
                         <td className="px-3 py-2">
@@ -1307,56 +1396,7 @@ export default function AdminCommunicationsPage() {
                         <td className="px-3 py-2">{formatDate(campaign.createdAt)}</td>
                         <td className="px-3 py-2">
                           <div className="flex justify-end gap-2">
-                            <button
-                              className="border rounded px-2 py-1 text-xs"
-                              onClick={() => setDetailCampaign(campaign)}
-                            >
-                              Ver
-                            </button>
-                            <button
-                              className="border rounded px-2 py-1 text-xs"
-                              onClick={() => void loadRecipientPreview({ forCampaignId: campaign.id, channel: campaign.channel })}
-                            >
-                              Destinatarios
-                            </button>
-                            <button className="border rounded px-2 py-1 text-xs" onClick={() => loadMetrics(campaign.id, true)}>
-                              Métricas
-                            </button>
-                            {(() => {
-                              const isSending = sendingIds.has(campaign.id)
-                              const isProcessing = campaign.status === 'PROCESSING'
-                              const isSent = campaign.status === 'SENT'
-                              if (isSending) {
-                                return (
-                                  <span className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs bg-primary-100 text-primary-700 font-semibold">
-                                    <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none">
-                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-                                    </svg>
-                                    Enviando…
-                                  </span>
-                                )
-                              }
-                              if (isProcessing) {
-                                return (
-                                  <span className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs bg-yellow-100 text-yellow-700 font-semibold animate-pulse">
-                                    <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none">
-                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-                                    </svg>
-                                    Procesando…
-                                  </span>
-                                )
-                              }
-                              return (
-                                <button
-                                  className={`rounded px-2 py-1 text-xs font-semibold text-white transition ${isSent ? 'bg-gray-400 hover:bg-primary-600' : 'bg-primary-600 hover:bg-primary-700'}`}
-                                  onClick={() => void sendCampaign(campaign.id)}
-                                >
-                                  {isSent ? 'Reenviar' : 'Enviar'}
-                                </button>
-                              )
-                            })()}
+                            {renderCampaignActions(campaign)}
                           </div>
                         </td>
                       </tr>
@@ -1405,7 +1445,7 @@ export default function AdminCommunicationsPage() {
                     </p>
                   )}
                   <div className="max-h-72 overflow-auto rounded border bg-white">
-                    <table className="min-w-full text-xs">
+                    <table className="min-w-[560px] w-full text-xs">
                       <thead className="bg-gray-100 text-gray-600">
                         <tr>
                           <th className="px-2 py-2 text-left font-medium">Usuario</th>
@@ -1474,7 +1514,7 @@ export default function AdminCommunicationsPage() {
 
                   {!loadingFailedDeliveries && !failedDeliveriesError && (
                     <div className="max-h-80 overflow-auto rounded border">
-                      <table className="min-w-full text-xs">
+                      <table className="min-w-[640px] w-full text-xs">
                         <thead className="bg-gray-50 text-gray-600">
                           <tr>
                             <th className="px-2 py-2 text-left font-medium">Usuario</th>
@@ -1541,14 +1581,14 @@ export default function AdminCommunicationsPage() {
             const usesActionUrl = usedVars.includes('action_url') || Object.values(waVars).some((v) => v.includes('action_url'))
 
             return (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setDetailCampaign(null)}>
-                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-4" onClick={() => setDetailCampaign(null)}>
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90dvh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-start justify-between gap-3 p-5 border-b">
-                    <div>
-                      <h2 className="text-base font-bold text-gray-900">{detailCampaign.name}</h2>
+                    <div className="min-w-0">
+                      <h2 className="text-base font-bold text-gray-900 break-words">{detailCampaign.name}</h2>
                       <p className="text-xs text-gray-500 mt-0.5">{detailCampaign.channel} · {detailCampaign.status} · {detailCampaign.targetRole || 'MANUAL'}{detailCampaign.targetCity ? ` / ${detailCampaign.targetCity}` : ''}</p>
                     </div>
-                    <button onClick={() => setDetailCampaign(null)} className="rounded-lg p-1.5 hover:bg-gray-100 transition text-gray-500">✕</button>
+                    <button onClick={() => setDetailCampaign(null)} className="shrink-0 rounded-lg p-2 hover:bg-gray-100 transition text-gray-500">✕</button>
                   </div>
 
                   <div className="p-5 space-y-5">
@@ -1579,13 +1619,13 @@ export default function AdminCommunicationsPage() {
                       <div className="space-y-2">
                         <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Plantilla WhatsApp</p>
                         {waName && <p className="text-sm text-gray-800 font-medium">{waName}</p>}
-                        {waSid && <p className="text-xs font-mono text-gray-500">{waSid}</p>}
+                        {waSid && <p className="text-xs font-mono text-gray-500 break-all">{waSid}</p>}
                         {Object.keys(waVars).length > 0 && (
                           <div className="rounded border bg-gray-50 divide-y text-xs">
                             {Object.entries(waVars).map(([k, v]) => (
                               <div key={k} className="flex items-center gap-2 px-3 py-1.5">
-                                <span className="font-mono text-gray-500 w-8">{`{{${k}}}`}</span>
-                                <span className="text-gray-800">{v}</span>
+                                <span className="shrink-0 font-mono text-gray-500 w-8">{`{{${k}}}`}</span>
+                                <span className="min-w-0 text-gray-800 break-all">{v}</span>
                               </div>
                             ))}
                           </div>
@@ -1624,7 +1664,7 @@ export default function AdminCommunicationsPage() {
                     {usesActionUrl && (
                       <div className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-3 space-y-1 text-xs">
                         <p className="font-semibold text-indigo-800 text-sm">Configuración del Magic Link</p>
-                        <p className="text-indigo-700"><span className="font-medium">Destino:</span> <span className="font-mono">{mlUrl || '/partner/dashboard'}</span></p>
+                        <p className="text-indigo-700"><span className="font-medium">Destino:</span> <span className="font-mono break-all">{mlUrl || '/partner/dashboard'}</span></p>
                         <p className="text-indigo-700"><span className="font-medium">Banner cambio de contraseña:</span> {mlBanner ? 'Sí' : 'No'}</p>
                       </div>
                     )}
@@ -1636,7 +1676,7 @@ export default function AdminCommunicationsPage() {
                         return (
                           <div className="space-y-2">
                             <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Prueba A/B</p>
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                               {(ab.variants || []).map((v) => (
                                 <div key={v.key} className="rounded border p-2.5 bg-gray-50 space-y-1">
                                   <p className="text-xs font-bold text-gray-700">Variante {v.key} · {v.allocation}%</p>
@@ -1658,7 +1698,7 @@ export default function AdminCommunicationsPage() {
           {activePanel === 'CREATE' && (
             <section className="space-y-4">
               <div className="rounded-xl border bg-white p-4 space-y-3">
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <h2 className="text-lg font-semibold">{templateEditingId ? 'Editar plantilla' : 'Crear plantilla'}</h2>
                   {templateEditingId && (
                     <button
@@ -1730,7 +1770,7 @@ export default function AdminCommunicationsPage() {
                   </p>
                 )}
                 <div className="overflow-x-auto rounded border">
-                  <table className="min-w-full text-sm">
+                  <table className="min-w-[520px] w-full text-sm">
                     <thead className="bg-gray-50 text-gray-600">
                       <tr>
                         <th className="px-3 py-2 text-left font-medium">Nombre</th>
@@ -1863,7 +1903,7 @@ export default function AdminCommunicationsPage() {
                 </div>
                 {campForm.targetRole === 'PARTNER' && (
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-xs font-medium text-gray-700">Filtro de socios</p>
                       <button
                         className="border rounded px-2 py-1 text-xs"
@@ -2013,7 +2053,7 @@ export default function AdminCommunicationsPage() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
                       <span className="text-xs font-medium text-gray-700">Plantilla WhatsApp (aprobadas por Meta)</span>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         {syncFeedback && (
                           <span className={`text-xs ${syncFeedback.startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>
                             {syncFeedback}
@@ -2095,7 +2135,7 @@ export default function AdminCommunicationsPage() {
                                 <div key={key} className="flex items-center gap-2">
                                   <span className="w-10 shrink-0 rounded border bg-gray-100 px-2 py-1 text-center font-mono text-xs text-gray-600">{`{{${key}}}`}</span>
                                   <input
-                                    className="flex-1 border rounded px-2 py-1 text-xs"
+                                    className="min-w-0 flex-1 border rounded px-2 py-1 text-xs"
                                     placeholder={key === '1' ? '{{user_name}} — nombre del destinatario' : 'Valor estático (ej: https://lohaggo.com)'}
                                     value={val}
                                     onChange={(e) =>
@@ -2133,7 +2173,7 @@ export default function AdminCommunicationsPage() {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="text-xs font-medium text-gray-700">Mensaje de la campaña</span>
                       {campForm.channel === 'SMS' && (() => {
                         const { chars, segments } = smsSegments(campForm.customBody || '')
@@ -2217,7 +2257,7 @@ export default function AdminCommunicationsPage() {
                       <p className="text-xs text-indigo-700">Se generará automáticamente un link de acceso para cada destinatario. Configura a dónde se redirige al ingresar.</p>
                       <label className="text-xs text-gray-700 space-y-1 block">
                         <span className="font-medium">Destino después de iniciar sesión</span>
-                        <div className="grid grid-cols-2 gap-1.5 mt-1">
+                        <div className="grid grid-cols-1 gap-1.5 mt-1 sm:grid-cols-2">
                           {campSections.map((sec) => (
                             <button
                               key={sec.value}
@@ -2405,7 +2445,7 @@ export default function AdminCommunicationsPage() {
 
                   {/* Results table */}
                   <div className="max-h-72 overflow-auto rounded border">
-                    <table className="min-w-full text-xs">
+                    <table className="min-w-[480px] w-full text-xs">
                       <thead className="bg-gray-50 text-gray-600 sticky top-0">
                         <tr>
                           <th className="w-8 px-2 py-2"></th>
@@ -2446,7 +2486,7 @@ export default function AdminCommunicationsPage() {
                               </td>
                               <td className="px-2 py-2">
                                 <p className="font-medium text-gray-900">{recipient.name}</p>
-                                <p className="text-gray-500">{recipient.email}</p>
+                                <p className="text-gray-500 break-all">{recipient.email}</p>
                               </td>
                               <td className="px-2 py-2 text-gray-600">{recipient.role === 'PARTNER' ? 'Socio' : 'Cliente'}</td>
                               <td className={`px-2 py-2 ${recipient.eligible ? 'text-emerald-700' : 'text-rose-600'}`}>
@@ -2490,7 +2530,7 @@ export default function AdminCommunicationsPage() {
                     {campaignFeedback.message}
                   </p>
                 )}
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <button className="bg-primary-600 text-white rounded px-3 py-2 text-sm" onClick={createCampaign}>
                     Guardar campaña ({loadingRecipients ? '...' : estimatedRecipients})
                   </button>
@@ -2508,7 +2548,7 @@ export default function AdminCommunicationsPage() {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h2 className="text-lg font-semibold">Análisis de campañas</h2>
                   <select
-                    className="border rounded px-2 py-2 text-sm"
+                    className="border rounded px-2 py-2 text-sm w-full min-w-0 sm:w-auto"
                     value={selectedCampaignId || ''}
                     onChange={(e) => {
                       if (e.target.value) {
@@ -2527,10 +2567,10 @@ export default function AdminCommunicationsPage() {
 
                 {selectedCampaign && selectedMetrics ? (
                   <div className="space-y-4">
-                    <div className="grid md:grid-cols-4 gap-3">
-                      <div className="border rounded-lg p-3">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div className="col-span-2 border rounded-lg p-3 md:col-span-1">
                         <p className="text-xs text-gray-500">Campaña</p>
-                        <p className="font-semibold text-gray-900">{selectedCampaign.name}</p>
+                        <p className="font-semibold text-gray-900 break-words">{selectedCampaign.name}</p>
                       </div>
                       <div className="border rounded-lg p-3">
                         <p className="text-xs text-gray-500">Canal</p>
@@ -2554,8 +2594,8 @@ export default function AdminCommunicationsPage() {
                           return (
                             <div key={key} className="space-y-1">
                               <div className="flex items-center justify-between text-xs">
-                                <span className="text-gray-600">{key}</span>
-                                <span className="font-medium text-gray-900">{value} ({width}%)</span>
+                                <span className="min-w-0 text-gray-600 break-all">{key}</span>
+                                <span className="shrink-0 font-medium text-gray-900">{value} ({width}%)</span>
                               </div>
                               <div className="h-2 rounded bg-gray-100 overflow-hidden">
                                 <div className="h-full bg-primary-600" style={{ width: `${width}%` }} />

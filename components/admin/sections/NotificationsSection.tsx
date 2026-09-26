@@ -276,7 +276,7 @@ export default function NotificationsSection() {
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h1 className="text-3xl font-bold text-gray-900">Notificaciones Automáticas</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Notificaciones Automáticas</h1>
         <p className="text-gray-600">
           Configura canales por audiencia y administra las plantillas de email para notificaciones automáticas.
         </p>
@@ -287,7 +287,7 @@ export default function NotificationsSection() {
       ) : (
         <>
           <section className="rounded-xl border bg-white p-4 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
               <div className="rounded-lg border bg-emerald-50 p-3">
                 <p className="text-xs text-emerald-700">Entregas OK (7d)</p>
                 <p className="text-2xl font-bold text-emerald-800">{success7d}</p>
@@ -339,7 +339,7 @@ export default function NotificationsSection() {
                         <td className="px-3 py-2">
                           <input type="checkbox" checked={row.smsEnabled} disabled={savingTarget === target} onChange={(e) => void updateTarget(target, { smsEnabled: e.target.checked })} />
                         </td>
-                        <td className="px-3 py-2 text-xs text-gray-500">{formatDate(row.updatedAt)} {row.updatedByEmail ? `· ${row.updatedByEmail}` : ''}</td>
+                        <td className="px-3 py-2 text-xs text-gray-500 whitespace-nowrap">{formatDate(row.updatedAt)} {row.updatedByEmail ? `· ${row.updatedByEmail}` : ''}</td>
                       </tr>
                     )
                   })}
@@ -351,7 +351,7 @@ export default function NotificationsSection() {
           <section className="rounded-xl border bg-white p-4 space-y-4">
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Plantillas por canal (Notificaciones Automáticas)</h2>
-              <p className="text-sm text-gray-600">{'Variables disponibles: {{user_name}}, {{title}}, {{message}}, {{notifications_url}}, {{year}}'}</p>
+              <p className="break-words text-sm text-gray-600">{'Variables disponibles: {{user_name}}, {{title}}, {{message}}, {{notifications_url}}, {{year}}'}</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
@@ -405,7 +405,32 @@ export default function NotificationsSection() {
               </p>
             )}
 
-            <div className="overflow-x-auto rounded-lg border">
+            <div className="divide-y rounded-lg border md:hidden">
+              {templates.map((template) => (
+                <div key={template.id} className="space-y-2 p-3 text-xs">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="min-w-0 text-sm font-medium text-gray-900">{template.name}</p>
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 font-semibold ${template.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {template.isActive ? 'ACTIVA' : 'INACTIVA'}
+                    </span>
+                  </div>
+                  <p className="break-all font-mono text-gray-500">{template.key}</p>
+                  <p className="break-words text-gray-600">
+                    {template.notificationType} · {template.channel} · {template.role || 'ALL'}
+                  </p>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-gray-500">{formatDate(template.updatedAt)}</span>
+                    <div className="flex shrink-0 gap-2">
+                      <button className="border rounded px-3 py-1.5" onClick={() => startEditTemplate(template)}>Editar</button>
+                      <button className="border border-rose-300 text-rose-700 rounded px-3 py-1.5" onClick={() => void deleteTemplate(template.id)}>Eliminar</button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {templates.length === 0 && <p className="p-3 text-sm text-gray-500">No hay plantillas.</p>}
+            </div>
+
+            <div className="hidden overflow-x-auto rounded-lg border md:block">
               <table className="min-w-full text-xs md:text-sm">
                 <thead className="bg-gray-50 text-gray-600">
                   <tr>
@@ -479,7 +504,30 @@ export default function NotificationsSection() {
               </select>
             </div>
 
-            <div className="overflow-x-auto rounded-lg border">
+            <div className="divide-y rounded-lg border md:hidden">
+              {filteredLogs.map((log) => (
+                <div key={log.id} className="space-y-1 p-3 text-xs">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="min-w-0 text-sm font-medium text-gray-900">{log.notification?.title || '-'}</p>
+                    <span className={`shrink-0 font-semibold ${log.status === 'FAILED' ? 'text-rose-700' : log.status === 'SKIPPED' || log.status === 'UNSUBSCRIBED' ? 'text-amber-700' : 'text-emerald-700'}`}>
+                      {log.status}
+                    </span>
+                  </div>
+                  {log.errorCode ? <p className="break-all text-gray-500">{log.errorCode}</p> : null}
+                  <p className="text-gray-500 line-clamp-2">{log.notification?.message || '-'}</p>
+                  <p className="break-words text-gray-700">
+                    <span className="font-medium text-gray-900">{log.user?.name || 'Usuario'}</span> · {log.userRole} · <span className="break-all">{log.user?.email || '-'}</span>
+                  </p>
+                  <p className="break-all text-gray-600">
+                    {log.channel} · {log.destination || '-'} · {log.provider}
+                  </p>
+                  <p className="text-gray-400">{formatDate(log.createdAt)}</p>
+                </div>
+              ))}
+              {filteredLogs.length === 0 && <p className="p-3 text-sm text-gray-500">No hay registros para los filtros actuales.</p>}
+            </div>
+
+            <div className="hidden overflow-x-auto rounded-lg border md:block">
               <table className="min-w-full text-xs md:text-sm">
                 <thead className="bg-gray-50 text-gray-600">
                   <tr>
