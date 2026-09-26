@@ -43,7 +43,8 @@ export default function ReviewPanel({ post, reviews, agentId, canEdit, canPublis
 }) {
   const [busy, setBusy] = useState<'review' | 'spelling' | 'override' | 'apply' | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const closed = ['publishing', 'published', 'partial', 'archived'].includes(post.status)
+  // Partly out (some channels still queued) can still be reviewed: the queued channels are what it gates
+  const closed = ['publishing', 'published', 'archived'].includes(post.status)
   const status = post.reviewStatus ?? null
   const editorRows = useMemo(() => reviews.filter((r) => r.reviewer === 'editor'), [reviews])
   const last = editorRows[0] ?? null

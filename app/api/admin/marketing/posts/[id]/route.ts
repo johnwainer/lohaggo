@@ -23,7 +23,7 @@ export async function GET(_request: NextRequest, context: Ctx) {
   const { id } = await context.params
   let post = await loadPostDetail(id)
   if (!post || !mkCan(auth.access, post.workspaceId, 'marketing.view')) return NextResponse.json({ error: 'No encontrada' }, { status: 404 })
-  if (post.status === 'partial' || post.status === 'failed') {
+  if (post.status === 'partial' || post.status === 'failed' || post.status === 'publishing') {
     await refreshPostStatus(id)
     post = (await loadPostDetail(id)) ?? post
   }

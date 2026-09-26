@@ -10,7 +10,7 @@ import { getAiSettings, hasTextProvider } from '@/lib/ai/settings'
 import type { MarketingChannel } from '@/lib/marketing/channel-rules'
 import { SITE_URL, slugify } from '@/lib/marketing/seo'
 import { sanitizeVariantInput, type VariantPatch } from '@/lib/marketing/input'
-import { PublishValidationError, cancelScheduled, schedulePost, validatePostForChannel, type Target } from '@/lib/marketing/publisher'
+import { PublishValidationError, cancelScheduled, refreshPostStatus, schedulePost, validatePostForChannel, type Target } from '@/lib/marketing/publisher'
 import { saveVariants, workspaceAccounts } from '@/lib/marketing/service'
 import { generateImages, getBrandKit, getImageSettings, importImage, providerReady, searchPexels } from '@/lib/marketing/images'
 import { servicePrompt } from '@/lib/marketing/images-core'
@@ -942,17 +942,34 @@ export async function runAgentCycle(agentId: string, deadline = Date.now() + 240
     const editorial = await getEditorialSettings(agent.workspaceId)
     if (editorial.required && reviewApplies(editorial, 'agent')) {
       const pending = await prisma.marketingPost.findMany({
-        where: { agentId: agent.id, status: { in: ['scheduled', 'approved'] }, OR: [{ reviewStatus: null }, { reviewStatus: { notIn: ['approved', 'overridden', 'pending'] } }] },
-        orderBy: { scheduledAt: 'asc' }, take: 2, select: { id: true, title: true },
+        where: {
+          agentId: agent.id,
+          // Queued, or partly out with channels still queued (e.g. the blog days after Instagram)
+          OR: [{ status: { in: ['scheduled', 'approved'] } }, { status: { in: ['partial', 'publishing'] }, publications: { some: { status: 'scheduled' }, none: { status: { in: ['publishing', 'processing'] } } } }],
+          AND: [{ OR: [{ reviewStatus: null }, { reviewStatus: { notIn: ['approved', 'overridden', 'pending'] } }] }],
+        },
+        orderBy: { scheduledAt: 'asc' }, take: 2, select: { id: true, title: true, status: true },
       })
       for (const p of pending) {
         if (timeLeft() < 150_000) break
         const r = await ensureAgentReview(agent, p.id, null, 'agent')
-        if (r.ok) { report.push(`revisión ${p.id}: aprobada`); continue }
+        if (r.ok) {
+          if (p.status === 'publishing') await refreshPostStatus(p.id)
+          report.push(`revisión ${p.id}: aprobada`)
+          continue
+        }
         // Changes asked: the agent applies them in a later step (below); a rejection or a failed review waits for a person
-        const willRewrite = r.status === 'changes'
+        // Partly out: rewriting would not change what is already live; only the queued channels stop
+        const partlyOut = p.status === 'partial' || p.status === 'publishing'
+        const willRewrite = r.status === 'changes' && !partlyOut
         const current = await prisma.marketingPost.findUnique({ where: { id: p.id }, select: { agentMeta: true } })
         await prisma.marketingPublication.updateMany({ where: { postId: p.id, status: 'scheduled' }, data: { status: 'cancelled', lastError: 'La revisión editorial no la aprobó' } })
+        if (partlyOut) {
+          await refreshPostStatus(p.id)
+          await notify(noticeTarget(agent), { type: 'editorial_review', title: `El editor frenó lo que faltaba de «${p.title}»`, body: `Lo ya publicado sigue igual; los canales pendientes no salen. ${r.message}`.slice(0, 900), url: postUrl(p.id), postId: p.id, dedupeKey: `edqueue:${p.id}:${bogota(now).key}` })
+          report.push(`revisión ${p.id}: pendientes frenados`)
+          continue
+        }
         await prisma.marketingPost.update({ where: { id: p.id }, data: { status: 'review', approvedAt: null, approvedById: null, scheduledAt: null, agentMeta: json({ ...((current?.agentMeta as object | null) ?? {}), editorPending: willRewrite }) } })
         await notify(noticeTarget(agent), { type: 'editorial_review', title: `El editor retuvo «${p.title}»`, body: `${r.message}${willRewrite ? ' El agente la reescribirá con esos pedidos y te la dejará para aprobar.' : ''}`.slice(0, 900), url: postUrl(p.id), postId: p.id, dedupeKey: `edqueue:${p.id}:${bogota(now).key}` })
         report.push(`revisión ${p.id}: retenida`)

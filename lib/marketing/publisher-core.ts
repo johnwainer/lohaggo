@@ -66,7 +66,9 @@ export function aggregatePostStatus(current: PostStatus, statuses: PublicationSt
   if (all('published')) return 'published'
   if (live.some((s) => s === 'publishing' || s === 'processing')) return 'publishing'
   if (live.every((s) => s === 'scheduled')) return 'scheduled'
-  if (live.some((s) => s === 'scheduled')) return 'publishing'
+  // Out on some channels, still queued on others (the agent gives each channel its own day): partly
+  // published, not «publishing», which would lock the editor for days
+  if (live.some((s) => s === 'scheduled')) return live.some((s) => s === 'published') ? 'partial' : 'publishing'
   if (all('failed')) return 'failed'
   return 'partial'
 }

@@ -11,6 +11,7 @@ import { defaultAgentConfig } from '@/lib/marketing/agent-input'
 import { brandName, catalogFor } from '@/lib/marketing/agent-data'
 import { getEditorialSettings, hashOf, loadReviewPost, reviewPass, saveReviewState, type PassResult, type ReviewEnv } from '@/lib/marketing/editorial'
 import { gateReason } from '@/lib/marketing/editorial-core'
+import { refreshPostStatus } from '@/lib/marketing/publisher'
 import { PASSING, type EditorialSettings, type ReviewStatus } from '@/lib/marketing/editorial-rubric'
 
 export class EditorialError extends Error {}
@@ -55,7 +56,7 @@ async function runPass(postId: string, s: EditorialSettings, trigger: Trigger, u
 export async function reviewNow(postId: string, userId: string | null) {
   const post = await prisma.marketingPost.findUnique({ where: { id: postId }, select: { workspaceId: true, status: true } })
   if (!post) throw new EditorialError('Publicación no encontrada')
-  if (['publishing', 'published', 'partial', 'archived'].includes(post.status)) throw new EditorialError('Ya salió o está archivada: no se revisa')
+  if (['publishing', 'published', 'archived'].includes(post.status)) throw new EditorialError('Ya salió o está archivada: no se revisa')
   const s = await getEditorialSettings(post.workspaceId)
   if (!s.spellingEnabled && !s.editorEnabled) throw new EditorialError('Los dos revisores están apagados en Ajustes → Revisión editorial')
   await prisma.marketingPost.update({ where: { id: postId }, data: { reviewStatus: 'pending' } })
@@ -64,6 +65,10 @@ export async function reviewNow(postId: string, userId: string | null) {
   if (pass.status !== 'approved' && s.required && ['approved', 'scheduled'].includes(post.status)) {
     await prisma.marketingPublication.updateMany({ where: { postId, status: 'scheduled' }, data: { status: 'cancelled', lastError: 'La revisión editorial no la aprobó' } })
     await prisma.marketingPost.update({ where: { id: postId }, data: { status: 'review', approvedAt: null, approvedById: null, scheduledAt: null } })
+  } else if (pass.status !== 'approved' && s.required && post.status === 'partial') {
+    // Partly out: what is live stays; the channels still queued stop
+    await prisma.marketingPublication.updateMany({ where: { postId, status: 'scheduled' }, data: { status: 'cancelled', lastError: 'La revisión editorial no la aprobó' } })
+    await refreshPostStatus(postId)
   }
   return pass
 }
@@ -76,7 +81,7 @@ export async function reviewNow(postId: string, userId: string | null) {
 export async function proofreadNow(postId: string, userId: string | null) {
   const before = await loadReviewPost(postId)
   if (!before) throw new EditorialError('Publicación no encontrada')
-  if (['publishing', 'published', 'partial', 'archived'].includes(before.status)) throw new EditorialError('Ya salió o está archivada: no se corrige')
+  if (['publishing', 'published', 'archived'].includes(before.status)) throw new EditorialError('Ya salió o está archivada: no se corrige')
   const s = await getEditorialSettings(before.workspaceId)
   const wasCurrent = PASSING.includes(before.reviewStatus as ReviewStatus) && before.reviewHash === hashOf(before)
   const pass = await runPass(postId, s, 'manual', userId, { spellingOnly: true })
