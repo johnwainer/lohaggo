@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import {
-  AlertTriangle, ArrowDownRight, ArrowUpRight, Bot, CalendarCheck, CheckCircle2, CreditCard, Inbox, Loader2, Maximize2, Megaphone,
+  AlertTriangle, ArrowDownRight, ArrowUpRight, Bot, CalendarCheck, CheckCircle2, ChevronDown, CreditCard, Inbox, Loader2, Maximize2, Megaphone,
   MessageSquare, Minimize2, Newspaper, RefreshCw, Send, ShieldAlert, Sparkles, Star, UserPlus, Users, Wallet,
 } from 'lucide-react'
 import { ChannelIcon, channelLabel } from '@/components/admin/ChannelIcon'
@@ -119,6 +119,8 @@ export default function CommandCenter() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [tv, setTv] = useState(false)
+  // Phone: the alerts fold into one line until tapped
+  const [alertsOpen, setAlertsOpen] = useState(false)
   const [now, setNow] = useState(() => Date.now())
   const rootRef = useRef<HTMLDivElement>(null)
   const wakeLock = useRef<{ release: () => Promise<void> } | null>(null)
@@ -209,18 +211,27 @@ export default function CommandCenter() {
   const replies = d.inbox.today.ai + (d.inbox.today.outbound - d.inbox.today.ai)
   const aiShare = replies ? Math.round((d.inbox.today.ai / replies) * 100) : 0
 
+  const liveText = error ? `Sin conexión: ${error}` : `En vivo · actualizado ${age !== null && age < 5 ? 'ahora' : `hace ${age} s`}`
   const header = (
-    <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className={`flex items-start justify-between gap-3 ${tv ? 'items-center' : 'sm:items-center'}`}>
       <div className="min-w-0">
         <h1 className={`${t.h1} font-bold tracking-tight ${t.text}`}>Centro de control</h1>
         <p className={`text-sm capitalize ${t.muted}`}>{today}</p>
+        {/* Phone: the clock and live state in one small line under the date */}
+        {!tv && (
+          <p className={`mt-1 flex items-center gap-1.5 text-xs sm:hidden ${stale || error ? 'text-rose-500' : t.muted}`}>
+            <span className={`h-2 w-2 shrink-0 rounded-full ${stale || error ? 'bg-rose-500' : 'animate-pulse bg-emerald-500'}`} />
+            <span className={`font-semibold tabular-nums ${t.text}`}>{clock}</span>
+            <span className="truncate">· {error ? 'sin conexión' : 'en vivo'}</span>
+          </p>
+        )}
       </div>
-      <div className="flex items-center gap-3">
-        <div className="text-right">
+      <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+        <div className={`text-right ${tv ? '' : 'hidden sm:block'}`}>
           <p className={`font-bold tabular-nums ${tv ? 'text-4xl' : 'text-2xl'} ${t.text}`}>{clock}</p>
           <p className={`flex items-center justify-end gap-1.5 text-xs ${stale || error ? 'text-rose-500' : t.muted}`}>
             <span className={`h-2 w-2 rounded-full ${stale || error ? 'bg-rose-500' : 'animate-pulse bg-emerald-500'}`} />
-            {error ? `Sin conexión: ${error}` : `En vivo · actualizado ${age !== null && age < 5 ? 'ahora' : `hace ${age} s`}`}
+            {liveText}
           </p>
         </div>
         {!tv && (
@@ -228,23 +239,37 @@ export default function CommandCenter() {
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
           </button>
         )}
-        <button onClick={toggleTv} className={`inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold ${tv ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-gray-900 text-white hover:bg-gray-800'}`}>
-          {tv ? <><Minimize2 size={px(16)} /> Salir</> : <><Maximize2 size={16} /> Modo TV</>}
+        <button onClick={toggleTv} aria-label={tv ? 'Salir del modo TV' : 'Modo TV'} title={tv ? 'Salir del modo TV' : 'Modo TV'} className={`inline-flex items-center gap-2 whitespace-nowrap rounded-full text-sm font-semibold ${tv ? 'bg-white/10 px-4 py-2.5 text-white hover:bg-white/20' : 'bg-gray-900 p-2.5 text-white hover:bg-gray-800 sm:px-4'}`}>
+          {tv ? <><Minimize2 size={px(16)} /> Salir</> : <><Maximize2 size={16} /> <span className="hidden sm:inline">Modo TV</span></>}
         </button>
       </div>
     </div>
   )
 
+  const critical = d.alerts.filter((a) => a.level === 'critical').length
   const alerts = d.alerts.length ? (
-    <div className={`flex gap-2 ${tv ? 'flex-nowrap overflow-hidden' : 'flex-wrap'}`}>
+    <div className="space-y-2">
+    {!tv && (
+      <button
+        onClick={() => setAlertsOpen((o) => !o)}
+        aria-expanded={alertsOpen}
+        className={`flex w-full items-center gap-2 rounded-2xl border px-3 py-2.5 text-left text-sm font-semibold sm:hidden ${critical ? 'border-rose-500/40 bg-rose-500/10 text-rose-600' : 'border-amber-500/40 bg-amber-500/10 text-amber-700'}`}
+      >
+        <AlertTriangle size={16} className="shrink-0" />
+        <span className="flex-1">{d.alerts.length === 1 ? '1 cosa requiere atención' : `${d.alerts.length} cosas requieren atención`}</span>
+        <ChevronDown size={16} className={`shrink-0 transition ${alertsOpen ? 'rotate-180' : ''}`} />
+      </button>
+    )}
+    <div className={`flex gap-2 ${tv ? 'flex-nowrap overflow-hidden' : `${alertsOpen ? 'flex' : 'hidden'} flex-col sm:flex sm:flex-row sm:flex-wrap`}`}>
       {d.alerts.map((a) => {
         const cls = a.level === 'critical' ? 'border-rose-500/40 bg-rose-500/10' : 'border-amber-500/40 bg-amber-500/10'
         const color = tv ? (a.level === 'critical' ? 'text-rose-300' : 'text-amber-300') : a.level === 'critical' ? 'text-rose-600' : 'text-amber-600'
         const inner = <><AlertTriangle size={px(14)} className="shrink-0" />{a.text}</>
         return tv
           ? <span key={a.text} className={`inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-4 py-1.5 text-base font-semibold ${cls} ${color}`}>{inner}</span>
-          : <Link key={a.text} href={a.href} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold hover:opacity-80 ${cls} ${color}`}>{inner}</Link>
+          : <Link key={a.text} href={a.href} className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold hover:opacity-80 sm:rounded-full sm:py-1.5 ${cls} ${color}`}>{inner}</Link>
       })}
+    </div>
     </div>
   ) : (
     <p className={`inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 font-semibold ${tv ? 'text-base text-emerald-300' : 'text-xs text-emerald-600'}`}><CheckCircle2 size={px(14)} /> Todo en orden: nada requiere atención ahora</p>
@@ -441,10 +466,11 @@ export default function CommandCenter() {
       )}
       {hg.findings.length > 0 && (
         <div className={`basis-full min-w-0 flex gap-1.5 ${tv ? 'flex-nowrap overflow-hidden' : 'flex-wrap'}`}>
-          {(tv ? hg.findings.slice(0, 3) : hg.findings).map((f) => {
-            const cls = `min-w-0 truncate rounded-full border px-2.5 py-1 ${tv ? 'text-sm' : 'text-xs'} ${f.severity === 'critical' ? (tv ? 'border-rose-500/40 text-rose-300' : 'border-rose-200 text-rose-600') : f.severity === 'warning' ? (tv ? 'border-amber-500/40 text-amber-300' : 'border-amber-200 text-amber-700') : (tv ? 'border-white/15 text-slate-300' : 'border-gray-200 text-gray-600')} max-w-full sm:max-w-[22rem]`
+          {(tv ? hg.findings.slice(0, 3) : hg.findings).map((f, i) => {
+            const cls = `${!tv && i >= 2 ? 'hidden sm:block' : ''} min-w-0 truncate rounded-full border px-2.5 py-1 ${tv ? 'text-sm' : 'text-xs'} ${f.severity === 'critical' ? (tv ? 'border-rose-500/40 text-rose-300' : 'border-rose-200 text-rose-600') : f.severity === 'warning' ? (tv ? 'border-amber-500/40 text-amber-300' : 'border-amber-200 text-amber-700') : (tv ? 'border-white/15 text-slate-300' : 'border-gray-200 text-gray-600')} max-w-full sm:max-w-[22rem]`
             return tv ? <span key={f.id} className={cls}>{f.title}</span> : <Link key={f.id} href="/admin/haggo" className={cls}>{f.title}</Link>
           })}
+          {!tv && hg.findings.length > 2 && <Link href="/admin/haggo" className="rounded-full border border-gray-200 px-2.5 py-1 text-xs text-gray-600 sm:hidden">+{hg.findings.length - 2} más</Link>}
         </div>
       )}
     </section>
