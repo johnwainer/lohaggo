@@ -17,7 +17,7 @@ interface Payment {
     service: {
       name: string
     }
-    scheduledFor: string
+    scheduledDate: string
     user: {
       name: string
       email: string
@@ -155,7 +155,7 @@ export default function PaymentsSection() {
               <p className="text-sm font-medium text-gray-600">Total Pagos</p>
               <p className="text-2xl font-bold text-gray-900 mt-2">{stats.total}</p>
             </div>
-            <div className="hidden shrink-0 bg-blue-100 p-3 rounded-lg sm:block">
+            <div className="hidden shrink-0 bg-blue-100 p-3 rounded-lg sm:block lg:hidden 2xl:block">
               <DollarSign className="w-6 h-6 text-blue-600" />
             </div>
           </div>
@@ -168,7 +168,7 @@ export default function PaymentsSection() {
               <p className="text-2xl font-bold text-yellow-600 mt-2">{stats.pending}</p>
               <p className="text-xs text-gray-500 mt-1">{formatCurrency(stats.totalPending)}</p>
             </div>
-            <div className="hidden shrink-0 bg-yellow-100 p-3 rounded-lg sm:block">
+            <div className="hidden shrink-0 bg-yellow-100 p-3 rounded-lg sm:block lg:hidden 2xl:block">
               <Clock className="w-6 h-6 text-yellow-600" />
             </div>
           </div>
@@ -181,7 +181,7 @@ export default function PaymentsSection() {
               <p className="text-2xl font-bold text-green-600 mt-2">{stats.approved}</p>
               <p className="text-xs text-gray-500 mt-1">{formatCurrency(stats.totalApproved)}</p>
             </div>
-            <div className="hidden shrink-0 bg-green-100 p-3 rounded-lg sm:block">
+            <div className="hidden shrink-0 bg-green-100 p-3 rounded-lg sm:block lg:hidden 2xl:block">
               <CheckCircle className="w-6 h-6 text-green-600" />
             </div>
           </div>
@@ -191,9 +191,9 @@ export default function PaymentsSection() {
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="text-sm font-medium text-gray-600">Comisión por Clientes</p>
-              <p className="break-words text-xl sm:text-2xl font-bold text-purple-600 mt-2">{formatCurrency(stats.totalClientCommission)}</p>
+              <p className="whitespace-nowrap text-xl sm:text-2xl font-bold text-purple-600 mt-2">{formatCurrency(stats.totalClientCommission)}</p>
             </div>
-            <div className="hidden shrink-0 bg-purple-100 p-3 rounded-lg sm:block">
+            <div className="hidden shrink-0 bg-purple-100 p-3 rounded-lg sm:block lg:hidden 2xl:block">
               <TrendingUp className="w-6 h-6 text-purple-600" />
             </div>
           </div>
@@ -203,9 +203,9 @@ export default function PaymentsSection() {
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="text-sm font-medium text-gray-600">Comisión por Socios</p>
-              <p className="break-words text-xl sm:text-2xl font-bold text-primary-600 mt-2">{formatCurrency(stats.totalPartnerCommission)}</p>
+              <p className="whitespace-nowrap text-xl sm:text-2xl font-bold text-primary-600 mt-2">{formatCurrency(stats.totalPartnerCommission)}</p>
             </div>
-            <div className="hidden shrink-0 bg-primary-100 p-3 rounded-lg sm:block">
+            <div className="hidden shrink-0 bg-primary-100 p-3 rounded-lg sm:block lg:hidden 2xl:block">
               <TrendingUp className="w-6 h-6 text-primary-600" />
             </div>
           </div>
@@ -215,10 +215,10 @@ export default function PaymentsSection() {
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="text-sm font-medium text-gray-600">Ganancia Total</p>
-              <p className="break-words text-xl sm:text-2xl font-bold text-primary-600 mt-2">{formatCurrency(stats.totalAppRevenue)}</p>
+              <p className="whitespace-nowrap text-xl sm:text-2xl font-bold text-primary-600 mt-2">{formatCurrency(stats.totalAppRevenue)}</p>
               <p className="text-xs text-gray-500 mt-1">Clientes + Socios</p>
             </div>
-            <div className="hidden shrink-0 bg-red-100 p-3 rounded-lg sm:block">
+            <div className="hidden shrink-0 bg-red-100 p-3 rounded-lg sm:block lg:hidden 2xl:block">
               <DollarSign className="w-6 h-6 text-primary-600" />
             </div>
           </div>
@@ -408,7 +408,7 @@ export default function PaymentsSection() {
                           {payment.booking.service.name}
                         </div>
                         <div className="text-sm text-gray-500">
-                          {formatDate(payment.booking.scheduledFor)}
+                          {formatDate(payment.booking.scheduledDate)}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
