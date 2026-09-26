@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { AlertTriangle, ArrowLeft, Bot, Check, CheckCircle2, Clock, Lightbulb, Loader2, Pause, Pencil, Play, RefreshCw, Settings, Sparkles, X, XCircle } from 'lucide-react'
-import { CHANNEL_NAME, MkChannelIcon, OBJECTIVES, StatusChip, api, fmtDate, fmtDateTime, input, num } from '@/components/admin/marketing/shared'
+import { CHANNEL_NAME, MkChannelIcon, OBJECTIVES, ReviewChip, StatusChip, api, fmtDate, fmtDateTime, input, num } from '@/components/admin/marketing/shared'
 import { DIMENSIONS, DIMENSION_LABEL } from '@/lib/marketing/agent-core'
 import { AGENT_STATUS, MODE_INFO, RUN_TYPE, type AgentDetailData, type AgentPost, type Idea } from '@/components/admin/marketing/agent/types'
 
@@ -32,6 +32,7 @@ function PostCard({ post, children }: { post: AgentPost; children?: React.ReactN
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <StatusChip status={post.status} />
+            <ReviewChip status={post.reviewStatus} score={post.reviewScore} />
             {post.pillar && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600">{post.pillar}</span>}
             {meta.confidence != null && <span className={`text-[11px] ${meta.confidence < 0.7 ? 'text-amber-700' : 'text-gray-500'}`}>Confianza {Math.round(meta.confidence * 100)} %</span>}
           </div>

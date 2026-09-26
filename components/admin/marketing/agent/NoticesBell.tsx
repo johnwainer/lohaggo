@@ -7,7 +7,7 @@ import { api, fmtDateTime } from '@/components/admin/marketing/shared'
 
 type Notice = { id: string; type: string; title: string; body: string | null; url: string | null; readAt: string | null; createdAt: string; agentId: string }
 
-const DOT: Record<string, string> = { approval_needed: 'bg-amber-500', opt_out_window: 'bg-violet-500', failed: 'bg-red-500', budget: 'bg-orange-500', degraded: 'bg-orange-500', published: 'bg-emerald-500', learning: 'bg-sky-500', ideas: 'bg-primary-500' }
+const DOT: Record<string, string> = { approval_needed: 'bg-amber-500', opt_out_window: 'bg-violet-500', failed: 'bg-red-500', budget: 'bg-orange-500', degraded: 'bg-orange-500', published: 'bg-emerald-500', learning: 'bg-sky-500', ideas: 'bg-primary-500', editorial_review: 'bg-amber-600' }
 
 /** The marketing agents' notices: unread count on the bell, list on click (opening marks them read). */
 export default function NoticesBell({ workspaceId, onOpenAgent }: { workspaceId: string; onOpenAgent: (agentId: string) => void }) {

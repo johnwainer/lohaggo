@@ -8,8 +8,12 @@ import { canEditPost, type PostStatus } from '@/lib/marketing/publisher-core'
 import { refreshPostStatus } from '@/lib/marketing/publisher'
 import { revalidateLiveArticle } from '@/lib/marketing/blog'
 import { scheduleApproved } from '@/lib/marketing/agent'
+import { markStaleIfChanged, reviewsOf } from '@/lib/marketing/editorial'
+import { ensureReviewed } from '@/lib/marketing/editorial-ops'
 
 export const dynamic = 'force-dynamic'
+/** Approving may run the editorial review (proofreader + editor) before scheduling */
+export const maxDuration = 180
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -23,14 +27,15 @@ export async function GET(_request: NextRequest, context: Ctx) {
     await refreshPostStatus(id)
     post = (await loadPostDetail(id)) ?? post
   }
-  const [campaigns, accounts, idea, agent] = await Promise.all([
+  const [campaigns, accounts, idea, agent, reviews] = await Promise.all([
     prisma.marketingCampaign.findMany({ where: { workspaceId: post.workspaceId, status: { not: 'done' } }, select: { id: true, name: true, color: true }, orderBy: { createdAt: 'desc' } }),
     workspaceAccounts(post.workspaceId),
     post.ideaId ? prisma.marketingIdea.findUnique({ where: { id: post.ideaId }, select: { pillar: true, service: true, angle: true, hypothesis: true, rationale: true, explore: true } }) : null,
     post.agentId ? prisma.marketingAgent.findUnique({ where: { id: post.agentId }, select: { id: true, mode: true, status: true } }) : null,
+    reviewsOf(id).catch(() => []),
   ])
   return NextResponse.json({
-    post, campaigns, accounts, idea, agent,
+    post, campaigns, accounts, idea, agent, reviews,
     permissions: { edit: mkCan(auth.access, post.workspaceId, 'marketing.edit'), publish: mkCan(auth.access, post.workspaceId, 'marketing.publish') },
   })
 }
@@ -45,6 +50,7 @@ export async function PATCH(request: NextRequest, context: Ctx) {
   if (!mkCan(auth.access, existing.workspaceId, 'marketing.edit')) return forbidden()
   if (!canEditPost(existing.status as PostStatus)) return NextResponse.json({ error: 'No se puede editar mientras se publica' }, { status: 409 })
   const body = await request.json().catch(() => ({}))
+  let warning: string | null = null
   try {
     const data = sanitizePostInput(body)
     if (typeof data.campaignId === 'string') {
@@ -63,16 +69,27 @@ export async function PATCH(request: NextRequest, context: Ctx) {
     if (Object.keys(data).length) await prisma.marketingPost.update({ where: { id }, data })
     if (variants.length) await saveVariants(id, variants)
     if (contentChanged && !data.status) await reopenReviewIfNeeded(id, mkCan(auth.access, existing.workspaceId, 'marketing.publish'))
+    if (contentChanged) await markStaleIfChanged(id)
     if (data.status === 'archived') await refreshPostStatus(id)
     // A live article shows the edit right away (and the sitemap its new date)
     if (contentChanged) await revalidateLiveArticle(id)
     // An agent post approved here gets its time from the agent right away
-    if (data.status === 'approved' && existing.origin === 'agent') await scheduleApproved(id)
+    if (data.status === 'approved' && existing.origin === 'agent') {
+      const r = await scheduleApproved(id, auth.admin.id)
+      if (r && !r.ok) warning = r.message
+    } else if (data.status === 'approved') {
+      // A person's post in the review's scope: approving runs the review if it does not cover these texts
+      const r = await ensureReviewed(id, auth.admin.id)
+      if (!r.ok) {
+        await prisma.marketingPost.update({ where: { id }, data: { status: 'review', approvedById: null, approvedAt: null } })
+        warning = r.message
+      }
+    }
     await auditAdminAction({ actorId: auth.admin.id, actorEmail: auth.admin.email, action: 'MARKETING_POST_UPDATE', entityType: 'MarketingPost', entityId: id, details: JSON.stringify({ fields: Object.keys(data), variants: variants.length, status: data.status ?? null }).slice(0, 500), request })
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Datos inválidos' }, { status: 400 })
   }
-  return NextResponse.json({ post: await loadPostDetail(id) })
+  return NextResponse.json({ post: await loadPostDetail(id), reviews: await reviewsOf(id).catch(() => []), warning })
 }
 
 export async function DELETE(request: NextRequest, context: Ctx) {

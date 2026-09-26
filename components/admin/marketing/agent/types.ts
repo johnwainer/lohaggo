@@ -67,6 +67,8 @@ export type AgentPost = {
   rejectedReason: string | null
   ideaId: string | null
   updatedAt: string
+  reviewStatus?: string | null
+  reviewScore?: number | null
   variants: Array<{ channel: MkChannel; body: string; format: string | null; seoTitle: string | null }>
   media: Array<{ url: string; kind: string }>
   publications: Array<{ channel: MkChannel; status: string; scheduledAt: string; publishedAt: string | null; permalink: string | null; connection: { name: string } | null }>
@@ -109,4 +111,4 @@ export const AGENT_STATUS = {
   finished: { label: 'Terminado', cls: 'bg-gray-100 text-gray-500' },
 } as const
 
-export const RUN_TYPE: Record<string, string> = { strategy: 'Estrategia', plan: 'Planificación', draft: 'Redacción', schedule: 'Programación', learn: 'Aprendizaje', notice: 'Aviso' }
+export const RUN_TYPE: Record<string, string> = { strategy: 'Estrategia', plan: 'Planificación', draft: 'Redacción', schedule: 'Programación', learn: 'Aprendizaje', notice: 'Aviso', review: 'Revisión editorial' }

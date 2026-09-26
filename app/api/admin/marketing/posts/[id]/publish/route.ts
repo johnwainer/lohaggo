@@ -6,9 +6,10 @@ import { PublishValidationError, cancelScheduled, publishNow, schedulePost, type
 import { canSchedule } from '@/lib/marketing/publisher-core'
 import { loadPostDetail } from '@/lib/marketing/service'
 import { unpublishArticle } from '@/lib/marketing/blog'
+import { ensureReviewed } from '@/lib/marketing/editorial-ops'
 
 export const dynamic = 'force-dynamic'
-export const maxDuration = 120
+export const maxDuration = 240
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -30,6 +31,12 @@ export async function POST(request: NextRequest, context: Ctx) {
         .filter((t: Record<string, unknown>) => t && (t.channel === 'WEB' || t.channel === 'FACEBOOK' || t.channel === 'INSTAGRAM'))
         .map((t: Record<string, unknown>) => ({ channel: t.channel, connectionId: t.channel === 'WEB' ? null : typeof t.connectionId === 'string' ? t.connectionId : null }))
     : []
+
+  // Publishing or scheduling needs the mandatory editorial review to cover these exact texts (it runs now if it has to)
+  if (mode === 'now' || mode === 'schedule') {
+    const reviewed = await ensureReviewed(id, auth.admin.id)
+    if (!reviewed.ok) return NextResponse.json({ error: 'Hay problemas que impiden publicar', issues: [{ channel: 'Revisión editorial', message: reviewed.message }] }, { status: 422 })
+  }
 
   try {
     if (mode === 'cancel') await cancelScheduled(id)

@@ -5,6 +5,7 @@ import { marketingAuth, mkCan } from '@/lib/marketing/permissions'
 import { loadPostDetail, mediaFolder, reopenReviewIfNeeded } from '@/lib/marketing/service'
 import { validateUploadedMedia } from '@/lib/marketing/input'
 import { ImageError, setMediaBranding } from '@/lib/marketing/images'
+import { markStaleIfChanged } from '@/lib/marketing/editorial'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -40,6 +41,7 @@ export async function POST(request: NextRequest, context: Ctx) {
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Archivo inválido' }, { status: 400 })
   }
+  await markStaleIfChanged(id)
   return NextResponse.json({ post: await loadPostDetail(id) })
 }
 
@@ -64,6 +66,7 @@ export async function PATCH(request: NextRequest, context: Ctx) {
   }
   if (typeof body.mediaId === 'string' && typeof body.alt === 'string') {
     await prisma.marketingMedia.updateMany({ where: { id: body.mediaId, postId: id }, data: { alt: body.alt.trim().slice(0, 200) || null } })
+    await markStaleIfChanged(id)
   }
   return NextResponse.json({ post: await loadPostDetail(id) })
 }
@@ -82,5 +85,6 @@ export async function DELETE(request: NextRequest, context: Ctx) {
   // The Cloudinary file is only removed if nothing ever went out or is queued with it
   const used = await prisma.marketingPublication.count({ where: { postId: id, status: { not: 'cancelled' } } })
   if (!used && media.publicId && media.kind === 'image') await cloudinaryService.delete(media.publicId).catch(() => null)
+  await markStaleIfChanged(id)
   return NextResponse.json({ post: await loadPostDetail(id) })
 }

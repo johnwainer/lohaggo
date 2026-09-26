@@ -102,7 +102,9 @@ const approve: HaggoActionDef<{ postId: string }> = {
   },
   execute: async (p, ctx) => {
     const r = await approvePost(p.postId, ctx.approverId)
-    return { after: { status: 'approved' }, result: r ? (r.ok ? `Aprobada y programada: ${r.message}` : `Aprobada, pero no se pudo programar: ${r.message}`) : 'Aprobada' }
+    // The editorial review may hold it: then it is back in review, and that is what gets recorded
+    const now = await prisma.marketingPost.findUnique({ where: { id: p.postId }, select: { status: true } })
+    return { after: { status: now?.status ?? 'approved' }, result: r ? (r.ok ? `Aprobada y programada: ${r.message}` : now?.status === 'review' ? `No quedó aprobada: ${r.message}` : `Aprobada, pero no se pudo programar: ${r.message}`) : 'Aprobada' }
   },
   unchanged: async (p) => {
     const post = await prisma.marketingPost.findUnique({ where: { id: p.postId }, select: { status: true } })
@@ -140,7 +142,10 @@ const cancel: HaggoActionDef<{ postId: string }> = {
     return { after: { status: 'approved' }, result: 'Fuera de la cola' }
   },
   unchanged: async (p) => (await prisma.marketingPost.findUnique({ where: { id: p.postId }, select: { status: true } }))?.status === 'approved',
-  undo: async (p) => { await scheduleApproved(p.postId) },
+  undo: async (p) => {
+    const r = await scheduleApproved(p.postId)
+    if (r && !r.ok) throw new Error(`No se pudo volver a programar: ${r.message}`)
+  },
 }
 
 const pause: HaggoActionDef<{ agentId: string }> = {
@@ -172,7 +177,12 @@ const pause: HaggoActionDef<{ agentId: string }> = {
   unchanged: async (p) => (await prisma.marketingAgent.findUnique({ where: { id: p.agentId }, select: { status: true } }))?.status === 'paused',
   undo: async (p, before) => {
     await activateAgent(p.agentId)
-    for (const id of (before as { queued: string[] }).queued) await scheduleApproved(id).catch(() => null)
+    const failed: string[] = []
+    for (const id of (before as { queued: string[] }).queued) {
+      const r = await scheduleApproved(id).catch((err: unknown) => ({ ok: false as const, message: err instanceof Error ? err.message : 'error' }))
+      if (r && !r.ok) failed.push(r.message)
+    }
+    if (failed.length) throw new Error(`El agente volvió a trabajar, pero ${failed.length} publicación(es) no se reprogramaron: ${failed[0]}`)
   },
 }
 

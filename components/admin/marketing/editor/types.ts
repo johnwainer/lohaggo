@@ -60,8 +60,31 @@ export type Post = {
   agentId?: string | null
   pillar?: string | null
   optOutDeadline?: string | null
+  reviewStatus?: string | null
+  reviewScore?: number | null
+  reviewRounds?: number
+  reviewedAt?: string | null
   agentMeta?: {
     confidence?: number; risks?: string[]; hypothesis?: string | null; rationale?: string | null; service?: string | null
     guardrails?: Array<{ message: string; severity: string }>; validation?: string[]; slots?: Array<{ channel: MkChannel; reason: string }>; scheduleProblems?: string[]
   } | null
+}
+
+/** One reviewer's pass (MarketingReview) as the editor shows it. */
+export type ReviewRow = {
+  id: string
+  round: number
+  reviewer: 'spelling' | 'editor'
+  verdict: string
+  score: number | null
+  scores: Array<{ id: string; score: number; comment: string }> | null
+  changes: Array<{ field: string; channel: MkChannel | null; original: string; corrected: string; reason: string }> | null
+  rejected: Array<{ field: string; original: string; corrected: string; why: string }> | null
+  instructions: Array<{ channel: MkChannel | null; field: string; change: string; reason: string }> | null
+  summary: string | null
+  trigger: string
+  costUsd: number
+  model: string | null
+  error: string | null
+  createdAt: string
 }

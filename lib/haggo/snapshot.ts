@@ -13,7 +13,7 @@ export async function takeSnapshot(now = new Date()): Promise<Snapshot> {
   const today = bogotaDayStart(now)
   const day = new Date(now.getTime() - 24 * 3600_000)
   const week = new Date(now.getTime() - 7 * 24 * 3600_000)
-  const [extra, sys, o, handoffs, gaps, criticalIncidents, capped] = await Promise.all([
+  const [extra, sys, o, handoffs, gaps, criticalIncidents, capped, editorial] = await Promise.all([
     Promise.all([
       prisma.payment.count({ where: { status: 'REJECTED', updatedAt: { gte: day } } }),
       prisma.payment.count({ where: { status: 'PENDING', createdAt: { lt: day } } }),
@@ -35,6 +35,13 @@ export async function takeSnapshot(now = new Date()): Promise<Snapshot> {
     prisma.aiKnowledgeGap.groupBy({ by: ['agentId'], where: { status: 'open', agentId: { not: null } }, _count: { _all: true } }),
     prisma.adminIncident.count({ where: { status: { in: ['OPEN', 'ACKNOWLEDGED'] }, severity: 'CRITICAL' } }),
     prisma.workspace.findMany({ where: { OR: [{ aiMonthlyCostCapUsd: { not: null } }, { aiMonthlyCallCap: { not: null } }] }, select: { id: true, name: true, aiMonthlyCostCapUsd: true, aiMonthlyCallCap: true } }),
+    // Editorial review: pieces held by the editor (or whose review could not run) and the editor's week
+    Promise.all([
+      prisma.marketingPost.count({ where: { reviewStatus: { in: ['changes', 'rejected', 'failed'] }, status: { in: ['draft', 'review', 'approved'] } } }),
+      prisma.marketingReview.count({ where: { reviewer: 'editor', createdAt: { gte: week }, verdict: { not: 'error' } } }),
+      prisma.marketingReview.count({ where: { reviewer: 'editor', createdAt: { gte: week }, verdict: { in: ['changes', 'rejected'] } } }),
+      prisma.marketingReview.count({ where: { createdAt: { gte: week }, verdict: 'error' } }),
+    ]).catch(() => [0, 0, 0, 0]),
   ])
   const budgets = await Promise.all(capped.map(async (w) => ({ workspace: w.name, pct: evaluateBudget(await workspaceUsage(w.id), { costCapUsd: w.aiMonthlyCostCapUsd, callCap: w.aiMonthlyCallCap }).pct })))
   const [rejected24h, pendingOld, refundsOpen, low7d, total24h, zero24h, sent24h, failed24h, events24h, high24h, blockedIps, runErrors24h, pendingVerification] = extra
@@ -65,6 +72,7 @@ export async function takeSnapshot(now = new Date()): Promise<Snapshot> {
     marketing: {
       inReview: o.marketing.inReview, failedWeek: o.marketing.failedWeek, runErrors24h, scheduledToday: o.marketing.scheduledToday, ideasPending: o.marketing.ideasPending,
       degraded: o.marketing.agents.filter((a) => a.degraded).map((a) => ({ id: a.id, campaign: a.campaign, reason: a.degraded! })),
+      editorial: { held: editorial[0], reviewedWeek: editorial[1], notApprovedWeek: editorial[2], failedWeek: editorial[3] },
     },
     quality: { rating: o.quality.rating, casesOpen: o.quality.casesOpen, casesSla: o.quality.casesSla },
     channels: { problems: o.channels.problems.map((c) => c.name) },

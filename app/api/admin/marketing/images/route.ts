@@ -6,6 +6,7 @@ import { ORIENTATIONS, clampCount, isPexelsImageUrl, type Orientation } from '@/
 import { ImageError, generateImages, importImage, searchPexels, serviceSuggestions } from '@/lib/marketing/images'
 import { CopywritingError } from '@/lib/marketing/copilot'
 import { loadPostDetail, mediaFolder, reopenReviewIfNeeded } from '@/lib/marketing/service'
+import { markStaleIfChanged } from '@/lib/marketing/editorial'
 
 export const maxDuration = 180
 
@@ -67,6 +68,7 @@ export async function POST(request: NextRequest) {
         candidate: { source, url, publicId: c.publicId ?? null, width: c.width ?? null, height: c.height ?? null, bytes: c.bytes ?? null, alt: typeof b.alt === 'string' ? b.alt : c.alt, credit: c.credit, creditUrl: c.creditUrl },
       })
       await reopenReviewIfNeeded(post.id, mkCan(auth.access, post.workspaceId, 'marketing.publish'))
+      await markStaleIfChanged(post.id)
       return NextResponse.json({ post: await loadPostDetail(post.id) })
     }
   } catch (err) {

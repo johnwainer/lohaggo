@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Loader2, Plus } from 'lucide-react'
 import { MkChannelIcon, POST_STATUS, api, type MkChannel } from '@/components/admin/marketing/shared'
 import { NewPostModal } from '@/components/admin/marketing/PostsTab'
 import type { Campaign } from '@/components/admin/marketing/CampaignsTab'
+import { formatScore, reviewBadge } from '@/lib/marketing/editorial-rubric'
 
 type Item = {
   id: string
@@ -16,6 +17,8 @@ type Item = {
   variants: Array<{ channel: MkChannel }>
   publications: Array<{ channel: MkChannel; status: string; connection: { name: string } | null }>
   origin?: string
+  reviewStatus?: string | null
+  reviewScore?: number | null
   slots?: Array<{ channel: MkChannel; reason: string }>
 }
 type IdeaItem = { id: string; angle: string; pillar: string; channels: MkChannel[]; targetDate: string; status: string; agentId: string; agent: { campaign: { color: string; name: string } } }
@@ -129,7 +132,7 @@ export default function CalendarTab({ workspaceId, campaigns, workspace, canEdit
         onDragEnd={() => setDragId(null)}
         className={`block rounded-lg border-l-4 bg-white px-1.5 py-1 text-[11px] shadow-sm hover:shadow ${locked ? 'opacity-90' : 'cursor-grab'} ${it.status === 'failed' ? 'ring-1 ring-red-300' : ''}`}
         style={{ borderLeftColor: it.campaign?.color || '#CBD5E1' }}
-        title={`${it.title} · ${POST_STATUS[it.status]?.label || it.status}${it.campaign ? ` · ${it.campaign.name}` : ''}${it.slots?.length ? `\n${it.slots.map((s) => s.reason).join('\n')}` : ''}`}
+        title={`${it.title} · ${POST_STATUS[it.status]?.label || it.status}${reviewBadge(it.reviewStatus, it.reviewScore) ? ` · ${reviewBadge(it.reviewStatus, it.reviewScore)!.label}` : ''}${it.campaign ? ` · ${it.campaign.name}` : ''}${it.slots?.length ? `\n${it.slots.map((s) => s.reason).join('\n')}` : ''}`}
       >
         <span className="flex items-center gap-1">
           <span className="text-gray-500 tabular-nums">{timeOf(new Date(it.at))}</span>
@@ -137,6 +140,8 @@ export default function CalendarTab({ workspaceId, campaigns, workspace, canEdit
           {it.status === 'published' && <span className="text-emerald-600">✓</span>}
           {it.status === 'failed' && <span className="text-red-600">!</span>}
           {it.origin === 'agent' && <span title="Creada por el agente">🤖</span>}
+          {it.reviewStatus && !['approved', 'overridden'].includes(it.reviewStatus) && !['published', 'partial'].includes(it.status) && <span className="text-amber-600" title={reviewBadge(it.reviewStatus, it.reviewScore)?.label}>✎</span>}
+          {it.reviewStatus === 'approved' && it.reviewScore != null && !['published', 'partial'].includes(it.status) && <span className="text-emerald-700 tabular-nums" title="Revisada por el editor">{formatScore(it.reviewScore)}</span>}
         </span>
         <span className="block truncate font-medium text-gray-800">{it.title}</span>
       </Link>

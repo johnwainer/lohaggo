@@ -5,15 +5,16 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { AlertCircle, ArrowLeft, CheckCircle2, Loader2, Plus, Trash2, X } from 'lucide-react'
 import { validateVariant } from '@/lib/marketing/channel-rules'
-import { CHANNEL_NAME, MK_CHANNELS, MkChannelIcon, StatusChip, api, type Account, type MkChannel } from '@/components/admin/marketing/shared'
+import { CHANNEL_NAME, MK_CHANNELS, MkChannelIcon, ReviewChip, StatusChip, api, type Account, type MkChannel } from '@/components/admin/marketing/shared'
 import ChannelEditor from '@/components/admin/marketing/editor/ChannelEditor'
 import MediaManager from '@/components/admin/marketing/editor/MediaManager'
 import CopilotPanel from '@/components/admin/marketing/editor/CopilotPanel'
 import PublishPanel from '@/components/admin/marketing/editor/PublishPanel'
 import AgentPanel, { type AgentIdea } from '@/components/admin/marketing/editor/AgentPanel'
-import type { Media, Post, Validation, Variant } from '@/components/admin/marketing/editor/types'
+import ReviewPanel from '@/components/admin/marketing/editor/ReviewPanel'
+import type { Media, Post, ReviewRow, Validation, Variant } from '@/components/admin/marketing/editor/types'
 
-type Detail = { post: Post; campaigns: Array<{ id: string; name: string; color: string }>; accounts: Account[]; permissions: { edit: boolean; publish: boolean }; idea?: AgentIdea | null; agent?: { id: string; mode: string; status: string } | null }
+type Detail = { post: Post; campaigns: Array<{ id: string; name: string; color: string }>; accounts: Account[]; permissions: { edit: boolean; publish: boolean }; idea?: AgentIdea | null; agent?: { id: string; mode: string; status: string } | null; reviews?: ReviewRow[] }
 
 const VARIANT_FIELDS: Array<keyof Variant> = ['body', 'format', 'linkUrl', 'mediaIds', 'slug', 'seoTitle', 'seoDescription', 'excerpt', 'coverUrl', 'category', 'tags', 'canonicalUrl', 'noindex', 'aiGenerated']
 const LOCKED = ['publishing']
@@ -88,11 +89,12 @@ export default function PostEditorPage({ params }: { params: Promise<{ id: strin
       })
     }
     try {
-      const d = await api<{ post: Post }>(`/api/admin/marketing/posts/${id}`, { method: 'PATCH', json: body })
+      const d = await api<{ post: Post; reviews?: ReviewRow[] }>(`/api/admin/marketing/posts/${id}`, { method: 'PATCH', json: body })
       // Typing continued during the save: keep the newer local text
       const untouched = v0 === version.current
       if (untouched) setDirty({ post: false, channels: [] })
       adopt(d.post, !untouched)
+      if (d.reviews) setDetail((x) => (x ? { ...x, reviews: d.reviews } : x))
       setSaveState('saved')
       return d.post
     } catch (err) {
@@ -125,8 +127,11 @@ export default function PostEditorPage({ params }: { params: Promise<{ id: strin
   async function setStatus(status: string) {
     await save()
     try {
-      const d = await api<{ post: Post }>(`/api/admin/marketing/posts/${id}`, { method: 'PATCH', json: { status } })
+      const d = await api<{ post: Post; reviews?: ReviewRow[]; warning?: string | null }>(`/api/admin/marketing/posts/${id}`, { method: 'PATCH', json: { status } })
       adopt(d.post, true)
+      if (d.reviews) setDetail((x) => (x ? { ...x, reviews: d.reviews } : x))
+      // Approving may run the editorial review: when it holds the piece, say why
+      if (d.warning) setError(d.warning)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error')
     }
@@ -194,6 +199,7 @@ export default function PostEditorPage({ params }: { params: Promise<{ id: strin
       <div className="flex items-center gap-3 flex-wrap">
         <Link href="/admin/marketing" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800"><ArrowLeft size={14} /> Publicaciones</Link>
         <StatusChip status={post.status} />
+        <ReviewChip status={post.reviewStatus} score={post.reviewScore} />
         {post.origin === 'agent' && <span className="inline-flex rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-semibold text-primary-700">🤖 Agente</span>}
         <span className="text-xs text-gray-400">
           {saveState === 'saving' ? 'Guardando…' : saveState === 'saved' && !dirty.post && !dirty.channels.length ? 'Guardado' : dirty.post || dirty.channels.length ? 'Cambios sin guardar' : saveState === 'error' ? 'Error al guardar' : ''}
@@ -277,6 +283,14 @@ export default function PostEditorPage({ params }: { params: Promise<{ id: strin
           {post.origin === 'agent' && detail.agent && (
             <AgentPanel post={post} idea={detail.idea ?? null} agentId={detail.agent.id} canEdit={detail.permissions.edit} onChanged={load} onRejected={() => router.push('/admin/marketing')} />
           )}
+          <ReviewPanel
+            post={post}
+            reviews={detail.reviews ?? []}
+            canEdit={detail.permissions.edit}
+            canPublish={detail.permissions.publish}
+            beforeAction={save}
+            onDone={(d) => { adopt(d.post); setDetail((x) => (x ? { ...x, reviews: d.reviews } : x)); setNotice(d.message); setTimeout(() => setNotice(null), 4000) }}
+          />
           {detail.permissions.edit && current && (
             <CopilotPanel
               post={{ ...post, title, variants: post.variants.map((v) => drafts[v.channel] ?? v) }}

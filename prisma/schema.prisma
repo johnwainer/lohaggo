@@ -1612,18 +1612,18 @@ model ContactIdentity {
 }
 
 model Workspace {
-  id                  String                @id @default(cuid())
+  id                  String                      @id @default(cuid())
   name                String
   description         String?
-  isDefault           Boolean               @default(false)
+  isDefault           Boolean                     @default(false)
   createdById         String?
-  timezone            String                @default("America/Bogota")
+  timezone            String                      @default("America/Bogota")
   aiMonthlyCostCapUsd Float?
   aiMonthlyCallCap    Int?
   aiCapWarnedPeriod   String?
-  createdAt           DateTime              @default(now())
-  updatedAt           DateTime              @updatedAt
-  createdBy           User?                 @relation("WorkspaceCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt           DateTime                    @default(now())
+  updatedAt           DateTime                    @updatedAt
+  createdBy           User?                       @relation("WorkspaceCreator", fields: [createdById], references: [id], onDelete: SetNull)
   members             WorkspaceMember[]
   connections         ChannelConnection[]
   conversations       Conversation[]
@@ -1634,6 +1634,7 @@ model Workspace {
   marketingPosts      MarketingPost[]
   marketingBrandKit   MarketingBrandKit?
   marketingAgents     MarketingAgent[]
+  marketingEditorial  MarketingEditorialSettings?
 
   @@index([isDefault])
 }
@@ -2064,17 +2065,17 @@ model MarketingCampaign {
 }
 
 model MarketingPost {
-  id           String                 @id @default(cuid())
-  workspaceId  String
-  campaignId   String?
-  title        String
-  brief        String?
-  status       String                 @default("draft")
-  scheduledAt  DateTime?
-  publishedAt  DateTime?
-  createdById  String?
-  approvedById String?
-  approvedAt   DateTime?
+  id                String                 @id @default(cuid())
+  workspaceId       String
+  campaignId        String?
+  title             String
+  brief             String?
+  status            String                 @default("draft")
+  scheduledAt       DateTime?
+  publishedAt       DateTime?
+  createdById       String?
+  approvedById      String?
+  approvedAt        DateTime?
   /// human | agent
   origin            String                 @default("human")
   agentId           String?
@@ -2088,19 +2089,30 @@ model MarketingPost {
   features          Json?
   /// Agent's own notes: confidence, risks, hypothesis, why this time, guardrail issues
   agentMeta         Json?
-  createdAt    DateTime               @default(now())
-  updatedAt    DateTime               @updatedAt
-  workspace    Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  campaign     MarketingCampaign?     @relation(fields: [campaignId], references: [id], onDelete: SetNull)
-  agent        MarketingAgent?        @relation(fields: [agentId], references: [id], onDelete: SetNull)
-  variants     MarketingPostVariant[]
-  media        MarketingMedia[]
-  publications MarketingPublication[]
+  /// Editorial review: pending | approved | changes | rejected | failed | stale | overridden (null = never reviewed)
+  reviewStatus      String?
+  /// Fingerprint of the texts the last review saw: publishing checks it still matches
+  reviewHash        String?
+  /// Editor's weighted score (0-10) of the last review
+  reviewScore       Float?
+  /// Rewrites the editor asked the agent for in the last review
+  reviewRounds      Int                    @default(0)
+  reviewedAt        DateTime?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  workspace         Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  campaign          MarketingCampaign?     @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  agent             MarketingAgent?        @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  variants          MarketingPostVariant[]
+  media             MarketingMedia[]
+  publications      MarketingPublication[]
+  reviews           MarketingReview[]
 
   @@index([workspaceId, status])
   @@index([campaignId])
   @@index([scheduledAt])
   @@index([agentId, status])
+  @@index([workspaceId, reviewStatus])
 }
 
 model MarketingPostVariant {
@@ -2246,6 +2258,80 @@ model MarketingBrandKit {
   workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
 
+/// Editorial review of the workspace: spelling proofreader + expert editor before anything goes out
+model MarketingEditorialSettings {
+  id              String    @id @default(cuid())
+  workspaceId     String    @unique
+  spellingEnabled Boolean   @default(true)
+  /// es-CO | es-MX | es-ES | es-419
+  spellingLocale  String    @default("es-CO")
+  /// auto (from the agent's voice) | tu | usted
+  treatment       String    @default("auto")
+  /// Words the proofreader never touches (brands, local slang)
+  neverCorrect    String[]  @default([])
+  /// null = the platform's cheap model
+  spellingModel   String?
+  editorEnabled   Boolean   @default(true)
+  /// Weighted score (0-10) the editor must reach to approve
+  minScore        Float     @default(8)
+  /// Rewrites the editor may ask the agent for before a person takes over
+  maxRounds       Int       @default(2)
+  /// [{ id, weight, enabled }] over the fixed criteria; null = defaults
+  rubric          Json?
+  /// standard | strict
+  strictness      String    @default("standard")
+  styleGuide      String?
+  /// null = the platform's default model
+  editorModel     String?
+  /// Nothing in scope is scheduled or published without a current approved review
+  required        Boolean   @default(true)
+  /// agent | all (also posts written by people)
+  scope           String    @default("agent")
+  updatedById     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+/// One reviewer's pass over a post: what the proofreader corrected or what the editor scored and asked
+model MarketingReview {
+  id           String        @id @default(cuid())
+  postId       String
+  workspaceId  String
+  agentId      String?
+  /// 0 = first review; n = after the agent's n-th rewrite
+  round        Int           @default(0)
+  /// spelling | editor
+  reviewer     String
+  /// spelling: corrected | clean | error · editor: approved | changes | rejected | error
+  verdict      String
+  /// Editor's weighted score 0-10
+  score        Float?
+  /// [{ id, score, comment }]
+  scores       Json?
+  /// Spelling: [{ field, channel, original, corrected, reason }] applied
+  changes      Json?
+  /// Spelling: proposals refused by the server, with why
+  rejected     Json?
+  /// Editor: [{ channel, field, change, reason }] for the agent
+  instructions Json?
+  summary      String?
+  contentHash  String?
+  /// agent | manual | publish
+  trigger      String        @default("agent")
+  createdById  String?
+  costUsd      Float         @default(0)
+  tokensIn     Int           @default(0)
+  tokensOut    Int           @default(0)
+  model        String?
+  error        String?
+  createdAt    DateTime      @default(now())
+  post         MarketingPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt])
+  @@index([workspaceId, createdAt])
+}
+
 // ─── Marketing agent: strategist that plans, writes, schedules and learns for one campaign ─────
 
 /// The agent's mind for one campaign: onboarding config, approved strategy, autonomy and limits
@@ -2332,7 +2418,7 @@ model MarketingIdea {
 model MarketingAgentRun {
   id         String         @id @default(cuid())
   agentId    String
-  /// strategy | plan | draft | schedule | learn | notice
+  /// strategy | plan | draft | schedule | learn | notice | review
   type       String
   /// running | ok | skipped | error
   status     String         @default("running")
@@ -2376,7 +2462,7 @@ model MarketingAgentNotice {
   agentId      String
   workspaceId  String
   postId       String?
-  /// approval_needed | opt_out_window | published | failed | budget | learning | ideas | degraded
+  /// approval_needed | opt_out_window | published | failed | budget | learning | ideas | degraded | editorial_review
   type         String
   title        String
   body         String?
@@ -2492,21 +2578,21 @@ model HaggoSettings {
 }
 
 model HaggoRun {
-  id          String    @id @default(cuid())
-  type        String
-  trigger     String?
-  status      String    @default("running")
-  summary     String?
-  report      String?
-  detections  Json?
-  output      Json?
-  model       String?
-  costUsd     Float     @default(0)
-  tokensIn    Int       @default(0)
-  tokensOut   Int       @default(0)
-  error       String?
-  startedAt   DateTime  @default(now())
-  finishedAt  DateTime?
+  id         String    @id @default(cuid())
+  type       String
+  trigger    String?
+  status     String    @default("running")
+  summary    String?
+  report     String?
+  detections Json?
+  output     Json?
+  model      String?
+  costUsd    Float     @default(0)
+  tokensIn   Int       @default(0)
+  tokensOut  Int       @default(0)
+  error      String?
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
 
   @@index([type, startedAt])
   @@index([startedAt])

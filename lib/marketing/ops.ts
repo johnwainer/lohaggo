@@ -27,7 +27,7 @@ export async function approvePost(postId: string, approverId: string | null) {
   if (!post) throw new OpsError('Publicación no encontrada')
   if (post.status !== 'review') throw new OpsError('Solo se aprueba lo que está esperando aprobación')
   await prisma.marketingPost.update({ where: { id: postId }, data: { status: 'approved', approvedById: approverId, approvedAt: new Date() } })
-  return scheduleApproved(postId)
+  return scheduleApproved(postId, approverId)
 }
 
 /** Back to review before it goes out: scheduled publications are cancelled. */

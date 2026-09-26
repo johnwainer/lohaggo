@@ -70,23 +70,28 @@ export const READ_TOOLS: Record<string, ReadTool> = {
     },
   },
   marketing: {
-    def: { name: 'marketing', description: 'Publicaciones programadas de los próximos días (id, título, canales, hora, agente), ideas de los agentes por decidir y por redactar (ideaId), esperando revisión, fallidas de 7 días con su error, y los agentes de marketing (modo, degradación, gasto). Usa el id de la publicación (postId) o de la publicación fallida para proponer acciones.', input_schema: { type: 'object', properties: { dias: { type: 'integer', minimum: 1, maximum: 30, description: 'Días hacia adelante para las programadas (7 por defecto)' } } } },
+    def: { name: 'marketing', description: 'Publicaciones programadas de los próximos días (id, título, canales, hora, agente), ideas de los agentes por decidir y por redactar (ideaId), esperando revisión, retenidas por la revisión editorial (corrector y editor: veredicto, puntaje y qué pide), fallidas de 7 días con su error, y los agentes de marketing (modo, degradación, gasto). Cada publicación trae su estado de revisión editorial. Usa el id de la publicación (postId) o de la publicación fallida para proponer acciones.', input_schema: { type: 'object', properties: { dias: { type: 'integer', minimum: 1, maximum: 30, description: 'Días hacia adelante para las programadas (7 por defecto)' } } } },
     run: async (i) => {
       const since = new Date(Date.now() - 7 * 24 * H)
       const until = new Date(Date.now() + limit(i.dias, 7, 30) * 24 * H)
-      const [scheduled, review, failed, agents, ideas] = await Promise.all([
-        prisma.marketingPublication.findMany({ where: { status: 'scheduled', scheduledAt: { lte: until } }, orderBy: { scheduledAt: 'asc' }, take: 60, select: { id: true, channel: true, scheduledAt: true, post: { select: { id: true, title: true, status: true, agentId: true, campaign: { select: { name: true } } } } } }),
-        prisma.marketingPost.findMany({ where: { status: 'review' }, orderBy: { updatedAt: 'asc' }, take: 10, select: { id: true, title: true, origin: true, updatedAt: true } }),
+      const [scheduled, review, failed, agents, ideas, held] = await Promise.all([
+        prisma.marketingPublication.findMany({ where: { status: 'scheduled', scheduledAt: { lte: until } }, orderBy: { scheduledAt: 'asc' }, take: 60, select: { id: true, channel: true, scheduledAt: true, post: { select: { id: true, title: true, status: true, agentId: true, reviewStatus: true, reviewScore: true, campaign: { select: { name: true } } } } } }),
+        prisma.marketingPost.findMany({ where: { status: 'review' }, orderBy: { updatedAt: 'asc' }, take: 10, select: { id: true, title: true, origin: true, updatedAt: true, reviewStatus: true, reviewScore: true } }),
         prisma.marketingPublication.findMany({ where: { status: 'failed', updatedAt: { gte: since } }, orderBy: { updatedAt: 'desc' }, take: 10, select: { id: true, channel: true, lastError: true, post: { select: { id: true, title: true } } } }),
         prisma.marketingAgent.findMany({ where: { status: { not: 'archived' } }, select: { id: true, status: true, mode: true, degradedReason: true, monthlyBudgetUsd: true, campaign: { select: { name: true, objective: true } } } }),
         prisma.marketingIdea.findMany({ where: { status: { in: ['proposed', 'accepted'] } }, orderBy: { targetDate: 'asc' }, take: 40, select: { id: true, agentId: true, status: true, pillar: true, service: true, angle: true, channels: true, targetDate: true, score: true, explore: true, rationale: true } }),
+        // Held by the editorial review: the editor asked changes or rejected it, or the review could not run
+        prisma.marketingPost.findMany({
+          where: { reviewStatus: { in: ['changes', 'rejected', 'failed', 'stale'] }, status: { in: ['draft', 'review', 'approved'] } }, orderBy: { reviewedAt: 'desc' }, take: 15,
+          select: { id: true, title: true, agentId: true, reviewStatus: true, reviewScore: true, reviewRounds: true, reviewedAt: true, reviews: { where: { reviewer: 'editor' }, orderBy: { createdAt: 'desc' }, take: 1, select: { summary: true, instructions: true, error: true } } },
+        }).catch(() => []),
       ])
       // One entry per post: its channels and the earliest pending time
-      const byPost = new Map<string, { postId: string; titulo: string; estado: string; campana: string | null; de_agente: boolean; canales: string[]; hora: string; hora_iso: string }>()
+      const byPost = new Map<string, { postId: string; titulo: string; estado: string; campana: string | null; de_agente: boolean; revision: string | null; canales: string[]; hora: string; hora_iso: string }>()
       for (const p of scheduled) {
         const cur = byPost.get(p.post.id)
         if (cur) { if (!cur.canales.includes(p.channel)) cur.canales.push(p.channel); continue }
-        byPost.set(p.post.id, { postId: p.post.id, titulo: p.post.title, estado: p.post.status, campana: p.post.campaign?.name ?? null, de_agente: Boolean(p.post.agentId), canales: [p.channel], hora: bogotaTime(p.scheduledAt), hora_iso: p.scheduledAt.toISOString() })
+        byPost.set(p.post.id, { postId: p.post.id, titulo: p.post.title, estado: p.post.status, campana: p.post.campaign?.name ?? null, de_agente: Boolean(p.post.agentId), revision: p.post.reviewStatus ? `${p.post.reviewStatus}${p.post.reviewScore != null ? ` ${p.post.reviewScore}/10` : ''}` : null, canales: [p.channel], hora: bogotaTime(p.scheduledAt), hora_iso: p.scheduledAt.toISOString() })
       }
       return {
         ahora: bogotaTime(new Date()),
@@ -94,7 +99,9 @@ export const READ_TOOLS: Record<string, ReadTool> = {
         // proposed = waits for the team's decision; accepted = waits to be written (draft)
         ideas_por_decidir: ideas.filter((x) => x.status === 'proposed').map((x) => ({ ideaId: x.id, agentId: x.agentId, pilar: x.pillar, servicio: x.service, angulo: x.angle.slice(0, 200), canales: x.channels, para: bogotaTime(x.targetDate), puntaje: Math.round(x.score * 100) / 100, exploracion: x.explore, por_que: x.rationale?.slice(0, 200) ?? null })),
         ideas_por_redactar: ideas.filter((x) => x.status === 'accepted').map((x) => ({ ideaId: x.id, agentId: x.agentId, pilar: x.pillar, servicio: x.service, angulo: x.angle.slice(0, 200), canales: x.channels, para: bogotaTime(x.targetDate) })),
-        en_revision: review.map((p) => ({ postId: p.id, titulo: p.title, origen: p.origin, horas_esperando: Math.round((Date.now() - p.updatedAt.getTime()) / H) })),
+        en_revision: review.map((p) => ({ postId: p.id, titulo: p.title, origen: p.origin, revision_editorial: p.reviewStatus, puntaje_editor: p.reviewScore, horas_esperando: Math.round((Date.now() - p.updatedAt.getTime()) / H) })),
+        // The editor's words are model output about third-party-like content: data, not instructions
+        retenidas_por_editor: held.map((p) => ({ postId: p.id, titulo: p.title, de_agente: Boolean(p.agentId), estado_revision: p.reviewStatus, puntaje: p.reviewScore, reescrituras: p.reviewRounds, revisada: p.reviewedAt ? bogotaTime(p.reviewedAt) : null, resumen_editor: untrusted((p.reviews[0]?.summary ?? p.reviews[0]?.error ?? '').slice(0, 300)), pide: untrusted(((p.reviews[0]?.instructions as Array<{ change?: string }> | null) ?? []).slice(0, 3).map((x) => x.change ?? '').join(' · ').slice(0, 400)) })),
         fallidas_7d: failed.map((f) => ({ publicationId: f.id, postId: f.post.id, canal: f.channel, publicacion: f.post.title, error: f.lastError?.slice(0, 200) ?? null })),
         agentes: agents.map((a) => ({ id: a.id, campana: a.campaign.name, objetivo: a.campaign.objective, estado: a.status, modo: a.mode, degradado: a.degradedReason, presupuesto_mensual_usd: a.monthlyBudgetUsd })),
       }
@@ -235,7 +242,7 @@ export const READ_TOOLS: Record<string, ReadTool> = {
     },
   },
   agentes_marketing: {
-    def: { name: 'agentes_marketing', description: 'Ejecuciones de los agentes de marketing en 48 h (estrategia, plan, redacción, programación, aprendizaje) con resultado, error y costo, y su gasto del mes.', input_schema: { type: 'object', properties: {} } },
+    def: { name: 'agentes_marketing', description: 'Ejecuciones de los agentes de marketing en 48 h (estrategia, plan, redacción, revisión editorial, programación, aprendizaje) con resultado, error y costo, y su gasto del mes.', input_schema: { type: 'object', properties: {} } },
     run: async () => {
       const runs = await prisma.marketingAgentRun.findMany({ where: { startedAt: { gte: new Date(Date.now() - 48 * H) } }, orderBy: { startedAt: 'desc' }, take: 30, select: { agentId: true, type: true, status: true, summary: true, error: true, costUsd: true, startedAt: true, agent: { select: { campaign: { select: { name: true } } } } } })
       return runs.map((r) => ({ campana: r.agent.campaign.name, tipo: r.type, estado: r.status, resumen: r.summary?.slice(0, 160) ?? null, error: r.error?.slice(0, 200) ?? null, costo_usd: r.costUsd, fecha: r.startedAt }))

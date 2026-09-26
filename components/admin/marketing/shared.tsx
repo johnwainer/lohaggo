@@ -2,6 +2,7 @@
 
 import { Globe } from 'lucide-react'
 import { ChannelIcon } from '@/components/admin/ChannelIcon'
+import { formatScore, reviewBadge } from '@/lib/marketing/editorial-rubric'
 
 export type MkChannel = 'WEB' | 'FACEBOOK' | 'INSTAGRAM'
 export const MK_CHANNELS: MkChannel[] = ['WEB', 'FACEBOOK', 'INSTAGRAM']
@@ -88,3 +89,10 @@ export async function api<T = Record<string, unknown>>(url: string, init?: Reque
 }
 
 export const input = 'w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500'
+
+/** The editorial review's state of a post (nothing when it was never reviewed). */
+export function ReviewChip({ status, score, compact = false }: { status: string | null | undefined; score?: number | null; compact?: boolean }) {
+  const b = reviewBadge(status, score)
+  if (!b) return null
+  return <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${b.cls}`} title="Revisión editorial">{compact && status === 'approved' ? `✓ ${score != null ? `${formatScore(score)}/10` : ''}` : b.label}</span>
+}

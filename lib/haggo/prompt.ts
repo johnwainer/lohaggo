@@ -74,7 +74,7 @@ export const REVIEW_CHECKLIST: Array<{ area: string; tools: string[] }> = [
   { area: 'Dinero: pagos, rechazos, pagos a socios, efectivo, reembolsos', tools: ['dinero'] },
   { area: 'Bandeja y atención: esperas, tiempos de respuesta, IA frente a personas, carga del equipo', tools: ['conversaciones_en_espera', 'atencion', 'equipo'] },
   { area: 'Agentes de IA de la bandeja: traspasos, vacíos de conocimiento, costo', tools: ['agente_ia'] },
-  { area: 'Marketing: publicaciones, revisión, fallos, agentes de marketing y publicidad', tools: ['marketing', 'agentes_marketing', 'publicidad'] },
+  { area: 'Marketing: publicaciones, revisión humana y editorial (corrector y editor), fallos, agentes de marketing y publicidad', tools: ['marketing', 'agentes_marketing', 'publicidad'] },
   { area: 'Mensajería: campañas y envíos fallidos', tools: ['mensajeria'] },
   { area: 'Sistema: tareas automáticas, errores, integraciones, incidentes y casos', tools: ['salud_sistema', 'incidentes_abiertos'] },
   { area: 'Seguridad: ataques e IP bloqueadas', tools: ['seguridad'] },

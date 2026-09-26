@@ -64,6 +64,9 @@ import {
 } from '@/lib/marketing/agent-prompt'
 import { brandName, catalogFor, learningRows, momentFacts, plannedPieces, recentTopics, rejectionsFor, takenSlots } from '@/lib/marketing/agent-data'
 import { agentUrl, notify, postUrl, type NoticeType } from '@/lib/marketing/agent-notices'
+import { editorialGate, getEditorialSettings, hashOf, loadReviewPost, reviewPass, saveReviewState, type PassResult, type ReviewEnv } from '@/lib/marketing/editorial'
+import { gateReason, instructionsForAgent, nextReviewStep, type Instruction } from '@/lib/marketing/editorial-core'
+import { reviewApplies, type EditorialSettings } from '@/lib/marketing/editorial-rubric'
 
 const logger = createLogger('marketing-agent')
 
@@ -174,12 +177,13 @@ async function assertCanSpend(agent: Agent) {
   if (spent >= agent.monthlyBudgetUsd) throw new AgentError(`Presupuesto mensual del agente agotado ($${spent.toFixed(2)} de $${agent.monthlyBudgetUsd})`)
   const ws = await checkWorkspaceBudget(agent.workspaceId)
   if (ws.state === 'blocked') throw new AgentError(`Tope mensual de IA del workspace alcanzado (${ws.pct} %)`)
-  const today = await prisma.marketingAgentRun.count({ where: { agentId: agent.id, startedAt: { gte: new Date(Date.now() - DAY) }, costUsd: { gt: 0 } } })
+  // Review passes ride on a draft (at most maxRounds + 1 per piece): they do not use up the daily runs
+  const today = await prisma.marketingAgentRun.count({ where: { agentId: agent.id, type: { not: 'review' }, startedAt: { gte: new Date(Date.now() - DAY) }, costUsd: { gt: 0 } } })
   if (today >= DAILY_AI_RUNS) throw new AgentError(`Límite diario del agente alcanzado (${DAILY_AI_RUNS} ejecuciones con IA en 24 h)`)
   return settings
 }
 
-type RunType = 'strategy' | 'plan' | 'draft' | 'schedule' | 'learn' | 'notice'
+type RunType = 'strategy' | 'plan' | 'draft' | 'schedule' | 'learn' | 'notice' | 'review'
 type RunOutcome<T> = { ok: true; value: T; summary: string; skipped: boolean } | { ok: false; error: string }
 
 /** Every step leaves a row: what it did and why, what it cost, or why it failed. */
@@ -235,6 +239,67 @@ async function promptContext(agent: Agent, now = new Date(), opts: { withStrateg
   const facts = { brand, siteUrl: SITE_URL, objective: agent.campaign.objective, config, settings, effectiveMode: modeFor(agent, enabledChannels(config)) }
   const campaign = campaignBlock({ ...facts, campaignName: agent.campaign.name, campaignDescription: agent.campaign.description, strategy: opts.withStrategy === false || !agent.strategyApprovedAt ? null : strategy, catalog, now })
   return { config, settings, strategy, catalog, stats: moment.stats, system: buildSystem(fillMaster(facts), campaign, momentBlock(moment.facts)) }
+}
+
+// ─── Editorial review ───────────────────────────────────────────────────────
+
+/** Why the agent may not spend now (same limits as assertCanSpend, without the daily count), or null. */
+async function spendBlock(agent: Agent) {
+  try {
+    const settings = await getAiSettings()
+    if (!hasTextProvider(settings)) return 'La IA no está configurada'
+    const spent = await agentSpend(agent.id)
+    if (spent >= agent.monthlyBudgetUsd) return `Presupuesto mensual del agente agotado ($${spent.toFixed(2)} de $${agent.monthlyBudgetUsd})`
+    const ws = await checkWorkspaceBudget(agent.workspaceId)
+    if (ws.state === 'blocked') return `Tope mensual de IA del workspace alcanzado (${ws.pct} %)`
+    return null
+  } catch (err) {
+    return err instanceof Error ? err.message : 'No se pudo revisar el presupuesto'
+  }
+}
+
+/** What the editor checks against for this agent's pieces: its campaign block (voice, offer, catalog, strategy). */
+export async function reviewContextFor(agent: Agent, editorial: EditorialSettings, campaign?: string) {
+  const config = configOf(agent)
+  const [brand, catalog] = await Promise.all([brandName(agent.workspaceId), catalogFor(config)])
+  const context = campaign ?? (await promptContext(agent)).system[1].text
+  const treatment = editorial.treatment === 'tu' ? 'tú' as const : editorial.treatment === 'usted' ? 'usted' as const : config.audience.formal ? 'usted' as const : 'tú' as const
+  return { brand: brand || 'la marca', treatment, context, protectedWords: [...catalog.services.map((x) => x.name), ...catalog.cities] }
+}
+
+/**
+ * One review pass as a run of the agent: its cost counts in the agent's budget and shows in its activity.
+ * A run that fails comes back as a failed pass: nothing goes out unreviewed.
+ */
+export async function agentReviewPass(agent: Agent, postId: string, editorial: EditorialSettings, base: Omit<ReviewEnv, 'canSpend' | 'onCost' | 'agentId' | 'workspaceId'>, opts: { round: number; previous?: Instruction[] | null; spellingOnly?: boolean }): Promise<PassResult> {
+  const r = await withRun(agent, 'review', { postId, round: opts.round, trigger: base.trigger, spellingOnly: Boolean(opts.spellingOnly) }, async (meter) => {
+    const pass = await reviewPass(postId, editorial, { ...base, workspaceId: agent.workspaceId, agentId: agent.id, canSpend: () => spendBlock(agent), onCost: (c) => meter.add(c) }, opts)
+    const label = opts.spellingOnly ? 'Ortografía' : `Revisión${opts.round ? ` (ronda ${opts.round + 1})` : ''}`
+    const verdict = { approved: 'aprobada', changes: 'pide cambios', rejected: 'rechazada', failed: 'no se pudo hacer' }[pass.status]
+    return { summary: `${label}: ${opts.spellingOnly ? `${pass.corrections} corrección(es)` : verdict}${pass.score != null ? ` · ${pass.score}/10` : ''}${pass.corrections && !opts.spellingOnly ? ` · ${pass.corrections} corrección(es) de ortografía` : ''}${pass.error ? ` · ${pass.error}` : ''}`, value: pass, output: { status: pass.status, score: pass.score, instructions: pass.instructions } }
+  })
+  return r.ok ? r.value : { status: 'failed', score: null, instructions: [], corrections: 0, summary: r.error, error: r.error, costUsd: 0 }
+}
+
+/**
+ * Before a person's approval or publication goes to the queue: when the review is mandatory and does not
+ * cover these texts (never reviewed, failed, or edited since), it runs again. What the editor already held
+ * and nobody changed stays held: the person edits it or approves it anyway.
+ */
+export async function ensureAgentReview(agent: Agent, postId: string, userId: string | null, trigger: ReviewEnv['trigger'] = 'publish'): Promise<{ ok: true } | { ok: false; message: string }> {
+  const s = await getEditorialSettings(agent.workspaceId)
+  const post = await loadReviewPost(postId)
+  if (!post) return { ok: false, message: 'Publicación no encontrada' }
+  const hash = hashOf(post)
+  const reason = gateReason(s, post, hash)
+  if (!reason) return { ok: true }
+  if ((post.reviewStatus === 'changes' || post.reviewStatus === 'rejected') && post.reviewHash === hash) return { ok: false, message: `${reason}. Edítala o usa «Aprobar de todos modos».` }
+  await prisma.marketingPost.update({ where: { id: postId }, data: { reviewStatus: 'pending' } })
+  const pass = await agentReviewPass(agent, postId, s, { ...(await reviewContextFor(agent, s)), trigger, createdById: userId }, { round: 0 })
+  await saveReviewState(postId, pass.status, { score: pass.score, rounds: 0 })
+  if (pass.status === 'approved') return { ok: true }
+  const detail = pass.status === 'failed' ? `la revisión no se pudo hacer (${pass.error})` : pass.status === 'rejected' ? `el editor la rechazó: ${pass.summary}` : `el editor pide cambios: ${pass.instructions.slice(0, 3).map((i) => i.change).join(' · ') || pass.summary}`
+  return { ok: false, message: `No se programó: ${detail}`.slice(0, 900) }
 }
 
 // ─── Strategy ───────────────────────────────────────────────────────────────
@@ -452,9 +517,9 @@ export async function draftIdea(agent: Agent, ideaId: string, opts: { instructio
     const ideaInfo = { pillar: idea.pillar, service: idea.service, angle: idea.angle, hypothesis: idea.hypothesis, channels, formats: (idea.formats as Partial<Record<MarketingChannel, string>> | null) ?? {}, rationale: idea.rationale }
     const previous = existing ? existing.variants.map((v) => `${v.channel}:\n${v.body}`).join('\n\n') : null
     const utmNote = 'Los enlaces a lohaggo.com escríbelos sin parámetros: la plataforma les añade el seguimiento de la campaña (UTM).'
-    const ask = async (corrections: string[] | null, prev: string | null) => callTool(agent, ai.defaultModel, {
+    const ask = async (corrections: string[] | null, prev: string | null, editor: string[] | null = null) => callTool(agent, ai.defaultModel, {
       kind: 'marketing_agent_draft', system: ctx.system, tool: DRAFT_TOOL, maxTokens: channels.includes('WEB') ? 9000 : 4000, effort: 'medium',
-      task: draftTask({ idea: ideaInfo, utmNote, instruction: opts.instruction, corrections, previous: prev }),
+      task: draftTask({ idea: ideaInfo, utmNote, instruction: opts.instruction, corrections, previous: prev, editor }),
     }, meter)
 
     let parsed = parseDraft(await ask(null, previous), channels)
@@ -484,14 +549,39 @@ export async function draftIdea(agent: Agent, ideaId: string, opts: { instructio
       }
     }
 
+    // Editorial review: proofreader + editor; while the editor asks changes and rounds are left, the agent rewrites
+    const editorial = await getEditorialSettings(agent.workspaceId)
+    let review: { status: PassResult['status']; score: number | null; rounds: number; summary: string; instructions: Instruction[] } | null = null
+    if (check.ok && reviewApplies(editorial, 'agent')) {
+      await prisma.marketingPost.update({ where: { id: post.id }, data: { reviewStatus: 'pending' } })
+      const base = { ...(await reviewContextFor(agent, editorial, ctx.system[1].text)), trigger: 'agent' as const }
+      let round = 0
+      let pass = await agentReviewPass(agent, post.id, editorial, base, { round })
+      while (pass.status !== 'failed' && nextReviewStep(pass.status, round, editorial.maxRounds) === 'rewrite') {
+        const saved = await prisma.marketingPostVariant.findMany({ where: { postId: post.id }, select: { channel: true, body: true } })
+        const again = parseDraft(await ask(null, saved.map((v) => `${v.channel}:\n${v.body}`).join('\n\n'), instructionsForAgent(pass.instructions)), channels)
+        if (!again.ok) break
+        draft = again.value
+        await writeDraft(post.id, draft, channels, utm, config)
+        check = await checkPost(agent, config, ctx.catalog.prices, post.id, draft.confidence)
+        round++
+        if (!check.ok) break
+        pass = await agentReviewPass(agent, post.id, editorial, base, { round, previous: pass.instructions })
+      }
+      review = { status: pass.status, score: pass.score, rounds: round, summary: pass.summary, instructions: pass.instructions }
+      await saveReviewState(post.id, pass.status, { score: pass.score, rounds: round })
+    }
+    const heldByEditor = Boolean(review && review.status !== 'approved')
+
     const trial = !existing && agent.trialPostsRemaining > 0
     const mode = modeFor(agent, channels)
     // A version a person asked for goes back to that person, whatever the mode
     const from: AgentState = existing ? 'review' : 'idea_accepted'
-    const t = nextAgentState(from, 'drafted', mode, { valid: check.ok, needsReview: check.needsReview, trial })!
+    const t = nextAgentState(from, 'drafted', mode, { valid: check.ok, needsReview: check.needsReview || heldByEditor, trial })!
     const meta = {
       confidence: draft.confidence, risks: draft.risks, hypothesis: draft.hypothesis || idea.hypothesis, cta: draft.cta, rationale: idea.rationale, explore: idea.explore, service,
       imageSource: image.source, imageError: image.error, guardrails: check.issues, validation: check.validation, corrected, mode, instruction: opts.instruction ?? null,
+      review: review ? { status: review.status, score: review.score, rounds: review.rounds, summary: review.summary.slice(0, 600) } : null,
     }
     await prisma.marketingPost.update({
       where: { id: post.id },
@@ -502,9 +592,14 @@ export async function draftIdea(agent: Agent, ideaId: string, opts: { instructio
       },
     })
     await runActions(agent, t.actions, { postId: post.id, ideaId: idea.id, title: draft.title, mode, problems: [...check.validation, ...check.issues.map((i) => i.message)], isNew: !existing })
+    if (review && heldByEditor) {
+      const why = review.status === 'failed' ? `La revisión no se pudo hacer: ${review.summary}` : review.status === 'rejected' ? `El editor la rechazó: ${review.summary}` : `El editor sigue pidiendo cambios tras ${review.rounds} ronda(s): ${review.instructions.slice(0, 3).map((i) => i.change).join(' · ') || review.summary}`
+      await notify(noticeTarget(agent), { type: 'editorial_review', title: `El editor retuvo «${draft.title}»`, body: why.slice(0, 900), url: postUrl(post.id), postId: post.id, dedupeKey: `editorial:${post.id}:${bogota(new Date()).key}:${review.rounds}` })
+    }
 
     const where = t.state === 'review' ? 'esperando aprobación' : t.state === 'draft' ? 'en borrador (necesita a una persona)' : 'programada'
-    return { summary: `«${draft.title}» ${where}${corrected ? ' tras una corrección' : ''}${image.error ? ` · imagen: ${image.error}` : ''}`, value: post.id, output: { postId: post.id, state: t.state, issues: check.issues, validation: check.validation } }
+    const reviewNote = review ? ` · revisión: ${review.status === 'approved' ? `aprobada${review.score != null ? ` ${review.score}/10` : ''}` : review.status === 'failed' ? 'no se pudo hacer' : review.status === 'rejected' ? 'rechazada' : 'pide cambios'}${review.rounds ? ` tras ${review.rounds} reescritura(s)` : ''}` : ''
+    return { summary: `«${draft.title}» ${where}${corrected ? ' tras una corrección' : ''}${reviewNote}${image.error ? ` · imagen: ${image.error}` : ''}`, value: post.id, output: { postId: post.id, state: t.state, issues: check.issues, validation: check.validation, review } }
   })
 }
 
@@ -534,6 +629,13 @@ export async function schedulePiece(agent: Agent, postId: string, mode: AgentMod
   const post = await prisma.marketingPost.findUnique({ where: { id: postId }, include: postInclude })
   if (!post || post.agentId !== agent.id) return { ok: false as const, message: 'Publicación no encontrada' }
   const meta = (post.agentMeta as Record<string, unknown> | null) ?? {}
+  // Nothing reaches the queue without a current editorial approval (when the review is mandatory)
+  const held = await editorialGate(post)
+  if (held) {
+    await prisma.marketingPost.update({ where: { id: postId }, data: { status: 'review', approvedAt: null, approvedById: null } })
+    await notify(noticeTarget(agent), { type: 'editorial_review', title: `No se programó «${post.title}»`, body: held, url: postUrl(postId), postId, dedupeKey: `edgate:${postId}:${post.reviewHash ?? 'none'}:${post.reviewStatus ?? 'none'}` })
+    return { ok: false as const, message: held }
+  }
   const accounts = await workspaceAccounts(agent.workspaceId)
   const catalog = await catalogFor(config)
   const guard = checkGuardrails(post.variants.map((v) => ({ channel: v.channel as MarketingChannel, text: v.body, linkUrl: v.linkUrl })), guardContext(config, catalog.prices, accounts.filter((a) => a.channel === 'INSTAGRAM'), null, agent.confidenceThreshold))
@@ -598,12 +700,20 @@ export async function schedulePiece(agent: Agent, postId: string, mode: AgentMod
 
 // ─── People's decisions ─────────────────────────────────────────────────────
 
-/** A person approved an agent post (editor or agent screen): it gets its slots now. */
-export async function scheduleApproved(postId: string) {
+/**
+ * A person approved an agent post (editor or agent screen): the editorial review runs again if it does
+ * not cover these texts, then it gets its slots. Held by the review: back to «review» with the reason.
+ */
+export async function scheduleApproved(postId: string, userId: string | null = null) {
   const post = await prisma.marketingPost.findUnique({ where: { id: postId }, select: { agentId: true, status: true, agentMeta: true } })
   if (!post?.agentId || post.status !== 'approved') return null
   const agent = await loadAgent(post.agentId)
   if (!agent) return null
+  const ready = await ensureAgentReview(agent, postId, userId)
+  if (!ready.ok) {
+    await prisma.marketingPost.update({ where: { id: postId }, data: { status: 'review', approvedAt: null, approvedById: null } })
+    return { ok: false as const, message: ready.message }
+  }
   await prisma.marketingPost.update({ where: { id: postId }, data: { agentMeta: json({ ...((post.agentMeta as object | null) ?? {}), hold: false }) } })
   return schedulePiece(agent, postId, 'copilot')
 }
@@ -810,6 +920,25 @@ export async function runAgentCycle(agentId: string, deadline = Date.now() + 240
     const aiAllowed = agent.strategyApprovedAt && deg.level !== 'blocked' && !deg.wsBlocked
     if (!aiAllowed) return { agentId, report, ai: false }
     const timeLeft = () => deadline - Date.now()
+
+    // Queued pieces the mandatory review does not cover (queued before it existed, a failed review, or
+    // edited since): reviewed before their time; if the editor does not approve, back to a person
+    const editorial = await getEditorialSettings(agent.workspaceId)
+    if (editorial.required && reviewApplies(editorial, 'agent')) {
+      const pending = await prisma.marketingPost.findMany({
+        where: { agentId: agent.id, status: { in: ['scheduled', 'approved'] }, OR: [{ reviewStatus: null }, { reviewStatus: { notIn: ['approved', 'overridden', 'pending'] } }] },
+        orderBy: { scheduledAt: 'asc' }, take: 2, select: { id: true, title: true },
+      })
+      for (const p of pending) {
+        if (timeLeft() < 150_000) break
+        const r = await ensureAgentReview(agent, p.id, null, 'agent')
+        if (r.ok) { report.push(`revisión ${p.id}: aprobada`); continue }
+        await prisma.marketingPublication.updateMany({ where: { postId: p.id, status: 'scheduled' }, data: { status: 'cancelled', lastError: 'La revisión editorial no la aprobó' } })
+        await prisma.marketingPost.update({ where: { id: p.id }, data: { status: 'review', approvedAt: null, approvedById: null, scheduledAt: null } })
+        await notify(noticeTarget(agent), { type: 'editorial_review', title: `El editor retuvo «${p.title}»`, body: r.message, url: postUrl(p.id), postId: p.id, dedupeKey: `edqueue:${p.id}:${bogota(now).key}` })
+        report.push(`revisión ${p.id}: retenida`)
+      }
+    }
 
     let planned = false
     if (timeLeft() > 120_000 && (!agent.lastPlannedAt || now.getTime() - agent.lastPlannedAt.getTime() > PLAN_EVERY_MS)) {

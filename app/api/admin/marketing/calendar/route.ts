@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       ],
     },
     select: {
-      id: true, title: true, status: true, scheduledAt: true, publishedAt: true, origin: true, agentMeta: true,
+      id: true, title: true, status: true, scheduledAt: true, publishedAt: true, origin: true, agentMeta: true, reviewStatus: true, reviewScore: true,
       campaign: { select: { id: true, name: true, color: true } },
       variants: { select: { channel: true } },
       media: { select: { url: true, kind: true }, orderBy: { position: 'asc' }, take: 1 },

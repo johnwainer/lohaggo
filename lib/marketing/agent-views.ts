@@ -53,7 +53,7 @@ export async function agentSummary(agent: Agent) {
 }
 
 const postSelect = {
-  id: true, title: true, status: true, pillar: true, scheduledAt: true, publishedAt: true, optOutDeadline: true, agentMeta: true, rejectedReason: true, ideaId: true, updatedAt: true,
+  id: true, title: true, status: true, pillar: true, scheduledAt: true, publishedAt: true, optOutDeadline: true, agentMeta: true, rejectedReason: true, ideaId: true, updatedAt: true, reviewStatus: true, reviewScore: true,
   variants: { select: { channel: true, body: true, format: true, seoTitle: true } },
   media: { select: { url: true, kind: true }, orderBy: { position: 'asc' as const }, take: 3 },
   publications: { where: { status: { not: 'cancelled' } }, select: { channel: true, status: true, scheduledAt: true, publishedAt: true, permalink: true, connection: { select: { name: true } } } },

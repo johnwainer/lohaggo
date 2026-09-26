@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Loader2, Plus, Search, X } from 'lucide-react'
-import { CHANNEL_NAME, MK_CHANNELS, MkChannelIcon, PUB_STATUS, POST_STATUS, StatusChip, api, fmtDateTime, input, type MkChannel } from '@/components/admin/marketing/shared'
+import { CHANNEL_NAME, MK_CHANNELS, MkChannelIcon, PUB_STATUS, POST_STATUS, ReviewChip, StatusChip, api, fmtDateTime, input, type MkChannel } from '@/components/admin/marketing/shared'
 import { videoPosterUrl } from '@/lib/marketing/media'
 import type { Campaign } from '@/components/admin/marketing/CampaignsTab'
 
@@ -17,6 +17,8 @@ export type PostRow = {
   publishedAt: string | null
   updatedAt: string
   origin?: string
+  reviewStatus?: string | null
+  reviewScore?: number | null
   campaign: { id: string; name: string; color: string } | null
   variants: Array<{ channel: MkChannel }>
   media: Array<{ url: string; kind: string }>
@@ -157,8 +159,9 @@ export default function PostsTab({ posts, campaigns, filters, setFilters, worksp
                   {thumb ? <img src={thumb} alt="" className="h-full w-full object-cover" /> : <div className="h-full w-full bg-gradient-to-br from-primary-50 to-secondary-50" />}
                 </div>
                 <div className="min-w-0 flex-1 space-y-1.5">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <StatusChip status={p.status} />
+                    <ReviewChip status={p.reviewStatus} score={p.reviewScore} />
                     {p.origin === 'agent' && <span className="inline-flex rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-semibold text-primary-700">🤖 Agente</span>}
                     {p.campaign && <span className="inline-flex items-center gap-1 truncate text-[11px] text-gray-500"><span className="h-2 w-2 rounded-full shrink-0" style={{ background: p.campaign.color }} />{p.campaign.name}</span>}
                   </div>

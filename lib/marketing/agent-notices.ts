@@ -7,10 +7,10 @@ import { SITE_URL } from '@/lib/marketing/seo'
 
 const logger = createLogger('marketing-agent-notices')
 
-export type NoticeType = 'approval_needed' | 'opt_out_window' | 'published' | 'failed' | 'budget' | 'learning' | 'ideas' | 'degraded'
+export type NoticeType = 'approval_needed' | 'opt_out_window' | 'published' | 'failed' | 'budget' | 'learning' | 'ideas' | 'degraded' | 'editorial_review'
 
 /** Worth an email; the rest stay in the module's bell. */
-const EMAIL_TYPES: NoticeType[] = ['approval_needed', 'opt_out_window', 'failed', 'budget', 'learning', 'ideas', 'degraded']
+const EMAIL_TYPES: NoticeType[] = ['approval_needed', 'opt_out_window', 'failed', 'budget', 'learning', 'ideas', 'degraded', 'editorial_review']
 
 export const agentUrl = (agentId: string) => `/admin/marketing?agente=${agentId}`
 export const postUrl = (postId: string) => `/admin/marketing/posts/${postId}`

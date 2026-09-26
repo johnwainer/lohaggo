@@ -313,7 +313,7 @@ export function planTask(p: { gaps: Array<{ channel: MarketingChannel; needed: n
   ].join('\n\n')
 }
 
-export function draftTask(p: { idea: { pillar: string; service: string | null; angle: string; hypothesis: string | null; channels: MarketingChannel[]; formats: Partial<Record<MarketingChannel, string>>; rationale: string | null }; utmNote: string; instruction?: string | null; corrections?: string[] | null; previous?: string | null }) {
+export function draftTask(p: { idea: { pillar: string; service: string | null; angle: string; hypothesis: string | null; channels: MarketingChannel[]; formats: Partial<Record<MarketingChannel, string>>; rationale: string | null }; utmNote: string; instruction?: string | null; corrections?: string[] | null; previous?: string | null; editor?: string[] | null }) {
   const i = p.idea
   return [
     'Redacta esta pieza con la herramienta redactar_pieza, una versión por canal pedido.',
@@ -323,6 +323,7 @@ export function draftTask(p: { idea: { pillar: string; service: string | null; a
     p.instruction ? `<datos tipo="indicación del equipo para esta versión">${p.instruction}</datos>` : '',
     p.previous ? `<datos tipo="versión anterior">\n${p.previous.slice(0, 4000)}\n</datos>` : '',
     p.corrections?.length ? `La versión anterior no pasó las revisiones. Corrige exactamente esto y conserva lo demás:\n${p.corrections.map((c) => `- ${c}`).join('\n')}` : '',
+    p.editor?.length ? `El editor jefe revisó la versión anterior y pide estos cambios. Aplícalos todos, conserva lo que no menciona y no inventes datos para cumplirlos (si un cambio pide un dato que no tienes, reformula sin él):\n<datos tipo="pedido del editor">\n${p.editor.map((c) => `- ${c}`).join('\n')}\n</datos>` : '',
   ].filter(Boolean).join('\n\n')
 }
 

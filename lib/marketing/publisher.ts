@@ -8,6 +8,7 @@ import { getConnectionCredentials, getConnectionMeta, requireMetaApp } from '@/l
 import { instagramFormat, validateVariant, type MarketingChannel, type MediaInfo } from '@/lib/marketing/channel-rules'
 import { deliveryUrl } from '@/lib/marketing/media'
 import { articleUrl } from '@/lib/marketing/seo'
+import { editorialGate, holdForReview } from '@/lib/marketing/editorial'
 import {
   CONTAINER_TIMEOUT_MS,
   MAX_ATTEMPTS,
@@ -105,6 +106,9 @@ export async function schedulePost(postId: string, targets: Target[], when: Date
     }
     rows.push({ channel: t.channel, connectionId: t.channel === 'WEB' ? null : t.connectionId, variantId: variant.id })
   }
+  // Every way into the queue passes here: a mandatory editorial review must cover exactly these texts
+  const held = await editorialGate(post)
+  if (held) issues.push({ channel: 'Revisión editorial', message: held })
   if (issues.length) throw new PublishValidationError(issues)
 
   const replaced: Prisma.MarketingPublicationWhereInput = opts.keepOtherTargets
@@ -198,6 +202,13 @@ export async function runPublication(pub: MarketingPublication) {
 
     const { validation } = validatePostForChannel(post, pub.channel as MarketingChannel)
     if (validation && !validation.ok) return finish(pub, { status: 'failed', lastError: validation.errors.map((e) => e.message).join(' · ') })
+
+    // Last check (also for the calendar's drag, retries and re-queued sends): what goes out is what the review approved
+    const held = await editorialGate(post)
+    if (held) {
+      await holdForReview(post.id, held)
+      return finish(pub, { status: 'cancelled', lastError: held })
+    }
 
     if (pub.channel === 'WEB') {
       const now = new Date()

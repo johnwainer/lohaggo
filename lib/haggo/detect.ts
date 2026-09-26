@@ -17,7 +17,7 @@ export type Snapshot = {
   aiAgents: Array<{ id: string; name: string; messagesToday: number; handoffsToday: number; openGaps: number }>
   aiCost: { today: number; month: number }
   aiProviders: { down: Array<{ name: string; reason: string }>; answering: string | null }
-  marketing: { inReview: number; failedWeek: number; scheduledToday: number; ideasPending: number; runErrors24h: number; degraded: Array<{ id: string; campaign: string; reason: string }> }
+  marketing: { inReview: number; failedWeek: number; scheduledToday: number; ideasPending: number; runErrors24h: number; degraded: Array<{ id: string; campaign: string; reason: string }>; editorial?: { held: number; reviewedWeek: number; notApprovedWeek: number; failedWeek: number } }
   quality: { rating: number | null; casesOpen: number; casesSla: number }
   channels: { problems: string[] }
   system: { cronsFailing: number; cronsLate: number; errorsLastHour: number; criticalIncidents: number }
@@ -76,6 +76,10 @@ export function detect(s: Snapshot): Detection[] {
   if (s.marketing.failedWeek) add({ key: 'mk:failed', domain: 'marketing', severity: 'warning', title: `${plural(s.marketing.failedWeek, 'publicación falló', 'publicaciones fallaron')} en 7 días`, detail: 'Revisar errores de publicación.' })
   for (const d of s.marketing.degraded) add({ key: `mk:degraded:${d.id}`, domain: 'marketing', severity: 'warning', title: `El agente de marketing de «${d.campaign}» está en copiloto forzado`, detail: d.reason, entityType: 'MarketingAgent', entityId: d.id })
   if (s.marketing.runErrors24h >= 3) add({ key: 'mk:agent-errors', domain: 'marketing', severity: 'warning', title: `El agente de marketing falló ${s.marketing.runErrors24h} veces en 24 h`, detail: 'Revisar sus ejecuciones.' })
+  const ed = s.marketing.editorial
+  if (ed && ed.held >= 3) add({ key: 'mk:editorial-held', domain: 'marketing', severity: 'warning', title: `El editor retiene ${ed.held} publicaciones`, detail: 'Piezas con cambios pedidos, rechazadas o sin poder revisarse: revisar qué pide el editor o si el agente necesita otras instrucciones.' })
+  if (ed && ed.reviewedWeek >= 5 && ed.notApprovedWeek / ed.reviewedWeek >= 0.6) add({ key: 'mk:editorial-low', domain: 'marketing', severity: 'info', title: `El editor no aprobó ${Math.round((ed.notApprovedWeek / ed.reviewedWeek) * 100)} % de sus revisiones en 7 días`, detail: 'Puntajes bajos repetidos: la voz, la estrategia del agente o la exigencia del editor no encajan.' })
+  if (ed && ed.failedWeek >= 3) add({ key: 'mk:editorial-failed', domain: 'marketing', severity: 'warning', title: `${plural(ed.failedWeek, 'revisión editorial falló', 'revisiones editoriales fallaron')} en 7 días`, detail: 'Sin revisión las piezas no salen: revisar presupuesto e IA.' })
   if (s.marketing.inReview >= 5) add({ key: 'mk:review-backlog', domain: 'marketing', severity: 'info', title: `${s.marketing.inReview} publicaciones esperan revisión`, detail: 'Se acumulan borradores sin aprobar.' })
 
   if (s.channels.problems.length) add({ key: `sys:channels:${[...s.channels.problems].sort().join(',')}`, domain: 'system', severity: 'critical', title: `Canales con problemas: ${s.channels.problems.join(', ')}`, detail: 'Hay que reconectarlos.' })
