@@ -193,7 +193,7 @@ export async function converse(userId: string, raw: unknown) {
   const [ctx, directives, memory, history] = await Promise.all([
     chatContext(),
     prisma.haggoDirective.findMany({ where: { active: true }, orderBy: { createdAt: 'asc' }, take: 50, select: { text: true } }),
-    prisma.haggoMemory.findMany({ where: { kind: { not: 'chat_summary' } }, orderBy: { updatedAt: 'desc' }, take: 20, select: { content: true } }),
+    prisma.haggoMemory.findMany({ where: { kind: { notIn: ['chat_summary', 'notice'] } }, orderBy: { updatedAt: 'desc' }, take: 20, select: { content: true } }),
     prisma.haggoMessage.findMany({ orderBy: { createdAt: 'desc' }, take: WINDOW, select: { role: true, content: true } }),
   ])
   const system: Anthropic.TextBlockParam[] = [...buildSystem({ directives, memory }), { type: 'text', text: ACTION_REASONING, cache_control: { type: 'ephemeral' } }, { type: 'text', text: `${CHAT_PROMPT}\n\n${ctx.text}` }]

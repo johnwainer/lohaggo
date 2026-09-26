@@ -25,6 +25,16 @@ export const TRIGGER_LABEL: Record<Trigger, string> = {
   error_spike: 'Pico de errores de la aplicación',
 }
 
+export const NOTICES = ['approvals', 'critical', 'budget', 'auto_undo', 'daily_report'] as const
+export type Notice = (typeof NOTICES)[number]
+export const NOTICE_LABEL: Record<Notice, string> = {
+  approvals: 'Hay propuestas esperando tu aprobación (agrupadas, máximo cada 2 horas)',
+  critical: 'Aparece una situación crítica nueva',
+  budget: 'Haggo llegó a su tope de presupuesto',
+  auto_undo: 'Haggo deshizo solo algo que había hecho',
+  daily_report: 'El informe diario completo',
+}
+
 export const CYCLE_OPTIONS = [5, 15, 30, 60] as const
 
 /** A window in which Haggo observes and proposes but executes nothing. `days` are the days it starts on (0 = domingo). */
@@ -49,6 +59,7 @@ export type HaggoConfig = {
   proposalTtlHours: number
   triggers: Record<Trigger, boolean>
   quietHours: QuietWindow[]
+  notify: Record<Notice, boolean>
   timezone: string
   model: string | null
 }
@@ -72,6 +83,7 @@ export const DEFAULT_CONFIG: HaggoConfig = {
   proposalTtlHours: 48,
   triggers: { critical_incident: true, ai_down: true, error_spike: true },
   quietHours: [],
+  notify: { approvals: true, critical: true, budget: true, auto_undo: true, daily_report: false },
   timezone: 'America/Bogota',
   model: null,
 }
@@ -134,6 +146,7 @@ export function normalizeConfig(raw: Record<string, unknown> | null | undefined,
     proposalTtlHours: has('proposalTtlHours') ? int(r.proposalTtlHours, 1, 720, base.proposalTtlHours) : base.proposalTtlHours,
     triggers: has('triggers') ? { ...base.triggers, ...boolMap(r.triggers, TRIGGERS) } : base.triggers,
     quietHours: has('quietHours') ? parseQuietHours(r.quietHours) : base.quietHours,
+    notify: has('notify') ? { ...base.notify, ...boolMap(r.notify, NOTICES) } : base.notify,
     timezone: typeof r.timezone === 'string' && /^[A-Za-z_]+\/[A-Za-z_]+$/.test(r.timezone) ? r.timezone : base.timezone,
     model: has('model') ? (typeof r.model === 'string' && /^[\w.:-]{1,80}$/.test(r.model.trim()) ? r.model.trim() : null) : base.model,
   }

@@ -285,6 +285,8 @@ export async function recordEvaluation(ev: Evaluation) {
   if (shouldAutoUndo({ decidedByEmail: row.decidedByEmail, reversible: Boolean(def?.undo) }, ev.verdict)) {
     try {
       await undoAction(row.id, SYSTEM)
+      const { notify } = await import('@/lib/haggo/notify')
+      await notify('auto_undo', `undo:${row.id}`, { title: `Haggo deshizo solo: ${label}`, lines: [row.expectedImpact ?? '', `Resultado: ${ev.evidence}`], path: '/admin/haggo?tab=decisions' })
       return { ok: true, message: 'Empeoró: Haggo la deshizo solo' }
     } catch (err) {
       logger.warn('Auto undo failed', { id: row.id, err: err instanceof Error ? err.message : err })

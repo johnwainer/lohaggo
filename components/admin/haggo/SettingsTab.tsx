@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Loader2, Plus, Save, Trash2 } from 'lucide-react'
-import { CYCLE_OPTIONS, DOMAINS, DOMAIN_LABEL, MODES, MODE_LABEL, TRIGGERS, TRIGGER_LABEL, type HaggoConfig, type QuietWindow } from '@/lib/haggo/config'
+import { CYCLE_OPTIONS, DOMAINS, DOMAIN_LABEL, MODES, MODE_LABEL, NOTICES, NOTICE_LABEL, TRIGGERS, TRIGGER_LABEL, type HaggoConfig, type QuietWindow } from '@/lib/haggo/config'
 import { api, btn, btnPrimary, card } from '@/components/admin/haggo/shared'
 import { DirectivesSection } from '@/components/admin/haggo/DirectivesSection'
 
@@ -141,6 +141,14 @@ export function SettingsTab({ config, reload }: { config: HaggoConfig; reload: (
             ))}
             <button onClick={() => set({ quietHours: [...c.quietHours, { days: [0, 1, 2, 3, 4, 5, 6], from: '22:00', to: '06:00' }] })} className={btn}><Plus size={14} /> Agregar franja</button>
           </div>
+        </div>
+      </Section>
+
+      <Section title="Avisos por correo" hint="Llegan a los superadmins de la plataforma, una sola vez por situación. Necesitan el correo (SendGrid) activo en Mensajería.">
+        <div className="space-y-2">
+          {NOTICES.map((n) => (
+            <label key={n} className="flex items-start gap-2 text-sm text-gray-700"><input type="checkbox" className="mt-0.5" checked={c.notify[n]} onChange={(e) => set({ notify: { ...c.notify, [n]: e.target.checked } })} /> {NOTICE_LABEL[n]}</label>
+          ))}
         </div>
       </Section>
 

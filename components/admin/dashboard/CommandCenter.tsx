@@ -439,11 +439,12 @@ export default function CommandCenter() {
       {hg.decisions.length > 0 && (
         <p className={`basis-full truncate ${tv ? 'text-sm' : 'text-xs'} ${t.muted}`}>Últimas decisiones: {hg.decisions.slice(0, tv ? 3 : 5).map((d) => `${d.label} (${({ executed: 'hecha', failed: 'falló', reverted: 'deshecha' } as Record<string, string>)[d.status] ?? d.status})`).join(' · ')}</p>
       )}
-      {!tv && hg.findings.length > 0 && (
-        <div className="basis-full flex flex-wrap gap-1.5">
-          {hg.findings.map((f) => (
-            <Link key={f.id} href="/admin/haggo" className={`truncate rounded-full border px-2.5 py-1 text-xs ${f.severity === 'critical' ? 'border-rose-200 text-rose-600' : f.severity === 'warning' ? 'border-amber-200 text-amber-700' : 'border-gray-200 text-gray-600'} max-w-[22rem]`}>{f.title}</Link>
-          ))}
+      {hg.findings.length > 0 && (
+        <div className={`basis-full flex gap-1.5 ${tv ? 'flex-nowrap overflow-hidden' : 'flex-wrap'}`}>
+          {(tv ? hg.findings.slice(0, 3) : hg.findings).map((f) => {
+            const cls = `truncate rounded-full border px-2.5 py-1 ${tv ? 'text-sm' : 'text-xs'} ${f.severity === 'critical' ? (tv ? 'border-rose-500/40 text-rose-300' : 'border-rose-200 text-rose-600') : f.severity === 'warning' ? (tv ? 'border-amber-500/40 text-amber-300' : 'border-amber-200 text-amber-700') : (tv ? 'border-white/15 text-slate-300' : 'border-gray-200 text-gray-600')} max-w-[22rem]`
+            return tv ? <span key={f.id} className={cls}>{f.title}</span> : <Link key={f.id} href="/admin/haggo" className={cls}>{f.title}</Link>
+          })}
         </div>
       )}
     </section>

@@ -2478,6 +2478,7 @@ model HaggoSettings {
   weeklyReviewDay     Int?      @default(1)
   weeklyReviewHour    Int       @default(7)
   proposalTtlHours    Int       @default(48)
+  notify              Json?
   triggers            Json?
   quietHours          Json?
   timezone            String    @default("America/Bogota")

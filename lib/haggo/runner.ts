@@ -14,6 +14,9 @@ import { READ_TOOL_DEFS, READ_TOOLS, runReadTool } from '@/lib/haggo/tools/read'
 import { ACTION_REASONING, PROPOSE_ACTION_TOOL } from '@/lib/haggo/actions/registry'
 import { closeExpiredVerifications, dueVerifications, expireActions, proposeAction, recordEvaluation } from '@/lib/haggo/actions/engine'
 import { EVALUATE_TOOL, parseEvaluation } from '@/lib/haggo/actions/verify'
+import { NOTICE_KIND, notify, notifyApprovals } from '@/lib/haggo/notify'
+import { bogotaKey } from '@/lib/admin/overview-core'
+import { periodOf } from '@/lib/ai/pricing'
 import { ANALYSIS_TOOL, REPORT_TOOL, buildSystem, cycleTask, parseAnalysis, parseReport, reportTask } from '@/lib/haggo/prompt'
 
 const logger = createLogger('haggo')
@@ -48,7 +51,7 @@ class Meter {
 async function context(withActions = true) {
   const [directives, memory] = await Promise.all([
     prisma.haggoDirective.findMany({ where: { active: true }, orderBy: { createdAt: 'asc' }, take: 50, select: { text: true } }),
-    prisma.haggoMemory.findMany({ where: { kind: { not: 'chat_summary' } }, orderBy: { updatedAt: 'desc' }, take: 20, select: { content: true } }),
+    prisma.haggoMemory.findMany({ where: { kind: { notIn: ['chat_summary', NOTICE_KIND] } }, orderBy: { updatedAt: 'desc' }, take: 20, select: { content: true } }),
   ])
   const system = buildSystem({ directives, memory })
   return withActions ? [...system, { type: 'text' as const, text: ACTION_REASONING }] : system
@@ -127,6 +130,7 @@ async function think(p: { kind: AiCallKind; model: string; system: Anthropic.Tex
 /** Rule findings follow their detection: created or refreshed while it lasts, resolved when it goes away. */
 async function syncRuleFindings(runId: string, detections: Detection[]) {
   const keys = detections.map((d) => `rule:${d.key}`)
+  const createdCritical: Detection[] = []
   for (const d of detections) {
     const fingerprint = `rule:${d.key}`
     const existing = await prisma.haggoFinding.findFirst({ where: { fingerprint, status: { in: ['new', 'seen'] } }, select: { id: true } })
@@ -137,9 +141,11 @@ async function syncRuleFindings(runId: string, detections: Detection[]) {
     // Dismissed by the superadmin: stays quiet for 7 days even if the condition goes on
     const dismissed = await prisma.haggoFinding.findFirst({ where: { fingerprint, status: 'dismissed', updatedAt: { gte: new Date(Date.now() - 7 * 24 * H) } }, select: { id: true } })
     if (dismissed) continue
+    if (d.severity === 'critical') createdCritical.push(d)
     await prisma.haggoFinding.create({ data: { runId, fingerprint, domain: d.domain, severity: d.severity, title: d.title, body: d.detail, entityType: d.entityType ?? null, entityId: d.entityId ?? null } })
   }
   await prisma.haggoFinding.updateMany({ where: { fingerprint: { startsWith: 'rule:', notIn: keys }, status: { in: ['new', 'seen'] } }, data: { status: 'resolved' } })
+  return createdCritical
 }
 
 async function lastRuns(): Promise<LastRuns> {
@@ -163,7 +169,8 @@ export async function runCycle(cfg: HaggoConfig, trigger: string, now = new Date
     const detections = detect(snapshot)
     const prev = await prisma.haggoRun.findFirst({ where: { type: 'cycle', id: { not: run.id }, detections: { not: Prisma.DbNull } }, orderBy: { startedAt: 'desc' }, select: { detections: true } })
     const novel = force ? detections : novelDetections(detections, (prev?.detections as Array<Pick<Detection, 'key' | 'severity'>> | null) ?? [])
-    await syncRuleFindings(run.id, detections)
+    const newCritical = await syncRuleFindings(run.id, detections)
+    for (const d of newCritical) await notify('critical', `critical:${d.key}:${bogotaKey(now)}`, { title: d.title, lines: [d.detail, 'Haggo lo está investigando; mira su análisis en Haggo → Ahora.'] })
     await prisma.haggoSettings.update({ where: { id: 'platform' }, data: { lastSnapshot: json(snapshot), lastSnapshotAt: now } })
 
     let status = 'ok'
@@ -176,13 +183,17 @@ export async function runCycle(cfg: HaggoConfig, trigger: string, now = new Date
       status = 'skipped'
       summary = detections.length ? `Sin novedades: ${detections.length} situaciones ya conocidas.` : 'Sin novedades: todo en orden.'
     } else if (spend.blocked) {
+      await notify('budget', `budget:${spend.blocked}:${spend.blocked === 'month' ? periodOf(now) : bogotaKey(now)}`, { title: `Haggo llegó a su tope ${spend.blocked === 'month' ? 'mensual' : 'diario'} de IA`, lines: [`Gastó US$${(spend.blocked === 'month' ? spend.monthUsd : spend.todayUsd).toFixed(2)}. Sigue vigilando con reglas, sin IA. Puedes subir el tope en Haggo → Ajustes.`], path: '/admin/haggo?tab=settings' })
       summary = `Presupuesto de Haggo agotado (${spend.blocked === 'month' ? 'mes' : 'día'}): solo reglas. Nuevo: ${novel.map((d) => d.title).join(' · ')}`
     } else {
       const openFindings = await prisma.haggoFinding.findMany({ where: { status: { in: ['new', 'seen'] }, fingerprint: { not: { startsWith: 'rule:' } } }, orderBy: { lastSeenAt: 'desc' }, take: 20, select: { title: true, severity: true } })
       const proposing: Proposing = { origin: 'cycle', runId: run.id, counter: { n: 0 }, ids: [], verify: toVerify.map((v) => v.id), verified: [] }
       const verifyTask = toVerify.length ? `\n\nAcciones ejecutadas cuyo plazo ya venció: mide con tus herramientas si se cumplió cada hipótesis y registra cada una con evaluar_resultado (antes y ahora, con cifras). Lo que empeoró y Haggo hizo solo se deshace; lo aprobado por una persona queda como recomendación.\n${toVerify.map((v) => `- ${v.id}: ${v.label} — ${v.what ?? ''}. Ejecutada ${v.executedAt.toISOString()}${v.autonomous ? ' (la hiciste solo)' : ''}. Hipótesis: ${JSON.stringify(v.hypothesis)}`).join('\n')}` : ''
       const input = await think({ kind: 'haggo_cycle', model: await modelFor(cfg), system: await context(), task: cycleTask({ snapshot, detections, novel, openFindings, nowText: nowText(now, cfg.timezone) }) + verifyTask, finalTool: ANALYSIS_TOOL, maxTokens: 5000, effort: 'medium', proposing }, meter)
-      if (proposing.ids.length) logger.info('Cycle proposals', { runId: run.id, n: proposing.ids.length })
+      if (proposing.ids.length) {
+        logger.info('Cycle proposals', { runId: run.id, n: proposing.ids.length })
+        await notifyApprovals(now)
+      }
       const analysis = parseAnalysis(input)
       if (!analysis) throw new HaggoError('El análisis no es válido')
       await saveAnalysis(run.id, analysis, detections)
@@ -233,11 +244,14 @@ export async function runReport(cfg: HaggoConfig, kind: 'daily' | 'weekly', now 
       await prisma.haggoRun.update({ where: { id: run.id }, data: { status: 'ok', summary: 'Informe solo con reglas (presupuesto agotado)', report: body, finishedAt: new Date() } })
       return { status: 'ok', summary: 'Informe solo con reglas', costUsd: 0 }
     }
-    const input = await think({ kind: 'haggo_report', model: await modelFor(cfg), system: await context(), task: reportTask({ kind, snapshot, runs, findings, nowText: nowText(now, cfg.timezone) }), finalTool: REPORT_TOOL, maxTokens: 10000, effort: 'high', rounds: REPORT_ROUNDS, proposing: { origin: 'report', runId: run.id, counter: { n: 0 }, ids: [] } }, meter)
+    const reportProposals: Proposing = { origin: 'report', runId: run.id, counter: { n: 0 }, ids: [] }
+    const input = await think({ kind: 'haggo_report', model: await modelFor(cfg), system: await context(), task: reportTask({ kind, snapshot, runs, findings, nowText: nowText(now, cfg.timezone) }), finalTool: REPORT_TOOL, maxTokens: 10000, effort: 'high', rounds: REPORT_ROUNDS, proposing: reportProposals }, meter)
     const report = parseReport(input)
     if (!report) throw new HaggoError('El informe no es válido')
     await prisma.haggoSettings.update({ where: { id: 'platform' }, data: { focus: report.focus || undefined } })
     await prisma.haggoRun.update({ where: { id: run.id }, data: { status: 'ok', summary: `${report.title}: ${report.summary}`.slice(0, 1000), report: report.body, output: json(report), ...meter.data, finishedAt: new Date() } })
+    if (kind === 'daily') await notify('daily_report', `daily:${run.id}`, { title: report.title, lines: [report.summary, report.body, ...(report.recommendations.length ? [`Recomendaciones:\n${report.recommendations.map((r) => `• ${r.title}: ${r.why}`).join('\n')}`] : [])], path: '/admin/haggo?tab=analysis' })
+    if (reportProposals.ids.length) await notifyApprovals(now)
     return { status: 'ok', summary: report.title, costUsd: meter.cost }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Error'
