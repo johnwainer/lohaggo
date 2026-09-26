@@ -122,7 +122,7 @@ export function ChatTab({ onExit }: { onExit?: () => void } = {}) {
   if (!messages) return <div className="flex items-center gap-2 p-6 text-gray-500"><Loader2 size={16} className="animate-spin" /> Cargando…</div>
   return (
     // Phone and tablet: full screen under the admin's top bar, so the input is always in view (also with the keyboard)
-    <section className={`fixed inset-x-0 bottom-0 top-14 z-20 flex flex-col bg-white lg:static lg:z-auto lg:h-[calc(100dvh-16rem)] lg:min-h-[28rem] lg:rounded-2xl lg:border lg:border-gray-200`}>
+    <section className={`fixed inset-x-0 bottom-0 top-14 z-20 flex flex-col bg-white max-lg:!mt-0 lg:static lg:z-auto lg:h-[calc(100dvh-16rem)] lg:min-h-[28rem] lg:rounded-2xl lg:border lg:border-gray-200`}>
       <div className="flex items-center gap-2 border-b border-gray-100 px-2 py-2 lg:hidden">
         {onExit && <button onClick={onExit} className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100"><ArrowLeft size={16} /> Haggo</button>}
         <p className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-900">Conversación</p>
