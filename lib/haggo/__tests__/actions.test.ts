@@ -135,6 +135,7 @@ const FIXTURES: Record<string, { raw: Record<string, unknown>; before: unknown }
   'marketing.request_plan': { raw: { agentId: 'agent_123456' }, before: { campaign: 'Plomería' } },
   'marketing.decide_ideas': { raw: { agentId: 'agent_123456', ideaIds: ['idea_123456'], decision: 'reject', reason: 'Ya se habló de eso' }, before: { ideas: [{ id: 'idea_123456', angle: 'Goteras en invierno' }] } },
   'marketing.draft_idea': { raw: { agentId: 'agent_123456', ideaId: 'idea_123456' }, before: { angle: 'Goteras', mode: 'supervised', campaign: 'Consejos' } },
+  'marketing.review_post': { raw: { postId: 'post_123456' }, before: { title: 'Goteras', reviewStatus: 'failed' } },
   'ai_agents.pause': { raw: { agentId: 'agent_123456' }, before: { name: 'Soporte', status: 'active', open: 3 } },
   'ai_agents.activate': { raw: { agentId: 'agent_123456' }, before: { name: 'Soporte', status: 'paused', open: 0 } },
   'ai_agents.update_instructions': { raw: { agentId: 'agent_123456', tone: 'Cercano' }, before: { name: 'Soporte', instructions: 'a', goal: 'b', tone: 'Formal' } },

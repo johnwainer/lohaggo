@@ -144,7 +144,7 @@ export async function takenSlots(workspaceId: string, channel: MarketingChannel,
 /** Everything the "moment" block of the prompt needs. */
 export async function momentFacts(agent: { id: string; workspaceId: string; horizonDays: number }, config: AgentConfig, now = new Date()): Promise<{ facts: MomentFacts; stats: LearningStats | null }> {
   const end = new Date(now.getTime() + agent.horizonDays * DAY)
-  const [pubs, ideas, learning, rows, rejections] = await Promise.all([
+  const [pubs, ideas, learning, rows, rejections, editor] = await Promise.all([
     prisma.marketingPublication.findMany({
       where: { post: { workspaceId: agent.workspaceId }, status: { in: ['scheduled', 'publishing', 'processing', 'published'] }, scheduledAt: { gte: new Date(now.getTime() - 14 * DAY), lte: end } },
       select: { channel: true, scheduledAt: true, publishedAt: true, status: true, post: { select: { title: true, pillar: true } } },
@@ -155,7 +155,10 @@ export async function momentFacts(agent: { id: string; workspaceId: string; hori
     prisma.marketingAgentLearning.findFirst({ where: { agentId: agent.id }, orderBy: { createdAt: 'desc' }, select: { insights: true } }),
     learningRows({ agentId: agent.id }, now),
     rejectionsFor(agent.id, now),
+    // What the editor had to ask on this agent's recent pieces: learned so the first version already avoids it
+    prisma.marketingReview.findMany({ where: { agentId: agent.id, reviewer: 'editor', verdict: { in: ['changes', 'rejected'] }, createdAt: { gte: new Date(now.getTime() - 30 * DAY) } }, orderBy: { createdAt: 'desc' }, take: 20, select: { instructions: true } }).catch(() => []),
   ])
+  const editorNotes = Array.from(new Set(editor.flatMap((r) => ((r.instructions as Array<{ change?: unknown }> | null) ?? []).map((i) => (typeof i.change === 'string' ? i.change.trim().slice(0, 240) : '')).filter(Boolean)))).slice(0, 8)
   const stats = rows.length ? learningStats(rows, config.kpi, rejections) : null
   const bodies = stats ? await prisma.marketingPostVariant.findMany({ where: { postId: { in: [...stats.best, ...stats.worst].map((p) => p.postId) } }, select: { postId: true, channel: true, body: true } }) : []
   const textOf = (postId: string) => bodies.find((b) => b.postId === postId && b.channel !== 'WEB')?.body ?? bodies.find((b) => b.postId === postId)?.body ?? ''
@@ -172,6 +175,7 @@ export async function momentFacts(agent: { id: string; workspaceId: string; hori
       stats,
       best: stats ? stats.best.map((p) => ({ title: p.title, text: textOf(p.postId), result: result(p.lift) })) : [],
       worst: stats ? stats.worst.map((p) => ({ title: p.title, text: textOf(p.postId), result: result(p.lift) })) : [],
+      editorNotes,
       rejected: rejections.slice(0, 15).map((r) => ({ what: `${r.kind === 'idea' ? 'Idea' : 'Pieza'}: ${r.what ?? r.pillar ?? ''}`, reason: r.reason })),
     },
   }

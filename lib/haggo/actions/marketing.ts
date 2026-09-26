@@ -3,6 +3,7 @@ import { configOf, decideIdeas, draftIdea, loadAgent, pauseAgent, planIdeas, sch
 import { AGENT_CHANNELS, sanitizeAgentConfig, type AgentConfig } from '@/lib/marketing/agent-input'
 import { activateAgent, activationError, approvePost, fitsAgentSchedule, reschedulePost, retryPublication, returnToReview } from '@/lib/marketing/ops'
 import type { MarketingChannel } from '@prisma/client'
+import { reviewNow } from '@/lib/marketing/editorial-ops'
 import { ID, done, isObj, parseDate, parseId, parseText, requireObj, when, type HaggoActionDef } from '@/lib/haggo/actions/types'
 
 const DONE_POST = ['published', 'partial', 'publishing', 'archived']
@@ -413,4 +414,36 @@ const draftIdeaAction: HaggoActionDef<{ agentId: string; ideaId: string; instruc
   },
 }
 
-export const MARKETING_ACTIONS = [reschedule, retry, approve, cancel, pause, activate, updateSchedule, requestPlan, decideIdeasAction, draftIdeaAction] as unknown as HaggoActionDef[]
+const reviewPostAction: HaggoActionDef<{ postId: string }> = {
+  id: 'marketing.review_post',
+  domain: 'marketing',
+  risk: 'low',
+  label: 'Volver a pasar una publicación por la revisión editorial',
+  hint: 'El corrector de ortografía y el editor experto revisan otra vez la publicación tal como está guardada (por ejemplo, si la revisión falló o la editaron). Si el editor no la aprueba y estaba en cola, vuelve a revisión humana. Gasta un poco de IA.',
+  schema: { type: 'object', properties: { postId: { type: 'string' } }, required: ['postId'] },
+  sideEffects: ['spends'],
+  parse: (raw) => { const r = requireObj(raw); const e: string[] = []; if (!r) return { ok: false, errors: ['Parámetros inválidos'] }; return done(e, { postId: parseId(r, 'postId', e) }) },
+  describe: () => 'Revisar otra vez la publicación',
+  entity: (p) => ({ type: 'MarketingPost', id: p.postId }),
+  preconditions: async (p) => {
+    const post = await prisma.marketingPost.findUnique({ where: { id: p.postId }, select: { title: true, status: true, reviewStatus: true } })
+    if (!post) return { ok: false, reason: 'La publicación no existe' }
+    if (DONE_POST.includes(post.status)) return { ok: false, reason: 'Ya salió o está archivada' }
+    if (post.reviewStatus === 'pending') return { ok: false, reason: 'Ya se está revisando' }
+    return { ok: true, before: { title: post.title, reviewStatus: post.reviewStatus } }
+  },
+  preview: async (_p, before) => {
+    const b = before as { title: string; reviewStatus: string | null }
+    return { summary: `«${b.title}» pasa otra vez por el corrector y el editor`, diff: [{ field: 'Revisión editorial', from: b.reviewStatus ?? 'sin revisar', to: 'la que dé el editor' }] }
+  },
+  execute: async (p) => {
+    const post = await prisma.marketingPost.findUnique({ where: { id: p.postId }, select: { agentId: true } })
+    const run = () => reviewNow(p.postId, null)
+    const r = post?.agentId ? await withAgentLock(post.agentId, run) : await run()
+    if (!r) throw new Error('El agente está ocupado; inténtalo en unos minutos')
+    const verdict = { approved: 'aprobada', changes: 'el editor pide cambios', rejected: 'el editor la rechazó', failed: `no se pudo revisar (${r.error})` }[r.status]
+    return { after: { reviewStatus: r.status }, result: `Revisión: ${verdict}${r.score != null ? ` · ${r.score}/10` : ''}${r.corrections ? ` · ${r.corrections} corrección(es) de ortografía` : ''}` }
+  },
+}
+
+export const MARKETING_ACTIONS = [reschedule, retry, approve, cancel, pause, activate, updateSchedule, requestPlan, decideIdeasAction, draftIdeaAction, reviewPostAction] as unknown as HaggoActionDef[]

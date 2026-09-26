@@ -305,3 +305,12 @@ describe('una pasada de revisión (IA simulada)', () => {
     expect((db.reviews[0].rejected as unknown[]).length).toBe(2)
   })
 })
+
+describe('aprendizaje del agente con los pedidos del editor', () => {
+  it('lo que el editor pidió llega al agente como datos, no como instrucciones sueltas', async () => {
+    const { momentBlock } = await import('@/lib/marketing/agent-prompt')
+    const text = momentBlock({ now: new Date('2026-09-28T15:00:00Z'), calendar: [], learnings: null, stats: null, best: [], worst: [], rejected: [], editorNotes: ['Abre con el dolor del cliente, no con la marca'] })
+    expect(text).toMatch(/editor jefe te pidió corregir[\s\S]*<datos tipo="pedidos recientes del editor">\n- Abre con el dolor del cliente/)
+    expect(momentBlock({ now: new Date(), calendar: [], learnings: null, stats: null, best: [], worst: [], rejected: [] })).not.toMatch(/editor/)
+  })
+})

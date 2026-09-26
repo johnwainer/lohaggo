@@ -133,6 +133,8 @@ export type MomentFacts = {
   best: Array<{ title: string; text: string; result: string }>
   worst: Array<{ title: string; text: string; result: string }>
   rejected: Array<{ what: string; reason: string | null }>
+  /** What the editorial review asked on recent pieces */
+  editorNotes?: string[]
 }
 
 /** What changes run to run: date, what is already planned, what worked, what people rejected. */
@@ -148,6 +150,7 @@ export function momentBlock(m: MomentFacts) {
     m.learnings ? `Aprendizajes vigentes:\n${m.learnings}` : 'Aún no hay aprendizajes: faltan resultados medidos.',
     perf ? `Rendimiento frente a la media (1 = media; entre paréntesis, publicaciones medidas):\n${perf}` : '',
     m.best.length || m.worst.length ? `<datos tipo="publicaciones medidas">\n${m.best.length ? `Mejores:\n${m.best.map(post).join('\n')}` : ''}${m.worst.length ? `\nPeores:\n${m.worst.map(post).join('\n')}` : ''}\n</datos>` : '',
+    m.editorNotes?.length ? `Lo que el editor jefe te pidió corregir en tus últimas piezas (evítalo desde la primera versión):\n<datos tipo="pedidos recientes del editor">\n${m.editorNotes.map((n) => `- ${n}`).join('\n')}\n</datos>` : '',
     m.rejected.length ? `<datos tipo="ideas y piezas rechazadas por el equipo">\n${m.rejected.map((r) => `- ${r.what}${r.reason ? `: ${r.reason}` : ''}`).join('\n')}\n</datos>` : '',
   ].filter(Boolean).join('\n\n')
 }
