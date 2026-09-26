@@ -111,7 +111,7 @@ export const COMMENT_SCOPES: Record<MetaChannel, string[]> = {
   INSTAGRAM: ['instagram_manage_comments'],
 }
 export const MENTION_SCOPE = 'instagram_manage_mentions'
-/** Comments on paid ads: Meta may ask it to show ad media and their comments (Instagram). Asked with comments; never blocks them. */
+/** Comments on paid ads: Meta may ask it to show ad media and their comments. Only asked when the person opts in (it needs App Review). */
 export const ADS_READ_SCOPE = 'ads_read'
 
 /** Publishing posts from the marketing module (always asked: it is how the business uses its pages). */
@@ -120,11 +120,12 @@ export const PUBLISH_SCOPES: Record<MetaChannel, string[]> = {
   INSTAGRAM: ['instagram_content_publish'],
 }
 
-export type OAuthOptions = { comments?: boolean; mentions?: boolean }
+export type OAuthOptions = { comments?: boolean; mentions?: boolean; ads?: boolean }
 
 export function scopesFor(channel: MetaChannel, options: OAuthOptions = {}) {
   const scopes = [...META_SCOPES[channel], ...PUBLISH_SCOPES[channel]]
-  if (options.comments) scopes.push(...COMMENT_SCOPES[channel], ADS_READ_SCOPE)
+  if (options.comments) scopes.push(...COMMENT_SCOPES[channel])
+  if (options.comments && options.ads) scopes.push(ADS_READ_SCOPE)
   if (options.comments && options.mentions && channel === 'INSTAGRAM') scopes.push(MENTION_SCOPE)
   return Array.from(new Set(scopes))
 }

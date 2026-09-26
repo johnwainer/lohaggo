@@ -23,6 +23,9 @@ const logger = createLogger('marketing-ads')
 
 /** Packages per workspace and 24 h, whatever the monthly cap says (each one may generate several images). */
 export const DAILY_AD_DRAFTS = 20
+/** Packages being written at the same time per workspace. */
+const MAX_GENERATING = 2
+const STUCK_MS = 10 * 60_000
 const CALL_TIMEOUT_MS = 150_000
 
 export class AdError extends Error {}
@@ -78,8 +81,19 @@ export async function adBlock(workspaceId: string) {
 export async function createAdDraft(workspaceId: string, input: AdInput, userId: string | null) {
   const why = await adBlock(workspaceId)
   if (why) throw new AdError(why)
-  const draft = await prisma.marketingAdDraft.create({
-    data: { workspaceId, campaignId: input.campaignId, title: input.service ? `Pauta: ${input.service}` : 'Pauta nueva', status: 'generating', input: json(input), createdById: userId },
+  // Count and create under a per-workspace lock: parallel requests cannot all pass the daily cap
+  const draft = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`ad-drafts:${workspaceId}`}))`
+    const since = new Date(Date.now() - 24 * 3600_000)
+    const [today, running] = await Promise.all([
+      tx.marketingAdDraft.count({ where: { workspaceId, createdAt: { gte: since } } }),
+      tx.marketingAdDraft.count({ where: { workspaceId, status: 'generating', createdAt: { gte: new Date(Date.now() - STUCK_MS) } } }),
+    ])
+    if (today >= DAILY_AD_DRAFTS) throw new AdError(`Límite diario alcanzado (${DAILY_AD_DRAFTS} pautas en 24 h)`)
+    if (running >= MAX_GENERATING) throw new AdError('Ya se están creando otras pautas en este workspace; espera a que terminen')
+    return tx.marketingAdDraft.create({
+      data: { workspaceId, campaignId: input.campaignId, title: input.service ? `Pauta: ${input.service}` : 'Pauta nueva', status: 'generating', input: json(input), createdById: userId },
+    })
   })
   let cost = 0
   let model: string | null = null
@@ -156,6 +170,11 @@ async function makeImages(workspaceId: string, draftId: string, pkg: AdPackage, 
 }
 
 export async function listAdDrafts(workspaceIds: string[] | null) {
+  // A run that died (timeout, deploy) never finishes: after a while it shows as failed instead of «creando»
+  await prisma.marketingAdDraft.updateMany({
+    where: { ...(workspaceIds ? { workspaceId: { in: workspaceIds } } : {}), status: 'generating', createdAt: { lt: new Date(Date.now() - STUCK_MS) } },
+    data: { status: 'failed', error: 'Se interrumpió mientras se creaba; créala de nuevo' },
+  })
   return prisma.marketingAdDraft.findMany({
     where: { ...(workspaceIds ? { workspaceId: { in: workspaceIds } } : {}), status: { not: 'archived' } },
     orderBy: { createdAt: 'desc' },

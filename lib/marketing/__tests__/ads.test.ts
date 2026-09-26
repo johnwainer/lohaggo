@@ -61,9 +61,10 @@ describe('agente de pauta: seguimiento y prompt', () => {
 })
 
 describe('permisos de Meta', () => {
-  it('con comentarios se pide ads_read para los anuncios; sin comentarios no', () => {
-    expect(scopesFor('INSTAGRAM', { comments: true })).toContain('ads_read')
-    expect(scopesFor('MESSENGER', { comments: true })).toContain('ads_read')
-    expect(scopesFor('INSTAGRAM')).not.toContain('ads_read')
+  it('ads_read solo si se pide de forma explícita (necesita revisión de Meta y no debe romper una reconexión normal)', () => {
+    expect(scopesFor('INSTAGRAM', { comments: true })).not.toContain('ads_read')
+    expect(scopesFor('INSTAGRAM', { comments: true, ads: true })).toContain('ads_read')
+    expect(scopesFor('MESSENGER', { comments: true, ads: true })).toContain('ads_read')
+    expect(scopesFor('INSTAGRAM', { ads: true })).not.toContain('ads_read')
   })
 })
