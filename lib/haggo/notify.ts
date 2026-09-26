@@ -37,8 +37,8 @@ export async function notify(kind: Notice, dedupeKey: string, n: { title: string
     if (await prisma.haggoMemory.findFirst({ where: { kind: NOTICE_KIND, key: dedupeKey }, select: { id: true } })) return false
     const runtime = await getMessagingProviderRuntimeConfig()
     if (!runtime.sendgrid?.active) return false
-    const admins = await prisma.user.findMany({ where: { isSuperAdmin: true, isActive: true }, select: { email: true }, take: 5 })
-    const to = Array.from(new Set(admins.map((a) => a.email).filter(Boolean)))
+    // The addresses set in Ajustes, or the platform superadmins when none
+    const to = cfg.notifyTo.length ? cfg.notifyTo : Array.from(new Set((await prisma.user.findMany({ where: { isSuperAdmin: true, isActive: true }, select: { email: true }, take: 5 })).map((a) => a.email).filter(Boolean)))
     if (!to.length) return false
     // Recorded before sending: two servers cannot both send the same notice
     await prisma.haggoMemory.create({ data: { kind: NOTICE_KIND, key: dedupeKey, content: n.title.slice(0, 300) } })

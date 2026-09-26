@@ -73,7 +73,7 @@ export function SettingsTab({ config, reload }: { config: HaggoConfig; reload: (
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="text-xs text-gray-500"><tr className="text-left"><th className="py-1">Área</th><th>Modo</th><th>Riesgo medio sin preguntar</th></tr></thead>
+            <thead className="text-xs text-gray-500"><tr className="text-left"><th className="py-1">Área</th><th>Modo</th><th title="Solo cuenta si el área está en Autónomo. Encendido: Haggo también hace solo las acciones de riesgo medio de esa área. Apagado: esas te las propone.">En autónomo, también riesgo medio</th></tr></thead>
             <tbody>
               {DOMAINS.map((d) => (
                 <tr key={d} className="border-t border-gray-100">
@@ -87,11 +87,24 @@ export function SettingsTab({ config, reload }: { config: HaggoConfig; reload: (
                       {MODES.filter((m) => d !== 'money' || m !== 'autonomous').map((m) => <option key={m} value={m}>{MODE_LABEL[m]}</option>)}
                     </select>
                   </td>
-                  <td>{d === 'money' ? <span className="text-xs text-gray-400">nunca</span> : <input type="checkbox" checked={Boolean(c.mediumAllowed[d])} onChange={(e) => set({ mediumAllowed: { ...c.mediumAllowed, [d]: e.target.checked } })} />}</td>
+                  <td className="align-top">{d === 'money' ? <span className="text-xs text-gray-400">nunca</span> : (
+                    <label className="flex items-center gap-1.5">
+                      <input type="checkbox" checked={Boolean(c.mediumAllowed[d])} disabled={(c.domainModes[d] ?? c.mode) !== 'autonomous'} onChange={(e) => set({ mediumAllowed: { ...c.mediumAllowed, [d]: e.target.checked } })} />
+                      {(c.domainModes[d] ?? c.mode) !== 'autonomous' && <span className="text-[11px] text-gray-400">solo en autónomo</span>}
+                    </label>
+                  )}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+        <div className="rounded-xl bg-gray-50 p-3 text-xs text-gray-600">
+          <p className="font-semibold text-gray-700">Cómo decide Haggo si actúa solo en un área en Autónomo</p>
+          <ul className="mt-1 list-disc space-y-0.5 pl-4">
+            <li><strong>Riesgo bajo</strong> (por ejemplo reprogramar una publicación, reintentar un proveedor de IA, cerrar un incidente): lo hace solo.</li>
+            <li><strong>Riesgo medio</strong> (por ejemplo pausar un agente, aprobar una publicación, avisar a socios): lo hace solo <em>solo si marcas «En autónomo, también riesgo medio»</em>; si no, te lo propone.</li>
+            <li><strong>Riesgo alto y máximo</strong> (instrucciones de agentes, funciones y botones, socios): siempre te lo propone.</li>
+          </ul>
         </div>
         <p className="text-xs text-gray-500">En <strong>autónomo</strong>, Haggo ejecuta solo las acciones de riesgo bajo de esa área (y las de riesgo medio si marcas la casilla), dentro de tus límites y fuera de las horas sin actuar. Lo que pides en la conversación siempre te lo propone. Riesgo alto, riesgo máximo y dinero siempre piden tu aprobación. Después de cada acción, Haggo mide si funcionó; si lo que hizo solo empeoró algo, lo deshace.</p>
       </Section>
@@ -144,7 +157,17 @@ export function SettingsTab({ config, reload }: { config: HaggoConfig; reload: (
         </div>
       </Section>
 
-      <Section title="Avisos por correo" hint="Llegan a los superadmins de la plataforma, una sola vez por situación. Necesitan el correo (SendGrid) activo en Mensajería.">
+      <Section title="Avisos por correo" hint="Cada situación se avisa una sola vez. Necesitan el correo (SendGrid) activo en Mensajería.">
+        <label className="block text-sm">
+          <span className="text-gray-700">Enviar a</span>
+          <input
+            defaultValue={c.notifyTo.join(', ')}
+            onBlur={(e) => set({ notifyTo: e.target.value.split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean) })}
+            placeholder="Vacío = los superadmins de la plataforma"
+            className={`${input} mt-1 w-full`}
+          />
+          <span className="mt-1 block text-xs text-gray-500">{c.notifyTo.length ? `Llegan a: ${c.notifyTo.join(', ')}` : 'Ahora llegan a los superadmins de la plataforma.'} Hasta 10 correos, separados por coma.</span>
+        </label>
         <div className="space-y-2">
           {NOTICES.map((n) => (
             <label key={n} className="flex items-start gap-2 text-sm text-gray-700"><input type="checkbox" className="mt-0.5" checked={c.notify[n]} onChange={(e) => set({ notify: { ...c.notify, [n]: e.target.checked } })} /> {NOTICE_LABEL[n]}</label>

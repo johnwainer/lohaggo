@@ -60,6 +60,8 @@ export type HaggoConfig = {
   triggers: Record<Trigger, boolean>
   quietHours: QuietWindow[]
   notify: Record<Notice, boolean>
+  /** Who gets the emails; empty = the platform superadmins */
+  notifyTo: string[]
   timezone: string
   model: string | null
 }
@@ -84,6 +86,7 @@ export const DEFAULT_CONFIG: HaggoConfig = {
   triggers: { critical_incident: true, ai_down: true, error_spike: true },
   quietHours: [],
   notify: { approvals: true, critical: true, budget: true, auto_undo: true, daily_report: false },
+  notifyTo: [],
   timezone: 'America/Bogota',
   model: null,
 }
@@ -111,6 +114,14 @@ function boolMap<K extends string>(v: unknown, keys: readonly K[] | null): Parti
   const out: Partial<Record<K, boolean>> = {}
   for (const [k, val] of Object.entries(v)) if (typeof val === 'boolean' && (!keys || keys.includes(k as K)) && /^[\w.:-]{1,60}$/.test(k)) out[k as K] = val
   return out
+}
+
+const EMAIL = /^[^\s@<>(),;:"]{1,64}@[A-Za-z0-9.-]{1,190}\.[A-Za-z]{2,24}$/
+
+/** Up to 10 distinct, valid addresses (lowercased); anything else is dropped. */
+export function parseEmails(v: unknown): string[] {
+  const list = Array.isArray(v) ? v : typeof v === 'string' ? v.split(/[\s,;]+/) : []
+  return Array.from(new Set(list.filter((x): x is string => typeof x === 'string').map((x) => x.trim().toLowerCase()).filter((x) => EMAIL.test(x)))).slice(0, 10)
 }
 
 export function parseQuietHours(v: unknown): QuietWindow[] {
@@ -147,6 +158,8 @@ export function normalizeConfig(raw: Record<string, unknown> | null | undefined,
     triggers: has('triggers') ? { ...base.triggers, ...boolMap(r.triggers, TRIGGERS) } : base.triggers,
     quietHours: has('quietHours') ? parseQuietHours(r.quietHours) : base.quietHours,
     notify: has('notify') ? { ...base.notify, ...boolMap(r.notify, NOTICES) } : base.notify,
+    // Stored inside the notify column as `recipients`; the settings form sends notifyTo
+    notifyTo: has('notifyTo') ? parseEmails(r.notifyTo) : isObj(r.notify) && Array.isArray(r.notify.recipients) ? parseEmails(r.notify.recipients) : base.notifyTo,
     timezone: typeof r.timezone === 'string' && /^[A-Za-z_]+\/[A-Za-z_]+$/.test(r.timezone) ? r.timezone : base.timezone,
     model: has('model') ? (typeof r.model === 'string' && /^[\w.:-]{1,80}$/.test(r.model.trim()) ? r.model.trim() : null) : base.model,
   }

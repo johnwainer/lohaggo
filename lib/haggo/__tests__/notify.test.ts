@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const m = vi.hoisted(() => ({ findFirst: vi.fn(), create: vi.fn(), users: vi.fn(), send: vi.fn(async () => ({ ok: true })), cfg: { notify: { approvals: true, critical: true, budget: true, auto_undo: true, daily_report: false } } }))
+const m = vi.hoisted(() => ({ findFirst: vi.fn(), create: vi.fn(), users: vi.fn(), send: vi.fn(async () => ({ ok: true })), cfg: { notify: { approvals: true, critical: true, budget: true, auto_undo: true, daily_report: false }, notifyTo: [] as string[] } }))
 vi.mock('@/lib/prisma', () => ({ prisma: { haggoMemory: { findFirst: m.findFirst, create: m.create, deleteMany: vi.fn(async () => ({})) }, user: { findMany: m.users } } }))
 vi.mock('@/lib/logger', () => ({ createLogger: () => ({ info() {}, warn() {}, error() {} }) }))
 vi.mock('@/lib/messaging/providers', () => ({ sendMessageViaProvider: m.send }))
@@ -8,7 +8,7 @@ vi.mock('@/lib/messaging/provider-config', () => ({ getMessagingProviderRuntimeC
 vi.mock('@/lib/haggo/store', () => ({ getHaggoConfig: async () => m.cfg }))
 
 import { approvalsKey, notify, renderNotice } from '@/lib/haggo/notify'
-import { normalizeConfig } from '@/lib/haggo/config'
+import { normalizeConfig, parseEmails } from '@/lib/haggo/config'
 
 describe('avisos por correo', () => {
   beforeEach(() => { vi.clearAllMocks(); m.users.mockResolvedValue([{ email: 'super@lohaggo.com' }]); m.findFirst.mockResolvedValue(null) })
@@ -26,6 +26,24 @@ describe('avisos por correo', () => {
     m.findFirst.mockResolvedValue({ id: 'ya' })
     expect(await notify('critical', 'critical:x', { title: 'Canal caído', lines: [] })).toBe(false)
     expect(m.send).toHaveBeenCalledTimes(1)
+  })
+
+  it('destinatarios configurables: vacío = superadmins; si hay correos, van a esos', async () => {
+    await notify('critical', 'c:1', { title: 'X', lines: [] })
+    expect(m.send.mock.calls.map((c) => (c as unknown as [{ to: string }])[0].to)).toEqual(['super@lohaggo.com'])
+    m.send.mockClear()
+    m.cfg.notifyTo = ['gerente@lohaggo.com', 'ops@lohaggo.com']
+    await notify('critical', 'c:2', { title: 'X', lines: [] })
+    expect(m.send.mock.calls.map((c) => (c as unknown as [{ to: string }])[0].to)).toEqual(['gerente@lohaggo.com', 'ops@lohaggo.com'])
+    expect(m.users).toHaveBeenCalledTimes(1)
+    m.cfg.notifyTo = []
+  })
+
+  it('correos: válidos, sin repetir, máximo 10; se guardan junto a las preferencias', () => {
+    expect(parseEmails('Ana@LoHaggo.com, ana@lohaggo.com; malo, <x@y.com>, ops@lohaggo.co')).toEqual(['ana@lohaggo.com', 'ops@lohaggo.co'])
+    expect(parseEmails(Array.from({ length: 12 }, (_, i) => `u${i}@x.com`))).toHaveLength(10)
+    expect(normalizeConfig({ notify: { approvals: false, recipients: ['a@b.co'] } }).notifyTo).toEqual(['a@b.co'])
+    expect(normalizeConfig({ notifyTo: 'x@y.com' }).notifyTo).toEqual(['x@y.com'])
   })
 
   it('un aviso apagado no se envía', async () => {
