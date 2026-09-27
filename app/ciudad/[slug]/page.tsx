@@ -171,7 +171,7 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
   ].filter((x): x is { value: string; label: string } => Boolean(x))
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50">
+    <div className="min-h-screen overflow-x-hidden bg-gradient-to-br from-primary-50 via-white to-secondary-50">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-10 w-72 h-72 bg-primary-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
         <div className="absolute top-40 right-10 w-72 h-72 bg-secondary-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
@@ -388,10 +388,10 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
         </div>
 
         <div className="mb-16">
-          <div className="flex justify-center gap-4 mb-8">
+          <div className="flex flex-wrap justify-center gap-2 sm:gap-4 mb-8">
             <button
               onClick={() => setActiveTab('benefits')}
-              className={`px-6 py-3 rounded-xl font-bold transition-all ${
+              className={`px-4 py-2.5 sm:px-6 sm:py-3 text-sm sm:text-base rounded-xl font-bold transition-all ${
                 activeTab === 'benefits'
                   ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white shadow-lg scale-105'
                   : 'bg-white text-gray-600 hover:bg-gray-50'
@@ -401,7 +401,7 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
             </button>
             <button
               onClick={() => setActiveTab('services')}
-              className={`px-6 py-3 rounded-xl font-bold transition-all ${
+              className={`px-4 py-2.5 sm:px-6 sm:py-3 text-sm sm:text-base rounded-xl font-bold transition-all ${
                 activeTab === 'services'
                   ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white shadow-lg scale-105'
                   : 'bg-white text-gray-600 hover:bg-gray-50'
@@ -411,7 +411,7 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
             </button>
             <button
               onClick={() => setActiveTab('how')}
-              className={`px-6 py-3 rounded-xl font-bold transition-all ${
+              className={`px-4 py-2.5 sm:px-6 sm:py-3 text-sm sm:text-base rounded-xl font-bold transition-all ${
                 activeTab === 'how'
                   ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white shadow-lg scale-105'
                   : 'bg-white text-gray-600 hover:bg-gray-50'
