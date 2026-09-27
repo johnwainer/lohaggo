@@ -116,6 +116,9 @@ export async function acceptProposal(actor: Actor, proposalId: string, origin: O
   if (proposal.serviceRequest.userId !== actor.userId) throw new OpsError('No tienes permiso para aceptar esta propuesta', 403)
   if (proposal.serviceRequest.status !== 'ACTIVE') throw new OpsError('Esta solicitud ya no está activa', 400)
   if (proposal.status !== 'PENDING') throw new OpsError('Esta propuesta ya no está disponible', 400)
+  if (proposal.serviceRequest.expiresAt && proposal.serviceRequest.expiresAt.getTime() < Date.now()) {
+    throw new OpsError('Esta solicitud venció: reactívala para aceptar propuestas', 400)
+  }
 
   const rates = effectiveRates(await loadPlatformConfig())
   const sr = proposal.serviceRequest

@@ -140,7 +140,7 @@ export async function processDueAutomations(limit = 100) {
     where: { status: 'PENDING', scheduledAt: { lte: new Date() } },
     include: {
       rule: true,
-      user: { select: { id: true, name: true, email: true, phone: true, role: true } },
+      user: { select: { id: true, name: true, email: true, phone: true, role: true, excludedFromMarketing: true } },
     },
     take: limit,
     orderBy: { scheduledAt: 'asc' },
@@ -151,8 +151,24 @@ export async function processDueAutomations(limit = 100) {
   const runtimeConfig = await getMessagingProviderRuntimeConfig()
   let sent = 0, failed = 0, skipped = 0
 
+  const relevance = new Map<string, string | null>()
   for (const execution of due) {
     const { rule, user } = execution
+
+    // One relevance check per user+rule per run (a rule with two channels has two executions)
+    const relevanceKey = `${user.id}:${rule.id}`
+    if (!relevance.has(relevanceKey)) {
+      relevance.set(relevanceKey, await loadRelevanceSkipReason(rule.trigger as AutomationTrigger, user).catch(() => null))
+    }
+    const skipReason = relevance.get(relevanceKey)
+    if (skipReason) {
+      await prisma.automationExecution.update({
+        where: { id: execution.id },
+        data: { status: 'SKIPPED', executedAt: new Date(), error: skipReason },
+      })
+      skipped++
+      continue
+    }
 
     const destination = execution.channel === 'EMAIL' ? user.email : user.phone
     if (!destination) {
@@ -247,6 +263,55 @@ export async function processDueAutomations(limit = 100) {
 
   logger.info('processDueAutomations done', { sent, failed, skipped })
   return { sent, failed, skipped }
+}
+
+/** Triggers that promote (not a reply to something the user did): they respect `excludedFromMarketing`. */
+export const MARKETING_TRIGGERS: ReadonlySet<AutomationTrigger> = new Set<AutomationTrigger>([
+  'CLIENT_FIRST_BOOKING_NUDGE',
+  'CLIENT_REFERRAL_REMINDER',
+  'PARTNER_REFERRAL_REMINDER',
+])
+
+const IDENTITY_DOCS = ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP'] as const
+
+export type RelevanceContext = {
+  excludedFromMarketing?: boolean | null
+  /** Client already asked for something (a request or a booking). */
+  hasRequestOrBooking?: boolean
+  partnerVerified?: boolean
+  /** Partner uploaded an identity document that is pending or approved. */
+  hasIdentityDoc?: boolean
+}
+
+/** Why a due automation should not go out any more, or null to send it. Pure. */
+export function automationSkipReason(trigger: AutomationTrigger, ctx: RelevanceContext): string | null {
+  if (MARKETING_TRIGGERS.has(trigger) && ctx.excludedFromMarketing) return 'Excluido de marketing'
+  if (trigger === 'CLIENT_FIRST_BOOKING_NUDGE' && ctx.hasRequestOrBooking) return 'Ya tiene una solicitud o reserva'
+  if (trigger === 'PARTNER_DOCS_REMINDER') {
+    if (ctx.partnerVerified) return 'Socio ya verificado'
+    if (ctx.hasIdentityDoc) return 'Ya subió su documento de identidad'
+  }
+  return null
+}
+
+async function loadRelevanceSkipReason(trigger: AutomationTrigger, user: { id: string; excludedFromMarketing?: boolean | null }) {
+  const ctx: RelevanceContext = { excludedFromMarketing: user.excludedFromMarketing }
+  if (trigger === 'CLIENT_FIRST_BOOKING_NUDGE') {
+    const [requests, bookings] = await Promise.all([
+      prisma.serviceRequest.count({ where: { userId: user.id } }),
+      prisma.booking.count({ where: { userId: user.id } }),
+    ])
+    ctx.hasRequestOrBooking = requests + bookings > 0
+  }
+  if (trigger === 'PARTNER_DOCS_REMINDER') {
+    const partner = await prisma.partnerProfile.findUnique({
+      where: { userId: user.id },
+      select: { verified: true, documents: { where: { type: { in: [...IDENTITY_DOCS] }, status: { in: ['PENDING', 'APPROVED'] } }, select: { id: true }, take: 1 } },
+    })
+    ctx.partnerVerified = Boolean(partner?.verified)
+    ctx.hasIdentityDoc = Boolean(partner?.documents.length)
+  }
+  return automationSkipReason(trigger, ctx)
 }
 
 async function dispatchWaTemplate(
@@ -350,7 +415,7 @@ export const DEFAULT_AUTOMATION_RULES = [
     channels: JSON.stringify(['EMAIL']),
     waTemplateFn: null,
     subject: '¡Bienvenido a LoHaggo, {{name}}!',
-    customBody: `Hola {{name}},\n\nBienvenido a LoHaggo. Encuentra el profesional ideal para cualquier servicio del hogar en minutos.\n\n👉 Busca un servicio ahora: https://lohaggo.com/buscar\n\n¡Estamos para ayudarte!\nEquipo LoHaggo`,
+    customBody: `Hola {{name}},\n\nBienvenido a LoHaggo. Encuentra el profesional ideal para cualquier servicio del hogar en minutos.\n\n👉 Busca un servicio ahora: https://www.lohaggo.com/servicios\n\n¡Estamos para ayudarte!\nEquipo LoHaggo`,
     isActive: true,
   },
   // ── RECORDATORIOS ──────────────────────────────────────────
@@ -399,7 +464,7 @@ export const DEFAULT_AUTOMATION_RULES = [
     channels: JSON.stringify(['EMAIL', 'SMS']),
     waTemplateFn: null,
     subject: '{{name}}, ¿necesitas ayuda en casa?',
-    customBody: 'LoHaggo: Hola {{name}}, encuentra el profesional ideal para tu hogar en minutos: https://lohaggo.com/buscar',
+    customBody: 'LoHaggo: Hola {{name}}, encuentra el profesional ideal para tu hogar en minutos: https://www.lohaggo.com/servicios',
     isActive: true,
   },
   {
@@ -509,7 +574,7 @@ export const DEFAULT_AUTOMATION_RULES = [
     channels: JSON.stringify(['WHATSAPP', 'SMS']),
     waTemplateFn: 'sendReservaCompletadaCliente',
     subject: null,
-    customBody: 'LoHaggo: Hola {{name}}, ¿cómo fue tu servicio? Deja tu reseña aquí: https://lohaggo.com/mis-reservas',
+    customBody: 'LoHaggo: Hola {{name}}, ¿cómo fue tu servicio? Deja tu reseña aquí: https://www.lohaggo.com/dashboard?tab=bookings',
     isActive: true,
   },
   {
@@ -538,3 +603,49 @@ export const DEFAULT_AUTOMATION_RULES = [
     isActive: false,
   },
 ]
+
+/** Default bodies that shipped with links to pages that do not exist; replaced only when a rule still has them verbatim. */
+export const LEGACY_DEFAULT_BODIES: Record<string, string> = {
+  'Hola {{name}},\n\nBienvenido a LoHaggo. Encuentra el profesional ideal para cualquier servicio del hogar en minutos.\n\n👉 Busca un servicio ahora: https://lohaggo.com/buscar\n\n¡Estamos para ayudarte!\nEquipo LoHaggo':
+    'Hola {{name}},\n\nBienvenido a LoHaggo. Encuentra el profesional ideal para cualquier servicio del hogar en minutos.\n\n👉 Busca un servicio ahora: https://www.lohaggo.com/servicios\n\n¡Estamos para ayudarte!\nEquipo LoHaggo',
+  'LoHaggo: Hola {{name}}, encuentra el profesional ideal para tu hogar en minutos: https://lohaggo.com/buscar':
+    'LoHaggo: Hola {{name}}, encuentra el profesional ideal para tu hogar en minutos: https://www.lohaggo.com/servicios',
+  'LoHaggo: Hola {{name}}, ¿cómo fue tu servicio? Deja tu reseña aquí: https://lohaggo.com/mis-reservas':
+    'LoHaggo: Hola {{name}}, ¿cómo fue tu servicio? Deja tu reseña aquí: https://www.lohaggo.com/dashboard?tab=bookings',
+}
+
+type RuleKeyFields = { name: string; trigger: string; targetRole: string | null; channels: string }
+
+/**
+ * Which defaults are missing from the existing rules. A default counts as present when a rule has its name,
+ * or the same trigger + target role + channels (an admin may have renamed it). Pure.
+ */
+export function missingDefaultRules<T extends RuleKeyFields>(existing: RuleKeyFields[], defaults: T[]): T[] {
+  const names = new Set(existing.map((r) => r.name))
+  const shapes = new Set(existing.map((r) => `${r.trigger}|${r.targetRole ?? ''}|${r.channels}`))
+  return defaults.filter((d) => !names.has(d.name) && !shapes.has(`${d.trigger}|${d.targetRole ?? ''}|${d.channels}`))
+}
+
+/**
+ * Idempotent: creates the default rules that are missing (never touches the existing ones' settings) and
+ * swaps the broken-link default texts in existing rules only when the text is exactly the old default.
+ * Cheap enough to run on every automations cron.
+ */
+export async function ensureDefaultAutomationRules() {
+  const existing = await prisma.automationRule.findMany({ select: { id: true, name: true, trigger: true, targetRole: true, channels: true, customBody: true } })
+  const missing = missingDefaultRules(existing, DEFAULT_AUTOMATION_RULES)
+  let created = 0
+  if (missing.length > 0) {
+    const res = await prisma.automationRule.createMany({ data: missing.map((r) => ({ ...r, targetRole: r.targetRole ?? null })) })
+    created = res.count
+    logger.info('Default automation rules created', { names: missing.map((r) => r.name) })
+  }
+  let fixedLinks = 0
+  for (const rule of existing) {
+    const next = rule.customBody ? LEGACY_DEFAULT_BODIES[rule.customBody] : undefined
+    if (!next) continue
+    const res = await prisma.automationRule.updateMany({ where: { id: rule.id, customBody: rule.customBody }, data: { customBody: next } })
+    fixedLinks += res.count
+  }
+  return { created, fixedLinks, createdNames: missing.map((r) => r.name) }
+}

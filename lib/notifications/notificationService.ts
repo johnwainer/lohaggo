@@ -14,12 +14,17 @@ const logger = createLogger('notification-service')
 
 export type NotificationType = PrismaNotificationType
 
+export type NotificationChannel = 'PUSH' | 'EMAIL' | 'WHATSAPP' | 'SMS'
+
 interface CreateNotificationParams {
   userId: string
   type: NotificationType
   title: string
   message: string
+  /** `data.url` (a path like '/dashboard?tab=requests') is where the push and the message link open. */
   data?: any
+  /** Limit the automatic channels (default: all four). */
+  channels?: NotificationChannel[]
 }
 
 export async function createNotification({
@@ -27,7 +32,8 @@ export async function createNotification({
   type,
   title,
   message,
-  data
+  data,
+  channels,
 }: CreateNotificationParams) {
   try {
     const notification = await prisma.notification.create({
@@ -50,6 +56,7 @@ export async function createNotification({
         email: true,
         phone: true,
         name: true,
+        pushSubscription: true,
         notificationsPushEnabled: true,
         notificationsEmailEnabled: true,
         notificationsWhatsappEnabled: true,
@@ -68,6 +75,7 @@ export async function createNotification({
         title,
         message,
         data,
+        channels,
       }).catch((err) => logger.error('Dispatch error (non-fatal):', err))
     }
 
@@ -126,6 +134,19 @@ function computeActionUrl(type: NotificationType, role: UserRole, appUrl: string
   }
 }
 
+/** The path a notification opens: `data.url` when it is an internal path, else the type's default destination. */
+export function notificationTargetPath(type: NotificationType, role: UserRole, data?: unknown): string {
+  const url = typeof data === 'object' && data !== null ? (data as Record<string, unknown>).url : null
+  if (typeof url === 'string' && url.startsWith('/') && !url.startsWith('//')) return url
+  return computeActionUrl(type, role, '')
+}
+
+/**
+ * Push results that mean «nothing to deliver to» (no subscription, or the browser dropped it) rather than
+ * a delivery failure: logged as SKIPPED so the channel's failure rate reflects real errors.
+ */
+export const PUSH_NOT_DELIVERABLE = new Set(['NO_SUBSCRIPTION', 'INVALID_SUBSCRIPTION', '404', '410'])
+
 async function buildEnrichedVars(
   data: unknown,
   type: NotificationType,
@@ -133,7 +154,7 @@ async function buildEnrichedVars(
   appUrl: string
 ): Promise<Record<string, string | number>> {
   const vars: Record<string, string | number> = {
-    action_url: computeActionUrl(type, role, appUrl),
+    action_url: `${appUrl}${notificationTargetPath(type, role, data)}`,
     service_name: '',
     partner_name: '',
     client_name: '',
@@ -239,6 +260,7 @@ async function dispatchAutomaticNotificationChannels(params: {
     email: string
     phone: string | null
     name: string
+    pushSubscription?: string | null
     notificationsPushEnabled?: boolean | null
     notificationsEmailEnabled?: boolean | null
     notificationsWhatsappEnabled?: boolean | null
@@ -248,13 +270,14 @@ async function dispatchAutomaticNotificationChannels(params: {
   title: string
   message: string
   data?: unknown
+  channels?: NotificationChannel[]
 }) {
   const [runtimeConfig, snapshot] = await Promise.all([
     getMessagingProviderRuntimeConfig(),
     getNotificationAutomationSnapshot(),
   ])
 
-  const channels: Array<'PUSH' | 'EMAIL' | 'WHATSAPP' | 'SMS'> = ['PUSH', 'EMAIL', 'WHATSAPP', 'SMS']
+  const channels: NotificationChannel[] = (['PUSH', 'EMAIL', 'WHATSAPP', 'SMS'] as NotificationChannel[]).filter((c) => !params.channels || params.channels.includes(c))
 
   for (const channel of channels) {
     try {
@@ -282,6 +305,24 @@ async function dispatchAutomaticNotificationChannels(params: {
     }
 
     const destination = channel === 'PUSH' ? `user:${params.user.id}` : channel === 'EMAIL' ? params.user.email : params.user.phone
+    if (channel === 'PUSH' && !params.user.pushSubscription) {
+      await (prisma as any).notificationDispatchLog.create({
+        data: {
+          notificationId: params.notificationId,
+          userId: params.user.id,
+          userRole: params.user.role,
+          notificationType: params.type,
+          channel,
+          destination: null,
+          status: 'SKIPPED',
+          provider: 'internal',
+          errorCode: 'NO_SUBSCRIPTION',
+          errorMessage: 'User has not enabled push on any device',
+          metadata: params.data ? JSON.stringify(params.data) : null,
+        },
+      })
+      continue
+    }
     if (!destination) {
       await (prisma as any).notificationDispatchLog.create({
         data: {
@@ -361,7 +402,7 @@ async function dispatchAutomaticNotificationChannels(params: {
       body = channel === 'EMAIL' ? rendered.bodyHtml || rendered.body : rendered.body
       templateKey = template.key
     } else if (channel === 'EMAIL') {
-      body = `${params.message}<br/><br/><a href=\"${baseVars.notifications_url}\">Ver notificaciones</a>`
+      body = `${params.message}<br/><br/><a href=\"${enriched.action_url}\">Abrir en LoHaggo</a>`
     }
 
     const result = await sendMessageViaProvider(
@@ -374,14 +415,15 @@ async function dispatchAutomaticNotificationChannels(params: {
         data: {
           type: params.type,
           notificationId: params.notificationId,
-          targetUrl: '/notifications',
           ...(templateKey ? { templateKey } : {}),
           ...(typeof params.data === 'object' && params.data ? (params.data as Record<string, unknown>) : {}),
+          targetUrl: notificationTargetPath(params.type, params.user.role, params.data),
         },
       },
       runtimeConfig
     )
 
+    const undeliverablePush = !result.ok && channel === 'PUSH' && PUSH_NOT_DELIVERABLE.has(String(result.errorCode))
     await (prisma as any).notificationDispatchLog.create({
       data: {
         notificationId: params.notificationId,
@@ -390,7 +432,7 @@ async function dispatchAutomaticNotificationChannels(params: {
         notificationType: params.type,
         channel,
         destination,
-        status: result.ok ? 'SENT' : 'FAILED',
+        status: result.ok ? 'SENT' : undeliverablePush ? 'SKIPPED' : 'FAILED',
         provider: result.provider,
         providerMessageId: result.providerMessageId || null,
         errorCode: result.errorCode || null,
@@ -563,16 +605,33 @@ export async function notifyNewProposal(proposalId: string) {
 
     if (!proposal) return
 
+    const client = proposal.serviceRequest.user
+    const serviceName = proposal.serviceRequest.service.name
+    const partnerName = proposal.partner.user.name
+    const price = `$${Math.round(Number(proposal.price)).toLocaleString('es-CO')}`
+
+    // Approved WhatsApp template (works outside the 24 h window); while its SID is not set nothing is sent
+    // and the regular free-text WhatsApp channel stays in place.
+    let whatsappByTemplate = false
+    if (client.phone && client.notificationsWhatsappEnabled !== false) {
+      const { sendNuevaPropuestaCliente } = await import('@/lib/messaging/whatsapp-templates')
+      const res = await sendNuevaPropuestaCliente(client.phone, client.name || 'Cliente', serviceName, price, partnerName || 'un socio').catch(() => null)
+      whatsappByTemplate = Boolean(res?.ok)
+      if (res && !res.ok) logger.warn('WA nueva_propuesta_cliente failed', { proposalId, errorCode: res.errorCode })
+    }
+
     await createNotification({
       userId: proposal.serviceRequest.userId,
       type: "NEW_PROPOSAL",
       title: "Nueva propuesta recibida",
-      message: `${proposal.partner.user.name} te envió una propuesta para ${proposal.serviceRequest.service.name}`,
+      message: `${partnerName} te envió una propuesta de ${price} para ${serviceName}`,
       data: {
         proposalId: proposal.id,
         serviceRequestId: proposal.serviceRequestId,
-        price: Number(proposal.price)
-      }
+        price: Number(proposal.price),
+        url: '/dashboard?tab=requests',
+      },
+      ...(whatsappByTemplate ? { channels: ['PUSH', 'EMAIL', 'SMS'] as NotificationChannel[] } : {}),
     })
   } catch (error) {
     logger.error("Error notifying new proposal", { proposalId, error })

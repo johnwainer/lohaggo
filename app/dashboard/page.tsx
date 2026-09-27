@@ -10,7 +10,7 @@ import {
   MessageSquare, Calendar, Clock, MapPin, Package, CheckCircle, DollarSign,
   TrendingUp, Activity, Search, Menu, X, Home, Bell,
   Settings, LogOut, ChevronRight, Plus, AlertCircle, User, XCircle, Star, Filter,
-  Shield, CreditCard, GraduationCap, ShieldCheck, MessageCircle, Heart
+  Shield, CreditCard, GraduationCap, ShieldCheck, MessageCircle, Heart, RefreshCw
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import Modal from '@/components/Modal'
@@ -538,6 +538,30 @@ export default function DashboardPage() {
         }
       }
     })
+  }
+
+  const [reactivatingId, setReactivatingId] = useState<string | null>(null)
+  const reactivateServiceRequest = async (id: string, serviceName: string) => {
+    setReactivatingId(id)
+    try {
+      const res = await fetch(`/api/service-requests/${id}/reactivate`, { method: 'POST' })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok) {
+        setModal({
+          isOpen: true,
+          title: 'Solicitud reactivada',
+          message: `Tu solicitud de "${serviceName}" está activa otras 24 horas. Avisamos de nuevo a los socios.`,
+          type: 'success'
+        })
+        fetchServiceRequests()
+      } else {
+        setModal({ isOpen: true, title: 'No se pudo reactivar', message: data.error || 'Intenta de nuevo en un momento.', type: 'error' })
+      }
+    } catch {
+      setModal({ isOpen: true, title: 'Error de Conexión', message: 'No se pudo conectar con el servidor.', type: 'error' })
+    } finally {
+      setReactivatingId(null)
+    }
   }
 
   const cancelBooking = async (id: string, serviceName: string) => {
@@ -1774,6 +1798,7 @@ export default function DashboardPage() {
               ) : (
                 <div className="grid grid-cols-1 gap-3 sm:gap-4">
                   {filteredRequests.map((request) => {
+                    const isExpired = request.status === 'EXPIRED' || (request.status === 'ACTIVE' && new Date(request.expiresAt).getTime() < Date.now())
                     const sortedProposals = [...request.proposals].sort((a, b) => {
                       const IDENTITY_TYPES = ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP']
                       const EDUCATION_TYPES = ['DIPLOMA_BACHILLERATO', 'DIPLOMA_TECNICO', 'DIPLOMA_TECNOLOGO', 'DIPLOMA_PROFESIONAL', 'DIPLOMA_POSGRADO', 'CERTIFICADO_CURSO']
@@ -1812,8 +1837,8 @@ export default function DashboardPage() {
                       >
                         <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                           <div className="flex items-center gap-2">
-                            <span className={`text-[11px] sm:text-xs font-bold px-2.5 py-1 rounded-full border ${requestStatusColors[request.status] || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
-                              {requestStatusLabels[request.status]}
+                            <span className={`text-[11px] sm:text-xs font-bold px-2.5 py-1 rounded-full border ${requestStatusColors[isExpired ? 'EXPIRED' : request.status] || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
+                              {requestStatusLabels[isExpired ? 'EXPIRED' : request.status]}
                             </span>
                             {request.isUrgent && (
                               <span className="text-[11px] sm:text-xs font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
@@ -1865,7 +1890,7 @@ export default function DashboardPage() {
                           </div>
                           <div className="flex items-center gap-2 rounded-xl bg-gray-50 border border-gray-100 px-3 py-2">
                             <Clock size={14} className="text-gray-500 shrink-0" />
-                            <span className="text-gray-700">Expira: {new Date(request.expiresAt).toLocaleDateString('es-ES')}</span>
+                            <span className="text-gray-700">{isExpired ? 'Venció' : 'Expira'}: {new Date(request.expiresAt).toLocaleString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
                           </div>
                           <div className="flex items-center gap-2 rounded-xl bg-gray-50 border border-gray-100 px-3 py-2">
                             <DollarSign size={14} className="text-gray-500 shrink-0" />
@@ -1909,6 +1934,23 @@ export default function DashboardPage() {
                           </div>
                         )}
 
+                        {isExpired && (
+                          <div className="mb-3 rounded-2xl bg-amber-50 border border-amber-200 px-3 py-3 flex flex-col sm:flex-row sm:items-center gap-2.5">
+                            <p className="text-sm text-amber-900 flex-1">
+                              Tu solicitud venció{request.proposals.length > 0 ? ' antes de que eligieras propuesta' : ' sin propuestas'}. Reactívala y la mostramos de nuevo a los socios.
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => reactivateServiceRequest(request.id, request.service.name)}
+                              disabled={reactivatingId === request.id || session?.user?.isActive === false}
+                              className="w-full sm:w-auto shrink-0 bg-primary-600 text-white px-4 py-2.5 rounded-full hover:bg-primary-700 transition-colors font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                            >
+                              <RefreshCw size={16} className={reactivatingId === request.id ? 'animate-spin' : ''} />
+                              Reactivar 24 h
+                            </button>
+                          </div>
+                        )}
+
                         {request.proposals.length > 0 ? (
                           <div className="border-t border-gray-100 pt-3 space-y-2.5">
                             <div className="flex items-center justify-between">
@@ -1930,7 +1972,7 @@ export default function DashboardPage() {
                               )
                               const isFullyVerified = hasIdentity && hasEducation && hasBackground
                               const totalAmount = proposal.price + Math.round(proposal.price * (clientCommissionRate / 100))
-                              const canAccept = request.status === 'ACTIVE' && proposal.status === 'PENDING'
+                              const canAccept = request.status === 'ACTIVE' && !isExpired && proposal.status === 'PENDING'
                               const canChat = proposal.status === 'ACCEPTED' || canAccept
 
                               return (
@@ -2016,14 +2058,14 @@ export default function DashboardPage() {
                               )
                             })}
                           </div>
-                        ) : (
+                        ) : request.status === 'ACTIVE' && !isExpired ? (
                           <div className="border-t border-gray-100 pt-3">
                             <div className="rounded-xl bg-blue-50 border border-blue-100 px-3 py-3 text-center">
                               <p className="text-sm font-semibold text-blue-900">Esperando propuestas de socios</p>
-                              <p className="text-xs text-blue-700 mt-1">Expira el {new Date(request.expiresAt).toLocaleDateString('es-ES')}</p>
+                              <p className="text-xs text-blue-700 mt-1">Expira el {new Date(request.expiresAt).toLocaleString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
                             </div>
                           </div>
-                        )}
+                        ) : null}
                       </div>
                     )
                   })}

@@ -15,6 +15,7 @@ import {
 import { sendWelcomePartner } from '@/lib/messaging/whatsapp-templates'
 import { scheduleAutomationsForUser } from '@/lib/messaging/automation-service'
 import { normalizePhone } from '@/lib/phone'
+import { createSessionHandoffToken, deliverPartnerAccessLink, generateStrongPassword, type AccessLinkDelivery } from '@/lib/accounts/partner-signup'
 
 const logger = createLogger('register')
 
@@ -52,6 +53,15 @@ async function handlePOST(request: NextRequest) {
       honeypot,
       formStartedAt,
     } = validation.data
+
+    // Clients always choose their password; a partner without one (/unete) gets a random one and an access link
+    const serverPassword = role === 'PARTNER' && !password
+    if (!password && !serverPassword) {
+      return NextResponse.json(
+        { error: 'La contraseña debe tener al menos 6 caracteres' },
+        { status: 400 }
+      )
+    }
 
     if (!formStartedAt) {
       return NextResponse.json(
@@ -132,7 +142,7 @@ async function handlePOST(request: NextRequest) {
     }
 
     // Hashear contraseña
-    const hashedPassword = await bcrypt.hash(password, 10)
+    const hashedPassword = await bcrypt.hash(password || generateStrongPassword(), 10)
 
     // Crear usuario
     const userData: any = {
@@ -222,11 +232,21 @@ async function handlePOST(request: NextRequest) {
       scheduleAutomationsForUser(user.id, 'CLIENT_REFERRAL_REMINDER').catch(() => null)
     }
 
+    let partnerAccess: { sessionToken: string; accessLinkSent: AccessLinkDelivery } | null = null
+    if (serverPassword) {
+      const [accessLinkSent, sessionToken] = await Promise.all([
+        deliverPartnerAccessLink({ id: user.id, email: user.email, name: user.name, phone: user.phone }),
+        createSessionHandoffToken(user.id),
+      ])
+      partnerAccess = { sessionToken, accessLinkSent }
+    }
+
     return NextResponse.json({
       id: user.id,
       email: user.email,
       name: user.name,
       role: user.role,
+      ...(partnerAccess ?? {}),
     }, { status: 201 })
   } catch (error) {
     logger.error('Error registering user', { error })

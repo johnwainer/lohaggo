@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
+import { use, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { flushSync } from 'react-dom'
@@ -12,8 +12,21 @@ import { useCity } from '@/lib/city-context'
 import ConfirmModal from '@/components/ConfirmModal'
 import AdBanner from '@/components/ads/AdBanner'
 import ServiceDetailTour from '@/components/ServiceDetailTour'
-import PlatformTrustBanner from '@/components/PlatformTrustBanner'
 import { useTrust } from '@/lib/public/useTrust'
+import AddressStep from '@/components/service-request/AddressStep'
+import RequestSuccess from '@/components/service-request/RequestSuccess'
+import StickyRequestBar from '@/components/service-request/StickyRequestBar'
+import GuaranteeStrip from '@/components/service-request/GuaranteeStrip'
+import { track } from '@/lib/analytics/track'
+import { withRedirect } from '@/lib/navigation/safe-redirect'
+import { cityEnumFromName, splitAddressText } from '@/lib/geo/address'
+import {
+  clearDraft, composeNotes, DRAFT_PHOTOS_KEY, loadDraft, saveDraft, timingPayload,
+  type AddressMode, type NewAddressDraft, type WhenMode,
+} from '@/lib/service-requests/draft'
+
+const TOTAL_STEPS = 3
+const safeStorage = () => { try { return typeof window !== 'undefined' ? window.localStorage : null } catch { return null } }
 
 interface Service {
   id: string
@@ -71,7 +84,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
   const { data: session, status } = useSession()
   const router = useRouter()
   const { getCityBySlug } = useCity()
-  const { whatsappPhone } = useTrust()
+  const { whatsappPhone, claims } = useTrust()
   const [service, setService] = useState<Service | null>(null)
   const [loading, setLoading] = useState(true)
   const [showRequestModal, setShowRequestModal] = useState(false)
@@ -81,14 +94,56 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
   const [selectedPartnerId, setSelectedPartnerId] = useState<string>('')
   const [photos, setPhotos] = useState<File[]>([])
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
+  const [addressMode, setAddressMode] = useState<AddressMode>('new')
+  const [newAddress, setNewAddress] = useState<NewAddressDraft>({ street: '', neighborhood: '', instructions: '' })
+  const [when, setWhen] = useState<WhenMode>('asap')
   const [requestData, setRequestData] = useState({
-    address: '',
     notes: '',
     budget: '',
     preferredDate: '',
     preferredTime: '',
-    isUrgent: false
   })
+  const [successInfo, setSuccessInfo] = useState<{ partnerName: string | null } | null>(null)
+  const viewTracked = useRef(false)
+  const resumeHandled = useRef(false)
+
+  const draftSnapshot = (step: number) => ({
+    slug,
+    step,
+    partnerId: selectedPartnerId,
+    addressMode,
+    selectedAddressId,
+    newAddress,
+    when,
+    preferredDate: requestData.preferredDate,
+    preferredTime: requestData.preferredTime,
+    notes: requestData.notes,
+    budget: requestData.budget,
+  })
+
+  // Autosave the wizard on every change so nothing is lost on login/registration or a closed tab.
+  useEffect(() => {
+    if (!showRequestModal || successInfo) return
+    saveDraft(safeStorage(), draftSnapshot(currentStep))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showRequestModal, successInfo, currentStep, selectedPartnerId, addressMode, selectedAddressId, newAddress, when, requestData])
+
+  // Back from /login or /register with ?resume=1: reopen the wizard where it was left.
+  useEffect(() => {
+    if (resumeHandled.current || !service || status === 'loading') return
+    if (typeof window === 'undefined' || new URLSearchParams(window.location.search).get('resume') !== '1') return
+    resumeHandled.current = true
+    router.replace(`/servicios/${slug}`, { scroll: false })
+    if (!loadDraft(safeStorage(), slug)) return
+    void openRequestFlow(null, { resume: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [service, status])
+
+  useEffect(() => {
+    if (!service || viewTracked.current) return
+    viewTracked.current = true
+    track('view_content', { content_name: service.name, content_ids: [service.id], content_category: service.category.name, value: service.basePrice })
+  }, [service])
   const [submitting, setSubmitting] = useState(false)
   const [requestActionLoading, setRequestActionLoading] = useState<'ALL' | string | null>(null)
   const [validationModal, setValidationModal] = useState({
@@ -242,7 +297,40 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     }
   }
 
-  const openRequestFlow = async (partnerId: string | null) => {
+  const restorePhotos = async () => {
+    try {
+      const raw = safeStorage()?.getItem(DRAFT_PHOTOS_KEY)
+      const urls: string[] = raw ? JSON.parse(raw) : []
+      if (!Array.isArray(urls) || urls.length === 0) return
+      const files = await Promise.all(urls.slice(0, 5).map(async (u, i) => {
+        const blob = await (await fetch(u)).blob()
+        return new File([blob], `foto-${i + 1}.jpg`, { type: blob.type || 'image/jpeg' })
+      }))
+      setPhotos(files)
+      setPhotoPreviews(urls.slice(0, 5))
+    } catch { /* photos are optional */ }
+  }
+
+  /** Loads the saved draft (if any) into the wizard. Returns the step to show. */
+  const applyDraft = async (savedAddresses: Address[], partnerId: string | null | undefined) => {
+    const draft = loadDraft(safeStorage(), slug)
+    if (!draft) {
+      setAddressMode(savedAddresses.length > 0 ? 'saved' : 'new')
+      setSelectedPartnerId(partnerId || '')
+      return 1
+    }
+    const savedStillThere = draft.addressMode === 'saved' && savedAddresses.some(a => a.id === draft.selectedAddressId)
+    setAddressMode(savedStillThere ? 'saved' : (draft.newAddress.street || savedAddresses.length === 0 ? 'new' : 'saved'))
+    if (savedStillThere) setSelectedAddressId(draft.selectedAddressId)
+    setNewAddress(draft.newAddress)
+    setWhen(draft.when)
+    setRequestData({ notes: draft.notes, budget: draft.budget, preferredDate: draft.preferredDate, preferredTime: draft.preferredTime })
+    setSelectedPartnerId(partnerId === undefined ? draft.partnerId : (partnerId || ''))
+    await restorePhotos()
+    return draft.step
+  }
+
+  const openRequestFlow = async (partnerId: string | null, opts: { resume?: boolean } = {}) => {
     if (status === 'loading') {
       setValidationModal({
         isOpen: true,
@@ -250,11 +338,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
       })
       return
     }
-    if (!session) {
-      router.push('/login?redirect=/servicios/' + slug)
-      return
-    }
-    if (session.user?.isActive === false) {
+    if (session && session.user?.isActive === false) {
       setValidationModal({
         isOpen: true,
         message: 'Tu cuenta está inactiva. No puedes solicitar servicios. Contacta al administrador.'
@@ -271,10 +355,15 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
       return
     }
 
-    await fetchAddresses()
-    setCurrentStep(1)
-    setSelectedPartnerId(partnerId || '')
+    const saved = session ? await fetchAddresses() : []
+    if (!session) setAddresses([])
+    const step = await applyDraft(saved, opts.resume ? undefined : partnerId)
+    setCurrentStep(opts.resume ? step : Math.min(step, TOTAL_STEPS))
+    setSuccessInfo(null)
     setShowRequestModal(true)
+    if (!opts.resume && service) {
+      track('begin_checkout', { content_name: service.name, content_ids: [service.id], content_category: service.category.name })
+    }
   }
 
   const handleBooking = async (event?: React.MouseEvent<HTMLButtonElement>) => {
@@ -317,11 +406,11 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     }
   }
 
-  const fetchAddresses = async () => {
+  const fetchAddresses = async (): Promise<Address[]> => {
     try {
       const res = await fetch('/api/addresses')
       if (res.ok) {
-        const data = await res.json()
+        const data: Address[] = await res.json()
         setAddresses(data)
         const primaryAddress = data.find((addr: Address) => addr.isPrimary)
         if (primaryAddress) {
@@ -331,12 +420,14 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
         } else {
           setSelectedAddressId('')
         }
-      } else {
-        setSelectedAddressId('')
+        return data
       }
+      setSelectedAddressId('')
+      return []
     } catch (error) {
       console.error('Error fetching addresses:', error)
       setSelectedAddressId('')
+      return []
     }
   }
 
@@ -413,41 +504,128 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
 
     setPhotos([...photos, ...compressedFiles])
 
-    compressedFiles.forEach(file => {
+    const urls = await Promise.all(compressedFiles.map(file => new Promise<string>((resolve) => {
       const reader = new FileReader()
-      reader.onloadend = () => {
-        setPhotoPreviews(prev => [...prev, reader.result as string])
-      }
+      reader.onloadend = () => resolve(reader.result as string)
       reader.readAsDataURL(file)
+    })))
+    setPhotoPreviews(prev => {
+      const next = [...prev, ...urls]
+      persistPhotos(next)
+      return next
     })
+  }
+
+  /** Best effort: photos ride along with the draft only while they fit in localStorage. */
+  const persistPhotos = (urls: string[]) => {
+    const storage = safeStorage()
+    if (!storage) return
+    try {
+      if (urls.length === 0) storage.removeItem(DRAFT_PHOTOS_KEY)
+      else storage.setItem(DRAFT_PHOTOS_KEY, JSON.stringify(urls))
+    } catch {
+      try { storage.removeItem(DRAFT_PHOTOS_KEY) } catch { /* ignore */ }
+    }
   }
 
   const removePhoto = (index: number) => {
     setPhotos(photos.filter((_, i) => i !== index))
-    setPhotoPreviews(photoPreviews.filter((_, i) => i !== index))
+    const next = photoPreviews.filter((_, i) => i !== index)
+    setPhotoPreviews(next)
+    persistPhotos(next)
+  }
+
+  const currentCityName = () => {
+    const citySlug = (typeof window !== 'undefined' && localStorage.getItem('selectedCity')) || 'medellin'
+    return getCityBySlug(citySlug)?.name || 'Medellín'
+  }
+
+  const newAddressString = () =>
+    `${newAddress.street.trim()}, ${newAddress.neighborhood.trim()}, ${currentCityName()}`
+
+  const validateAddressStep = (): string | null => {
+    if (addressMode === 'saved' && addresses.length > 0) {
+      return selectedAddressId && addresses.some(a => a.id === selectedAddressId) ? null : 'Elige una dirección o usa otra'
+    }
+    if (newAddress.street.trim().length < 5) return 'Escribe la dirección (calle y número)'
+    if (newAddress.neighborhood.trim().length < 2) return 'Escribe el barrio'
+    return null
+  }
+
+  const validateWhenStep = (): string | null => {
+    if (when !== 'scheduled') return null
+    if (!requestData.preferredDate || !requestData.preferredTime) return 'Elige fecha y hora, o cambia a otra opción'
+    return null
+  }
+
+  /** Saves a typed address to the client's list so next time it is one tap. Never blocks the request. */
+  const saveNewAddress = async () => {
+    const street = newAddress.street.trim()
+    const neighborhood = newAddress.neighborhood.trim()
+    const dup = addresses.some(a =>
+      getAddressString(a).toLowerCase().includes(street.toLowerCase()) && a.neighborhood.trim().toLowerCase() === neighborhood.toLowerCase())
+    if (dup) return
+    const parts = splitAddressText(street)
+    try {
+      await fetch('/api/addresses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          label: (addresses.length === 0 ? 'Mi dirección' : neighborhood).slice(0, 50),
+          street: parts.street.length >= 5 ? parts.street : street,
+          number: parts.street.length >= 5 ? parts.number : 'S/N',
+          complement: parts.street.length >= 5 ? parts.complement : undefined,
+          neighborhood: neighborhood.slice(0, 100),
+          city: cityEnumFromName(currentCityName()) || 'MEDELLIN',
+          instructions: newAddress.instructions.trim() || undefined,
+          isPrimary: addresses.length === 0,
+        }),
+      })
+    } catch { /* optional */ }
   }
 
   const submitRequest = async () => {
     if (!service) return
 
-    let finalAddress = requestData.address
-    let finalCity = ''
+    const addressError = validateAddressStep()
+    if (addressError) {
+      setCurrentStep(1)
+      setValidationModal({ isOpen: true, message: addressError })
+      return
+    }
+    const whenError = validateWhenStep()
+    if (whenError) {
+      setCurrentStep(2)
+      setValidationModal({ isOpen: true, message: whenError })
+      return
+    }
 
-    if (selectedAddressId) {
+    if (!session) {
+      saveDraft(safeStorage(), draftSnapshot(TOTAL_STEPS))
+      router.push(withRedirect('/login', `/servicios/${slug}?resume=1`))
+      return
+    }
+
+    let finalAddress = ''
+    let finalCity = ''
+    const usingSaved = addressMode === 'saved' && addresses.length > 0
+    if (usingSaved) {
       const selectedAddress = addresses.find(addr => addr.id === selectedAddressId)
       if (selectedAddress) {
         finalAddress = getAddressString(selectedAddress)
         finalCity = selectedAddress.city
       }
+    } else {
+      finalAddress = newAddressString()
+      finalCity = cityEnumFromName(currentCityName())
     }
 
-    if (!finalAddress) {
-      setValidationModal({
-        isOpen: true,
-        message: 'Por favor selecciona o ingresa una dirección'
-      })
-      return
-    }
+    const timing = timingPayload(when, requestData.preferredDate, requestData.preferredTime)
+    const notes = composeNotes({
+      notes: requestData.notes,
+      timingNote: timing.note,
+      instructions: usingSaved ? '' : newAddress.instructions,
+    })
 
     setSubmitting(true)
     try {
@@ -455,8 +633,6 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
 
       if (photos.length > 0) {
         const formData = new FormData()
-
-        // Comprimir cada foto antes de subirla
         for (const photo of photos) {
           const compressedPhoto = await compressImage(photo)
           formData.append('photos', compressedPhoto)
@@ -481,31 +657,25 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
         body: JSON.stringify({
           serviceId: service.id,
           address: finalAddress,
-          notes: requestData.notes,
+          notes: notes || undefined,
           budget: requestData.budget ? parseFloat(requestData.budget) : undefined,
-          preferredDate: requestData.preferredDate || null,
-          preferredTime: requestData.preferredTime || null,
-          isUrgent: requestData.isUrgent,
-          city: finalCity,
+          preferredDate: timing.preferredDate,
+          preferredTime: timing.preferredTime,
+          isUrgent: timing.isUrgent,
+          city: finalCity || undefined,
           photoUrls,
           partnerId: selectedPartnerId || null
         })
       })
 
       if (res.ok) {
-        const partnerName = selectedPartnerId
-          ? service.partners.find(p => p.partner.id === selectedPartnerId)?.partner.user.name
-          : null
-
-        setSuccessModal({
-          isOpen: true,
-          message: partnerName
-            ? `¡Solicitud enviada exitosamente a ${partnerName}!`
-            : '¡Solicitud creada exitosamente! Los profesionales disponibles recibirán tu solicitud.',
-          type: 'success'
-        })
+        if (!usingSaved) await saveNewAddress()
+        clearDraft(safeStorage())
+        track('lead', { content_name: service.name, content_ids: [service.id], content_category: service.category.name, value: requestData.budget ? parseFloat(requestData.budget) : undefined })
+        const partner = selectedPartnerId ? service.partners.find(p => p.partner.id === selectedPartnerId)?.partner : null
+        setSuccessInfo({ partnerName: partner ? (partner.isCompany && partner.companyName ? partner.companyName : partner.user.name) : null })
       } else {
-        const error = await res.json()
+        const error = await res.json().catch(() => ({}))
         setSuccessModal({
           isOpen: true,
           message: error.error || 'Error al crear solicitud',
@@ -513,15 +683,31 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
         })
       }
     } catch (error) {
-      console.error('Error creating booking:', error)
+      console.error('Error creating request:', error)
       setSuccessModal({
         isOpen: true,
-        message: 'Error al crear reserva',
+        message: 'No pudimos enviar tu solicitud. Revisa tu conexión e intenta de nuevo.',
         type: 'error'
       })
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const closeRequestModal = () => {
+    setShowRequestModal(false)
+    if (successInfo) {
+      setSuccessInfo(null)
+      setPhotos([])
+      setPhotoPreviews([])
+      setRequestData({ notes: '', budget: '', preferredDate: '', preferredTime: '' })
+      setNewAddress({ street: '', neighborhood: '', instructions: '' })
+      setWhen('asap')
+    }
+  }
+
+  const trackWhatsApp = (source: string) => {
+    track('whatsapp_click', { content_name: service?.name, source })
   }
 
   if (loading) {
@@ -614,7 +800,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
       },
       hasBackground && {
         icon: <ShieldCheck size={13} />,
-        label: 'Sin antecedentes',
+        label: 'Antecedentes revisados ✓',
         bg: 'bg-teal-50 border-teal-400 text-teal-700 font-bold',
         tooltip: 'Verificación de antecedentes penales aprobada',
       },
@@ -639,6 +825,11 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
       </div>
     )
   }
+
+  const selectedPartnerPrice = selectedPartnerId ? service.partners.find(p => p.partner.id === selectedPartnerId)?.price : undefined
+  const minBudget = selectedPartnerPrice ?? service.basePrice
+  const fromPrice = service.partners.length > 0 ? Math.min(...service.partners.map(p => p.price)) : service.basePrice
+  const whatsappOrderText = `Hola, quiero pedir ${service.name} en Medellín. ¿Me ayudas? (ref: web-${slug})`
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -693,6 +884,8 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
             </div>
           </div>
         </div>
+
+        {claims.trust_guarantee && <GuaranteeStrip className="mb-6 md:mb-8" />}
 
         {/* Ad Banner for this specific service */}
         <AdBanner placement="SERVICE" serviceId={service.id} className="mb-6 md:mb-8 h-32 md:h-40 lg:h-48" />
@@ -829,27 +1022,36 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                             </span>
                           </div>
 
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className="flex items-center gap-1.5 bg-gradient-to-r from-yellow-400 to-orange-400 text-white px-3 py-1 rounded-full shadow-sm">
-                              <Star size={14} fill="currentColor" />
-                              <span className="font-bold text-sm">{partnerService.partner.rating.toFixed(1)}</span>
+                          {partnerService.partner.totalReviews > 0 ? (
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className="flex items-center gap-1.5 bg-gradient-to-r from-yellow-400 to-orange-400 text-white px-3 py-1 rounded-full shadow-sm">
+                                <Star size={14} fill="currentColor" />
+                                <span className="font-bold text-sm">{partnerService.partner.rating.toFixed(1)}</span>
+                              </div>
+                              <span className="text-gray-600 text-xs md:text-sm font-medium">
+                                ({partnerService.partner.totalReviews} {partnerService.partner.totalReviews === 1 ? 'reseña' : 'reseñas'})
+                              </span>
                             </div>
-                            <span className="text-gray-600 text-xs md:text-sm font-medium">
-                              ({partnerService.partner.totalReviews} {partnerService.partner.totalReviews === 1 ? 'reseña' : 'reseñas'})
-                            </span>
-                          </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5 mb-2 text-xs md:text-sm font-semibold text-emerald-700">
+                              <Sparkles size={14} />
+                              <span>Nuevo en LoHaggo · Identidad verificada</span>
+                            </div>
+                          )}
 
                           {getVerificationBadges(partnerService.partner.verified, partnerService.partner.documents)}
                         </div>
                       </div>
 
                       <div className="mb-4 pb-4 border-b border-gray-200">
-                        <div className="flex items-center gap-2 mb-3">
-                          <CheckCircle size={16} className="text-green-600" />
-                          <span className="text-sm text-gray-700">
-                            <span className="font-bold text-green-600">{partnerService.partner.completedServicesCount}</span> {partnerService.partner.completedServicesCount === 1 ? 'servicio completado' : 'servicios completados'}
-                          </span>
-                        </div>
+                        {partnerService.partner.totalReviews > 0 && partnerService.partner.completedServicesCount > 0 && (
+                          <div className="flex items-center gap-2 mb-3">
+                            <CheckCircle size={16} className="text-green-600" />
+                            <span className="text-sm text-gray-700">
+                              <span className="font-bold text-green-600">{partnerService.partner.completedServicesCount}</span> {partnerService.partner.completedServicesCount === 1 ? 'servicio completado' : 'servicios completados'}
+                            </span>
+                          </div>
+                        )}
                         <div className="flex items-baseline gap-2">
                           <span className="text-gray-600 text-sm font-medium">Desde:</span>
                           <p className={`font-bold text-2xl md:text-3xl ${tier.priceColor}`}>
@@ -1006,474 +1208,298 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
         )}
       </div>
 
+      {/* Mobile sticky CTA */}
+      {service.partners.length > 0 && !showRequestModal && (
+        <>
+          <div className="h-28 md:hidden" aria-hidden="true" />
+          <StickyRequestBar
+            label={`Solicitar ${service.name} · desde ${formatCurrency(fromPrice)}`}
+            loading={requestActionLoading === 'ALL'}
+            onRequest={() => void handleRequest()}
+            whatsappPhone={whatsappPhone}
+            whatsappText={whatsappOrderText}
+            onWhatsAppClick={() => trackWhatsApp('sticky_bar')}
+            aboveRaisedNav={Boolean(session)}
+          />
+        </>
+      )}
+
       {/* Request Modal */}
       {showRequestModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto relative z-[101]">
-            <div className="bg-gradient-to-r from-primary-500 to-secondary-500 p-4 md:p-6 text-white">
-              <div className="flex items-center justify-between mb-3 md:mb-4">
-                <div>
-                  <h2 className="text-xl md:text-2xl font-bold">Solicitar {service.name}</h2>
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-[100] sm:p-4">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-2xl w-full max-h-[92vh] overflow-y-auto relative z-[101]">
+            {successInfo ? (
+              <RequestSuccess
+                serviceName={service.name}
+                cityName={currentCityName()}
+                partnerCount={service.partners.length}
+                partnerName={successInfo.partnerName}
+                whatsappPhone={whatsappPhone}
+                whatsappText={`Hola, acabo de pedir ${service.name} en LoHaggo. ¿Me ayudas? (ref: web-${slug})`}
+                onWhatsAppClick={() => trackWhatsApp('request_success')}
+                onClose={closeRequestModal}
+              />
+            ) : (
+            <>
+            <div className="sticky top-0 z-10 bg-gradient-to-r from-primary-500 to-secondary-500 p-4 md:p-6 text-white">
+              <div className="flex items-center justify-between mb-3">
+                <div className="min-w-0">
+                  <h2 className="text-lg md:text-2xl font-bold truncate">Solicitar {service.name}</h2>
                   {selectedPartnerId && (
-                    <p className="text-primary-100 text-xs md:text-sm mt-1">
+                    <p className="text-primary-100 text-xs md:text-sm mt-0.5 truncate">
                       Para: {service.partners.find(p => p.partner.id === selectedPartnerId)?.partner.user.name}
                     </p>
                   )}
-                  <p className="text-primary-100 text-xs md:text-sm mt-1">Paso {currentStep} de 5</p>
+                  <p className="text-primary-100 text-xs md:text-sm mt-0.5">
+                    Paso {currentStep} de {TOTAL_STEPS} · {['Dónde', 'Cuándo', 'Qué necesitas'][currentStep - 1]}
+                  </p>
                 </div>
                 <button
-                  onClick={() => setShowRequestModal(false)}
-                  className="text-white hover:bg-white/20 rounded-full p-2 transition"
+                  type="button"
+                  aria-label="Cerrar"
+                  onClick={closeRequestModal}
+                  className="text-white hover:bg-white/20 rounded-full p-2 transition shrink-0"
                 >
-                  <X size={20} className="md:w-6 md:h-6" />
+                  <X size={22} />
                 </button>
               </div>
-
-              {/* Progress Bar */}
               <div className="flex gap-2">
-                {[1, 2, 3, 4, 5].map((step) => (
+                {Array.from({ length: TOTAL_STEPS }, (_, i) => i + 1).map((step) => (
                   <div
                     key={step}
-                    className={`h-1.5 md:h-2 flex-1 rounded-full transition-all duration-300 ${step <= currentStep ? 'bg-white' : 'bg-white/30'
-                      }`}
+                    className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${step <= currentStep ? 'bg-white' : 'bg-white/30'}`}
                   />
                 ))}
               </div>
             </div>
 
-            <div>
-              <div className="p-4 md:p-6">
-                {/* Step 1: Trust Platform Banner */}
-                {currentStep === 1 && (
-                  <div className="space-y-3 md:space-y-4 animate-fadeIn">
-                    <div className="text-center mb-3 md:mb-4">
-                      <div className="w-12 h-12 md:w-14 md:h-14 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-2 md:mb-3">
-                        <Shield className="text-secondary-600" size={24} />
-                      </div>
-                      <h3 className="text-base md:text-lg font-bold text-gray-900 mb-1">Tu seguridad es nuestra prioridad</h3>
-                      <p className="text-xs md:text-sm text-gray-600">Beneficios de usar nuestra plataforma</p>
-                    </div>
+            <div className="p-4 md:p-6">
+              {/* Step 1: Dónde */}
+              {currentStep === 1 && (
+                <AddressStep
+                  addresses={addresses}
+                  mode={addresses.length > 0 ? addressMode : 'new'}
+                  selectedAddressId={selectedAddressId}
+                  newAddress={newAddress}
+                  formatAddress={(a) => getAddressString(a as Address)}
+                  onSelectSaved={(id) => { setSelectedAddressId(id); setAddressMode('saved') }}
+                  onUseNew={() => setAddressMode('new')}
+                  onNewAddressChange={setNewAddress}
+                />
+              )}
 
-                    <PlatformTrustBanner
-                      variant="info"
-                      context="booking"
-                      className="mb-3"
+              {/* Step 2: Cuándo */}
+              {currentStep === 2 && (
+                <div className="space-y-3 animate-fadeIn">
+                  <h3 className="text-lg md:text-xl font-bold text-gray-900">¿Cuándo lo necesitas?</h3>
+                  {([
+                    { id: 'asap', icon: '⚡', title: 'Lo antes posible', desc: 'Hoy o en cuanto un socio pueda', on: 'border-red-500 bg-red-50' },
+                    { id: 'flexible', icon: '🗓️', title: 'Esta semana, horario flexible', desc: 'Los socios te proponen día y hora', on: 'border-secondary-500 bg-primary-50' },
+                    { id: 'scheduled', icon: '📅', title: 'Elegir fecha y hora', desc: 'Tú decides cuándo', on: 'border-secondary-500 bg-primary-50' },
+                  ] as const).map((opt) => (
+                    <label
+                      key={opt.id}
+                      className={`flex items-start gap-3 p-4 border-2 rounded-2xl cursor-pointer transition ${when === opt.id ? opt.on : 'border-gray-200 hover:border-primary-300'}`}
+                    >
+                      <input
+                        type="radio"
+                        name="when"
+                        checked={when === opt.id}
+                        onChange={() => setWhen(opt.id)}
+                        className="mt-1 w-5 h-5 text-secondary-600"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl" aria-hidden="true">{opt.icon}</span>
+                          <span className="font-bold text-sm md:text-base text-gray-900">{opt.title}</span>
+                        </div>
+                        <p className="text-xs md:text-sm text-gray-600 mt-0.5">{opt.desc}</p>
+                        {opt.id === 'scheduled' && when === 'scheduled' && (
+                          <div className="grid grid-cols-2 gap-3 mt-3" onClick={(e) => e.stopPropagation()}>
+                            <div>
+                              <label htmlFor="req-date" className="block text-xs font-medium text-gray-700 mb-1">Fecha</label>
+                              <input
+                                id="req-date"
+                                type="date"
+                                min={new Date(Date.now() - 5 * 3600_000).toISOString().split('T')[0]}
+                                value={requestData.preferredDate}
+                                onChange={(e) => setRequestData({ ...requestData, preferredDate: e.target.value })}
+                                className="w-full px-3 py-2.5 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-secondary-500 focus:border-secondary-500 outline-none text-base"
+                              />
+                            </div>
+                            <div>
+                              <label htmlFor="req-time" className="block text-xs font-medium text-gray-700 mb-1">Hora</label>
+                              <input
+                                id="req-time"
+                                type="time"
+                                value={requestData.preferredTime}
+                                onChange={(e) => setRequestData({ ...requestData, preferredTime: e.target.value })}
+                                className="w-full px-3 py-2.5 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-secondary-500 focus:border-secondary-500 outline-none text-base"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+
+              {/* Step 3: Qué necesitas */}
+              {currentStep === 3 && (
+                <div className="space-y-4 animate-fadeIn">
+                  <h3 className="text-lg md:text-xl font-bold text-gray-900">¿Qué necesitas?</h3>
+
+                  <div className="bg-gray-50 rounded-2xl p-3 space-y-2 text-xs text-gray-600">
+                    <div className="flex items-start gap-2">
+                      <MapPin className="text-secondary-600 mt-0.5 flex-shrink-0" size={14} />
+                      <span className="break-words">
+                        {addressMode === 'saved' && addresses.find(a => a.id === selectedAddressId)
+                          ? getAddressString(addresses.find(a => a.id === selectedAddressId)!)
+                          : newAddress.street ? newAddressString() : 'Sin dirección'}
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Calendar className="text-secondary-600 mt-0.5 flex-shrink-0" size={14} />
+                      <span>
+                        {when === 'asap' && <span className="text-red-600 font-medium">⚡ Lo antes posible</span>}
+                        {when === 'flexible' && 'Esta semana, horario flexible'}
+                        {when === 'scheduled' && (requestData.preferredDate
+                          ? `${new Date(`${requestData.preferredDate}T12:00:00`).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })} a las ${requestData.preferredTime || '—'}`
+                          : 'Sin fecha')}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="req-notes" className="block text-sm font-semibold text-gray-700 mb-1.5">
+                      Cuéntale al socio qué necesitas
+                    </label>
+                    <textarea
+                      id="req-notes"
+                      rows={3}
+                      maxLength={1500}
+                      placeholder="Ej: la llave del lavamanos gotea, es un apto de 2 baños…"
+                      value={requestData.notes}
+                      onChange={(e) => setRequestData({ ...requestData, notes: e.target.value })}
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-secondary-500/20 focus:border-secondary-500 outline-none resize-none text-base"
                     />
                   </div>
-                )}
 
-                {/* Step 2: Dirección */}
-                {currentStep === 2 && (
-                  <div className="space-y-4 md:space-y-6 animate-fadeIn">
-                    <div className="text-center mb-4 md:mb-6">
-                      <div className="w-14 h-14 md:w-16 md:h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4">
-                        <MapPin className="text-secondary-600" size={28} />
-                      </div>
-                      <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-2">¿Dónde necesitas el servicio?</h3>
-                      <p className="text-sm md:text-base text-gray-600">Selecciona o ingresa la dirección</p>
-                    </div>
-
-                    {addresses.length > 0 ? (
-                      <div className="space-y-3">
-                        {addresses.map((addr) => (
-                          <label
-                            key={addr.id}
-                            className={`flex items-start gap-3 md:gap-4 p-3 md:p-4 border-2 rounded-xl cursor-pointer transition-all ${selectedAddressId === addr.id
-                              ? 'border-secondary-500 bg-primary-50'
-                              : 'border-gray-200 hover:border-primary-300 hover:bg-gray-50'
-                              }`}
-                          >
-                            <input
-                              type="radio"
-                              name="address"
-                              value={addr.id}
-                              checked={selectedAddressId === addr.id}
-                              onChange={(e) => setSelectedAddressId(e.target.value)}
-                              className="mt-1 w-4 h-4 md:w-5 md:h-5 text-secondary-600"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className="font-semibold text-sm md:text-base text-gray-900 mb-1">{addr.label}</div>
-                              <div className="text-xs md:text-sm text-gray-600 break-words">{getAddressString(addr)}</div>
-                            </div>
-                          </label>
-                        ))}
-                        <button
-                          type="button"
-                          onClick={() => router.push('/dashboard/addresses')}
-                          className="w-full py-2.5 md:py-3 border-2 border-dashed border-gray-300 rounded-xl text-secondary-600 hover:border-secondary-500 hover:bg-primary-50 transition font-medium flex items-center justify-center gap-2 text-sm md:text-base"
-                        >
-                          <Plus size={18} />
-                          Agregar nueva dirección
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-3 md:p-4">
-                        <div className="flex items-start gap-2 md:gap-3">
-                          <div className="w-7 h-7 md:w-8 md:h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
-                            <span className="text-white text-base md:text-lg">💡</span>
-                          </div>
-                          <div>
-                            <p className="text-xs md:text-sm text-blue-900 font-medium mb-2">
-                              Guarda tus direcciones para solicitar servicios más rápido
-                            </p>
-                            <button
-                              type="button"
-                              onClick={() => router.push('/dashboard/addresses')}
-                              className="text-xs md:text-sm text-secondary-600 hover:text-secondary-700 font-semibold flex items-center gap-1"
-                            >
-                              <Plus size={14} />
-                              Ir a mis direcciones
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Step 3: Fecha y Hora */}
-                {currentStep === 3 && (
-                  <div className="space-y-4 md:space-y-6 animate-fadeIn">
-                    <div className="text-center mb-4 md:mb-6">
-                      <div className="w-14 h-14 md:w-16 md:h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4">
-                        <Calendar className="text-secondary-600" size={28} />
-                      </div>
-                      <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-2">¿Cuándo necesitas el servicio?</h3>
-                      <p className="text-sm md:text-base text-gray-600">Selecciona la urgencia o programa una fecha</p>
-                    </div>
-
-                    <div className="space-y-4">
-                      {/* Opción Urgente */}
-                      <label
-                        className={`flex items-start gap-3 md:gap-4 p-4 md:p-5 border-2 rounded-xl cursor-pointer transition-all ${requestData.isUrgent
-                          ? 'border-red-500 bg-red-50'
-                          : 'border-gray-200 hover:border-red-300 hover:bg-gray-50'
-                          }`}
-                      >
-                        <input
-                          type="radio"
-                          name="urgency"
-                          checked={requestData.isUrgent}
-                          onChange={() => setRequestData({ ...requestData, isUrgent: true, preferredDate: '', preferredTime: '' })}
-                          className="mt-1 w-4 h-4 md:w-5 md:h-5 text-red-600"
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xl md:text-2xl">⚡</span>
-                            <span className="font-bold text-sm md:text-base text-gray-900">Lo más pronto posible</span>
-                          </div>
-                          <p className="text-xs md:text-sm text-gray-600">Necesito el servicio urgentemente</p>
-                        </div>
-                      </label>
-
-                      {/* Opción Programada */}
-                      <label
-                        className={`flex items-start gap-3 md:gap-4 p-4 md:p-5 border-2 rounded-xl cursor-pointer transition-all ${!requestData.isUrgent
-                          ? 'border-secondary-500 bg-primary-50'
-                          : 'border-gray-200 hover:border-primary-300 hover:bg-gray-50'
-                          }`}
-                      >
-                        <input
-                          type="radio"
-                          name="urgency"
-                          checked={!requestData.isUrgent}
-                          onChange={() => setRequestData({ ...requestData, isUrgent: false })}
-                          className="mt-1 w-4 h-4 md:w-5 md:h-5 text-secondary-600"
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-3">
-                            <span className="text-xl md:text-2xl">📅</span>
-                            <span className="font-bold text-sm md:text-base text-gray-900">Programar fecha y hora</span>
-                          </div>
-
-                          {!requestData.isUrgent && (
-                            <div className="space-y-3 mt-4" onClick={(e) => e.stopPropagation()}>
-                              <div>
-                                <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">Fecha</label>
-                                <div className="relative">
-                                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-                                  <input
-                                    type="date"
-                                    min={new Date().toISOString().split('T')[0]}
-                                    value={requestData.preferredDate}
-                                    onChange={(e) => setRequestData({ ...requestData, preferredDate: e.target.value })}
-                                    className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-2.5 md:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-secondary-500 focus:border-secondary-500 outline-none text-sm md:text-base"
-                                  />
-                                </div>
-                              </div>
-                              <div>
-                                <label className="block text-xs md:text-sm font-medium text-gray-700 mb-2">Hora</label>
-                                <div className="relative">
-                                  <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-                                  <input
-                                    type="time"
-                                    value={requestData.preferredTime}
-                                    onChange={(e) => setRequestData({ ...requestData, preferredTime: e.target.value })}
-                                    className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-2.5 md:py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-secondary-500 focus:border-secondary-500 outline-none text-sm md:text-base"
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </label>
-                    </div>
-                  </div>
-                )}
-
-                {/* Step 4: Detalles y Confirmación */}
-                {currentStep === 4 && (
-                  <div className="space-y-3 md:space-y-6 animate-fadeIn">
-                    <div className="text-center mb-3 md:mb-6">
-                      <div className="w-12 h-12 md:w-16 md:h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-2 md:mb-4">
-                        <CheckCircle className="text-secondary-600" size={24} />
-                      </div>
-                      <h3 className="text-base md:text-xl font-bold text-gray-900 mb-1 md:mb-2">Detalles adicionales</h3>
-                      <p className="text-xs md:text-base text-gray-600">Cuéntanos más sobre lo que necesitas</p>
-                    </div>
-
-                    {/* Resumen */}
-                    <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-3 md:p-5 space-y-2 md:space-y-3">
-                      <h4 className="font-semibold text-sm md:text-base text-gray-900 mb-2 md:mb-3">Resumen de tu solicitud</h4>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-3">
-                        <div className="flex items-start gap-2">
-                          <MapPin className="text-secondary-600 mt-0.5 flex-shrink-0" size={14} />
-                          <div className="min-w-0">
-                            <p className="text-xs font-medium text-gray-700">Dirección</p>
-                            <p className="text-xs text-gray-600 break-words">
-                              {selectedAddressId
-                                ? getAddressString(addresses.find(a => a.id === selectedAddressId)!)
-                                : requestData.address || 'No especificada'}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-start gap-2">
-                          <Calendar className="text-secondary-600 mt-0.5 flex-shrink-0" size={14} />
-                          <div className="min-w-0">
-                            <p className="text-xs font-medium text-gray-700">Fecha y hora</p>
-                            <p className="text-xs text-gray-600">
-                              {requestData.isUrgent ? (
-                                <span className="text-red-600 font-medium">⚡ Lo más pronto posible</span>
-                              ) : (
-                                requestData.preferredDate
-                                  ? `${new Date(requestData.preferredDate).toLocaleDateString('es-ES', {
-                                    weekday: 'long',
-                                    day: 'numeric',
-                                    month: 'long'
-                                  })} a las ${requestData.preferredTime || '—'}`
-                                  : 'No especificada'
-                              )}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Notas */}
-                    <div>
-                      <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5 md:mb-2">
-                        Detalles adicionales (opcional)
-                      </label>
-                      <textarea
-                        rows={3}
-                        placeholder="Describe los detalles específicos: medidas, materiales, problemas específicos, etc."
-                        value={requestData.notes}
-                        onChange={(e) => setRequestData({ ...requestData, notes: e.target.value })}
-                        className="w-full px-3 md:px-4 py-2 md:py-3 border-2 border-primary-200 bg-primary-50 text-primary-900 rounded-xl focus:ring-2 focus:ring-secondary-500 focus:border-secondary-500 outline-none resize-none text-xs md:text-base"
+                  <div>
+                    <label htmlFor="req-budget" className="block text-sm font-semibold text-gray-700 mb-1.5">
+                      Tu presupuesto <span className="font-normal text-gray-400">(opcional)</span>
+                    </label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                      <input
+                        id="req-budget"
+                        type="number"
+                        inputMode="numeric"
+                        min="0"
+                        step="1000"
+                        placeholder={`Desde ${formatCurrency(minBudget)}`}
+                        value={requestData.budget}
+                        onChange={(e) => setRequestData({ ...requestData, budget: e.target.value })}
+                        className="w-full pl-9 pr-4 py-3 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-secondary-500/20 focus:border-secondary-500 outline-none text-base"
                       />
                     </div>
-
-                    {/* Budget */}
-                    <div>
-                      <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1.5 md:mb-2">
-                        Tu presupuesto (opcional)
-                      </label>
-                      <div className="relative">
-                        <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          placeholder={`Mínimo: ${formatCurrency(selectedPartnerId ? service.partners.find(p => p.partner.id === selectedPartnerId)?.price || service.basePrice : service.basePrice)}`}
-                          value={requestData.budget}
-                          onChange={(e) => setRequestData({ ...requestData, budget: e.target.value })}
-                          className="w-full pl-9 md:pl-10 pr-3 md:pr-4 py-2.5 md:py-3 border-2 border-primary-200 bg-primary-50 text-primary-900 rounded-xl focus:ring-2 focus:ring-secondary-500 focus:border-secondary-500 outline-none text-xs md:text-base"
-                        />
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {selectedPartnerId
-                          ? `El presupuesto debe ser al menos ${formatCurrency(service.partners.find(p => p.partner.id === selectedPartnerId)?.price || service.basePrice)} para este socio`
-                          : `El presupuesto debe ser al menos ${formatCurrency(service.basePrice)} para este servicio`
-                        }
-                      </p>
-                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Si lo pones, debe ser al menos {formatCurrency(minBudget)}.</p>
                   </div>
-                )}
 
-                {/* Step 5: Fotos */}
-                {currentStep === 5 && (
-                  <div className="space-y-4 md:space-y-6 animate-fadeIn">
-                    <div className="text-center mb-4 md:mb-6">
-                      <div className="w-14 h-14 md:w-16 md:h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4">
-                        <Camera className="text-secondary-600" size={28} />
-                      </div>
-                      <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-2">Agrega fotos (opcional)</h3>
-                      <p className="text-sm md:text-base text-gray-600">Ayuda a los profesionales a entender mejor tu necesidad</p>
-                    </div>
-
-                    {/* Upload Area */}
-                    <div className="space-y-4">
-                      <label className="block">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          onChange={handlePhotoChange}
-                          className="hidden"
-                          disabled={photos.length >= 5}
-                        />
-                        <div className={`border-2 border-dashed rounded-xl p-6 md:p-8 text-center cursor-pointer transition-all ${photos.length >= 5
-                          ? 'border-gray-300 bg-gray-100 cursor-not-allowed'
-                          : 'border-secondary-500 bg-primary-50 hover:bg-primary-100'
-                          }`}>
-                          <Upload className={`mx-auto mb-3 ${photos.length >= 5 ? 'text-gray-400' : 'text-secondary-600'}`} size={32} />
-                          <p className={`font-semibold mb-1 ${photos.length >= 5 ? 'text-gray-500' : 'text-gray-900'}`}>
-                            {photos.length >= 5 ? 'Máximo de fotos alcanzado' : 'Haz clic para subir fotos'}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            {photos.length >= 5 ? 'Ya has subido 5 fotos' : `Puedes subir hasta ${5 - photos.length} foto(s) más`}
-                          </p>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-700 mb-1.5">
+                      Fotos <span className="font-normal text-gray-400">(opcional, hasta 5)</span>
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {photoPreviews.map((preview, index) => (
+                        <div key={index} className="relative">
+                          <img src={preview} alt={`Foto ${index + 1}`} className="h-20 w-20 object-cover rounded-xl border border-gray-200" />
+                          <button
+                            type="button"
+                            aria-label={`Quitar foto ${index + 1}`}
+                            onClick={() => removePhoto(index)}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white p-1.5 rounded-full shadow"
+                          >
+                            <Trash2 size={12} />
+                          </button>
                         </div>
-                      </label>
-
-                      {/* Photo Previews */}
-                      {photoPreviews.length > 0 && (
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
-                          {photoPreviews.map((preview, index) => (
-                            <div key={index} className="relative group">
-                              <img
-                                src={preview}
-                                alt={`Preview ${index + 1}`}
-                                className="w-full h-32 md:h-40 object-cover rounded-lg border-2 border-gray-200"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => removePhoto(index)}
-                                className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full hover:bg-red-600 transition opacity-0 group-hover:opacity-100"
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
+                      ))}
+                      {photos.length < 5 && (
+                        <label className="flex h-20 w-20 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-secondary-500 bg-primary-50 text-secondary-600 hover:bg-primary-100">
+                          <input type="file" accept="image/*" multiple onChange={handlePhotoChange} className="hidden" />
+                          <Camera size={20} />
+                          <span className="text-[11px] font-semibold">Agregar</span>
+                        </label>
                       )}
                     </div>
-
-                    {/* Info Box */}
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-3 md:p-5">
-                      <div className="flex items-start gap-2 md:gap-3">
-                        <div className="w-6 h-6 md:w-8 md:h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
-                          <Camera className="text-white" size={14} />
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-xs md:text-base text-blue-900 mb-1.5 md:mb-2">¿Por qué agregar fotos?</h4>
-                          <ul className="text-blue-800 text-xs md:text-sm space-y-1">
-                            <li className="flex items-start gap-1.5">
-                              <span className="text-blue-600 mt-0.5 text-xs">✓</span>
-                              <span>Los profesionales entenderán mejor tu necesidad</span>
-                            </li>
-                            <li className="flex items-start gap-1.5">
-                              <span className="text-blue-600 mt-0.5 text-xs">✓</span>
-                              <span>Recibirás propuestas más precisas</span>
-                            </li>
-                            <li className="flex items-start gap-1.5">
-                              <span className="text-blue-600 mt-0.5 text-xs">✓</span>
-                              <span>Evitarás malentendidos sobre el trabajo</span>
-                            </li>
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Con fotos recibes propuestas más precisas.</p>
                   </div>
-                )}
-              </div>
 
-              {/* Footer with Navigation */}
-              <div className="border-t bg-gray-50 px-4 md:px-6 py-3 md:py-4">
-                <div className="flex gap-2 md:gap-3">
-                  {currentStep > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => setCurrentStep(currentStep - 1)}
-                      className="px-6 py-3 border-2 border-gray-300 rounded-xl hover:bg-gray-100 transition font-medium text-gray-700 flex items-center gap-2"
-                      disabled={submitting}
-                    >
-                      <ChevronRight size={20} className="rotate-180" />
-                      Anterior
-                    </button>
-                  )}
-
-                  {currentStep < 5 ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (currentStep === 2) {
-                          if (addresses.length > 0 && !selectedAddressId) {
-                            setValidationModal({
-                              isOpen: true,
-                              message: 'Por favor selecciona una dirección'
-                            })
-                            return
-                          }
-                          if (addresses.length === 0 && !requestData.address) {
-                            setValidationModal({
-                              isOpen: true,
-                              message: 'Por favor ingresa una dirección'
-                            })
-                            return
-                          }
-                        }
-                        if (currentStep === 3) {
-                          if (!requestData.isUrgent && (!requestData.preferredDate || !requestData.preferredTime)) {
-                            setValidationModal({
-                              isOpen: true,
-                              message: 'Por favor selecciona fecha y hora o marca como urgente'
-                            })
-                            return
-                          }
-                        }
-                        setCurrentStep(currentStep + 1)
-                      }}
-                      className="flex-1 bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-4 md:px-6 py-2.5 md:py-3 rounded-xl hover:from-primary-600 hover:to-secondary-600 transition font-semibold flex items-center justify-center gap-2 shadow-lg shadow-primary-600/30 text-sm md:text-base"
-                    >
-                      Continuar
-                      <ChevronRight size={18} />
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={submitRequest}
-                      disabled={submitting}
-                      className="flex-1 bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-4 md:px-6 py-2.5 md:py-3 rounded-xl hover:from-primary-600 hover:to-secondary-600 transition font-semibold flex items-center justify-center gap-2 shadow-lg shadow-primary-600/30 disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
-                    >
-                      {submitting ? (
-                        <>
-                          <div className="w-4 h-4 md:w-5 md:h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          Enviando...
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle size={18} />
-                          Enviar solicitud
-                        </>
-                      )}
-                    </button>
+                  {!session && (
+                    <p className="rounded-2xl bg-blue-50 px-3 py-2 text-xs text-blue-900">
+                      Al enviar te pediremos entrar o crear tu cuenta. No perderás nada de lo que escribiste.
+                    </p>
                   )}
                 </div>
+              )}
+            </div>
+
+            {/* Footer with Navigation */}
+            <div className="sticky bottom-0 border-t bg-white px-4 md:px-6 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+              <div className="flex gap-2 md:gap-3">
+                {currentStep > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setCurrentStep(currentStep - 1)}
+                    className="px-4 md:px-6 py-3 border-2 border-gray-300 rounded-full hover:bg-gray-100 transition font-medium text-gray-700 flex items-center gap-1"
+                    disabled={submitting}
+                  >
+                    <ChevronRight size={18} className="rotate-180" />
+                    Atrás
+                  </button>
+                )}
+
+                {currentStep < TOTAL_STEPS ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const error = currentStep === 1 ? validateAddressStep() : validateWhenStep()
+                      if (error) {
+                        setValidationModal({ isOpen: true, message: error })
+                        return
+                      }
+                      setCurrentStep(currentStep + 1)
+                    }}
+                    className="flex-1 bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-4 md:px-6 py-3 rounded-full hover:from-primary-600 hover:to-secondary-600 transition font-semibold flex items-center justify-center gap-2 shadow-lg shadow-primary-600/30 text-base"
+                  >
+                    Continuar
+                    <ChevronRight size={18} />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={submitRequest}
+                    disabled={submitting}
+                    className="flex-1 bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-4 md:px-6 py-3 rounded-full hover:from-primary-600 hover:to-secondary-600 transition font-semibold flex items-center justify-center gap-2 shadow-lg shadow-primary-600/30 disabled:opacity-50 disabled:cursor-not-allowed text-base"
+                  >
+                    {submitting ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Enviando...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle size={18} />
+                        Enviar solicitud
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             </div>
+            </>
+            )}
           </div>
         </div>
       )}

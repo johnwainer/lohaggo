@@ -77,7 +77,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const { verifiedPartners } = await serviceTrust(service.id).catch(() => ({ verifiedPartners: 0 }))
 
-  const title = `${service.name} en Medellín – Profesionales Verificados`
+  const title = verifiedPartners > 0 ? `${service.name} en Medellín – Profesionales Verificados` : `${service.name} en Medellín – Próximamente en LoHaggo`
   const description = `Contrata ${service.name.toLowerCase()} en Medellín con LoHaggo. ${service.description}${verifiedPartners > 0 ? ` ${verifiedPartners} profesionales verificados disponibles.` : ''} Precios desde $${Math.round(service.basePrice).toLocaleString('es-CO')}. Reserva fácil y paga al terminar.`
   const url = `${BASE_URL}/servicios/${slug}`
 

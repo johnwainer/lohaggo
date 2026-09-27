@@ -8,7 +8,7 @@ import { HomeFeaturedPartners } from '@/components/client/HomeFeaturedPartners'
 import { HomeHeroCTA } from '@/components/client/HomeHeroCTA'
 import { queryServices } from '@/lib/services/queryServices'
 import { prisma } from '@/lib/prisma'
-import { getPublicTrustSafe, realTestimonials } from '@/lib/public/trust'
+import { getPublicTrustSafe, publicContactExtras, realTestimonials } from '@/lib/public/trust'
 import { STAT_MINIMUMS } from '@/lib/public/claims'
 
 export const dynamic = 'force-dynamic'
@@ -69,9 +69,10 @@ export default async function Home() {
       .catch(() => undefined),
     getPublicTrustSafe(),
   ])
-  const testimonials = trust.claims.trust_real_testimonials
-    ? await realTestimonials(6).catch(() => [])
-    : []
+  const [testimonials, contact] = await Promise.all([
+    trust.claims.trust_real_testimonials ? realTestimonials(6).catch(() => []) : Promise.resolve([]),
+    publicContactExtras(trust.claims),
+  ])
 
   // Real reviews only, above the minimum; nothing is claimed if the database is unreachable
   const rating = trust.stats.rating
@@ -122,7 +123,7 @@ export default async function Home() {
       <HomeClientWrapper>
         <div className="min-h-screen bg-slate-50">
           <HomeActiveBookingsBanner />
-          <HomeHeroCTA />
+          <HomeHeroCTA showGuarantee={trust.claims.trust_guarantee} whatsappPhone={contact.whatsappPhone} />
 
           <Suspense
             fallback={
@@ -136,6 +137,8 @@ export default async function Home() {
               interleaveSlot={<HomeFeaturedPartners />}
               initialResult={initialResult}
               initialCategories={initialCategories as any}
+              whatsappPhone={contact.whatsappPhone}
+              homeLimit={8}
             />
           </Suspense>
 

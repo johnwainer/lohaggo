@@ -182,6 +182,12 @@ describe('aceptar propuesta', () => {
     await expect(acceptProposal(client, 'pr1', APP_ORIGIN)).rejects.toMatchObject({ status: 404 })
     expect(m.bookingCreate).not.toHaveBeenCalled()
   })
+
+  it('solicitud vencida → 400 pidiendo reactivarla', async () => {
+    m.proposalFindUnique.mockResolvedValue(pendingProposal({ serviceRequest: { ...pendingProposal().serviceRequest, expiresAt: new Date(Date.now() - 60_000) } }))
+    await expect(acceptProposal(client, 'pr1', APP_ORIGIN)).rejects.toMatchObject({ status: 400, message: 'Esta solicitud venció: reactívala para aceptar propuestas' })
+    expect(m.bookingCreate).not.toHaveBeenCalled()
+  })
 })
 
 describe('rechazar propuesta', () => {

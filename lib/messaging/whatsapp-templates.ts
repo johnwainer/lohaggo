@@ -32,6 +32,8 @@ export const WA_TEMPLATE_SIDS = {
   recordatorio_servicio_manana:'HX5c0dfcfc6e33c0b65c73e003425bdbcd',
   servicio_empieza_pronto:     'HX79ef7bd9424beacfcc065e1a1655c652',
   pago_pendiente_recordatorio: 'HX636d2d69f669a521768bc67c13c033ae',
+  // Pending creation in Twilio: set WA_SID_NUEVA_PROPUESTA_CLIENTE once Meta approves it (empty = not sent)
+  nueva_propuesta_cliente:     (process.env.WA_SID_NUEVA_PROPUESTA_CLIENTE || '').trim(),
 } as const
 
 async function getTwilioCfg() {
@@ -270,6 +272,22 @@ export async function sendReferralInvite(phone: string, name: string) {
     )
   } catch (err) {
     logger.error('sendReferralInvite failed', { phone, err })
+    return { ok: false, provider: 'twilio-whatsapp', errorCode: 'EXCEPTION' }
+  }
+}
+
+/**
+ * New proposal alert to the client: {{1}} client name, {{2}} service, {{3}} price, {{4}} partner name.
+ * Returns null without sending while the template SID is not configured.
+ */
+export async function sendNuevaPropuestaCliente(phone: string, clientName: string, service: string, price: string, partnerName: string) {
+  const sid = WA_TEMPLATE_SIDS.nueva_propuesta_cliente
+  if (!sid) return null
+  try {
+    const cfg = await getTwilioCfg()
+    return await sendWhatsAppTemplate(phone, sid, { '1': clientName, '2': service, '3': price, '4': partnerName }, cfg)
+  } catch (err) {
+    logger.error('sendNuevaPropuestaCliente failed', { phone, err })
     return { ok: false, provider: 'twilio-whatsapp', errorCode: 'EXCEPTION' }
   }
 }

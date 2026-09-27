@@ -8,6 +8,7 @@ import {
   Search, CreditCard, GraduationCap, Shield, Zap, Building2
 } from 'lucide-react'
 import Modal from '@/components/Modal'
+import { pendingCountByPartner } from '@/lib/partners/document-queue'
 
 
 interface Document {
@@ -271,6 +272,12 @@ export default function AdminDocumentsPage() {
   }
 
   const pendingCount = documents.filter(d => d.status === 'PENDING').length
+  const pendingByPartner = pendingCountByPartner(documents)
+  const partnerPendingBadge = (doc: Document) => {
+    const n = pendingByPartner[doc.partner.id] ?? 0
+    if (doc.status !== 'PENDING' || n < 2) return null
+    return <span className="text-xs bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full font-medium">{n} pendientes de este socio</span>
+  }
 
   const renderDocActions = (doc: Document) => (
     <div className="flex items-center gap-2">
@@ -463,6 +470,7 @@ export default function AdminDocumentsPage() {
                             ? <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">Verificado</span>
                             : <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-medium">Sin verificar</span>
                           }
+                          {partnerPendingBadge(doc)}
                         </div>
                         <div className="text-xs text-gray-500 break-all">{doc.partner.user.email}</div>
                       </div>
@@ -513,6 +521,7 @@ export default function AdminDocumentsPage() {
                                   ? <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">Verificado</span>
                                   : <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-medium">Sin verificar</span>
                                 }
+                                {partnerPendingBadge(doc)}
                               </div>
                               <div className="text-sm text-gray-500">{doc.partner.user.email}</div>
                             </div>

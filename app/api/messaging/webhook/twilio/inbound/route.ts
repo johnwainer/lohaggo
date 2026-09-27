@@ -13,6 +13,7 @@ import { getDefaultWorkspaceId } from '@/lib/workspaces'
 import { normalizeContactAddress } from '@/lib/messaging/contact-address'
 import { resolveInboundContact } from '@/lib/inbox/contacts'
 import { autopilotCovers, drainAgentTasks, scheduleInboundAgent } from '@/lib/ai/autopilot'
+import { extractWebRef, parseTwilioReferral, recordConversationAttribution } from '@/lib/messaging/attribution'
 
 const logger = createLogger('twilio-inbound')
 
@@ -37,18 +38,21 @@ const STOP_KEYWORDS = new Set(['stop', 'baja', 'cancelar', 'unsubscribe', 'salir
 export async function POST(request: NextRequest) {
   // Token fallback for non-HMAC callers (internal testing)
   const token = request.nextUrl.searchParams.get('token')
-  const skipHmac = env.SECURITY_INTERNAL_TOKEN && token === env.SECURITY_INTERNAL_TOKEN
+  // The internal-token bypass is for local testing only: never in production
+  const skipHmac = process.env.NODE_ENV !== 'production' && env.SECURITY_INTERNAL_TOKEN && token === env.SECURITY_INTERNAL_TOKEN
 
   if (!skipHmac) {
-    // Validate Twilio HMAC signature
+    // Validate Twilio HMAC signature. Fail closed: without the auth token nothing can be verified.
     const runtimeConfig = await getMessagingProviderRuntimeConfig()
     const authToken = runtimeConfig.twilio?.config?.authToken
-    if (authToken) {
-      const valid = await validateTwilioSignature(request, authToken)
-      if (!valid) {
-        logger.warn('Invalid Twilio signature on inbound webhook')
-        return new NextResponse('Forbidden', { status: 403 })
-      }
+    if (!authToken) {
+      logger.error('Twilio inbound webhook rejected: auth token not configured')
+      return new NextResponse('Service Unavailable', { status: 503 })
+    }
+    const valid = await validateTwilioSignature(request, authToken)
+    if (!valid) {
+      logger.warn('Invalid Twilio signature on inbound webhook')
+      return new NextResponse('Forbidden', { status: 403 })
     }
   }
 
@@ -166,6 +170,9 @@ export async function POST(request: NextRequest) {
   })
 
   logger.info('Inbound saved', { conversationId: conversation.id, messageSid })
+  // Ad / website attribution (Click-to-WhatsApp params, or the web's «(ref: web-…)» tag)
+  const adReferral = isWhatsApp ? parseTwilioReferral((k) => formData.get(k)) : null
+  await recordConversationAttribution(conversation.id, { adReferral, webRef: extractWebRef(body) })
   prisma.webhookEvent.create({
     data: { channel, externalId: contactPhone, status: 'OK', detail: `inbound · ${profileName || 'sin nombre'}`, payload: rawParams },
   }).catch(() => null)

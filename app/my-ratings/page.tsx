@@ -7,6 +7,7 @@ import ServiceIcon from '@/components/ServiceIcon'
 import { formatCurrency } from '@/lib/utils'
 import AccountTopHeader from '@/components/shared/AccountTopHeader'
 import AccountPanel from '@/components/shared/AccountPanel'
+import { opportunitiesFromResponse } from '@/lib/partners/opportunities'
 
 interface Review {
   id: string
@@ -74,7 +75,7 @@ export default function MyRatingsPage() {
 
       if (requestsRes.ok) {
         const requestsData = await requestsRes.json()
-        setRequestsCount(Array.isArray(requestsData) ? requestsData.length : 0)
+        setRequestsCount(opportunitiesFromResponse(requestsData).requests.length)
       }
     } catch (error) {
       console.error('Error fetching partner data:', error)

@@ -11,6 +11,7 @@ import Modal from '@/components/Modal'
 import ServiceIcon from '@/components/ServiceIcon'
 import AccountTopHeader from '@/components/shared/AccountTopHeader'
 import { compressImageIfNeeded } from '@/lib/client-image-compress'
+import { opportunitiesFromResponse } from '@/lib/partners/opportunities'
 
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024 // Vercel serverless body limit (~4.5MB), leave headroom for multipart boundaries
 
@@ -116,7 +117,7 @@ export default function VerificationPage() {
       }
       if (requestsRes.ok) {
         const d = await requestsRes.json()
-        setRequestsCount(Array.isArray(d) ? d.length : 0)
+        setRequestsCount(opportunitiesFromResponse(d).requests.length)
       }
     } catch { /* silent */ }
   }
@@ -318,11 +319,19 @@ export default function VerificationPage() {
       <AccountTopHeader
         role="PARTNER"
         title="Verificación"
-        subtitle="Completa los 3 pasos para activar tu perfil"
+        subtitle="Con tu documento de identidad activas tu perfil"
         counts={{ bookings: bookingsCount, requests: requestsCount }}
       />
 
       <main className="account-main max-w-2xl">
+
+        <div className={`rounded-xl border p-4 mb-4 ${identityApproved ? 'border-green-200 bg-green-50' : 'border-blue-200 bg-blue-50'}`}>
+          <p className={`text-sm font-semibold ${identityApproved ? 'text-green-800' : 'text-blue-900'}`}>
+            {identityApproved
+              ? 'Tu perfil está activo. Estudios y antecedentes son opcionales: suman insignias y confianza.'
+              : 'Sube tu documento de identidad para activar tu perfil. Estudios y antecedentes son opcionales: suman insignias y confianza.'}
+          </p>
+        </div>
 
         {/* Progress bar */}
         <div className="bg-white rounded-xl border border-gray-200 p-4 mb-5">
@@ -352,11 +361,12 @@ export default function VerificationPage() {
             icon={<CreditCard className="w-5 h-5" />}
             iconColor="text-blue-600"
             title="Identificación"
-            description="Cédula, pasaporte o documento oficial"
+            description="Cédula, cédula de extranjería, pasaporte o PEP"
             approved={identityApproved}
             pending={identityPending}
             rejected={identityRejected}
             rejectionReason={identityDocs.find(d => d.status === 'REJECTED')?.rejectionReason}
+            required
             onUpload={() => openUploadFor('IDENTITY')}
           />
           <StepCard
@@ -892,10 +902,11 @@ interface StepCardProps {
   rejected?: boolean
   rejectionReason?: string
   adminManaged?: boolean
+  required?: boolean
   onUpload?: () => void
 }
 
-function StepCard({ step, icon, iconColor, title, description, approved, pending, rejected, rejectionReason, adminManaged, onUpload }: StepCardProps) {
+function StepCard({ step, icon, iconColor, title, description, approved, pending, rejected, rejectionReason, adminManaged, required, onUpload }: StepCardProps) {
   const isClickable = !approved && !pending && !adminManaged
   const isRejected = rejected && !approved
 
@@ -905,7 +916,9 @@ function StepCard({ step, icon, iconColor, title, description, approved, pending
       ? 'border-red-300 bg-red-50'
       : pending
         ? 'border-yellow-300 bg-yellow-50'
-        : 'border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/40'
+        : required
+          ? 'border-blue-400 bg-white hover:bg-blue-50/40'
+          : 'border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/40'
 
   const content = (
     <div className={`flex items-center gap-4 rounded-xl border-2 p-4 transition-all ${borderClass} ${isClickable || isRejected ? 'cursor-pointer active:scale-[0.99]' : ''}`}>
@@ -927,6 +940,9 @@ function StepCard({ step, icon, iconColor, title, description, approved, pending
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs font-bold text-gray-400">Paso {step}</span>
+          {required
+            ? <span className="text-xs font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">Obligatorio</span>
+            : <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">Opcional · insignia</span>}
           {approved && <span className="text-xs font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">Verificado</span>}
           {pending && <span className="text-xs font-bold text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded-full">En revisión</span>}
           {isRejected && <span className="text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded-full">Rechazado</span>}

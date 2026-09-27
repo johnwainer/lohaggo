@@ -304,6 +304,30 @@ export function parseDocumentType(value: string | null | undefined): DocumentTyp
 }
 
 /** Uploads a verification document to Cloudinary and records it as PENDING; the partner gets a notification. */
+/** Review queue path the admin notification opens. */
+export const DOCUMENT_REVIEW_PATH = '/admin/documents'
+
+/** Tells every active admin there is a document to review (in-app + push). Never fails the upload. */
+async function notifyAdminsOfNewDocument(partnerId: string, documentId: string) {
+  try {
+    const [admins, profile] = await Promise.all([
+      prisma.user.findMany({ where: { role: 'ADMIN', isActive: true }, select: { id: true } }),
+      prisma.partnerProfile.findUnique({ where: { id: partnerId }, select: { user: { select: { name: true } } } }),
+    ])
+    const name = profile?.user.name?.trim() || 'socio'
+    await Promise.all(admins.map((a) => createNotification({
+      userId: a.id,
+      type: 'DOCUMENT_APPROVED',
+      title: `Nuevo documento para revisar · ${name}`,
+      message: `${name} subió un documento de verificación. Revísalo en la cola de documentos.`,
+      data: { url: DOCUMENT_REVIEW_PATH, partnerId, documentId, kind: 'DOCUMENT_REVIEW_ADMIN_ALERT' },
+      channels: ['PUSH'],
+    }).catch(() => null)))
+  } catch (err) {
+    logger.warn('Admin document alert failed (non-fatal)', { partnerId, documentId, err })
+  }
+}
+
 export async function uploadDocument(actor: Actor, input: UploadDocumentInput, origin: Origin) {
   const partner = await requirePartner(actor)
 
@@ -340,6 +364,7 @@ export async function uploadDocument(actor: Actor, input: UploadDocumentInput, o
     title: 'Documento subido',
     message: `Tu documento ${type} ha sido subido y está en revisión`,
   })
+  await notifyAdminsOfNewDocument(partner.id, document.id)
   logger.info('Verification document uploaded', { partnerId: partner.id, documentId: document.id, type, via: origin.via })
   return document
 }

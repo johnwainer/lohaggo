@@ -1,6 +1,5 @@
 import { getFeaturedPartners } from '@/lib/featured-partners'
 import { FeaturedPartnerCard } from './FeaturedPartnerCard'
-import { ChevronDown } from 'lucide-react'
 
 export async function HomeFeaturedPartners() {
   const partners = await getFeaturedPartners()
@@ -28,13 +27,6 @@ export async function HomeFeaturedPartners() {
               <FeaturedPartnerCard partner={p} />
             </div>
           ))}
-        </div>
-
-        <div className="mt-4 flex justify-center">
-          <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
-            Sigue explorando servicios
-            <ChevronDown className="w-3.5 h-3.5 animate-bounce" />
-          </span>
         </div>
       </div>
     </section>

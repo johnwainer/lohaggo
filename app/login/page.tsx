@@ -8,16 +8,10 @@ import { Mail, Lock, ArrowRight, Sparkles, Shield, Zap, Eye, EyeOff } from 'luci
 import TurnstileWidget from '@/components/security/TurnstileWidget'
 import { trackPwaEvent } from '@/lib/pwa/telemetry-client'
 import { PWA_EVENTS } from '@/lib/pwa/events'
+import { safeInternalPath, withRedirect } from '@/lib/navigation/safe-redirect'
 
 function safeRedirect(url: string | null, fallback: string): string {
-  if (!url) return fallback
-  try {
-    // Allow relative paths only (no protocol-relative URLs like //evil.com)
-    if (url.startsWith('/') && !url.startsWith('//')) return url
-    // Allow same-origin absolute URLs
-    if (typeof window !== 'undefined' && new URL(url).origin === window.location.origin) return url
-  } catch { /* invalid URL */ }
-  return fallback
+  return safeInternalPath(url, fallback)
 }
 
 function LoginForm() {
@@ -32,7 +26,6 @@ function LoginForm() {
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [captchaToken, setCaptchaToken] = useState('')
   const [honeypot, setHoneypot] = useState('')
@@ -127,11 +120,6 @@ function LoginForm() {
     })
 
     if (emailError || passwordError) {
-      return
-    }
-
-    if (!acceptedTerms) {
-      setError('Debes aceptar los Términos y Condiciones y la Política de Privacidad para continuar')
       return
     }
 
@@ -343,45 +331,6 @@ function LoginForm() {
                     value={honeypot}
                     onChange={(e) => setHoneypot(e.target.value)}
                   />
-                  <label className="flex items-start gap-3 cursor-pointer group">
-                    <div className="relative flex items-center justify-center mt-0.5">
-                      <input
-                        type="checkbox"
-                        checked={acceptedTerms}
-                        onChange={(e) => setAcceptedTerms(e.target.checked)}
-                        className="w-5 h-5 border-2 border-gray-300 rounded-lg cursor-pointer checked:bg-primary-500 checked:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:ring-offset-2 transition-all"
-                      />
-                    </div>
-                    <span className="text-sm text-gray-700 leading-relaxed">
-                      He leído y acepto los términos del servicio.
-                    </span>
-                  </label>
-                  <p className="ml-8 mt-1.5 text-xs text-gray-500 leading-relaxed">
-                    Ver{' '}
-                    <Link
-                      href="/terms"
-                      target="_blank"
-                      className="text-primary-600 font-semibold hover:underline"
-                    >
-                      Términos
-                    </Link>
-                    {' · '}
-                    <Link
-                      href="/privacy"
-                      target="_blank"
-                      className="text-primary-600 font-semibold hover:underline"
-                    >
-                      Privacidad
-                    </Link>
-                    {' · '}
-                    <Link
-                      href="/cookies"
-                      target="_blank"
-                      className="text-primary-600 font-semibold hover:underline"
-                    >
-                      Cookies
-                    </Link>
-                  </p>
                 </div>
 
                 {isBotProtectionEnabled && (
@@ -396,7 +345,7 @@ function LoginForm() {
 
                 <button
                   type="submit"
-                  disabled={loading || !acceptedTerms || (isBotProtectionEnabled && !captchaToken)}
+                  disabled={loading || (isBotProtectionEnabled && !captchaToken)}
                   className="w-full bg-gradient-to-r from-primary-500 via-secondary-500 to-secondary-500 text-white py-4 rounded-xl hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 group"
                 >
                   {loading ? (
@@ -416,7 +365,7 @@ function LoginForm() {
               <div className="mt-8 text-center">
                 <p className="text-gray-600">
                   ¿No tienes cuenta?{' '}
-                  <Link href="/register" className="text-primary-600 hover:text-primary-400 font-semibold hover:underline transition-colors">
+                  <Link href={withRedirect('/register', searchParams.get('redirect'))} className="text-primary-600 hover:text-primary-400 font-semibold hover:underline transition-colors">
                     Regístrate aquí
                   </Link>
                 </p>

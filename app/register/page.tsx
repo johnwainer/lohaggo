@@ -10,18 +10,19 @@ import { formatCurrency } from '@/lib/utils'
 import TurnstileWidget from '@/components/security/TurnstileWidget'
 import { trackPwaEvent } from '@/lib/pwa/telemetry-client'
 import { PWA_EVENTS } from '@/lib/pwa/events'
+import { safeInternalPath, withRedirect } from '@/lib/navigation/safe-redirect'
 
 function RegisterForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const roleParam = searchParams.get('role')
+  const redirectParam = searchParams.get('redirect')
   const { cities, loading: citiesLoading } = useCity()
 
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
-    confirmPassword: '',
     phone: '',
     role: roleParam === 'partner' ? 'PARTNER' : 'CLIENT',
     city: '',
@@ -29,13 +30,11 @@ function RegisterForm() {
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [captchaToken, setCaptchaToken] = useState('')
   const [honeypot, setHoneypot] = useState('')
   const [formStartedAt] = useState(() => Date.now().toString())
   const [searchQuery, setSearchQuery] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [servicesError, setServicesError] = useState('')
   const [servicesCatalog, setServicesCatalog] = useState<
     Array<{ id: string; name: string; slug: string; basePrice?: number }>
@@ -44,14 +43,12 @@ function RegisterForm() {
     name: '',
     email: '',
     password: '',
-    confirmPassword: '',
     phone: ''
   })
   const [touched, setTouched] = useState({
     name: false,
     email: false,
     password: false,
-    confirmPassword: false,
     phone: false
   })
   const [passwordStrength, setPasswordStrength] = useState<{
@@ -227,16 +224,6 @@ function RegisterForm() {
     return ''
   }
 
-  const validateConfirmPassword = (confirmPassword: string, password: string) => {
-    if (!confirmPassword) {
-      return 'Por favor confirma tu contraseña'
-    }
-    if (confirmPassword !== password) {
-      return 'Las contraseñas no coinciden'
-    }
-    return ''
-  }
-
   type ValidatableField = keyof typeof fieldErrors
 
   const validateField = (field: ValidatableField, nextFormData = formData) => {
@@ -247,8 +234,6 @@ function RegisterForm() {
         return validateEmail(nextFormData.email)
       case 'password':
         return validatePassword(nextFormData.password)
-      case 'confirmPassword':
-        return validateConfirmPassword(nextFormData.confirmPassword, nextFormData.password)
       case 'phone':
         return validatePhone(nextFormData.phone)
       default:
@@ -342,32 +327,25 @@ function RegisterForm() {
     setError('')
     setServicesError('')
 
-    setTouched({ name: true, email: true, password: true, confirmPassword: true, phone: true })
+    setTouched({ name: true, email: true, password: true, phone: true })
     const nameError = validateName(formData.name)
     const emailError = validateEmail(formData.email)
     const passwordError = validatePassword(formData.password)
-    const confirmPasswordError = validateConfirmPassword(formData.confirmPassword, formData.password)
     const phoneError = validatePhone(formData.phone)
 
     setFieldErrors({
       name: nameError,
       email: emailError,
       password: passwordError,
-      confirmPassword: confirmPasswordError,
       phone: phoneError
     })
 
-    if (nameError || emailError || passwordError || confirmPasswordError || phoneError) {
+    if (nameError || emailError || passwordError || phoneError) {
       return
     }
 
     if (formData.role === 'PARTNER' && formData.services.length === 0) {
       setServicesError('Debes seleccionar al menos 1 servicio que ofreces')
-      return
-    }
-
-    if (!acceptedTerms) {
-      setError('Debes aceptar los Términos y Condiciones y la Política de Privacidad para continuar')
       return
     }
 
@@ -435,7 +413,7 @@ function RegisterForm() {
             router.push('/partner')
           }
         } else {
-          router.push('/dashboard')
+          router.push(safeInternalPath(redirectParam, '/dashboard'))
         }
         router.refresh()
       }
@@ -629,6 +607,8 @@ function RegisterForm() {
                   }`} size={20} />
                   <input
                     type="text"
+                    name="name"
+                    autoComplete="name"
                     value={formData.name}
                     onChange={(e) => handleFieldChange('name', e.target.value)}
                     onBlur={() => handleFieldBlur('name')}
@@ -669,6 +649,9 @@ function RegisterForm() {
                   }`} size={20} />
                   <input
                     type="email"
+                    name="email"
+                    autoComplete="email"
+                    inputMode="email"
                     value={formData.email}
                     onChange={(e) => handleFieldChange('email', e.target.value)}
                     onBlur={() => handleFieldBlur('email')}
@@ -711,7 +694,8 @@ function RegisterForm() {
                     type="tel"
                     inputMode="numeric"
                     pattern="[0-9]*"
-                    autoComplete="tel-national"
+                    name="tel"
+                    autoComplete="tel"
                     value={formData.phone}
                     onChange={(e) => handleFieldChange('phone', e.target.value)}
                     onBlur={() => handleFieldBlur('phone')}
@@ -752,6 +736,8 @@ function RegisterForm() {
                   }`} size={20} />
                   <input
                     type={showPassword ? 'text' : 'password'}
+                    name="new-password"
+                    autoComplete="new-password"
                     value={formData.password}
                     onChange={(e) => handleFieldChange('password', e.target.value)}
                     onBlur={() => handleFieldBlur('password')}
@@ -771,6 +757,7 @@ function RegisterForm() {
                   )}
                   <button
                     type="button"
+                    aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                   >
@@ -826,53 +813,6 @@ function RegisterForm() {
                   <p className="text-sm text-red-600 flex items-center gap-1 animate-fade-in">
                     <span className="inline-block w-1 h-1 bg-red-600 rounded-full"></span>
                     {fieldErrors.password}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold text-gray-700">
-                  Confirmar contraseña <span className="text-red-500">*</span>
-                </label>
-                <div className="relative group">
-                  <Lock className={`absolute left-4 top-1/2 transform -translate-y-1/2 transition-colors ${
-                    fieldErrors.confirmPassword && touched.confirmPassword
-                      ? 'text-red-500'
-                      : isFieldValid('confirmPassword')
-                      ? 'text-green-600'
-                      : 'text-gray-400 group-focus-within:text-primary-600'
-                  }`} size={20} />
-                  <input
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    value={formData.confirmPassword}
-                    onChange={(e) => handleFieldChange('confirmPassword', e.target.value)}
-                    onBlur={() => handleFieldBlur('confirmPassword')}
-                    className={`w-full pl-12 pr-20 py-3.5 border-2 rounded-xl focus:ring-2 outline-none transition-all ${
-                      fieldErrors.confirmPassword && touched.confirmPassword
-                        ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500'
-                        : isFieldValid('confirmPassword')
-                        ? 'border-green-500 focus:ring-green-500/20 focus:border-green-500'
-                        : 'border-gray-200 focus:ring-primary-500/20 focus:border-primary-500'
-                    }`}
-                    placeholder="••••••••"
-                  />
-                  {isFieldValid('confirmPassword') && (
-                    <div className="absolute right-12 top-1/2 transform -translate-y-1/2 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
-                      <Check className="w-3.5 h-3.5 text-white" />
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                  </button>
-                </div>
-                {fieldErrors.confirmPassword && touched.confirmPassword && (
-                  <p className="text-sm text-red-600 flex items-center gap-1 animate-fade-in">
-                    <span className="inline-block w-1 h-1 bg-red-600 rounded-full"></span>
-                    {fieldErrors.confirmPassword}
                   </p>
                 )}
               </div>
@@ -1018,7 +958,7 @@ function RegisterForm() {
               </div>
             )}
 
-            {/* Terms and Conditions Checkbox */}
+            {/* Terms notice */}
             <div className="pt-4 border-t border-gray-200">
               <input
                 type="text"
@@ -1030,44 +970,17 @@ function RegisterForm() {
                 value={honeypot}
                 onChange={(e) => setHoneypot(e.target.value)}
               />
-              <label className="flex items-start gap-3 cursor-pointer group">
-                <div className="relative flex items-center justify-center mt-0.5">
-                  <input
-                    type="checkbox"
-                    checked={acceptedTerms}
-                    onChange={(e) => setAcceptedTerms(e.target.checked)}
-                    className="w-5 h-5 border-2 border-gray-300 rounded-lg cursor-pointer checked:bg-primary-500 checked:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:ring-offset-2 transition-all"
-                    required
-                  />
-                </div>
-                <span className="text-sm text-gray-700 leading-relaxed">
-                  He leído y acepto los{' '}
-                  <Link
-                    href="/terms"
-                    target="_blank"
-                    className="text-primary-600 font-semibold hover:underline"
-                  >
-                    Términos y Condiciones
-                  </Link>
-                  , la{' '}
-                  <Link
-                    href="/privacy"
-                    target="_blank"
-                    className="text-primary-600 font-semibold hover:underline"
-                  >
-                    Política de Privacidad
-                  </Link>
-                  {' '}y la{' '}
-                  <Link
-                    href="/cookies"
-                    target="_blank"
-                    className="text-primary-600 font-semibold hover:underline"
-                  >
-                    Política de Cookies
-                  </Link>
-                  .
-                </span>
-              </label>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                Al continuar aceptas los{' '}
+                <Link href="/terms" target="_blank" className="text-primary-600 font-semibold hover:underline">
+                  Términos
+                </Link>
+                {' '}y la{' '}
+                <Link href="/privacy" target="_blank" className="text-primary-600 font-semibold hover:underline">
+                  Política de privacidad
+                </Link>
+                .
+              </p>
             </div>
 
             {isBotProtectionEnabled && (
@@ -1082,7 +995,7 @@ function RegisterForm() {
 
             <button
               type="submit"
-              disabled={loading || !acceptedTerms || (isBotProtectionEnabled && !captchaToken)}
+              disabled={loading || (isBotProtectionEnabled && !captchaToken)}
               className="w-full bg-gradient-to-r from-primary-500 via-secondary-500 to-secondary-500 text-white py-4 rounded-xl hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 group"
             >
               {loading ? (
@@ -1102,7 +1015,7 @@ function RegisterForm() {
           <div className="mt-8 text-center">
             <p className="text-gray-600">
               ¿Ya tienes cuenta?{' '}
-              <Link href="/login" className="text-primary-600 hover:text-primary-400 font-semibold hover:underline transition-colors">
+              <Link href={withRedirect('/login', redirectParam)} className="text-primary-600 hover:text-primary-400 font-semibold hover:underline transition-colors">
                 Inicia sesión aquí
               </Link>
             </p>

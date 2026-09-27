@@ -2,6 +2,18 @@ import { Metadata } from 'next'
 import UneteClient from './UneteClient'
 import { getPublicTrustSafe } from '@/lib/public/trust'
 import { fmtCount } from '@/lib/public/claims'
+import { unstable_cache } from 'next/cache'
+import { City } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
+
+/** Catalog services that at least one verified, active partner offers in Medellín today. */
+const servicesWithVerifiedPartnersInMedellin = unstable_cache(
+    () => prisma.service.count({
+        where: { partners: { some: { active: true, city: City.MEDELLIN, partner: { verified: true, isActive: true } } } },
+    }),
+    ['unete-services-medellin-v1'],
+    { revalidate: 600 },
+)
 
 export const revalidate = 600
 
@@ -43,6 +55,11 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function UnetePage() {
-    const trust = await getPublicTrustSafe()
-    return <UneteClient trust={trust} />
+    const [trust, services] = await Promise.all([
+        getPublicTrustSafe(),
+        servicesWithVerifiedPartnersInMedellin().catch(() => 0),
+    ])
+    // Real number only, and only while the platform shows real stats
+    const servicesInMedellin = trust.claims.trust_real_stats && services > 0 ? services : null
+    return <UneteClient trust={trust} servicesInMedellin={servicesInMedellin} />
 }

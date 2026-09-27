@@ -8,6 +8,7 @@ import { untrusted } from '@/lib/haggo/prompt'
 import { TOOL_CATALOG, TOOL_NAMES } from '@/lib/ai/tools'
 import { TOOL_GROUPS } from '@/lib/ai/actions-core'
 import { PLATFORM_READ_TOOLS, type ReadTool } from '@/lib/haggo/tools/platform'
+import { summarizeConversationOrigins } from '@/lib/messaging/attribution'
 
 const H = 3600_000
 const MAX_OUTPUT = 8000
@@ -120,6 +121,20 @@ export const READ_TOOLS: Record<string, ReadTool> = {
         creado_por_chat: { solicitudes: requests, propuestas: proposals, reservas: bookings, pagos: payments, resenas: reviews },
         cancelaciones: { por_chat: chatCancellations, total: cancellations },
       }
+    },
+  },
+  origen_conversaciones: {
+    def: { name: 'origen_conversaciones', description: 'De dónde llegan las conversaciones de la bandeja: por anuncio (clic a WhatsApp o anuncio de Messenger/Instagram, con su id y titular), por página de la web que las trajo (ref web-… o blog-…), por canal y sin origen; y cuántas terminaron en solicitud y en solicitud aceptada. Sirve para medir la pauta.', input_schema: { type: 'object', properties: { dias: { type: 'integer', minimum: 1, maximum: 90, description: 'Días hacia atrás (14 por defecto)' } } } },
+    run: async (i) => {
+      const days = limit(i.dias, 14, 90)
+      const since = new Date(Date.now() - days * 24 * H)
+      const convs = await prisma.conversation.findMany({ where: { createdAt: { gte: since } }, select: { id: true, channel: true, isAd: true, customFields: true }, orderBy: { createdAt: 'desc' }, take: 3000 })
+      const requests = convs.length
+        ? await prisma.serviceRequest.findMany({ where: { originConversationId: { in: convs.map((c) => c.id) } }, select: { originConversationId: true, status: true } })
+        : []
+      // Ad headlines are written by whoever ran the ad: data, not instructions
+      const summary = summarizeConversationOrigins(convs, requests)
+      return { dias: days, ...summary, por_anuncio: summary.por_anuncio.map((a) => ({ ...a, titulo: a.titulo ? untrusted(String(a.titulo).slice(0, 120)) : null })) }
     },
   },
   marketing: {

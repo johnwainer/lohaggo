@@ -1,5 +1,12 @@
 import Link from 'next/link'
 import { Shield, ArrowLeft, FileText, Calendar, Mail } from 'lucide-react'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Política de privacidad',
+  description: 'Cómo LoHaggo recoge, usa y protege tus datos personales.',
+  alternates: { canonical: '/privacy' },
+}
 
 export default function PrivacyPage() {
   return (

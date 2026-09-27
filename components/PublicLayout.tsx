@@ -14,8 +14,9 @@ import PasswordUpdateBanner from './shared/PasswordUpdateBanner'
 import FloatingButtons from './FloatingButtons'
 import PartnerShell from './partner/PartnerShell'
 import InAppBrowserBanner from './InAppBrowserBanner'
+import type { TopService } from '@/lib/public/topServices'
 
-export default function PublicLayout({ children }: { children: React.ReactNode }) {
+export default function PublicLayout({ children, footerServices = [] }: { children: React.ReactNode; footerServices?: TopService[] }) {
   const pathname = usePathname()
   const { data: session } = useSession()
   const isAdmin = pathname.startsWith('/admin')
@@ -53,7 +54,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
         {children}
       </main>
       <AppDownloadBanner />
-      <Footer />
+      <Footer services={footerServices} />
       <BottomNav />
       <FloatingButtons />
       <NotificationPermissionPrompt />

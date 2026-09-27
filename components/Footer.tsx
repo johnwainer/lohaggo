@@ -3,9 +3,10 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Sparkles, Facebook, Instagram, Mail, Phone, MapPin, Heart } from 'lucide-react'
-import { useSession, signOut } from 'next-auth/react'
+import { useSession } from 'next-auth/react'
+import type { TopService } from '@/lib/public/topServices'
 
-export function Footer() {
+export function Footer({ services = [] }: { services?: TopService[] }) {
   const pathname = usePathname()
   const currentYear = new Date().getFullYear()
   const { data: session } = useSession()
@@ -49,18 +50,24 @@ export function Footer() {
             </div>
           </div>
 
-          {/* Services */}
+          {/* Services: only the ones with verified partners, most available first */}
           <div>
             <h3 className="text-lg font-black mb-6 text-white">Servicios</h3>
             <ul className="space-y-3">
-              {['Plomería', 'Electricidad', 'Limpieza', 'Carpintería', 'Pintura', 'Jardinería'].map((service) => (
-                <li key={service}>
-                  <Link href="/servicios" className="text-gray-400 hover:text-primary-600 transition-colors flex items-center group font-medium">
+              {services.map((service) => (
+                <li key={service.slug}>
+                  <Link href={`/servicios/${service.slug}`} className="text-gray-400 hover:text-primary-600 transition-colors flex items-center group font-medium">
                     <span className="w-1.5 h-1.5 bg-primary-500 rounded-full mr-2 group-hover:scale-150 transition-transform"></span>
-                    {service}
+                    {service.name}
                   </Link>
                 </li>
               ))}
+              <li>
+                <Link href="/servicios" className="text-white hover:text-primary-400 transition-colors flex items-center group font-bold">
+                  <span className="w-1.5 h-1.5 bg-primary-500 rounded-full mr-2 group-hover:scale-150 transition-transform"></span>
+                  Ver todos los servicios
+                </Link>
+              </li>
             </ul>
           </div>
 

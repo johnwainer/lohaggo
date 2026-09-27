@@ -1,5 +1,12 @@
 import Link from 'next/link'
 import { Cookie, ArrowLeft, FileText, Calendar, Mail, Settings, Eye, BarChart, Shield } from 'lucide-react'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Política de cookies',
+  description: 'Qué cookies usa LoHaggo y cómo gestionarlas.',
+  alternates: { canonical: '/cookies' },
+}
 
 export default function CookiesPage() {
   return (

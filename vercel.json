@@ -53,6 +53,10 @@
     {
       "path": "/api/cron/haggo",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/request-lifecycle",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

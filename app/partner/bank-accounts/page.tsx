@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { COLOMBIA_BANKS } from '@/lib/banking/colombia'
 import AccountTopHeader from '@/components/shared/AccountTopHeader'
+import { opportunitiesFromResponse } from '@/lib/partners/opportunities'
 
 type BankAccount = {
   id: string
@@ -100,12 +101,7 @@ export default function PartnerBankAccountsPage() {
 
       if (requestsRes.ok) {
         const requestsData = await requestsRes.json()
-        const requests = Array.isArray(requestsData)
-          ? requestsData
-          : Array.isArray(requestsData?.serviceRequests)
-            ? requestsData.serviceRequests
-            : []
-        setRequestsCount(requests.length)
+        setRequestsCount(opportunitiesFromResponse(requestsData).requests.length)
       }
     } catch (error) {
       console.error('Error loading partner counts:', error)

@@ -21,6 +21,10 @@ import {
 import PlatformTrustBanner from '@/components/PlatformTrustBanner'
 import { useTrust } from '@/lib/public/useTrust'
 import { clientPayment, partnerPayout, supportShort } from '@/lib/public/copy'
+import { WhatsAppButton } from '@/components/WhatsAppButton'
+import { withRef } from '@/lib/public/whatsapp'
+
+const HOW_WA_MESSAGE = withRef('Hola, necesito un servicio en Medellín', 'web-how-it-works')
 
 export default function HowItWorksPage() {
   const [activeTab, setActiveTab] = useState<'client' | 'partner'>('client')
@@ -31,14 +35,14 @@ export default function HowItWorksPage() {
       icon: Search,
       title: '1. Busca el servicio',
       description: 'Explora nuestra amplia variedad de servicios o busca específicamente lo que necesitas.',
-      details: 'Usa nuestra barra de búsqueda inteligente o navega por categorías. Filtra por ubicación, precio y calificaciones.',
+      details: 'Usa la barra de búsqueda o navega por categorías para encontrar el servicio que necesitas.',
       color: 'from-blue-500 to-blue-600'
     },
     {
       icon: UserCheck,
       title: '2. Elige tu profesional',
-      description: 'Revisa perfiles, calificaciones y precios de profesionales verificados.',
-      details: 'Compara múltiples opciones y lee reseñas de otros clientes.',
+      description: 'Revisa perfiles y precios de profesionales verificados.',
+      details: 'Compara opciones; cuando un profesional ya tenga reseñas de otros clientes, las verás en su perfil.',
       color: 'from-purple-500 to-purple-600'
     },
     {
@@ -142,8 +146,8 @@ export default function HowItWorksPage() {
       icon: Users,
       title: 'Comunidad confiable',
       description: trust.stats.verifiedPartners !== null
-        ? `${trust.stats.verifiedPartners.toLocaleString('es-CO')} profesionales verificados y reseñas reales de clientes.`
-        : 'Profesionales verificados y reseñas reales de clientes.'
+        ? `${trust.stats.verifiedPartners.toLocaleString('es-CO')} profesionales verificados. Las reseñas que publicamos son de clientes reales.`
+        : 'Profesionales verificados. Las reseñas que publicamos son de clientes reales.'
     }
   ]
 
@@ -171,7 +175,7 @@ export default function HowItWorksPage() {
             </h1>
             
             <p className="text-xl md:text-2xl mb-12 text-white/90 font-medium max-w-3xl mx-auto">
-              Conectamos clientes con profesionales verificados en 6 simples pasos
+              Escríbenos por WhatsApp y lo resolvemos por ti, o hazlo tú mismo en la web
             </p>
           </div>
         </div>
@@ -180,10 +184,10 @@ export default function HowItWorksPage() {
       {/* Tab Selector */}
       <section className="bg-white shadow-md sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-center gap-4 py-6">
+          <div className="flex justify-center gap-2 py-4 md:gap-4 md:py-6">
             <button
               onClick={() => setActiveTab('client')}
-              className={`px-8 py-4 rounded-xl font-bold text-lg transition-all transform ${
+              className={`min-h-[44px] px-4 py-3 md:px-8 md:py-4 rounded-xl font-bold text-base md:text-lg transition-all transform ${
                 activeTab === 'client'
                   ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white shadow-lg scale-105'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -193,7 +197,7 @@ export default function HowItWorksPage() {
             </button>
             <button
               onClick={() => setActiveTab('partner')}
-              className={`px-8 py-4 rounded-xl font-bold text-lg transition-all transform ${
+              className={`min-h-[44px] px-4 py-3 md:px-8 md:py-4 rounded-xl font-bold text-base md:text-lg transition-all transform ${
                 activeTab === 'partner'
                   ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white shadow-lg scale-105'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -213,6 +217,20 @@ export default function HowItWorksPage() {
             context={activeTab === 'client' ? 'general' : 'partner'}
             className="mb-12"
           />
+
+          {activeTab === 'client' && (
+            <>
+              <div className="mb-10 rounded-3xl border border-emerald-100 bg-emerald-50 p-5 md:p-8">
+                <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">Opción 1 · La más rápida</p>
+                <h2 className="mt-1 text-2xl md:text-3xl font-black text-gray-900">Escríbenos por WhatsApp</h2>
+                <p className="mt-2 text-gray-700 font-medium md:text-lg">
+                  Cuéntanos qué necesitas y nosotros creamos la solicitud por ti.
+                </p>
+                <WhatsAppButton message={HOW_WA_MESSAGE} refTag="web-how-it-works" label="Escríbenos por WhatsApp" className="mt-4 w-full sm:w-auto" />
+              </div>
+              <p className="mb-6 text-xs font-bold uppercase tracking-wide text-gray-500">Opción 2 · Hazlo tú en la web</p>
+            </>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {steps.map((step, index) => {
@@ -287,9 +305,10 @@ export default function HowItWorksPage() {
             ¿Listo para comenzar?
           </h2>
           <p className="text-xl mb-10 text-white/90 font-medium">
-            Crea tu cuenta gratis y solicita tu primer servicio
+            Pídelo por WhatsApp o crea tu cuenta gratis y solicita tu primer servicio
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <WhatsAppButton message={HOW_WA_MESSAGE} refTag="web-how-it-works" className="px-8 py-4 text-lg" trackData={{ placement: 'cta' }} />
             <Link
               href="/register"
               className="inline-flex items-center justify-center gap-2 bg-white text-primary-600 px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-100 transition-all transform hover:scale-105 shadow-xl"

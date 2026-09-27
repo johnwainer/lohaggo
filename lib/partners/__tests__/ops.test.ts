@@ -12,6 +12,7 @@ const db = vi.hoisted(() => {
     state,
     prisma: {
       partnerProfile: { findUnique: vi.fn(async () => state.partner) },
+      user: { findMany: vi.fn(async () => [{ id: 'admin1' }, { id: 'admin2' }]) },
       service: { findUnique: vi.fn(async () => state.service) },
       platformConfig: { findFirst: vi.fn(async () => state.config) },
       partnerService: {
@@ -101,6 +102,20 @@ describe('uploadDocument', () => {
   it('tipo válido sube y guarda el origen', async () => {
     const doc = await uploadDocument(actor, { type: 'cedula_ciudadania', file }, APP_ORIGIN)
     expect(doc).toMatchObject({ type: 'CEDULA_CIUDADANIA', origin: 'app', documentUrl: 'https://res.cloudinary.com/x/doc.jpg' })
+  })
+  it('avisa a los admins activos con enlace a la cola de revisión', async () => {
+    db.state.partner = { id: 'p1', userId: 'u1', city: 'MEDELLIN', user: { name: 'Carlos Ruiz' } }
+    await uploadDocument(actor, { type: 'cedula_ciudadania', file }, APP_ORIGIN)
+    const { createNotification } = await import('@/lib/notifications/notificationService')
+    const calls = vi.mocked(createNotification).mock.calls.map((c) => c[0])
+    const adminCalls = calls.filter((c) => c.userId.startsWith('admin'))
+    expect(adminCalls).toHaveLength(2)
+    expect(adminCalls[0]).toMatchObject({ title: 'Nuevo documento para revisar · Carlos Ruiz', data: { url: '/admin/documents', partnerId: 'p1', documentId: 'd1' } })
+    expect(db.prisma.user.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { role: 'ADMIN', isActive: true } }))
+  })
+  it('si avisar a los admins falla, la subida no falla', async () => {
+    db.prisma.user.findMany.mockRejectedValueOnce(new Error('db'))
+    await expect(uploadDocument(actor, { type: 'cedula_ciudadania', file }, APP_ORIGIN)).resolves.toMatchObject({ id: 'd1' })
   })
   it('archivo que no es imagen ni PDF → 400', async () => {
     await failsWith(uploadDocument(actor, { type: 'ANTECEDENTES', file: { buffer: Buffer.from('hola'), mime: 'text/plain', name: 'a.txt' } }, APP_ORIGIN), 400)

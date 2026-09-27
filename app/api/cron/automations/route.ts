@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cronRoute } from '@/lib/system/cron'
-import { processDueAutomations } from '@/lib/messaging/automation-service'
+import { ensureDefaultAutomationRules, processDueAutomations } from '@/lib/messaging/automation-service'
 import { createLogger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
@@ -16,9 +16,13 @@ async function handle(request: NextRequest) {
   }
 
   try {
+    const defaults = await ensureDefaultAutomationRules().catch((err) => {
+      logger.error('ensureDefaultAutomationRules failed', { err })
+      return null
+    })
     const result = await processDueAutomations(200)
     logger.info('Cron automations completed', result)
-    return NextResponse.json({ ok: true, ...result })
+    return NextResponse.json({ ok: true, ...result, rulesCreated: defaults?.created ?? 0, rulesLinksFixed: defaults?.fixedLinks ?? 0 })
   } catch (err) {
     logger.error('Cron automations error', { err })
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })

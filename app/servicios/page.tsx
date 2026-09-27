@@ -5,9 +5,12 @@ import { useSearchParams, usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-import { Search, Filter, X, Star, Lightbulb, Clock, Trash2, Heart, SlidersHorizontal, ChevronDown } from 'lucide-react'
+import { Search, Filter, X, Star, Lightbulb, Clock, Trash2, Heart, SlidersHorizontal, ChevronDown, ChevronRight } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import ServiceIcon from '@/components/ServiceIcon'
+import { WhatsAppButton } from '@/components/WhatsAppButton'
+import { searchWaMessage, withRef } from '@/lib/public/whatsapp'
+import { track } from '@/lib/analytics/track'
 
 const ServicesTour = dynamic(() => import('@/components/ServicesTour'), {
   ssr: false,
@@ -81,69 +84,69 @@ const ServiceCard = memo(function ServiceCard({
   onToggleFavorite,
 }: ServiceCardProps) {
   const isFeatured = service.slug === 'lohaggo-ya'
+  const available = service.partnerStats?.availableCount ?? service._count.partners
+  const rating = service.partnerStats?.avgRating ?? 0
   return (
     <Link
       href={`/servicios/${service.slug}`}
-      className={`bg-white rounded-2xl shadow-card hover:shadow-cardHover transition-shadow overflow-hidden group border active:scale-[0.99] ${
+      className={`relative flex flex-col bg-white rounded-2xl shadow-card hover:shadow-cardHover transition-shadow overflow-hidden group border active:scale-[0.99] ${
         isFeatured ? 'border-primary-200 ring-1 ring-primary-100' : 'border-slate-100'
       }`}
     >
-      <div className="p-4 md:p-6">
-        <div className="flex items-start justify-between mb-3 md:mb-4">
+      <div className="flex flex-1 flex-col p-3 md:p-6">
+        <div className="flex items-start justify-between gap-1 mb-2 md:mb-4">
           <ServiceIcon slug={service.slug} emoji={service.icon} size="lg" animate />
           <div className="flex items-center gap-2">
             {isFeatured && (
-              <span className="bg-gradient-to-r from-primary-500 to-secondary-500 text-white text-xs font-bold px-3 md:px-4 py-1.5 md:py-2 rounded-full">
+              <span className="hidden md:inline bg-gradient-to-r from-primary-500 to-secondary-500 text-white text-xs font-bold px-4 py-2 rounded-full">
                 Destacado
               </span>
             )}
-            <span className="bg-gradient-to-r from-primary-500/10 to-secondary-500/10 text-primary-600 text-xs font-bold px-3 md:px-4 py-1.5 md:py-2 rounded-full border border-primary-500/20">
+            <span className="hidden md:inline bg-gradient-to-r from-primary-500/10 to-secondary-500/10 text-primary-600 text-xs font-bold px-4 py-2 rounded-full border border-primary-500/20">
               {service.category.name}
             </span>
             <button
+              type="button"
               onClick={(e) => onToggleFavorite(e, service.id)}
-              disabled={isFavoriteLoading || !isLoggedIn}
-              className={`p-2 md:p-2.5 rounded-lg md:rounded-xl transition-all shadow-md hover:shadow-lg ${
-                isFavorite
-                  ? 'bg-gradient-to-br from-primary-100 to-amber-100 text-primary-600 hover:from-orange-200 hover:to-amber-200'
-                  : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-              } ${isFavoriteLoading || !isLoggedIn ? 'opacity-50 cursor-not-allowed' : ''}`}
+              disabled={isFavoriteLoading}
+              aria-label={!isLoggedIn ? 'Inicia sesión para guardar en favoritos' : isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+              className={`-mr-1 -mt-1 flex h-11 w-11 items-center justify-center rounded-full transition-colors md:mr-0 md:mt-0 ${
+                isFavorite ? 'text-primary-600 hover:bg-primary-50' : 'text-gray-400 hover:bg-gray-100'
+              } ${isFavoriteLoading ? 'opacity-50' : ''}`}
               title={!isLoggedIn ? 'Inicia sesión para agregar a favoritos' : isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}
             >
-              <Heart className="w-5 h-5 md:w-5 md:h-5" fill={isFavorite ? 'currentColor' : 'none'} />
+              <Heart className="w-5 h-5" fill={isFavorite ? 'currentColor' : 'none'} />
             </button>
           </div>
         </div>
-        <h3 className="font-bold text-lg md:text-xl mb-2 md:mb-3 group-hover:text-primary-600 transition text-gray-900">
+        <h3 className="font-bold text-[15px] leading-snug md:text-xl mb-1 md:mb-3 group-hover:text-primary-600 transition text-gray-900 line-clamp-2">
           {service.name}
         </h3>
         {isFeatured && (
-          <p className="mb-2 inline-flex items-center rounded-full bg-primary-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-primary-700">
+          <p className="mb-2 hidden md:inline-flex self-start items-center rounded-full bg-primary-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-primary-700">
             Encargos y diligencias express
           </p>
         )}
-        <p className="text-gray-600 text-xs md:text-sm mb-3 md:mb-4 line-clamp-2 font-medium">
+        <p className="text-gray-600 text-xs md:text-sm mb-2 md:mb-4 line-clamp-2 font-medium">
           {service.description}
         </p>
-        <div className="flex items-center justify-between pt-3 md:pt-4 border-t border-slate-100">
+        <div className="mt-auto flex flex-col gap-1 pt-2 md:flex-row md:items-center md:justify-between md:pt-4 border-t border-slate-100">
           <div className="text-left">
-            <p className="text-gray-500 text-xs font-medium mb-1">Desde</p>
-            <p className="text-primary-600 text-base md:text-lg font-black">
+            <p className="text-gray-500 text-[11px] md:text-xs font-medium md:mb-1">Desde</p>
+            <p className="text-primary-600 text-sm md:text-lg font-black">
               {formatCurrency(service.basePrice)}
             </p>
           </div>
-          <div className="text-right">
-            {service.showAvgRating !== false && (
-              <div className="flex items-center gap-1 mb-1">
+          <div className="flex items-center gap-2 md:block md:text-right">
+            {service.showAvgRating !== false && rating > 0 && (
+              <div className="flex items-center gap-1 md:mb-1 md:justify-end">
                 <Star className="w-3.5 h-3.5 md:w-4 md:h-4 text-yellow-500 fill-yellow-500" />
-                <span className="text-xs md:text-sm font-bold text-gray-900">
-                  {(service.partnerStats?.avgRating ?? 0).toFixed(1)}
-                </span>
+                <span className="text-xs md:text-sm font-bold text-gray-900">{rating.toFixed(1)}</span>
               </div>
             )}
-            {service.showPartnerCount !== false && (
-              <p className="text-gray-500 text-xs font-medium">
-                {service.partnerStats?.availableCount ?? service._count.partners} disponibles
+            {service.showPartnerCount !== false && available > 0 && (
+              <p className="text-gray-500 text-[11px] md:text-xs font-medium">
+                {available} {available === 1 ? 'disponible' : 'disponibles'}
               </p>
             )}
           </div>
@@ -165,12 +168,17 @@ export function ServiciosContent({
   interleaveAfter = 6,
   initialResult,
   initialCategories,
+  whatsappPhone = null,
+  homeLimit,
 }: {
   showHeading?: boolean
   interleaveSlot?: ReactNode
   interleaveAfter?: number
   initialResult?: InitialServicesResult
   initialCategories?: Category[]
+  whatsappPhone?: string | null
+  /** Home: show only the first N (most available) services and a link to the full catalogue. */
+  homeLimit?: number
 }) {
   const searchParams = useSearchParams()
   const pathname = usePathname()
@@ -224,6 +232,17 @@ export function ServiciosContent({
 
       const sorted = [...filtered]
       switch (sortBy) {
+        case 'RELEVANCE':
+          // With a search the API already ranks by relevance; without one, most available first
+          if (!searchTerm.trim()) {
+            sorted.sort(
+              (a, b) =>
+                (b.partnerStats?.availableCount ?? b._count.partners) -
+                  (a.partnerStats?.availableCount ?? a._count.partners) ||
+                a.name.localeCompare(b.name, 'es')
+            )
+          }
+          break
         case 'ALPHA_ASC':
           sorted.sort((a, b) => a.name.localeCompare(b.name, 'es'))
           break
@@ -249,7 +268,7 @@ export function ServiciosContent({
       }
       return sorted
     },
-    [quickMinRating, quickOnlyWithPartners, sortBy]
+    [quickMinRating, quickOnlyWithPartners, sortBy, searchTerm]
   )
 
   const filteredServices = useMemo(
@@ -344,6 +363,12 @@ export function ServiciosContent({
     }, 1500)
   }
 
+  const trackTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const trackSearch = (q: string, results: number) => {
+    if (trackTimer.current) clearTimeout(trackTimer.current)
+    trackTimer.current = setTimeout(() => track('search', { q: q.trim(), results }), 1500)
+  }
+
   const saveSearchHistory = async (query: string, hasResults: boolean = true) => {
     if (!session?.user || !query.trim() || query.trim().length < 2) return
 
@@ -429,6 +454,7 @@ export function ServiciosContent({
       if (searchTerm && searchTerm.length >= 2) {
         saveSearchHistory(searchTerm, resultServices.length > 0)
         logSearchEvent(searchTerm, resultServices.length)
+        trackSearch(searchTerm, resultServices.length)
       }
     } catch (error) {
     } finally {
@@ -766,7 +792,7 @@ export function ServiciosContent({
                 <button
                   type="button"
                   onClick={() => setShowAllCategories((prev) => !prev)}
-                  className={`inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:border-primary-200 hover:text-primary-700 ${categoriesWithServices.length > 12 ? '' : 'md:hidden'}`}
+                  className={`inline-flex min-h-[44px] items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-4 text-xs font-semibold text-gray-700 hover:border-primary-200 hover:text-primary-700 ${categoriesWithServices.length > 12 ? '' : 'md:hidden'}`}
                 >
                   {showAllCategories ? 'Ver menos' : 'Ver más'}
                   <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showAllCategories ? 'rotate-180' : ''}`} />
@@ -775,8 +801,10 @@ export function ServiciosContent({
             </div>
             <div className="grid grid-cols-4 md:flex md:flex-wrap gap-2 md:gap-3">
               <button
+                type="button"
                 onClick={() => setSelectedCategory('')}
-                className={`px-4 md:px-6 py-2.5 md:py-3 rounded-2xl transition-colors font-semibold text-sm md:text-base ${
+                aria-pressed={selectedCategory === ''}
+                className={`flex min-h-[72px] items-center justify-center px-2 md:min-h-0 md:px-6 py-2.5 md:py-3 rounded-2xl transition-colors font-semibold text-xs md:text-base ${
                   selectedCategory === ''
                     ? 'bg-primary-600 text-white shadow-card'
                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -787,8 +815,11 @@ export function ServiciosContent({
               {visibleCategories.map((category, idx) => (
                 <button
                   key={category.id}
+                  type="button"
                   onClick={() => setSelectedCategory(category.slug)}
-                  className={`px-4 md:px-6 py-2.5 md:py-3 rounded-2xl transition-colors items-center gap-2 font-semibold text-sm md:text-base ${
+                  aria-label={category.name}
+                  aria-pressed={selectedCategory === category.slug}
+                  className={`min-h-[72px] min-w-0 flex-col md:min-h-0 md:flex-row px-1 md:px-6 py-2 md:py-3 rounded-2xl transition-colors items-center justify-center gap-1 md:gap-2 font-semibold text-sm md:text-base ${
                     !showAllCategories && idx >= 7 ? 'hidden md:flex' : 'flex'
                   } ${
                     selectedCategory === category.slug
@@ -799,14 +830,14 @@ export function ServiciosContent({
                   }`}
                 >
                   <ServiceIcon slug={category.slug} emoji={category.icon} isCategory size="lg" animate />
-                  <span className="hidden sm:inline">{category.name}</span>
+                  <span className="w-full truncate text-center text-[11px] leading-tight md:w-auto md:text-base md:leading-normal">{category.name}</span>
                 </button>
               ))}
             </div>
           </div>
         </div>
 
-        <div className="sticky top-20 z-20 mb-4 rounded-2xl border border-slate-100 bg-white/95 p-3 shadow-card backdrop-blur md:top-24">
+        <div className="mb-4 rounded-2xl border border-slate-100 bg-white p-3 shadow-card">
           <div className="flex items-center justify-between gap-2">
             <p className="text-sm font-bold text-gray-800 md:text-base">
               {filteredServices.length} {filteredServices.length === 1 ? 'servicio' : 'servicios'}
@@ -830,7 +861,7 @@ export function ServiciosContent({
                     setQuickOnlyWithPartners(true)
                     setSortBy('RELEVANCE')
                   }}
-                  className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:border-primary-200 hover:text-primary-700"
+                  className="inline-flex min-h-[44px] items-center rounded-full border border-gray-200 bg-gray-50 px-4 text-xs font-semibold text-gray-700 hover:border-primary-200 hover:text-primary-700"
                 >
                   Limpiar
                 </button>
@@ -855,9 +886,9 @@ export function ServiciosContent({
               <p className="text-gray-600 text-sm md:text-base font-semibold">Buscando servicios...</p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6" aria-hidden="true">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6" aria-hidden="true">
               {Array.from({ length: 6 }).map((_, idx) => (
-                <div key={idx} className="bg-white rounded-2xl shadow-card border border-slate-100 p-4 md:p-6 animate-pulse min-h-[196px] md:min-h-[232px]">
+                <div key={idx} className="bg-white rounded-2xl shadow-card border border-slate-100 p-3 md:p-6 animate-pulse min-h-[168px] md:min-h-[232px]">
                   <div className="flex items-start justify-between mb-3 md:mb-4">
                     <div className="h-10 w-10 md:h-12 md:w-12 bg-gray-200 rounded-lg"></div>
                     <div className="h-6 w-20 bg-gray-200 rounded-full"></div>
@@ -889,14 +920,36 @@ export function ServiciosContent({
           </div>
         ) : services.length === 0 ? (
           <div className="space-y-6">
-            <div className="text-center py-12 md:py-16 bg-white rounded-2xl md:rounded-3xl shadow-xl">
-              <div className="text-5xl md:text-6xl mb-4">😔</div>
-              <p className="text-gray-600 text-lg md:text-xl font-bold">No se encontraron servicios</p>
-              {searchTerm && (
-                <p className="text-gray-500 mt-2 text-sm md:text-base px-4">
-                  No pudimos encontrar resultados para "<span className="font-semibold text-primary-600">{searchTerm}</span>".
-                </p>
+            <div className="text-center px-4 py-10 md:py-14 bg-white rounded-2xl md:rounded-3xl shadow-card border border-slate-100">
+              <div className="text-5xl mb-3" aria-hidden="true">🔎</div>
+              {searchTerm.trim() ? (
+                <>
+                  <p className="text-gray-900 text-lg md:text-xl font-bold">
+                    No encontramos “<span className="text-primary-600">{searchTerm.trim()}</span>”
+                  </p>
+                  <p className="text-gray-600 mt-1.5 text-sm md:text-base">
+                    Cuéntanos qué necesitas por WhatsApp y te ayudamos.
+                  </p>
+                </>
+              ) : (
+                <p className="text-gray-900 text-lg md:text-xl font-bold">No hay servicios en esta vista</p>
               )}
+              <div className="mt-5 flex flex-col items-stretch gap-2.5 sm:flex-row sm:justify-center">
+                <WhatsAppButton
+                  phone={whatsappPhone}
+                  message={searchTerm.trim() ? searchWaMessage(searchTerm) : withRef('Hola, necesito un servicio en Medellín', 'web-search')}
+                  refTag="web-search"
+                  label="Escríbenos por WhatsApp"
+                  trackData={{ q: searchTerm.trim(), results: 0 }}
+                />
+                <Link
+                  href="/servicios"
+                  onClick={() => { setSearchTerm(''); setSelectedCategory('') }}
+                  className="inline-flex min-h-[48px] items-center justify-center rounded-full border border-slate-200 bg-white px-6 text-base font-bold text-slate-700 hover:bg-slate-50"
+                >
+                  Ver todos los servicios
+                </Link>
+              </div>
             </div>
 
             {suggestions && (
@@ -983,21 +1036,48 @@ export function ServiciosContent({
             )}
 
             {filteredServices.length === 0 ? (
-              <div className="bg-white rounded-xl md:rounded-2xl border border-gray-200 p-6 text-center">
-                <p className="text-sm md:text-base text-gray-700 font-semibold">
-                  Los filtros aplicados no tienen resultados.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setQuickMinRating(0)
-                    setQuickOnlyWithPartners(true)
-                    setSortBy('RELEVANCE')
-                  }}
-                  className="mt-3 inline-flex items-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 transition"
-                >
-                  Limpiar filtros rapidos
-                </button>
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-card px-4 py-8 text-center">
+                {searchTerm.trim() && quickOnlyWithPartners && quickMinRating === 0 ? (
+                  <>
+                    <p className="text-base md:text-lg font-bold text-gray-900">
+                      Aún no tenemos socios de {services[0]?.name ?? searchTerm.trim()}
+                    </p>
+                    <p className="mt-1.5 text-sm text-gray-600">Déjanos tu contacto por WhatsApp y te avisamos o te ayudamos a resolverlo.</p>
+                    <div className="mt-5 flex flex-col items-stretch gap-2.5 sm:flex-row sm:justify-center">
+                      <WhatsAppButton
+                        phone={whatsappPhone}
+                        message={searchWaMessage(services[0]?.name ?? searchTerm)}
+                        refTag="web-search"
+                        label="Escríbenos por WhatsApp"
+                        trackData={{ q: searchTerm.trim(), results: 0, service: services[0]?.slug }}
+                      />
+                      <Link
+                        href="/servicios"
+                        onClick={() => { setSearchTerm(''); setSelectedCategory('') }}
+                        className="inline-flex min-h-[48px] items-center justify-center rounded-full border border-slate-200 bg-white px-6 text-base font-bold text-slate-700 hover:bg-slate-50"
+                      >
+                        Ver todos los servicios
+                      </Link>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm md:text-base text-gray-700 font-semibold">
+                      Ningún servicio cumple esos filtros.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setQuickMinRating(0)
+                        setQuickOnlyWithPartners(true)
+                        setSortBy('RELEVANCE')
+                      }}
+                      className="mt-3 inline-flex min-h-[44px] items-center rounded-full bg-primary-600 px-5 text-sm font-semibold text-white hover:bg-primary-700 transition"
+                    >
+                      Quitar filtros
+                    </button>
+                  </>
+                )}
               </div>
             ) : (() => {
               const hasFiltersOrSearch =
@@ -1005,10 +1085,7 @@ export function ServiciosContent({
                 !!selectedCategory ||
                 quickMinRating > 0 ||
                 sortBy !== 'RELEVANCE'
-              const canInterleave =
-                !!interleaveSlot &&
-                !hasFiltersOrSearch &&
-                orderedServices.length >= interleaveAfter + 4
+              const gridClass = 'grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6'
               const renderCard = (service: Service) => (
                 <ServiceCard
                   key={service.id}
@@ -1019,9 +1096,34 @@ export function ServiciosContent({
                   onToggleFavorite={toggleFavoriteService}
                 />
               )
+              if (homeLimit && !hasFiltersOrSearch) {
+                return (
+                  <>
+                    <div className={gridClass} data-tour="services-grid">
+                      {orderedServices.slice(0, homeLimit).map(renderCard)}
+                    </div>
+                    {orderedServices.length > homeLimit && (
+                      <div className="mt-4 flex justify-center">
+                        <Link
+                          href="/servicios"
+                          className="inline-flex min-h-[48px] w-full items-center justify-center gap-1.5 rounded-full border border-primary-200 bg-white px-6 text-base font-bold text-primary-700 shadow-sm hover:bg-primary-50 sm:w-auto"
+                        >
+                          Ver todos los servicios ({orderedServices.length})
+                          <ChevronRight className="h-4 w-4" />
+                        </Link>
+                      </div>
+                    )}
+                    {interleaveSlot}
+                  </>
+                )
+              }
+              const canInterleave =
+                !!interleaveSlot &&
+                !hasFiltersOrSearch &&
+                orderedServices.length >= interleaveAfter + 4
               if (!canInterleave) {
                 return (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6" data-tour="services-grid">
+                  <div className={gridClass} data-tour="services-grid">
                     {orderedServices.map(renderCard)}
                   </div>
                 )
@@ -1030,11 +1132,11 @@ export function ServiciosContent({
               const after = orderedServices.slice(interleaveAfter)
               return (
                 <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6" data-tour="services-grid">
+                  <div className={gridClass} data-tour="services-grid">
                     {before.map(renderCard)}
                   </div>
                   {interleaveSlot}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                  <div className={gridClass}>
                     {after.map(renderCard)}
                   </div>
                 </>
@@ -1073,12 +1175,14 @@ export function ServiciosContent({
                               </span>
                               <button
                                 onClick={(e) => toggleFavoriteService(e, service.id)}
-                                disabled={loadingFavorite === service.id || !session?.user}
-                                className={`p-2 md:p-2 rounded-lg transition-all shadow-md hover:shadow-lg ${
+                                type="button"
+                                disabled={loadingFavorite === service.id}
+                                aria-label={favoriteServices.has(service.id) ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+                                className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors ${
                                   favoriteServices.has(service.id)
-                                    ? 'bg-gradient-to-br from-primary-100 to-amber-100 text-primary-600 hover:from-orange-200 hover:to-amber-200'
-                                    : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-                                } ${loadingFavorite === service.id || !session?.user ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    ? 'text-primary-600 hover:bg-primary-50'
+                                    : 'text-gray-400 hover:bg-gray-100'
+                                } ${loadingFavorite === service.id ? 'opacity-50' : ''}`}
                                 title={!session?.user ? 'Inicia sesión para agregar a favoritos' : favoriteServices.has(service.id) ? 'Quitar de favoritos' : 'Agregar a favoritos'}
                               >
                                 <Heart className="w-4 h-4 md:w-4 md:h-4" fill={favoriteServices.has(service.id) ? 'currentColor' : 'none'} />
@@ -1099,7 +1203,7 @@ export function ServiciosContent({
                               </p>
                             </div>
                             <div className="text-right">
-                              {service.showAvgRating !== false && (
+                              {service.showAvgRating !== false && (service.partnerStats?.avgRating ?? 0) > 0 && (
                                 <div className="flex items-center gap-1 mb-1">
                                   <Star className="w-3 h-3 md:w-3.5 md:h-3.5 text-yellow-500 fill-yellow-500" />
                                   <span className="text-xs font-bold text-gray-900">

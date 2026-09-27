@@ -1,5 +1,12 @@
 import Link from 'next/link'
 import { FileText, ArrowLeft, Scale, Calendar, Mail, AlertTriangle } from 'lucide-react'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Términos y condiciones',
+  description: 'Términos y condiciones de uso de LoHaggo, la plataforma de servicios a domicilio en Medellín.',
+  alternates: { canonical: '/terms' },
+}
 
 export default function TermsPage() {
   return (

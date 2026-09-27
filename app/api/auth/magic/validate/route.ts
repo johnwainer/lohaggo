@@ -54,11 +54,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Tu cuenta está inactiva. Contacta al soporte.' }, { status: 403 })
   }
 
-  // Mark as used
-  await prisma.magicToken.update({
-    where: { id: magic.id },
+  // Claim atomically: two concurrent requests with the same token cannot both get a session
+  const claimed = await prisma.magicToken.updateMany({
+    where: { id: magic.id, usedAt: null },
     data: { usedAt: new Date() },
   })
+  if (claimed.count !== 1) {
+    return NextResponse.json({ error: 'Este enlace ya fue utilizado. Inicia sesión normalmente.' }, { status: 400 })
+  }
 
   // Must use the same secret as authOptions in lib/auth.ts
   const secret = env.NEXTAUTH_SECRET_CURRENT || env.NEXTAUTH_SECRET

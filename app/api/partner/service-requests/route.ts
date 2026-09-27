@@ -1,16 +1,21 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
 import { recordPromptContext } from '@/lib/pwa/adoption-strategy'
+import { listOpenRequestsForPartner } from '@/lib/service-requests/ops'
+import { toPartnerOpportunity } from '@/lib/partners/opportunities'
 
 export const dynamic = 'force-dynamic'
 
-
 const logger = createLogger('partner-service-requests')
 
-export async function GET(req: NextRequest) {
+/**
+ * Opportunities for the partner: open requests in their cities/services (or addressed to them) plus the
+ * still-open ones they already bid on. No client contact here: that is only exposed once a booking exists.
+ */
+export async function GET() {
   try {
     const session = await getServerSession(authOptions)
 
@@ -22,87 +27,52 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Solo partners pueden acceder' }, { status: 403 })
     }
 
-    // Get partner profile
-    const partnerProfile = await prisma.partnerProfile.findUnique({
+    const partner = await prisma.partnerProfile.findUnique({
       where: { userId: session.user.id },
-      include: {
-        services: {
-          include: {
-            service: true
-          }
-        }
-      }
+      select: { id: true, verified: true, isActive: true, user: { select: { isActive: true } } },
     })
 
-    if (!partnerProfile) {
+    if (!partner) {
       return NextResponse.json({ error: 'Perfil de partner no encontrado' }, { status: 404 })
     }
 
-    // Get service IDs that this partner offers
-    const partnerServiceIds = partnerProfile.services.map(ps => ps.serviceId)
+    if (!partner.verified || !partner.isActive || !partner.user.isActive) {
+      return NextResponse.json({ requests: [], requiresVerification: true })
+    }
 
-    // Get active service requests for services this partner offers
-    const serviceRequests = await prisma.serviceRequest.findMany({
-      where: {
-        OR: [
-          {
-            // General requests for services this partner offers
-            serviceId: {
-              in: partnerServiceIds
-            },
-            partnerId: null,
-            status: 'ACTIVE',
-            expiresAt: {
-              gte: new Date()
-            }
-          },
-          {
-            // Direct requests to this partner
-            partnerId: partnerProfile.id,
-            status: 'ACTIVE',
-            expiresAt: {
-              gte: new Date()
-            }
-          }
-        ]
-      },
-      include: {
-        service: {
-          include: {
-            category: true
-          }
+    const [open, alreadyProposed] = await Promise.all([
+      listOpenRequestsForPartner(partner.id),
+      prisma.serviceRequest.findMany({
+        where: {
+          status: 'ACTIVE',
+          expiresAt: { gt: new Date() },
+          proposals: { some: { partnerId: partner.id } },
         },
-        user: {
-          select: {
-            name: true,
-            email: true,
-            phone: true
-          }
+        include: {
+          service: { include: { category: true } },
+          user: { select: { name: true } },
+          photos: true,
+          proposals: { where: { partnerId: partner.id }, select: { id: true, price: true, notes: true, status: true, partnerId: true } },
+          _count: { select: { proposals: true } },
         },
-        proposals: {
-          where: {
-            partnerId: partnerProfile.id
-          }
-        },
-        photos: true
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    })
+        orderBy: { createdAt: 'desc' },
+      }),
+    ])
 
-    const hasRecentLead = serviceRequests.some((item) => {
-      const createdAt = new Date(item.createdAt)
-      return createdAt.getTime() >= Date.now() - 2 * 60 * 60 * 1000
-    })
+    const seen = new Set<string>()
+    const requests = [...open, ...alreadyProposed]
+      .filter((r) => (seen.has(r.id) ? false : (seen.add(r.id), true)))
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .map((r) => toPartnerOpportunity(r, partner.id))
 
+    const hasRecentLead = open.some((item) => item.createdAt.getTime() >= Date.now() - 2 * 60 * 60 * 1000)
     if (hasRecentLead) {
       await recordPromptContext(session.user.id, 'PARTNER_LEAD_RECEIVED', {
-        recentLeads: serviceRequests.length,
+        recentLeads: open.length,
       }).catch(() => undefined)
     }
 
-    return NextResponse.json(serviceRequests)
+    return NextResponse.json({ requests, requiresVerification: false })
   } catch (error) {
     logger.error('Error fetching service requests for partner:', error)
     return NextResponse.json(

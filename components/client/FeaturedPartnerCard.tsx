@@ -79,7 +79,7 @@ export function FeaturedPartnerCard({ partner }: { partner: FeaturedPartner }) {
             <span className="text-emerald-600 font-medium">Nuevo</span>
           )}
           <span className="text-slate-300">·</span>
-          <span className="truncate">{CITY_NAMES[partner.city] ?? partner.city}</span>
+          <span className="truncate">{showRating ? (CITY_NAMES[partner.city] ?? partner.city) : 'Identidad verificada'}</span>
         </div>
       </div>
 

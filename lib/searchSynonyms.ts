@@ -1,3 +1,5 @@
+import { queryTokens, rankByIntent } from '@/lib/services/searchIntent'
+
 function removeAccents(str: string): string {
   return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 }
@@ -435,15 +437,29 @@ export function getRelatedServicesByCategory(
 
 export function enhancedSearch(
   services: any[],
-  searchTerm: string
+  rawSearchTerm: string
 ): {
   results: any[]
   relatedByCategory: any[]
   topMatch: any | null
 } {
+  // A known intent ("fuga de agua" -> Plomería) wins over loose text matching
+  const byIntent = rankByIntent(services, rawSearchTerm)
+  if (byIntent) {
+    const top = byIntent[0] ?? null
+    return {
+      results: byIntent,
+      relatedByCategory: top ? getRelatedServicesByCategory(top, services, 6).filter((s) => !byIntent.includes(s)) : [],
+      topMatch: top,
+    }
+  }
+
+  // Filler words ("necesito", "de", "la") never match a service on their own
+  const searchTerm = queryTokens(rawSearchTerm).join(' ')
+  if (!searchTerm) return { results: [], relatedByCategory: [], topMatch: null }
   const normalizedSearch = normalizeSearchTerm(searchTerm)
   const expandedTerms = expandSearchTerms(searchTerm)
-  const searchWords = normalizedSearch.split(' ').filter(w => w.length >= 2)
+  const searchWords = normalizedSearch.split(' ').filter(w => w.length >= 3)
 
   const filteredServices = services.filter(service => {
     const name = normalizeSearchTerm(service.name)

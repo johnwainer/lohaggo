@@ -13,6 +13,7 @@ import ChunkErrorHandler from '@/components/ChunkErrorHandler'
 import AcquisitionTracker from '@/components/analytics/AcquisitionTracker'
 import InAppNotificationToast from '@/components/InAppNotificationToast'
 import { prisma } from '@/lib/prisma'
+import { getTopServicesSafe } from '@/lib/public/topServices'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' })
 
@@ -58,9 +59,6 @@ export const metadata: Metadata = {
   authors: [{ name: 'LoHaggo', url: 'https://www.lohaggo.com' }],
   creator: 'LoHaggo',
   publisher: 'LoHaggo',
-  alternates: {
-    canonical: 'https://www.lohaggo.com',
-  },
   icons: {
     icon: [
       { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
@@ -151,6 +149,7 @@ export default async function RootLayout({
     const config = await prisma.paymentConfig.findFirst()
     isTestMode = !config || config.environment === 'TEST'
   } catch { /* default to true if DB unreachable */ }
+  const footerServices = await getTopServicesSafe(6)
 
   return (
     <html lang="es-CO" translate="no" className={inter.variable}>
@@ -279,7 +278,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
           <PWARegister />
           <TestModeBanner isTestMode={isTestMode} />
           <InAppNotificationToast />
-          <PublicLayout>
+          <PublicLayout footerServices={footerServices}>
             {children}
           </PublicLayout>
         </Providers>

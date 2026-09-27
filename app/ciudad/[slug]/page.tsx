@@ -79,6 +79,7 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
     ? `https://wa.me/${trust.whatsappPhone}?text=${encodeURIComponent(notifyText)}`
     : `mailto:hola@lohaggo.com?subject=${encodeURIComponent(`Avísenme cuando lleguen a ${city.name}`)}&body=${encodeURIComponent(notifyText)}`
   const guaranteeText = guarantee(trust)
+  const cityIsActive = city.status === 'ACTIVE' && trust.stats.activeCities.length === 1 && trust.stats.activeCities[0] === city.name
 
   const benefits = [
     {
@@ -102,8 +103,9 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
     {
       icon: <Users className="w-6 h-6" />,
       title: "Red de Expertos",
-      description: trust.stats.verifiedPartners !== null
-        ? `${fmtCount(trust.stats.verifiedPartners)} profesionales verificados en LoHaggo`
+      // The platform-wide count belongs to the active cities, not to this one
+      description: cityIsActive && trust.stats.verifiedPartners !== null
+        ? `${fmtCount(trust.stats.verifiedPartners)} profesionales verificados en ${city.name}`
         : "Profesionales verificados de distintos oficios",
       color: "from-purple-500 to-secondary-500"
     },
@@ -163,10 +165,11 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
     }
   ]
 
-  // Real numbers only, each above its minimum; the block disappears when none qualifies
+  // Real numbers only, each above its minimum; the block disappears when none qualifies.
+  // Counts are shown only for an active city: in a coming-soon city they would be another city's numbers.
   const stats = [
-    trust.stats.completedServices !== null && { value: fmtCount(trust.stats.completedServices), label: "Servicios completados" },
-    trust.stats.verifiedPartners !== null && { value: fmtCount(trust.stats.verifiedPartners), label: "Profesionales verificados" },
+    cityIsActive && trust.stats.completedServices !== null && { value: fmtCount(trust.stats.completedServices), label: "Servicios completados" },
+    cityIsActive && trust.stats.verifiedPartners !== null && { value: fmtCount(trust.stats.verifiedPartners), label: "Profesionales verificados" },
     trust.stats.rating !== null && { value: trust.stats.rating.value.toFixed(1), label: `Calificación promedio (${fmtCount(trust.stats.rating.reviews)} reseñas)` },
   ].filter((x): x is { value: string; label: string } => Boolean(x))
 

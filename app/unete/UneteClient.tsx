@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useRef, useState, Suspense } from 'react'
-import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -33,7 +32,7 @@ import { partnerCommission, partnerPayout, partnersJoinLine } from '@/lib/public
 function howItWorks(trust: PublicTrust) {
     return [
         { num: '1', icon: '📋', title: 'Deja tus datos', desc: 'Llena el formulario en 30 segundos, es gratis.' },
-        { num: '2', icon: '💬', title: 'Activa tu perfil', desc: 'Completa tu perfil: sube tus documentos y servicios en minutos.' },
+        { num: '2', icon: '💬', title: 'Activa tu perfil', desc: 'Sube tu documento de identidad y elige tus servicios en minutos.' },
         { num: '3', icon: '📲', title: 'Recibe solicitudes', desc: 'Clientes en tu ciudad te encuentran y solicitan tu servicio.' },
         { num: '4', icon: '💰', title: trust.claims.trust_online_payment_protection ? 'Cobra seguro' : 'Cobra al terminar', desc: partnerPayout(trust) },
     ]
@@ -118,6 +117,40 @@ function HowItWorksSection({ className = '', trust }: { className?: string; trus
     )
 }
 
+// ─── What you need to start ──────────────────────────────────────────────
+function RequirementsSection() {
+    return (
+        <div className="bg-white py-10 px-4 sm:px-6 md:px-10">
+            <div className="max-w-2xl mx-auto">
+                <h2 className="text-xl font-black text-gray-900 mb-5 text-center">Qué necesitas para empezar</h2>
+                <div className="space-y-3">
+                    <div className="flex items-start gap-3 rounded-2xl border-2 border-primary-200 bg-primary-50 p-4">
+                        <Shield className="w-5 h-5 text-primary-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                            <p className="font-bold text-gray-900 text-sm">Solo tu documento de identidad</p>
+                            <p className="text-xs text-gray-600 mt-0.5">Cédula, cédula de extranjería, pasaporte o PEP. Con eso activamos tu perfil.</p>
+                        </div>
+                    </div>
+                    <div className="flex items-start gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                        <Sparkles className="w-5 h-5 text-secondary-500 flex-shrink-0 mt-0.5" />
+                        <div>
+                            <p className="font-bold text-gray-900 text-sm">Estudios y antecedentes: opcionales</p>
+                            <p className="text-xs text-gray-600 mt-0.5">Si los subes, te dan insignias y más confianza con los clientes.</p>
+                        </div>
+                    </div>
+                    <div className="flex items-start gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                        <Clock className="w-5 h-5 text-gray-500 flex-shrink-0 mt-0.5" />
+                        <div>
+                            <p className="font-bold text-gray-900 text-sm">Nosotros revisamos</p>
+                            <p className="text-xs text-gray-600 mt-0.5">Revisamos tus documentos y te avisamos por WhatsApp.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
+}
+
 // ─── FAQ accordion ───────────────────────────────────────────────────────
 function FAQSection({ trust }: { trust: PublicTrust }) {
     const [openIndex, setOpenIndex] = useState<number | null>(null)
@@ -147,14 +180,13 @@ function FAQSection({ trust }: { trust: PublicTrust }) {
 }
 
 // ─── Main form ───────────────────────────────────────────────────────────
-function SqueezeForm({ trust }: { trust: PublicTrust }) {
+function SqueezeForm({ trust, servicesInMedellin }: { trust: PublicTrust; servicesInMedellin: number | null }) {
     const router = useRouter()
     const { cities, loading: citiesLoading } = useCity()
 
     const [formData, setFormData] = useState({
         name: '',
         email: '',
-        password: '',
         phone: '',
         role: 'PARTNER',
         city: '',
@@ -164,7 +196,7 @@ function SqueezeForm({ trust }: { trust: PublicTrust }) {
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
     const [showSuccessModal, setShowSuccessModal] = useState(false)
-    const [generatedPassword, setGeneratedPassword] = useState('')
+    const [accessLinkSent, setAccessLinkSent] = useState<{ email: boolean; whatsapp: boolean }>({ email: false, whatsapp: false })
     const [linkCopied, setLinkCopied] = useState(false)
     const [captchaToken, setCaptchaToken] = useState('')
     const [honeypot, setHoneypot] = useState('')
@@ -313,15 +345,11 @@ function SqueezeForm({ trust }: { trust: PublicTrust }) {
 
         setLoading(true)
 
-        const firstName = formData.name.split(' ')[0].replace(/[^a-zA-Z]/g, '').toLowerCase() || 'socio'
-        const randomNum = Math.floor(1000 + Math.random() * 9000)
-        const autoPassword = `${firstName.charAt(0).toUpperCase() + firstName.slice(1)}${randomNum}*`
-        setGeneratedPassword(autoPassword)
-
         try {
             const savedUtm = sessionStorage.getItem('unete_utm')
             const utmData = savedUtm ? JSON.parse(savedUtm) : {}
-            const payload = { ...formData, password: autoPassword, captchaToken, honeypot, formStartedAt, ...utmData }
+            // No password: the server picks a random one and sends an access link to create their own
+            const payload = { ...formData, captchaToken, honeypot, formStartedAt, ...utmData }
             const res = await fetch('/api/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -331,31 +359,28 @@ function SqueezeForm({ trust }: { trust: PublicTrust }) {
             const data = await res.json()
             if (!res.ok) throw new Error(data.error || 'Error al registrar')
 
-            const result = await signIn('credentials', {
-                email: formData.email,
-                password: autoPassword,
-                redirect: false,
-            })
-
-            if (result?.error) {
-                throw new Error('Registro exitoso pero error al iniciar sesión')
-            } else {
-                localStorage.setItem('pwa-onboarding-force', '1')
-                trackPwaEvent({
-                    eventName: PWA_EVENTS.SIGNUP_COMPLETED,
-                    role: 'PARTNER',
-                    source: 'unete_ads_landing',
-                })
-                try {
-                    if (typeof window !== 'undefined' && window.fbq) {
-                        window.fbq('track', 'CompleteRegistration', { value: 0, currency: 'COP' })
-                    }
-                } catch (e) {
-                    console.error('Error enviando pixel', e)
-                }
-                setLoading(false)
-                setShowSuccessModal(true)
+            if (data.accessLinkSent) setAccessLinkSent(data.accessLinkSent)
+            // Keep the new partner signed in: exchange the single-use handoff token for a session cookie
+            // (if it fails the account still exists: the access link and «Olvidé mi contraseña» get them in)
+            if (data.sessionToken) {
+                await fetch(`/api/auth/magic/validate?token=${encodeURIComponent(data.sessionToken)}`).catch(() => null)
             }
+
+            localStorage.setItem('pwa-onboarding-force', '1')
+            trackPwaEvent({
+                eventName: PWA_EVENTS.SIGNUP_COMPLETED,
+                role: 'PARTNER',
+                source: 'unete_ads_landing',
+            })
+            try {
+                if (typeof window !== 'undefined' && window.fbq) {
+                    window.fbq('track', 'CompleteRegistration', { value: 0, currency: 'COP' })
+                }
+            } catch (e) {
+                console.error('Error enviando pixel', e)
+            }
+            setLoading(false)
+            setShowSuccessModal(true)
         } catch (err: any) {
             setError(err.message || 'Error al registrar')
             setLoading(false)
@@ -431,7 +456,7 @@ function SqueezeForm({ trust }: { trust: PublicTrust }) {
                             <div className="inline-flex items-center gap-2 bg-white/15 border border-white/25 backdrop-blur-sm px-3 py-1.5 rounded-full">
                                 <span className="text-base leading-none">📍</span>
                                 <span className="text-white font-semibold text-sm">Medellín y Área Metropolitana</span>
-                                <span className="bg-green-400/30 text-green-200 text-xs font-bold px-2 py-0.5 rounded-full border border-green-300/30">Lanzamiento Jul 2026</span>
+                                <span className="bg-green-400/30 text-green-200 text-xs font-bold px-2 py-0.5 rounded-full border border-green-300/30">Ya operando en Medellín</span>
                             </div>
                             <p className="text-white/80 text-lg md:text-xl font-medium">
                                 Conviértete en socio de LoHaggo y recibe solicitudes de clientes en tu ciudad. Sin jefes, maneja tu propio tiempo.
@@ -439,8 +464,8 @@ function SqueezeForm({ trust }: { trust: PublicTrust }) {
 
                             <div className="bg-white/10 p-5 rounded-2xl border border-white/20 backdrop-blur-sm shadow-xl md:mr-8">
                                 <h3 className="text-base sm:text-lg font-black text-white mb-4 flex flex-wrap items-center gap-2 leading-tight">
-                                    {allServices.length > 0 ? (
-                                        <><span className="bg-yellow-400 text-yellow-900 text-xs sm:text-sm px-2 py-0.5 rounded-full inline-block">{allServices.length}</span> servicios disponibles:</>
+                                    {servicesInMedellin ? (
+                                        <><span className="bg-yellow-400 text-yellow-900 text-xs sm:text-sm px-2 py-0.5 rounded-full inline-block">{servicesInMedellin}</span> servicios con socios verificados en Medellín:</>
                                     ) : 'Servicios disponibles:'}
                                 </h3>
                                 <div className="flex flex-wrap gap-2.5">
@@ -661,6 +686,7 @@ function SqueezeForm({ trust }: { trust: PublicTrust }) {
             </div>
 
             {/* ── Full-width sections ────────────────────────────────── */}
+            <RequirementsSection />
             <FAQSection trust={trust} />
 
             {/* ── Success Modal ──────────────────────────────────────── */}
@@ -689,14 +715,16 @@ function SqueezeForm({ trust }: { trust: PublicTrust }) {
                                     <Check className="text-green-500 w-8 h-8 stroke-[3]" />
                                 </div>
                                 <h3 className="text-2xl font-black text-gray-900 mb-2">¡Registro Exitoso!</h3>
-                                <p className="text-gray-600 mb-4 font-medium leading-relaxed">
-                                    Te creamos una contraseña automática. Guárdala o cámbiala desde tu perfil:
-                                </p>
-                                <div className="bg-slate-100 border-2 border-slate-200 rounded-xl p-4 mb-5 flex justify-center">
-                                    <div className="text-center">
-                                        <span className="text-xs font-bold text-slate-500 block mb-1">TU CONTRASEÑA ES</span>
-                                        <span className="text-3xl font-black text-slate-800 tracking-wider font-mono">{generatedPassword}</span>
-                                    </div>
+                                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 mb-5 text-left flex items-start gap-3">
+                                    <Mail className="text-primary-600 w-5 h-5 flex-shrink-0 mt-0.5" />
+                                    <p className="text-sm text-slate-700 leading-relaxed">
+                                        {accessLinkSent.email && accessLinkSent.whatsapp
+                                            ? 'Te enviamos un enlace a tu correo y WhatsApp para entrar'
+                                            : accessLinkSent.whatsapp
+                                                ? 'Te enviamos un enlace a tu WhatsApp para entrar'
+                                                : 'Te enviamos un enlace a tu correo para entrar'}
+                                        ; también puedes entrar con «Olvidé mi contraseña».
+                                    </p>
                                 </div>
 
                                 {/* Banner lanzamiento ciudad */}
@@ -790,10 +818,10 @@ function SqueezeForm({ trust }: { trust: PublicTrust }) {
     )
 }
 
-export default function UneteClient({ trust }: { trust: PublicTrust }) {
+export default function UneteClient({ trust, servicesInMedellin }: { trust: PublicTrust; servicesInMedellin: number | null }) {
     return (
         <Suspense fallback={<div className="min-h-screen bg-slate-50 relative z-[100]" />}>
-            <SqueezeForm trust={trust} />
+            <SqueezeForm trust={trust} servicesInMedellin={servicesInMedellin} />
         </Suspense>
     )
 }

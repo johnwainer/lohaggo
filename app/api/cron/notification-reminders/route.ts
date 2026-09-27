@@ -3,93 +3,48 @@ import { cronRoute } from '@/lib/system/cron'
 import { prisma } from '@/lib/prisma'
 import { createNotification } from '@/lib/notifications/notificationService'
 import { createLogger } from '@/lib/logger'
+import { formatBookingWhen } from '@/lib/bookings/ops'
+import { REMINDER_WINDOWS, candidateScheduledRange, expiringSoonMessage, inReminderWindow } from '@/lib/notifications/reminder-window'
 
 export const dynamic = 'force-dynamic'
 
 const logger = createLogger('cron-notification-reminders')
 
-function combineDateAndTime(date: Date, time: string): Date | null {
-  const [hh, mm] = (time || '').split(':').map((n) => Number.parseInt(n, 10))
-  if (Number.isNaN(hh) || Number.isNaN(mm)) return null
-  const d = new Date(date)
-  d.setHours(hh, mm, 0, 0)
-  return d
+/** Whether this user already got this reminder type for this entity recently (the windows span several runs). */
+async function alreadyReminded(userId: string, type: 'BOOKING_REMINDER_24H' | 'BOOKING_STARTING_SOON' | 'REQUEST_EXPIRING_SOON', entityId: string, since: Date) {
+  const hit = await prisma.notification.findFirst({ where: { userId, type, createdAt: { gte: since }, data: { contains: entityId } }, select: { id: true } })
+  return Boolean(hit)
 }
 
-async function runBookingReminder24h(now: Date) {
-  const in23h = new Date(now.getTime() + 23 * 60 * 60 * 1000)
-  const in25h = new Date(now.getTime() + 25 * 60 * 60 * 1000)
-
+async function remindBookings(now: Date, kind: 'day' | 'soon') {
   const bookings = await prisma.booking.findMany({
-    where: {
-      status: { in: ['CONFIRMED'] },
-      scheduledDate: { gte: in23h, lte: in25h },
-    },
+    where: { status: 'CONFIRMED', scheduledDate: candidateScheduledRange(now) },
     include: { partner: { include: { user: true } } },
-    take: 200,
+    take: 500,
   })
+  const type = kind === 'day' ? 'BOOKING_REMINDER_24H' as const : 'BOOKING_STARTING_SOON' as const
+  const since = new Date(now.getTime() - 26 * 3600_000)
 
   let sent = 0
   for (const b of bookings) {
-    const startsAt = combineDateAndTime(b.scheduledDate, b.scheduledTime) ?? b.scheduledDate
-    const diffH = (startsAt.getTime() - now.getTime()) / (60 * 60 * 1000)
-    if (diffH < 23 || diffH > 25) continue
+    if (!inReminderWindow(b, now, REMINDER_WINDOWS[kind])) continue
+    if (await alreadyReminded(b.userId, type, b.id, since)) continue
+    const time = formatBookingWhen(b).split(' ').pop()
 
     await createNotification({
       userId: b.userId,
-      type: 'BOOKING_REMINDER_24H',
-      title: 'Recordatorio: tu servicio es mañana',
-      message: `Mañana a las ${b.scheduledTime} tienes el servicio agendado.`,
+      type,
+      title: kind === 'day' ? 'Recordatorio: tu servicio es mañana' : 'Tu servicio empieza pronto',
+      message: kind === 'day' ? `Mañana a las ${time} tienes el servicio agendado.` : `Tu servicio empieza a las ${time}.`,
       data: { bookingId: b.id },
     })
 
     if (b.partner?.user?.id) {
       await createNotification({
         userId: b.partner.user.id,
-        type: 'BOOKING_REMINDER_24H',
-        title: 'Recordatorio: servicio agendado mañana',
-        message: `Mañana a las ${b.scheduledTime} tienes el servicio agendado.`,
-        data: { bookingId: b.id },
-      })
-    }
-    sent++
-  }
-  return sent
-}
-
-async function runBookingStartingSoon(now: Date) {
-  const inHalfH = new Date(now.getTime() + 30 * 60 * 1000)
-  const inHourPlus = new Date(now.getTime() + 90 * 60 * 1000)
-
-  const bookings = await prisma.booking.findMany({
-    where: {
-      status: { in: ['CONFIRMED'] },
-      scheduledDate: { gte: inHalfH, lte: inHourPlus },
-    },
-    include: { partner: { include: { user: true } } },
-    take: 200,
-  })
-
-  let sent = 0
-  for (const b of bookings) {
-    const startsAt = combineDateAndTime(b.scheduledDate, b.scheduledTime) ?? b.scheduledDate
-    const diffMin = (startsAt.getTime() - now.getTime()) / (60 * 1000)
-    if (diffMin < 30 || diffMin > 90) continue
-
-    await createNotification({
-      userId: b.userId,
-      type: 'BOOKING_STARTING_SOON',
-      title: 'Tu servicio empieza pronto',
-      message: `Tu servicio empieza a las ${b.scheduledTime}.`,
-      data: { bookingId: b.id },
-    })
-
-    if (b.partner?.user?.id) {
-      await createNotification({
-        userId: b.partner.user.id,
-        type: 'BOOKING_STARTING_SOON',
-        title: 'Tu servicio empieza pronto',
-        message: `El servicio empieza a las ${b.scheduledTime}.`,
+        type,
+        title: kind === 'day' ? 'Recordatorio: servicio agendado mañana' : 'Tu servicio empieza pronto',
+        message: kind === 'day' ? `Mañana a las ${time} tienes el servicio agendado.` : `El servicio empieza a las ${time}.`,
         data: { bookingId: b.id },
       })
     }
@@ -107,20 +62,23 @@ async function runRequestExpiringSoon(now: Date) {
       status: 'ACTIVE',
       expiresAt: { gte: in1h, lte: in2h },
     },
-    select: { id: true, userId: true, service: { select: { name: true } } },
+    select: { id: true, userId: true, service: { select: { name: true } }, _count: { select: { proposals: true } } },
     take: 200,
   })
 
+  let sent = 0
   for (const r of requests) {
+    if (await alreadyReminded(r.userId, 'REQUEST_EXPIRING_SOON', r.id, new Date(now.getTime() - 3 * 3600_000))) continue
     await createNotification({
       userId: r.userId,
       type: 'REQUEST_EXPIRING_SOON',
       title: 'Tu solicitud expira pronto',
-      message: `Tu solicitud de ${r.service.name} expira en menos de 2 horas. Revisa las propuestas recibidas.`,
-      data: { serviceRequestId: r.id },
+      message: expiringSoonMessage(r.service.name, r._count.proposals),
+      data: { serviceRequestId: r.id, url: '/dashboard?tab=requests' },
     })
+    sent++
   }
-  return requests.length
+  return sent
 }
 
 async function runRatingReminder(now: Date) {
@@ -169,19 +127,12 @@ async function runRatingReminder(now: Date) {
   return sent
 }
 
-async function handler(req: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET
-  if (cronSecret) {
-    const auth = req.headers.get('authorization')
-    if (auth !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-  }
+async function handler(_req: NextRequest) {
   const now = new Date()
   try {
     const [r24, r1, expiring, ratings] = await Promise.all([
-      runBookingReminder24h(now).catch((e) => { logger.error('24h reminder failed', e); return 0 }),
-      runBookingStartingSoon(now).catch((e) => { logger.error('1h reminder failed', e); return 0 }),
+      remindBookings(now, 'day').catch((e) => { logger.error('24h reminder failed', e); return 0 }),
+      remindBookings(now, 'soon').catch((e) => { logger.error('1h reminder failed', e); return 0 }),
       runRequestExpiringSoon(now).catch((e) => { logger.error('request expiring failed', e); return 0 }),
       runRatingReminder(now).catch((e) => { logger.error('rating reminder failed', e); return 0 }),
     ])

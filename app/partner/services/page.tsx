@@ -13,6 +13,7 @@ import { formatCurrency } from '@/lib/utils'
 import AccountTopHeader from '@/components/shared/AccountTopHeader'
 import AccountPanel from '@/components/shared/AccountPanel'
 import ServiceIcon from '@/components/ServiceIcon'
+import { opportunitiesFromResponse } from '@/lib/partners/opportunities'
 
 interface ApprovedDoc {
   id: string
@@ -89,7 +90,7 @@ export default function ServicesManagementPage() {
 
       if (requestsRes.ok) {
         const requestsData = await requestsRes.json()
-        setRequestsCount(Array.isArray(requestsData) ? requestsData.length : 0)
+        setRequestsCount(opportunitiesFromResponse(requestsData).requests.length)
       }
     } catch (error) {
       // Error fetching counts

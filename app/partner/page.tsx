@@ -28,6 +28,7 @@ import EmptyState from '@/components/shared/EmptyState'
 import PlatformTrustBanner from '@/components/PlatformTrustBanner'
 import ServiceIcon from '@/components/ServiceIcon'
 import { getBookingVisualState, type BookingVisualState } from '@/lib/booking-status'
+import { opportunitiesFromResponse } from '@/lib/partners/opportunities'
 
 const ChatModal = dynamic(() => import('@/components/ChatModal'), {
   ssr: false,
@@ -94,8 +95,6 @@ interface ServiceRequest {
   }
   user: {
     name: string
-    email: string
-    phone: string
   }
   photos?: Array<{
     id: string
@@ -148,6 +147,7 @@ function PartnerDashboardContent() {
   const searchParams = useSearchParams()
   const [bookings, setBookings] = useState<Booking[]>([])
   const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([])
+  const [requestsNeedVerification, setRequestsNeedVerification] = useState(false)
   const [allServiceRequests, setAllServiceRequests] = useState<ServiceRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string>('')
@@ -314,8 +314,9 @@ function PartnerDashboardContent() {
     try {
       const res = await fetch('/api/partner/service-requests')
       if (res.ok) {
-        const data = await res.json()
-        setServiceRequests(Array.isArray(data) ? data : [])
+        const { requests, requiresVerification } = opportunitiesFromResponse<ServiceRequest>(await res.json())
+        setServiceRequests(requests)
+        setRequestsNeedVerification(requiresVerification)
       }
     } catch (error) {
       console.error('Error fetching service requests:', error)
@@ -787,9 +788,18 @@ function PartnerDashboardContent() {
                               <span className="flex-shrink-0 text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded-full">URGENTE</span>
                             )}
                           </div>
-                          <p className="text-xs text-gray-500 truncate">{req.address}</p>
+                          <p className="text-xs text-gray-500 truncate">{req.address || 'Zona por confirmar'}</p>
                         </div>
-                        <p className="text-sm font-bold text-emerald-600 whitespace-nowrap">{formatCurrency(req.service.basePrice)}</p>
+                        {req.budget ? (
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-[10px] text-gray-500 leading-none">Presupuesto</p>
+                            <p className="text-sm font-bold text-emerald-600 whitespace-nowrap">{formatCurrency(req.budget)}</p>
+                          </div>
+                        ) : (
+                          <p className="text-xs font-semibold text-gray-500 whitespace-nowrap flex-shrink-0">
+                            {req._count?.proposals ?? 0} {(req._count?.proposals ?? 0) === 1 ? 'propuesta' : 'propuestas'}
+                          </p>
+                        )}
                       </button>
                     ))}
                   </div>
@@ -1234,7 +1244,21 @@ function PartnerDashboardContent() {
                 </div>
               </div>
 
-              {filteredRequests.length === 0 ? (
+              {requestsNeedVerification ? (
+                <div className="bg-white rounded-3xl shadow-lg p-8 sm:p-12 text-center border border-gray-100">
+                  <div className="bg-primary-50 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-5">
+                    <Shield className="text-primary-600" size={40} />
+                  </div>
+                  <p className="text-gray-900 text-lg sm:text-xl font-bold mb-2">Verifica tu identidad para ver oportunidades</p>
+                  <p className="text-gray-500 text-sm sm:text-base mb-6">Sube tu documento de identidad; cuando lo aprobemos verás las solicitudes de tu zona.</p>
+                  <button
+                    onClick={() => router.push('/partner/verification')}
+                    className="inline-flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold px-6 py-3 rounded-full transition w-full sm:w-auto"
+                  >
+                    Verificar mi identidad <ArrowRight size={18} />
+                  </button>
+                </div>
+              ) : filteredRequests.length === 0 ? (
                 <div className="bg-white rounded-2xl sm:rounded-3xl shadow-lg p-12 sm:p-16 text-center border border-gray-100">
                   <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6">
                     <AlertCircle className="text-gray-400" size={48} />
@@ -1277,10 +1301,10 @@ function PartnerDashboardContent() {
                             </div>
                             <span className="font-bold text-gray-900 truncate">{request.user.name}</span>
                           </div>
-                          <p className="text-sm text-gray-600 truncate">📧 {request.user.email}</p>
-                          {request.user.phone && (
-                            <p className="text-sm text-gray-600">📱 {request.user.phone}</p>
-                          )}
+                          <p className="text-sm text-gray-600">
+                            {request._count?.proposals ?? 0} {(request._count?.proposals ?? 0) === 1 ? 'propuesta enviada' : 'propuestas enviadas'}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">Verás el contacto y la dirección exacta cuando el cliente acepte tu propuesta.</p>
                         </div>
 
                         <div className="space-y-3 mb-4">
@@ -1289,8 +1313,8 @@ function PartnerDashboardContent() {
                               <MapPin size={18} className="text-gray-600" />
                             </div>
                             <div>
-                              <p className="text-xs text-gray-500 font-semibold mb-1">Ubicación</p>
-                              <span className="text-sm font-medium text-gray-900">{request.address}, {request.city}</span>
+                              <p className="text-xs text-gray-500 font-semibold mb-1">Zona aproximada</p>
+                              <span className="text-sm font-medium text-gray-900">{[request.address, request.city].filter(Boolean).join(', ')}</span>
                             </div>
                           </div>
                           {request.preferredDate && (
@@ -1320,7 +1344,7 @@ function PartnerDashboardContent() {
                           </div>
                         )}
 
-                        {request.budget && (
+                        {!!request.budget && (
                           <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4 mb-4">
                             <div className="flex items-start gap-3">
                               <div className="bg-green-200 rounded-lg p-2 flex-shrink-0">
@@ -1435,7 +1459,11 @@ function PartnerDashboardContent() {
                 </div>
                 <div className={`${DESIGN_SYSTEM.spacing.gapSmall} ${DESIGN_SYSTEM.typography.bodySmall}`}>
                   <p><strong>Cliente:</strong> {selectedRequest.user.name}</p>
-                  <p className="truncate"><strong>Ubicación:</strong> {selectedRequest.address}, {selectedRequest.city}</p>
+                  <p className="truncate"><strong>Zona aproximada:</strong> {[selectedRequest.address, selectedRequest.city].filter(Boolean).join(', ')}</p>
+                  {selectedRequest.budget ? (
+                    <p><strong>Presupuesto del cliente:</strong> {formatCurrency(selectedRequest.budget)}</p>
+                  ) : null}
+                  <p><strong>Competencia:</strong> {selectedRequest._count?.proposals ?? 0} {(selectedRequest._count?.proposals ?? 0) === 1 ? 'propuesta enviada' : 'propuestas enviadas'}</p>
                   {selectedRequest.preferredDate && (
                     <p>
                       <strong>Fecha preferida:</strong> {new Date(selectedRequest.preferredDate).toLocaleDateString('es-ES')}

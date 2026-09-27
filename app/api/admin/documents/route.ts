@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
+import { sortReviewQueue } from '@/lib/partners/document-queue'
 
 
 const logger = createLogger('admin-documents')
@@ -35,10 +36,10 @@ export async function GET(req: NextRequest) {
           },
         },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'asc' }
     })
 
-    return NextResponse.json(documents)
+    return NextResponse.json(sortReviewQueue(documents))
   } catch (error) {
     logger.error('Error fetching documents:', error || undefined)
     return NextResponse.json({ error: 'Error al obtener documentos' }, { status: 500 })

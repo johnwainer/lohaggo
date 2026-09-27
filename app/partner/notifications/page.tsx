@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
 import PartnerDashboardNav from '@/components/PartnerDashboardNav'
 import NotificationsInbox from '@/components/shared/NotificationsInbox'
+import { opportunitiesFromResponse } from '@/lib/partners/opportunities'
 
 interface Notification {
   id: string
@@ -59,7 +60,7 @@ export default function PartnerNotificationsPage() {
 
       if (requestsRes.ok) {
         const requests = await requestsRes.json()
-        setMyRequestsCount(Array.isArray(requests) ? requests.length : 0)
+        setMyRequestsCount(opportunitiesFromResponse(requests).requests.length)
       }
     } catch (error) {
       console.error('Error fetching counts:', error)

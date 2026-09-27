@@ -21,7 +21,11 @@ export { BOOKING_TRANSITIONS, BOOKING_STATUS_LABEL, canTransition, transitionRol
  * Bogotá, both fall on the same UTC day). Accepts 'HH:mm', 'H:mm' and 'h:mm AM/PM'.
  */
 export function bookingWhen(b: { scheduledDate: Date; scheduledTime: string }): Date {
-  const day = new Date(b.scheduledDate).toISOString().slice(0, 10)
+  // A date-only value is stored as midnight UTC (keep that calendar day); any other instant is read as
+  // its Bogotá calendar day, so a booking at 19:00 Bogotá (00:00 UTC next day) keeps its real day.
+  const when = new Date(b.scheduledDate)
+  const dateOnly = when.getUTCHours() === 0 && when.getUTCMinutes() === 0 && when.getUTCSeconds() === 0 && when.getUTCMilliseconds() === 0
+  const day = dateOnly ? when.toISOString().slice(0, 10) : new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' }).format(when)
   const m = /(\d{1,2}):(\d{2})\s*([ap]\.?\s?m\.?)?/i.exec(b.scheduledTime || '')
   let hours = m ? Number(m[1]) : 0
   const minutes = m ? Number(m[2]) : 0

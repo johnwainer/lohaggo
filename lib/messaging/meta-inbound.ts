@@ -10,6 +10,7 @@ import { autopilotCovers, drainAgentTasks, scheduleInboundAgent } from '@/lib/ai
 import { resolveInboundContact } from '@/lib/inbox/contacts'
 import { processCommentChanges } from '@/lib/messaging/meta-comments'
 import { commentSettingsOf } from '@/lib/ai/comments-core'
+import { extractWebRef, parseMetaReferral, recordConversationAttribution } from '@/lib/messaging/attribution'
 
 const logger = createLogger('meta-inbound')
 
@@ -75,8 +76,9 @@ type MessagingEvent = {
     is_deleted?: boolean
     is_unsupported?: boolean
     reply_to?: { mid?: string; story?: { url?: string; id?: string } }
+    referral?: { ref?: string; source?: string; type?: string; ad_id?: string }
   }
-  postback?: { mid?: string; title?: string; payload?: string; referral?: { ref?: string; source?: string; type?: string } }
+  postback?: { mid?: string; title?: string; payload?: string; referral?: { ref?: string; source?: string; type?: string; ad_id?: string } }
   referral?: { ref?: string; source?: string; type?: string; ad_id?: string }
   optin?: { ref?: string; type?: string }
   reaction?: { mid?: string; action?: 'react' | 'unreact'; emoji?: string; reaction?: string }
@@ -306,6 +308,7 @@ async function processEvent(app: MetaAppConfig, conn: ChannelConnection, channel
       app, conn, channel, contactId, direction: 'INBOUND', body, mediaUrl: att.mediaUrl, mediaType: att.mediaType,
       providerMessageId: ev.message.mid || `msg:${contactId}:${ts.getTime()}`, sentAt: ts, threadOwner,
     })
+    if (recorded) await recordMetaAttribution(channel, contactId, ev.message.referral, ev.message.text)
     return { kind: 'message', recorded }
   }
 
@@ -316,6 +319,7 @@ async function processEvent(app: MetaAppConfig, conn: ChannelConnection, channel
       app, conn, channel, contactId, direction: 'INBOUND', body,
       providerMessageId: ev.postback.mid || `postback:${contactId}:${ts.getTime()}`, sentAt: ts, threadOwner,
     })
+    if (recorded) await recordMetaAttribution(channel, contactId, ev.postback.referral, null)
     return { kind: 'postback', recorded }
   }
 
@@ -326,6 +330,7 @@ async function processEvent(app: MetaAppConfig, conn: ChannelConnection, channel
       app, conn, channel, contactId, direction: 'INBOUND', body,
       providerMessageId: `referral:${contactId}:${ts.getTime()}`, sentAt: ts, threadOwner,
     })
+    if (recorded) await recordMetaAttribution(channel, contactId, ev.referral, null)
     return { kind: 'referral', recorded }
   }
 
@@ -522,4 +527,18 @@ export async function purgeOldWebhookEvents(days = 7) {
   const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
   const result = await prisma.webhookEvent.deleteMany({ where: { createdAt: { lt: cutoff } } })
   return result.count
+}
+
+/** Ad referral (ad_id / source ADS) and website ref tag of a Messenger/Instagram event, saved on its conversation. */
+async function recordMetaAttribution(
+  channel: MetaChannel,
+  contactId: string,
+  referral: { ref?: string; source?: string; type?: string; ad_id?: string } | undefined,
+  text: string | null | undefined,
+) {
+  const { adReferral, ref } = parseMetaReferral(referral)
+  const webRef = extractWebRef(text) ?? (ref && /^(web|blog)-/i.test(ref) ? ref.toLowerCase() : null)
+  if (!adReferral && !webRef) return
+  const conversation = await prisma.conversation.findUnique({ where: { channel_contactPhone: { channel, contactPhone: contactId } }, select: { id: true } })
+  if (conversation) await recordConversationAttribution(conversation.id, { adReferral, webRef })
 }

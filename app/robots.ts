@@ -15,7 +15,6 @@ export default function robots(): MetadataRoute.Robots {
 
           '/login',
           '/register',
-          '/registro-socios',
           '/notifications',
           '/my-ratings',
           '/servicios?',
@@ -33,7 +32,6 @@ export default function robots(): MetadataRoute.Robots {
 
           '/login',
           '/register',
-          '/registro-socios',
           '/notifications',
           '/my-ratings',
           '/servicios?',

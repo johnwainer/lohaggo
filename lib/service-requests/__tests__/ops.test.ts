@@ -34,7 +34,7 @@ vi.mock('@/lib/notifications/notificationService', () => ({
 vi.mock('@/lib/pwa/adoption-strategy', () => ({ recordPromptContext: m.recordPromptContext }))
 
 import { OpsError, APP_ORIGIN, chatOrigin } from '@/lib/ops/origin'
-import { cancelServiceRequest, createServiceRequest } from '@/lib/service-requests/ops'
+import { cancelServiceRequest, createServiceRequest, preferredDateTimeBogota } from '@/lib/service-requests/ops'
 
 const client = { userId: 'u1', role: 'CLIENT' as const }
 const input = { serviceId: 's1', address: 'Calle 10 # 20-30', city: 'MEDELLIN' as const, preferredDate: '2026-10-02', preferredTime: '10:00', budget: 80000 }
@@ -54,7 +54,7 @@ describe('crear solicitud', () => {
     const data = m.srCreate.mock.calls[0][0].data
     expect(data).toMatchObject({ userId: 'u1', origin: 'app', originChannel: null, originConversationId: null, originAgentId: null, status: 'ACTIVE' })
     expect(data.preferredTime).toBe('10:00')
-    expect(data.preferredDate.getHours()).toBe(10)
+    expect(data.preferredDate.toISOString()).toBe('2026-10-02T15:00:00.000Z')
     expect(m.notifyNewServiceRequest).toHaveBeenCalledWith('r1')
     expect(m.recordPromptContext).toHaveBeenCalledWith('u1', 'CLIENT_REQUEST_CREATED', expect.objectContaining({ serviceRequestId: 'r1' }))
   })
@@ -110,5 +110,21 @@ describe('cancelar solicitud', () => {
     expect(m.srUpdate).toHaveBeenCalledWith({ where: { id: 'r1' }, data: { status: 'CANCELLED' } })
     expect(m.proposalUpdateMany).toHaveBeenCalledWith({ where: { id: { in: ['p1'] } }, data: { status: 'REJECTED' } })
     expect(m.notifyProposalRejected).toHaveBeenCalledWith('p1')
+  })
+})
+
+describe('fecha preferida en hora de Bogotá', () => {
+  it('10:00 en Medellín son las 15:00 UTC, sin importar la zona del servidor', () => {
+    expect(preferredDateTimeBogota('2026-10-02', '10:00')?.toISOString()).toBe('2026-10-02T15:00:00.000Z')
+  })
+  it('una hora de noche no cambia de día en Bogotá', () => {
+    expect(preferredDateTimeBogota('2026-10-02', '21:30')?.toISOString()).toBe('2026-10-03T02:30:00.000Z')
+  })
+  it('sin hora queda a medianoche de Bogotá', () => {
+    expect(preferredDateTimeBogota('2026-10-02', null)?.toISOString()).toBe('2026-10-02T05:00:00.000Z')
+  })
+  it('sin fecha no hay fecha preferida', () => {
+    expect(preferredDateTimeBogota(null, '10:00')).toBeNull()
+    expect(preferredDateTimeBogota('', null)).toBeNull()
   })
 })

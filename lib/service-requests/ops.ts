@@ -47,6 +47,16 @@ export const loadPlatformConfig = loadPlatformConfigRow
 
 const money = (n: number) => `$${Math.round(n).toLocaleString('es-CO')}`
 
+/** A 'YYYY-MM-DD' day plus an optional 'HH:mm' time read as Bogotá wall-clock (-05:00), whatever the server's zone. */
+export function preferredDateTimeBogota(date?: string | null, time?: string | null): Date | null {
+  if (!date) return null
+  const m = /^(\d{1,2}):(\d{2})/.exec(time || '')
+  const hh = m ? String(Math.min(23, Number(m[1]))).padStart(2, '0') : '00'
+  const mm = m ? m[2] : '00'
+  const d = new Date(`${date}T${hh}:${mm}:00-05:00`)
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
 export async function createServiceRequest(actor: Actor, input: ServiceRequestInput, origin: Origin) {
   const parsed = serviceRequestSchema.safeParse(input)
   if (!parsed.success) throw new OpsError(parsed.error.errors[0]?.message || 'Datos inválidos', 400)
@@ -82,14 +92,7 @@ export async function createServiceRequest(actor: Actor, input: ServiceRequestIn
   const expiresAt = new Date()
   expiresAt.setHours(expiresAt.getHours() + 24)
 
-  let preferredDateTime: Date | null = null
-  if (data.preferredDate) {
-    preferredDateTime = new Date(data.preferredDate)
-    if (data.preferredTime) {
-      const [hours, minutes] = data.preferredTime.split(':').map(Number)
-      preferredDateTime.setHours(hours, minutes, 0, 0)
-    }
-  }
+  const preferredDateTime = preferredDateTimeBogota(data.preferredDate, data.preferredTime)
 
   const serviceRequest = await prisma.serviceRequest.create({
     data: {
@@ -271,4 +274,160 @@ export async function requestSummaryForChat(requestId: string) {
     parts.push(hours > 0 ? `vence en ${hours} h` : 'vencida')
   }
   return parts.filter(Boolean).join(' · ')
+}
+
+// ── Lifecycle: resend without proposals, expiry and reactivation ─────────────────────────────────────────
+// Markers live in AdminAuditLog (entityType 'ServiceRequest'), so no schema change is needed and support
+// can read the history of a request.
+
+export const REQUEST_RESEND_ACTION = 'REQUEST_RESEND'
+export const REQUEST_EXPIRE_ACTION = 'REQUEST_EXPIRE'
+export const REQUEST_REACTIVATE_ACTION = 'REQUEST_REACTIVATE'
+export const RESEND_AFTER_MS = 2 * 3600_000
+export const REACTIVATION_MS = 24 * 3600_000
+export const MAX_REACTIVATIONS = 3
+
+/** Whether a request is past its deadline: EXPIRED, or still ACTIVE with `expiresAt` in the past. */
+export function isRequestExpired(r: { status: string; expiresAt: Date | string }, now: Date = new Date()) {
+  if (r.status === 'EXPIRED') return true
+  return r.status === 'ACTIVE' && new Date(r.expiresAt).getTime() < now.getTime()
+}
+
+/**
+ * Reopens an expired request for 24 h (owner only, at most 3 times): back to ACTIVE, the proposals that
+ * expiry had closed become PENDING again, and matching partners are told once more.
+ */
+export async function reactivateServiceRequest(actor: Actor, requestId: string, origin: Origin) {
+  const now = new Date()
+  const sr = await prisma.serviceRequest.findUnique({ where: { id: requestId }, select: { id: true, userId: true, status: true, expiresAt: true } })
+  if (!sr) throw new OpsError('Solicitud no encontrada', 404)
+  if (sr.userId !== actor.userId) throw new OpsError('No autorizado', 403)
+  if (!isRequestExpired(sr, now)) throw new OpsError(sr.status === 'ACTIVE' ? 'Tu solicitud sigue activa' : 'Solo se pueden reactivar solicitudes vencidas', 400)
+
+  const done = await prisma.adminAuditLog.count({ where: { action: REQUEST_REACTIVATE_ACTION, entityType: 'ServiceRequest', entityId: requestId } })
+  if (done >= MAX_REACTIVATIONS) throw new OpsError(`Ya reactivaste esta solicitud ${MAX_REACTIVATIONS} veces. Crea una nueva o escríbenos por WhatsApp.`, 400)
+
+  const expiresAt = new Date(now.getTime() + REACTIVATION_MS)
+  const updated = await prisma.serviceRequest.updateMany({
+    where: { id: requestId, OR: [{ status: 'EXPIRED' }, { status: 'ACTIVE', expiresAt: { lt: now } }] },
+    data: { status: 'ACTIVE', expiresAt },
+  })
+  if (updated.count === 0) throw new OpsError('La solicitud cambió; recarga la página', 409)
+
+  let restored = 0
+  if (sr.status === 'EXPIRED') {
+    const lastExpire = await prisma.adminAuditLog.findFirst({
+      where: { action: REQUEST_EXPIRE_ACTION, entityType: 'ServiceRequest', entityId: requestId },
+      orderBy: { createdAt: 'desc' },
+      select: { details: true },
+    })
+    const ids = parseProposalIds(lastExpire?.details)
+    if (ids.length > 0) {
+      const res = await prisma.proposal.updateMany({ where: { id: { in: ids }, serviceRequestId: requestId, status: 'REJECTED' }, data: { status: 'PENDING' } })
+      restored = res.count
+    }
+  }
+
+  await prisma.adminAuditLog.create({
+    data: {
+      actorId: actor.userId,
+      actorEmail: actor.email ?? null,
+      action: REQUEST_REACTIVATE_ACTION,
+      entityType: 'ServiceRequest',
+      entityId: requestId,
+      details: JSON.stringify({ n: done + 1, via: origin.via, channel: origin.channel ?? null, conversationId: origin.conversationId ?? null, restoredProposals: restored, expiresAt: expiresAt.toISOString() }),
+    },
+  })
+
+  try {
+    await notifyNewServiceRequest(requestId, { partnersOnly: true })
+  } catch (err) {
+    logger.warn('notify on reactivation failed (non-fatal)', { requestId, err })
+  }
+
+  return { id: requestId, expiresAt, reactivations: done + 1, remaining: MAX_REACTIVATIONS - done - 1, restoredProposals: restored }
+}
+
+function parseProposalIds(details?: string | null): string[] {
+  if (!details) return []
+  try {
+    const ids = (JSON.parse(details) as { proposalIds?: unknown }).proposalIds
+    return Array.isArray(ids) ? ids.filter((x): x is string => typeof x === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+/** ACTIVE requests with no proposal after 2 h get one more round to partners (only once per request). */
+export async function resendUnansweredRequests(now: Date = new Date(), limit = 50) {
+  const candidates = await prisma.serviceRequest.findMany({
+    where: { status: 'ACTIVE', createdAt: { lte: new Date(now.getTime() - RESEND_AFTER_MS) }, expiresAt: { gt: now }, proposals: { none: {} } },
+    select: { id: true },
+    orderBy: { createdAt: 'asc' },
+    take: limit * 2,
+  })
+  if (candidates.length === 0) return { resent: 0, partnersNotified: 0 }
+  const already = await prisma.adminAuditLog.findMany({
+    where: { action: REQUEST_RESEND_ACTION, entityType: 'ServiceRequest', entityId: { in: candidates.map((c) => c.id) } },
+    select: { entityId: true },
+  })
+  const skip = new Set(already.map((a) => a.entityId))
+  let resent = 0
+  let partnersNotified = 0
+  for (const { id } of candidates.filter((c) => !skip.has(c.id)).slice(0, limit)) {
+    // Mark first so a crash mid-send never produces a second round
+    await prisma.adminAuditLog.create({ data: { action: REQUEST_RESEND_ACTION, entityType: 'ServiceRequest', entityId: id, actorEmail: 'sistema', details: JSON.stringify({ reason: 'sin propuestas tras 2 h' }) } })
+    partnersNotified += await notifyNewServiceRequest(id, { partnersOnly: true }).catch(() => 0)
+    resent++
+  }
+  return { resent, partnersNotified }
+}
+
+/**
+ * ACTIVE requests past `expiresAt` become EXPIRED; their PENDING proposals are rejected (partners told)
+ * and the client is invited to reactivate.
+ */
+export async function expireOverdueRequests(now: Date = new Date(), limit = 100) {
+  const overdue = await prisma.serviceRequest.findMany({
+    where: { status: 'ACTIVE', expiresAt: { lt: now } },
+    select: { id: true, userId: true, service: { select: { name: true } }, proposals: { where: { status: 'PENDING' }, select: { id: true } } },
+    orderBy: { expiresAt: 'asc' },
+    take: limit,
+  })
+  let expired = 0
+  let rejectedProposals = 0
+  for (const r of overdue) {
+    const res = await prisma.serviceRequest.updateMany({ where: { id: r.id, status: 'ACTIVE', expiresAt: { lt: now } }, data: { status: 'EXPIRED' } })
+    if (res.count === 0) continue
+    const proposalIds = r.proposals.map((p) => p.id)
+    if (proposalIds.length > 0) {
+      await prisma.proposal.updateMany({ where: { id: { in: proposalIds }, status: 'PENDING' }, data: { status: 'REJECTED' } })
+    }
+    await prisma.adminAuditLog.create({ data: { action: REQUEST_EXPIRE_ACTION, entityType: 'ServiceRequest', entityId: r.id, actorEmail: 'sistema', details: JSON.stringify({ proposalIds }) } })
+    expired++
+    rejectedProposals += proposalIds.length
+
+    for (const proposalId of proposalIds) {
+      await notifyProposalRejected(proposalId).catch((err) => logger.warn('notify rejected on expiry failed', { proposalId, err }))
+    }
+    await notifyRequestExpired(r.userId, r.id, r.service.name).catch((err) => logger.warn('notify client on expiry failed', { requestId: r.id, err }))
+  }
+  return { expired, rejectedProposals }
+}
+
+export function requestExpiredMessage(serviceName: string) {
+  return `Tu solicitud de ${serviceName} venció sin que eligieras propuesta. Puedes reactivarla con un toque.`
+}
+
+async function notifyRequestExpired(userId: string, requestId: string, serviceName: string) {
+  const { createNotification } = await import('@/lib/notifications/notificationService')
+  await createNotification({
+    userId,
+    type: 'NEW_SERVICE_REQUEST',
+    title: 'Tu solicitud venció',
+    message: requestExpiredMessage(serviceName),
+    data: { serviceRequestId: requestId, recipient: 'CLIENT', reason: 'EXPIRED', url: '/dashboard?tab=requests' },
+    // Channel templates of this type are built around {{message}}; WhatsApp free text would miss the 24 h window
+    channels: ['PUSH', 'EMAIL'],
+  })
 }

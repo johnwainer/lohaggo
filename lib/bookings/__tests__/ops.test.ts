@@ -245,3 +245,14 @@ describe('bookingsFor', () => {
     expect(m.bookingFindMany).toHaveBeenCalledTimes(3)
   })
 })
+
+describe('bookingWhen · día en Bogotá', () => {
+  it('una reserva guardada a las 19:30 Bogotá (00:30 UTC del día siguiente) conserva su día', () => {
+    const d = bookingWhen({ scheduledDate: new Date('2026-10-04T00:30:00Z'), scheduledTime: '19:30' })
+    expect(d.toISOString()).toBe('2026-10-04T00:30:00.000Z')
+  })
+  it('una fecha sola (medianoche UTC) usa ese día', () => {
+    const d = bookingWhen({ scheduledDate: new Date('2026-10-03T00:00:00Z'), scheduledTime: '10:00' })
+    expect(d.toISOString()).toBe('2026-10-03T15:00:00.000Z')
+  })
+})

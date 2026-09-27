@@ -5,6 +5,10 @@ import { findRedirect, getArticle, relatedArticles } from '@/lib/marketing/blog'
 import { articleJsonLd, articleUrl, jsonLdScript, makeExcerpt, readingMinutes, renderMarkdown, SITE_URL } from '@/lib/marketing/seo'
 import { deliveryUrl, ogImageUrl } from '@/lib/marketing/media'
 import ViewBeacon from '@/components/blog/ViewBeacon'
+import { WhatsAppButton } from '@/components/WhatsAppButton'
+import { getTopServicesSafe, type TopService } from '@/lib/public/topServices'
+import { normalizeText, rankByIntent } from '@/lib/services/searchIntent'
+import { blogWaMessage } from '@/lib/public/whatsapp'
 
 export const revalidate = 300
 
@@ -34,6 +38,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
+/** The service a post talks about (from its tags, else its title), only among services with partners. */
+async function serviceForPost(tags: string[], title: string): Promise<TopService | null> {
+  const services = await getTopServicesSafe(200)
+  for (const tag of tags) {
+    const t = normalizeText(tag)
+    const hit = services.find((s) => normalizeText(s.name) === t)
+    if (hit) return hit
+  }
+  return rankByIntent(services, title)?.[0] ?? null
+}
+
 const fmt = (d: Date) => new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Bogota' }).format(d)
 
 export default async function ArticlePage({ params }: Props) {
@@ -47,7 +62,7 @@ export default async function ArticlePage({ params }: Props) {
   }
   const cover = a.coverUrl || a.post.media[0]?.url || null
   const description = a.seoDescription || a.excerpt || makeExcerpt(a.body, 158)
-  const related = await relatedArticles(a.id, a.category, a.tags)
+  const [related, service] = await Promise.all([relatedArticles(a.id, a.category, a.tags), serviceForPost(a.tags, a.post.title)])
   const jsonLd = [
     articleJsonLd({ title: a.post.title, description, slug, image: ogImageUrl(cover), publishedAt: a.webPublishedAt!, updatedAt: a.updatedAt, category: a.category, tags: a.tags }),
     {
@@ -86,9 +101,17 @@ export default async function ArticlePage({ params }: Props) {
           </div>
         )}
         <div className="mt-10 rounded-3xl bg-gradient-to-br from-primary-600 to-secondary-500 p-6 text-white">
-          <p className="text-lg font-bold">¿Necesitas un profesional?</p>
-          <p className="mt-1 text-white/90 text-sm">En LoHaggo encuentras profesionales verificados cerca de ti. Describe lo que necesitas y recibe propuestas.</p>
-          <Link href="/" className="mt-4 inline-flex rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-primary-700 hover:bg-white/90">Solicitar un servicio</Link>
+          <p className="text-lg font-bold">{service ? `¿Necesitas ${service.name.toLowerCase()}?` : '¿Necesitas un profesional?'}</p>
+          <p className="mt-1 text-white/90 text-sm">Escríbenos por WhatsApp y creamos la solicitud por ti, o búscalo en LoHaggo y recibe propuestas de profesionales verificados.</p>
+          <div className="mt-4 flex flex-col gap-2.5 sm:flex-row">
+            <WhatsAppButton message={blogWaMessage(slug, service?.name)} refTag={`blog-${slug}`} className="w-full sm:w-auto" trackData={{ placement: 'blog-cta', service: service?.slug }} />
+            <Link
+              href={service ? `/servicios/${service.slug}` : '/servicios'}
+              className="inline-flex min-h-[48px] w-full items-center justify-center rounded-full bg-white px-6 text-base font-bold text-primary-700 hover:bg-white/90 sm:w-auto"
+            >
+              {service ? `Ver ${service.name}` : 'Ver servicios'}
+            </Link>
+          </div>
         </div>
       </article>
 
