@@ -50,16 +50,16 @@ export const WA_CATALOG: WaCatalogEntry[] = [
   },
   {
     "code": "B2",
-    "name": "lh_cliente_acceso_enlace",
+    "name": "lh_cliente_acceso_enlace_v2",
     "category": "UTILITY",
-    "body": "🔐 Hola {{1}}, aquí tienes tu enlace para entrar a LoHaggo. Vence en 72 horas y solo sirve una vez. Si no lo pediste, ignora este mensaje.",
+    "body": "📲 Hola {{1}}, puedes entrar a tu cuenta de LoHaggo con el botón de abajo para ver tus solicitudes, propuestas y reservas.",
     "variables": {
       "1": "Ana",
       "2": "auth/magic?token=abc123"
     },
     "quickReplies": [],
     "url": {
-      "title": "Entrar",
+      "title": "Entrar a mi cuenta",
       "url": "https://www.lohaggo.com/{{2}}"
     }
   },

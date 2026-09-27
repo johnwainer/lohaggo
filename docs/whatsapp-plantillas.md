@@ -59,13 +59,13 @@ Aprobadas pero como MARKETING siendo transaccionales (se reemplazan por versión
 - **Variables:** {{1}} nombre = «Ana»
 - **Botón URL:** «Entrar a LoHaggo» → `https://www.lohaggo.com/{{2}}` · ejemplo `auth/magic?token=abc123`
 
-### B2 · lh_cliente_acceso_enlace
+### B2 · lh_cliente_acceso_enlace_v2
 - **Categoría:** UTILITY
-- **Cuándo:** la persona pide un enlace para entrar (olvidó la contraseña o entra desde el chat).
+- **Cuándo:** la persona pide un enlace para entrar (olvidó la contraseña o entra desde el chat). La primera versión, con lenguaje de «inicio de sesión», fue rechazada por Meta.
 - **Texto:**
-  > 🔐 Hola {{1}}, aquí tienes tu enlace para entrar a LoHaggo. Vence en 72 horas y solo sirve una vez. Si no lo pediste, ignora este mensaje.
+  > 📲 Hola {{1}}, puedes entrar a tu cuenta de LoHaggo con el botón de abajo para ver tus solicitudes, propuestas y reservas.
 - **Variables:** {{1}} = «Ana»
-- **Botón URL:** «Entrar» → `https://www.lohaggo.com/{{2}}` · ejemplo `auth/magic?token=abc123`
+- **Botón URL:** «Entrar a mi cuenta» → `https://www.lohaggo.com/{{2}}` · ejemplo `auth/magic?token=abc123`
 
 ### B3 · lh_cliente_nueva_propuesta
 - **Categoría:** UTILITY
