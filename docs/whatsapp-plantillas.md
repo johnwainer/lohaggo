@@ -462,7 +462,7 @@ Aprobadas pero como MARKETING siendo transaccionales (se reemplazan por versión
 - **Texto:**
   > 📈 Hola {{1}}, hay clientes pidiendo *{{2}}* en {{3}} y pocos socios para atenderlos. Si lo ofreces, actívalo y empieza a recibir solicitudes.
 - **Variables:** {{1}} «Carlos» · {{2}} «Pintura» · {{3}} «Medellín»
-- **Botones:** quick reply «Activar este servicio» (id `services_setup`) · quick reply «No lo ofrezco» (id `optout_soft`)
+- **Botones:** quick reply «Activar servicio» (id `services_setup`) · quick reply «No lo ofrezco» (id `optout_soft`)
 
 ### C30 · lh_socio_sin_actividad
 - **Categoría:** MARKETING
