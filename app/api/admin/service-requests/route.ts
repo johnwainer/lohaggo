@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
+import { attachAgentNames } from '@/lib/ops/origin-labels'
 
 export const dynamic = 'force-dynamic'
 
@@ -121,8 +122,17 @@ export async function GET(_req: NextRequest) {
       }
     }
 
-    const result = serviceRequests.map((r) => ({
+    const withAgents = await attachAgentNames(serviceRequests)
+    const proposalsWithAgents = await attachAgentNames(serviceRequests.flatMap((r) => r.proposals))
+    const proposalsByRequest = new Map<string, typeof proposalsWithAgents>()
+    for (const p of proposalsWithAgents) {
+      const list = proposalsByRequest.get(p.serviceRequestId) ?? []
+      list.push(p)
+      proposalsByRequest.set(p.serviceRequestId, list)
+    }
+    const result = withAgents.map((r) => ({
       ...r,
+      proposals: proposalsByRequest.get(r.id) ?? [],
       notifiedPartners: notifiedByRequest.get(r.id) ?? []
     }))
 

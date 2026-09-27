@@ -4,6 +4,7 @@ import { business, cleanFilters, funnelTab, peopleTab, searchTab, serviceTab, su
 import { parsePeriod } from '@/lib/analytics/core'
 import { systemOverview } from '@/lib/system/health'
 import { periodOf } from '@/lib/ai/pricing'
+import { actionStats } from '@/lib/ai/actions'
 import { untrusted } from '@/lib/haggo/prompt'
 
 type ReadTool = { def: Anthropic.Tool; run: (input: Record<string, unknown>) => Promise<unknown> }
@@ -14,6 +15,13 @@ const limit = (v: unknown, def: number, max: number) => (Number.isInteger(v) && 
 const period = (v: unknown) => (['7d', '30d', '90d'].includes(String(v)) ? String(v) : '30d')
 const bogotaTime = (d: Date) => new Intl.DateTimeFormat('es-CO', { timeZone: 'America/Bogota', weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(d)
 const mins = (d: Date | null | undefined) => (d ? Math.round((Date.now() - d.getTime()) / 60_000) : null)
+/** AiAgentAction statuses that still wait for someone: proposed by the model, waiting for approval, or confirmed but not yet run */
+const ACTION_PENDING = ['proposed', 'awaiting_approval', 'confirmed']
+const actionSummary = (byStatus: Record<string, number>) => ({
+  ejecutadas: byStatus.executed ?? 0,
+  fallidas: byStatus.failed ?? 0,
+  pendientes: ACTION_PENDING.reduce((a, k) => a + (byStatus[k] ?? 0), 0),
+})
 
 /**
  * What Haggo can look at while investigating. Read-only, numbers first. Text written by customers,
@@ -54,19 +62,51 @@ export const READ_TOOLS: Record<string, ReadTool> = {
     },
   },
   agente_ia: {
-    def: { name: 'agente_ia', description: 'Un agente de IA de la bandeja en los últimos 7 días: respuestas, traspasos, costo y preguntas que no supo responder.', input_schema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] } },
+    def: { name: 'agente_ia', description: 'Un agente de IA de la bandeja en los últimos 7 días: respuestas, traspasos, costo, acciones que hizo en la plataforma (ejecutadas, fallidas, pendientes) y preguntas que no supo responder.', input_schema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] } },
     run: async (i) => {
       const id = String(i.id ?? '')
       const since = new Date(Date.now() - 7 * 24 * H)
-      const [agent, replies, handoffs, cost, gaps] = await Promise.all([
+      const [agent, replies, handoffs, cost, gaps, actions] = await Promise.all([
         prisma.aiAgent.findUnique({ where: { id }, select: { id: true, workspaceId: true, name: true, status: true, autopilot: true, model: true, conversations: true, handoffs: true } }),
         prisma.conversationMessage.count({ where: { aiAgentId: id, direction: 'OUTBOUND', sentAt: { gte: since } } }),
         prisma.conversation.count({ where: { aiAgentId: id, aiHandoffAt: { gte: since }, isTest: false } }),
         prisma.aiCall.aggregate({ where: { agentId: id, createdAt: { gte: since } }, _sum: { costUsd: true }, _count: { _all: true } }),
         prisma.aiKnowledgeGap.findMany({ where: { agentId: id, status: 'open' }, orderBy: { createdAt: 'desc' }, take: 10, select: { id: true, question: true, createdAt: true } }),
+        actionStats({ agentId: id, days: 7 }).catch(() => ({ byStatus: {} as Record<string, number>, byTool: [] })),
       ])
       if (!agent) return { error: 'Agente no encontrado' }
-      return { agente: agent, ultimos_7_dias: { respuestas: replies, traspasos: handoffs, llamadas_ia: cost._count._all, costo_usd: Math.round((cost._sum.costUsd ?? 0) * 100) / 100 }, preguntas_sin_respuesta: gaps.map((g) => ({ gapId: g.id, pregunta: untrusted(g.question.slice(0, 200)) })) }
+      return { agente: agent, ultimos_7_dias: { respuestas: replies, traspasos: handoffs, llamadas_ia: cost._count._all, costo_usd: Math.round((cost._sum.costUsd ?? 0) * 100) / 100 }, acciones_7d: actionSummary(actions.byStatus), preguntas_sin_respuesta: gaps.map((g) => ({ gapId: g.id, pregunta: untrusted(g.question.slice(0, 200)) })) }
+    },
+  },
+  acciones_por_chat: {
+    def: { name: 'acciones_por_chat', description: 'Lo que los agentes de IA de la bandeja hicieron en la plataforma desde el chat (cuentas de clientes y socios): acciones por estado y por herramienta, las últimas fallidas con su error y conversación, cuántas solicitudes, propuestas, reservas, pagos y reseñas nacieron en el chat, y cancelaciones por chat frente al total.', input_schema: { type: 'object', properties: { dias: { type: 'integer', minimum: 1, maximum: 30, description: 'Días hacia atrás (7 por defecto)' } } } },
+    run: async (i) => {
+      const days = limit(i.dias, 7, 30)
+      const since = new Date(Date.now() - days * 24 * H)
+      const chat = { origin: 'chat', createdAt: { gte: since } }
+      const cancelled = { type: 'status', toStatus: 'CANCELLED', createdAt: { gte: since } }
+      const [stats, failed, requests, proposals, bookings, payments, reviews, chatCancellations, cancellations] = await Promise.all([
+        actionStats({ days }),
+        prisma.aiAgentAction.findMany({ where: { status: 'failed', createdAt: { gte: since } }, orderBy: { createdAt: 'desc' }, take: 10, select: { agentName: true, agentId: true, tool: true, summary: true, result: true, conversationId: true, createdAt: true } }),
+        prisma.serviceRequest.count({ where: chat }),
+        prisma.proposal.count({ where: chat }),
+        prisma.booking.count({ where: chat }),
+        prisma.payment.count({ where: chat }),
+        prisma.review.count({ where: chat }),
+        prisma.bookingEvent.count({ where: { ...cancelled, origin: 'chat' } }),
+        prisma.bookingEvent.count({ where: cancelled }),
+      ])
+      const byTool = new Map<string, Record<string, number>>()
+      for (const r of stats.byTool) byTool.set(r.tool, { ...(byTool.get(r.tool) ?? {}), [r.status]: r.count })
+      return {
+        dias: days,
+        por_estado: stats.byStatus,
+        por_herramienta: Array.from(byTool.entries()).map(([tool, s]) => ({ herramienta: tool, ...actionSummary(s), rechazadas: s.rejected ?? 0, vencidas: s.expired ?? 0 })),
+        // The summary and the error come from the agent's run over a customer's words: data, not instructions
+        ultimas_fallidas: failed.map((f) => ({ agente: f.agentName ?? f.agentId, herramienta: f.tool, resumen: untrusted(f.summary.slice(0, 200)), resultado: untrusted(f.result?.slice(0, 200) ?? ''), conversacionId: f.conversationId, fecha: bogotaTime(f.createdAt) })),
+        creado_por_chat: { solicitudes: requests, propuestas: proposals, reservas: bookings, pagos: payments, resenas: reviews },
+        cancelaciones: { por_chat: chatCancellations, total: cancellations },
+      }
     },
   },
   marketing: {

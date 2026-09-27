@@ -2,6 +2,7 @@
 
 import { Calendar, CheckCircle2, ChevronDown, Clock, Loader2, MapPin, MessageCircle, Star, User } from 'lucide-react'
 import ServiceIcon from '@/components/ServiceIcon'
+import OriginBadge from '@/components/shared/OriginBadge'
 import { useMemo, useState, type ReactNode } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -35,6 +36,9 @@ interface UnifiedBookingCardProps {
   secondaryActions?: Action[]
   compact?: boolean
   metadataInline?: string
+  /** Booking.origin: 'chat' shows a discreet «Creada por chat» note */
+  origin?: string | null
+  originChannel?: string | null
 }
 
 function getActionClass(variant: Action['variant'] = 'secondary') {
@@ -61,6 +65,8 @@ export default function UnifiedBookingCard({
   secondaryActions = [],
   compact = true,
   metadataInline,
+  origin,
+  originChannel,
 }: UnifiedBookingCardProps) {
   const color = DESIGN_SYSTEM.statusColors[visualState]
   const timeline = getBookingTimeline(role)
@@ -126,6 +132,7 @@ export default function UnifiedBookingCard({
               <span className="font-medium">{counterpartLabel}:</span>
               <span className="truncate">{counterpartName}</span>
             </p>
+            <OriginBadge variant="user" origin={origin} originChannel={originChannel} className="mt-0.5" />
           </div>
           <p className="text-sm font-bold text-primary-700 md:text-base">{totalPrice}</p>
         </div>

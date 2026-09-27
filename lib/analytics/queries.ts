@@ -107,8 +107,36 @@ async function requestFunnel(from: Date, to: Date, f: Filters) {
   return row
 }
 
+export const ORIGINS = ['app', 'chat', 'admin'] as const
+export type Origin = (typeof ORIGINS)[number]
+export type OriginRow = { origin: Origin; requests: number; booked: number; completed: number; gmv: number }
+
+/** One row per origin, always the three in order, from the raw request and booking aggregates. */
+export function originBreakdown(requests: Array<Record<string, unknown>>, bookings: Array<Record<string, unknown>>): OriginRow[] {
+  return ORIGINS.map((origin) => {
+    const r = requests.find((x) => x.origin === origin)
+    const b = bookings.find((x) => x.origin === origin)
+    return { origin, requests: n(r?.requests), booked: n(b?.booked), completed: n(b?.completed), gmv: n(b?.gmv) }
+  })
+}
+
+/** Requests by ServiceRequest.origin; bookings, completions and approved GMV by Booking.origin. Empty until the origin columns exist. */
+async function byOrigin(p: Period, f: Filters) {
+  const [requests, bookings] = await Promise.all([
+    prisma.$queryRaw<Array<Record<string, unknown>>>`
+      SELECT r.origin AS origin, count(*)::int AS requests FROM "ServiceRequest" r JOIN "Service" s ON s.id = r."serviceId"
+      WHERE r."createdAt" >= ${p.from} AND r."createdAt" < ${p.to} ${requestWhere(f)} GROUP BY 1`,
+    prisma.$queryRaw<Array<Record<string, unknown>>>`
+      SELECT b.origin AS origin, count(DISTINCT b.id)::int AS booked, count(DISTINCT b.id) FILTER (WHERE b.status = 'COMPLETED')::int AS completed,
+             coalesce(sum(p."totalAmount") FILTER (WHERE p.status = 'APPROVED'), 0)::float AS gmv
+      FROM "Booking" b JOIN "Service" s ON s.id = b."serviceId" LEFT JOIN "Payment" p ON p."bookingId" = b.id
+      WHERE b."createdAt" >= ${p.from} AND b."createdAt" < ${p.to} ${bookingWhere(f)} GROUP BY 1`,
+  ]).catch(() => [[], []])
+  return originBreakdown(requests, bookings)
+}
+
 export async function funnelTab(p: Period, f: Filters) {
-  const [cur, prev, searches, prevSearches, direct, daily, cancels] = await Promise.all([
+  const [cur, prev, searches, prevSearches, direct, daily, cancels, origins] = await Promise.all([
     requestFunnel(p.from, p.to, f),
     requestFunnel(p.prevFrom, p.prevTo, f),
     prisma.$queryRaw<Array<Record<string, unknown>>>`SELECT count(*)::int AS total, count(DISTINCT coalesce("userId", "visitorId"))::int AS people FROM "SearchEvent" WHERE "createdAt" >= ${p.from} AND "createdAt" < ${p.to}`,
@@ -122,6 +150,7 @@ export async function funnelTab(p: Period, f: Filters) {
     prisma.$queryRaw<Array<Record<string, unknown>>>`
       SELECT r.status::text AS status, count(*)::int AS n FROM "ServiceRequest" r JOIN "Service" s ON s.id = r."serviceId"
       WHERE r."createdAt" >= ${p.from} AND r."createdAt" < ${p.to} ${requestWhere(f)} GROUP BY 1`,
+    byOrigin(p, f),
   ])
   const stages = (x: Record<string, unknown>) => funnel([
     { key: 'requests', label: 'Solicitudes', count: n(x.requests) },
@@ -141,6 +170,7 @@ export async function funnelTab(p: Period, f: Filters) {
     firstProposalHours: { median: percentile(hours, 0.5), p75: percentile(hours, 0.75), prevMedian: percentile(prevHours, 0.5), sample: hours.length },
     requestStatus: cancels.map((c) => ({ status: String(c.status), n: n(c.n) })),
     daily: days.map((d) => ({ d, n: n(daily.find((x) => x.d === d)?.n) })),
+    byOrigin: origins,
   }
 }
 

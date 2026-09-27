@@ -14,7 +14,9 @@ export type Snapshot = {
   messaging: { sent24h: number; failed24h: number }
   security: { events24h: number; high24h: number; blockedIps: number }
   inbox: { open: number; unassigned: number; waiting: number; aiHandling: number; inboundToday: number; handoffsToday: number }
-  aiAgents: Array<{ id: string; name: string; messagesToday: number; handoffsToday: number; openGaps: number }>
+  aiAgents: Array<{ id: string; name: string; messagesToday: number; handoffsToday: number; openGaps: number; actionsToday?: { executed: number; failed: number; awaiting: number } }>
+  /** What the inbox agents did on the platform today (AiAgentAction) and the day's cancellations by origin (BookingEvent) */
+  aiActions: { actionsToday: { executed: number; failed: number; awaiting: number }; chatCancellationsToday: number; cancellationsToday: number }
   aiCost: { today: number; month: number }
   aiProviders: { down: Array<{ name: string; reason: string }>; answering: string | null }
   marketing: { inReview: number; failedWeek: number; scheduledToday: number; ideasPending: number; runErrors24h: number; degraded: Array<{ id: string; campaign: string; reason: string }>; editorial?: { held: number; reviewedWeek: number; notApprovedWeek: number; failedWeek: number } }
@@ -63,6 +65,9 @@ export function detect(s: Snapshot): Detection[] {
     if (replies >= 5 && a.handoffsToday / replies >= 0.4) add({ key: `ai:handoffs:${a.id}`, domain: 'ai_agents', severity: 'warning', title: `${a.name} traspasa muchas conversaciones hoy`, detail: `${a.handoffsToday} traspasos y ${a.messagesToday} respuestas.`, entityType: 'AiAgent', entityId: a.id })
     if (a.openGaps >= 3) add({ key: `ai:gaps:${a.id}`, domain: 'ai_agents', severity: 'info', title: `${a.name} tiene ${a.openGaps} preguntas sin respuesta en su conocimiento`, detail: 'Vacíos de conocimiento abiertos.', entityType: 'AiAgent', entityId: a.id })
   }
+  const act = s.aiActions
+  if (act && act.actionsToday.failed >= 3) add({ key: 'ai:actions-failed', domain: 'ai_agents', severity: 'warning', title: `${act.actionsToday.failed} acciones de los agentes fallaron hoy`, detail: `Los agentes de la bandeja intentaron actuar en cuentas de clientes o socios y ${act.actionsToday.failed === 1 ? 'una falló' : `${act.actionsToday.failed} fallaron`} (${act.actionsToday.executed} ejecutadas, ${act.actionsToday.awaiting} esperando aprobación). Mira acciones_por_chat para ver qué herramienta falla y por qué.` })
+  if (act && act.chatCancellationsToday >= 3 && act.chatCancellationsToday / Math.max(1, act.cancellationsToday) > 0.3) add({ key: 'ai:chat-cancellations', domain: 'ai_agents', severity: 'warning', title: `${act.chatCancellationsToday} de ${act.cancellationsToday} cancelaciones de hoy salieron del chat`, detail: `Más del 30 % de las cancelaciones del día las hicieron los agentes desde la conversación. Revisar en acciones_por_chat si los clientes lo pidieron o si el agente cancela de más.` })
   if (s.aiProviders.down.length) {
     add({
       key: `ai:providers-down:${s.aiProviders.down.map((d) => d.name).sort().join(',')}`,

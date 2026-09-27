@@ -107,6 +107,7 @@ const base: Snapshot = {
   security: { events24h: 0, high24h: 0, blockedIps: 0 },
   inbox: { open: 0, unassigned: 0, waiting: 0, aiHandling: 0, inboundToday: 0, handoffsToday: 0 },
   aiAgents: [],
+  aiActions: { actionsToday: { executed: 0, failed: 0, awaiting: 0 }, chatCancellationsToday: 0, cancellationsToday: 0 },
   aiCost: { today: 0, month: 0 },
   aiProviders: { down: [], answering: null },
   marketing: { inReview: 0, failedWeek: 0, scheduledToday: 0, ideasPending: 0, runErrors24h: 0, degraded: [] },
@@ -131,6 +132,22 @@ describe('reglas de detección', () => {
   it('agente con muchos traspasos (≥40 % con ≥5) y con vacíos de conocimiento', () => {
     expect(keys({ aiAgents: [{ id: 'a1', name: 'Soporte', messagesToday: 3, handoffsToday: 2, openGaps: 3 }] })).toEqual(['ai:handoffs:a1', 'ai:gaps:a1'])
     expect(keys({ aiAgents: [{ id: 'a1', name: 'Soporte', messagesToday: 20, handoffsToday: 2, openGaps: 0 }] })).toEqual([])
+  })
+
+  it('acciones por chat: ≥3 fallidas hoy es advertencia media y apunta a acciones_por_chat', () => {
+    const d = detect({ ...base, aiActions: { actionsToday: { executed: 4, failed: 3, awaiting: 1 }, chatCancellationsToday: 0, cancellationsToday: 0 } })
+    expect(d.map((x) => x.key)).toEqual(['ai:actions-failed'])
+    expect(d[0]).toMatchObject({ domain: 'ai_agents', severity: 'warning', title: '3 acciones de los agentes fallaron hoy' })
+    expect(d[0].detail).toContain('acciones_por_chat')
+    expect(keys({ aiActions: { actionsToday: { executed: 10, failed: 2, awaiting: 0 }, chatCancellationsToday: 0, cancellationsToday: 0 } })).toEqual([])
+  })
+
+  it('cancelaciones por chat: ≥3 y más del 30 % de las del día', () => {
+    expect(keys({ aiActions: { ...base.aiActions, chatCancellationsToday: 3, cancellationsToday: 6 } })).toEqual(['ai:chat-cancellations'])
+    expect(detect({ ...base, aiActions: { ...base.aiActions, chatCancellationsToday: 3, cancellationsToday: 6 } })[0].title).toBe('3 de 6 cancelaciones de hoy salieron del chat')
+    // Pocas frente al total del día, o menos de 3, no es señal
+    expect(keys({ aiActions: { ...base.aiActions, chatCancellationsToday: 3, cancellationsToday: 10 } })).toEqual([])
+    expect(keys({ aiActions: { ...base.aiActions, chatCancellationsToday: 2, cancellationsToday: 2 } })).toEqual([])
   })
 
   it('proveedor de IA caído: advertencia si otro responde, crítico si ninguno', () => {

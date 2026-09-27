@@ -19,6 +19,7 @@ import ConfirmModal from '@/components/ConfirmModal'
 import ImageGalleryModal from '@/components/ImageGalleryModal'
 import RatingModal from '@/components/RatingModal'
 import UnifiedBookingCard from '@/components/shared/UnifiedBookingCard'
+import OriginBadge from '@/components/shared/OriginBadge'
 import OfflinePaymentActions from '@/components/payments/OfflinePaymentActions'
 import PartnerHeader from '@/components/partner/PartnerHeader'
 import StatCard from '@/components/shared/StatCard'
@@ -43,6 +44,8 @@ interface Booking {
   totalPrice: number
   createdAt: string
   proposalId?: string
+  origin?: string | null
+  originChannel?: string | null
   service: {
     name: string
     slug: string
@@ -78,6 +81,8 @@ interface ServiceRequest {
   preferredTime?: string
   partnerId?: string | null
   budget?: number
+  origin?: string | null
+  originChannel?: string | null
   service: {
     name: string
     slug: string
@@ -1193,6 +1198,8 @@ function PartnerDashboardContent() {
                           primaryAction={primaryAction}
                           secondaryActions={secondaryActions}
                           metadataInline={`${new Date(booking.scheduledDate).toLocaleDateString('es-ES')} · ${booking.scheduledTime} · ${booking.address}`}
+                          origin={booking.origin}
+                          originChannel={booking.originChannel}
                         />
                         {booking.status === 'COMPLETED' && (
                           <OfflinePaymentActions
@@ -1259,6 +1266,7 @@ function PartnerDashboardContent() {
                               {request.expiresAt && <RequestCountdown expiresAt={request.expiresAt} />}
                             </div>
                             <p className="text-sm text-gray-600 mt-2">{request.service.category.name}</p>
+                            <OriginBadge variant="user" origin={request.origin} originChannel={request.originChannel} className="mt-1" />
                           </div>
                         </div>
 

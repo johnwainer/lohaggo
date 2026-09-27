@@ -5,6 +5,8 @@ import { normalizePhone } from '@/lib/phone'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
+const ORIGIN_SELECT = { origin: true, originChannel: true, originConversationId: true, originAgentId: true } as const
+
 export async function GET(_request: NextRequest, context: RouteContext) {
   const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -62,6 +64,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
           createdAt: true,
           clientCommissionRate: true,
           partnerCommissionRate: true,
+          ...ORIGIN_SELECT,
           service: { select: { id: true, name: true } },
           partner: {
             select: {
@@ -77,6 +80,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
               paidAt: true,
               paymentMethodType: true,
               mercadopagoId: true,
+              ...ORIGIN_SELECT,
             },
           },
           review: {
@@ -86,9 +90,26 @@ export async function GET(_request: NextRequest, context: RouteContext) {
               partnerToClientRating: true,
               partnerToClientComment: true,
               clientReviewedAt: true,
+              ...ORIGIN_SELECT,
+            },
+          },
+          events: {
+            orderBy: { createdAt: 'asc' },
+            select: {
+              id: true,
+              type: true,
+              fromStatus: true,
+              toStatus: true,
+              actorType: true,
+              detail: true,
+              createdAt: true,
+              ...ORIGIN_SELECT,
             },
           },
         },
+      },
+      serviceRequests: {
+        select: { id: true, origin: true },
       },
       payments: {
         orderBy: { createdAt: 'desc' },
@@ -102,6 +123,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
           paidAt: true,
           createdAt: true,
           mercadopagoId: true,
+          ...ORIGIN_SELECT,
           booking: { select: { id: true, service: { select: { name: true } } } },
         },
       },
@@ -198,6 +220,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
               rejectionReason: true,
               reviewedAt: true,
               createdAt: true,
+              ...ORIGIN_SELECT,
             },
           },
           bankAccounts: {
@@ -214,6 +237,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
               isActive: true,
               verifiedAt: true,
               createdAt: true,
+              ...ORIGIN_SELECT,
             },
           },
           bookings: {
@@ -227,6 +251,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
               scheduledTime: true,
               city: true,
               createdAt: true,
+              ...ORIGIN_SELECT,
               service: { select: { id: true, name: true } },
               user: { select: { id: true, name: true, email: true } },
               payment: { select: { id: true, status: true, totalAmount: true, paidAt: true } },
@@ -271,7 +296,21 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
   if (!user) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  return NextResponse.json({ user })
+  // Resolve AI agent names for every origin-aware row shown in the profile (one query for all ids)
+  const agentIds = new Set<string>()
+  const collect = (rows: { originAgentId: string | null }[] | undefined) => rows?.forEach((r) => r.originAgentId && agentIds.add(r.originAgentId))
+  collect(user.bookings)
+  collect(user.bookings.flatMap((b) => b.events))
+  collect(user.payments)
+  collect(user.partnerProfile?.bookings)
+  collect(user.partnerProfile?.documents)
+  collect(user.partnerProfile?.bankAccounts)
+  const agents = agentIds.size
+    ? await prisma.aiAgent.findMany({ where: { id: { in: Array.from(agentIds) } }, select: { id: true, name: true } })
+    : []
+  const agentNames = Object.fromEntries(agents.map((a) => [a.id, a.name]))
+
+  return NextResponse.json({ user, agentNames })
 }
 
 export async function PATCH(request: NextRequest, context: RouteContext) {

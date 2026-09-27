@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { DollarSign, CheckCircle, Clock, XCircle, Search, TrendingUp } from 'lucide-react'
+import OriginBadge from '@/components/shared/OriginBadge'
 
 interface Payment {
   id: string
@@ -13,6 +14,10 @@ interface Payment {
   status: string
   paidAt: string | null
   createdAt: string
+  origin?: string
+  originChannel?: string | null
+  originConversationId?: string | null
+  originAgentName?: string | null
   booking: {
     service: {
       name: string
@@ -295,6 +300,12 @@ export default function PaymentsSection() {
                     <span className="text-gray-400"> · </span>
                     {payment.booking.partner?.user.name || 'Sin asignar'}
                   </div>
+                  <OriginBadge
+                    origin={payment.origin}
+                    originChannel={payment.originChannel}
+                    originConversationId={payment.originConversationId}
+                    agentName={payment.originAgentName}
+                  />
                   <dl className="grid grid-cols-2 gap-x-3 gap-y-2 rounded-lg bg-gray-50 p-3 text-xs">
                     <div>
                       <dt className="text-gray-500">Valor Servicio</dt>
@@ -410,6 +421,13 @@ export default function PaymentsSection() {
                         <div className="text-sm text-gray-500">
                           {formatDate(payment.booking.scheduledDate)}
                         </div>
+                        <OriginBadge
+                          origin={payment.origin}
+                          originChannel={payment.originChannel}
+                          originConversationId={payment.originConversationId}
+                          agentName={payment.originAgentName}
+                          className="mt-1"
+                        />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">

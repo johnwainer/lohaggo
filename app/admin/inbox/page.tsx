@@ -213,6 +213,9 @@ const EVENT_LABEL: Record<string, string> = {
   ai_spam: 'La IA lo marcó como publicidad',
   account_created: 'Cuenta creada',
   account_attempt: 'Intento de crear cuenta',
+  account_linked: 'Conversación vinculada a la cuenta',
+  agent_action: 'El agente hizo',
+  agent_action_review: 'Revisión de una acción del agente',
   copilot_alert: 'Cliente sin respuesta',
   copilot_skip: 'La persona atiende este mensaje',
   assigned: 'Asignada',
@@ -223,6 +226,7 @@ function eventText(e: ConvEvent) {
   const who = e.actorName ? (e.actorType === 'ai' ? `🤖 ${e.actorName}` : e.actorName) : ''
   const base = EVENT_LABEL[e.type] || e.type
   const detail = e.type === 'status' && e.detail && e.detail in STATUS_LABELS ? STATUS_LABELS[e.detail as ConvStatus] : e.detail
+  if (e.type === 'agent_action' && detail) return [who, `${base}: ${detail}`].filter(Boolean).join(' · ')
   return [who, base, detail].filter(Boolean).join(' · ')
 }
 
@@ -364,6 +368,13 @@ export default function InboxPage() {
   }
 
   useEffect(() => { loadConversations() }, [loadConversations])
+
+  // Deep link from an origin badge: /admin/inbox?c=<conversationId> opens that conversation on load
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('c')
+    if (id) loadConversationDetail(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // ── SSE real-time connection (falls back to polling) ─────────────────────
 

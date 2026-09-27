@@ -56,6 +56,42 @@ export function BusinessTab({ d }: { d: Data }) {
 
 // ─── Embudo ─────────────────────────────────────────────────────────────────
 
+const ORIGIN_LABEL: Record<string, { name: string; hint: string }> = {
+  app: { name: 'Aplicación', hint: 'clientes y socios desde la app' },
+  chat: { name: 'Chat', hint: 'agentes de IA en la conversación' },
+  admin: { name: 'Equipo', hint: 'desde el panel admin' },
+}
+
+/** Requests, bookings, completions and GMV split by where they were created (app, chat, admin). */
+function OriginCard({ rows }: { rows: Data[] }) {
+  const total = (k: string) => rows.reduce((a, r) => a + (r[k] || 0), 0)
+  const share = (v: number, k: string) => (total(k) ? pct((v / total(k)) * 100) : '—')
+  if (!total('requests') && !total('booked')) return <Card title="Origen: app vs. chat" subtitle="De dónde nacen solicitudes y reservas"><p className="text-sm text-gray-500">Sin solicitudes ni reservas en este periodo.</p></Card>
+  return (
+    <Card title="Origen: app vs. chat" subtitle="Solicitudes por dónde se crearon; reservas, completadas y cobrado según el origen de la reserva">
+      <div className={TABLE_WRAP}>
+        <table className={tableCls('min-w-[30rem]')}>
+          <thead className="text-left text-xs text-gray-500"><tr><th className="py-1.5">Origen</th><th className="text-right">Solicitudes</th><th className="text-right">Reservas</th><th className="text-right">Completadas</th><th className="text-right">Cobrado</th></tr></thead>
+          <tbody>
+            {rows.map((r: Data) => {
+              const o = ORIGIN_LABEL[r.origin] ?? { name: r.origin, hint: '' }
+              return (
+                <tr key={r.origin} className="border-t border-gray-100">
+                  <td className="py-2"><p className="text-gray-900">{o.name}</p><p className="text-[11px] text-gray-400">{o.hint}</p></td>
+                  <td className="text-right tabular-nums">{num(r.requests)} <span className="text-xs text-gray-400">({share(r.requests, 'requests')})</span></td>
+                  <td className="text-right tabular-nums">{num(r.booked)} <span className="text-xs text-gray-400">({share(r.booked, 'booked')})</span></td>
+                  <td className="text-right tabular-nums">{num(r.completed)}</td>
+                  <td className="text-right tabular-nums">{money(r.gmv)}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  )
+}
+
 export function FunnelTab({ d }: { d: Data }) {
   const first = d.stages[0]?.count || 0
   const STATUS: Record<string, string> = { ACTIVE: 'Activas', ACCEPTED: 'Aceptadas', EXPIRED: 'Vencidas', CANCELLED: 'Canceladas' }
@@ -100,6 +136,7 @@ export function FunnelTab({ d }: { d: Data }) {
           <BarList rows={d.requestStatus.map((s: Data) => ({ name: STATUS[s.status] ?? s.status, value: s.n }))} />
         </Card>
       </div>
+      {Array.isArray(d.byOrigin) && <OriginCard rows={d.byOrigin} />}
     </div>
   )
 }

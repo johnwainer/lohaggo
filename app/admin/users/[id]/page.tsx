@@ -1,16 +1,32 @@
 'use client'
 
-import { useEffect, useState, use } from 'react'
+import { Fragment, useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ArrowLeft, User, Phone, Mail, MapPin, Calendar, Star, Shield,
   CreditCard, FileText, MessageSquare, AlertTriangle, Package,
   Wallet, CheckCircle, XCircle, Clock, ExternalLink, Tag,
   Building2, Camera, Award, Key, Eye, EyeOff, ToggleLeft, ToggleRight,
-  Link2, Copy, Check, X
+  Link2, Copy, Check, X, ChevronDown, ChevronRight, History
 } from 'lucide-react'
+import OriginBadge from '@/components/shared/OriginBadge'
+import { channelLabel } from '@/lib/ops/origin'
 
 // ── Types ────────────────────────────────────────────────────────────────────
+
+interface OriginFields {
+  origin?: string
+  originChannel?: string | null
+  originConversationId?: string | null
+  originAgentId?: string | null
+}
+
+interface BookingEvent extends OriginFields {
+  id: string; type: string; fromStatus: string | null; toStatus: string | null
+  actorType: string; detail: string | null; createdAt: string
+}
+
+type AgentNames = Record<string, string>
 
 interface UserProfile {
   id: string
@@ -39,6 +55,7 @@ interface UserProfile {
   fraudSignals: FraudSignal[]
   magicTokens: MagicToken[]
   partnerProfile: PartnerProfile | null
+  serviceRequests?: { id: string; origin?: string }[]
   _count: { bookings: number; payments: number; serviceRequests: number; conversations: number; supportCases: number }
 }
 
@@ -48,17 +65,18 @@ interface Address {
   isPrimary: boolean; isActive: boolean
 }
 
-interface Booking {
+interface Booking extends OriginFields {
   id: string; status: string; totalPrice: number; scheduledDate: string; scheduledTime: string
   address: string; city: string; notes: string | null; createdAt: string
   clientCommissionRate: number | null; partnerCommissionRate: number | null
   service: { id: string; name: string }
   partner: { id: string; user: { id: string; name: string; email: string } } | null
-  payment: { id: string; status: string; totalAmount: number; paidAt: string | null; paymentMethodType: string | null; mercadopagoId: string | null } | null
-  review: { clientToPartnerRating: number | null; clientToPartnerComment: string | null; partnerToClientRating: number | null; partnerToClientComment: string | null; clientReviewedAt: string | null } | null
+  payment: ({ id: string; status: string; totalAmount: number; paidAt: string | null; paymentMethodType: string | null; mercadopagoId: string | null } & OriginFields) | null
+  review: ({ clientToPartnerRating: number | null; clientToPartnerComment: string | null; partnerToClientRating: number | null; partnerToClientComment: string | null; clientReviewedAt: string | null } & OriginFields) | null
+  events?: BookingEvent[]
 }
 
-interface Payment {
+interface Payment extends OriginFields {
   id: string; amount: number; totalAmount: number; status: string; paymentMethodType: string | null
   paidAt: string | null; createdAt: string; mercadopagoId: string | null
   booking: { id: string; service: { name: string } } | null
@@ -112,18 +130,18 @@ interface PartnerService {
   documents: { id: string; type: string; status: string; rejectionReason: string | null; createdAt: string }[]
 }
 
-interface PartnerDocument {
+interface PartnerDocument extends OriginFields {
   id: string; type: string; documentUrl: string; status: string; rejectionReason: string | null
   reviewedAt: string | null; createdAt: string
 }
 
-interface BankAccount {
+interface BankAccount extends OriginFields {
   id: string; bankName: string; accountType: string; accountNumber: string; accountHolderName: string
   holderDocumentType: string; holderDocumentNumber: string; isDefault: boolean; isActive: boolean
   verifiedAt: string | null; createdAt: string
 }
 
-interface PartnerBooking {
+interface PartnerBooking extends OriginFields {
   id: string; status: string; totalPrice: number; scheduledDate: string; scheduledTime: string
   city: string; createdAt: string
   service: { id: string; name: string }
@@ -252,6 +270,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ id: stri
   const { id } = use(params)
   const router = useRouter()
   const [user, setUser] = useState<UserProfile | null>(null)
+  const [agentNames, setAgentNames] = useState<AgentNames>({})
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('resumen')
   const [togglingActive, setTogglingActive] = useState(false)
@@ -260,7 +279,7 @@ export default function UserProfilePage({ params }: { params: Promise<{ id: stri
   useEffect(() => {
     fetch(`/api/admin/users/${id}`)
       .then(r => r.json())
-      .then(d => setUser(d.user))
+      .then(d => { setUser(d.user); setAgentNames(d.agentNames ?? {}) })
       .finally(() => setLoading(false))
   }, [id])
 
@@ -304,6 +323,9 @@ export default function UserProfilePage({ params }: { params: Promise<{ id: stri
   const isPartner = !!user.partnerProfile
   const initials = (user.name || 'U').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
   const visibleTabs = TABS.filter(t => !t.partnerOnly || isPartner)
+  const chatBookings = user.bookings.filter(b => b.origin === 'chat').length
+    + (user.partnerProfile?.bookings.filter(b => b.origin === 'chat').length ?? 0)
+  const chatRequests = (user.serviceRequests ?? []).filter(r => r.origin === 'chat').length
 
   return (
     <div className="space-y-6 pb-16">
@@ -387,6 +409,14 @@ export default function UserProfilePage({ params }: { params: Promise<{ id: stri
           <Stat label="Pagos" value={user._count.payments} />
           <Stat label="Conversaciones" value={user._count.conversations} />
           <Stat label="Casos soporte" value={user._count.supportCases} />
+          {chatBookings + chatRequests > 0 && (
+            <div className="col-span-2 sm:col-span-4 inline-flex items-center gap-1.5 text-xs text-violet-700">
+              <MessageSquare size={13} className="shrink-0" />
+              <span className="break-words">
+                Por chat: {chatBookings} {chatBookings === 1 ? 'reserva' : 'reservas'}, {chatRequests} {chatRequests === 1 ? 'solicitud' : 'solicitudes'}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -409,12 +439,12 @@ export default function UserProfilePage({ params }: { params: Promise<{ id: stri
 
       {/* Tab content */}
       {tab === 'resumen' && <TabResumen user={user} allTags={Array.from(new Set(user.conversations.flatMap(c => c.tags)))} />}
-      {tab === 'reservas' && <TabReservas bookings={user.bookings} isPartner={isPartner} partnerBookings={user.partnerProfile?.bookings} />}
+      {tab === 'reservas' && <TabReservas bookings={user.bookings} isPartner={isPartner} partnerBookings={user.partnerProfile?.bookings} agentNames={agentNames} />}
       {tab === 'conversaciones' && <TabConversaciones conversations={user.conversations} />}
-      {tab === 'pagos' && <TabPagos payments={user.payments} />}
+      {tab === 'pagos' && <TabPagos payments={user.payments} agentNames={agentNames} />}
       {tab === 'soporte' && <TabSoporte cases={user.supportCases} />}
       {tab === 'actividad' && <TabActividad fraudSignals={user.fraudSignals} magicTokens={user.magicTokens} optOuts={user.messagingOptOuts} />}
-      {tab === 'socio' && isPartner && <TabSocio profile={user.partnerProfile!} />}
+      {tab === 'socio' && isPartner && <TabSocio profile={user.partnerProfile!} agentNames={agentNames} />}
 
       {showMagicModal && (
         <MagicLinkModal
@@ -700,18 +730,76 @@ function NotifBadge({ enabled }: { enabled: boolean }) {
 
 // ── Tab: Reservas ─────────────────────────────────────────────────────────────
 
-function TabReservas({ bookings, isPartner, partnerBookings }: { bookings: Booking[]; isPartner: boolean; partnerBookings?: PartnerBooking[] }) {
+function TabReservas({ bookings, isPartner, partnerBookings, agentNames }: { bookings: Booking[]; isPartner: boolean; partnerBookings?: PartnerBooking[]; agentNames: AgentNames }) {
   return (
     <div className="space-y-5">
-      <BookingTable title={`Reservas como cliente (${bookings.length})`} bookings={bookings} mode="client" />
+      <BookingTable title={`Reservas como cliente (${bookings.length})`} bookings={bookings} mode="client" agentNames={agentNames} />
       {isPartner && partnerBookings && (
-        <BookingTable title={`Reservas como socio (${partnerBookings.length})`} bookings={partnerBookings} mode="partner" />
+        <BookingTable title={`Reservas como socio (${partnerBookings.length})`} bookings={partnerBookings} mode="partner" agentNames={agentNames} />
       )}
     </div>
   )
 }
 
-function BookingTable({ title, bookings, mode }: { title: string; bookings: any[]; mode: 'client' | 'partner' }) {
+const EVENT_TYPE_LABEL: Record<string, string> = { status: 'Estado', reschedule: 'Reprogramación', payment: 'Pago' }
+
+function actorLabel(actorType: string, agentName?: string | null) {
+  switch (actorType) {
+    case 'client': return 'Cliente'
+    case 'partner': return 'Socio'
+    case 'admin': return 'Admin'
+    case 'ai': return agentName ? `Agente IA ${agentName}` : 'Agente IA'
+    case 'system': return 'Sistema'
+    default: return actorType
+  }
+}
+
+function eventOriginLabel(e: BookingEvent) {
+  if (e.origin === 'chat') return `por chat (${channelLabel(e.originChannel)})`
+  if (e.origin === 'admin') return 'desde el admin'
+  return 'desde la app'
+}
+
+function BookingHistory({ events, agentNames }: { events: BookingEvent[]; agentNames: AgentNames }) {
+  if (events.length === 0) return <p className="text-xs text-gray-400">Sin historial registrado.</p>
+  return (
+    <ol className="space-y-2">
+      {events.map((e) => {
+        const from = e.fromStatus ? (BOOKING_STATUS[e.fromStatus]?.label ?? e.fromStatus) : null
+        const to = e.toStatus ? (BOOKING_STATUS[e.toStatus]?.label ?? e.toStatus) : null
+        const agentName = e.originAgentId ? agentNames[e.originAgentId] : null
+        return (
+          <li key={e.id} className="flex flex-col gap-0.5 text-xs sm:flex-row sm:items-start sm:gap-3">
+            <span className="shrink-0 text-gray-400 sm:w-36">{fmtDateTime(e.createdAt)}</span>
+            <div className="min-w-0 flex-1 break-words text-gray-700">
+              <span className="font-medium text-gray-900">{EVENT_TYPE_LABEL[e.type] ?? e.type}</span>
+              {from || to ? <>: {from ?? '—'} → {to ?? '—'}</> : null}
+              {e.detail && <span className="text-gray-600">{from || to ? ' · ' : ': '}{e.detail}</span>}
+              <span className="text-gray-500"> · {actorLabel(e.actorType, agentName)} {eventOriginLabel(e)}</span>
+              {e.origin === 'chat' && e.originConversationId && (
+                <>
+                  {' '}
+                  <a href={`/admin/inbox?c=${encodeURIComponent(e.originConversationId)}`} className="text-violet-700 underline underline-offset-2">
+                    ver conversación
+                  </a>
+                </>
+              )}
+            </div>
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
+function BookingTable({ title, bookings, mode, agentNames }: { title: string; bookings: (Booking | PartnerBooking)[]; mode: 'client' | 'partner'; agentNames: AgentNames }) {
+  const [open, setOpen] = useState<Set<string>>(new Set())
+  const toggle = (id: string) => setOpen(prev => {
+    const next = new Set(prev)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    return next
+  })
   return (
     <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
       <div className="px-5 py-3 border-b border-gray-100 bg-gray-50">
@@ -733,28 +821,62 @@ function BookingTable({ title, bookings, mode }: { title: string; bookings: any[
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {bookings.map((b: any) => {
+              {bookings.map((row) => {
+                const b = row as Booking & PartnerBooking
                 const st = BOOKING_STATUS[b.status] ?? { label: b.status, cls: 'bg-gray-100 text-gray-600' }
+                const events = b.events ?? []
+                const hasHistory = mode === 'client'
+                const isOpen = open.has(b.id)
                 return (
-                  <tr key={b.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-2.5 font-medium text-gray-900">{b.service?.name || '—'}</td>
-                    <td className="px-4 py-2.5 text-gray-600">
-                      {mode === 'client'
-                        ? (b.partner?.user?.name || '—')
-                        : (b.user?.name || '—')}
-                    </td>
-                    <td className="px-4 py-2.5 text-gray-500">{fmt(b.scheduledDate)}<br /><span className="text-xs">{b.scheduledTime}</span></td>
-                    <td className="px-4 py-2.5"><Badge label={st.label} cls={st.cls} /></td>
-                    <td className="px-4 py-2.5 text-right font-medium">{currency(b.totalPrice)}</td>
-                    <td className="px-4 py-2.5">
-                      {b.review?.clientToPartnerRating ? (
-                        <span className="flex items-center gap-1 text-xs">
-                          <Star size={11} className="text-yellow-500 fill-yellow-400" />
-                          {b.review.clientToPartnerRating}/5
-                        </span>
-                      ) : '—'}
-                    </td>
-                  </tr>
+                  <Fragment key={b.id}>
+                    <tr className="hover:bg-gray-50">
+                      <td className="px-4 py-2.5 font-medium text-gray-900">
+                        <div>{b.service?.name || '—'}</div>
+                        <OriginBadge
+                          origin={b.origin}
+                          originChannel={b.originChannel}
+                          originConversationId={b.originConversationId}
+                          agentName={b.originAgentId ? agentNames[b.originAgentId] : null}
+                          className="mt-1"
+                        />
+                        {hasHistory && (
+                          <button
+                            type="button"
+                            onClick={() => toggle(b.id)}
+                            className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-800"
+                            aria-expanded={isOpen}
+                          >
+                            {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                            <History size={12} />
+                            Historial{events.length ? ` (${events.length})` : ''}
+                          </button>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5 text-gray-600">
+                        {mode === 'client'
+                          ? (b.partner?.user?.name || '—')
+                          : (b.user?.name || '—')}
+                      </td>
+                      <td className="px-4 py-2.5 text-gray-500">{fmt(b.scheduledDate)}<br /><span className="text-xs">{b.scheduledTime}</span></td>
+                      <td className="px-4 py-2.5"><Badge label={st.label} cls={st.cls} /></td>
+                      <td className="px-4 py-2.5 text-right font-medium">{currency(b.totalPrice)}</td>
+                      <td className="px-4 py-2.5">
+                        {b.review?.clientToPartnerRating ? (
+                          <span className="flex items-center gap-1 text-xs">
+                            <Star size={11} className="text-yellow-500 fill-yellow-400" />
+                            {b.review.clientToPartnerRating}/5
+                          </span>
+                        ) : '—'}
+                      </td>
+                    </tr>
+                    {hasHistory && isOpen && (
+                      <tr className="bg-gray-50/60">
+                        <td colSpan={6} className="px-4 py-3">
+                          <BookingHistory events={events} agentNames={agentNames} />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 )
               })}
             </tbody>
@@ -873,7 +995,7 @@ function TabConversaciones({ conversations }: { conversations: Conversation[] })
 
 // ── Tab: Pagos ────────────────────────────────────────────────────────────────
 
-function TabPagos({ payments }: { payments: Payment[] }) {
+function TabPagos({ payments, agentNames }: { payments: Payment[]; agentNames: AgentNames }) {
   return (
     <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
       <div className="px-5 py-3 border-b border-gray-100 bg-gray-50">
@@ -899,7 +1021,16 @@ function TabPagos({ payments }: { payments: Payment[] }) {
                 const st = PAYMENT_STATUS[p.status] ?? { label: p.status, cls: 'bg-gray-100 text-gray-600' }
                 return (
                   <tr key={p.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-2.5 text-gray-700">{p.booking?.service?.name || '—'}</td>
+                    <td className="px-4 py-2.5 text-gray-700">
+                      <div>{p.booking?.service?.name || '—'}</div>
+                      <OriginBadge
+                        origin={p.origin}
+                        originChannel={p.originChannel}
+                        originConversationId={p.originConversationId}
+                        agentName={p.originAgentId ? agentNames[p.originAgentId] : null}
+                        className="mt-1"
+                      />
+                    </td>
                     <td className="px-4 py-2.5 text-gray-500 text-xs">{p.paymentMethodType || '—'}</td>
                     <td className="px-4 py-2.5"><Badge label={st.label} cls={st.cls} /></td>
                     <td className="px-4 py-2.5 text-right font-semibold">{currency(p.totalAmount)}</td>
@@ -1040,7 +1171,7 @@ function TabActividad({ fraudSignals, magicTokens, optOuts }: { fraudSignals: Fr
 
 // ── Tab: Socio (partner-only) ─────────────────────────────────────────────────
 
-function TabSocio({ profile }: { profile: PartnerProfile }) {
+function TabSocio({ profile, agentNames }: { profile: PartnerProfile; agentNames: AgentNames }) {
   return (
     <div className="space-y-5">
       {/* Basic partner info */}
@@ -1122,6 +1253,13 @@ function TabSocio({ profile }: { profile: PartnerProfile }) {
                     </div>
                     {d.rejectionReason && <p className="text-xs text-red-500 mt-0.5">{d.rejectionReason}</p>}
                     <p className="text-xs text-gray-400">{fmt(d.createdAt)}{d.reviewedAt ? ` · revisado ${fmt(d.reviewedAt)}` : ''}</p>
+                    <OriginBadge
+                      origin={d.origin}
+                      originChannel={d.originChannel}
+                      originConversationId={d.originConversationId}
+                      agentName={d.originAgentId ? agentNames[d.originAgentId] : null}
+                      className="mt-1"
+                    />
                   </div>
                   <a href={d.documentUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
                     <ExternalLink size={13} />
@@ -1154,6 +1292,13 @@ function TabSocio({ profile }: { profile: PartnerProfile }) {
                 </div>
                 <p className="break-words text-xs text-gray-500 ml-5">{b.accountHolderName} · {b.holderDocumentType} {b.holderDocumentNumber}</p>
                 <p className="text-xs font-mono text-gray-400 ml-5">****{b.accountNumber.slice(-4)}</p>
+                <OriginBadge
+                  origin={b.origin}
+                  originChannel={b.originChannel}
+                  originConversationId={b.originConversationId}
+                  agentName={b.originAgentId ? agentNames[b.originAgentId] : null}
+                  className="ml-5 mt-1"
+                />
               </div>
             ))}
           </div>

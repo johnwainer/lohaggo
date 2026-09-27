@@ -12,13 +12,21 @@ import {
   UserCheck,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
+import OriginBadge from '@/components/shared/OriginBadge'
+
+type OriginFields = {
+  origin?: string
+  originChannel?: string | null
+  originConversationId?: string | null
+  originAgentName?: string | null
+}
 
 type Partner = {
   id: string
   user: { id: string; name: string | null; email: string | null; phone: string | null }
 } | null
 
-type Proposal = {
+type Proposal = OriginFields & {
   id: string
   price: number
   notes: string | null
@@ -38,7 +46,7 @@ type NotifiedPartner = {
   read: boolean
 }
 
-type ServiceRequest = {
+type ServiceRequest = OriginFields & {
   id: string
   status: 'ACTIVE' | 'ACCEPTED' | 'EXPIRED' | 'CANCELLED'
   address: string
@@ -96,6 +104,7 @@ export default function AdminServiceRequestsPage() {
   const [requests, setRequests] = useState<ServiceRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | ServiceRequest['status']>('all')
+  const [originFilter, setOriginFilter] = useState<'all' | 'app' | 'chat'>('all')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
   useEffect(() => {
@@ -117,8 +126,10 @@ export default function AdminServiceRequestsPage() {
   }, [])
 
   const filtered = useMemo(
-    () => (filter === 'all' ? requests : requests.filter((r) => r.status === filter)),
-    [filter, requests]
+    () => requests
+      .filter((r) => filter === 'all' || r.status === filter)
+      .filter((r) => originFilter === 'all' || (originFilter === 'chat' ? r.origin === 'chat' : r.origin !== 'chat')),
+    [filter, originFilter, requests]
   )
 
   const stats = useMemo(() => ({
@@ -180,6 +191,19 @@ export default function AdminServiceRequestsPage() {
             {f.label}
           </button>
         ))}
+        <div className="flex w-full items-center gap-2 sm:w-auto sm:ml-auto">
+          <label htmlFor="requests-origin-filter" className="text-sm text-gray-600 shrink-0">Origen</label>
+          <select
+            id="requests-origin-filter"
+            value={originFilter}
+            onChange={(e) => setOriginFilter(e.target.value as 'all' | 'app' | 'chat')}
+            className="flex-1 sm:flex-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700"
+          >
+            <option value="all">Todos</option>
+            <option value="app">App</option>
+            <option value="chat">Chat</option>
+          </select>
+        </div>
       </div>
 
       <div className="space-y-3">
@@ -235,6 +259,16 @@ export default function AdminServiceRequestsPage() {
                   {isOpen ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                 </div>
               </button>
+              {r.origin === 'chat' && (
+                <div className="px-3 sm:px-5 pb-3 -mt-2 flex">
+                  <OriginBadge
+                    origin={r.origin}
+                    originChannel={r.originChannel}
+                    originConversationId={r.originConversationId}
+                    agentName={r.originAgentName}
+                  />
+                </div>
+              )}
 
               {isOpen && (
                 <div className="border-t border-gray-100 px-3 sm:px-5 py-4 space-y-5 bg-gray-50/50">
@@ -337,7 +371,14 @@ export default function AdminServiceRequestsPage() {
                             {r.proposals.map((p) => (
                               <tr key={p.id} className="border-t border-gray-100">
                                 <td className="py-2 px-3 font-medium text-gray-900">
-                                  {p.partner?.user.name || 'Socio eliminado'}
+                                  <div>{p.partner?.user.name || 'Socio eliminado'}</div>
+                                  <OriginBadge
+                                    origin={p.origin}
+                                    originChannel={p.originChannel}
+                                    originConversationId={p.originConversationId}
+                                    agentName={p.originAgentName}
+                                    className="mt-1"
+                                  />
                                 </td>
                                 <td className="py-2 px-3 text-gray-600">
                                   <div>{p.partner?.user.email}</div>

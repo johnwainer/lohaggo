@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { AlertCircle, CheckCircle2, Link2, Loader2, MessageCircle, Save, Search, ShieldCheck, Unlink, User, X } from 'lucide-react'
 import { ChannelIcon, CHANNEL_META } from '@/components/admin/ChannelIcon'
 import CreateAccountForm, { AccessLinkBox } from '@/components/admin/inbox/CreateAccountForm'
+import AgentActionsCard from '@/components/admin/inbox/AgentActionsCard'
 
 export type ContactDetail = {
   id: string
@@ -227,6 +228,8 @@ export default function ContactPanel({
             </div>
           )}
         </div>
+
+        <AgentActionsCard conversationId={currentConversationId} />
 
         {/* Channels */}
         <div className="space-y-2">

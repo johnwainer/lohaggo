@@ -43,6 +43,18 @@ export async function takeSnapshot(now = new Date()): Promise<Snapshot> {
       prisma.marketingReview.count({ where: { createdAt: { gte: week }, verdict: 'error' } }),
     ]).catch(() => [0, 0, 0, 0]),
   ])
+  // What the inbox agents did today on the platform, and the day's cancellations by origin
+  const [actionRows, chatCancellationsToday, cancellationsToday] = await Promise.all([
+    prisma.aiAgentAction.groupBy({ by: ['agentId', 'status'], where: { createdAt: { gte: today } }, _count: { _all: true } }),
+    prisma.bookingEvent.count({ where: { type: 'status', toStatus: 'CANCELLED', origin: 'chat', createdAt: { gte: today } } }),
+    prisma.bookingEvent.count({ where: { type: 'status', toStatus: 'CANCELLED', createdAt: { gte: today } } }),
+  ]).catch(() => [[] as Array<{ agentId: string; status: string; _count: { _all: number } }>, 0, 0] as const)
+  const AWAITING = ['proposed', 'awaiting_approval', 'confirmed']
+  const actionsOf = (rows: typeof actionRows) => ({
+    executed: sum(rows.filter((r) => r.status === 'executed').map((r) => r._count._all)),
+    failed: sum(rows.filter((r) => r.status === 'failed').map((r) => r._count._all)),
+    awaiting: sum(rows.filter((r) => AWAITING.includes(r.status)).map((r) => r._count._all)),
+  })
   const budgets = await Promise.all(capped.map(async (w) => ({ workspace: w.name, pct: evaluateBudget(await workspaceUsage(w.id), { costCapUsd: w.aiMonthlyCostCapUsd, callCap: w.aiMonthlyCallCap }).pct })))
   const [rejected24h, pendingOld, refundsOpen, low7d, total24h, zero24h, sent24h, failed24h, events24h, high24h, blockedIps, runErrors24h, pendingVerification] = extra
   const s = o.series
@@ -66,7 +78,9 @@ export async function takeSnapshot(now = new Date()): Promise<Snapshot> {
       id: a.id, name: a.name, messagesToday: a.messagesToday,
       handoffsToday: handoffs.find((h) => h.aiAgentId === a.id)?._count._all ?? 0,
       openGaps: gaps.find((g) => g.agentId === a.id)?._count._all ?? 0,
+      actionsToday: actionsOf(actionRows.filter((r) => r.agentId === a.id)),
     })),
+    aiActions: { actionsToday: actionsOf(actionRows), chatCancellationsToday, cancellationsToday },
     aiCost: { today: round(o.ai.costToday), month: round(o.ai.costMonth) },
     aiProviders: { down: sys.aiDown, answering: sys.aiAnswering },
     marketing: {

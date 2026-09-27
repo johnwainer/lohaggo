@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
+import { attachAgentNames } from '@/lib/ops/origin-labels'
 
 
 const logger = createLogger('admin-payments')
@@ -90,7 +91,8 @@ export async function GET(req: NextRequest) {
         createdAt: 'desc',
       },
     })
-    const enriched = payments.map((payment) => {
+    const withAgents = await attachAgentNames(payments)
+    const enriched = withAgents.map((payment) => {
       const processedRefundAmount = payment.refundCases
         .filter((r) => r.status === 'PROCESSED')
         .reduce((sum, r) => sum + (r.approvedAmount ?? r.requestedAmount), 0)

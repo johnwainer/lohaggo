@@ -18,6 +18,7 @@ import ConfirmModal from '@/components/ConfirmModal'
 import ImageGalleryModal from '@/components/ImageGalleryModal'
 import RatingModal from '@/components/RatingModal'
 import UnifiedBookingCard from '@/components/shared/UnifiedBookingCard'
+import OriginBadge from '@/components/shared/OriginBadge'
 import OfflinePaymentActions from '@/components/payments/OfflinePaymentActions'
 import ServiceIcon from '@/components/ServiceIcon'
 import ClientDashboardNav from '@/components/ClientDashboardNav'
@@ -39,6 +40,8 @@ interface Booking {
   totalPrice: number
   createdAt: string
   proposalId?: string
+  origin?: string | null
+  originChannel?: string | null
   service: {
     name: string
     slug: string
@@ -76,6 +79,8 @@ interface ServiceRequest {
   preferredDate?: string
   preferredTime?: string
   budget?: number
+  origin?: string | null
+  originChannel?: string | null
   service: {
     name: string
     slug: string
@@ -94,6 +99,8 @@ interface ServiceRequest {
     price: number
     notes?: string
     status: string
+    origin?: string | null
+    originChannel?: string | null
     partner: {
       verified: boolean
       user: {
@@ -1520,6 +1527,8 @@ export default function DashboardPage() {
                           primaryAction={primaryAction}
                           secondaryActions={secondaryActions}
                           metadataInline={`${new Date(booking.scheduledDate).toLocaleDateString('es-ES')} · ${booking.scheduledTime} · ${booking.address}`}
+                          origin={booking.origin}
+                          originChannel={booking.originChannel}
                         />
                         {booking.status === 'COMPLETED' && (
                           <OfflinePaymentActions
@@ -1829,6 +1838,7 @@ export default function DashboardPage() {
                           <div className="min-w-0 flex-1">
                             <p className="font-semibold text-gray-900 text-sm sm:text-base truncate">{request.service.name}</p>
                             <p className="text-xs sm:text-sm text-gray-500">{request.service.category.name}</p>
+                            <OriginBadge variant="user" origin={request.origin} originChannel={request.originChannel} className="mt-0.5" />
                           </div>
                           <div className="text-right shrink-0">
                             <p className="text-[11px] text-gray-500">Propuestas</p>
@@ -1942,6 +1952,7 @@ export default function DashboardPage() {
                                       <div className="flex items-center gap-2">
                                         {getVerificationBadges(proposal.partner.documents)}
                                       </div>
+                                      <OriginBadge variant="user" origin={proposal.origin} originChannel={proposal.originChannel} className="mt-0.5" />
                                     </div>
                                     <p className="text-lg font-bold text-primary-600 shrink-0">{formatCurrency(totalAmount)}</p>
                                   </div>

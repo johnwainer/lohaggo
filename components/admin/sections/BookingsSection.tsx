@@ -3,7 +3,10 @@
 import { useEffect, useState } from 'react'
 import { Calendar, User, MapPin, DollarSign, Clock } from 'lucide-react'
 import DataTable from '@/components/admin/DataTable'
+import OriginBadge from '@/components/shared/OriginBadge'
 import { formatCurrency } from '@/lib/utils'
+import { BOOKING_STATUS_LABEL, BOOKING_TRANSITIONS } from '@/lib/bookings/transitions'
+import type { BookingStatus } from '@prisma/client'
 
 interface Booking {
   id: string
@@ -15,6 +18,9 @@ interface Booking {
   city: string
   notes: string | null
   createdAt: string
+  origin?: string
+  originChannel?: string | null
+  originConversationId?: string | null
   service: {
     name: string
     icon: string
@@ -50,6 +56,7 @@ export default function BookingsSection() {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string>('all')
+  const [originFilter, setOriginFilter] = useState<'all' | 'app' | 'chat'>('all')
 
   useEffect(() => {
     fetchBookings()
@@ -79,7 +86,8 @@ export default function BookingsSection() {
         alert('Estado actualizado exitosamente')
         fetchBookings()
       } else {
-        alert('Error al actualizar estado')
+        const body = await res.json().catch(() => ({}))
+        alert(body?.error || 'Error al actualizar estado')
       }
     } catch (error) {
       console.error('Error updating booking:', error)
@@ -87,18 +95,26 @@ export default function BookingsSection() {
     }
   }
 
-  const filteredBookings = filter === 'all'
-    ? bookings
-    : bookings.filter(b => b.status === filter)
+  const filteredBookings = bookings
+    .filter(b => filter === 'all' || b.status === filter)
+    .filter(b => originFilter === 'all' || (originFilter === 'chat' ? b.origin === 'chat' : b.origin !== 'chat'))
 
   const columns = [
     {
       key: 'service',
       label: 'Servicio',
-      render: (value: any) => (
-        <div className="flex items-center gap-2">
-          <span className="text-2xl">{value.icon}</span>
-          <span className="font-medium text-gray-900">{value.name}</span>
+      render: (value: any, row: Booking) => (
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">{value.icon}</span>
+            <span className="font-medium text-gray-900">{value.name}</span>
+          </div>
+          <OriginBadge
+            origin={row.origin}
+            originChannel={row.originChannel}
+            originConversationId={row.originConversationId}
+            className="mt-1"
+          />
         </div>
       )
     },
@@ -176,19 +192,22 @@ export default function BookingsSection() {
     {
       key: 'actions',
       label: 'Acciones',
-      render: (_: any, row: Booking) => (
-        <select
-          onChange={(e) => handleStatusChange(row.id, e.target.value)}
-          value={row.status}
-          className="text-xs border border-gray-300 rounded px-2 py-1"
-        >
-          <option value="PENDING">Pendiente</option>
-          <option value="CONFIRMED">Confirmada</option>
-          <option value="IN_PROGRESS">En Progreso</option>
-          <option value="COMPLETED">Completada</option>
-          <option value="CANCELLED">Cancelada</option>
-        </select>
-      )
+      render: (_: any, row: Booking) => {
+        const next = BOOKING_TRANSITIONS[row.status as BookingStatus] ?? []
+        if (!next.length) return <span className="text-xs text-gray-400">Sin cambios posibles</span>
+        return (
+          <select
+            onChange={(e) => { if (e.target.value !== row.status) handleStatusChange(row.id, e.target.value) }}
+            value={row.status}
+            className="text-xs border border-gray-300 rounded px-2 py-1"
+          >
+            <option value={row.status}>{BOOKING_STATUS_LABEL[row.status as BookingStatus] ?? row.status}</option>
+            {next.filter((t) => t.by.includes('admin')).map((t) => (
+              <option key={t.to} value={t.to}>→ {BOOKING_STATUS_LABEL[t.to]}</option>
+            ))}
+          </select>
+        )
+      }
     }
   ]
 
@@ -311,6 +330,19 @@ export default function BookingsSection() {
         >
           Canceladas
         </button>
+        <div className="flex w-full items-center gap-2 sm:w-auto sm:ml-auto">
+          <label htmlFor="bookings-origin-filter" className="text-sm text-gray-600 shrink-0">Origen</label>
+          <select
+            id="bookings-origin-filter"
+            value={originFilter}
+            onChange={(e) => setOriginFilter(e.target.value as 'all' | 'app' | 'chat')}
+            className="flex-1 sm:flex-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700"
+          >
+            <option value="all">Todos</option>
+            <option value="app">App</option>
+            <option value="chat">Chat</option>
+          </select>
+        </div>
       </div>
 
       <DataTable

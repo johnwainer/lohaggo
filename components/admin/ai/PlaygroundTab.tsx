@@ -156,7 +156,9 @@ export default function PlaygroundTab({ agentId, canTest, dirty }: { agentId: st
                 <div key={i} className="rounded-lg bg-gray-50 p-2 mb-1.5 text-xs">
                   <p className="font-mono font-medium break-all">{t.name}{t.dryRun ? ' · en seco' : ''}{t.isError ? ' · error' : ''}</p>
                   <p className="text-gray-500 break-all">{JSON.stringify(t.input)}</p>
-                  <p className="text-gray-700 mt-1 whitespace-pre-wrap break-words">{t.output.slice(0, 400)}</p>
+                  {t.output.startsWith('Simulado en pruebas:')
+                    ? <p className="text-gray-500 mt-1 break-words">{t.output}</p>
+                    : <p className="text-gray-700 mt-1 whitespace-pre-wrap break-words">{t.output.slice(0, 400)}</p>}
                 </div>
               ))}
             </div>

@@ -8,6 +8,7 @@ import { ChannelIcon } from '@/components/admin/ChannelIcon'
 import { AgentFace, CHANNEL_LABEL, usd, type Avatar } from '@/components/admin/ai/shared'
 import KnowledgeTab from '@/components/admin/ai/KnowledgeTab'
 import PlaygroundTab from '@/components/admin/ai/PlaygroundTab'
+import { TOOL_GROUPS, type ToolGroup } from '@/lib/ai/actions-core'
 
 type Agent = Record<string, unknown> & {
   id: string
@@ -41,7 +42,7 @@ type Catalog = {
   commentChannels: string[]
   avatars: Avatar[]
   languages: string[]
-  tools: Array<{ name: string; label: string; description: string; writes: boolean }>
+  tools: Array<{ name: string; label: string; description: string; writes: boolean; group: ToolGroup; groupLabel: string; confirm: boolean; platform: boolean; dailyLimit: number | null }>
   crmModules: Array<{ key: string; label: string }>
 }
 
@@ -526,29 +527,63 @@ export default function AiAgentDetailPage({ params }: { params: Promise<{ id: st
         {tab === 'tools' && (
           <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 space-y-5">
             <p className="text-xs text-gray-500">El agente solo puede usar las que marques. En «Probar», las que escriben corren en seco.</p>
-            <div className="space-y-3">
-              {catalog.tools.map((t) => (
-                <label key={t.name} className="flex items-start gap-3 rounded-xl border border-gray-200 p-3 cursor-pointer">
-                  <input type="checkbox" className="mt-1" checked={v.tools.includes(t.name)} onChange={() => toggleIn('tools', t.name)} />
-                  <span className="flex-1 min-w-0">
-                    <span className="text-sm font-medium text-gray-900">{t.label}</span> <span className="font-mono text-[11px] text-gray-400 break-all">{t.name}</span>
-                    <span className="block text-xs text-gray-500">{t.description}{t.writes ? '' : ' (solo lectura)'}</span>
-                    {t.name === 'consultar_crm' && v.tools.includes(t.name) && (
-                      <span className="flex gap-3 flex-wrap mt-2">
-                        {catalog.crmModules.map((m) => (
-                          <span key={m.key} className="inline-flex items-center gap-1.5 text-xs text-gray-700">
-                            <input type="checkbox" checked={v.crmModules.includes(m.key)} onChange={() => toggleIn('crmModules', m.key)} /> {m.label}
+            {(Object.keys(TOOL_GROUPS) as ToolGroup[]).map((group, gi) => {
+              const tools = catalog.tools.filter((t) => t.group === group)
+              if (!tools.length) return null
+              const allOn = tools.every((t) => v.tools.includes(t.name))
+              const firstPlatform = tools.some((t) => t.platform) && !catalog.tools.slice(0, catalog.tools.findIndex((t) => t.group === group)).some((t) => t.platform)
+              return (
+                <div key={group} className={`space-y-3 ${gi > 0 ? 'pt-5 border-t border-gray-100' : ''}`}>
+                  {firstPlatform && (
+                    <p className="rounded-xl bg-primary-50 border border-primary-100 px-3 py-2 text-xs text-primary-900">
+                      En piloto, el agente ejecuta estas acciones tras el sí de la persona; en copiloto quedan pendientes de tu aprobación en la bandeja. Todo queda registrado en la app con origen «chat».
+                    </p>
+                  )}
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-semibold text-gray-900">{tools[0].groupLabel}</h3>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const names = tools.map((t) => t.name)
+                        set({ tools: allOn ? v.tools.filter((n) => !names.includes(n)) : Array.from(new Set([...v.tools, ...names])) })
+                      }}
+                      className="shrink-0 text-xs text-primary-600 hover:underline"
+                    >
+                      {allOn ? 'Desactivar todo' : 'Activar todo'}
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                    {tools.map((t) => (
+                      <label key={t.name} className="flex items-start gap-3 rounded-xl border border-gray-200 p-3 cursor-pointer min-w-0">
+                        <input type="checkbox" className="mt-1" checked={v.tools.includes(t.name)} onChange={() => toggleIn('tools', t.name)} />
+                        <span className="flex-1 min-w-0">
+                          <span className="text-sm font-medium text-gray-900">{t.label}</span>
+                          <span className="block font-mono text-[11px] text-gray-400 break-all">{t.name}</span>
+                          <span className="block text-xs text-gray-500 truncate" title={t.description}>{t.description}</span>
+                          <span className="flex flex-wrap gap-1 mt-1.5">
+                            {!t.writes && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-600">solo lectura</span>}
+                            {t.confirm && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] text-amber-800">pide confirmación</span>}
+                            {t.dailyLimit !== null && <span className="rounded-full bg-primary-50 px-2 py-0.5 text-[10px] text-primary-800">máx {t.dailyLimit}/día</span>}
                           </span>
-                        ))}
-                      </span>
-                    )}
-                    {t.name === 'avisar_webhook' && v.tools.includes(t.name) && (
-                      <input className={`${input} mt-2`} value={String(v.webhookUrl ?? '')} onChange={(e) => set({ webhookUrl: e.target.value })} placeholder="https://tu-sistema.com/webhook" />
-                    )}
-                  </span>
-                </label>
-              ))}
-            </div>
+                          {t.name === 'consultar_crm' && v.tools.includes(t.name) && (
+                            <span className="flex gap-3 flex-wrap mt-2">
+                              {catalog.crmModules.map((m) => (
+                                <span key={m.key} className="inline-flex items-center gap-1.5 text-xs text-gray-700">
+                                  <input type="checkbox" checked={v.crmModules.includes(m.key)} onChange={() => toggleIn('crmModules', m.key)} /> {m.label}
+                                </span>
+                              ))}
+                            </span>
+                          )}
+                          {t.name === 'avisar_webhook' && v.tools.includes(t.name) && (
+                            <input className={`${input} mt-2`} value={String(v.webhookUrl ?? '')} onChange={(e) => set({ webhookUrl: e.target.value })} placeholder="https://tu-sistema.com/webhook" />
+                          )}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
             <p className="text-xs text-gray-500">Agenda y cobros no aparecen porque esta plataforma no tiene una agenda ni un cobro libre que el agente pueda usar sobre un contacto cualquiera.</p>
           </div>
         )}
