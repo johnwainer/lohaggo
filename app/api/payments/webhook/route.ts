@@ -8,6 +8,9 @@ import crypto from 'crypto';
 import { handleApiError } from '@/lib/errors';
 import { env } from '@/lib/env';
 import { createNotification } from '@/lib/notifications/notificationService';
+import { systemTransition } from '@/lib/bookings/ops';
+import { ensurePayoutForPayment } from '@/lib/payments/ops';
+import { APP_ORIGIN, originColumns } from '@/lib/ops/origin';
 
 const logger = createLogger('payments-webhook');
 
@@ -147,9 +150,8 @@ async function handlePOST(req: NextRequest) {
       });
 
       if (status === 'APPROVED') {
-        const booking = await prisma.booking.update({
+        const booking = await prisma.booking.findUnique({
           where: { id: payment.bookingId },
-          data: { status: 'CONFIRMED' },
           include: {
             user: true,
             partner: {
@@ -158,6 +160,18 @@ async function handlePOST(req: NextRequest) {
               },
             },
           },
+        });
+        if (!booking) {
+          logger.warn('Booking not found for approved payment', { paymentId: payment.id, bookingId: payment.bookingId });
+          return NextResponse.json({ received: true });
+        }
+
+        // A paid booking only moves PENDING → CONFIRMED; one already in progress or completed keeps its state.
+        if (booking.status === 'PENDING') {
+          await systemTransition(booking.id, 'CONFIRMED', 'Pago aprobado por MercadoPago');
+        }
+        await prisma.bookingEvent.create({
+          data: { bookingId: booking.id, type: 'payment', actorType: 'system', ...originColumns(APP_ORIGIN), detail: 'Pago aprobado por MercadoPago' },
         });
 
         await createNotification({
@@ -176,61 +190,8 @@ async function handlePOST(req: NextRequest) {
           });
         }
 
-        let partnerCommissionRate: number;
-
-        if (booking.partnerCommissionRate !== null && booking.partnerCommissionRate !== undefined) {
-          partnerCommissionRate = Number(booking.partnerCommissionRate);
-          logger.debug('Using saved partner commission rate from booking', {
-            bookingId: booking.id,
-            rateSource: 'booking'
-          });
-        } else {
-          const config = await prisma.platformConfig.findFirst();
-          if (!config) {
-            logger.error('Platform configuration not found');
-            return NextResponse.json({ received: true });
-          }
-          partnerCommissionRate = Number(config.partnerCommissionRate);
-          logger.warn('Using current platform partner commission rate', {
-            bookingId: booking.id,
-            rateSource: 'platform'
-          });
-        }
-
-        const serviceAmount = Number(payment.serviceAmount ?? payment.totalAmount ?? 0);
-        const partnerCommission = (serviceAmount * partnerCommissionRate) / 100;
-        const netAmount = serviceAmount - partnerCommission;
-
-        logger.info('Creating payout for partner', {
-          bookingId: booking.id,
-          paymentId: payment.id,
-          partnerCommissionRate,
-        });
-
-        if (booking.partnerId) {
-          const existingPayout = await prisma.payout.findUnique({
-            where: { paymentId: payment.id },
-          })
-
-          if (!existingPayout) {
-            await prisma.payout.create({
-              data: {
-                paymentId: payment.id,
-                partnerId: booking.partnerId,
-                amount: serviceAmount,
-                partnerCommission,
-                partnerCommissionRate,
-                netAmount,
-                status: 'PENDING',
-              },
-            });
-          }
-        } else {
-          logger.warn('Payout not created: booking without partnerId', {
-            bookingId: booking.id,
-            paymentId: payment.id
-          });
-        }
+        logger.info('Creating payout for partner', { bookingId: booking.id, paymentId: payment.id });
+        await ensurePayoutForPayment(payment, booking);
       }
     }
 

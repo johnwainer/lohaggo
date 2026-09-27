@@ -181,6 +181,11 @@ model Booking {
   totalPrice            Float
   clientCommissionRate  Float?
   partnerCommissionRate Float?
+  /// Where it was created: app | chat | admin (chat = an inbox AI agent, with channel, conversation and agent)
+  origin                String             @default("app")
+  originChannel         String?
+  originConversationId  String?
+  originAgentId         String?
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
   partner               PartnerProfile?    @relation(fields: [partnerId], references: [id])
@@ -193,6 +198,32 @@ model Booking {
   fraudSignals          FraudSignal[]
   paymentIncidents      PaymentIncident[]
   refundCases           RefundCase[]
+  events                BookingEvent[]
+
+  @@index([origin, createdAt])
+}
+
+/// History of a booking: status changes, reschedules and payment steps, whoever made them (app, chat or admin).
+model BookingEvent {
+  id                   String   @id @default(cuid())
+  bookingId            String
+  /// status | reschedule | payment
+  type                 String
+  fromStatus           String?
+  toStatus             String?
+  /// client | partner | admin | ai | system
+  actorType            String
+  actorId              String?
+  origin               String   @default("app")
+  originChannel        String?
+  originConversationId String?
+  originAgentId        String?
+  detail               String?
+  createdAt            DateTime @default(now())
+  booking              Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId, createdAt])
+  @@index([origin, createdAt])
 }
 
 model Review {
@@ -204,6 +235,10 @@ model Review {
   partnerToClientRating  Int?
   partnerToClientComment String?
   partnerReviewedAt      DateTime?
+  origin                 String    @default("app")
+  originChannel          String?
+  originConversationId   String?
+  originAgentId          String?
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
   booking                Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
@@ -212,43 +247,53 @@ model Review {
 }
 
 model ServiceRequest {
-  id            String               @id @default(cuid())
-  userId        String
-  serviceId     String
-  partnerId     String?
-  address       String
-  notes         String?
-  budget        Float?
-  city          City                 @default(MEDELLIN)
-  preferredDate DateTime?
-  preferredTime String?
-  isUrgent      Boolean              @default(false)
-  status        ServiceRequestStatus @default(ACTIVE)
-  expiresAt     DateTime
-  createdAt     DateTime             @default(now())
-  updatedAt     DateTime             @updatedAt
-  proposals     Proposal[]
-  photos        RequestPhoto[]
-  service       Service              @relation(fields: [serviceId], references: [id])
-  user          User                 @relation(fields: [userId], references: [id])
-  partner       PartnerProfile?      @relation("DirectRequests", fields: [partnerId], references: [id])
-  chats         Chat[]
-  supportCases  AdminSupportCase[]
+  id                   String               @id @default(cuid())
+  userId               String
+  serviceId            String
+  partnerId            String?
+  address              String
+  notes                String?
+  budget               Float?
+  city                 City                 @default(MEDELLIN)
+  preferredDate        DateTime?
+  preferredTime        String?
+  isUrgent             Boolean              @default(false)
+  status               ServiceRequestStatus @default(ACTIVE)
+  expiresAt            DateTime
+  origin               String               @default("app")
+  originChannel        String?
+  originConversationId String?
+  originAgentId        String?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  proposals            Proposal[]
+  photos               RequestPhoto[]
+  service              Service              @relation(fields: [serviceId], references: [id])
+  user                 User                 @relation(fields: [userId], references: [id])
+  partner              PartnerProfile?      @relation("DirectRequests", fields: [partnerId], references: [id])
+  chats                Chat[]
+  supportCases         AdminSupportCase[]
+
+  @@index([origin, createdAt])
 }
 
 model Proposal {
-  id               String         @id @default(cuid())
-  serviceRequestId String
-  partnerId        String
-  price            Float
-  notes            String?
-  status           ProposalStatus @default(PENDING)
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-  bookings         Booking[]
-  partner          PartnerProfile @relation(fields: [partnerId], references: [id])
-  serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
-  chat             Chat?
+  id                   String         @id @default(cuid())
+  serviceRequestId     String
+  partnerId            String
+  price                Float
+  notes                String?
+  status               ProposalStatus @default(PENDING)
+  origin               String         @default("app")
+  originChannel        String?
+  originConversationId String?
+  originAgentId        String?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  bookings             Booking[]
+  partner              PartnerProfile @relation(fields: [partnerId], references: [id])
+  serviceRequest       ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+  chat                 Chat?
 
   @@unique([serviceRequestId, partnerId])
 }
@@ -572,20 +617,24 @@ model RequestPhoto {
 }
 
 model VerificationDocument {
-  id               String          @id @default(cuid())
-  partnerId        String
-  type             DocumentType
-  documentUrl      String
-  publicId         String?
-  status           DocumentStatus  @default(PENDING)
-  rejectionReason  String?
-  reviewedBy       String?
-  reviewedAt       DateTime?
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  partnerServiceId String?
-  partner          PartnerProfile  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
-  partnerService   PartnerService? @relation(fields: [partnerServiceId], references: [id], onDelete: SetNull)
+  id                   String          @id @default(cuid())
+  partnerId            String
+  type                 DocumentType
+  documentUrl          String
+  publicId             String?
+  status               DocumentStatus  @default(PENDING)
+  rejectionReason      String?
+  reviewedBy           String?
+  reviewedAt           DateTime?
+  origin               String          @default("app")
+  originChannel        String?
+  originConversationId String?
+  originAgentId        String?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+  partnerServiceId     String?
+  partner              PartnerProfile  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  partnerService       PartnerService? @relation(fields: [partnerServiceId], references: [id], onDelete: SetNull)
 
   @@index([partnerId, status])
   @@index([status])
@@ -678,6 +727,10 @@ model Payment {
   rejectionReason        String?
   lastReminderAt         DateTime?
   reminderCount          Int                       @default(0)
+  origin                 String                    @default("app")
+  originChannel          String?
+  originConversationId   String?
+  originAgentId          String?
   createdAt              DateTime                  @default(now())
   updatedAt              DateTime                  @updatedAt
   booking                Booking                   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
@@ -1027,6 +1080,10 @@ model PartnerBankAccount {
   isActive               Boolean        @default(true)
   verifiedAt             DateTime?
   mercadoPagoRecipientId String?
+  origin                 String         @default("app")
+  originChannel          String?
+  originConversationId   String?
+  originAgentId          String?
   createdAt              DateTime       @default(now())
   updatedAt              DateTime       @updatedAt
   partner                PartnerProfile @relation(fields: [partnerId], references: [id], onDelete: Cascade)
@@ -1561,6 +1618,8 @@ model Conversation {
   events                  ConversationEvent[]
   suggestions             AiSuggestion[]
   tasks                   ConversationTask[]
+  agentActions            AiAgentAction[]
+  linkCodes               ContactLinkCode[]
   user                    User?                 @relation(fields: [userId], references: [id])
   assignedTo              User?                 @relation("AgentConversations", fields: [assignedToId], references: [id])
   workspace               Workspace             @relation(fields: [workspaceId], references: [id])
@@ -1960,6 +2019,52 @@ model ConversationTask {
 
   @@index([conversationId])
   @@index([workspaceId, doneAt])
+}
+
+/// What an inbox AI agent tried to do on the platform from a chat (create a request, accept a proposal…)
+/// and how it ended. The entity itself carries origin = chat; this row also keeps failures and rejections.
+model AiAgentAction {
+  id             String       @id @default(cuid())
+  workspaceId    String
+  conversationId String
+  agentId        String
+  agentName      String?
+  tool           String
+  entityType     String?
+  entityId       String?
+  input          Json
+  /// One line a person understands («Aceptar la propuesta de Darwin por $130.000 para el 3 oct 10:00»)
+  summary        String
+  result         String?
+  /// proposed | confirmed | executed | failed | rejected | expired
+  status         String       @default("proposed")
+  /// Admin who approved or rejected it from the inbox (copilot)
+  resolvedById   String?
+  createdAt      DateTime     @default(now())
+  resolvedAt     DateTime?
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([workspaceId, status, createdAt])
+  @@index([agentId, createdAt])
+}
+
+/// One-time code sent to a platform user's verified phone or email to link them to a chat contact.
+model ContactLinkCode {
+  id             String       @id @default(cuid())
+  contactId      String
+  conversationId String
+  userId         String
+  codeHash       String
+  /// Where it went (masked), e.g. "+57•••••1234" or "j•••@gmail.com"
+  sentTo         String
+  expiresAt      DateTime
+  attempts       Int          @default(0)
+  usedAt         DateTime?
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
 }
 
 model AiKnowledgeDoc {

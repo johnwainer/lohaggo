@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server"
+import { z } from 'zod'
 import { prisma } from "@/lib/prisma"
-import { getCurrentUser } from "@/lib/auth"
 import { createNotification } from "@/lib/notifications/notificationService"
 import { createLogger } from '@/lib/logger'
 import { validateRequest } from '@/lib/validation'
 import { bookingCreateSchema } from '@/lib/validation/booking-schemas'
+import { currentActor, opsErrorResponse } from '@/lib/ops/actor'
+import { APP_ORIGIN, originColumns, OpsError } from '@/lib/ops/origin'
+import { BOOKING_INCLUDE, addBookingEvent, bookingsFor } from '@/lib/bookings/ops'
+import { BookingStatus, City } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,182 +17,77 @@ const logger = createLogger('bookings')
 
 export async function GET(request: Request) {
   try {
-    const user = await getCurrentUser()
+    const actor = await currentActor()
+    if (!actor) return NextResponse.json({ error: "No autorizado" }, { status: 401 })
 
-    if (!user) {
-      return NextResponse.json(
-        { error: "No autorizado" },
-        { status: 401 }
-      )
-    }
+    const status = new URL(request.url).searchParams.get("status")
+    const statuses = status && (Object.values(BookingStatus) as string[]).includes(status) ? [status as BookingStatus] : undefined
 
-    const { searchParams } = new URL(request.url)
-    const status = searchParams.get("status")
-
-    const where: any = {}
-
-    if (user.role === "CLIENT") {
-      where.userId = user.id
-    } else if (user.role === "PARTNER") {
-      const partnerProfile = await prisma.partnerProfile.findUnique({
-        where: { userId: user.id }
-      })
-
-      if (partnerProfile) {
-        where.partnerId = partnerProfile.id
-      } else {
-        return NextResponse.json([])
-      }
-    }
-
-    if (status) {
-      where.status = status
-    }
-
-    const bookings = await prisma.booking.findMany({
-      where,
-      include: {
-        service: {
-          include: {
-            category: true
-          }
-        },
-        user: {
-          select: {
-            name: true,
-            email: true,
-            phone: true,
-          }
-        },
-        partner: {
-          include: {
-            user: {
-              select: {
-                name: true,
-                email: true
-              }
-            },
-            bankAccounts: {
-              where: { isDefault: true },
-              select: {
-                bankName: true,
-                accountType: true,
-                accountNumber: true,
-                accountHolderName: true,
-                holderDocumentNumber: true,
-                isDefault: true,
-              },
-              take: 1,
-            }
-          }
-        },
-        review: {
-          select: {
-            id: true,
-            clientToPartnerRating: true,
-            partnerToClientRating: true
-          }
-        },
-        payment: {
-          select: {
-            id: true,
-            status: true,
-            totalAmount: true,
-            confirmationStatus: true,
-            clientReportedMethod: true,
-            clientReportedAt: true,
-            partnerConfirmedMethod: true,
-            partnerConfirmedAt: true,
-            partnerRejectedAt: true,
-            rejectionReason: true
-          }
-        }
-      },
-      orderBy: {
-        createdAt: "desc"
-      }
-    })
-
+    const bookings = await bookingsFor(actor, { status: statuses })
     return NextResponse.json(bookings)
   } catch (error) {
     logger.error('Error fetching bookings:', error)
-    return NextResponse.json(
-      { error: "Error al obtener reservas" },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: "Error al obtener reservas" }, { status: 500 })
   }
 }
 
+const citySchema = z.object({ city: z.nativeEnum(City).optional() })
+
 export async function POST(request: Request) {
   try {
-    const user = await getCurrentUser()
-
-    if (!user) {
-      return NextResponse.json(
-        { error: "Debe iniciar sesión para reservar" },
-        { status: 401 }
-      )
-    }
+    const actor = await currentActor()
+    if (!actor) return NextResponse.json({ error: "Debe iniciar sesión para reservar" }, { status: 401 })
 
     const body = await request.json()
 
     const validation = await validateRequest(bookingCreateSchema, body)
-    if (!validation.success) {
-      return validation.error
+    if (!validation.success) return validation.error
+    const { serviceId, scheduledDate, scheduledTime, address, notes, totalPrice, partnerId, proposalId } = validation.data
+    const bodyCity = citySchema.safeParse(body).data?.city
+
+    const [service, config] = await Promise.all([
+      prisma.service.findUnique({ where: { id: serviceId }, select: { id: true, basePrice: true } }),
+      prisma.platformConfig.findFirst({ select: { clientCommissionRate: true, partnerCommissionRate: true } }),
+    ])
+    if (!service) return NextResponse.json({ error: "Servicio no encontrado" }, { status: 404 })
+    if (totalPrice < service.basePrice) {
+      return NextResponse.json({ error: `El precio no puede ser menor al precio base del servicio ($${service.basePrice.toLocaleString('es-CO')})` }, { status: 400 })
     }
 
-    const { serviceId, scheduledDate, scheduledTime, address, notes, totalPrice, partnerId, proposalId } = validation.data
-
-    // Si se especifica un partnerId, verificar que tenga documentos aprobados
+    let partnerCity: City | null = null
     if (partnerId) {
       const partner = await prisma.partnerProfile.findUnique({
         where: { id: partnerId },
-        select: { id: true, verified: true, isActive: true },
+        select: { id: true, verified: true, isActive: true, city: true },
       })
-
-      if (!partner) {
-        return NextResponse.json(
-          { error: "Socio no encontrado" },
-          { status: 404 }
-        )
-      }
-
+      if (!partner) return NextResponse.json({ error: "Socio no encontrado" }, { status: 404 })
       if (!partner.verified || !partner.isActive) {
-        return NextResponse.json(
-          { error: "Este socio no tiene la verificación completa para prestar servicios" },
-          { status: 403 }
-        )
+        return NextResponse.json({ error: "Este socio no tiene la verificación completa para prestar servicios" }, { status: 403 })
       }
+      partnerCity = partner.city
     }
 
     const booking = await prisma.booking.create({
       data: {
-        userId: user.id,
+        userId: actor.userId,
         serviceId,
         partnerId: partnerId || null,
+        proposalId: proposalId || null,
         scheduledDate: new Date(scheduledDate),
         scheduledTime,
         address,
         notes,
         totalPrice,
-        status: "PENDING"
+        ...(bodyCity ?? partnerCity ? { city: (bodyCity ?? partnerCity) as City } : {}),
+        clientCommissionRate: config?.clientCommissionRate ?? null,
+        partnerCommissionRate: config?.partnerCommissionRate ?? null,
+        status: "PENDING",
+        ...originColumns(APP_ORIGIN),
       },
-      include: {
-        service: true,
-        user: {
-          select: {
-            name: true,
-            email: true,
-            phone: true,
-          }
-        },
-        partner: {
-          include: {
-            user: true
-          }
-        }
-      }
+      include: BOOKING_INCLUDE,
     })
+
+    await addBookingEvent({ bookingId: booking.id, type: 'status', actor, origin: APP_ORIGIN, toStatus: 'PENDING', detail: 'Reserva creada' })
 
     if (booking.partner) {
       await createNotification({
@@ -196,19 +95,14 @@ export async function POST(request: Request) {
         type: "BOOKING_CONFIRMED",
         title: "Nueva reserva pendiente",
         message: `${booking.user.name} ha solicitado el servicio de ${booking.service.name}`,
-        data: {
-          bookingId: booking.id,
-          serviceId: booking.serviceId
-        }
+        data: { bookingId: booking.id, serviceId: booking.serviceId },
       })
     }
 
     return NextResponse.json(booking, { status: 201 })
   } catch (error) {
+    if (error instanceof OpsError) return opsErrorResponse(error)
     logger.error('Error creating booking:', error)
-    return NextResponse.json(
-      { error: "Error al crear reserva" },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: "Error al crear reserva" }, { status: 500 })
   }
 }

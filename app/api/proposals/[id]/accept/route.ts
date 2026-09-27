@@ -1,161 +1,44 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
-import { notifyProposalAccepted, notifyProposalRejected } from '@/lib/notifications/notificationService'
-import { scheduleAutomationsForUser } from '@/lib/messaging/automation-service'
+import { NextResponse } from 'next/server'
+import { z } from 'zod'
 import { createLogger } from '@/lib/logger'
+import { APP_ORIGIN } from '@/lib/ops/origin'
+import { currentActor, opsErrorResponse } from '@/lib/ops/actor'
+import { acceptProposal } from '@/lib/proposals/ops'
 
 export const dynamic = 'force-dynamic'
 
-
 const logger = createLogger('proposals-id-accept')
 
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+const bodySchema = z.object({
+  scheduledDate: z.string().datetime({ offset: true }).or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).optional(),
+  scheduledTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Hora inválida (HH:mm)').optional(),
+})
+
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const session = await getServerSession(authOptions)
+    const actor = await currentActor()
+    if (!actor) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     const { id } = await params
 
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    const raw = await request.text()
+    const parsed = bodySchema.safeParse(raw ? JSON.parse(raw) : {})
+    if (!parsed.success) return NextResponse.json({ error: parsed.error.errors[0]?.message || 'Datos inválidos' }, { status: 400 })
+    const opts = {
+      scheduledDate: parsed.data.scheduledDate ? new Date(parsed.data.scheduledDate) : undefined,
+      scheduledTime: parsed.data.scheduledTime,
     }
 
-    const proposalId = id
-
-    const proposal = await prisma.proposal.findUnique({
-      where: { id },
-      include: {
-        serviceRequest: {
-          include: {
-            user: true,
-            service: true
-          }
-        },
-        partner: {
-          include: {
-            user: true
-          }
-        }
-      }
-    })
-
-    if (!proposal) {
-      return NextResponse.json({ error: 'Propuesta no encontrada' }, { status: 404 })
+    try {
+      const booking = await acceptProposal(actor, id, APP_ORIGIN, opts)
+      return NextResponse.json({ message: 'Propuesta aceptada exitosamente', booking })
+    } catch (err) {
+      return opsErrorResponse(err)
     }
-
-    if (proposal.serviceRequest.userId !== session.user.id) {
-      return NextResponse.json({ error: 'No tienes permiso para aceptar esta propuesta' }, { status: 403 })
-    }
-
-    if (proposal.serviceRequest.status !== 'ACTIVE') {
-      return NextResponse.json({ error: 'Esta solicitud ya no está activa' }, { status: 400 })
-    }
-
-    if (proposal.status !== 'PENDING') {
-      return NextResponse.json({ error: 'Esta propuesta ya no está disponible' }, { status: 400 })
-    }
-
-    const platformConfig = await prisma.platformConfig.findFirst({
-      where: { key: 'default' }
-    }) || await prisma.platformConfig.findFirst()
-
-    if (!platformConfig) {
-      return NextResponse.json({ error: 'Configuración de plataforma no encontrada' }, { status: 500 })
-    }
-
-    const result = await prisma.$transaction(async (tx) => {
-      await tx.proposal.update({
-        where: { id: proposalId },
-        data: { status: 'ACCEPTED' }
-      })
-
-      const rejectedProposals = await tx.proposal.findMany({
-        where: {
-          serviceRequestId: proposal.serviceRequestId,
-          id: { not: proposalId }
-        }
-      })
-
-      await tx.proposal.updateMany({
-        where: {
-          serviceRequestId: proposal.serviceRequestId,
-          id: { not: proposalId }
-        },
-        data: { status: 'REJECTED' }
-      })
-
-      await tx.serviceRequest.update({
-        where: { id: proposal.serviceRequest.id },
-        data: { status: 'ACCEPTED' }
-      })
-
-      const booking = await tx.booking.create({
-        data: {
-          userId: proposal.serviceRequest.userId,
-          serviceId: proposal.serviceRequest.serviceId,
-          partnerId: proposal.partnerId,
-          proposalId: proposalId,
-          scheduledDate: new Date(),
-          scheduledTime: '09:00',
-          address: proposal.serviceRequest.address,
-          notes: proposal.serviceRequest.notes,
-          city: proposal.serviceRequest.city,
-          status: 'PENDING',
-          totalPrice: proposal.price,
-          clientCommissionRate: platformConfig.clientCommissionRate,
-          partnerCommissionRate: platformConfig.partnerCommissionRate
-        },
-        include: {
-          service: true,
-          user: {
-            select: {
-              name: true,
-              phone: true
-            }
-          },
-          partner: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  phone: true
-                }
-              }
-            }
-          }
-        }
-      })
-
-      for (const rejectedProposal of rejectedProposals) {
-        await notifyProposalRejected(rejectedProposal.id)
-      }
-
-      return booking
-    })
-
-    await notifyProposalAccepted(proposalId)
-
-    // Fire BOOKING_CREATED automation for both client and partner
-    const bookingId = result.id
-    scheduleAutomationsForUser(result.userId, 'BOOKING_CREATED', { targetRole: 'CLIENT', contextId: bookingId }).catch(() => null)
-    if (result.partner?.user?.id) {
-      scheduleAutomationsForUser(result.partner.user.id, 'BOOKING_CREATED', { targetRole: 'PARTNER', contextId: bookingId }).catch(() => null)
-    }
-
-    return NextResponse.json({
-      message: 'Propuesta aceptada exitosamente',
-      booking: result
-    })
   } catch (error) {
     logger.error('Error accepting proposal:', error || undefined)
-    logger.error('Error occurred', 'Error details:', JSON.stringify(error, Object.getOwnPropertyNames(error)))
-    return NextResponse.json({
-      error: 'Error al aceptar la propuesta',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Error al aceptar la propuesta', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 },
+    )
   }
 }

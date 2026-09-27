@@ -1,31 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { setAvailability } from '@/lib/partners/ops'
+import { APP_ORIGIN, OpsError } from '@/lib/ops/origin'
 
 export async function PATCH(req: NextRequest) {
   const session = await getServerSession(authOptions)
-  if (!session?.user?.email) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  if (!session?.user?.id) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  const body = await req.json()
-  if (typeof body.isAvailable !== 'boolean') {
-    return NextResponse.json({ error: 'isAvailable requerido' }, { status: 400 })
+  const body = await req.json().catch(() => ({}))
+  if (typeof body.isAvailable !== 'boolean') return NextResponse.json({ error: 'isAvailable requerido' }, { status: 400 })
+
+  try {
+    await setAvailability({ userId: session.user.id, role: 'PARTNER', email: session.user.email ?? null }, body.isAvailable, APP_ORIGIN)
+    return NextResponse.json({ isAvailable: body.isAvailable })
+  } catch (error) {
+    if (error instanceof OpsError) return NextResponse.json({ error: error.status === 403 ? 'Perfil no encontrado' : error.message }, { status: error.status === 403 ? 404 : error.status })
+    return NextResponse.json({ error: 'Error al actualizar disponibilidad' }, { status: 500 })
   }
-
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { partnerProfile: { select: { id: true } } },
-  })
-
-  if (!user?.partnerProfile) {
-    return NextResponse.json({ error: 'Perfil no encontrado' }, { status: 404 })
-  }
-
-  const updated = await prisma.partnerProfile.update({
-    where: { id: user.partnerProfile.id },
-    data: { isAvailable: body.isAvailable },
-    select: { isAvailable: true },
-  })
-
-  return NextResponse.json({ isAvailable: updated.isAvailable })
 }

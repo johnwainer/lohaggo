@@ -1,129 +1,24 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { NextResponse } from 'next/server'
 import { createLogger } from '@/lib/logger'
+import { currentActor, opsErrorResponse } from '@/lib/ops/actor'
+import { listOpenRequestsForPartner } from '@/lib/service-requests/ops'
 
 export const dynamic = 'force-dynamic'
 
-interface ServiceRequestWithProposals {
-  id: string
-  address: string
-  notes: string | null
-  city: string
-  status: string
-  expiresAt: string
-  createdAt: string
-  serviceId: string
-  userId: string
-  budget?: number
-  proposals: Array<{
-    id: string
-    status: string
-  }>
-  _count: {
-    proposals: number
-  }
-}
-
-// GET - Obtener solicitudes activas disponibles para el partner actual
-
 const logger = createLogger('service-requests-active')
 
+// GET - Open requests the signed-in partner can bid on
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions)
+    const actor = await currentActor()
+    if (!actor) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    if (!actor.partnerId) return NextResponse.json({ error: 'Solo los socios pueden ver solicitudes activas' }, { status: 403 })
 
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    try {
+      return NextResponse.json(await listOpenRequestsForPartner(actor.partnerId))
+    } catch (err) {
+      return opsErrorResponse(err, (e) => (e.status === 403 ? { requiresVerification: true } : {}))
     }
-
-    // Verificar que el usuario es un partner
-    const partnerProfile = await prisma.partnerProfile.findUnique({
-      where: { userId: session.user.id },
-      include: {
-        services: {
-          where: { active: true },
-          include: { service: true },
-        },
-      },
-    })
-
-    if (!partnerProfile) {
-      return NextResponse.json({ error: 'Solo los partners pueden ver solicitudes activas' }, { status: 403 })
-    }
-
-    if (!partnerProfile.verified || !partnerProfile.isActive) {
-      return NextResponse.json({
-        error: 'Debes estar verificado para ver solicitudes de servicio',
-        requiresVerification: true,
-      }, { status: 403 })
-    }
-
-    // Obtener los IDs de servicios que ofrece este partner
-    const serviceIds = partnerProfile.services.map(ps => ps.serviceId)
-
-    if (serviceIds.length === 0) {
-      return NextResponse.json([])
-    }
-
-    // Obtener solicitudes activas para servicios que ofrece este partner
-    // Solo incluir solicitudes donde el partner no ha enviado ya una propuesta
-    const activeRequests = await prisma.serviceRequest.findMany({
-      where: {
-        status: 'ACTIVE',
-        serviceId: { in: serviceIds },
-        expiresAt: { gt: new Date() }, // Solo solicitudes que no han expirado
-        // Excluir solicitudes donde este partner ya envió una propuesta
-        NOT: {
-          proposals: {
-            some: {
-              partnerId: partnerProfile.id
-            }
-          }
-        }
-      },
-      include: {
-        service: {
-          include: {
-            category: true
-          }
-        },
-        user: {
-          select: {
-            name: true,
-            phone: true
-          }
-        },
-        proposals: {
-          where: {
-            partnerId: partnerProfile.id
-          },
-          select: {
-            id: true,
-            status: true
-          }
-        },
-        photos: true,
-        _count: {
-          select: {
-            proposals: true
-          }
-        }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    })
-
-    // Filtrar solo las solicitudes donde el partner ofrece el servicio en la ciudad correspondiente
-    const availableRequests = activeRequests.filter((request) => {
-      return partnerProfile.services.some(ps =>
-        ps.serviceId === request.serviceId && ps.city === request.city
-      )
-    })
-
-    return NextResponse.json(availableRequests)
   } catch (error) {
     logger.error('Error fetching active service requests:', error || undefined)
     return NextResponse.json({ error: 'Error al obtener las solicitudes activas' }, { status: 500 })

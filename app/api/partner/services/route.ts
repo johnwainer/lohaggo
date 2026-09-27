@@ -3,301 +3,101 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
+import { removePartnerService, upsertPartnerService } from '@/lib/partners/ops'
+import { APP_ORIGIN, OpsError, type Actor } from '@/lib/ops/origin'
 
 export const dynamic = 'force-dynamic'
 
- // GET - Obtener todos los servicios disponibles y los del partner
- 
 const logger = createLogger('partner-services')
 
-export async function GET(request: NextRequest) {
-   try {
-     const session = await getServerSession(authOptions)
-     const { searchParams } = new URL(request.url)
-     const testMode = searchParams.get('test') === 'true'
+async function sessionActor(): Promise<Actor | null> {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.id) return null
+  return { userId: session.user.id, role: session.user.role as Actor['role'], email: session.user.email ?? null }
+}
 
-     // En modo test, usar un partner de prueba
-     let partnerProfile = null
+function fail(error: unknown, fallback: string) {
+  if (error instanceof OpsError) return NextResponse.json({ error: error.message }, { status: error.status })
+  logger.error(fallback, error)
+  return NextResponse.json({ error: fallback }, { status: 500 })
+}
 
-     if (testMode) {
-       // Obtener el primer partner disponible para testing
-       partnerProfile = await prisma.partnerProfile.findFirst({
-         include: {
-           services: {
-             include: {
-               service: { include: { category: true } },
-               documents: {
-                 where: { status: 'APPROVED' },
-                 select: { id: true, type: true, status: true },
-               },
-             },
-           },
-         },
-       })
-     } else {
-       // Modo normal: requiere autenticación
-       if (!session?.user?.id) {
-         return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-       }
+// GET - the whole catalog, marking the services this partner offers
+export async function GET() {
+  try {
+    const actor = await sessionActor()
+    if (!actor) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-       // Obtener el perfil del partner
-       partnerProfile = await prisma.partnerProfile.findUnique({
-         where: { userId: session.user.id },
-         include: {
-           services: {
-             include: {
-               service: { include: { category: true } },
-               documents: {
-                 where: { status: 'APPROVED' },
-                 select: { id: true, type: true, status: true },
-               },
-             },
-           },
-         },
-       })
-     }
-
-     if (!partnerProfile) {
-       return NextResponse.json({ error: 'Perfil de partner no encontrado' }, { status: 404 })
-     }
-    const allServices = await prisma.service.findMany({
+    const partnerProfile = await prisma.partnerProfile.findUnique({
+      where: { userId: actor.userId },
       include: {
-        category: true
+        services: {
+          include: {
+            service: { include: { category: true } },
+            documents: { where: { status: 'APPROVED' }, select: { id: true, type: true, status: true } },
+          },
+        },
       },
-      orderBy: [
-        { category: { name: 'asc' } },
-        { name: 'asc' }
-      ]
     })
+    if (!partnerProfile) return NextResponse.json({ error: 'Perfil de partner no encontrado' }, { status: 404 })
 
-    // Marcar cuáles servicios ya tiene el partner
+    const allServices = await prisma.service.findMany({ include: { category: true }, orderBy: [{ category: { name: 'asc' } }, { name: 'asc' }] })
+
     const servicesWithStatus = allServices.map((service) => {
       const partnerService = partnerProfile.services.find((ps) => ps.serviceId === service.id)
       return {
         ...service,
         isActive: !!partnerService,
         partnerServiceId: partnerService?.id,
-        price: partnerService?.price || (service as { basePrice?: number }).basePrice,
+        price: partnerService?.price || service.basePrice,
         city: partnerService?.city,
         approvedDocuments: partnerService?.documents ?? [],
       }
     })
 
-    return NextResponse.json({
-      services: servicesWithStatus,
-      partnerId: partnerProfile.id
-    })
+    return NextResponse.json({ services: servicesWithStatus, partnerId: partnerProfile.id })
   } catch (error) {
-    logger.error('Error fetching services:', error)
-    return NextResponse.json({ error: 'Error al obtener servicios' }, { status: 500 })
+    return fail(error, 'Error al obtener servicios')
   }
 }
 
-// POST - Agregar o actualizar un servicio del partner
+// POST - add a service (or update it when the partner already offers it)
 export async function POST(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url)
-    const testMode = searchParams.get('test') === 'true'
-
-    let partnerProfile = null
-
-    if (testMode) {
-      // En modo test, usar el primer partner disponible
-      partnerProfile = await prisma.partnerProfile.findFirst()
-    } else {
-      // Modo normal: requiere autenticación
-      const session = await getServerSession(authOptions)
-
-      if (!session?.user?.id) {
-        return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-      }
-
-      // Obtener el perfil del partner
-      partnerProfile = await prisma.partnerProfile.findUnique({
-        where: { userId: session.user.id }
-      })
-    }
-
+    const actor = await sessionActor()
+    if (!actor) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     const { serviceId, price, city, active } = await req.json()
-
-    if (!serviceId) {
-      return NextResponse.json({ error: 'serviceId requerido' }, { status: 400 })
-    }
-
-    // Obtener información del servicio para valores por defecto
-    const service = await prisma.service.findUnique({
-      where: { id: serviceId }
-    })
-
-    if (!service) {
-      return NextResponse.json({ error: 'Servicio no encontrado' }, { status: 404 })
-    }
-
-    if (!partnerProfile) {
-      return NextResponse.json({ error: 'Perfil de partner no encontrado' }, { status: 404 })
-    }
-
-    // Verificar que el partner no tenga más de 5 servicios activos
-    const activeServicesCount = await prisma.partnerService.count({
-      where: {
-        partnerId: partnerProfile.id,
-        active: true
-      }
-    })
-
-    // Verificar si ya existe este servicio
-    const existing = await prisma.partnerService.findUnique({
-      where: {
-        partnerId_serviceId: {
-          partnerId: partnerProfile.id,
-          serviceId: serviceId
-        }
-      }
-    })
-
-    // Si no existe y ya tiene 5 servicios activos, no permitir agregar más
-    if (!existing && activeServicesCount >= 5) {
-      return NextResponse.json({
-        error: 'No puedes ofrecer más de 5 servicios. Elimina uno para agregar otro.'
-      }, { status: 400 })
-    }
-
-    // Usar valores por defecto si no se proporcionan
-    const defaultPrice = price !== undefined && price !== null ? parseFloat(price) : service.basePrice
-    const defaultCity = city && city.trim() !== '' ? city : 'MEDELLIN'
-
-    let partnerService
-
-    if (existing) {
-      // Actualizar
-      partnerService = await prisma.partnerService.update({
-        where: { id: existing.id },
-        data: {
-          price: defaultPrice,
-          city: defaultCity,
-          active: active !== undefined ? active : true
-        },
-        include: {
-          service: {
-            include: {
-              category: true
-            }
-          }
-        }
-      })
-    } else {
-      // Crear nuevo
-      partnerService = await prisma.partnerService.create({
-        data: {
-          partnerId: partnerProfile.id,
-          serviceId: serviceId,
-          price: defaultPrice,
-          city: defaultCity,
-          active: true
-        },
-        include: {
-          service: {
-            include: {
-              category: true
-            }
-          }
-        }
-      })
-    }
-
+    if (!serviceId) return NextResponse.json({ error: 'serviceId requerido' }, { status: 400 })
+    const partnerService = await upsertPartnerService(actor, { serviceId, price, city, active }, APP_ORIGIN)
     return NextResponse.json(partnerService)
   } catch (error) {
-    logger.error('Error saving service:', error)
-    return NextResponse.json({ error: 'Error al guardar servicio' }, { status: 500 })
+    return fail(error, 'Error al guardar servicio')
   }
 }
 
-// PATCH - Actualizar precio y ciudad de un servicio del partner
+// PATCH - price and city of one of the partner's services
 export async function PATCH(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
-
+    const actor = await sessionActor()
+    if (!actor) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     const { partnerServiceId, price, city } = await req.json()
-
-    if (!partnerServiceId) {
-      return NextResponse.json({ error: 'partnerServiceId requerido' }, { status: 400 })
-    }
-
-    const partnerProfile = await prisma.partnerProfile.findUnique({
-      where: { userId: session.user.id },
-    })
-
-    if (!partnerProfile) {
-      return NextResponse.json({ error: 'Perfil de partner no encontrado' }, { status: 404 })
-    }
-
-    const existing = await prisma.partnerService.findUnique({
-      where: { id: partnerServiceId },
-    })
-
-    if (!existing || existing.partnerId !== partnerProfile.id) {
-      return NextResponse.json({ error: 'Servicio no encontrado' }, { status: 404 })
-    }
-
-    const updated = await prisma.partnerService.update({
-      where: { id: partnerServiceId },
-      data: {
-        ...(price !== undefined && price !== null ? { price: parseFloat(price) } : {}),
-        ...(city && city.trim() ? { city: city.trim() } : {}),
-      },
-      include: { service: { include: { category: true } } },
-    })
-
+    if (!partnerServiceId) return NextResponse.json({ error: 'partnerServiceId requerido' }, { status: 400 })
+    const updated = await upsertPartnerService(actor, { partnerServiceId, price, city }, APP_ORIGIN)
     return NextResponse.json(updated)
   } catch (error) {
-    logger.error('Error updating service:', error)
-    return NextResponse.json({ error: 'Error al actualizar servicio' }, { status: 500 })
+    return fail(error, 'Error al actualizar servicio')
   }
 }
 
-// DELETE - Eliminar un servicio del partner
+// DELETE - remove one of the partner's services (availability goes by cascade)
 export async function DELETE(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
-
+    const actor = await sessionActor()
+    if (!actor) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     const { partnerServiceId } = await req.json()
-
-    if (!partnerServiceId) {
-      return NextResponse.json({ error: 'ID de servicio requerido' }, { status: 400 })
-    }
-
-    // Verificar que el servicio pertenece al partner
-    const partnerProfile = await prisma.partnerProfile.findUnique({
-      where: { userId: session.user.id }
-    })
-
-    if (!partnerProfile) {
-      return NextResponse.json({ error: 'Perfil de partner no encontrado' }, { status: 404 })
-    }
-
-    const partnerService = await prisma.partnerService.findUnique({
-      where: { id: partnerServiceId }
-    })
-
-    if (!partnerService || partnerService.partnerId !== partnerProfile.id) {
-      return NextResponse.json({ error: 'Servicio no encontrado' }, { status: 404 })
-    }
-
-    // Eliminar el servicio (esto también eliminará las disponibilidades por cascade)
-    await prisma.partnerService.delete({
-      where: { id: partnerServiceId }
-    })
-
-    return NextResponse.json({ success: true })
+    if (!partnerServiceId) return NextResponse.json({ error: 'ID de servicio requerido' }, { status: 400 })
+    return NextResponse.json(await removePartnerService(actor, partnerServiceId))
   } catch (error) {
-    logger.error('Error deleting service:', error)
-    return NextResponse.json({ error: 'Error al eliminar servicio' }, { status: 500 })
+    return fail(error, 'Error al eliminar servicio')
   }
 }

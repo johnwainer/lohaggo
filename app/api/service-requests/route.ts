@@ -1,220 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
-import { notifyNewServiceRequest } from '@/lib/notifications/notificationService'
-import { createLogger } from '@/lib/logger'
-import { serviceRequestSchema, validateRequest } from '@/lib/validation'
-import { City } from '@prisma/client'
 import { handleApiError } from '@/lib/errors'
-import { recordPromptContext } from '@/lib/pwa/adoption-strategy'
+import { APP_ORIGIN } from '@/lib/ops/origin'
+import { currentActor, opsErrorResponse } from '@/lib/ops/actor'
+import { createServiceRequest, listClientRequests } from '@/lib/service-requests/ops'
 
 export const dynamic = 'force-dynamic'
 
-
-const logger = createLogger('service-requests')
-
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { isActive: true }
-    })
-
-    if (!user?.isActive) {
-      return NextResponse.json({ error: 'Your account is inactive. Please contact the administrator.' }, { status: 403 })
-    }
+    const actor = await currentActor()
+    if (!actor) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
     const body = await req.json()
-
-    const validation = await validateRequest(serviceRequestSchema, body)
-    if (!validation.success) {
-      return validation.error
+    try {
+      const serviceRequest = await createServiceRequest(actor, body, APP_ORIGIN)
+      return NextResponse.json(serviceRequest, { status: 201 })
+    } catch (err) {
+      return opsErrorResponse(err)
     }
-
-    const validatedData = validation.data
-
-    if (validatedData.budget) {
-      if (validatedData.partnerId) {
-        const partnerService = await prisma.partnerService.findFirst({
-          where: {
-            partnerId: validatedData.partnerId,
-            serviceId: validatedData.serviceId
-          },
-          select: { price: true }
-        })
-
-        if (partnerService && validatedData.budget < partnerService.price) {
-          return NextResponse.json(
-            { error: `The budget must be at least ${partnerService.price} for this partner's service` },
-            { status: 400 }
-          )
-        }
-      } else {
-        const service = await prisma.service.findUnique({
-          where: { id: validatedData.serviceId },
-          select: { basePrice: true }
-        })
-
-        if (service && validatedData.budget < service.basePrice) {
-          return NextResponse.json(
-            { error: `The budget must be at least ${service.basePrice} for this service` },
-            { status: 400 }
-          )
-        }
-      }
-    }
-
-    const expiresAt = new Date()
-    expiresAt.setHours(expiresAt.getHours() + 24)
-
-    let preferredDateTime: Date | null = null
-    if (validatedData.preferredDate) {
-      if (validatedData.preferredTime) {
-        const [hours, minutes] = validatedData.preferredTime.split(':').map(Number)
-        preferredDateTime = new Date(validatedData.preferredDate)
-        preferredDateTime.setHours(hours, minutes, 0, 0)
-      } else {
-        preferredDateTime = new Date(validatedData.preferredDate)
-      }
-    }
-
-    const serviceRequest = await prisma.serviceRequest.create({
-      data: {
-        userId: session.user.id,
-        serviceId: validatedData.serviceId,
-        partnerId: validatedData.partnerId || null,
-        address: validatedData.address,
-        notes: validatedData.notes || null,
-        budget: validatedData.budget || null,
-        city: (validatedData.city as City) || City.MEDELLIN,
-        preferredDate: preferredDateTime,
-        preferredTime: validatedData.preferredTime || null,
-        isUrgent: validatedData.isUrgent || false,
-        status: 'ACTIVE',
-        expiresAt: expiresAt,
-        photos: validatedData.photoUrls && validatedData.photoUrls.length > 0 ? {
-          create: validatedData.photoUrls.map((url: string, index: number) => ({
-            url,
-            order: index
-          }))
-        } : undefined
-      },
-      include: {
-        service: {
-          include: {
-            category: true
-          }
-        },
-        user: {
-          select: {
-            name: true,
-            email: true,
-            phone: true
-          }
-        },
-        photos: true
-      }
-    })
-
-    await notifyNewServiceRequest(serviceRequest.id)
-
-    await recordPromptContext(session.user.id, 'CLIENT_REQUEST_CREATED', {
-      serviceRequestId: serviceRequest.id,
-      city: serviceRequest.city,
-      isUrgent: serviceRequest.isUrgent,
-    }).catch(() => undefined)
-
-    return NextResponse.json(serviceRequest, { status: 201 })
   } catch (error) {
     return handleApiError(error, 'service-requests-create')
   }
 }
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
-    const session = await getServerSession(authOptions)
+    const actor = await currentActor()
+    if (!actor) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
-
-    const [serviceRequests, platformConfig] = await Promise.all([
-      prisma.serviceRequest.findMany({
-        where: {
-          userId: session.user.id
-        },
-        include: {
-          service: {
-            include: {
-              category: true
-            }
-          },
-          proposals: {
-            include: {
-              partner: {
-                include: {
-                  user: {
-                    select: {
-                      name: true,
-                      email: true,
-                      phone: true
-                    }
-                  },
-                  documents: {
-                    where: {
-                      status: 'APPROVED'
-                    },
-                    select: {
-                      type: true,
-                      status: true
-                    }
-                  }
-                }
-              }
-            }
-          },
-          photos: true
-        },
-        orderBy: {
-          createdAt: 'desc'
-        }
-      }),
-      prisma.platformConfig.findFirst({
-        orderBy: {
-          createdAt: 'asc'
-        }
-      })
-    ])
-
-    let clientCommissionRate = 5.0
-
-    if (platformConfig) {
-      clientCommissionRate = platformConfig.clientCommissionRate
-    } else {
-      const newConfig = await prisma.platformConfig.create({
-        data: {
-          key: 'default',
-          commissionRate: 15.0,
-          clientCommissionRate: 5.0,
-          partnerCommissionRate: 20.0,
-          minServicePrice: 10000,
-          maxServicePrice: 10000000,
-        }
-      })
-      clientCommissionRate = newConfig.clientCommissionRate
-    }
-
-    return NextResponse.json({
-      serviceRequests,
-      clientCommissionRate
-    })
+    return NextResponse.json(await listClientRequests(actor.userId))
   } catch (error) {
     return handleApiError(error, 'service-requests-get')
   }

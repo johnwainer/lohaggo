@@ -5,8 +5,8 @@ import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
 import { cloudinaryService } from '@/lib/cloudinary'
 import { handleApiError } from '@/lib/errors'
-import { createNotification } from '@/lib/notifications/notificationService'
-import { validateUploadedFile } from '@/lib/file-validation'
+import { uploadDocument } from '@/lib/partners/ops'
+import { APP_ORIGIN, OpsError } from '@/lib/ops/origin'
 
 const logger = createLogger('partner-documents')
 
@@ -43,60 +43,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
-    const partnerProfile = await prisma.partnerProfile.findUnique({
-      where: { userId: session.user.id }
-    })
-
-    if (!partnerProfile) {
-      return NextResponse.json({ error: 'Perfil no encontrado' }, { status: 404 })
-    }
-
     const formData = await req.formData()
-    const file = formData.get('file') as File
-    const type = formData.get('type') as string
-    const partnerServiceId = formData.get('partnerServiceId') as string | null
+    const file = formData.get('file')
+    const type = formData.get('type')
+    const partnerServiceId = formData.get('partnerServiceId')
 
-    if (!file || !type) {
+    if (!(file instanceof File) || typeof type !== 'string' || !type) {
       return NextResponse.json({ error: 'Archivo y tipo son requeridos' }, { status: 400 })
     }
 
-    const fileCheck = await validateUploadedFile(file)
-    if (!fileCheck.ok) {
-      return NextResponse.json({ error: fileCheck.error }, { status: 400 })
-    }
-
-    // Validate partnerServiceId belongs to this partner if provided
-    if (partnerServiceId) {
-      const ps = await prisma.partnerService.findFirst({
-        where: { id: partnerServiceId, partnerId: partnerProfile.id },
-      })
-      if (!ps) return NextResponse.json({ error: 'Servicio inválido' }, { status: 400 })
-    }
-
-    // Use image resource_type for everything (including PDFs) so we can apply
-    // transformations (e.g. pg_1.jpg) to serve PDFs as images and bypass
-    // Cloudinary's "Restricted media types: PDF" delivery block.
-    const { url, publicId } = await cloudinaryService.upload(file, 'lohaggo/documents', 'image')
-
-    const document = await prisma.verificationDocument.create({
-      data: {
-        partnerId: partnerProfile.id,
-        type: type as any,
-        documentUrl: url,
-        publicId: publicId,
-        ...(partnerServiceId ? { partnerServiceId } : {}),
+    const document = await uploadDocument(
+      { userId: session.user.id, role: 'PARTNER', email: session.user.email ?? null },
+      {
+        type,
+        file: { buffer: Buffer.from(await file.arrayBuffer()), mime: file.type, name: file.name },
+        partnerServiceId: typeof partnerServiceId === 'string' && partnerServiceId ? partnerServiceId : null,
       },
-    })
-
-    await createNotification({
-      userId: session.user.id,
-      type: 'DOCUMENT_APPROVED',
-      title: 'Documento subido',
-      message: `Tu documento ${type} ha sido subido y está en revisión`
-    })
+      APP_ORIGIN
+    )
 
     return NextResponse.json(document)
   } catch (error) {
+    if (error instanceof OpsError) return NextResponse.json({ error: error.message }, { status: error.status === 403 ? 404 : error.status })
     return handleApiError(error, 'partner-documents-post')
   }
 }

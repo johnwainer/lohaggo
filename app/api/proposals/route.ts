@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
-import { notifyNewProposal } from '@/lib/notifications/notificationService'
 import { createLogger } from '@/lib/logger'
 import { proposalSchema, validateRequest } from '@/lib/validation'
-import { recordPromptContext } from '@/lib/pwa/adoption-strategy'
+import { APP_ORIGIN } from '@/lib/ops/origin'
+import { currentActor, opsErrorResponse } from '@/lib/ops/actor'
+import { createProposal, listProposalsForPartner } from '@/lib/proposals/ops'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,175 +11,34 @@ const logger = createLogger('proposals')
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
+    const actor = await currentActor()
+    if (!actor) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
     const body = await req.json()
-
     const validation = await validateRequest(proposalSchema, body)
-    if (!validation.success) {
-      return validation.error
+    if (!validation.success) return validation.error
+    const { serviceRequestId, price, description } = validation.data
+
+    try {
+      const proposal = await createProposal(actor, { serviceRequestId, price, notes: description }, APP_ORIGIN)
+      return NextResponse.json(proposal)
+    } catch (err) {
+      return opsErrorResponse(err)
     }
-
-    const validatedData = validation.data
-
-    const partnerProfile = await prisma.partnerProfile.findUnique({
-      where: { userId: session.user.id },
-      select: { id: true, isActive: true, verified: true },
-    })
-
-    if (!partnerProfile) {
-      return NextResponse.json({ error: 'Only partners can submit proposals' }, { status: 403 })
-    }
-
-    if (!partnerProfile.isActive || !partnerProfile.verified) {
-      return NextResponse.json({ error: 'Your account must be verified and active to submit proposals.' }, { status: 403 })
-    }
-
-    const serviceRequest = await prisma.serviceRequest.findUnique({
-      where: { id: validatedData.serviceRequestId },
-      include: {
-        service: true,
-        photos: true
-      }
-    })
-
-    if (!serviceRequest) {
-      return NextResponse.json({ error: 'Solicitud no encontrada' }, { status: 404 })
-    }
-
-    if (serviceRequest.status !== 'ACTIVE') {
-      return NextResponse.json({ error: 'Esta solicitud ya no está activa' }, { status: 400 })
-    }
-
-    if (validatedData.price < serviceRequest.service.basePrice) {
-      return NextResponse.json({
-        error: `El precio de la propuesta no puede ser menor al precio base del servicio ($${serviceRequest.service.basePrice})`
-      }, { status: 400 })
-    }
-
-    const partnerService = await prisma.partnerService.findFirst({
-      where: {
-        partnerId: partnerProfile.id,
-        serviceId: serviceRequest.serviceId,
-        city: serviceRequest.city,
-        active: true
-      }
-    })
-
-    if (!partnerService) {
-      return NextResponse.json({
-        error: 'No ofreces este servicio en la ciudad solicitada'
-      }, { status: 400 })
-    }
-
-    const existingProposal = await prisma.proposal.findUnique({
-      where: {
-        serviceRequestId_partnerId: {
-          serviceRequestId: validatedData.serviceRequestId,
-          partnerId: partnerProfile.id
-        }
-      }
-    })
-
-    if (existingProposal) {
-      return NextResponse.json({ error: 'Ya has enviado una propuesta para esta solicitud' }, { status: 400 })
-    }
-
-    const proposal = await prisma.proposal.create({
-      data: {
-        serviceRequestId: validatedData.serviceRequestId,
-        partnerId: partnerProfile.id,
-        price: validatedData.price,
-        notes: validatedData.description
-      },
-      include: {
-        partner: {
-          include: {
-            user: {
-              select: {
-                name: true
-              }
-            }
-          }
-        },
-        serviceRequest: {
-          include: {
-            service: true,
-            user: {
-              select: {
-                name: true
-              }
-            }
-          }
-        }
-      }
-    })
-
-    await notifyNewProposal(proposal.id)
-
-    if (serviceRequest.userId) {
-      await recordPromptContext(serviceRequest.userId, 'CLIENT_PROPOSAL_RECEIVED', {
-        proposalId: proposal.id,
-        serviceRequestId: serviceRequest.id,
-      }).catch(() => undefined)
-    }
-
-    return NextResponse.json(proposal)
   } catch (error) {
     logger.error('Error creating proposal:', error || undefined)
     return NextResponse.json({ error: 'Error al crear la propuesta' }, { status: 500 })
   }
 }
 
-// GET - Obtener propuestas del partner actual
+// GET - The signed-in partner's proposals
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions)
+    const actor = await currentActor()
+    if (!actor) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    if (!actor.partnerId) return NextResponse.json({ error: 'Solo los partners pueden ver propuestas' }, { status: 403 })
 
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
-
-    // Verificar que el usuario es un partner
-    const partnerProfile = await prisma.partnerProfile.findUnique({
-      where: { userId: session.user.id }
-    })
-
-    if (!partnerProfile) {
-      return NextResponse.json({ error: 'Solo los partners pueden ver propuestas' }, { status: 403 })
-    }
-
-    const proposals = await prisma.proposal.findMany({
-      where: {
-        partnerId: partnerProfile.id
-      },
-      include: {
-        serviceRequest: {
-          include: {
-            service: {
-              include: {
-                category: true
-              }
-            },
-            user: {
-              select: {
-                name: true,
-                phone: true
-              }
-            }
-          }
-        }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    })
-
-    return NextResponse.json(proposals)
+    return NextResponse.json(await listProposalsForPartner(actor.partnerId))
   } catch (error) {
     logger.error('Error fetching proposals:', error || undefined)
     return NextResponse.json({ error: 'Error al obtener las propuestas' }, { status: 500 })

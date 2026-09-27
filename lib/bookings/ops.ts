@@ -1,0 +1,338 @@
+import { prisma } from '@/lib/prisma'
+import { notifyBookingStatusChange, createNotification } from '@/lib/notifications/notificationService'
+import { computeRefundPolicy, calculateSlaDueAt } from '@/lib/launch-ops'
+import { recordPromptContext } from '@/lib/pwa/adoption-strategy'
+import { scheduleAutomationsForUser } from '@/lib/messaging/automation-service'
+import { APP_ORIGIN, OpsError, actorTypeOf, originColumns, type Actor, type Origin } from '@/lib/ops/origin'
+import type { BookingStatus } from '@prisma/client'
+import { BOOKING_STATUS_LABEL, canTransition, transitionRoleOf, type TransitionRole } from '@/lib/bookings/transitions'
+
+/**
+ * Booking operations shared by the API routes, the admin and the inbox AI agents. They load, check
+ * ownership and state, write the change plus its BookingEvent and fire the same side effects the app
+ * always had. They do not check the session (the caller builds the Actor) nor write the audit log.
+ */
+
+export { BOOKING_TRANSITIONS, BOOKING_STATUS_LABEL, canTransition, transitionRoleOf, type TransitionRole } from '@/lib/bookings/transitions'
+
+/**
+ * The moment of the service in Bogotá (UTC-5, no DST): the calendar date of `scheduledDate` plus
+ * `scheduledTime`. The date part is read in UTC because the app stores the day at midnight (UTC or
+ * Bogotá, both fall on the same UTC day). Accepts 'HH:mm', 'H:mm' and 'h:mm AM/PM'.
+ */
+export function bookingWhen(b: { scheduledDate: Date; scheduledTime: string }): Date {
+  const day = new Date(b.scheduledDate).toISOString().slice(0, 10)
+  const m = /(\d{1,2}):(\d{2})\s*([ap]\.?\s?m\.?)?/i.exec(b.scheduledTime || '')
+  let hours = m ? Number(m[1]) : 0
+  const minutes = m ? Number(m[2]) : 0
+  const suffix = m?.[3]?.toLowerCase().replace(/[^ap]/g, '')
+  if (suffix === 'p' && hours < 12) hours += 12
+  if (suffix === 'a' && hours === 12) hours = 0
+  return new Date(`${day}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00-05:00`)
+}
+
+const BOGOTA = 'America/Bogota'
+
+export function formatBookingWhen(b: { scheduledDate: Date; scheduledTime: string }) {
+  const d = bookingWhen(b)
+  const parts = new Intl.DateTimeFormat('es-CO', { timeZone: BOGOTA, weekday: 'short', day: 'numeric', month: 'short' }).formatToParts(d)
+  const get = (type: string) => parts.find((p) => p.type === type)?.value.replace(/\./g, '') ?? ''
+  const time = new Intl.DateTimeFormat('es-CO', { timeZone: BOGOTA, hour: '2-digit', minute: '2-digit', hour12: false }).format(d)
+  return `${get('weekday')} ${get('day')} ${get('month')} ${time}`
+}
+
+export const formatCOP = (n: number) => `$${new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(n)}`
+
+type SummaryInput = {
+  id: string
+  scheduledDate: Date
+  scheduledTime: string
+  address: string
+  totalPrice: number
+  status: BookingStatus
+  service?: { name: string } | null
+  partner?: { user?: { name?: string | null } | null } | null
+}
+
+/** One compact Spanish line about a booking, for an agent to read or repeat in a chat. */
+export function bookingSummaryForChat(b: SummaryInput) {
+  const parts = [
+    `Reserva #${b.id.slice(-6)}`,
+    b.service?.name ?? 'Servicio',
+    formatBookingWhen(b),
+    b.address,
+    formatCOP(b.totalPrice),
+    BOOKING_STATUS_LABEL[b.status],
+  ]
+  if (b.partner?.user?.name) parts.push(`socio ${b.partner.user.name}`)
+  return parts.join(' · ')
+}
+
+export const BOOKING_INCLUDE = {
+  service: true,
+  user: { select: { name: true, email: true, phone: true } },
+  partner: { include: { user: { select: { id: true, name: true, phone: true } } } },
+} as const
+
+/** Throws 403 unless the actor may act on the booking: owner client, the booking's partner, or any admin. */
+export function assertBookingAccess(actor: Actor, booking: { userId: string; partnerId: string | null }) {
+  if (actor.role === 'ADMIN') return
+  if (actor.role === 'CLIENT' && booking.userId === actor.userId) return
+  if (actor.role === 'PARTNER') {
+    if (!actor.partnerId) throw new OpsError('Perfil de socio no encontrado', 403)
+    if (booking.partnerId === actor.partnerId) return
+  }
+  throw new OpsError('No autorizado', 403)
+}
+
+export async function loadBooking(bookingId: string) {
+  const booking = await prisma.booking.findUnique({ where: { id: bookingId } })
+  if (!booking) throw new OpsError('Reserva no encontrada', 404)
+  return booking
+}
+
+export async function addBookingEvent(p: {
+  bookingId: string
+  type: 'status' | 'reschedule' | 'payment'
+  actor: Actor
+  origin: Origin
+  fromStatus?: BookingStatus | null
+  toStatus?: BookingStatus | null
+  detail?: string | null
+}) {
+  return prisma.bookingEvent.create({
+    data: {
+      bookingId: p.bookingId,
+      type: p.type,
+      fromStatus: p.fromStatus ?? null,
+      toStatus: p.toStatus ?? null,
+      actorType: actorTypeOf(p.actor, p.origin),
+      actorId: p.actor.userId,
+      ...originColumns(p.origin),
+      detail: p.detail ?? null,
+    },
+  })
+}
+
+const AUTOMATION_TRIGGER: Partial<Record<BookingStatus, 'BOOKING_CONFIRMED' | 'BOOKING_COMPLETED' | 'BOOKING_CANCELLED'>> = {
+  CONFIRMED: 'BOOKING_CONFIRMED',
+  COMPLETED: 'BOOKING_COMPLETED',
+  CANCELLED: 'BOOKING_CANCELLED',
+}
+
+/** Everything the app always did after a status change: notifications, PWA prompt context, automations. */
+async function afterStatusChange(actor: Actor, booking: { id: string; userId: string; partnerId: string | null }, to: BookingStatus) {
+  await notifyBookingStatusChange(booking.id, to)
+
+  if (actor.role === 'PARTNER') {
+    await recordPromptContext(actor.userId, 'PARTNER_BOOKING_STATUS_CHANGED', { bookingId: booking.id, status: to }).catch(() => undefined)
+  }
+
+  const trigger = AUTOMATION_TRIGGER[to]
+  if (!trigger) return
+  scheduleAutomationsForUser(booking.userId, trigger, { targetRole: 'CLIENT', contextId: booking.id }).catch(() => null)
+  if (booking.partnerId) {
+    const partner = await prisma.partnerProfile.findUnique({ where: { id: booking.partnerId }, select: { userId: true } })
+    if (partner) scheduleAutomationsForUser(partner.userId, trigger, { targetRole: 'PARTNER', contextId: booking.id }).catch(() => null)
+  }
+}
+
+/** Refund case, incident and support case when a paid booking is cancelled (what the DELETE route did). */
+async function openRefundCaseIfPaid(actor: Actor, origin: Origin, booking: { id: string; userId: string; partnerId: string | null; status: BookingStatus; scheduledDate: Date; scheduledTime: string }) {
+  const payment = await prisma.payment.findUnique({ where: { bookingId: booking.id }, select: { id: true, status: true, totalAmount: true } })
+  if (!payment || payment.status !== 'APPROVED') return null
+
+  const policy = computeRefundPolicy({ bookingStatus: booking.status, totalAmount: Number(payment.totalAmount), scheduledDate: bookingWhen(booking) })
+  const requestedBy = actor.email ?? 'chat'
+  const severity = policy.requiresManualReview ? 'HIGH' : 'MEDIUM'
+
+  const refundCase = await prisma.refundCase.create({
+    data: {
+      bookingId: booking.id,
+      paymentId: payment.id,
+      userId: booking.userId,
+      partnerId: booking.partnerId || null,
+      reason: 'Cancelación de reserva',
+      policyCode: policy.policyCode,
+      status: policy.requiresManualReview ? 'UNDER_REVIEW' : 'APPROVED',
+      requestedAmount: Number(payment.totalAmount),
+      approvedAmount: policy.requiresManualReview ? null : policy.refundableAmount,
+      requestedBy,
+      reviewNotes: policy.reason,
+      metadata: JSON.stringify({ source: 'booking-cancel', cancelledByRole: actor.role, refundableAmount: policy.refundableAmount, origin: origin.via }),
+    },
+  })
+
+  const incident = await prisma.paymentIncident.create({
+    data: {
+      paymentId: payment.id,
+      bookingId: booking.id,
+      userId: booking.userId,
+      partnerId: booking.partnerId || null,
+      incidentType: 'REFUND_DISPUTE',
+      status: policy.requiresManualReview ? 'ACTION_REQUIRED' : 'RESOLVED',
+      severity,
+      source: 'booking-cancel',
+      title: 'Caso de reembolso por cancelación',
+      description: policy.reason,
+      assignedTo: 'ops@lohaggo.com',
+      slaDueAt: calculateSlaDueAt(severity),
+      metadata: JSON.stringify({ refundCaseId: refundCase.id }),
+    },
+  })
+
+  await prisma.paymentIncidentEvent.create({
+    data: { incidentId: incident.id, actorEmail: requestedBy, action: 'REFUND_CASE_CREATED', note: `Caso ${refundCase.id} creado por cancelación` },
+  })
+
+  await prisma.adminSupportCase.create({
+    data: {
+      userId: booking.userId,
+      bookingId: booking.id,
+      priority: severity,
+      status: 'OPEN',
+      queue: 'REFUNDS',
+      subject: `Reembolso por cancelación #${booking.id}`,
+      description: `${policy.reason}. Monto solicitado: ${payment.totalAmount}`,
+      assignedTo: 'ops@lohaggo.com',
+      slaDueAt: calculateSlaDueAt(severity),
+    },
+  })
+
+  return refundCase
+}
+
+/**
+ * Moves a booking to `to` on behalf of the actor: ownership (403), state machine (400, or 409 when it is
+ * already there), update + BookingEvent, then the app's side effects. Cancelling a paid booking also opens
+ * the refund case.
+ */
+export async function transitionBooking(actor: Actor, bookingId: string, to: BookingStatus, origin: Origin, opts: { reason?: string } = {}) {
+  const booking = await loadBooking(bookingId)
+  assertBookingAccess(actor, booking)
+
+  const check = canTransition(booking.status, to, transitionRoleOf(actor))
+  if (!check.ok) throw new OpsError(check.reason, booking.status === to ? 409 : 400)
+
+  const updated = await prisma.booking.update({ where: { id: bookingId }, data: { status: to }, include: BOOKING_INCLUDE })
+  await addBookingEvent({ bookingId, type: 'status', actor, origin, fromStatus: booking.status, toStatus: to, detail: opts.reason ?? null })
+
+  if (to === 'CANCELLED') await openRefundCaseIfPaid(actor, origin, booking)
+  await afterStatusChange(actor, booking, to)
+
+  return updated
+}
+
+/**
+ * Status change made by the platform itself (a payment webhook, a cron): no role check, actorType 'system',
+ * origin app. Returns null when the booking is already there.
+ */
+export async function systemTransition(bookingId: string, to: BookingStatus, detail?: string) {
+  const booking = await loadBooking(bookingId)
+  if (booking.status === to) return null
+  const updated = await prisma.booking.update({ where: { id: bookingId }, data: { status: to }, include: BOOKING_INCLUDE })
+  await prisma.bookingEvent.create({
+    data: { bookingId, type: 'status', fromStatus: booking.status, toStatus: to, actorType: 'system', ...originColumns(APP_ORIGIN), detail: detail ?? null },
+  })
+  return updated
+}
+
+export type RescheduleInput = { scheduledDate: Date; scheduledTime: string }
+
+/**
+ * Moves the service to another date/time. Only PENDING or CONFIRMED bookings; at least one hour ahead.
+ * When the client moves a CONFIRMED booking it goes back to PENDING so the partner confirms again.
+ */
+export async function rescheduleBooking(actor: Actor, bookingId: string, when: RescheduleInput, origin: Origin) {
+  const booking = await loadBooking(bookingId)
+  assertBookingAccess(actor, booking)
+
+  if (booking.status !== 'PENDING' && booking.status !== 'CONFIRMED') {
+    throw new OpsError(`Una reserva ${BOOKING_STATUS_LABEL[booking.status].toLowerCase()} no se puede reprogramar`)
+  }
+  if (!/^\d{2}:\d{2}$/.test(when.scheduledTime)) throw new OpsError('La hora debe tener el formato HH:mm')
+  if (Number.isNaN(when.scheduledDate.getTime())) throw new OpsError('Fecha inválida')
+  const at = bookingWhen(when)
+  if (at.getTime() < Date.now() + 60 * 60 * 1000) throw new OpsError('La nueva fecha debe ser al menos una hora después de ahora')
+
+  const previous = { scheduledDate: booking.scheduledDate, scheduledTime: booking.scheduledTime }
+  const before = formatBookingWhen(previous)
+  const after = formatBookingWhen(when)
+  const backToPending = booking.status === 'CONFIRMED' && actor.role === 'CLIENT'
+
+  const updated = await prisma.booking.update({
+    where: { id: bookingId },
+    data: { scheduledDate: when.scheduledDate, scheduledTime: when.scheduledTime, ...(backToPending ? { status: 'PENDING' as BookingStatus } : {}) },
+    include: BOOKING_INCLUDE,
+  })
+  await addBookingEvent({ bookingId, type: 'reschedule', actor, origin, detail: `de ${before} a ${after}` })
+  if (backToPending) {
+    await addBookingEvent({ bookingId, type: 'status', actor, origin, fromStatus: 'CONFIRMED', toStatus: 'PENDING', detail: 'Reprogramada por el cliente: el socio debe confirmar de nuevo' })
+    // notifyBookingStatusChange has no PENDING message, so the reschedule notice below carries the news.
+  }
+
+  // There is no NotificationType for a reschedule; BOOKING_CONFIRMED is the booking-flavoured type whose
+  // action URL lands on the bookings tab of both panels, so it is reused with its own title and message.
+  const serviceName = updated.service?.name ?? 'tu servicio'
+  const recipients: string[] = []
+  if (actor.role !== 'CLIENT') recipients.push(booking.userId)
+  if (actor.role !== 'PARTNER' && updated.partner?.user?.id) recipients.push(updated.partner.user.id)
+  for (const userId of recipients) {
+    const forPartner = userId !== booking.userId
+    await createNotification({
+      userId,
+      type: 'BOOKING_CONFIRMED',
+      title: 'Reserva reprogramada',
+      message: forPartner
+        ? `La reserva de ${serviceName} con ${updated.user?.name ?? 'el cliente'} pasó a ${after}.${backToPending ? ' Confírmala de nuevo.' : ''}`
+        : `Tu reserva de ${serviceName} pasó a ${after}.`,
+      data: { bookingId, kind: 'BOOKING_RESCHEDULED', previous: before, next: after },
+    })
+  }
+
+  return { booking: updated, previous }
+}
+
+export const BOOKINGS_LIST_INCLUDE = {
+  service: { include: { category: true } },
+  user: { select: { name: true, email: true, phone: true } },
+  partner: {
+    include: {
+      user: { select: { name: true, email: true } },
+      bankAccounts: {
+        where: { isDefault: true },
+        select: { bankName: true, accountType: true, accountNumber: true, accountHolderName: true, holderDocumentNumber: true, isDefault: true },
+        take: 1,
+      },
+    },
+  },
+  review: { select: { id: true, clientToPartnerRating: true, partnerToClientRating: true } },
+  payment: {
+    select: {
+      id: true, status: true, totalAmount: true, confirmationStatus: true, clientReportedMethod: true, clientReportedAt: true,
+      partnerConfirmedMethod: true, partnerConfirmedAt: true, partnerRejectedAt: true, rejectionReason: true,
+    },
+  },
+} as const
+
+/** The actor's bookings: the client's own, the partner's assigned ones, everything for an admin. */
+export async function bookingsFor(actor: Actor, opts: { status?: BookingStatus[]; upcomingOnly?: boolean; take?: number } = {}) {
+  const where: Record<string, unknown> = {}
+  if (actor.role === 'CLIENT') where.userId = actor.userId
+  else if (actor.role === 'PARTNER') {
+    if (!actor.partnerId) return []
+    where.partnerId = actor.partnerId
+  }
+  if (opts.status?.length) where.status = { in: opts.status }
+  if (opts.upcomingOnly) {
+    const today = new Date()
+    today.setUTCHours(0, 0, 0, 0)
+    where.scheduledDate = { gte: today }
+  }
+  return prisma.booking.findMany({
+    where,
+    include: BOOKINGS_LIST_INCLUDE,
+    orderBy: opts.upcomingOnly ? { scheduledDate: 'asc' } : { createdAt: 'desc' },
+    ...(opts.take ? { take: opts.take } : {}),
+  })
+}
