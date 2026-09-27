@@ -96,6 +96,7 @@ export function adTask(i: AdInput, withLink: string) {
     i.service ? `Servicio: ${i.service}` : 'Servicio: el que mejor encaje con el objetivo, del catálogo.',
     i.city ? `Ciudad: ${i.city}` : '',
     `Variantes de texto: exactamente ${i.variants}. Imágenes: exactamente ${i.images}${i.images ? ` (se generarán en: ${i.formats.map((f) => AD_FORMATS[f].label).join(', ')})` : ''}.`,
+    i.images ? '' : 'Esta vez no se generan imágenes: la persona pondrá las suyas. Igual describe en gancho_visual la imagen ideal para cada variante y en el checklist di qué imagen subir (formato 4:5 o 1:1, sin texto encima).',
     i.offer ? `<datos tipo="oferta o promoción que da el equipo">${i.offer}</datos>` : '',
     i.audience ? `<datos tipo="público o idea del equipo">${i.audience}</datos>` : '',
     i.instruction ? `<datos tipo="indicación del equipo">${i.instruction}</datos>` : '',

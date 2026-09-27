@@ -137,7 +137,7 @@ export function parseAdPackage(input: unknown, want: { variants: number; images:
     value: {
       title,
       summary: str(input.resumen, 1200),
-      metaObjective: str(input.objetivo_meta, 80),
+      metaObjective: str(input.objetivo_meta, 300),
       audience: {
         locations: strs(a.ubicaciones, 10, 80),
         ageMin: Math.min(ageMin, ageMax), ageMax: Math.max(ageMin, ageMax),
@@ -146,7 +146,7 @@ export function parseAdPackage(input: unknown, want: { variants: number; images:
         exclusions: strs(a.exclusiones, 10, 80),
         note: str(a.nota, 400),
       },
-      placements: strs(input.ubicaciones_anuncio, 10, 80),
+      placements: strs(input.ubicaciones_anuncio, 10, 200),
       budget: { dailyCop: intIn(b.diario_cop, 0, 50_000_000, 0), days: intIn(b.dias, 0, 90, 0), note: str(b.nota, 400) },
       variants,
       images,
