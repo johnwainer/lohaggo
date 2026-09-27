@@ -19,6 +19,11 @@ import {
 const short = (id: string) => id.slice(-6)
 const DAY = 24 * 3600_000
 
+
+/** Anti-abuse: a client can open at most this many claims in the window (counted in the database, so it holds across instances). */
+export const MAX_CLAIMS_PER_CLIENT = 3
+export const CLAIM_WINDOW_DAYS = 7
+
 export type OpenClaimInput = { bookingId: string; type: GuaranteeType; description: string; photoUrls?: string[] }
 
 const validPhoto = (u: unknown): u is string => typeof u === 'string' && /^https?:\/\/\S+$/i.test(u.trim())
@@ -65,6 +70,10 @@ export async function openGuaranteeClaim(actor: Actor, input: OpenClaimInput, or
 
   const active = await prisma.guaranteeClaim.findFirst({ where: { bookingId: booking.id, status: { in: ACTIVE_STATUSES } }, select: { id: true } })
   if (active) throw new OpsError(`Ya hay un reclamo de garantía abierto para esta reserva (#${short(active.id)}). El equipo lo está atendiendo.`, 409)
+  if (actor.role !== 'ADMIN') {
+    const recent = await prisma.guaranteeClaim.count({ where: { clientId: booking.userId, createdAt: { gte: new Date(now.getTime() - CLAIM_WINDOW_DAYS * 24 * 3600_000) } } })
+    if (recent >= MAX_CLAIMS_PER_CLIENT) throw new OpsError(`Ya registraste ${recent} reclamos en los últimos ${CLAIM_WINDOW_DAYS} días. Una persona del equipo revisará tu caso; escríbenos a hola@lohaggo.com.`, 429)
+  }
 
   const due = slaDueAt(now)
   const serviceName = booking.service?.name ?? 'el servicio'

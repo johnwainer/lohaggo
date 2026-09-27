@@ -69,6 +69,11 @@ beforeEach(() => {
 })
 
 describe('openGuaranteeClaim', () => {
+  it('tope por cliente: con 3 reclamos en 7 días no abre otro (429)', async () => {
+    m.bookingFindUnique.mockResolvedValue(booking())
+    m.claimCount.mockResolvedValueOnce(3)
+    await expect(openGuaranteeClaim(client, { bookingId: 'bk_abc123', type: 'NO_SHOW', description: 'El socio no llegó a las 13:00 y no avisó' }, chat, now)).rejects.toMatchObject({ status: 429 })
+  })
   it('el cliente reclama por chat: reclamo, caso GUARANTEE con SLA de 72 h, evento y avisos', async () => {
     m.bookingFindUnique.mockResolvedValue(booking())
     const claim = await openGuaranteeClaim(client, { bookingId: 'bk_abc123', type: 'NO_SHOW', description: 'El socio no llegó a las 13:00 y no avisó', photoUrls: ['https://x.co/a.jpg', 'no-url'] }, chat, now)
