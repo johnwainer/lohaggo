@@ -294,7 +294,7 @@ Aprobadas pero como MARKETING siendo transaccionales (se reemplazan por versión
 - **Categoría:** UTILITY
 - **Cuándo:** se aprueba el documento de identidad y el perfil queda verificado.
 - **Texto:**
-  > 🎉 Hola {{1}}, tu perfil de socio quedó verificado y activo. Desde ahora te avisamos por aquí cada vez que un cliente pida {{2}}.
+  > 🎉 Hola {{1}}, tu perfil de socio quedó verificado y activo. Desde ahora te avisamos por aquí cada vez que un cliente pida {{2}} en tu ciudad.
 - **Variables:** {{1}} «Carlos» · {{2}} «tus servicios»
 
 ### C8 · lh_socio_sin_servicios_v2
@@ -502,7 +502,7 @@ Se envían a los teléfonos de los administradores que hayan aceptado recibir al
 ### D4 · lh_admin_garantia_por_vencer
 - **Cuándo:** un reclamo de garantía abierto está a 12 horas de vencer o ya venció.
 - **Texto:**
-  > ⏰ Hola {{1}}, el reclamo de garantía #{{2}} {{3}}. Resuélvelo desde el panel de garantía.
+  > ⏰ Hola {{1}}, el reclamo de garantía #{{2}} está así: {{3}}. Resuélvelo desde el panel de garantía.
 - **Variables:** {{1}} «Juan» · {{2}} «A1B2C3» · {{3}} «vence en 12 horas»
 - **Botón URL:** «Resolver» → `https://www.lohaggo.com/{{4}}` · ejemplo `admin/guarantee`
 
