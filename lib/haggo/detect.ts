@@ -33,6 +33,8 @@ export type Snapshot = {
   /** Public claims that are on without backing (lib/public/claims.ts) */
   trust?: { unbacked: string[] }
   config?: { commissionEnabled: boolean; activeCities: number }
+  /** Guarantee claims (lib/guarantee): active, past their 72 h SLA, strikes in 90 days and partners at the pause limit */
+  guarantee?: { open: number; overdue: number; strikesLast90: number; partnersAtLimit?: Array<{ partnerId: string; strikes: number }> }
 }
 
 export type Severity = 'info' | 'warning' | 'critical'
@@ -71,6 +73,9 @@ export function detect(s: Snapshot): Detection[] {
   if (s.payouts.oldestPendingDays != null && s.payouts.oldestPendingDays > 7) add({ key: 'money:payouts-old', domain: 'money', severity: 'warning', title: `Hay un pago a socio pendiente hace ${s.payouts.oldestPendingDays} días`, detail: `${s.payouts.pending} pagos a socios pendientes. Revisar en dinero.` })
   if (s.catalog && s.catalog.partnersVerifiedNoServices >= 3) add({ key: 'catalog:partners-no-services', domain: 'users', severity: 'info', title: `${s.catalog.partnersVerifiedNoServices} socios verificados sin servicios activos`, detail: `No reciben solicitudes. ${s.catalog.servicesWithoutPartners} servicios del catálogo no tienen socios. Ver verificacion_documentos.` })
   for (const key of s.trust?.unbacked ?? []) add({ key: `trust:unbacked:${key}`, domain: 'config', severity: 'critical', title: `El sitio afirma «${isClaimKey(key) ? CLAIMS[key].name : key}» sin respaldo`, detail: 'Una afirmación pública encendida sin lo que la hace verdad es publicidad engañosa: apágala (trust.set_claim) o cumple lo que requiere. Ver configuracion_plataforma.' })
+  const g = s.guarantee
+  if (g && g.overdue >= 1) add({ key: 'ops:guarantee-overdue', domain: 'operations', severity: 'critical', title: `${plural(g.overdue, 'reclamo de garantía vencido', 'reclamos de garantía vencidos')} (más de 72 h sin resolver)`, detail: `${g.open} reclamos activos. La garantía publicada promete resolver en 72 h; con reclamos vencidos la afirmación queda sin respaldo. Ver garantia y recomendar el remedio (lo aplica una persona).` })
+  for (const p of g?.partnersAtLimit ?? []) add({ key: `ops:partner-strikes:${p.partnerId}`, domain: 'users', severity: 'warning', title: `Un socio acumula ${p.strikes} faltas de garantía en 90 días`, detail: p.strikes >= 3 ? 'Con 3 faltas el equipo decide si suspende la cuenta (no es automático). Ver garantia.' : 'Con 2 faltas su disponibilidad se pausa sola y se abre revisión. Ver garantia.', entityType: 'PartnerProfile', entityId: p.partnerId })
   if (s.quality.casesSla) add({ key: 'ops:cases-sla', domain: 'operations', severity: 'warning', title: `${plural(s.quality.casesSla, 'caso', 'casos')} de soporte con el plazo vencido`, detail: `${s.quality.casesOpen} casos abiertos.` })
 
   for (const a of s.aiAgents) {

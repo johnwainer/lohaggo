@@ -5,6 +5,7 @@ import { evaluateBudget, workspaceUsage } from '@/lib/ai/limits'
 import { systemAlerts } from '@/lib/system/health'
 import { trustReport } from '@/lib/public/trust'
 import type { Snapshot } from '@/lib/haggo/detect'
+import { guaranteeStats } from '@/lib/guarantee/ops'
 
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0)
 const round = (n: number) => Math.round(n * 100) / 100
@@ -57,6 +58,8 @@ export async function takeSnapshot(now = new Date()): Promise<Snapshot> {
     awaiting: sum(rows.filter((r) => AWAITING.includes(r.status)).map((r) => r._count._all)),
   })
   const platform = await platformExtras(now, today)
+  // Before the GuaranteeClaim SQL runs the table does not exist: zeros
+  const guarantee = await guaranteeStats(now).catch(() => ({ open: 0, overdue: 0, strikesLast90: 0, partnersAtLimit: [] as Array<{ partnerId: string; strikes: number }> }))
   const budgets = await Promise.all(capped.map(async (w) => ({ workspace: w.name, pct: evaluateBudget(await workspaceUsage(w.id), { costCapUsd: w.aiMonthlyCostCapUsd, callCap: w.aiMonthlyCallCap }).pct })))
   const [rejected24h, pendingOld, refundsOpen, low7d, total24h, zero24h, sent24h, failed24h, events24h, high24h, blockedIps, runErrors24h, pendingVerification] = extra
   const s = o.series
@@ -104,6 +107,7 @@ export async function takeSnapshot(now = new Date()): Promise<Snapshot> {
     origin: platform.origin,
     trust: platform.trust,
     config: platform.config,
+    guarantee,
   }
 }
 

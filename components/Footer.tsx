@@ -83,6 +83,7 @@ export function Footer() {
                     window.location.href = '/unete'
                   }
                 },
+                { name: 'Garantía', href: '/garantia' },
                 { name: 'Blog', href: '/blog' },
                 { name: 'FAQ', href: '/faq' },
                 { name: 'Contacto', href: '/contact' }

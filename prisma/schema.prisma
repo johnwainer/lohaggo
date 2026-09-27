@@ -199,6 +199,7 @@ model Booking {
   paymentIncidents      PaymentIncident[]
   refundCases           RefundCase[]
   events                BookingEvent[]
+  guaranteeClaims       GuaranteeClaim[]
 
   @@index([origin, createdAt])
 }
@@ -1465,6 +1466,7 @@ enum SupportQueue {
   REFUNDS
   RISK
   KYC
+  GUARANTEE
 }
 
 enum PaymentIncidentType {
@@ -2831,4 +2833,58 @@ model HaggoMemory {
   updatedAt DateTime @updatedAt
 
   @@index([kind, updatedAt])
+}
+
+/// A client's claim under the LoHaggo service guarantee (lib/guarantee/policy.ts): the partner did not show
+/// up, the work was wrong or incomplete, or something was damaged. Worked by the team or an agent through
+/// the GUARANTEE support queue.
+model GuaranteeClaim {
+  id                   String    @id @default(cuid())
+  bookingId            String
+  clientId             String
+  partnerId            String?
+  /// NO_SHOW | BAD_WORK | DAMAGE
+  type                 String
+  description          String
+  photoUrls            String[]  @default([])
+  /// OPEN | REDO_SCHEDULED | REASSIGNED | REFUND_REVIEW | RESOLVED | REJECTED
+  status               String    @default("OPEN")
+  /// What was done: redo | reassign | cancel_free | refund | mediation | none
+  remedy               String?
+  supportCaseId        String?
+  /// Counts against the partner (no-show or confirmed bad work)
+  partnerStrike        Boolean   @default(false)
+  slaDueAt             DateTime
+  resolvedAt           DateTime?
+  resolvedById         String?
+  resolutionNote       String?
+  origin               String    @default("app")
+  originChannel        String?
+  originConversationId String?
+  originAgentId        String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  booking              Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([status, slaDueAt])
+  @@index([partnerId, createdAt])
+  @@index([bookingId])
+}
+
+/// People who want LoHaggo in a city that is not active yet (the «Avísame» form on /ciudad/[slug]).
+model CityWaitlist {
+  id         String    @id @default(cuid())
+  citySlug   String
+  email      String
+  name       String?
+  /// client | partner
+  role       String    @default("client")
+  /// Habeas data: the person accepted to be contacted about the launch
+  consentAt  DateTime
+  source     String    @default("city_page")
+  notifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@unique([citySlug, email])
+  @@index([citySlug, notifiedAt])
 }

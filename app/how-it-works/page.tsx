@@ -62,7 +62,7 @@ export default function HowItWorksPage() {
       details: [
         'Sigue el estado de tu reserva en la app.',
         `${supportShort(trust)}.`,
-        trust.claims.trust_guarantee ? 'Si algo sale mal, te ayudamos a resolverlo.' : '',
+        trust.claims.trust_guarantee ? 'Si el socio no llega o el trabajo queda mal, aplica la Garantía LoHaggo (lohaggo.com/garantia).' : '',
       ].filter(Boolean).join(' '),
       color: 'from-green-500 to-green-600'
     },

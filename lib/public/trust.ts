@@ -5,6 +5,7 @@
  */
 import { unstable_cache } from 'next/cache'
 import { prisma } from '@/lib/prisma'
+import { ACTIVE_STATUSES } from '@/lib/guarantee/policy'
 import { CLAIMS, CLAIM_KEYS, defaultClaimState, STAT_MINIMUMS, showStat, unbackedClaims, type ClaimKey, type ClaimState, type TrustFacts } from '@/lib/public/claims'
 
 export const TRUST_CACHE_TAG = 'public-trust'
@@ -39,6 +40,8 @@ export async function getTrustFacts(): Promise<TrustFacts> {
     // ever changes, flip this to read the rule instead.
     Promise.resolve(false),
   ])
+  // The table may not exist yet before its SQL runs: then nothing is overdue
+  const guaranteeOverdue = await Promise.resolve().then(() => prisma.guaranteeClaim.count({ where: { status: { in: ACTIVE_STATUSES }, slaDueAt: { lt: new Date() } } })).catch(() => 0)
   return {
     verifiedPartners,
     completedServices,
@@ -51,6 +54,8 @@ export async function getTrustFacts(): Promise<TrustFacts> {
     onlinePaymentEnabled: Boolean(config?.mercadoPagoEnabled),
     autopilotAgentOnWhatsapp: agents > 0,
     backgroundCheckRequired: backgroundRule,
+    guaranteeOverdue,
+    guaranteePolicyPublished: true,
   }
 }
 

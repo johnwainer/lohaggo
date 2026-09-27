@@ -31,7 +31,9 @@ const ops = vi.hoisted(() => ({
   setAvailability: vi.fn(async () => ({ previous: true })),
 }))
 vi.mock('@/lib/proposals/ops', () => ({ acceptProposal: ops.acceptProposal, createProposal: ops.createProposal, listProposalsForClient: ops.listProposalsForClient, proposalSummaryForChat: ops.proposalSummaryForChat }))
-vi.mock('@/lib/bookings/ops', () => ({ bookingsFor: ops.bookingsFor, bookingSummaryForChat: ops.bookingSummaryForChat, transitionBooking: ops.transitionBooking, rescheduleBooking: ops.rescheduleBooking }))
+vi.mock('@/lib/bookings/ops', () => ({ bookingsFor: ops.bookingsFor, bookingSummaryForChat: ops.bookingSummaryForChat, transitionBooking: ops.transitionBooking, rescheduleBooking: ops.rescheduleBooking, bookingWhen: (b: { scheduledDate: Date }) => new Date(b.scheduledDate) }))
+const guarantee = vi.hoisted(() => ({ openGuaranteeClaim: vi.fn(async (_a: unknown, i: { type: string }) => ({ id: 'gc_00claim', type: i.type, slaDueAt: new Date(Date.now() + 72 * 3600_000) })) }))
+vi.mock('@/lib/guarantee/ops', () => guarantee)
 vi.mock('@/lib/partners/ops', () => ({ setAvailability: ops.setAvailability, addBankAccount: vi.fn(), fetchAttachmentForDocument: vi.fn(), partnerByUser: vi.fn(), partnerStatusSummary: vi.fn(), uploadDocument: vi.fn(), upsertPartnerService: vi.fn() }))
 vi.mock('@/lib/service-requests/ops', () => ({ cancelServiceRequest: vi.fn(), createServiceRequest: vi.fn(), listClientRequests: vi.fn(), listOpenRequestsForPartner: vi.fn(), partnerAvailabilitySummary: vi.fn(), partnersForService: vi.fn(), requestSummaryForChat: vi.fn() }))
 vi.mock('@/lib/payments/ops', () => ({ confirmPartnerPayment: vi.fn(), mercadoPagoLinkFor: vi.fn(), paymentSummaryForChat: vi.fn(() => 'Pago: pendiente'), rejectPartnerPayment: vi.fn(), reportClientPayment: vi.fn() }))
@@ -157,5 +159,51 @@ describe('runPlatformTool · playground linking', () => {
     const out = await runPlatformTool('crear_solicitud', { servicio: 'Plomería', direccion: 'Calle 10 #43-20', ciudad: 'Medellín', fecha: '', hora: '', urgente: true, detalles: 'fuga', presupuesto: 0, socio_ref: '', confirmado: false }, c)
     expect(out).toMatch(/Simulado en pruebas: Crear solicitud de Plomería/)
     expect(actions.recordAction).not.toHaveBeenCalled()
+  })
+})
+
+describe('runPlatformTool · garantía (reportar_problema_servicio)', () => {
+  const past = { id: 'bk_000abc', userId: 'u1', partnerId: 'p1', status: 'CONFIRMED', totalPrice: 130000, scheduledDate: new Date(Date.now() - 2 * 3600_000), scheduledTime: '10:00', updatedAt: new Date(), service: { name: 'Plomería' } }
+  const input = (over: Record<string, unknown> = {}) => ({ reserva_ref: '000abc', tipo: 'no_llego', descripcion: 'El socio no llegó a las 10 y no avisó', confirmado: false, ...over })
+
+  it('primero propone: resume el reclamo y no abre nada', async () => {
+    ops.bookingsFor.mockResolvedValueOnce([past] as never)
+    const out = await runPlatformTool('reportar_problema_servicio', input(), ctx())
+    expect(out).toMatch(/pendiente de confirmación/i)
+    expect(out).toMatch(/el socio no llegó/)
+    expect(guarantee.openGuaranteeClaim).not.toHaveBeenCalled()
+    expect(actions.recordAction).toHaveBeenCalledWith(expect.objectContaining({ tool: 'reportar_problema_servicio', status: 'proposed' }))
+  })
+
+  it('con el sí abre el reclamo con origen chat y la última foto; un daño traspasa a una persona', async () => {
+    ops.bookingsFor.mockResolvedValueOnce([{ ...past, status: 'IN_PROGRESS' }] as never)
+    db.conversationMessage.findFirst.mockResolvedValueOnce({ mediaUrl: 'https://media.x/foto.jpg' })
+    const i = input({ tipo: 'dano', descripcion: 'Rompió el lavamanos al desmontarlo', confirmado: true })
+    actions.latestProposed.mockResolvedValue({ id: 'prop-g', createdAt: new Date(Date.now() - 60_000), input: { ...i, confirmado: false } } as never)
+    const c = ctx()
+    const out = await runPlatformTool('reportar_problema_servicio', i, c)
+    const [actor, claimInput, origin] = guarantee.openGuaranteeClaim.mock.calls[0] as unknown as [{ userId: string }, { bookingId: string; type: string; photoUrls: string[] }, { via: string; conversationId: string }]
+    expect(actor.userId).toBe('u1')
+    expect(claimInput).toMatchObject({ bookingId: 'bk_000abc', type: 'DAMAGE', photoUrls: ['https://media.x/foto.jpg'] })
+    expect(origin).toMatchObject({ via: 'chat', conversationId: 'conv1' })
+    expect(c.state.handoff).not.toBeNull()
+    expect(out).toMatch(/Reclamo de garantía registrado/)
+    expect(out).not.toMatch(/te devolvemos|reembolsamos/i)
+    expect(actions.settleAction).toHaveBeenCalledWith('prop-g', expect.objectContaining({ status: 'executed', entityType: 'GuaranteeClaim' }))
+  })
+
+  it('fuera de la política no propone: todavía no es la hora del servicio', async () => {
+    ops.bookingsFor.mockResolvedValueOnce([{ ...past, scheduledDate: new Date(Date.now() + 5 * 3600_000) }] as never)
+    const out = await runPlatformTool('reportar_problema_servicio', input(), ctx())
+    expect(out).toMatch(/No aplica la garantía/)
+    expect(actions.recordAction).not.toHaveBeenCalled()
+  })
+
+  it('el socio de la reserva no puede reclamar la garantía', async () => {
+    db.user.findUnique.mockResolvedValue({ id: 'u2', role: 'PARTNER', email: 'd@x.com', isActive: true, partnerProfile: { id: 'p1' } })
+    ops.bookingsFor.mockResolvedValueOnce([past] as never)
+    const out = await runPlatformTool('reportar_problema_servicio', input(), ctx({ userId: 'u2' }))
+    expect(out).toMatch(/Solo el cliente/)
+    expect(guarantee.openGuaranteeClaim).not.toHaveBeenCalled()
   })
 })

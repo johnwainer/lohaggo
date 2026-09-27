@@ -5,6 +5,8 @@
  * only above a minimum. Haggo can propose turning a claim on or off; the superadmin approves. Pure.
  */
 
+import { POLICY_SUMMARY, POLICY_URL } from '@/lib/guarantee/policy'
+
 export type ClaimKey =
   | 'trust_real_stats'
   | 'trust_real_testimonials'
@@ -55,8 +57,8 @@ export const CLAIMS: Record<ClaimKey, ClaimDef> = {
   trust_guarantee: {
     key: 'trust_guarantee',
     name: 'Garantía de servicio',
-    says: '«Si el socio no llega o el trabajo queda mal, te ayudamos a resolverlo: te conseguimos otro socio o revisamos el reembolso».',
-    requires: 'Una política de garantía escrita y alguien del equipo que la cumpla (casos de soporte y reembolsos).',
+    says: `«${POLICY_SUMMARY}» Política completa en ${POLICY_URL}.`,
+    requires: `La política de ${POLICY_URL} publicada y la cola de garantía atendida (sin reclamos vencidos).`,
     defaultOn: false,
     kind: 'trust',
   },
@@ -124,6 +126,10 @@ export type TrustFacts = {
   onlinePaymentEnabled: boolean
   autopilotAgentOnWhatsapp: boolean
   backgroundCheckRequired: boolean
+  /** Guarantee claims still open past their SLA (lib/guarantee) */
+  guaranteeOverdue: number
+  /** The policy page /garantia exists (lib/guarantee/policy.ts) */
+  guaranteePolicyPublished: boolean
 }
 
 /**
@@ -135,6 +141,8 @@ export function unbackedClaims(state: ClaimState, f: TrustFacts): Array<{ key: C
   if (state.trust_support_247 && !f.autopilotAgentOnWhatsapp) out.push({ key: 'trust_support_247', why: 'No hay un agente de IA en piloto en WhatsApp' })
   if (state.trust_background_check && !f.backgroundCheckRequired) out.push({ key: 'trust_background_check', why: 'Los antecedentes no son obligatorios para verificar a un socio' })
   if (state.trust_online_payment_protection && !f.onlinePaymentEnabled) out.push({ key: 'trust_online_payment_protection', why: 'El pago en línea (MercadoPago) está apagado' })
+  if (state.trust_guarantee && !f.guaranteePolicyPublished) out.push({ key: 'trust_guarantee', why: 'La política de garantía no está publicada' })
+  else if (state.trust_guarantee && f.guaranteeOverdue > 0) out.push({ key: 'trust_guarantee', why: `${f.guaranteeOverdue} reclamo${f.guaranteeOverdue === 1 ? '' : 's'} de garantía vencido${f.guaranteeOverdue === 1 ? '' : 's'} sin resolver` })
   if (state.promo_no_commission && f.commissionEnabled) out.push({ key: 'promo_no_commission', why: 'Las comisiones están encendidas: la promoción sería falsa' })
   return out
 }

@@ -19,11 +19,13 @@ import { chatOrigin, OpsError, type Actor, type Origin } from '@/lib/ops/origin'
 import { fmtDate } from '@/lib/ai/platform-data'
 import { cancelServiceRequest, createServiceRequest, listClientRequests, listOpenRequestsForPartner, partnerAvailabilitySummary, partnersForService, requestSummaryForChat } from '@/lib/service-requests/ops'
 import { acceptProposal, createProposal, listProposalsForClient, proposalSummaryForChat } from '@/lib/proposals/ops'
-import { bookingsFor, bookingSummaryForChat, rescheduleBooking, transitionBooking } from '@/lib/bookings/ops'
+import { bookingsFor, bookingSummaryForChat, bookingWhen, rescheduleBooking, transitionBooking } from '@/lib/bookings/ops'
 import { confirmPartnerPayment, mercadoPagoLinkFor, paymentSummaryForChat, rejectPartnerPayment, reportClientPayment } from '@/lib/payments/ops'
 import { leaveReview } from '@/lib/reviews/ops'
 import { addBankAccount, fetchAttachmentForDocument, partnerByUser, partnerStatusSummary, setAvailability, uploadDocument, upsertPartnerService } from '@/lib/partners/ops'
 import { confirmLink, startLink } from '@/lib/accounts/link'
+import { openGuaranteeClaim } from '@/lib/guarantee/ops'
+import { eligibility, SLA_PROPOSAL_HOURS, SLA_RESOLUTION_HOURS, TYPE_LABEL, type GuaranteeType } from '@/lib/guarantee/policy'
 
 export type PlatformToolName =
   | 'vincular_cuenta'
@@ -46,6 +48,7 @@ export type PlatformToolName =
   | 'gestionar_servicio'
   | 'registrar_cuenta_bancaria'
   | 'subir_documento'
+  | 'reportar_problema_servicio'
 
 const str = (description: string) => ({ type: 'string', description })
 const confirmado = { type: 'boolean', description: 'false la primera vez (para proponer); true solo después de que la persona diga claramente que sí' }
@@ -236,6 +239,23 @@ export const PLATFORM_TOOLS: Record<PlatformToolName, CatalogEntry> = {
       additionalProperties: false,
     }),
   },
+  reportar_problema_servicio: {
+    label: 'Reportar un problema con el servicio (garantía)',
+    description: 'El cliente reclama la Garantía LoHaggo sobre una reserva: el socio no llegó (o llegó más de 60 min tarde sin avisar), el trabajo quedó incompleto o distinto a lo acordado, o hubo un daño a su propiedad. Abre el reclamo para el equipo, con la última foto que envió en este chat si la hay.',
+    guidance: `Úsala cuando el cliente diga que el socio no llegó, que el trabajo quedó mal o incompleto, o que le dañaron algo. Qué cubre: reservas hechas por LoHaggo (no lo acordado por fuera); «no llegó» se reclama desde la hora del servicio hasta 24 h después; trabajo mal hecho o daño, hasta 72 h después de completada. Antes de proponer: consulta ver_mis_reservas para la referencia y pide una descripción concreta (qué pasó y a qué hora); si tiene fotos, que las envíe por este chat antes de confirmar. NUNCA prometas dinero, reembolsos ni pagos de daños: di que el equipo propone una solución en máximo 24 h y la resuelve en máximo 72 h (otro socio con prioridad, cancelación sin costo o que el mismo socio corrija; el reembolso solo si pagó en línea y lo decide el equipo). Si es un daño, tras registrarlo una persona del equipo continúa. ${CONFIRM_RULE} ${NEEDS_LINK}`,
+    writes: true, group: 'client', platform: true, confirm: true,
+    schema: () => ({
+      type: 'object',
+      properties: {
+        reserva_ref: REF,
+        tipo: { type: 'string', enum: ['no_llego', 'mal_trabajo', 'dano'], description: 'no_llego: el socio no llegó o llegó más de 60 min tarde sin avisar; mal_trabajo: incompleto o distinto a lo acordado; dano: daño a la propiedad' },
+        descripcion: str('Qué pasó y a qué hora, con sus palabras'),
+        confirmado,
+      },
+      required: ['reserva_ref', 'tipo', 'descripcion', 'confirmado'],
+      additionalProperties: false,
+    }),
+  },
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -310,6 +330,18 @@ async function lastInboundAttachment(conversationId: string) {
     select: { mediaUrl: true, mediaType: true, mediaName: true, sentAt: true },
   })
 }
+
+/** The last image the person sent in this conversation in the last 24 h (evidence for a guarantee claim). */
+async function lastInboundImage(conversationId: string) {
+  const since = new Date(Date.now() - 24 * 3600_000)
+  return prisma.conversationMessage.findFirst({
+    where: { conversationId, direction: 'INBOUND', mediaUrl: { not: null }, mediaType: { startsWith: 'image' }, sentAt: { gte: since } },
+    orderBy: { sentAt: 'desc' },
+    select: { mediaUrl: true },
+  })
+}
+
+const GUARANTEE_TYPE: Record<string, GuaranteeType> = { no_llego: 'NO_SHOW', mal_trabajo: 'BAD_WORK', dano: 'DAMAGE' }
 
 // ─── Plans ──────────────────────────────────────────────────────────────────
 
@@ -552,6 +584,31 @@ const PLANNERS: Partial<Record<PlatformToolName, Planner>> = {
         const file = await fetchAttachmentForDocument(att.mediaUrl!)
         const doc = await uploadDocument(actor, { type, file }, originFor(ctx))
         return { text: 'Documento subido y en revisión. El equipo lo aprueba normalmente en 1 a 2 días hábiles; le avisaremos.', entityType: 'VerificationDocument', entityId: doc.id }
+      },
+    }
+  },
+  reportar_problema_servicio: async (input, ctx, actor) => {
+    const b = await bookingByRef(actor, s(input, 'reserva_ref'))
+    if (!b) return { error: 'Esa referencia no corresponde a ninguna reserva de esta persona. Consulta ver_mis_reservas.' }
+    if (b.userId !== actor.userId) return { error: 'Solo el cliente de la reserva puede reclamar la garantía.' }
+    const type = GUARANTEE_TYPE[s(input, 'tipo')]
+    if (!type) return { error: 'Tipo inválido: no_llego, mal_trabajo o dano.' }
+    const description = s(input, 'descripcion')
+    if (description.length < 10) return { error: 'Falta una descripción concreta: pregúntale qué pasó exactamente y a qué hora.' }
+    const check = eligibility({ status: b.status, partnerId: b.partnerId, scheduledAt: bookingWhen(b), completedAt: b.status === 'COMPLETED' ? b.updatedAt : null }, type)
+    if (!check.ok) return { error: `No aplica la garantía: ${check.reason} Explícaselo con tus palabras; si insiste, ofrece hablar con una persona del equipo.` }
+    const photo = ctx.conversationId ? await lastInboundImage(ctx.conversationId) : null
+    return {
+      summary: `Reportar a la garantía «${TYPE_LABEL[type].toLowerCase()}» en la reserva de ${b.service?.name ?? 'servicio'} (ref ${shortId(b.id)}): «${description}»${photo?.mediaUrl ? ', con la última foto que envió' : ''}`,
+      wouldRecord: 'el reclamo de garantía (GuaranteeClaim), su caso en la cola de garantía del equipo y el aviso al socio',
+      run: async () => {
+        const claim = await openGuaranteeClaim(actor, { bookingId: b.id, type, description, photoUrls: photo?.mediaUrl ? [photo.mediaUrl] : [] }, originFor(ctx))
+        const due = fmtDate(claim.slaDueAt)
+        if (type === 'DAMAGE') ctx.state.handoff = { reason: 'Garantía: daño a la propiedad (caso de seguridad)' }
+        const next = type === 'DAMAGE'
+          ? 'Una persona del equipo continúa esta conversación para mediar con el socio y documentar el caso. No prometas dinero: LoHaggo media, no paga daños.'
+          : `El equipo propone una solución en máximo ${SLA_PROPOSAL_HOURS} h (otro socio con prioridad, cancelación sin costo o que el mismo socio corrija) y lo resuelve en máximo ${SLA_RESOLUTION_HOURS} h. No prometas dinero ni un remedio en concreto.`
+        return { text: `Reclamo de garantía registrado (ref ${shortId(claim.id)}), con plazo de solución hasta ${due}. ${next}`, entityType: 'GuaranteeClaim', entityId: claim.id }
       },
     }
   },

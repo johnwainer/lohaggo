@@ -3,7 +3,8 @@ import { describe, expect, it, vi } from 'vitest'
 vi.mock('@/lib/prisma', () => ({ prisma: {} }))
 vi.mock('next/cache', () => ({ unstable_cache: (fn: unknown) => fn }))
 
-import { defaultClaimState, showStat, unbackedClaims, type ClaimState, type TrustFacts } from '@/lib/public/claims'
+import { POLICY_SUMMARY } from '@/lib/guarantee/policy'
+import { CLAIMS, defaultClaimState, showStat, unbackedClaims, type ClaimState, type TrustFacts } from '@/lib/public/claims'
 import { firstNameInitial, parseLaunchBenefits } from '@/lib/public/trust'
 import { citiesLine, claimSays, partnerCommission, partnerPayout, partnersJoinLine } from '@/lib/public/copy'
 
@@ -19,6 +20,8 @@ const facts = (over: Partial<TrustFacts> = {}): TrustFacts => ({
   onlinePaymentEnabled: false,
   autopilotAgentOnWhatsapp: true,
   backgroundCheckRequired: false,
+  guaranteeOverdue: 0,
+  guaranteePolicyPublished: true,
   ...over,
 })
 const state = (over: Partial<ClaimState> = {}): ClaimState => ({ ...defaultClaimState(), ...over })
@@ -49,6 +52,15 @@ describe('unbackedClaims', () => {
     expect(keys(state({ promo_no_commission: true }), facts({ commissionEnabled: false }))).toEqual([])
   })
 
+  it('garantía: sin respaldo si hay reclamos vencidos o la política no está publicada', () => {
+    expect(keys(state({ trust_guarantee: true }), facts())).toEqual([])
+    const overdue = unbackedClaims(state({ trust_guarantee: true }), facts({ guaranteeOverdue: 2 }))
+    expect(overdue.map((c) => c.key)).toEqual(['trust_guarantee'])
+    expect(overdue[0].why).toMatch(/2 reclamos de garantía vencidos/)
+    expect(keys(state({ trust_guarantee: true }), facts({ guaranteePolicyPublished: false }))).toEqual(['trust_guarantee'])
+    expect(keys(state({ trust_guarantee: false }), facts({ guaranteeOverdue: 5 }))).toEqual([])
+  })
+
   it('reporta varias a la vez, con su motivo', () => {
     const out = unbackedClaims(
       state({ trust_support_247: true, trust_background_check: true, trust_online_payment_protection: true, promo_no_commission: true }),
@@ -58,7 +70,7 @@ describe('unbackedClaims', () => {
     expect(out.every((c) => c.why.length > 0)).toBe(true)
   })
 
-  it('las cifras, testimonios, garantía y beneficios nunca aparecen (se ocultan solos o dependen del equipo)', () => {
+  it('las cifras, testimonios, garantía al día y beneficios no aparecen', () => {
     const all = state({ trust_real_stats: true, trust_real_testimonials: true, trust_guarantee: true, promo_launch_benefits: true })
     expect(keys(all, facts())).toEqual([])
   })
@@ -122,5 +134,7 @@ describe('textos públicos', () => {
     expect(citiesLine(base)).toBeNull()
     expect(citiesLine({ ...base, stats: { ...base.stats, activeCities: ['Medellín', 'Envigado', 'Bello'] } })).toBe('Profesionales en Medellín, Envigado y Bello')
     expect(claimSays('trust_guarantee')).not.toContain('«')
+    expect(claimSays('trust_guarantee')).toBe(POLICY_SUMMARY)
+    expect(CLAIMS.trust_guarantee.says).toContain('/garantia')
   })
 })

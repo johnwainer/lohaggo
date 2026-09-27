@@ -1,4 +1,4 @@
-import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, Shield, DollarSign, Wallet, MapPin, CreditCard, Percent, Megaphone, Activity, HeartPulse, LifeBuoy, ToggleRight, Building2, BookOpen, Smartphone, MessageSquare, Inbox, Link2, Zap, Palette, Send, Share2, Bot, Cpu, Newspaper, Sparkles, type LucideIcon } from 'lucide-react'
+import { LayoutDashboard, Calendar, Users, UserCheck, Package, BarChart3, Bell, Settings, Shield, DollarSign, Wallet, MapPin, CreditCard, Percent, Megaphone, Activity, HeartPulse, LifeBuoy, ToggleRight, Building2, BookOpen, Smartphone, MessageSquare, Inbox, Link2, Zap, Palette, Send, Share2, Bot, Cpu, Newspaper, Sparkles, ShieldCheck, ListChecks, type LucideIcon } from 'lucide-react'
 
 export interface MenuItem {
   id: string
@@ -34,6 +34,7 @@ export const ADMIN_MENU: MenuGroup[] = [
       { id: 'payments', label: 'Pagos', icon: DollarSign },
       { id: 'payouts', label: 'Pagos a Socios', icon: Wallet },
       { id: 'finance-ops', label: 'Finanzas', icon: CreditCard, href: '/admin/finance-ops' },
+      { id: 'guarantee', label: 'Garantía', icon: ShieldCheck, href: '/admin/guarantee' },
       { id: 'operations', label: 'Casos e incidentes', icon: LifeBuoy, href: '/admin/operations' },
     ],
   },
@@ -52,6 +53,7 @@ export const ADMIN_MENU: MenuGroup[] = [
     items: [
       { id: 'services', label: 'Servicios', icon: Package },
       { id: 'cities', label: 'Ciudades', icon: MapPin },
+      { id: 'waitlist', label: 'Lista de espera', icon: ListChecks, href: '/admin/waitlist' },
     ],
   },
   {

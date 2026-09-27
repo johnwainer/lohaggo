@@ -214,6 +214,16 @@ describe('reglas de detección', () => {
     expect(keys({ trust: { unbacked: [] } })).toEqual([])
   })
 
+  it('garantía: un reclamo vencido es crítico; un socio con 2+ faltas en 90 días avisa (uno por socio)', () => {
+    expect(keys({ guarantee: { open: 3, overdue: 0, strikesLast90: 1, partnersAtLimit: [] } })).toEqual([])
+    const d = detect({ ...base, guarantee: { open: 3, overdue: 1, strikesLast90: 5, partnersAtLimit: [{ partnerId: 'p1', strikes: 2 }, { partnerId: 'p2', strikes: 3 }] } })
+    expect(d.map((x) => x.key)).toEqual(['ops:guarantee-overdue', 'ops:partner-strikes:p1', 'ops:partner-strikes:p2'])
+    expect(d[0].severity).toBe('critical')
+    expect(d[0].title).toBe('1 reclamo de garantía vencido (más de 72 h sin resolver)')
+    expect(d[2].detail).toMatch(/suspende/)
+    expect(d[1]).toMatchObject({ entityType: 'PartnerProfile', entityId: 'p1' })
+  })
+
   it('novedad: lo que no estaba antes o empeoró', () => {
     const now = detect({ ...base, inbox: { ...base.inbox, waiting: 1 }, marketing: { ...base.marketing, failedWeek: 2 } })
     expect(novelDetections(now, [{ key: 'inbox:waiting', severity: 'critical' }, { key: 'mk:failed', severity: 'warning' }])).toEqual([])

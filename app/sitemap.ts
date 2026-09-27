@@ -33,6 +33,12 @@ const staticPages: MetadataRoute.Sitemap = [
     priority: 0.8,
   },
   {
+    url: `${baseUrl}/garantia`,
+    lastModified: new Date(),
+    changeFrequency: 'monthly',
+    priority: 0.7,
+  },
+  {
     url: `${baseUrl}/unete`,
     lastModified: new Date(),
     changeFrequency: 'monthly',

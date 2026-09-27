@@ -45,6 +45,7 @@ export const DAILY_ACTION_LIMITS: Record<string, number> = {
   vincular_cuenta: 3,
   registrar_cuenta_bancaria: 2,
   subir_documento: 6,
+  reportar_problema_servicio: 2,
 }
 
 export function dailyLimitFor(tool: string) {

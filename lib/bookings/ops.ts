@@ -93,7 +93,7 @@ export async function loadBooking(bookingId: string) {
 
 export async function addBookingEvent(p: {
   bookingId: string
-  type: 'status' | 'reschedule' | 'payment'
+  type: 'status' | 'reschedule' | 'payment' | 'guarantee'
   actor: Actor
   origin: Origin
   fromStatus?: BookingStatus | null

@@ -4,6 +4,7 @@ import { trustReport } from '@/lib/public/trust'
 import { CLAIMS, isClaimKey } from '@/lib/public/claims'
 import { loadPlatformConfigRow } from '@/lib/payments/commission'
 import { PLATFORM_CHANGELOG } from '@/lib/haggo/platform-facts'
+import { ACTIVE_STATUSES, STRIKE_WINDOW_DAYS, STRIKES_TO_PAUSE, TYPE_LABEL, isGuaranteeType } from '@/lib/guarantee/policy'
 import { untrusted } from '@/lib/haggo/prompt'
 
 /** `maxOutput`: characters of JSON the model gets back (8000 by default) */
@@ -55,7 +56,7 @@ async function recentActivity(hours: number) {
   for (const p of proposals) rows.push({ at: p.createdAt, area: 'propuestas', que: `Propuesta de $${Math.round(p.price).toLocaleString('es-CO')} para ${p.serviceRequest.service.name}`, origen: originOf(p.origin, p.originChannel), ref: `Proposal:${p.id}` })
   for (const b of bookings) rows.push({ at: b.createdAt, area: 'reservas', que: `Reserva creada: ${b.service.name} en ${b.city} por $${Math.round(b.totalPrice).toLocaleString('es-CO')}`, origen: originOf(b.origin, b.originChannel), ref: `Booking:${b.id}` })
   for (const e of events) {
-    const what = e.type === 'status' ? `Reserva ${e.fromStatus ?? '—'} → ${e.toStatus ?? '—'}` : e.type === 'reschedule' ? 'Reserva reprogramada' : e.type === 'payment' ? `Pago de la reserva${e.toStatus ? `: ${e.toStatus}` : ''}` : `Reserva: ${e.type}`
+    const what = e.type === 'status' ? `Reserva ${e.fromStatus ?? '—'} → ${e.toStatus ?? '—'}` : e.type === 'reschedule' ? 'Reserva reprogramada' : e.type === 'payment' ? `Pago de la reserva${e.toStatus ? `: ${e.toStatus}` : ''}` : e.type === 'guarantee' ? 'Garantía de la reserva' : `Reserva: ${e.type}`
     const detail = e.detail ? ` ${untrusted(e.detail.slice(0, 120))}` : ''
     rows.push({ at: e.createdAt, area: 'reservas', que: `${what} (por ${e.actorType})${detail}`, origen: originOf(e.origin, e.originChannel), ref: `Booking:${e.bookingId}` })
   }
@@ -154,6 +155,42 @@ export const PLATFORM_READ_TOOLS: Record<string, ReadTool> = {
         por_tipo: byType.map((t) => ({ tipo: t.type, pendientes: t._count._all, horas_mas_antiguo: t._min.createdAt ? hoursSince(t._min.createdAt) : null })),
         socios_esperando: Array.from(waiting.values()),
         verificados_sin_servicios: noServices.map((p) => ({ partnerId: p.id, ciudad: p.city, dias_desde_registro: Math.round(hoursSince(p.createdAt) / 24) })),
+      }
+    },
+  },
+  garantia: {
+    def: {
+      name: 'garantia',
+      description: `Garantía LoHaggo (lib/guarantee/policy.ts): reclamos activos con su plazo (SLA de 72 h; horas que faltan o vencido), tipo (no llegó, trabajo mal hecho, daño), estado y socio; activos por tipo; y faltas por socio en ${STRIKE_WINDOW_DAYS} días (con ${STRIKES_TO_PAUSE} se pausa solo). Resolver es de una persona (dinero y sanciones): tú solo recomiendas qué remedio aplicar.`,
+      input_schema: { type: 'object', properties: {} },
+    },
+    maxOutput: 12_000,
+    run: async () => {
+      const now = Date.now()
+      const since = new Date(now - STRIKE_WINDOW_DAYS * 24 * H)
+      const [active, byType, strikes, closed30] = await Promise.all([
+        prisma.guaranteeClaim.findMany({ where: { status: { in: ACTIVE_STATUSES } }, orderBy: { slaDueAt: 'asc' }, take: 30, select: { id: true, type: true, status: true, slaDueAt: true, createdAt: true, origin: true, partnerId: true, description: true, bookingId: true } }),
+        prisma.guaranteeClaim.groupBy({ by: ['type'], where: { status: { in: ACTIVE_STATUSES } }, _count: { _all: true } }),
+        prisma.guaranteeClaim.groupBy({ by: ['partnerId'], where: { partnerStrike: true, partnerId: { not: null }, createdAt: { gte: since } }, _count: { _all: true } }),
+        prisma.guaranteeClaim.groupBy({ by: ['remedy'], where: { resolvedAt: { gte: new Date(now - 30 * 24 * H) } }, _count: { _all: true } }),
+      ]).catch(() => null) ?? [[], [], [], []]
+      const partnerIds = Array.from(new Set([...active.map((c) => c.partnerId), ...strikes.map((s) => s.partnerId)].filter((p): p is string => Boolean(p))))
+      const partners = partnerIds.length ? await prisma.partnerProfile.findMany({ where: { id: { in: partnerIds } }, select: { id: true, isAvailable: true, user: { select: { name: true } } } }).catch(() => []) : []
+      const name = (id: string | null) => (id ? partners.find((p) => p.id === id)?.user.name ?? id : null)
+      const strikeOf = new Map(strikes.map((s) => [s.partnerId, s._count._all]))
+      return {
+        activos: active.map((c) => {
+          const h = Math.round((c.slaDueAt.getTime() - now) / H)
+          return {
+            ref: `GuaranteeClaim:${c.id}`, reserva: `Booking:${c.bookingId}`, tipo: isGuaranteeType(c.type) ? TYPE_LABEL[c.type] : c.type, estado: c.status,
+            horas_para_vencer: h, vencido: h < 0, origen: c.origin, socio: name(c.partnerId), faltas_socio_90d: c.partnerId ? strikeOf.get(c.partnerId) ?? 0 : 0,
+            descripcion: untrusted(c.description.slice(0, 160)),
+          }
+        }),
+        activos_por_tipo: byType.map((t) => ({ tipo: isGuaranteeType(t.type) ? TYPE_LABEL[t.type] : t.type, activos: t._count._all })),
+        vencidos: active.filter((c) => c.slaDueAt.getTime() < now).length,
+        faltas_por_socio_90d: strikes.map((s) => ({ partnerId: s.partnerId, socio: name(s.partnerId), faltas: s._count._all, pausado: partners.find((p) => p.id === s.partnerId)?.isAvailable === false })).sort((a, b) => b.faltas - a.faltas),
+        remedios_30d: closed30.map((r) => ({ remedio: r.remedy ?? 'sin remedio', veces: r._count._all })),
       }
     },
   },

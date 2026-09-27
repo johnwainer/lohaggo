@@ -10,8 +10,9 @@ export const PLATFORM_CAPABILITIES = `Cómo funciona LoHaggo hoy:
 - Verificación de socios: solo el documento de identidad es obligatorio. Antecedentes y diplomas son opcionales.
 - Ciudades: CityConfig con estado ACTIVE, COMING_SOON o INACTIVE; solo las activas reciben solicitudes.
 - Bandeja omnicanal (WhatsApp, Messenger, Instagram, SMS, correo) con agentes de IA en piloto (responden solos) o copiloto (sugieren a una persona).
-- Operación por chat: 20 herramientas para que clientes y socios hagan todo por WhatsApp/Messenger/Instagram (pedir un servicio, aceptar propuestas, reprogramar, cancelar, reportar y confirmar pagos, calificar, proponer como socio, editar su perfil). Vinculación de la cuenta con un código, confirmación explícita antes de lo que compromete dinero o agenda, límites diarios por conversación, marca origin='chat' en cada registro, registro en AiAgentAction y, en copiloto, aprobación de la acción en la bandeja.
+- Operación por chat: 21 herramientas para que clientes y socios hagan todo por WhatsApp/Messenger/Instagram (pedir un servicio, aceptar propuestas, reprogramar, cancelar, reportar y confirmar pagos, calificar, proponer como socio, editar su perfil, reclamar la garantía). Vinculación de la cuenta con un código, confirmación explícita antes de lo que compromete dinero o agenda, límites diarios por conversación, marca origin='chat' en cada registro, registro en AiAgentAction y, en copiloto, aprobación de la acción en la bandeja.
 - Marketing: agentes de marketing por campaña (estrategia, plan, redacción, programación), editor de publicaciones con revisión editorial (corrector y editor), blog y redes (Facebook, Instagram), y agente de pauta que prepara anuncios para Meta Ads (se suben a mano).
+- Garantía LoHaggo (lib/guarantee/policy.ts, página /garantia): cubre «no llegó» (hasta 24 h después de la hora), trabajo incompleto o distinto (hasta 72 h después de completada) y daños (siempre una persona; LoHaggo media, no paga daños). Remedios: otro socio con prioridad (solicitud nueva urgente), cancelación sin costo, que el mismo socio corrija, y reembolso solo si pagó en línea. SLA: solución en 24 h, resuelto en 72 h. 2 faltas del socio en 90 días lo pausan solo; con 3 el equipo decide suspender. El cliente reclama por chat (reportar_problema_servicio) y el equipo resuelve en /admin/guarantee; tú solo recomiendas.
 - Afirmaciones públicas del sitio (confianza y promociones) controladas por interruptores (lib/public/claims.ts); las cifras salen de la base y solo se muestran sobre un mínimo. Nada inventado.
 - Analítica del admin con corte app frente a chat, salud del sistema, casos e incidentes, modo TV.
 - Tú (Haggo) supervisas todo, propones acciones y el superadmin aprueba; en las áreas que él ponga en autónomo actúas solo con riesgo bajo o medio permitido.`
@@ -20,6 +21,13 @@ export type ChangelogEntry = { date: string; area: string; change: string; impac
 
 /** Newest first. At most ~15 entries: the big features only. */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
+  {
+    date: '2026-09-27',
+    area: 'Garantía',
+    change: 'Garantía LoHaggo de punta a punta: política única (lib/guarantee/policy.ts) publicada en /garantia, reclamos GuaranteeClaim con caso en la cola GUARANTEE y SLA de 72 h, herramienta de chat reportar_problema_servicio para clientes, pantalla /admin/guarantee para resolver (otro socio, cancelar sin costo, corregir, reembolso solo con pago en línea, mediación) y faltas del socio con pausa automática a las 2 en 90 días. La afirmación trust_guarantee queda sin respaldo si hay reclamos vencidos.',
+    impacto: 'Los clientes tienen una promesa concreta y verificable; el equipo, un procedimiento; los socios que fallan pierden solicitudes.',
+    comoVerlo: 'garantia (activos, vencidos, faltas por socio), la foto (guarantee.*) y las reglas ops:guarantee-overdue y ops:partner-strikes.',
+  },
   {
     date: '2026-09-27',
     area: 'Operación por chat',
@@ -117,13 +125,6 @@ export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
     change: 'Modo copiloto de los agentes de IA, comentarios de Facebook e Instagram atendidos por IA y creación de cuentas desde la bandeja.',
     impacto: 'Más conversaciones atendidas por IA con una persona supervisando.',
     comoVerlo: 'atencion y agente_ia.',
-  },
-  {
-    date: '2026-09-23',
-    area: 'Bandeja',
-    change: 'Agentes de IA conversacionales en la bandeja omnicanal, con Messenger e Instagram.',
-    impacto: 'Atención 24/7 por chat.',
-    comoVerlo: 'atencion y conversaciones_en_espera.',
   },
 ]
 

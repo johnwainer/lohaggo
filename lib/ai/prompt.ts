@@ -95,7 +95,7 @@ function rulesBlock(agent: PromptAgent, ctx: Pick<PromptContext, 'toolGuidance' 
   ]
   if (ctx.toolGuidance.trim()) {
     sections.push('', 'Herramientas. Tenerlas no obliga a usarlas; úsalas solo cuando corresponda:', ctx.toolGuidance.trim())
-    if (/\b(crear_solicitud|aceptar_propuesta|enviar_propuesta|reportar_pago|confirmar_pago|cancelar_reserva|reprogramar_reserva|cambiar_estado_reserva|calificar|registrar_cuenta_bancaria|subir_documento|gestionar_servicio)\b/.test(ctx.toolGuidance)) {
+    if (/\b(crear_solicitud|aceptar_propuesta|enviar_propuesta|reportar_pago|confirmar_pago|cancelar_reserva|reprogramar_reserva|cambiar_estado_reserva|calificar|registrar_cuenta_bancaria|subir_documento|gestionar_servicio|reportar_problema_servicio)\b/.test(ctx.toolGuidance)) {
       sections.push(
         '',
         'Cuando gestiones la cuenta de la persona (solicitudes, propuestas, reservas, pagos, calificaciones, perfil de socio):',

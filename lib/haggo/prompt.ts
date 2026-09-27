@@ -75,6 +75,7 @@ export const REVIEW_CHECKLIST: Array<{ area: string; tools: string[] }> = [
   { area: 'Clientes y adquisición: registros, origen, recompra', tools: ['personas_y_adquisicion'] },
   { area: 'Calidad: reseñas bajas y socios peor calificados', tools: ['resenas'] },
   { area: 'Dinero: pagos, rechazos, pagos a socios, efectivo, reembolsos', tools: ['dinero'] },
+  { area: 'Garantía: reclamos activos y vencidos (SLA 72 h), remedios aplicados y socios con faltas (recomendar; resolver es de una persona)', tools: ['garantia'] },
   { area: 'Bandeja y atención: esperas, tiempos de respuesta, IA frente a personas, carga del equipo', tools: ['conversaciones_en_espera', 'atencion', 'equipo'] },
   { area: 'Agentes de IA de la bandeja: traspasos, vacíos de conocimiento, costo, herramientas activas y modo por canal', tools: ['agente_ia'] },
   { area: 'Operación por chat: qué hicieron los agentes en cuentas de clientes y socios, fallos repetidos, cancelaciones', tools: ['acciones_por_chat'] },
