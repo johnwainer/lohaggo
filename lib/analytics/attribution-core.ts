@@ -126,6 +126,8 @@ export function classifyTouch(t: Touch | null | undefined): TouchBucket {
   const campaign = t.campaign ?? null
   const content = t.content ?? null
   const ref = t.ref ?? ''
+  // A chat that arrived with no ad and no ref (someone wrote to us on WhatsApp, Instagram or Messenger)
+  if (t.via === 'chat' && t.medium === 'direct') return { channel: 'chat_directo', campaign: null, content: t.channel ?? null }
   const metaSource = has(t.source, 'facebook', 'instagram', 'meta', 'fb', 'ig', 'msg', 'an')
   if (t.adId || t.ctwaClid || ref.startsWith('ad-') || t.fbclid || has(t.medium, 'paid_social') || (has(t.medium, 'paid', 'cpc', 'ads') && metaSource)) {
     return { channel: 'meta_ads', campaign, content: content ?? t.adId ?? null }

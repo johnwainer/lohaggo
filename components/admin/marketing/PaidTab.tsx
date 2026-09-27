@@ -113,7 +113,7 @@ function SpendSection({ draftId, canEdit }: { draftId: string; canEdit: boolean 
       {canEdit && (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-[auto_1fr_auto_auto]">
           <input type="date" className={input} value={f.day} max={todayBogota()} onChange={(e) => setF({ ...f, day: e.target.value })} />
-          <input className={input} placeholder="Conjunto (opcional): Reparaciones" value={f.adSet} onChange={(e) => setF({ ...f, adSet: e.target.value })} />
+          <input className={input} placeholder="Conjunto (opcional)" title="Nombre del conjunto en Ads Manager, p. ej. Reparaciones" value={f.adSet} onChange={(e) => setF({ ...f, adSet: e.target.value })} />
           <input className={input} inputMode="numeric" placeholder="Gasto en COP" value={f.amountCop} onChange={(e) => setF({ ...f, amountCop: e.target.value })} />
           <button onClick={save} disabled={busy || !f.amountCop.trim()} className="inline-flex items-center justify-center gap-1.5 rounded-full bg-primary-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy && <Loader2 size={14} className="animate-spin" />} Guardar</button>
         </div>

@@ -113,7 +113,7 @@ export function OriginsTab({ d, model, onModel }: { d: Record<string, unknown>; 
       </div>
 
       {data.requestsWithoutData > 0 && (
-        <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900">{num(data.requestsWithoutData)} solicitudes del periodo no tienen origen guardado (se crearon antes de medirlo).</p>
+        <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900">{data.requestsWithoutData === 1 ? '1 solicitud del periodo no tiene' : `${num(data.requestsWithoutData)} solicitudes del periodo no tienen`} origen guardado (se crearon antes de medirlo).</p>
       )}
 
       <Card title="Por canal" subtitle="Chat → solicitud → reserva → completada → ventas">
