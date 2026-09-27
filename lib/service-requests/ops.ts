@@ -7,6 +7,7 @@ import { sanitizeObject } from '@/lib/validation/sanitize'
 import { notifyNewServiceRequest, notifyProposalRejected } from '@/lib/notifications/notificationService'
 import { recordPromptContext } from '@/lib/pwa/adoption-strategy'
 import { OpsError, originColumns, type Actor, type Origin } from '@/lib/ops/origin'
+import { DEFAULT_COMMISSION, loadEffectiveRates, loadPlatformConfigRow } from '@/lib/payments/commission'
 
 /**
  * Service-request operations shared by the app routes and the inbox AI agents. They load, validate state
@@ -17,7 +18,8 @@ const logger = createLogger('service-requests-ops')
 
 export type ServiceRequestInput = z.input<typeof serviceRequestSchema>
 
-export const DEFAULT_RATES = { clientCommissionRate: 5.0, partnerCommissionRate: 10.0 }
+/** Stored defaults when there is no PlatformConfig row; what applies is `effectiveRates` (0/0 while commission is off). */
+export const DEFAULT_RATES = DEFAULT_COMMISSION
 
 export const clientRequestInclude = {
   service: { include: { category: true } },
@@ -41,9 +43,7 @@ const createdRequestInclude = {
 } satisfies Prisma.ServiceRequestInclude
 
 /** PlatformConfig without creating it: the row named 'default', else the first one, else null. */
-export async function loadPlatformConfig() {
-  return (await prisma.platformConfig.findFirst({ where: { key: 'default' } })) || (await prisma.platformConfig.findFirst({ orderBy: { createdAt: 'asc' } }))
-}
+export const loadPlatformConfig = loadPlatformConfigRow
 
 const money = (n: number) => `$${Math.round(n).toLocaleString('es-CO')}`
 
@@ -155,13 +155,13 @@ export async function cancelServiceRequest(actor: Actor, requestId: string, _ori
   return { id: requestId, cancelledProposals: pendingProposalIds.length }
 }
 
-/** The client's requests with their proposals, plus the client commission rate (never writes PlatformConfig). */
+/** The client's requests with their proposals, plus the effective client commission rate (0 while it is off). */
 export async function listClientRequests(userId: string) {
-  const [serviceRequests, platformConfig] = await Promise.all([
+  const [serviceRequests, rates] = await Promise.all([
     prisma.serviceRequest.findMany({ where: { userId }, include: clientRequestInclude, orderBy: { createdAt: 'desc' } }),
-    prisma.platformConfig.findFirst({ orderBy: { createdAt: 'asc' } }),
+    loadEffectiveRates(),
   ])
-  return { serviceRequests, clientCommissionRate: platformConfig?.clientCommissionRate ?? DEFAULT_RATES.clientCommissionRate }
+  return { serviceRequests, clientCommissionRate: rates.client }
 }
 
 /** Open requests a partner can bid on: in their cities/services or addressed directly to them, not yet answered. */

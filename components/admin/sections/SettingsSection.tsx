@@ -45,7 +45,7 @@ export default function SettingsSection() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           clientCommissionRate: config?.clientCommissionRate ?? 5,
-          partnerCommissionRate: config?.partnerCommissionRate ?? 20,
+          partnerCommissionRate: config?.partnerCommissionRate ?? 10,
           minServicePrice: form.minServicePrice,
           maxServicePrice: form.maxServicePrice,
         }),

@@ -7,7 +7,8 @@ import { notifyNewProposal, notifyProposalAccepted, notifyProposalRejected } fro
 import { scheduleAutomationsForUser } from '@/lib/messaging/automation-service'
 import { recordPromptContext } from '@/lib/pwa/adoption-strategy'
 import { OpsError, actorTypeOf, originColumns, type Actor, type Origin } from '@/lib/ops/origin'
-import { DEFAULT_RATES, loadPlatformConfig } from '@/lib/service-requests/ops'
+import { loadPlatformConfig } from '@/lib/service-requests/ops'
+import { effectiveRates } from '@/lib/payments/commission'
 
 /**
  * Proposal operations shared by the app routes and the inbox AI agents. Same contract as the other
@@ -116,8 +117,7 @@ export async function acceptProposal(actor: Actor, proposalId: string, origin: O
   if (proposal.serviceRequest.status !== 'ACTIVE') throw new OpsError('Esta solicitud ya no está activa', 400)
   if (proposal.status !== 'PENDING') throw new OpsError('Esta propuesta ya no está disponible', 400)
 
-  const config = await loadPlatformConfig()
-  const rates = config ? { clientCommissionRate: config.clientCommissionRate, partnerCommissionRate: config.partnerCommissionRate } : DEFAULT_RATES
+  const rates = effectiveRates(await loadPlatformConfig())
   const sr = proposal.serviceRequest
   const { scheduledDate, scheduledTime } = resolveSchedule(sr, opts)
 
@@ -143,8 +143,8 @@ export async function acceptProposal(actor: Actor, proposalId: string, origin: O
         city: sr.city,
         status: 'PENDING',
         totalPrice: proposal.price,
-        clientCommissionRate: rates.clientCommissionRate,
-        partnerCommissionRate: rates.partnerCommissionRate,
+        clientCommissionRate: rates.client,
+        partnerCommissionRate: rates.partner,
         ...originColumns(origin),
       },
       include: bookingInclude,

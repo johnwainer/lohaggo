@@ -193,7 +193,7 @@ export default function CommissionsSection() {
         <h3 className="font-semibold text-gray-900 mb-4">Metodos de pago habilitados</h3>
         <p className="text-sm text-gray-600 mb-4">
           Controla que metodos puede usar el cliente al reportar el pago. La transferencia muestra los datos
-          bancarios registrados por el socio. La comision aplica solo si esta activada.
+          bancarios registrados por el socio. La comisión aplica solo si «Cobrar comisión» está encendido.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <ToggleRow
@@ -219,17 +219,22 @@ export default function CommissionsSection() {
           />
           <ToggleRow
             icon={<Percent className="w-5 h-5 text-amber-600" />}
-            label="Cobrar comision"
-            description="Aplica % de comision a cliente y socio"
+            label="Cobrar comisión"
+            description="Si está apagado no se cobra comisión a clientes ni a socios. Los porcentajes solo aplican con esto encendido."
             checked={config.commissionEnabled}
             onChange={(v) => setConfig({ ...config, commissionEnabled: v })}
-            warning={!config.commissionEnabled ? undefined : 'Afecta payouts existentes'}
+            warning={config.commissionEnabled ? 'Aplica a las reservas nuevas; las ya creadas conservan la tarifa con la que se acordaron' : undefined}
           />
         </div>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
         <h3 className="font-semibold text-gray-900 mb-4">Resumen del Flujo de Pagos</h3>
+        {!config.commissionEnabled && (
+          <p className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+            La comisión está apagada: el cliente paga solo el precio del socio y el socio recibe el 100 %. El flujo de abajo aplica cuando la enciendas.
+          </p>
+        )}
         <div className="space-y-3 text-sm text-gray-700">
           <div className="flex items-start gap-2">
             <span className="font-bold text-primary-600">1.</span>

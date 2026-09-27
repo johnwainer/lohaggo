@@ -848,7 +848,7 @@ async function main() {
       key: 'default',
       commissionRate: 15.0,
       clientCommissionRate: 5.0,
-      partnerCommissionRate: 20.0,
+      partnerCommissionRate: 10.0,
       minServicePrice: 10000,
       maxServicePrice: 10000000,
     },

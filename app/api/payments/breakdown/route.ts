@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
+import { bookingRates, clientBreakdown } from '@/lib/payments/commission'
 
 
 const logger = createLogger('payments-breakdown')
@@ -42,19 +43,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     }
 
-    const config = await prisma.platformConfig.findFirst()
-
-    if (!config) {
-      return NextResponse.json(
-        { error: 'Configuración de la plataforma no encontrada' },
-        { status: 500 }
-      )
-    }
-
-    const clientCommissionRate = Number(config.clientCommissionRate)
-    const serviceAmount = booking.totalPrice
-    const clientCommission = (serviceAmount * clientCommissionRate) / 100
-    const totalAmount = serviceAmount + clientCommission
+    const rates = await bookingRates(booking)
+    const { serviceAmount, clientCommission, clientCommissionRate, totalAmount } = clientBreakdown(booking.totalPrice, rates.client)
 
     return NextResponse.json({
       breakdown: {

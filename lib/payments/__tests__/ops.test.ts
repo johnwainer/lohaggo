@@ -117,7 +117,20 @@ describe('confirmPartnerPayment', () => {
     expect(m.payoutCreate).toHaveBeenCalledTimes(1)
   })
 
-  it('sin tasa en la reserva usa la de la plataforma; sin cuenta por defecto bankAccountId null', async () => {
+  it('sin tasa en la reserva y comisión apagada → payout sin comisión (neto = servicio)', async () => {
+    m.bookingFindUnique.mockResolvedValue(booking())
+    await confirmPartnerPayment(partner, 'bk1', { method: 'CASH' }, APP_ORIGIN)
+    expect(m.payoutCreate.mock.calls[0][0].data).toMatchObject({ amount: 130000, partnerCommissionRate: 0, partnerCommission: 0, netAmount: 130000 })
+  })
+
+  it('reserva creada con la comisión apagada (0 %) → payout sin comisión aunque hoy esté encendida', async () => {
+    m.configFindFirst.mockResolvedValue({ cashEnabled: true, transferEnabled: true, commissionEnabled: true, partnerCommissionRate: 10 })
+    await ensurePayoutForPayment({ id: 'pay9', serviceAmount: 130000, totalAmount: 130000 }, { id: 'bk1', partnerId: 'p1', partnerCommissionRate: 0 })
+    expect(m.payoutCreate.mock.calls[0][0].data).toMatchObject({ partnerCommission: 0, partnerCommissionRate: 0, netAmount: 130000 })
+  })
+
+  it('sin tasa en la reserva usa la efectiva de la plataforma; sin cuenta por defecto bankAccountId null', async () => {
+    m.configFindFirst.mockResolvedValue({ cashEnabled: true, transferEnabled: true, commissionEnabled: true, partnerCommissionRate: 10, mercadoPagoEnabled: false })
     m.bankFindFirst.mockResolvedValue(null)
     m.bookingFindUnique.mockResolvedValue(booking())
     await confirmPartnerPayment(partner, 'bk1', { method: 'DIRECT_TRANSFER' }, APP_ORIGIN)

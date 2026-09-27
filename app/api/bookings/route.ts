@@ -8,6 +8,7 @@ import { bookingCreateSchema } from '@/lib/validation/booking-schemas'
 import { currentActor, opsErrorResponse } from '@/lib/ops/actor'
 import { APP_ORIGIN, originColumns, OpsError } from '@/lib/ops/origin'
 import { BOOKING_INCLUDE, addBookingEvent, bookingsFor } from '@/lib/bookings/ops'
+import { loadEffectiveRates } from '@/lib/payments/commission'
 import { BookingStatus, City } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
@@ -45,9 +46,9 @@ export async function POST(request: Request) {
     const { serviceId, scheduledDate, scheduledTime, address, notes, totalPrice, partnerId, proposalId } = validation.data
     const bodyCity = citySchema.safeParse(body).data?.city
 
-    const [service, config] = await Promise.all([
+    const [service, rates] = await Promise.all([
       prisma.service.findUnique({ where: { id: serviceId }, select: { id: true, basePrice: true } }),
-      prisma.platformConfig.findFirst({ select: { clientCommissionRate: true, partnerCommissionRate: true } }),
+      loadEffectiveRates(),
     ])
     if (!service) return NextResponse.json({ error: "Servicio no encontrado" }, { status: 404 })
     if (totalPrice < service.basePrice) {
@@ -79,8 +80,8 @@ export async function POST(request: Request) {
         notes,
         totalPrice,
         ...(bodyCity ?? partnerCity ? { city: (bodyCity ?? partnerCity) as City } : {}),
-        clientCommissionRate: config?.clientCommissionRate ?? null,
-        partnerCommissionRate: config?.partnerCommissionRate ?? null,
+        clientCommissionRate: rates.client,
+        partnerCommissionRate: rates.partner,
         status: "PENDING",
         ...originColumns(APP_ORIGIN),
       },

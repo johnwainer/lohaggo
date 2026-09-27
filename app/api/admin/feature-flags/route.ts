@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { revalidateTag } from 'next/cache'
 import { requireAdmin, auditAdminAction } from '@/lib/admin-utils'
+import { isClaimKey } from '@/lib/public/claims'
+import { TRUST_CACHE_TAG } from '@/lib/public/trust'
 
 export async function GET() {
   const admin = await requireAdmin()
@@ -31,6 +34,8 @@ export async function POST(request: NextRequest) {
       metadata: body.metadata ? JSON.stringify(body.metadata) : null,
     },
   })
+
+  if (isClaimKey(flag.key)) revalidateTag(TRUST_CACHE_TAG, { expire: 0 })
 
   await auditAdminAction({
     actorId: admin.id,
@@ -65,6 +70,9 @@ export async function PATCH(request: NextRequest) {
       metadata: body.metadata === undefined ? undefined : body.metadata ? JSON.stringify(body.metadata) : null,
     },
   })
+
+  // A public claim changed: the site stops (or starts) saying it now, not in 10 minutes
+  if (isClaimKey(flag.key)) revalidateTag(TRUST_CACHE_TAG, { expire: 0 })
 
   await auditAdminAction({
     actorId: admin.id,

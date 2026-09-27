@@ -1,24 +1,16 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { effectiveRates, loadPlatformConfigRow } from '@/lib/payments/commission'
 
 export async function GET() {
-  const config = await prisma.platformConfig.findFirst({
-    select: {
-      commissionEnabled: true,
-      cashEnabled: true,
-      transferEnabled: true,
-      mercadoPagoEnabled: true,
-      clientCommissionRate: true,
-      partnerCommissionRate: true,
-    },
-  })
+  const config = await loadPlatformConfigRow()
+  const rates = effectiveRates(config)
 
   return NextResponse.json({
-    commissionEnabled: config?.commissionEnabled ?? false,
+    commissionEnabled: rates.enabled,
     cashEnabled: config?.cashEnabled ?? true,
     transferEnabled: config?.transferEnabled ?? true,
     mercadoPagoEnabled: config?.mercadoPagoEnabled ?? false,
-    clientCommissionRate: config?.clientCommissionRate ?? 0,
-    partnerCommissionRate: config?.partnerCommissionRate ?? 0,
+    clientCommissionRate: rates.client,
+    partnerCommissionRate: rates.partner,
   })
 }

@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { effectiveRates, loadPlatformConfigRow } from '@/lib/payments/commission'
 
 /**
  * Read-only platform lookups for the agents. CRM modules only ever read the user linked to the
@@ -187,12 +188,15 @@ export async function catalogLookup(topic: string, query: string): Promise<strin
       return `Ciudades:\n${cities.map((c) => `• ${c.name}: ${c.status === 'ACTIVE' ? 'activa' : `próximamente${c.launchDate ? ` (${fmtDate(c.launchDate)})` : ''}; ya se pueden registrar socios`}`).join('\n')}`
     }
     if (topic === 'pagos') {
-      const c = await prisma.platformConfig.findFirst({ select: { cashEnabled: true, transferEnabled: true, mercadoPagoEnabled: true, clientCommissionRate: true, partnerCommissionRate: true, minServicePrice: true, maxServicePrice: true } })
+      const c = await loadPlatformConfigRow()
       if (!c) return 'Pagos: configuración no disponible.'
+      const rates = effectiveRates(c)
       const methods = [c.cashEnabled && 'efectivo al socio', c.transferEnabled && 'transferencia a la cuenta del socio', c.mercadoPagoEnabled && 'pago en línea con MercadoPago'].filter(Boolean).join(', ')
       return [
         `Medios de pago habilitados: ${methods || 'ninguno'}.`,
-        `Tarifa de servicio que ve el cliente en las propuestas: ${c.clientCommissionRate}%. Comisión del socio: ${c.partnerCommissionRate}%.`,
+        rates.enabled
+          ? `Tarifa de servicio que ve el cliente en las propuestas: ${rates.client}%. Comisión del socio: ${rates.partner}%.`
+          : 'Sin comisión de servicio: el cliente paga solo el precio del socio y el socio recibe el 100 %.',
         `Precio de un servicio: entre ${fmtMoney(c.minServicePrice)} y ${fmtMoney(c.maxServicePrice)}.`,
       ].join('\n')
     }

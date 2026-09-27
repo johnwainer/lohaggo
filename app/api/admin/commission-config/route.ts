@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { createLogger } from '@/lib/logger';
 import { commissionConfigSchema, validateRequest } from '@/lib/validation';
+import { revalidateTag } from 'next/cache';
+import { DEFAULT_COMMISSION, loadPlatformConfigRow } from '@/lib/payments/commission';
+import { TRUST_CACHE_TAG } from '@/lib/public/trust';
 
 const logger = createLogger('admin-commission-config');
 
@@ -15,15 +18,16 @@ export async function GET() {
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
     }
 
-    let config = await prisma.platformConfig.findFirst();
+    let config = await loadPlatformConfigRow();
 
     if (!config) {
       config = await prisma.platformConfig.create({
         data: {
           key: 'commission_rates',
-          commissionRate: 15.0,
-          clientCommissionRate: 5.0,
-          partnerCommissionRate: 20.0,
+          commissionRate: DEFAULT_COMMISSION.clientCommissionRate,
+          clientCommissionRate: DEFAULT_COMMISSION.clientCommissionRate,
+          partnerCommissionRate: DEFAULT_COMMISSION.partnerCommissionRate,
+          commissionEnabled: false,
           minServicePrice: 10000,
           maxServicePrice: 10000000,
         },
@@ -66,7 +70,7 @@ export async function PUT(req: NextRequest) {
       mercadoPagoEnabled,
     } = validation.data;
 
-    const existingConfig = await prisma.platformConfig.findFirst();
+    const existingConfig = await loadPlatformConfigRow();
 
     let config;
     if (existingConfig) {
@@ -105,7 +109,11 @@ export async function PUT(req: NextRequest) {
       adminId: session.user.id,
       clientCommissionRate: config.clientCommissionRate,
       partnerCommissionRate: config.partnerCommissionRate,
+      commissionEnabled: config.commissionEnabled,
     });
+
+    // Public pages promise «sin comisión» only while it is off: expire their cached facts right away.
+    revalidateTag(TRUST_CACHE_TAG, { expire: 0 });
 
     return NextResponse.json(config);
   } catch (error) {

@@ -155,7 +155,7 @@ export default function DashboardPage() {
   const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([])
   const [favoritePartners, setFavoritePartners] = useState<any[]>([])
   const [favoriteServices, setFavoriteServices] = useState<any[]>([])
-  const [clientCommissionRate, setClientCommissionRate] = useState<number>(5.0)
+  const [clientCommissionRate, setClientCommissionRate] = useState<number>(0)
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string>('')
   const [searchTerm, setSearchTerm] = useState('')
@@ -930,14 +930,18 @@ export default function DashboardPage() {
                   </span>
                 </div>
 
-                <div className="flex justify-between items-center text-sm pb-3 border-b border-slate-200">
-                  <span className="text-slate-600">
-                    Tarifa de servicio ({paymentBreakdown.clientCommissionRate}%)
-                  </span>
-                  <span className="font-medium text-slate-600">
-                    +${paymentBreakdown.clientCommission.toLocaleString('es-CO')} COP
-                  </span>
-                </div>
+                {paymentBreakdown.clientCommissionRate > 0 ? (
+                  <div className="flex justify-between items-center text-sm pb-3 border-b border-slate-200">
+                    <span className="text-slate-600">
+                      Tarifa de servicio ({paymentBreakdown.clientCommissionRate}%)
+                    </span>
+                    <span className="font-medium text-slate-600">
+                      +${paymentBreakdown.clientCommission.toLocaleString('es-CO')} COP
+                    </span>
+                  </div>
+                ) : (
+                  <p className="text-xs text-emerald-600 pb-3 border-b border-slate-200">Sin comisión de servicio</p>
+                )}
 
                 <div className="flex justify-between items-center pt-2">
                   <span className="text-base font-bold text-slate-900">Total a pagar</span>
@@ -1925,7 +1929,7 @@ export default function DashboardPage() {
                                 d.type === 'ANTECEDENTES' && d.status === 'APPROVED'
                               )
                               const isFullyVerified = hasIdentity && hasEducation && hasBackground
-                              const totalAmount = proposal.price * (1 + clientCommissionRate / 100)
+                              const totalAmount = proposal.price + Math.round(proposal.price * (clientCommissionRate / 100))
                               const canAccept = request.status === 'ACTIVE' && proposal.status === 'PENDING'
                               const canChat = proposal.status === 'ACCEPTED' || canAccept
 
@@ -1961,16 +1965,20 @@ export default function DashboardPage() {
                                     <p className="text-xs sm:text-sm text-gray-600 mb-2">{proposal.notes}</p>
                                   )}
 
-                                  <div className="grid grid-cols-2 gap-2 text-xs mb-2">
-                                    <div className="rounded-lg bg-gray-50 border border-gray-100 px-2 py-1.5">
-                                      <p className="text-gray-500">Servicio</p>
-                                      <p className="font-semibold text-gray-800">{formatCurrency(proposal.price)}</p>
+                                  {clientCommissionRate > 0 ? (
+                                    <div className="grid grid-cols-2 gap-2 text-xs mb-2">
+                                      <div className="rounded-lg bg-gray-50 border border-gray-100 px-2 py-1.5">
+                                        <p className="text-gray-500">Servicio</p>
+                                        <p className="font-semibold text-gray-800">{formatCurrency(proposal.price)}</p>
+                                      </div>
+                                      <div className="rounded-lg bg-gray-50 border border-gray-100 px-2 py-1.5">
+                                        <p className="text-gray-500">Tarifa ({clientCommissionRate}%)</p>
+                                        <p className="font-semibold text-gray-800">{formatCurrency(Math.round(proposal.price * (clientCommissionRate / 100)))}</p>
+                                      </div>
                                     </div>
-                                    <div className="rounded-lg bg-gray-50 border border-gray-100 px-2 py-1.5">
-                                      <p className="text-gray-500">Tarifa ({clientCommissionRate}%)</p>
-                                      <p className="font-semibold text-gray-800">{formatCurrency(proposal.price * (clientCommissionRate / 100))}</p>
-                                    </div>
-                                  </div>
+                                  ) : (
+                                    <p className="text-xs text-emerald-600 mb-2">Sin comisión de servicio</p>
+                                  )}
 
                                   <div className="flex flex-col sm:flex-row gap-2">
                                     {canAccept && (

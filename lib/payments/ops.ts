@@ -6,6 +6,7 @@ import { env } from '@/lib/env'
 import { createLogger } from '@/lib/logger'
 import { APP_ORIGIN, OpsError, originColumns, type Actor, type Origin } from '@/lib/ops/origin'
 import { addBookingEvent, formatCOP } from '@/lib/bookings/ops'
+import { bookingRates, clientBreakdown, loadEffectiveRates, rateOrEffective } from '@/lib/payments/commission'
 import type { OfflinePaymentMethod, PaymentConfirmationStatus, PaymentStatus } from '@prisma/client'
 
 /**
@@ -48,7 +49,7 @@ async function notifyAdmins(message: string, bookingId: string) {
 
 /**
  * The partner's payout for an approved payment, created once. Commission: the rate saved on the booking or
- * the platform's current one; the money goes to the partner's default active bank account when there is one.
+ * the platform's current effective one (0 while commission is off); the money goes to the partner's default active bank account when there is one.
  */
 export async function ensurePayoutForPayment(
   payment: { id: string; serviceAmount: number | null; totalAmount: number | null },
@@ -61,14 +62,11 @@ export async function ensurePayoutForPayment(
   const existing = await prisma.payout.findUnique({ where: { paymentId: payment.id } })
   if (existing) return existing
 
-  let rate: number
-  if (booking.partnerCommissionRate !== null && booking.partnerCommissionRate !== undefined) rate = Number(booking.partnerCommissionRate)
-  else {
-    const config = await prisma.platformConfig.findFirst({ select: { partnerCommissionRate: true } })
-    rate = Number(config?.partnerCommissionRate ?? 0)
-  }
+  const rate = booking.partnerCommissionRate !== null && booking.partnerCommissionRate !== undefined
+    ? rateOrEffective(booking.partnerCommissionRate, 0)
+    : (await loadEffectiveRates()).partner
   const serviceAmount = Number(payment.serviceAmount ?? payment.totalAmount ?? 0)
-  const partnerCommission = (serviceAmount * rate) / 100
+  const partnerCommission = Math.round((serviceAmount * rate) / 100)
   const bankAccount = await prisma.partnerBankAccount.findFirst({ where: { partnerId: booking.partnerId, isDefault: true, isActive: true }, select: { id: true } })
 
   return prisma.payout.create({
@@ -324,19 +322,9 @@ export async function createMercadoPagoPreference(actor: Actor, bookingId: strin
   const existingPayment = await prisma.payment.findUnique({ where: { bookingId } })
   if (existingPayment && existingPayment.status === 'APPROVED') throw new OpsError('Esta reserva ya ha sido pagada')
 
-  let clientCommissionRate: number
-  if (booking.clientCommissionRate !== null && booking.clientCommissionRate !== undefined) {
-    clientCommissionRate = Number(booking.clientCommissionRate)
-  } else {
-    const config = await prisma.platformConfig.findFirst()
-    if (!config) throw new OpsError('Configuración de la plataforma no encontrada', 500)
-    clientCommissionRate = Number(config.clientCommissionRate)
-    logger.warn('Using current platform client commission rate', { bookingId, rateSource: 'platform' })
-  }
-
-  const serviceAmount = booking.totalPrice
-  const clientCommission = (serviceAmount * clientCommissionRate) / 100
-  const totalAmount = serviceAmount + clientCommission
+  const rates = await bookingRates(booking)
+  if (rates.source === 'platform') logger.warn('Using current effective client commission rate', { bookingId, rateSource: 'platform' })
+  const { serviceAmount, clientCommission, clientCommissionRate, totalAmount } = clientBreakdown(booking.totalPrice, rates.client)
 
   let mercadopago
   try {

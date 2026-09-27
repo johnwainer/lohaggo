@@ -6,6 +6,7 @@ import { createLogger } from '@/lib/logger'
 import { paymentRateLimiter } from '@/lib/rate-limit'
 import { paymentProcessSchema, validateRequest } from '@/lib/validation'
 import { getPaymentEnvironment } from '@/lib/payout-processor'
+import { bookingRates, clientBreakdown } from '@/lib/payments/commission'
 
 const logger = createLogger('payments-process')
 
@@ -65,40 +66,10 @@ async function handlePOST(req: NextRequest) {
       )
     }
 
-    let clientCommissionRate: number
-    let partnerCommissionRate: number
-
-    if (
-      booking.clientCommissionRate !== null &&
-      booking.clientCommissionRate !== undefined &&
-      booking.partnerCommissionRate !== null &&
-      booking.partnerCommissionRate !== undefined
-    ) {
-      clientCommissionRate = Number(booking.clientCommissionRate)
-      partnerCommissionRate = Number(booking.partnerCommissionRate)
-      logger.debug('Using saved commission rates from booking', {
-        bookingId,
-        rateSource: 'booking'
-      })
-    } else {
-      const config = await prisma.platformConfig.findFirst()
-      if (!config) {
-        return NextResponse.json(
-          { error: 'Configuración de la plataforma no encontrada' },
-          { status: 500 }
-        )
-      }
-      clientCommissionRate = Number(config.clientCommissionRate)
-      partnerCommissionRate = Number(config.partnerCommissionRate)
-      logger.warn('Using current platform commission rates', {
-        bookingId,
-        rateSource: 'platform'
-      })
-    }
-
-    const serviceAmount = booking.totalPrice
-    const clientCommission = (serviceAmount * clientCommissionRate) / 100
-    const totalAmount = serviceAmount + clientCommission
+    const rates = await bookingRates(booking)
+    const partnerCommissionRate = rates.partner
+    logger.debug('Commission rates for test payment', { bookingId, rateSource: rates.source })
+    const { serviceAmount, clientCommission, clientCommissionRate, totalAmount } = clientBreakdown(booking.totalPrice, rates.client)
 
     logger.info('Processing test payment simulation', {
       bookingId,
@@ -154,7 +125,7 @@ async function handlePOST(req: NextRequest) {
     }
 
     if (booking.partnerId) {
-      const partnerCommission = (serviceAmount * partnerCommissionRate) / 100
+      const partnerCommission = Math.round((serviceAmount * partnerCommissionRate) / 100)
       const netAmount = serviceAmount - partnerCommission
 
       const existingPayout = await prisma.payout.findUnique({

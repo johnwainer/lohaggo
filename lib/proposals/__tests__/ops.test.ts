@@ -107,7 +107,7 @@ describe('aceptar propuesta', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     m.proposalFindUnique.mockResolvedValue(pendingProposal())
-    m.configFindFirst.mockResolvedValue({ clientCommissionRate: 5, partnerCommissionRate: 10 })
+    m.configFindFirst.mockResolvedValue({ commissionEnabled: true, clientCommissionRate: 5, partnerCommissionRate: 10 })
     m.proposalFindMany.mockResolvedValue([{ id: 'pr2' }])
     m.bookingCreate.mockImplementation(async (a: { data: Record<string, unknown> }) => ({ id: 'b1', ...a.data, partner: { user: { id: 'pu1' } } }))
   })
@@ -162,10 +162,16 @@ describe('aceptar propuesta', () => {
     expect(m.eventCreate.mock.calls[0][0].data).toMatchObject({ actorType: 'client', origin: 'app' })
   })
 
-  it('sin PlatformConfig usa 5/10 sin fallar', async () => {
+  it('sin PlatformConfig la reserva queda sin comisión (0/0) sin fallar', async () => {
     m.configFindFirst.mockResolvedValue(null)
     await acceptProposal(client, 'pr1', APP_ORIGIN)
-    expect(m.bookingCreate.mock.calls[0][0].data).toMatchObject({ clientCommissionRate: 5, partnerCommissionRate: 10 })
+    expect(m.bookingCreate.mock.calls[0][0].data).toMatchObject({ clientCommissionRate: 0, partnerCommissionRate: 0 })
+  })
+
+  it('con la comisión apagada la reserva guarda 0/0 aunque haya tasas guardadas', async () => {
+    m.configFindFirst.mockResolvedValue({ commissionEnabled: false, clientCommissionRate: 5, partnerCommissionRate: 10 })
+    await acceptProposal(client, 'pr1', APP_ORIGIN)
+    expect(m.bookingCreate.mock.calls[0][0].data).toMatchObject({ clientCommissionRate: 0, partnerCommissionRate: 0 })
   })
 
   it('solicitud ajena → 403; propuesta no PENDING → 400; inexistente → 404', async () => {

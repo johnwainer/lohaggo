@@ -116,14 +116,18 @@ export default function PaymentButton({
                 </span>
               </div>
 
-              <div className="flex justify-between items-center pb-3 border-b border-gray-200">
-                <span className="text-gray-600">
-                  Tarifa de servicio ({breakdown?.clientCommissionRate}%)
-                </span>
-                <span className="font-medium text-gray-600">
-                  +${breakdown?.clientCommission?.toLocaleString('es-CO')} COP
-                </span>
-              </div>
+              {(breakdown?.clientCommissionRate ?? 0) > 0 ? (
+                <div className="flex justify-between items-center pb-3 border-b border-gray-200">
+                  <span className="text-gray-600">
+                    Tarifa de servicio ({breakdown?.clientCommissionRate}%)
+                  </span>
+                  <span className="font-medium text-gray-600">
+                    +${breakdown?.clientCommission?.toLocaleString('es-CO')} COP
+                  </span>
+                </div>
+              ) : (
+                <p className="text-xs text-emerald-600 pb-3 border-b border-gray-200">Sin comisión de servicio</p>
+              )}
 
               <div className="flex justify-between items-center pt-2">
                 <span className="text-lg font-bold text-gray-900">Total a Pagar</span>
