@@ -11,6 +11,7 @@ import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-conf
 import { scheduleAutomationsForUser } from '@/lib/messaging/automation-service'
 import { getDefaultWorkspaceId } from '@/lib/workspaces'
 import { normalizeContactAddress } from '@/lib/messaging/contact-address'
+import { attachmentLabel, kindFromMime } from '@/lib/messaging/attachments'
 import { resolveInboundContact } from '@/lib/inbox/contacts'
 import { autopilotCovers, drainAgentTasks, scheduleInboundAgent } from '@/lib/ai/autopilot'
 import { extractWebRef, parseTwilioReferral, recordConversationAttribution } from '@/lib/messaging/attribution'
@@ -63,9 +64,14 @@ export async function POST(request: NextRequest) {
   const from = String(formData.get('From') || '')
   const body = String(formData.get('Body') || '')
   const messageSid = String(formData.get('MessageSid') || '')
-  const numMedia = parseInt(String(formData.get('NumMedia') || '0'), 10)
-  const mediaUrl = numMedia > 0 ? String(formData.get('MediaUrl0') || '') : undefined
-  const mediaType = numMedia > 0 ? String(formData.get('MediaContentType0') || '') || null : null
+  const numMedia = Math.min(parseInt(String(formData.get('NumMedia') || '0'), 10) || 0, 10)
+  // Every photo of the message (WhatsApp sends up to 10 at once); only the first used to be kept
+  const media = Array.from({ length: numMedia }, (_, i) => ({
+    url: String(formData.get(`MediaUrl${i}`) || ''),
+    type: String(formData.get(`MediaContentType${i}`) || '') || null,
+  })).filter((m) => m.url)
+  const mediaUrl = media[0]?.url
+  const mediaType = media[0]?.type ?? null
   const profileName = String(formData.get('ProfileName') || '').trim().slice(0, 120) || null
 
   // Raw params (minus media URLs) so odd sender formats (e.g. WhatsApp ids instead of phones) can be inspected
@@ -137,7 +143,7 @@ export async function POST(request: NextRequest) {
         assignedToId: autoAssignId,
         status: 'OPEN',
         lastMessageAt: new Date(),
-        lastMessageBody: body.slice(0, 200),
+        lastMessageBody: (body || (mediaUrl ? attachmentLabel(kindFromMime(mediaType)) : '')).slice(0, 200),
         unreadCount: 1,
       },
     })
@@ -148,7 +154,7 @@ export async function POST(request: NextRequest) {
       data: {
         status: conversation.status === 'CLOSED' ? 'OPEN' : conversation.status,
         lastMessageAt: new Date(),
-        lastMessageBody: body.slice(0, 200),
+        lastMessageBody: (body || (mediaUrl ? attachmentLabel(kindFromMime(mediaType)) : '')).slice(0, 200),
         unreadCount: { increment: 1 },
         userId: user?.id ?? conversation.userId,
         contactName: conversation.contactName || contact.name || user?.name || null,
@@ -166,7 +172,8 @@ export async function POST(request: NextRequest) {
       conversationId: conversation.id,
       direction: 'INBOUND',
       senderType: 'CONTACT',
-      body,
+      // A photo without a caption still reads as one: the AI agent only sees message text
+      body: body || (mediaUrl ? attachmentLabel(kindFromMime(mediaType)) : ''),
       mediaUrl: mediaUrl || null,
       mediaType,
       providerMessageId: messageSid || null,
@@ -174,6 +181,22 @@ export async function POST(request: NextRequest) {
       deliveredAt: new Date(),
     },
   })
+  for (let i = 0; i < media.length - 1; i++) {
+    const m = media[i + 1]
+    await prisma.conversationMessage.create({
+      data: {
+        conversationId: conversation.id,
+        direction: 'INBOUND',
+        senderType: 'CONTACT',
+        body: attachmentLabel(kindFromMime(m.type)),
+        mediaUrl: m.url,
+        mediaType: m.type,
+        providerMessageId: messageSid ? `${messageSid}:${i + 1}` : null,
+        status: 'DELIVERED',
+        deliveredAt: new Date(),
+      },
+    }).catch((err) => logger.warn('Extra media not saved', { messageSid, err: err instanceof Error ? err.message : err }))
+  }
 
   logger.info('Inbound saved', { conversationId: conversation.id, messageSid })
   if (button) await recordButtonPress(conversation.id, button, String(formData.get('OriginalRepliedMessageSid') || '') || null, user?.id ?? null)

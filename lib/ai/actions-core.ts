@@ -26,6 +26,7 @@ export const TOOL_GROUPS = {
   payments: 'Pagos y calificación',
   partner: 'Socios: proponer y gestionar reservas',
   partner_profile: 'Perfil del socio',
+  booking_chat: 'Chat de la reserva (cliente y socio)',
 } as const
 export type ToolGroup = keyof typeof TOOL_GROUPS
 
@@ -47,6 +48,8 @@ export const DAILY_ACTION_LIMITS: Record<string, number> = {
   subir_documento: 6,
   reportar_problema_servicio: 2,
   reactivar_solicitud: 3,
+  agregar_fotos: 5,
+  enviar_mensaje_reserva: 40,
 }
 
 export function dailyLimitFor(tool: string) {

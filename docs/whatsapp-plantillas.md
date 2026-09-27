@@ -244,6 +244,14 @@ Aprobadas pero como MARKETING siendo transaccionales (se reemplazan por versión
 
 ## C. Socios
 
+### B26 · lh_cliente_mensaje_socio
+- **Categoría:** UTILITY
+- **Cuándo:** el socio escribió en el chat de la reserva (desde la app o por WhatsApp) y el cliente no ha escrito por WhatsApp en las últimas 24 h. Máximo uno cada 30 min por chat. Cuando el cliente responde, el agente le muestra el mensaje y le pasa su respuesta al socio.
+- **Texto:**
+  > 💬 Hola {{1}}, {{2}}, tu socio, te escribió sobre *{{3}}* (referencia {{4}}). Respóndele por aquí mismo y se lo hacemos llegar, o ábrelo en la app.
+- **Variables:** {{1}} «Ana» · {{2}} «Carlos» · {{3}} «Plomería» · {{4}} «#a1b2c3»
+- **Botones:** URL «Ver mensaje» → `https://www.lohaggo.com/{{5}}` (ejemplo `dashboard?tab=bookings`)
+
 ### C1 · lh_socio_cuenta_creada (reemplaza bienvenida_socio, que quedó MARKETING)
 - **Categoría:** UTILITY
 - **Cuándo:** un socio se registra (web /unete o chat).
@@ -477,6 +485,14 @@ Aprobadas pero como MARKETING siendo transaccionales (se reemplazan por versión
 ## D. Equipo (administradores)
 
 Se envían a los teléfonos de los administradores que hayan aceptado recibir alertas por WhatsApp. Todas UTILITY.
+
+### C31 · lh_socio_mensaje_cliente
+- **Categoría:** UTILITY
+- **Cuándo:** el cliente escribió en el chat de la reserva (desde la app o por WhatsApp) y el socio no ha escrito por WhatsApp en las últimas 24 h. Máximo uno cada 30 min por chat.
+- **Texto:**
+  > 💬 Hola {{1}}, {{2}}, tu cliente, te escribió sobre *{{3}}* (referencia {{4}}). Respóndele por aquí mismo y se lo hacemos llegar, o ábrelo en tu panel.
+- **Variables:** {{1}} «Carlos» · {{2}} «Ana» · {{3}} «Plomería» · {{4}} «#a1b2c3»
+- **Botones:** URL «Ver mensaje» → `https://www.lohaggo.com/{{5}}` (ejemplo `partner?tab=bookings`)
 
 ### D1 · lh_admin_conversacion_traspasada
 - **Cuándo:** el agente de IA pasa una conversación a una persona.

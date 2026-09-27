@@ -17,7 +17,7 @@ import { askConfirmationText, awaitingApprovalText, confirmationGate, cop, dryRu
 import { expireStaleProposals, latestProposed, leaveTrail, overDailyLimit, recordAction, settleAction } from '@/lib/ai/actions'
 import { chatOrigin, OpsError, type Actor, type Origin } from '@/lib/ops/origin'
 import { fmtDate } from '@/lib/ai/platform-data'
-import { cancelServiceRequest, createServiceRequest, isRequestExpired, listClientRequests, listOpenRequestsForPartner, partnerAvailabilitySummary, partnersForService, reactivateServiceRequest, requestSummaryForChat } from '@/lib/service-requests/ops'
+import { addRequestPhotos, cancelServiceRequest, createServiceRequest, isRequestExpired, listClientRequests, listOpenRequestsForPartner, partnerAvailabilitySummary, partnersForService, reactivateServiceRequest, requestSummaryForChat } from '@/lib/service-requests/ops'
 import { acceptProposal, createProposal, listProposalsForClient, proposalSummaryForChat } from '@/lib/proposals/ops'
 import { bookingsFor, bookingSummaryForChat, bookingWhen, rescheduleBooking, transitionBooking } from '@/lib/bookings/ops'
 import { confirmPartnerPayment, mercadoPagoLinkFor, paymentSummaryForChat, rejectPartnerPayment, reportClientPayment } from '@/lib/payments/ops'
@@ -25,6 +25,10 @@ import { leaveReview } from '@/lib/reviews/ops'
 import { addBankAccount, fetchAttachmentForDocument, partnerByUser, partnerStatusSummary, setAvailability, uploadDocument, upsertPartnerService } from '@/lib/partners/ops'
 import { confirmLink, startLink } from '@/lib/accounts/link'
 import { openGuaranteeClaim } from '@/lib/guarantee/ops'
+import { CHAT_MESSAGE_MAX, chatRef, PHOTO_ONLY_TEXT, resolveChatByRef, sendChatMessage, takeUnreadMessages } from '@/lib/chat/ops'
+import { detectContactInfo } from '@/lib/chat/contact-guard'
+import { CHAT_PHOTO_WINDOW_MS, recentInboundPhotos, storeChatPhotos } from '@/lib/chat/photos'
+import { LOGIN_LINK_TTL_MIN, sendLoginLinkFromChat } from '@/lib/accounts/login-link'
 import { eligibility, SLA_PROPOSAL_HOURS, SLA_RESOLUTION_HOURS, TYPE_LABEL, type GuaranteeType } from '@/lib/guarantee/policy'
 
 export type PlatformToolName =
@@ -50,6 +54,10 @@ export type PlatformToolName =
   | 'subir_documento'
   | 'reportar_problema_servicio'
   | 'reactivar_solicitud'
+  | 'agregar_fotos'
+  | 'enviar_mensaje_reserva'
+  | 'ver_mensajes_reserva'
+  | 'enviar_enlace_acceso'
 
 const str = (description: string) => ({ type: 'string', description })
 const confirmado = { type: 'boolean', description: 'false la primera vez (para proponer); true solo después de que la persona diga claramente que sí' }
@@ -82,7 +90,7 @@ export const PLATFORM_TOOLS: Record<PlatformToolName, CatalogEntry> = {
   crear_solicitud: {
     label: 'Crear solicitud de servicio',
     description: 'Crea una solicitud de servicio a nombre de la persona, igual que desde la app: los socios verificados de su ciudad la reciben y envían propuestas.',
-    guidance: `Úsala solo después de tener: servicio del catálogo, dirección completa, fecha y hora (o urgente) y una descripción de lo que necesita. Pregunta una cosa a la vez. ${CONFIRM_RULE} ${NEEDS_LINK} Si la persona mandó fotos en este chat, no las inventes: solo incluye las que aparezcan en el contexto.`,
+    guidance: `Úsala solo después de tener: servicio del catálogo, dirección completa, fecha y hora (o urgente) y una descripción de lo que necesita. Pregunta una cosa a la vez. ${CONFIRM_RULE} ${NEEDS_LINK} Si la persona mandó fotos de lo que necesita en este chat (mensajes «📷 Imagen»), pon incluir_fotos: true y dile que van con la solicitud; nunca digas que hay fotos si no las mandó.`,
     writes: true, group: 'client', platform: true, confirm: true,
     schema: () => ({
       type: 'object',
@@ -96,9 +104,10 @@ export const PLATFORM_TOOLS: Record<PlatformToolName, CatalogEntry> = {
         detalles: str('Qué necesita, con sus palabras'),
         presupuesto: { type: 'number', description: 'Presupuesto en pesos que mencionó, o 0 si no dijo' },
         socio_ref: str('Referencia del socio si quiere uno en concreto (de ver_socios_disponibles), o vacío'),
+        incluir_fotos: { type: 'boolean', description: 'true para adjuntar las fotos que la persona mandó en este chat (últimas 24 h)' },
         confirmado,
       },
-      required: ['servicio', 'direccion', 'ciudad', 'fecha', 'hora', 'urgente', 'detalles', 'presupuesto', 'socio_ref', 'confirmado'],
+      required: ['servicio', 'direccion', 'ciudad', 'fecha', 'hora', 'urgente', 'detalles', 'presupuesto', 'socio_ref', 'incluir_fotos', 'confirmado'],
       additionalProperties: false,
     }),
   },
@@ -264,6 +273,44 @@ export const PLATFORM_TOOLS: Record<PlatformToolName, CatalogEntry> = {
     writes: true, group: 'client', platform: true,
     schema: () => ({ type: 'object', properties: { solicitud_ref: str('Referencia de 6 caracteres de la solicitud (del contexto o de una consulta), o vacío para su última solicitud vencida') }, required: ['solicitud_ref'], additionalProperties: false }),
   },
+  agregar_fotos: {
+    label: 'Agregar fotos a una solicitud o reserva',
+    description: 'Guarda en la solicitud (y en el chat de la reserva, si ya hay socio) las fotos que el cliente mandó por este chat, para que el socio las vea.',
+    guidance: `Úsala cuando el cliente mande fotos de lo que necesita después de crear la solicitud, o pida que se las pases al socio. Solo cuenta las fotos nuevas de este chat (mensajes «📷 Imagen»); si no hay, pídele que las envíe primero. Para crear una solicitud nueva con fotos usa crear_solicitud con incluir_fotos. ${CONFIRM_RULE} ${NEEDS_LINK}`,
+    writes: true, group: 'booking_chat', platform: true, confirm: true,
+    schema: () => ({ type: 'object', properties: { ref: str('Referencia de la solicitud, la propuesta o la reserva (de ver_propuestas o ver_mis_reservas)'), confirmado }, required: ['ref', 'confirmado'], additionalProperties: false }),
+  },
+  enviar_mensaje_reserva: {
+    label: 'Enviar mensaje al chat de la reserva',
+    description: 'Escribe en el chat de una propuesta o reserva a nombre de la persona (cliente → socio o socio → cliente), con fotos de este chat si quiere. Queda guardado en la reserva y le llega a la otra parte por WhatsApp o por la app.',
+    guidance: `Úsala cuando la persona quiera decirle algo al socio (si es cliente) o al cliente (si es socio) sobre una solicitud o reserva, o responda a un mensaje que le reenviamos («💬 … te escribió sobre … · ref …»: usa esa ref). Escribe el mensaje con sus palabras, sin inventar ni agregar nada. No se pueden enviar teléfonos, correos, redes ni pedir contacto por fuera: si lo intenta, explícale que por seguridad todo va por LoHaggo. Si quiere mandar fotos, que las envíe aquí primero y pon incluir_fotos: true. ${CONFIRM_RULE} ${NEEDS_LINK}`,
+    writes: true, group: 'booking_chat', platform: true, confirm: true,
+    schema: () => ({
+      type: 'object',
+      properties: {
+        ref: str('Referencia de la reserva, la propuesta o la solicitud'),
+        mensaje: str('El mensaje con las palabras de la persona (puede ir vacío si solo manda fotos)'),
+        incluir_fotos: { type: 'boolean', description: 'true para enviar también las fotos nuevas que mandó en este chat' },
+        confirmado,
+      },
+      required: ['ref', 'mensaje', 'incluir_fotos', 'confirmado'],
+      additionalProperties: false,
+    }),
+  },
+  ver_mensajes_reserva: {
+    label: 'Ver mensajes nuevos del chat de la reserva',
+    description: 'Mensajes que el socio o el cliente le escribió a la persona en el chat de sus reservas y aún no ha leído (quedan leídos).',
+    guidance: `Úsala cuando el contexto diga que tiene mensajes sin leer, cuando responda a nuestro aviso «te escribió sobre…», o cuando pregunte si el socio o el cliente le dijo algo. Léeselos con el nombre de quien escribe y la referencia, y pregúntale si quiere responder (con enviar_mensaje_reserva). ${NEEDS_LINK}`,
+    writes: false, group: 'booking_chat', platform: true,
+    schema: () => ({ type: 'object', properties: { ref: str('Referencia de una reserva o propuesta en concreto, o vacío para todas') }, required: ['ref'], additionalProperties: false }),
+  },
+  enviar_enlace_acceso: {
+    label: 'Enviar enlace para entrar (magic link)',
+    description: 'Envía al correo registrado de la cuenta un enlace para entrar a LoHaggo sin contraseña (vence en 1 hora, un solo uso). El enlace nunca llega a este chat.',
+    guidance: 'Úsala cuando la persona no pueda entrar a la app, olvidó su contraseña o pida un enlace para entrar. Si la conversación está vinculada, llámala con dato vacío: va al correo de su cuenta. Si no lo está, pídele el correo o el teléfono con el que se registró. El enlace llega SOLO al correo registrado (así sabemos que es ella): dile que lo abra desde ese correo, que revise spam y que vence en 1 hora. Nunca pidas ni escribas el enlace en el chat. Si no está vinculada, no afirmes que la cuenta existe.',
+    writes: true, group: 'identity', platform: true,
+    schema: () => ({ type: 'object', properties: { dato: str('Correo o teléfono con el que se registró, o vacío si la conversación está vinculada') }, required: ['dato'], additionalProperties: false }),
+  },
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -349,6 +396,18 @@ async function lastInboundImage(conversationId: string) {
   })
 }
 
+/** Chat photos not yet sent anywhere: since the last executed photo action of this conversation, max 24 h. */
+async function newChatPhotos(conversationId: string) {
+  const last = await prisma.aiAgentAction.findFirst({
+    where: { conversationId, status: 'executed', tool: { in: ['crear_solicitud', 'agregar_fotos', 'enviar_mensaje_reserva', 'reportar_problema_servicio'] } },
+    orderBy: { createdAt: 'desc' },
+    select: { createdAt: true },
+  })
+  const dayAgo = new Date(Date.now() - CHAT_PHOTO_WINDOW_MS)
+  return recentInboundPhotos(conversationId, { since: last && last.createdAt > dayAgo ? last.createdAt : dayAgo })
+}
+const photosText = (n: number) => (n === 1 ? '1 foto' : `${n} fotos`)
+
 const GUARANTEE_TYPE: Record<string, GuaranteeType> = { no_llego: 'NO_SHOW', mal_trabajo: 'BAD_WORK', dano: 'DAMAGE' }
 
 // ─── Plans ──────────────────────────────────────────────────────────────────
@@ -382,16 +441,20 @@ const PLANNERS: Partial<Record<PlatformToolName, Planner>> = {
     }
     const budget = n(input, 'presupuesto')
     const when = urgent ? 'lo antes posible (urgente)' : `${fecha}${hora ? ` a las ${hora}` : ''}`
-    const summary = `Crear solicitud de ${service.name} en ${address} (${city}) para ${when}${budget ? `, presupuesto ${cop(budget)}` : ''}${partnerId ? ', dirigida a un socio en concreto' : ''}`
+    const photos = input.incluir_fotos && ctx.conversationId && ctx.mode !== 'playground' ? await newChatPhotos(ctx.conversationId) : []
+    const summary = `Crear solicitud de ${service.name} en ${address} (${city}) para ${when}${budget ? `, presupuesto ${cop(budget)}` : ''}${partnerId ? ', dirigida a un socio en concreto' : ''}${photos.length ? `, con ${photosText(photos.length)} del chat` : ''}`
     return {
       summary,
       wouldRecord: 'una solicitud de servicio (ServiceRequest) y las notificaciones a los socios',
       run: async () => {
+        const stored = photos.length ? await storeChatPhotos(photos.map((ph) => ph.mediaUrl), 'lohaggo/service-requests') : { urls: [], failed: 0 }
         const sr = await createServiceRequest(actor, {
           serviceId: service.id, address, city, notes: s(input, 'detalles') || undefined, budget: budget || undefined,
-          preferredDate: urgent && !fecha ? null : fecha, preferredTime: hora || null, isUrgent: urgent, partnerId, photoUrls: [],
+          preferredDate: urgent && !fecha ? null : fecha, preferredTime: hora || null, isUrgent: urgent, partnerId, photoUrls: stored.urls,
         }, originFor(ctx))
-        return { text: `Solicitud creada (ref ${shortId(sr.id)}). Los socios verificados de ${city} ya la recibieron; las propuestas llegarán a este chat y a la app. Dile que puede preguntarte por ellas en un rato.`, entityType: 'ServiceRequest', entityId: sr.id }
+        const photoNote = stored.urls.length ? ` Van ${photosText(stored.urls.length)}.` : ''
+        const failNote = stored.failed ? ` ${photosText(stored.failed)} no se pudieron guardar (formato no válido o muy pesadas): pídele que las reenvíe y usa agregar_fotos.` : ''
+        return { text: `Solicitud creada (ref ${shortId(sr.id)}).${photoNote} Los socios verificados de ${city} ya la recibieron; las propuestas llegarán a este chat y a la app. Dile que puede preguntarte por ellas en un rato.${failNote}`, entityType: 'ServiceRequest', entityId: sr.id }
       },
     }
   },
@@ -630,13 +693,83 @@ const PLANNERS: Partial<Record<PlatformToolName, Planner>> = {
       summary: `Reportar a la garantía «${TYPE_LABEL[type].toLowerCase()}» en la reserva de ${b.service?.name ?? 'servicio'} (ref ${shortId(b.id)}): «${description}»${photo?.mediaUrl ? ', con la última foto que envió' : ''}`,
       wouldRecord: 'el reclamo de garantía (GuaranteeClaim), su caso en la cola de garantía del equipo y el aviso al socio',
       run: async () => {
-        const claim = await openGuaranteeClaim(actor, { bookingId: b.id, type, description, photoUrls: photo?.mediaUrl ? [photo.mediaUrl] : [] }, originFor(ctx))
+        const stored = photo?.mediaUrl ? await storeChatPhotos([photo.mediaUrl], 'lohaggo/guarantee') : { urls: [], failed: 0 }
+        const claim = await openGuaranteeClaim(actor, { bookingId: b.id, type, description, photoUrls: stored.urls }, originFor(ctx))
         const due = fmtDate(claim.slaDueAt)
         if (type === 'DAMAGE') ctx.state.handoff = { reason: 'Garantía: daño a la propiedad (caso de seguridad)' }
         const next = type === 'DAMAGE'
           ? 'Una persona del equipo continúa esta conversación para mediar con el socio y documentar el caso. No prometas dinero: LoHaggo media, no paga daños.'
           : `El equipo propone una solución en máximo ${SLA_PROPOSAL_HOURS} h (otro socio con prioridad, cancelación sin costo o que el mismo socio corrija) y lo resuelve en máximo ${SLA_RESOLUTION_HOURS} h. No prometas dinero ni un remedio en concreto.`
         return { text: `Reclamo de garantía registrado (ref ${shortId(claim.id)}), con plazo de solución hasta ${due}. ${next}`, entityType: 'GuaranteeClaim', entityId: claim.id }
+      },
+    }
+  },
+
+  agregar_fotos: async (input, ctx, actor) => {
+    if (actor.role !== 'CLIENT') return { error: 'Solo el cliente agrega fotos a su solicitud. Si es socio y quiere mandar fotos al cliente, usa enviar_mensaje_reserva con incluir_fotos.' }
+    const ref = s(input, 'ref').replace(/^#/, '')
+    if (!/^[a-z0-9]{4,30}$/i.test(ref)) return { error: 'Esa referencia no es válida. Consulta ver_propuestas o ver_mis_reservas.' }
+    const requests = await prisma.serviceRequest.findMany({
+      where: { userId: actor.userId },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+      select: { id: true, service: { select: { name: true } }, proposals: { select: { id: true, status: true, bookings: { select: { id: true } } } } },
+    })
+    const sr = requests.find((r) => r.id.endsWith(ref) || r.proposals.some((p) => p.id.endsWith(ref) || p.bookings.some((b) => b.id.endsWith(ref))))
+    if (!sr) return { error: 'Esa referencia no corresponde a ninguna solicitud ni reserva de esta persona.' }
+    const photos = ctx.conversationId && ctx.mode !== 'playground' ? await newChatPhotos(ctx.conversationId) : []
+    if (!photos.length && ctx.mode !== 'playground') return { error: 'No hay fotos nuevas en este chat. Pídele que las envíe aquí primero y vuelve a intentarlo.' }
+    const accepted = sr.proposals.find((p) => p.status === 'ACCEPTED')
+    return {
+      summary: `Agregar ${photosText(photos.length || 1)} del chat a la solicitud de ${sr.service.name} (ref ${shortId(sr.id)})${accepted ? ' y enviarlas al socio por el chat de la reserva' : ''}`,
+      wouldRecord: 'las fotos en la solicitud (RequestPhoto) y, si hay reserva, en su chat',
+      run: async () => {
+        const stored = await storeChatPhotos(photos.map((ph) => ph.mediaUrl), 'lohaggo/service-requests')
+        if (!stored.urls.length) throw new OpsError('No se pudo guardar ninguna foto (deben ser JPG, PNG o WebP de hasta 8 MB).')
+        const added = await addRequestPhotos(actor, sr.id, stored.urls)
+        let toPartner = false
+        if (accepted) {
+          const chat = await resolveChatByRef(actor, accepted.id.slice(-6))
+          for (const url of stored.urls.slice(0, added.added)) {
+            const r = await sendChatMessage(actor, chat.id, { content: '', imageUrl: url }, originFor(ctx))
+            if (!r.blocked) toPartner = true
+          }
+        }
+        const skipped = added.skipped ? ` ${photosText(added.skipped)} no cupieron (máximo 10 por solicitud).` : ''
+        const failed = stored.failed ? ` ${photosText(stored.failed)} no se pudieron guardar.` : ''
+        return { text: `Listo: ${photosText(added.added)} agregadas a la solicitud${toPartner ? ' y enviadas al socio por el chat de la reserva' : ''}.${skipped}${failed}`, entityType: 'ServiceRequest', entityId: sr.id }
+      },
+    }
+  },
+
+  enviar_mensaje_reserva: async (input, ctx, actor) => {
+    let chat: Awaited<ReturnType<typeof resolveChatByRef>>
+    try {
+      chat = await resolveChatByRef(actor, s(input, 'ref'))
+    } catch (err) {
+      if (err instanceof OpsError) return { error: `${err.message} Consulta ver_mis_reservas o ver_propuestas para la referencia.` }
+      throw err
+    }
+    const text = s(input, 'mensaje')
+    if (text.length > CHAT_MESSAGE_MAX) return { error: `El mensaje es muy largo (máximo ${CHAT_MESSAGE_MAX} caracteres).` }
+    const contact = text ? detectContactInfo(text) : { isValid: true as const }
+    if (!contact.isValid) return { error: `El mensaje trae ${contact.reason}: por seguridad no se envían datos de contacto por el chat de la reserva. Explícale que toda la comunicación va por LoHaggo y pregúntale cómo quiere decirlo.` }
+    const photos = input.incluir_fotos && ctx.conversationId && ctx.mode !== 'playground' ? await newChatPhotos(ctx.conversationId) : []
+    if (!text && !photos.length) return { error: 'No hay mensaje ni fotos nuevas para enviar.' }
+    const isClient = chat.clientId === actor.userId
+    const other = isClient ? `el socio ${chat.partner.user.name}` : `el cliente ${chat.client.name}`
+    const service = chat.serviceRequest?.service?.name ?? 'el servicio'
+    return {
+      summary: `Enviar a ${other}, en el chat de ${service} (ref ${chatRef(chat)}): ${text ? `«${text}»` : ''}${photos.length ? `${text ? ' ' : ''}con ${photosText(photos.length)}` : ''}`,
+      wouldRecord: 'el mensaje en el chat de la reserva (ChatMessage, origen chat) y el aviso a la otra parte',
+      run: async () => {
+        const stored = photos.length ? await storeChatPhotos(photos.map((ph) => ph.mediaUrl), 'lohaggo/chat') : { urls: [], failed: 0 }
+        const first = await sendChatMessage(actor, chat.id, { content: text, imageUrl: stored.urls[0] ?? null }, originFor(ctx))
+        if (first.blocked) throw new OpsError(`El mensaje se bloqueó por traer ${first.reason}.`)
+        for (const url of stored.urls.slice(1)) await sendChatMessage(actor, chat.id, { content: '', imageUrl: url }, originFor(ctx))
+        const how = first.delivery === 'whatsapp' ? 'le llegó por WhatsApp' : first.delivery === 'template' ? 'le avisamos por WhatsApp y en la app' : 'le llegó a la app'
+        const failed = stored.failed ? ` ${photosText(stored.failed)} no se pudieron enviar (formato no válido o muy pesadas).` : ''
+        return { text: `Mensaje enviado a ${other} y guardado en el chat de la reserva (${how}).${failed} Cuando responda, se lo haremos llegar.`, entityType: 'Chat', entityId: chat.id }
       },
     }
   },
@@ -656,6 +789,22 @@ async function runRead(name: PlatformToolName, input: Record<string, unknown>, c
   }
   const actor = await actorFor(ctx)
   if (!actor) return NOT_LINKED
+  if (name === 'ver_mensajes_reserva') {
+    if (ctx.mode === 'playground') return 'Simulado en pruebas: aquí aparecerían los mensajes sin leer del chat de sus reservas (quién, referencia y texto).'
+    const ref = s(input, 'ref')
+    let chatId: string | undefined
+    if (ref) {
+      try {
+        chatId = (await resolveChatByRef(actor, ref)).id
+      } catch (err) {
+        if (err instanceof OpsError) return err.message
+        throw err
+      }
+    }
+    const rows = await takeUnreadMessages(actor, { chatId })
+    if (!rows.length) return ref ? 'No tiene mensajes sin leer en ese chat.' : 'No tiene mensajes sin leer en los chats de sus reservas.'
+    return rows.map((m) => `- ${m.from} · ${m.service} (ref ${m.ref}) · ${fmtDate(m.at)}: ${m.content === PHOTO_ONLY_TEXT ? '(envió una foto; puede verla en la app)' : `«${m.content}»${m.imageUrl ? ' (con una foto; puede verla en la app)' : ''}`}`).join('\n')
+  }
   if (name === 'ver_propuestas') {
     const { serviceRequests: requests } = await listClientRequests(actor.userId)
     const open = requests.filter((r) => r.status === 'ACTIVE' || r.status === 'ACCEPTED').slice(0, 5)
@@ -689,12 +838,25 @@ async function runRead(name: PlatformToolName, input: Record<string, unknown>, c
 
 async function runIdentity(name: PlatformToolName, input: Record<string, unknown>, ctx: ToolContext): Promise<string> {
   if (ctx.mode === 'playground' || !ctx.conversationId) {
+    if (name === 'enviar_enlace_acceso') return `Enlace enviado (simulado en pruebas) al correo registrado de la cuenta. Dile que lo abra desde ese correo, que revise spam y que vence en ${LOGIN_LINK_TTL_MIN} minutos.`
     if (name === 'vincular_cuenta') return 'Código enviado (simulado en pruebas) al teléfono o correo de la cuenta. Pídele los 6 dígitos.'
     if (!/^\d{6}$/.test(s(input, 'codigo'))) return 'Código incorrecto (simulado en pruebas): deben ser 6 dígitos.'
     ctx.userId = PLAYGROUND_USER
     return 'Código comprobado (simulado en pruebas): conversación vinculada a una cuenta de cliente de prueba. Ya puedes usar las herramientas de su cuenta.'
   }
   const conv = await prisma.conversation.findUnique({ where: { id: ctx.conversationId }, select: { contactId: true, userId: true, workspaceId: true } })
+  if (name === 'enviar_enlace_acceso') {
+    const r = await sendLoginLinkFromChat({ conversationId: ctx.conversationId, userId: conv?.userId ?? null, given: s(input, 'dato'), actor: { id: ctx.agent.id, name: ctx.agent.name } })
+    if (!r.ok) {
+      if (r.code === 'invalid' && !conv?.userId) return 'Pídele el correo o el teléfono con el que se registró y vuelve a llamarla.'
+      if (r.code === 'limit') return `${r.error} No lo intentes de nuevo hoy: dile que use el enlace que ya le llegó o «Olvidé mi contraseña» en lohaggo.com.`
+      return `${r.error} Dile que entre en lohaggo.com con «Olvidé mi contraseña», o ofrece que una persona del equipo lo ayude.`
+    }
+    const where = r.sentTo ? `al correo ${r.sentTo}` : 'al correo registrado en esa cuenta'
+    return conv?.userId
+      ? `Enlace enviado ${where}. Dile que lo abra desde ese correo (revise spam), que vence en ${LOGIN_LINK_TTL_MIN} minutos y solo sirve una vez. Nunca escribas un enlace en el chat.`
+      : `Si esos datos corresponden a una cuenta de LoHaggo, el enlace llegó ${where} (vence en ${LOGIN_LINK_TTL_MIN} minutos, un solo uso). Dile que revise ese correo y spam. No confirmes ni niegues que la cuenta existe.`
+  }
   if (!conv?.contactId) return 'No se pudo vincular: esta conversación no tiene contacto. Pasa el caso a una persona.'
   if (name === 'vincular_cuenta') {
     if (conv.userId) return 'Esta conversación ya está vinculada a una cuenta.'

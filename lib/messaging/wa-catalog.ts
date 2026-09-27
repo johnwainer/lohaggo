@@ -495,6 +495,24 @@ export const WA_CATALOG: WaCatalogEntry[] = [
     "url": null
   },
   {
+    "code": "B26",
+    "name": "lh_cliente_mensaje_socio",
+    "category": "UTILITY",
+    "body": "💬 Hola {{1}}, {{2}}, tu socio, te escribió sobre *{{3}}* (referencia {{4}}). Respóndele por aquí mismo y se lo hacemos llegar, o ábrelo en la app.",
+    "variables": {
+      "1": "Ana",
+      "2": "Carlos",
+      "3": "Plomería",
+      "4": "#a1b2c3",
+      "5": "dashboard?tab=bookings"
+    },
+    "quickReplies": [],
+    "url": {
+      "title": "Ver mensaje",
+      "url": "https://www.lohaggo.com/{{5}}"
+    }
+  },
+  {
     "code": "C1",
     "name": "lh_socio_cuenta_creada",
     "category": "UTILITY",
@@ -1022,6 +1040,24 @@ export const WA_CATALOG: WaCatalogEntry[] = [
     "url": {
       "title": "Ver solicitudes",
       "url": "https://www.lohaggo.com/{{3}}"
+    }
+  },
+  {
+    "code": "C31",
+    "name": "lh_socio_mensaje_cliente",
+    "category": "UTILITY",
+    "body": "💬 Hola {{1}}, {{2}}, tu cliente, te escribió sobre *{{3}}* (referencia {{4}}). Respóndele por aquí mismo y se lo hacemos llegar, o ábrelo en tu panel.",
+    "variables": {
+      "1": "Carlos",
+      "2": "Ana",
+      "3": "Plomería",
+      "4": "#a1b2c3",
+      "5": "partner?tab=bookings"
+    },
+    "quickReplies": [],
+    "url": {
+      "title": "Ver mensaje",
+      "url": "https://www.lohaggo.com/{{5}}"
     }
   },
   {

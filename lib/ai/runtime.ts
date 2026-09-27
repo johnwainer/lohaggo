@@ -193,7 +193,7 @@ export const AgentRuntimeService = {
     }
 
     const tz = await accountTimezone(opts.workspaceId)
-    const [knowledge, pending] = await Promise.all([
+    const [knowledge, pending, unread] = await Promise.all([
       retrieve({ workspaceId: opts.workspaceId, agentId: agent.id, query: opts.text }),
       mode === 'autopilot' && opts.conversationId
         ? prisma.aiAgentAction.findMany({
@@ -202,6 +202,9 @@ export const AgentRuntimeService = {
             select: { tool: true, summary: true, input: true, createdAt: true },
           }).catch(() => [])
         : Promise.resolve([]),
+      mode === 'autopilot' && opts.userId && agent.tools.includes('ver_mensajes_reserva')
+        ? import('@/lib/chat/ops').then((m) => m.unreadCountForUser(opts.userId!)).catch(() => 0)
+        : Promise.resolve(0),
     ])
     result.knowledgeMode = knowledge.mode
     result.chunks = knowledge.mode === 'full' ? [] : [...knowledge.chunks]
@@ -213,7 +216,7 @@ export const AgentRuntimeService = {
       channel: opts.channel,
       contact: { name: opts.contact.name, tags: opts.contact.tags, fields: opts.contact.fields, linkedUser: Boolean(opts.userId) },
       summary: opts.summary,
-      pendingActions: pendingActionsText(pending, now),
+      pendingActions: [pendingActionsText(pending, now), unread ? `Tiene ${unread} mensaje${unread === 1 ? '' : 's'} sin leer en el chat de sus reservas: cuéntaselo y léeselos con ver_mensajes_reserva si quiere.` : ''].filter(Boolean).join('\n'),
       toolGuidance: toolGuidance(agent, opts.flowOutputs),
       copilot: opts.copilot,
       flowOutputs: opts.flowOutputs,

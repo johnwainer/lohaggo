@@ -978,13 +978,18 @@ model Chat {
 }
 
 model ChatMessage {
-  id        String   @id @default(cuid())
-  chatId    String
-  senderId  String
-  content   String
-  read      Boolean  @default(false)
-  createdAt DateTime @default(now())
-  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  id                   String   @id @default(cuid())
+  chatId               String
+  senderId             String
+  content              String
+  imageUrl             String?
+  read                 Boolean  @default(false)
+  origin               String?
+  originChannel        String?
+  originConversationId String?
+  originAgentId        String?
+  createdAt            DateTime @default(now())
+  chat                 Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
 
   @@index([chatId, createdAt])
   @@index([senderId])

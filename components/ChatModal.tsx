@@ -7,11 +7,16 @@ import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
 import PlatformTrustBanner from './PlatformTrustBanner'
 import { useProposalRealtime } from '@/hooks/useChatRealtime'
+import { channelLabel } from '@/lib/ops/origin'
+import { PHOTO_ONLY_TEXT } from '@/lib/chat/constants'
 
 interface ChatMessage {
   id: string
   senderId: string
   content: string
+  imageUrl?: string | null
+  origin?: string | null
+  originChannel?: string | null
   read: boolean
   createdAt: string
 }
@@ -40,6 +45,7 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [viewerUrl, setViewerUrl] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -251,23 +257,45 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
                   className={`flex ${isOwnMessage(message.senderId) ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[80%] rounded-2xl px-4 py-3 sm:max-w-[70%] ${
+                    className={`max-w-[80%] overflow-hidden rounded-2xl sm:max-w-[70%] ${
                       isOwnMessage(message.senderId)
                         ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white shadow-md'
                         : 'border border-gray-200 bg-white text-gray-800'
                     }`}
                   >
-                    <p className="text-sm md:text-base break-words">{message.content}</p>
-                    <p
-                      className={`text-xs mt-1 ${
-                        isOwnMessage(message.senderId) ? 'text-white/70' : 'text-gray-500'
-                      }`}
-                    >
-                      {formatDistanceToNow(new Date(message.createdAt), {
-                        addSuffix: true,
-                        locale: es
-                      })}
-                    </p>
+                    {message.imageUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setViewerUrl(message.imageUrl ?? null)}
+                        className="relative block aspect-[4/3] w-full min-w-[220px] bg-gray-100"
+                        aria-label="Ver foto completa"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={message.imageUrl}
+                          alt={isOwnMessage(message.senderId) ? 'Foto que enviaste' : 'Foto que te enviaron'}
+                          loading="lazy"
+                          onLoad={() => messagesEndRef.current?.scrollIntoView({ block: 'end' })}
+                          className="absolute inset-0 h-full w-full object-contain"
+                        />
+                      </button>
+                    )}
+                    <div className="px-4 py-3">
+                      {!(message.imageUrl && message.content === PHOTO_ONLY_TEXT) && (
+                        <p className="text-sm md:text-base break-words">{message.content}</p>
+                      )}
+                      <p
+                        className={`text-xs mt-1 ${
+                          isOwnMessage(message.senderId) ? 'text-white/70' : 'text-gray-500'
+                        }`}
+                      >
+                        {formatDistanceToNow(new Date(message.createdAt), {
+                          addSuffix: true,
+                          locale: es
+                        })}
+                        {message.origin === 'chat' && <span className="block sm:inline"><span className="hidden sm:inline"> · </span>vía {channelLabel(message.originChannel)}</span>}
+                      </p>
+                    </div>
                   </div>
                 </div>
               )
@@ -324,6 +352,15 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
           </form>
         )}
       </div>
+      {viewerUrl && (
+        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/90 p-4" onClick={() => setViewerUrl(null)} role="dialog" aria-label="Foto">
+          <button type="button" onClick={() => setViewerUrl(null)} className="absolute right-4 top-[calc(env(safe-area-inset-top)+1rem)] flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-white" aria-label="Cerrar foto">
+            <X size={22} />
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={viewerUrl} alt="Foto del chat" className="max-h-full max-w-full rounded-2xl object-contain" />
+        </div>
+      )}
     </div>
   )
 }

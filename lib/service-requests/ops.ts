@@ -440,3 +440,18 @@ async function notifyRequestExpired(userId: string, requestId: string, serviceNa
     channels: ['PUSH', 'EMAIL'],
   })
 }
+
+/**
+ * Adds photos (already in our storage) to one of the client's requests, after the ones it has. Max 10
+ * per request, as in the app.
+ */
+export async function addRequestPhotos(actor: Actor, requestId: string, urls: string[]) {
+  const sr = await prisma.serviceRequest.findUnique({ where: { id: requestId }, select: { id: true, userId: true, _count: { select: { photos: true } } } })
+  if (!sr) throw new OpsError('Solicitud no encontrada', 404)
+  if (sr.userId !== actor.userId) throw new OpsError('No autorizado', 403)
+  const room = Math.max(0, 10 - sr._count.photos)
+  if (!room) throw new OpsError('La solicitud ya tiene el máximo de 10 fotos.', 409)
+  const take = urls.slice(0, room)
+  await prisma.requestPhoto.createMany({ data: take.map((url, i) => ({ serviceRequestId: sr.id, url, order: sr._count.photos + i })) })
+  return { added: take.length, skipped: urls.length - take.length }
+}

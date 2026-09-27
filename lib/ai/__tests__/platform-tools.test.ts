@@ -47,6 +47,19 @@ vi.mock('@/lib/service-requests/ops', () => ({
 vi.mock('@/lib/payments/ops', () => ({ confirmPartnerPayment: vi.fn(), mercadoPagoLinkFor: vi.fn(), paymentSummaryForChat: vi.fn(() => 'Pago: pendiente'), rejectPartnerPayment: vi.fn(), reportClientPayment: vi.fn() }))
 vi.mock('@/lib/reviews/ops', () => ({ leaveReview: vi.fn() }))
 vi.mock('@/lib/accounts/link', () => ({ confirmLink: vi.fn(), startLink: vi.fn() }))
+const photos = vi.hoisted(() => ({ storeChatPhotos: vi.fn(async (urls: string[]) => ({ urls: urls.map((u) => u.replace('https://media.x/', 'https://res.cloudinary.com/x/')), failed: 0 })), recentInboundPhotos: vi.fn(async () => []), CHAT_PHOTO_WINDOW_MS: 86_400_000 }))
+vi.mock('@/lib/chat/photos', () => photos)
+const chatOps = vi.hoisted(() => ({
+  resolveChatByRef: vi.fn(async () => ({ id: 'chat1', clientId: 'u1', partnerId: 'pp1', proposalId: 'prop_00xyz1', client: { name: 'Ana' }, partner: { user: { name: 'Darwin' } }, serviceRequest: { service: { name: 'Plomería' } }, proposal: { id: 'prop_00xyz1', bookings: [{ id: 'bk_000abc' }] } })),
+  sendChatMessage: vi.fn(async () => ({ blocked: false, message: { id: 'm1' }, helpReply: null, delivery: 'whatsapp' })),
+  takeUnreadMessages: vi.fn(async () => []),
+  chatRef: () => '000abc',
+  CHAT_MESSAGE_MAX: 5000,
+  PHOTO_ONLY_TEXT: '📷 Foto',
+}))
+vi.mock('@/lib/chat/ops', () => chatOps)
+const login = vi.hoisted(() => ({ sendLoginLinkFromChat: vi.fn(), LOGIN_LINK_TTL_MIN: 60 }))
+vi.mock('@/lib/accounts/login-link', () => login)
 
 import { runPlatformTool } from '@/lib/ai/platform-tools'
 import type { ToolContext } from '@/lib/ai/tools'
@@ -192,7 +205,8 @@ describe('runPlatformTool · garantía (reportar_problema_servicio)', () => {
     const out = await runPlatformTool('reportar_problema_servicio', i, c)
     const [actor, claimInput, origin] = guarantee.openGuaranteeClaim.mock.calls[0] as unknown as [{ userId: string }, { bookingId: string; type: string; photoUrls: string[] }, { via: string; conversationId: string }]
     expect(actor.userId).toBe('u1')
-    expect(claimInput).toMatchObject({ bookingId: 'bk_000abc', type: 'DAMAGE', photoUrls: ['https://media.x/foto.jpg'] })
+    expect(photos.storeChatPhotos).toHaveBeenCalledWith(['https://media.x/foto.jpg'], 'lohaggo/guarantee')
+    expect(claimInput).toMatchObject({ bookingId: 'bk_000abc', type: 'DAMAGE', photoUrls: ['https://res.cloudinary.com/x/foto.jpg'] })
     expect(origin).toMatchObject({ via: 'chat', conversationId: 'conv1' })
     expect(c.state.handoff).not.toBeNull()
     expect(out).toMatch(/Reclamo de garantía registrado/)
@@ -230,5 +244,42 @@ describe('runPlatformTool · reactivar_solicitud (botón «Reactivar» de la pla
     const out = await runPlatformTool('reactivar_solicitud', { solicitud_ref: '00act1' }, ctx())
     expect(out).toMatch(/sigue activa/)
     expect(requests.reactivateServiceRequest).not.toHaveBeenCalled()
+  })
+})
+
+describe('runPlatformTool · chat de la reserva', () => {
+  it('propone el mensaje al socio y con el sí lo envía al chat con origen chat', async () => {
+    const i = { ref: '000abc', mensaje: 'Llego a las 9, ¿puede traer escalera?', incluir_fotos: false, confirmado: false }
+    const first = await runPlatformTool('enviar_mensaje_reserva', i, ctx())
+    expect(first).toMatch(/pendiente de confirmación/i)
+    expect(first).toContain('Darwin')
+    expect(chatOps.sendChatMessage).not.toHaveBeenCalled()
+    actions.latestProposed.mockResolvedValue({ id: 'prop-m', createdAt: new Date(Date.now() - 60_000), input: i } as never)
+    const out = await runPlatformTool('enviar_mensaje_reserva', { ...i, confirmado: true }, ctx())
+    expect(chatOps.sendChatMessage).toHaveBeenCalledWith(expect.objectContaining({ userId: 'u1' }), 'chat1', { content: i.mensaje, imageUrl: null }, expect.objectContaining({ via: 'chat', conversationId: 'conv1' }))
+    expect(out).toMatch(/le llegó por WhatsApp/)
+  })
+  it('no propone mensajes con datos de contacto', async () => {
+    const out = await runPlatformTool('enviar_mensaje_reserva', { ref: '000abc', mensaje: 'escríbeme al 3001234567', incluir_fotos: false, confirmado: false }, ctx())
+    expect(out).toMatch(/datos de contacto/)
+    expect(actions.recordAction).not.toHaveBeenCalled()
+  })
+})
+
+describe('runPlatformTool · enlace de acceso', () => {
+  it('sin vincular: la respuesta no dice si la cuenta existe y nunca trae el enlace', async () => {
+    db.conversation.findUnique.mockResolvedValueOnce({ contactId: 'ct1', userId: null, workspaceId: 'ws' })
+    login.sendLoginLinkFromChat.mockResolvedValueOnce({ ok: true, sentTo: 'a•••@x.com' })
+    const out = await runPlatformTool('enviar_enlace_acceso', { dato: 'ana@x.com' }, ctx({ userId: null }))
+    expect(login.sendLoginLinkFromChat).toHaveBeenCalledWith(expect.objectContaining({ conversationId: 'conv1', userId: null, given: 'ana@x.com' }))
+    expect(out).toMatch(/Si esos datos corresponden a una cuenta/)
+    expect(out).not.toMatch(/auth\/magic|token=/)
+  })
+  it('vinculada: usa la cuenta de la conversación, no el dato que escriba el modelo', async () => {
+    db.conversation.findUnique.mockResolvedValueOnce({ contactId: 'ct1', userId: 'u1', workspaceId: 'ws' })
+    login.sendLoginLinkFromChat.mockResolvedValueOnce({ ok: true, sentTo: 'a•••@x.com' })
+    const out = await runPlatformTool('enviar_enlace_acceso', { dato: 'otra@persona.com' }, ctx())
+    expect(login.sendLoginLinkFromChat).toHaveBeenCalledWith(expect.objectContaining({ userId: 'u1' }))
+    expect(out).toMatch(/Enlace enviado al correo a•••@x.com/)
   })
 })

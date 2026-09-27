@@ -59,6 +59,17 @@ export function waRequestCreated(p: { requestId: string; clientUserId: string; c
   return safe('solicitud_enviada', () => sendWaToUser(p.clientUserId, WA.solicitudEnviada(p)))
 }
 
+/** B26 / C31: the other party wrote in the booking chat and this person's WhatsApp window is closed. */
+export function waChatMessage(p: { chatId: string; recipientUserId: string; recipientSide: 'CLIENT' | 'PARTNER'; senderName: string; service: string; ref: string }) {
+  return safe(p.recipientSide === 'CLIENT' ? 'B26' : 'C31', async () => {
+    const u = await prisma.user.findUnique({ where: { id: p.recipientUserId }, select: { name: true } })
+    const spec = p.recipientSide === 'CLIENT'
+      ? WA.B26({ chatId: p.chatId, clientName: u?.name ?? '', partnerName: p.senderName, service: p.service, ref: p.ref })
+      : WA.C31({ chatId: p.chatId, partnerName: u?.name ?? '', clientName: p.senderName, service: p.service, ref: p.ref })
+    return sendWaToUser(p.recipientUserId, spec)
+  })
+}
+
 /** B3: a partner sent a proposal. */
 export function waNewProposal(proposalId: string) {
   return safe('B3', async () => {

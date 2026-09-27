@@ -156,6 +156,11 @@ export const WA = {
   C30: (p: { partnerId: string; partnerName: string; service: string }) =>
     spec('C30', [['lh_socio_sin_actividad', { 1: partner(p.partnerName), 2: p.service, 3: 'partner?tab=my-requests' }]], E('PartnerProfile', p.partnerId), { marketing: true, dedupeWindowMs: 30 * DAY }),
 
+  B26: (p: { chatId: string; clientName: string; partnerName: string; service: string; ref: string }) =>
+    spec('B26', [['lh_cliente_mensaje_socio', { 1: client(p.clientName), 2: partner(p.partnerName), 3: p.service, 4: `#${p.ref}`, 5: 'dashboard?tab=bookings' }]], E('Chat', p.chatId), { dedupeKey: `B26:Chat:${p.chatId}`, dedupeWindowMs: 30 * 60_000 }),
+  C31: (p: { chatId: string; partnerName: string; clientName: string; service: string; ref: string }) =>
+    spec('C31', [['lh_socio_mensaje_cliente', { 1: partner(p.partnerName), 2: client(p.clientName), 3: p.service, 4: `#${p.ref}`, 5: 'partner?tab=bookings' }]], E('Chat', p.chatId), { dedupeKey: `C31:Chat:${p.chatId}`, dedupeWindowMs: 30 * 60_000 }),
+
   D1: (p: { adminName: string; conversationId: string; channel: string; reason: string; at: Date }) =>
     spec('D1', [['lh_admin_conversacion_traspasada', { 1: admin(p.adminName), 2: CHANNEL_TEXT[p.channel] ?? p.channel, 3: p.reason, 4: `admin/inbox?c=${p.conversationId}` }]], E('Conversation', p.conversationId), { dedupeWindowMs: 2 * 3600_000 }),
   D2: (p: { adminName: string; actionId: string; conversationId: string; summary: string }) =>
