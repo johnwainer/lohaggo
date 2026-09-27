@@ -83,7 +83,7 @@ export async function createAdDraft(workspaceId: string, input: AdInput, userId:
   if (why) throw new AdError(why)
   // Count and create under a per-workspace lock: parallel requests cannot all pass the daily cap
   const draft = await prisma.$transaction(async (tx) => {
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`ad-drafts:${workspaceId}`}))`
+    await tx.$queryRaw`SELECT 1 AS locked FROM (SELECT pg_advisory_xact_lock(hashtext(${`ad-drafts:${workspaceId}`}))) AS l`
     const since = new Date(Date.now() - 24 * 3600_000)
     const [today, running] = await Promise.all([
       tx.marketingAdDraft.count({ where: { workspaceId, createdAt: { gte: since } } }),
