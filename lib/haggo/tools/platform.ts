@@ -100,16 +100,20 @@ export const PLATFORM_READ_TOOLS: Record<string, ReadTool> = {
   configuracion_plataforma: {
     def: {
       name: 'configuracion_plataforma',
-      description: 'Configuración viva: comisiones (encendidas o no, tasas de cliente y socio), medios de pago y precios mínimo y máximo; ciudades (slug, nombre, estado, lanzada); todas las funciones (FeatureFlag) con su estado; y las afirmaciones públicas del sitio (key, qué dice, qué requiere, si está encendida), los hechos reales que las respaldan y las encendidas SIN respaldo. Úsala antes de proponer cambios de comisiones, ciudades o afirmaciones (key y slug salen de aquí).',
+      description: 'Configuración viva: comisiones (encendidas o no, tasas de cliente y socio), medios de pago y precios mínimo y máximo; ciudades (slug, nombre, estado, lanzada); todas las funciones (FeatureFlag) con su estado; y las afirmaciones públicas del sitio (key, qué dice, qué requiere, si está encendida), los hechos reales que las respaldan y las encendidas SIN respaldo; y la lista de espera por ciudad (cuántos clientes y socios pidieron aviso y cuántos faltan por avisar). Úsala antes de proponer cambios de comisiones, ciudades o afirmaciones (key y slug salen de aquí).',
       input_schema: { type: 'object', properties: {} },
     },
     maxOutput: 14_000,
     run: async () => {
-      const [row, cities, flags, trust] = await Promise.all([
+      const [row, cities, flags, trust, waitlist] = await Promise.all([
         loadPlatformConfigRow(),
         prisma.cityConfig.findMany({ orderBy: { order: 'asc' }, select: { slug: true, name: true, status: true, isLaunched: true, launchDate: true } }),
         prisma.featureFlag.findMany({ orderBy: { key: 'asc' }, take: 80, select: { key: true, name: true, enabled: true } }),
         trustReport(),
+        prisma.cityWaitlist.groupBy({ by: ['citySlug', 'role'], _count: { _all: true }, _max: { createdAt: true } }).then(async (rows) => {
+          const pending = await prisma.cityWaitlist.groupBy({ by: ['citySlug'], where: { notifiedAt: null }, _count: { _all: true } })
+          return { rows, pending }
+        }).catch(() => null),
       ])
       return {
         pagos: row ? {
@@ -128,6 +132,15 @@ export const PLATFORM_READ_TOOLS: Record<string, ReadTool> = {
         hechos_reales: trust.facts,
         minimos_para_mostrar_cifras: trust.minimums,
         no_respaldadas: trust.unbacked,
+        lista_de_espera: waitlist
+          ? Object.values(waitlist.rows.reduce<Record<string, { ciudad: string; clientes: number; socios: number; sin_avisar: number; ultima: Date | null }>>((acc, r) => {
+              const e = (acc[r.citySlug] ??= { ciudad: r.citySlug, clientes: 0, socios: 0, sin_avisar: waitlist.pending.find((p) => p.citySlug === r.citySlug)?._count._all ?? 0, ultima: null })
+              if (r.role === 'partner') e.socios += r._count._all
+              else e.clientes += r._count._all
+              if (r._max.createdAt && (!e.ultima || r._max.createdAt > e.ultima)) e.ultima = r._max.createdAt
+              return acc
+            }, {}))
+          : 'no disponible',
       }
     },
   },
