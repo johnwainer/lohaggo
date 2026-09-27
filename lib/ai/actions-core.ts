@@ -75,6 +75,73 @@ export function sameActionInput(a: unknown, b: unknown) {
   return norm(a) === norm(b)
 }
 
+/** «Siii» → «si», «correcto» → «corecto»: the word lists go through the same squash as the message. */
+const squash = (w: string) => w.replace(/([a-z])\1+/g, '$1')
+const YES_WORDS = new Set([
+  'si', 'sip', 'claro', 'dale', 'ok', 'okay', 'okey', 'oki', 'listo', 'confirmo', 'confirmado', 'confirmada', 'correcto', 'perfecto',
+  'hagale', 'hazlo', 'adelante', 'vale', 'exacto', 'yes', 'enviala', 'envialo', 'creala', 'crealo', 'acuerdo', 'obvio', 'porsupuesto',
+].map(squash))
+const FILLER_WORDS = new Set(['por', 'favor', 'porfa', 'porfavor', 'fa', 'gracias', 'muchas', 'de', 'una', 'eso', 'asi', 'es', 'esta', 'bien', 'todo', 'bueno', 'va', 'ya', 'pues', 'y', 'que', 'la', 'lo', 'mil', 'super'].map(squash))
+
+/**
+ * The person's whole message is a plain yes («Si por favor», «Siii», «Dale, gracias», «de una», 👍).
+ * Anything else (a question, a change, a «pero») is not: the model decides then.
+ */
+export function isClearYes(text: string) {
+  const norm = text
+    .replace(/👍|👌|✅|🙌|💯/g, ' ok ')
+    .toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z\s]/g, ' ')
+    .replace(/\bpor supuesto\b/g, 'porsupuesto')
+    .replace(/\bde una\b/g, 'dale')
+    .trim()
+  const words = norm.split(/\s+/).filter(Boolean).map(squash)
+  if (!words.length || words.length > 8) return false
+  return words.some((w) => YES_WORDS.has(w)) && words.every((w) => YES_WORDS.has(w) || FILLER_WORDS.has(w))
+}
+
+const FREE_TEXT_KEYS = new Set(['detalles', 'nota', 'motivo', 'comentario', 'descripcion'])
+const words = (v: string) => v.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter((w) => w && w !== 'barrio')
+
+/**
+ * Same action in substance: what the person described in their own words may be reworded, and an address
+ * may gain or lose the neighborhood label; dates, times, services, prices and refs must be identical.
+ */
+export function sameActionCore(a: unknown, b: unknown) {
+  const x = (a && typeof a === 'object' ? a : {}) as Record<string, unknown>
+  const y = (b && typeof b === 'object' ? b : {}) as Record<string, unknown>
+  const keys = Array.from(new Set([...Object.keys(x), ...Object.keys(y)])).filter((k) => k !== 'confirmado')
+  for (const k of keys) {
+    if (FREE_TEXT_KEYS.has(k)) continue
+    const u = x[k], v = y[k]
+    if (typeof u === 'string' && typeof v === 'string') {
+      const wu = words(u), wv = words(v)
+      if (k === 'direccion') {
+        const [small, big] = wu.length <= wv.length ? [wu, new Set(wv)] : [wv, new Set(wu)]
+        if (!small.length || !small.every((w) => big.has(w))) return false
+      } else if (wu.join(' ') !== wv.join(' ')) return false
+    } else if (JSON.stringify(u ?? null) !== JSON.stringify(v ?? null)) return false
+  }
+  return true
+}
+
+/** What the model must know on the next turn: tool calls are not in the chat history, only texts are. */
+export function pendingActionsText(rows: Array<{ tool: string; summary: string; input: unknown; createdAt: Date }>, now = new Date()) {
+  if (!rows.length) return ''
+  const lines = rows.map((r) => {
+    const data = { ...((r.input ?? {}) as Record<string, unknown>) }
+    delete data.confirmado
+    const mins = Math.max(0, Math.round((now.getTime() - r.createdAt.getTime()) / 60_000))
+    return `- ${r.tool} (propuesta hace ${mins} min): ${r.summary}. Datos exactos: ${JSON.stringify(data)}`
+  })
+  return [
+    'Acciones que ya le propusiste a la persona y esperan su sí (la plataforma las guardó):',
+    ...lines,
+    'Si la persona acaba de aceptar, llama esa herramienta con confirmado: true y exactamente esos datos; no se la vuelvas a proponer ni le pidas otra confirmación. Si cambió algo, propón de nuevo con confirmado: false y los datos nuevos.',
+  ].join('\n')
+}
+
 export const MISMATCH_CONFIRMATION_TEXT = 'Lo que confirmas no coincide con lo que se le propuso a la persona. Vuelve a llamar la herramienta con confirmado: false y los datos nuevos para proponérselo, y espera su sí.'
 
 /** What the model reads back when an action waits for the person's yes. */

@@ -13,7 +13,7 @@ import type Anthropic from '@anthropic-ai/sdk'
 import type { BookingStatus, City, DocumentType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import type { CatalogEntry, ToolContext } from '@/lib/ai/tools'
-import { askConfirmationText, awaitingApprovalText, confirmationGate, cop, dryRunText, LIMIT_REACHED_TEXT, MISMATCH_CONFIRMATION_TEXT, sameActionInput, shortId, STALE_CONFIRMATION_TEXT } from '@/lib/ai/actions-core'
+import { askConfirmationText, awaitingApprovalText, confirmationGate, cop, dryRunText, isClearYes, LIMIT_REACHED_TEXT, MISMATCH_CONFIRMATION_TEXT, sameActionCore, sameActionInput, shortId, STALE_CONFIRMATION_TEXT } from '@/lib/ai/actions-core'
 import { expireStaleProposals, latestProposed, leaveTrail, overDailyLimit, recordAction, settleAction } from '@/lib/ai/actions'
 import { chatOrigin, OpsError, type Actor, type Origin } from '@/lib/ops/origin'
 import { fmtDate } from '@/lib/ai/platform-data'
@@ -694,8 +694,9 @@ async function runIdentity(name: PlatformToolName, input: Record<string, unknown
 
 // ─── Executor ───────────────────────────────────────────────────────────────
 
-export async function runPlatformTool(name: PlatformToolName, input: Record<string, unknown>, ctx: ToolContext): Promise<string> {
+export async function runPlatformTool(name: PlatformToolName, rawInput: Record<string, unknown>, ctx: ToolContext): Promise<string> {
   const entry = PLATFORM_TOOLS[name]
+  let input = rawInput
   if (entry.group === 'identity') return runIdentity(name, input, ctx)
   if (!entry.writes) return runRead(name, input, ctx)
 
@@ -720,6 +721,20 @@ export async function runPlatformTool(name: PlatformToolName, input: Record<stri
     }
   }
 
+  // Tool calls are not in the chat history, so after the person's yes models tend to propose again
+  // (confirmado: false) and ask forever. A plain yes to a proposal from an earlier turn confirms exactly
+  // what the person was shown.
+  let proposed: Awaited<ReturnType<typeof latestProposed>> = null
+  let acceptedByYes = false
+  if (entry.confirm && ctx.mode === 'autopilot' && ctx.conversationId) {
+    await expireStaleProposals(ctx.conversationId)
+    proposed = await latestProposed(ctx.conversationId, name)
+    if (proposed && ctx.personText && isClearYes(ctx.personText) && proposed.createdAt < (ctx.turnStartedAt ?? new Date()) && sameActionCore(proposed.input, rawInput)) {
+      acceptedByYes = true
+      input = { ...(proposed.input as Record<string, unknown>), confirmado: true }
+    }
+  }
+
   const planner = PLANNERS[name]
   if (!planner) return `Herramienta "${name}" no disponible.`
   const plan = await planner(input, ctx, actor)
@@ -741,9 +756,7 @@ export async function runPlatformTool(name: PlatformToolName, input: Record<stri
     return awaitingApprovalText(plan.summary)
   }
 
-  await expireStaleProposals(conversationId)
-  const proposed = entry.confirm ? await latestProposed(conversationId, name) : null
-  const gate = entry.confirm ? confirmationGate({ confirmado: input.confirmado === true, proposedAt: proposed?.createdAt ?? null, sameInput: proposed ? sameActionInput(proposed.input, input) : undefined }) : 'run'
+  const gate = !entry.confirm || acceptedByYes ? 'run' : confirmationGate({ confirmado: input.confirmado === true, proposedAt: proposed?.createdAt ?? null, sameInput: proposed ? sameActionInput(proposed.input, input) : undefined })
   if (gate === 'mismatch') {
     if (proposed) await settleAction(proposed.id, { status: 'expired', result: 'La confirmación traía otros datos' })
     return MISMATCH_CONFIRMATION_TEXT

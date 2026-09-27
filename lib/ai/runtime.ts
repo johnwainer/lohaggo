@@ -11,6 +11,7 @@ import type { CommentSignals } from '@/lib/ai/comments-core'
 import { recordGap, retrieve, type KnowledgeChunk, type Retrieval } from '@/lib/ai/knowledge'
 import { buildToolDefs, executeTool, toolGuidance, toolsForMode, type ToolCallRecord, type ToolMode, type ToolRunState } from '@/lib/ai/tools'
 import { auxBudgetAvailable, checkWorkspaceBudget } from '@/lib/ai/limits'
+import { CONFIRM_WINDOW_MS, pendingActionsText } from '@/lib/ai/actions-core'
 import type { UsageTokens } from '@/lib/ai/pricing'
 import type { AiCallKind } from '@/lib/ai/calls'
 import type { ProviderId } from '@/lib/ai/providers/types'
@@ -192,7 +193,16 @@ export const AgentRuntimeService = {
     }
 
     const tz = await accountTimezone(opts.workspaceId)
-    const knowledge = await retrieve({ workspaceId: opts.workspaceId, agentId: agent.id, query: opts.text })
+    const [knowledge, pending] = await Promise.all([
+      retrieve({ workspaceId: opts.workspaceId, agentId: agent.id, query: opts.text }),
+      mode === 'autopilot' && opts.conversationId
+        ? prisma.aiAgentAction.findMany({
+            where: { conversationId: opts.conversationId, status: 'proposed', createdAt: { gte: new Date(now.getTime() - CONFIRM_WINDOW_MS) } },
+            orderBy: { createdAt: 'desc' }, take: 3,
+            select: { tool: true, summary: true, input: true, createdAt: true },
+          }).catch(() => [])
+        : Promise.resolve([]),
+    ])
     result.knowledgeMode = knowledge.mode
     result.chunks = knowledge.mode === 'full' ? [] : [...knowledge.chunks]
 
@@ -203,6 +213,7 @@ export const AgentRuntimeService = {
       channel: opts.channel,
       contact: { name: opts.contact.name, tags: opts.contact.tags, fields: opts.contact.fields, linkedUser: Boolean(opts.userId) },
       summary: opts.summary,
+      pendingActions: pendingActionsText(pending, now),
       toolGuidance: toolGuidance(agent, opts.flowOutputs),
       copilot: opts.copilot,
       flowOutputs: opts.flowOutputs,
@@ -223,6 +234,7 @@ export const AgentRuntimeService = {
     const toolCtx = {
       agent, workspaceId: opts.workspaceId, conversationId: opts.conversationId, userId: opts.userId,
       contact: { name: opts.contact.name, phone: opts.contact.phone, channel: opts.channel }, dryRun: opts.dryRun, mode, state,
+      personText: opts.text, turnStartedAt: new Date(),
     }
 
     let final: Anthropic.Message | null = null

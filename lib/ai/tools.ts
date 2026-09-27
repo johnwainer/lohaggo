@@ -239,6 +239,9 @@ export type ToolContext = {
   dryRun: boolean
   mode: ToolMode
   state: ToolRunState
+  /** The person's message this turn answers, and when the turn began: a plain yes confirms what was proposed before. */
+  personText?: string
+  turnStartedAt?: Date
 }
 
 export type ToolCallRecord = { name: string; input: Record<string, unknown>; output: string; dryRun: boolean; isError: boolean }

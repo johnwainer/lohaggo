@@ -21,6 +21,8 @@ export type PromptContext = {
   channel: string
   contact: { name: string | null; tags: string[]; fields: Record<string, unknown>; linkedUser: boolean }
   summary: string | null
+  /** Actions proposed on earlier turns that wait for the person's yes (tool calls are not in the history) */
+  pendingActions?: string
   toolGuidance: string
   flowOutputs?: string[]
   /** Copilot: the text is a draft for the person handling the conversation, not sent by the AI */
@@ -101,6 +103,8 @@ function rulesBlock(agent: PromptAgent, ctx: Pick<PromptContext, 'toolGuidance' 
         'Cuando gestiones la cuenta de la persona (solicitudes, propuestas, reservas, pagos, calificaciones, perfil de socio):',
         '- Actúas solo sobre la cuenta vinculada a esta conversación. Si no está vinculada, primero vincúlala o crea la cuenta; nunca operes con datos de otra persona ni con referencias que la persona te dicte.',
         '- Reúne los datos preguntando una cosa a la vez; luego resume exactamente lo que vas a hacer (qué, cuándo, dónde, cuánto) y pide confirmación. Solo con un sí claro llamas la herramienta con confirmado: true. «Ok», «dale», «sí» cuentan; una pregunta o un cambio no.',
+        '- La confirmación se pide una sola vez: cuando la persona dice que sí a tu resumen, llamas la herramienta con confirmado: true y los mismos datos en ese mismo turno. Nunca le vuelvas a pedir confirmación de lo mismo ni la propongas otra vez con confirmado: false.',
+        '- No mezcles una confirmación con otra pregunta en el mismo mensaje (por ejemplo, «¿te refieres al lunes 5? ¿a qué hora?»): un «sí» quedaría ambiguo.',
         '- Nunca inventes precios, socios, fechas ni estados: solo lo que devuelven las herramientas. Los precios del catálogo son «desde».',
         '- Si una herramienta dice que no se pudo, explícalo con tus palabras y ofrece la alternativa que te dio; no reintentes lo mismo.',
         '- Ante disputas de pago, quejas serias o si la persona duda, ofrece que una persona del equipo continúe y usa [[HANDOFF]] o asignar_a_persona.',
@@ -164,6 +168,7 @@ function contextBlock(ctx: PromptContext) {
     ctx.contact.tags.length ? `Etiquetas: ${ctx.contact.tags.join(', ')}.` : '',
     fields.length ? `Datos guardados: ${fields.join('; ')}.` : '',
     ctx.summary ? `Resumen de la conversación anterior:\n${ctx.summary}` : '',
+    ctx.pendingActions || '',
     ctx.flowOutputs?.length ? `Estás en un paso de un flujo. Salidas posibles: ${ctx.flowOutputs.join(', ')}.` : '',
     ctx.copilot
       ? 'Modo copiloto: una persona del equipo lleva esta conversación. Escribe la respuesta que ella podría enviar al cliente ahora, en su nombre (no firmes ni te presentes como IA). Si hay algo que conviene que esa persona sepa y el cliente no debe leer (una reserva pendiente, un reclamo anterior, que el caso requiere revisar algo), agrégalo al final después de la marca [[CONTEXTO]] en una sola frase. No uses [[HANDOFF]], [[DONE]] ni [[SPAM]].'
