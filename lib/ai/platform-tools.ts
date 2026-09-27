@@ -671,7 +671,7 @@ export async function runPlatformTool(name: PlatformToolName, input: Record<stri
     return plan.error
   }
 
-  if (ctx.mode === 'playground' || !ctx.conversationId) return dryRunText(plan.summary, plan.wouldRecord)
+  if (ctx.mode === 'playground' || !ctx.conversationId) return dryRunText(plan.summary, plan.wouldRecord, !entry.confirm || input.confirmado === true)
   const conversationId = ctx.conversationId
   const base = { workspaceId: ctx.workspaceId, conversationId, agent: ctx.agent, tool: name, input }
 

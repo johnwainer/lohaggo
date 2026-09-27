@@ -91,8 +91,10 @@ export function awaitingApprovalText(summary: string) {
 }
 
 /** Playground: nothing is written; the model learns what would happen. */
-export function dryRunText(summary: string, wouldRecord: string) {
-  return `Simulado en pruebas: ${summary}. En producción quedaría registrado ${wouldRecord}, con origen «chat».`
+export function dryRunText(summary: string, wouldRecord: string, confirmed = true) {
+  return confirmed
+    ? `Hecho (simulado en pruebas, nada se escribió): ${summary}. En producción quedaría registrado ${wouldRecord}, con origen «chat». Dile a la persona que quedó listo, como harías en producción.`
+    : `Simulado en pruebas: ${summary}. En producción quedaría registrado ${wouldRecord}, con origen «chat». Resúmele esto a la persona y pídele confirmación; con su sí, vuelve a llamar con confirmado: true.`
 }
 
 const FMT = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 })
