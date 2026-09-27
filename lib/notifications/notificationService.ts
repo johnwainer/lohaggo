@@ -252,6 +252,18 @@ async function buildEnrichedVars(
   return vars
 }
 
+/** Marker action of lib/messaging/wa-send.ts (kept literal: this module must not import the sender). */
+const WA_TEMPLATE_SENT = 'WA_TEMPLATE_SENT'
+const TEMPLATE_SUPPRESS_MS = 3 * 60_000
+
+async function templateSentRecently(userId: string) {
+  const hit = await prisma.adminAuditLog.findFirst({
+    where: { action: WA_TEMPLATE_SENT, createdAt: { gte: new Date(Date.now() - TEMPLATE_SUPPRESS_MS) }, details: { contains: `"userId":"${userId}"` } },
+    select: { id: true },
+  }).catch(() => null)
+  return Boolean(hit)
+}
+
 async function dispatchAutomaticNotificationChannels(params: {
   notificationId: string
   user: {
@@ -336,6 +348,26 @@ async function dispatchAutomaticNotificationChannels(params: {
           provider: 'internal',
           errorCode: 'MISSING_DESTINATION',
           errorMessage: 'User does not have destination configured for this channel',
+          metadata: params.data ? JSON.stringify(params.data) : null,
+        },
+      })
+      continue
+    }
+
+    // A catalog template just went to this person for the same event: the free text would repeat it
+    if (channel === 'WHATSAPP' && (await templateSentRecently(params.user.id))) {
+      await (prisma as any).notificationDispatchLog.create({
+        data: {
+          notificationId: params.notificationId,
+          userId: params.user.id,
+          userRole: params.user.role,
+          notificationType: params.type,
+          channel,
+          destination,
+          status: 'SKIPPED',
+          provider: 'internal',
+          errorCode: 'TEMPLATE_SENT',
+          errorMessage: 'A WhatsApp template was sent for this event',
           metadata: params.data ? JSON.stringify(params.data) : null,
         },
       })
@@ -480,7 +512,7 @@ async function dispatchAutomaticNotificationChannels(params: {
  * reminder about a request without proposals) the client is not written to again. Returns how many
  * partners were notified.
  */
-export async function notifyNewServiceRequest(serviceRequestId: string, opts: { partnersOnly?: boolean } = {}): Promise<number> {
+export async function notifyNewServiceRequest(serviceRequestId: string, opts: { partnersOnly?: boolean; round?: number; origin?: { via: string } } = {}): Promise<number> {
   let notified = 0
   try {
     const serviceRequest = await prisma.serviceRequest.findUnique({
@@ -518,21 +550,28 @@ export async function notifyNewServiceRequest(serviceRequestId: string, opts: { 
 
     if (!serviceRequest) return 0
 
-    const { sendNuevaSolicitudSocio, sendSolicitudEnviadaCliente } = await import('@/lib/messaging/whatsapp-templates')
+    const { waNewRequestToPartner, waRequestCreated } = await import('@/lib/messaging/wa-events')
     const serviceName = serviceRequest.service.name
 
     // Format the "when" string for the partner notification
-    let when = 'A definir'
+    let when = 'fecha por definir'
     if (serviceRequest.isUrgent) {
-      when = 'Urgente'
+      when = 'hoy, urgente'
     } else if (serviceRequest.preferredDate) {
-      const d = new Date(serviceRequest.preferredDate)
-      when = d.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })
-      if (serviceRequest.preferredTime) when += ` a las ${serviceRequest.preferredTime}`
+      const { waDay, waWhen } = await import('@/lib/messaging/wa-format')
+      const { bookingWhen } = await import('@/lib/bookings/when')
+      when = serviceRequest.preferredTime
+        ? waWhen(bookingWhen({ scheduledDate: serviceRequest.preferredDate, scheduledTime: serviceRequest.preferredTime }))
+        : waDay(bookingWhen({ scheduledDate: serviceRequest.preferredDate, scheduledTime: '12:00' }))
     }
 
     const notifyPartner = async (partner: { user: { id: string; name: string; phone: string | null } }, isDirect: boolean) => {
       notified++
+      // Template first (C10 / C11): the free-text WhatsApp of the notification is then skipped
+      await waNewRequestToPartner({
+        requestId: serviceRequest.id, partnerUserId: partner.user.id, partnerName: partner.user.name, service: serviceName,
+        address: serviceRequest.address, city: serviceRequest.city, when, direct: isDirect, round: opts.round ?? 0,
+      })
       await createNotification({
         userId: partner.user.id,
         type: "NEW_SERVICE_REQUEST",
@@ -542,10 +581,6 @@ export async function notifyNewServiceRequest(serviceRequestId: string, opts: { 
           : `${serviceRequest.user.name} solicita ${serviceName}`,
         data: { serviceRequestId: serviceRequest.id, serviceId: serviceRequest.serviceId, isDirect }
       })
-      if (partner.user.phone) {
-        sendNuevaSolicitudSocio(partner.user.phone, partner.user.name ?? 'Socio', serviceName, when)
-          .catch(err => logger.error('WA nueva_solicitud_socio failed', { err }))
-      }
     }
 
     const isEligible = (p: { isActive: boolean; verified: boolean; isAvailable: boolean }) =>
@@ -567,6 +602,7 @@ export async function notifyNewServiceRequest(serviceRequestId: string, opts: { 
     if (opts.partnersOnly) return notified
 
     // Notify the client in-app that their request has been submitted
+    await waRequestCreated({ requestId: serviceRequest.id, clientUserId: serviceRequest.user.id, clientName: serviceRequest.user.name, service: serviceName, origin: opts.origin })
     await createNotification({
       userId: serviceRequest.user.id,
       type: 'NEW_SERVICE_REQUEST',
@@ -574,10 +610,6 @@ export async function notifyNewServiceRequest(serviceRequestId: string, opts: { 
       message: `Estamos buscando socios para tu solicitud de ${serviceName}. Te avisaremos cuando recibas propuestas.`,
       data: { serviceRequestId: serviceRequest.id, serviceId: serviceRequest.serviceId, recipient: 'CLIENT' }
     })
-    if (serviceRequest.user.phone) {
-      sendSolicitudEnviadaCliente(serviceRequest.user.phone, serviceRequest.user.name ?? 'Cliente', serviceName)
-        .catch(err => logger.error('WA solicitud_enviada_cliente failed', { err }))
-    }
   } catch (error) {
     logger.error("Error notifying new service request", { serviceRequestId, error })
   }
@@ -605,20 +637,15 @@ export async function notifyNewProposal(proposalId: string) {
 
     if (!proposal) return
 
-    const client = proposal.serviceRequest.user
     const serviceName = proposal.serviceRequest.service.name
     const partnerName = proposal.partner.user.name
     const price = `$${Math.round(Number(proposal.price)).toLocaleString('es-CO')}`
 
-    // Approved WhatsApp template (works outside the 24 h window); while its SID is not set nothing is sent
-    // and the regular free-text WhatsApp channel stays in place.
-    let whatsappByTemplate = false
-    if (client.phone && client.notificationsWhatsappEnabled !== false) {
-      const { sendNuevaPropuestaCliente } = await import('@/lib/messaging/whatsapp-templates')
-      const res = await sendNuevaPropuestaCliente(client.phone, client.name || 'Cliente', serviceName, price, partnerName || 'un socio').catch(() => null)
-      whatsappByTemplate = Boolean(res?.ok)
-      if (res && !res.ok) logger.warn('WA nueva_propuesta_cliente failed', { proposalId, errorCode: res.errorCode })
-    }
+    // Approved WhatsApp template B3 (works outside the 24 h window); while Meta has not approved it the
+    // regular free-text WhatsApp channel stays in place.
+    const { waNewProposal } = await import('@/lib/messaging/wa-events')
+    const wa = await waNewProposal(proposal.id)
+    const whatsappByTemplate = Boolean(wa?.ok)
 
     await createNotification({
       userId: proposal.serviceRequest.userId,
@@ -673,8 +700,13 @@ export async function notifyProposalAccepted(proposalId: string) {
   }
 }
 
-export async function notifyProposalRejected(proposalId: string) {
+export async function notifyProposalRejected(proposalId: string, opts: { notChosen?: boolean } = {}) {
   try {
+    // C13 only when the client chose another proposal (not on expiry or cancellation: its text would be wrong)
+    if (opts.notChosen) {
+      const { waProposalNotChosen } = await import('@/lib/messaging/wa-events')
+      await waProposalNotChosen(proposalId)
+    }
     const proposal = await prisma.proposal.findUnique({
       where: { id: proposalId },
       include: {

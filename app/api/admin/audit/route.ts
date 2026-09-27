@@ -12,7 +12,8 @@ export async function GET(request: NextRequest) {
 
   const logs = await prisma.adminAuditLog.findMany({
     where: {
-      ...(action ? { action } : {}),
+      // WhatsApp template sends are markers (thousands a day): only listed when asked for
+      ...(action ? { action } : { NOT: { action: 'WA_TEMPLATE_SENT' } }),
       ...(entityType ? { entityType } : {}),
     },
     orderBy: { createdAt: 'desc' },

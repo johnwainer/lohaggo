@@ -10,7 +10,8 @@ export const PLATFORM_CAPABILITIES = `Cómo funciona LoHaggo hoy:
 - Verificación de socios: solo el documento de identidad es obligatorio. Antecedentes y diplomas son opcionales.
 - Ciudades: CityConfig con estado ACTIVE, COMING_SOON o INACTIVE; solo las activas reciben solicitudes.
 - Bandeja omnicanal (WhatsApp, Messenger, Instagram, SMS, correo) con agentes de IA en piloto (responden solos) o copiloto (sugieren a una persona).
-- Operación por chat: 21 herramientas para que clientes y socios hagan todo por WhatsApp/Messenger/Instagram (pedir un servicio, aceptar propuestas, reprogramar, cancelar, reportar y confirmar pagos, calificar, proponer como socio, editar su perfil, reclamar la garantía). Vinculación de la cuenta con un código, confirmación explícita antes de lo que compromete dinero o agenda, límites diarios por conversación, marca origin='chat' en cada registro, registro en AiAgentAction y, en copiloto, aprobación de la acción en la bandeja.
+- WhatsApp es el canal principal: un catálogo de plantillas (lib/messaging/wa-catalog.ts) que salen solas en cada evento (propuestas, reservas, pagos, garantía, documentos, avisos al equipo). Se activan el día que Meta las aprueba (registro en vivo de Twilio); mientras tanto cae a la plantilla vieja aprobada o no sale. Cada envío queda en la conversación y los botones de respuesta rápida los atiende el agente de IA.
+- Operación por chat: 22 herramientas para que clientes y socios hagan todo por WhatsApp/Messenger/Instagram (pedir un servicio, aceptar propuestas, reprogramar, cancelar, reportar y confirmar pagos, calificar, proponer como socio, editar su perfil, reclamar la garantía). Vinculación de la cuenta con un código, confirmación explícita antes de lo que compromete dinero o agenda, límites diarios por conversación, marca origin='chat' en cada registro, registro en AiAgentAction y, en copiloto, aprobación de la acción en la bandeja.
 - Marketing: agentes de marketing por campaña (estrategia, plan, redacción, programación), editor de publicaciones con revisión editorial (corrector y editor), blog y redes (Facebook, Instagram), y agente de pauta que prepara anuncios para Meta Ads (se suben a mano).
 - Garantía LoHaggo (lib/guarantee/policy.ts, página /garantia): cubre «no llegó» (hasta 24 h después de la hora), trabajo incompleto o distinto (hasta 72 h después de completada) y daños (siempre una persona; LoHaggo media, no paga daños). Remedios: otro socio con prioridad (solicitud nueva urgente), cancelación sin costo, que el mismo socio corrija, y reembolso solo si pagó en línea. SLA: solución en 24 h, resuelto en 72 h. 2 faltas del socio en 90 días lo pausan solo; con 3 el equipo decide suspender. El cliente reclama por chat (reportar_problema_servicio) y el equipo resuelve en /admin/guarantee; tú solo recomiendas.
 - Afirmaciones públicas del sitio (confianza y promociones) controladas por interruptores (lib/public/claims.ts); las cifras salen de la base y solo se muestran sobre un mínimo. Nada inventado.
@@ -21,6 +22,13 @@ export type ChangelogEntry = { date: string; area: string; change: string; impac
 
 /** Newest first. At most ~15 entries: the big features only. */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
+  {
+    date: '2026-09-27',
+    area: 'WhatsApp',
+    change: 'Plantillas de WhatsApp conectadas a sus eventos: registro en vivo de Twilio (aprobada / pendiente / rechazada / recategorizada, caché 30 min), elección de la primera aprobada como UTILITY con caída a MARKETING (horario y exclusión) y a la plantilla vieja; deduplicación por evento; cada envío queda en la conversación y los botones llegan al agente de IA con la reserva o pago al que se refieren. Nuevos avisos por tiempo (confirmar reserva, marcar terminado, pago pendiente, documentos, resumen diario al equipo) y herramienta reactivar_solicitud.',
+    impacto: 'Clientes y socios reciben los avisos fuera de la ventana de 24 h y pueden responder con un toque; el equipo se entera de traspasos, disputas, garantías e incidentes críticos por WhatsApp.',
+    comoVerlo: 'mensajeria (estado del catálogo y envíos por plantilla en 24 h), la regla sys:wa-templates-rejected y Admin → Mensajería → Catálogo.',
+  },
   {
     date: '2026-09-27',
     area: 'Garantía',
@@ -118,13 +126,6 @@ export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
     change: 'Agente de marketing autónomo por campaña y publicaciones omnicanal (blog, Facebook, Instagram) con programación y estadísticas.',
     impacto: 'Contenido constante sin trabajo manual.',
     comoVerlo: 'marketing y agentes_marketing.',
-  },
-  {
-    date: '2026-09-24',
-    area: 'Bandeja',
-    change: 'Modo copiloto de los agentes de IA, comentarios de Facebook e Instagram atendidos por IA y creación de cuentas desde la bandeja.',
-    impacto: 'Más conversaciones atendidas por IA con una persona supervisando.',
-    comoVerlo: 'atencion y agente_ia.',
   },
 ]
 

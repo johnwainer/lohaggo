@@ -1,4 +1,6 @@
 import { prisma } from '@/lib/prisma'
+import { catalogStatus } from '@/lib/messaging/wa-registry'
+import { templateSendsSince } from '@/lib/messaging/wa-send'
 import { business, cleanFilters, funnelTab, peopleTab, searchTab, serviceTab, supplyTab } from '@/lib/analytics/queries'
 import { parsePeriod } from '@/lib/analytics/core'
 import { systemOverview } from '@/lib/system/health'
@@ -288,15 +290,31 @@ export const READ_TOOLS: Record<string, ReadTool> = {
     },
   },
   mensajeria: {
-    def: { name: 'mensajeria', description: 'Campañas de mensajes recientes (WhatsApp, correo, SMS, push) con enviados y fallidos, y los errores más comunes de envío en 24 h.', input_schema: { type: 'object', properties: {} } },
+    def: { name: 'mensajeria', description: 'Campañas de mensajes recientes (WhatsApp, correo, SMS, push) con enviados y fallidos, los errores más comunes de envío en 24 h, el estado en Meta del catálogo de plantillas de WhatsApp (aprobadas, pendientes, rechazadas con motivo, recategorizadas) y los envíos por plantilla en 24 h.', input_schema: { type: 'object', properties: {} } },
     run: async () => {
       const day = new Date(Date.now() - 24 * H)
-      const [campaigns, errors, byStatus] = await Promise.all([
+      const [campaigns, errors, byStatus, catalog, perTemplate] = await Promise.all([
         prisma.messagingCampaign.findMany({ where: { updatedAt: { gte: new Date(Date.now() - 7 * 24 * H) } }, orderBy: { updatedAt: 'desc' }, take: 10, select: { id: true, name: true, channel: true, status: true, totalRecipients: true, totalSent: true, totalFailed: true, scheduledAt: true } }),
         prisma.messagingDelivery.groupBy({ by: ['channel', 'errorCode'], where: { createdAt: { gte: day }, status: 'FAILED' }, _count: { _all: true } }),
         prisma.messagingDelivery.groupBy({ by: ['channel', 'status'], where: { createdAt: { gte: day } }, _count: { _all: true } }),
+        catalogStatus().catch(() => []),
+        templateSendsSince(day).catch(() => []),
       ])
-      return { campanas_7d: campaigns, envios_24h: byStatus.map((b) => ({ canal: b.channel, estado: b.status, n: b._count._all })), errores_24h: errors.map((e) => ({ canal: e.channel, codigo: e.errorCode, n: e._count._all })) }
+      const byState = (st: string) => catalog.filter((r) => r.status === st)
+      return {
+        campanas_7d: campaigns,
+        envios_24h: byStatus.map((b) => ({ canal: b.channel, estado: b.status, n: b._count._all })),
+        errores_24h: errors.map((e) => ({ canal: e.channel, codigo: e.errorCode, n: e._count._all })),
+        plantillas_whatsapp: {
+          total: catalog.length,
+          aprobadas: byState('approved').length,
+          pendientes: catalog.filter((r) => r.status === 'pending' || r.status === 'received').length,
+          rechazadas: byState('rejected').map((r) => ({ codigo: r.code, nombre: r.name, motivo: r.reason?.slice(0, 160) ?? null, uso: r.usage })),
+          recategorizadas: catalog.filter((r) => r.recategorized).map((r) => ({ codigo: r.code, nombre: r.name, pedida: r.category, final: r.finalCategory })),
+          sin_crear: byState('missing').map((r) => r.name),
+        },
+        envios_por_plantilla_24h: perTemplate,
+      }
     },
   },
   seguridad: {

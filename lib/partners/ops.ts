@@ -358,6 +358,8 @@ export async function uploadDocument(actor: Actor, input: UploadDocumentInput, o
     },
   })
 
+  const { waDocumentUploaded } = await import('@/lib/messaging/wa-events')
+  await waDocumentUploaded(document.id, origin)
   await createNotification({
     userId: partner.userId,
     type: 'DOCUMENT_APPROVED',

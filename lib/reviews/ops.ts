@@ -67,6 +67,8 @@ export async function leaveReview(actor: Actor, input: ReviewInput, origin: Orig
       data: { rating: agg._avg.clientToPartnerRating ?? rating, totalReviews: agg._count.clientToPartnerRating },
     })
 
+    const { waReviewReceived } = await import('@/lib/messaging/wa-events')
+    await waReviewReceived(bookingId, rating)
     await notifyRated(booking.partner.userId, booking.user.name, rating, bookingId, 'PARTNER')
     return review
   }

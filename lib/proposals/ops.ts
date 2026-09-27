@@ -106,6 +106,9 @@ export function resolveSchedule(
   return { scheduledDate: next, scheduledTime: opts?.scheduledTime || bogotaTime(next) }
 }
 
+/** AdminAuditLog marker (entityType ServiceRequest) with the proposal ids an accept rejected. */
+export const PROPOSALS_CLOSED_BY_ACCEPT = 'PROPOSALS_CLOSED_BY_ACCEPT'
+
 /** The client accepts an offer: the other pending offers are rejected and the booking is created. */
 export async function acceptProposal(actor: Actor, proposalId: string, origin: Origin, opts?: { scheduledDate?: Date; scheduledTime?: string }) {
   const proposal = await prisma.proposal.findUnique({
@@ -169,9 +172,22 @@ export async function acceptProposal(actor: Actor, proposalId: string, origin: O
     return { booking, rejectedIds }
   })
 
+  // Which proposals this accept closed: if the partner later drops the booking, only these come back
+  if (rejectedIds.length) {
+    try {
+      await prisma.adminAuditLog.create({ data: { action: PROPOSALS_CLOSED_BY_ACCEPT, entityType: 'ServiceRequest', entityId: sr.id, actorEmail: 'sistema', details: JSON.stringify({ bookingId: booking.id, proposalIds: rejectedIds }) } })
+    } catch (err) {
+      logger.warn('closed-proposals marker failed (non-fatal)', { serviceRequestId: sr.id, err })
+    }
+  }
+
+  // WhatsApp templates first (B8 to the client, C12 to the partner): the notifications' free text is then skipped
+  const { waProposalAccepted } = await import('@/lib/messaging/wa-events')
+  await waProposalAccepted(booking.id, origin)
+
   for (const id of rejectedIds) {
     try {
-      await notifyProposalRejected(id)
+      await notifyProposalRejected(id, { notChosen: true })
     } catch (err) {
       logger.warn('notifyProposalRejected failed (non-fatal)', { proposalId: id, err })
     }

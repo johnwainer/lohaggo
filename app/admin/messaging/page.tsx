@@ -6,6 +6,7 @@ import {
   Send, Loader2, RefreshCw, Wifi, WifiOff, AlertTriangle, ChevronDown,
   FileText, Clock, Search, User, X, ShieldCheck, Zap, Plus,
 } from 'lucide-react'
+import WaCatalogPanel from '@/components/admin/WaCatalogPanel'
 
 type TwilioProvider = {
   active: boolean
@@ -54,10 +55,11 @@ type TestResult = {
   errorExplanation?: string
 } | null
 
-type Tab = 'estado' | 'credenciales' | 'prueba' | 'plantillas' | 'guia'
+type Tab = 'estado' | 'catalogo' | 'credenciales' | 'prueba' | 'plantillas' | 'guia'
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'estado',       label: 'Estado',       icon: <Wifi size={15} /> },
+  { id: 'catalogo',     label: 'Catálogo',     icon: <FileText size={15} /> },
   { id: 'credenciales', label: 'Credenciales', icon: <Key size={15} /> },
   { id: 'prueba',       label: 'Prueba',        icon: <Send size={15} /> },
   { id: 'plantillas',   label: 'Plantillas WA', icon: <FileText size={15} /> },
@@ -798,6 +800,9 @@ export default function MessagingPage() {
           </div>
         </div>
       )}
+
+      {/* ── TAB: CATÁLOGO (estado en Meta y evento de cada plantilla) ── */}
+      {activeTab === 'catalogo' && <WaCatalogPanel />}
 
       {/* ── TAB: PLANTILLAS WA ── */}
       {activeTab === 'plantillas' && (

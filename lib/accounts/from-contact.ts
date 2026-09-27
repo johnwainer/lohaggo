@@ -3,7 +3,6 @@ import bcrypt from 'bcryptjs'
 import { City, type UserRole } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
-import { sendWelcomePartner } from '@/lib/messaging/whatsapp-templates'
 import { scheduleAutomationsForUser } from '@/lib/messaging/automation-service'
 import { emitInboxEvent } from '@/lib/messaging/inbox-emitter'
 import { sendMessageViaProvider } from '@/lib/messaging/providers'
@@ -133,10 +132,18 @@ export async function createAccountFromContact(input: CreateAccountInput): Promi
 
   const { url, expiresAt } = await createAccessLink(user.id, input.role)
 
+  // B1 / C1 by WhatsApp. The access link goes in the button only when a person of the team created the
+  // account (they checked the phone); from an unverified chat the link travels only by email.
+  const { waAccountCreated } = await import('@/lib/messaging/wa-events')
+  const { urlSuffix } = await import('@/lib/messaging/wa-format')
+  await waAccountCreated({
+    userId: user.id, role: input.role, name: valid.name,
+    suffix: input.createdBy.type === 'user' ? urlSuffix(url) : input.role === 'PARTNER' ? 'partner/verification' : 'dashboard',
+  })
+
   // Same automations as the public registration
   scheduleAutomationsForUser(user.id, input.role === 'PARTNER' ? 'PARTNER_REGISTERED' : 'CLIENT_REGISTERED').catch(() => null)
   if (input.role === 'PARTNER') {
-    if (valid.phone) sendWelcomePartner(valid.phone, valid.name).catch((err) => logger.warn('Welcome WA failed', { userId: user.id, err }))
     scheduleAutomationsForUser(user.id, 'PARTNER_DOCS_REMINDER').catch(() => null)
     scheduleAutomationsForUser(user.id, 'PARTNER_REFERRAL_REMINDER').catch(() => null)
   } else {

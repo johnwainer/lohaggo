@@ -390,6 +390,11 @@ export const AgentRuntimeService = {
           body: `🤖 ${agent.name} traspasó la conversación. ${label}${detail ? `: ${detail}` : ''}.`,
         },
       })
+      // D1: the admins of this account with WhatsApp on hear that a person is needed
+      if (!conversation.isTest) {
+        const { waHandoff } = await import('@/lib/messaging/wa-events')
+        await waHandoff({ conversationId: conversation.id, workspaceId: conversation.workspaceId, channel: conversation.channel, reason: (detail || label).slice(0, 160) })
+      }
       // Every "didn't know" handoff feeds the knowledge-gap list
       if ((reason === 'model' || reason === 'empty') && params.question?.trim()) {
         await recordGap({ workspaceId: conversation.workspaceId, agentId: agent.id, conversationId: conversation.id, question: params.question })

@@ -45,7 +45,7 @@ async function recentActivity(hours: number) {
     safe(prisma.verificationDocument.findMany({ where: { OR: [{ createdAt: { gte: since } }, { reviewedAt: { gte: since } }] }, orderBy: { updatedAt: 'desc' }, take, select: { id: true, partnerId: true, type: true, status: true, createdAt: true, reviewedAt: true, origin: true, originChannel: true } })),
     safe(prisma.aiAgentAction.findMany({ where: { createdAt: { gte: since } }, orderBy: { createdAt: 'desc' }, take, select: { id: true, agentName: true, agentId: true, tool: true, status: true, summary: true, createdAt: true, conversationId: true } })),
     // Admin actions: what and on what, never IP, browser nor free-text details
-    safe(prisma.adminAuditLog.findMany({ where: { createdAt: { gte: since } }, orderBy: { createdAt: 'desc' }, take, select: { id: true, action: true, entityType: true, entityId: true, createdAt: true } })),
+    safe(prisma.adminAuditLog.findMany({ where: { createdAt: { gte: since }, NOT: { action: 'WA_TEMPLATE_SENT' } }, orderBy: { createdAt: 'desc' }, take, select: { id: true, action: true, entityType: true, entityId: true, createdAt: true } })),
     safe(prisma.marketingPublication.findMany({ where: { publishedAt: { gte: since } }, orderBy: { publishedAt: 'desc' }, take, select: { id: true, channel: true, publishedAt: true, post: { select: { title: true } } } })),
     safe(prisma.adminIncident.findMany({ where: { OR: [{ firstSeenAt: { gte: since } }, { resolvedAt: { gte: since } }] }, orderBy: { lastSeenAt: 'desc' }, take, select: { id: true, title: true, severity: true, status: true, firstSeenAt: true, resolvedAt: true } })),
   ])

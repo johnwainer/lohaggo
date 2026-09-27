@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cronRoute } from '@/lib/system/cron'
 import { ensureDefaultAutomationRules, processDueAutomations } from '@/lib/messaging/automation-service'
 import { createLogger } from '@/lib/logger'
+import { runWaDaily } from '@/lib/messaging/wa-scheduled'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,8 +22,10 @@ async function handle(request: NextRequest) {
       return null
     })
     const result = await processDueAutomations(200)
-    logger.info('Cron automations completed', result)
-    return NextResponse.json({ ok: true, ...result, rulesCreated: defaults?.created ?? 0, rulesLinksFixed: defaults?.fixedLinks ?? 0 })
+    // Hourly WhatsApp templates: partner onboarding (C3, C8, C9), win-back (B23, C30), demand (C29), unfinished chat requests (B24)
+    const whatsapp = await runWaDaily().catch((err) => { logger.error('WhatsApp daily templates failed', { err }); return { error: 1 } })
+    logger.info('Cron automations completed', { ...result, whatsapp })
+    return NextResponse.json({ ok: true, ...result, whatsapp, rulesCreated: defaults?.created ?? 0, rulesLinksFixed: defaults?.fixedLinks ?? 0 })
   } catch (err) {
     logger.error('Cron automations error', { err })
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })

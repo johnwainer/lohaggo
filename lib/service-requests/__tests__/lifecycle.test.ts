@@ -22,6 +22,7 @@ vi.mock('@/lib/prisma', () => ({
   },
 }))
 vi.mock('@/lib/logger', () => ({ createLogger: () => ({ info() {}, warn() {}, error() {} }) }))
+vi.mock('@/lib/messaging/wa-events', () => ({ waRequestCancelled: vi.fn(async () => null), waRequestNoProposals: vi.fn(async () => null), waRequestExpired: vi.fn(async () => null), waProposalAccepted: vi.fn(async () => null) }))
 vi.mock('@/lib/notifications/notificationService', () => ({
   notifyNewServiceRequest: m.notifyNewServiceRequest,
   notifyProposalRejected: m.notifyProposalRejected,
@@ -67,7 +68,7 @@ describe('reactivar solicitud', () => {
     expect(m.srUpdateMany.mock.calls[0][0].data).toMatchObject({ status: 'ACTIVE' })
     expect(m.proposalUpdateMany).toHaveBeenCalledWith({ where: { id: { in: ['p1', 'p2'] }, serviceRequestId: 'r1', status: 'REJECTED' }, data: { status: 'PENDING' } })
     expect(m.auditCreate.mock.calls[0][0].data).toMatchObject({ action: REQUEST_REACTIVATE_ACTION, entityId: 'r1', actorId: 'u1' })
-    expect(m.notifyNewServiceRequest).toHaveBeenCalledWith('r1', { partnersOnly: true })
+    expect(m.notifyNewServiceRequest).toHaveBeenCalledWith('r1', { partnersOnly: true, round: 11 })
   })
 
   it('ACTIVE ya vencida también se reactiva (sin restaurar nada)', async () => {
@@ -100,7 +101,7 @@ describe('reenvío a las 2 h sin propuestas', () => {
     const res = await resendUnansweredRequests(now)
     expect(res).toEqual({ resent: 1, partnersNotified: 3 })
     expect(m.notifyNewServiceRequest).toHaveBeenCalledTimes(1)
-    expect(m.notifyNewServiceRequest).toHaveBeenCalledWith('r2', { partnersOnly: true })
+    expect(m.notifyNewServiceRequest).toHaveBeenCalledWith('r2', { partnersOnly: true, round: 1 })
     expect(m.auditCreate.mock.calls[0][0].data).toMatchObject({ action: REQUEST_RESEND_ACTION, entityId: 'r2' })
     const where = m.srFindMany.mock.calls[0][0].where
     expect(where).toMatchObject({ status: 'ACTIVE', proposals: { none: {} } })

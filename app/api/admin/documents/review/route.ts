@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
 import { createNotification } from '@/lib/notifications/notificationService'
 import { scheduleAutomationsForUser } from '@/lib/messaging/automation-service'
+import { waDocumentReviewed } from '@/lib/messaging/wa-events'
 
 async function checkAndUnlockAchievements(partnerId: string) {
   const documents = await prisma.verificationDocument.findMany({
@@ -120,16 +121,6 @@ export async function POST(req: NextRequest) {
       }
     })
 
-    await createNotification({
-      userId: document.partner.userId,
-      type: status === 'APPROVED' ? 'DOCUMENT_APPROVED' : 'DOCUMENT_REJECTED',
-      title: status === 'APPROVED' ? 'Documento aprobado' : 'Documento rechazado',
-      message: status === 'APPROVED'
-        ? 'Tu documento ha sido aprobado exitosamente'
-        : `Tu documento ha sido rechazado. Razón: ${rejectionReason}`,
-      data: { documentId }
-    })
-
     const partnerId = document.partner.userId
 
     if (status === 'APPROVED') {
@@ -160,6 +151,19 @@ export async function POST(req: NextRequest) {
     } else if (status === 'REJECTED') {
       scheduleAutomationsForUser(partnerId, 'PARTNER_DOCS_REJECTED', { contextId: document.id }).catch(() => null)
     }
+
+    // C5 / C6 / C7 by WhatsApp template (after activation, so C7 lists the services now active)
+    await waDocumentReviewed(documentId, status, rejectionReason)
+
+    await createNotification({
+      userId: document.partner.userId,
+      type: status === 'APPROVED' ? 'DOCUMENT_APPROVED' : 'DOCUMENT_REJECTED',
+      title: status === 'APPROVED' ? 'Documento aprobado' : 'Documento rechazado',
+      message: status === 'APPROVED'
+        ? 'Tu documento ha sido aprobado exitosamente'
+        : `Tu documento ha sido rechazado. Razón: ${rejectionReason}`,
+      data: { documentId }
+    })
 
     return NextResponse.json(updatedDocument)
   } catch (error) {

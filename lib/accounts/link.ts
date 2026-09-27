@@ -120,7 +120,10 @@ export async function startLink(p: StartLinkInput): Promise<StartLinkResult> {
   const runtime = await getMessagingProviderRuntimeConfig()
   let sent = false
   if (p.via === 'phone') {
-    const wa = await sendMessageViaProvider({ channel: 'WHATSAPP', to: destination, body: linkCodeMessage(code) }, runtime)
+    // A1 (AUTHENTICATION template) reaches the phone even outside the 24 h window; free text, then SMS, while Meta has not approved it
+    const { waLinkCode } = await import('@/lib/messaging/wa-events')
+    const tpl = await waLinkCode({ userId: candidate.userId, phone: destination, code, codeId: id })
+    const wa = tpl?.ok ? { ok: true } : await sendMessageViaProvider({ channel: 'WHATSAPP', to: destination, body: linkCodeMessage(code) }, runtime)
     sent = wa.ok
     if (!sent) {
       const sms = await sendMessageViaProvider({ channel: 'SMS', to: destination, body: linkCodeMessage(code) }, runtime)

@@ -6,6 +6,7 @@ import { systemAlerts } from '@/lib/system/health'
 import { trustReport } from '@/lib/public/trust'
 import type { Snapshot } from '@/lib/haggo/detect'
 import { guaranteeStats } from '@/lib/guarantee/ops'
+import { catalogStatus } from '@/lib/messaging/wa-registry'
 
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0)
 const round = (n: number) => Math.round(n * 100) / 100
@@ -59,6 +60,13 @@ export async function takeSnapshot(now = new Date()): Promise<Snapshot> {
   })
   const platform = await platformExtras(now, today)
   // Before the GuaranteeClaim SQL runs the table does not exist: zeros
+  // Meta's state of the WhatsApp catalog (registry cached 30 min; never blocks the snapshot)
+  const waTemplates = await catalogStatus().then((rows) => ({
+    approved: rows.filter((r) => r.status === 'approved').length,
+    pending: rows.filter((r) => r.status === 'pending' || r.status === 'received').length,
+    rejected: rows.filter((r) => r.status === 'rejected').map((r) => r.name),
+    recategorized: rows.filter((r) => r.recategorized).map((r) => r.name),
+  })).catch(() => undefined)
   const guarantee = await guaranteeStats(now).catch(() => ({ open: 0, overdue: 0, strikesLast90: 0, partnersAtLimit: [] as Array<{ partnerId: string; strikes: number }> }))
   const budgets = await Promise.all(capped.map(async (w) => ({ workspace: w.name, pct: evaluateBudget(await workspaceUsage(w.id), { costCapUsd: w.aiMonthlyCostCapUsd, callCap: w.aiMonthlyCallCap }).pct })))
   const [rejected24h, pendingOld, refundsOpen, low7d, total24h, zero24h, sent24h, failed24h, events24h, high24h, blockedIps, runErrors24h, pendingVerification] = extra
@@ -108,6 +116,7 @@ export async function takeSnapshot(now = new Date()): Promise<Snapshot> {
     trust: platform.trust,
     config: platform.config,
     guarantee,
+    waTemplates,
   }
 }
 

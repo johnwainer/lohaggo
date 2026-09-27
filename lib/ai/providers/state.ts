@@ -108,13 +108,17 @@ async function openIncident(provider: ProviderId, s: BreakerState) {
   const type = incidentType(provider)
   const open = await prisma.adminIncident.findFirst({ where: { type, status: { in: ['OPEN', 'ACKNOWLEDGED'] } }, select: { id: true } })
   if (open) return touchIncident(provider, s)
-  await prisma.adminIncident.create({
+  const incident = await prisma.adminIncident.create({
     data: {
       type, severity: s.reason === 'sin_credito' || s.reason === 'clave_invalida' ? 'CRITICAL' : 'HIGH', status: 'OPEN', source: 'system', route: '/admin/ai-settings',
       title: `IA: ${PROVIDER_LABEL[provider]} ${reasonLabel(s.reason)}`,
       description: incidentText(provider, s),
     },
   })
+  if (incident.severity === 'CRITICAL') {
+    const { waCriticalIncident } = await import('@/lib/messaging/wa-events')
+    await waCriticalIncident({ incidentId: incident.id, title: `el proveedor de IA ${PROVIDER_LABEL[provider]} no responde (${reasonLabel(s.reason) ?? 'error'})` })
+  }
 }
 
 async function touchIncident(provider: ProviderId, s: BreakerState) {

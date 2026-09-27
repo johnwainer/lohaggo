@@ -143,6 +143,11 @@ export async function reportClientPayment(actor: Actor, bookingId: string, input
 
   await addBookingEvent({ bookingId, type: 'payment', actor, origin, detail: `Cliente reportó pago en ${METHOD_LABEL[input.method]}` })
 
+  // WhatsApp templates first (C20 to the partner, D5 to the team on a mismatch)
+  const wa = await import('@/lib/messaging/wa-events')
+  if (confirmationStatus === 'CLIENT_REPORTED') await wa.waPaymentReported(booking.id, input.method, now)
+  else if (confirmationStatus === 'DISPUTED') await wa.waPaymentDispute(booking.id, now)
+
   const partnerUserId = booking.partner?.user?.id
   if (confirmationStatus === 'CONFIRMED') {
     await ensurePayoutForPayment(payment, booking)
@@ -229,6 +234,10 @@ export async function confirmPartnerPayment(actor: Actor, bookingId: string, inp
     detail: disputed ? `Socio confirmó pago en ${METHOD_LABEL[input.method]}: no coincide con el cliente, en disputa` : `Socio confirmó pago en ${METHOD_LABEL[input.method]}`,
   })
 
+  const wa = await import('@/lib/messaging/wa-events')
+  if (!disputed) await wa.waPaymentConfirmed(booking.id)
+  else await wa.waPaymentDispute(booking.id, now)
+
   if (!disputed) {
     await ensurePayoutForPayment(payment, booking)
     await createNotification({
@@ -283,6 +292,9 @@ export async function rejectPartnerPayment(actor: Actor, bookingId: string, reas
   })
 
   await addBookingEvent({ bookingId, type: 'payment', actor, origin, detail: `Socio rechazó el pago reportado: ${trimmed}` })
+  // B17 to the client and D5 to the team (it is a dispute)
+  const { waPaymentRejected } = await import('@/lib/messaging/wa-events')
+  await waPaymentRejected(booking.id, trimmed)
   await createNotification({
     userId: booking.userId,
     type: 'PAYMENT_REJECTED_BY_PARTNER',

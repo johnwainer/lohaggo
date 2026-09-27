@@ -35,7 +35,15 @@ vi.mock('@/lib/bookings/ops', () => ({ bookingsFor: ops.bookingsFor, bookingSumm
 const guarantee = vi.hoisted(() => ({ openGuaranteeClaim: vi.fn(async (_a: unknown, i: { type: string }) => ({ id: 'gc_00claim', type: i.type, slaDueAt: new Date(Date.now() + 72 * 3600_000) })) }))
 vi.mock('@/lib/guarantee/ops', () => guarantee)
 vi.mock('@/lib/partners/ops', () => ({ setAvailability: ops.setAvailability, addBankAccount: vi.fn(), fetchAttachmentForDocument: vi.fn(), partnerByUser: vi.fn(), partnerStatusSummary: vi.fn(), uploadDocument: vi.fn(), upsertPartnerService: vi.fn() }))
-vi.mock('@/lib/service-requests/ops', () => ({ cancelServiceRequest: vi.fn(), createServiceRequest: vi.fn(), listClientRequests: vi.fn(), listOpenRequestsForPartner: vi.fn(), partnerAvailabilitySummary: vi.fn(), partnersForService: vi.fn(), requestSummaryForChat: vi.fn() }))
+const requests = vi.hoisted(() => ({
+  listClientRequests: vi.fn(async () => ({ serviceRequests: [] as Array<Record<string, unknown>> })),
+  reactivateServiceRequest: vi.fn(async () => ({ id: 'sr_00exp1', expiresAt: new Date('2026-10-03T15:00:00Z'), reactivations: 1, remaining: 2, restoredProposals: 1 })),
+}))
+vi.mock('@/lib/service-requests/ops', () => ({
+  cancelServiceRequest: vi.fn(), createServiceRequest: vi.fn(), listClientRequests: requests.listClientRequests, listOpenRequestsForPartner: vi.fn(), partnerAvailabilitySummary: vi.fn(), partnersForService: vi.fn(), requestSummaryForChat: vi.fn(),
+  reactivateServiceRequest: requests.reactivateServiceRequest,
+  isRequestExpired: (r: { status: string; expiresAt: Date }) => r.status === 'EXPIRED' || (r.status === 'ACTIVE' && new Date(r.expiresAt).getTime() < Date.now()),
+}))
 vi.mock('@/lib/payments/ops', () => ({ confirmPartnerPayment: vi.fn(), mercadoPagoLinkFor: vi.fn(), paymentSummaryForChat: vi.fn(() => 'Pago: pendiente'), rejectPartnerPayment: vi.fn(), reportClientPayment: vi.fn() }))
 vi.mock('@/lib/reviews/ops', () => ({ leaveReview: vi.fn() }))
 vi.mock('@/lib/accounts/link', () => ({ confirmLink: vi.fn(), startLink: vi.fn() }))
@@ -205,5 +213,22 @@ describe('runPlatformTool · garantía (reportar_problema_servicio)', () => {
     const out = await runPlatformTool('reportar_problema_servicio', input(), ctx({ userId: 'u2' }))
     expect(out).toMatch(/Solo el cliente/)
     expect(guarantee.openGuaranteeClaim).not.toHaveBeenCalled()
+  })
+})
+
+describe('runPlatformTool · reactivar_solicitud (botón «Reactivar» de la plantilla)', () => {
+  it('reactiva la solicitud vencida de la referencia sin pedir confirmación, con origen chat', async () => {
+    requests.listClientRequests.mockResolvedValue({ serviceRequests: [{ id: 'sr_00exp1', status: 'EXPIRED', expiresAt: new Date(Date.now() - 3600_000), service: { name: 'Plomería' } }] })
+    const out = await runPlatformTool('reactivar_solicitud', { solicitud_ref: '00exp1' }, ctx())
+    expect(requests.reactivateServiceRequest).toHaveBeenCalledWith(expect.objectContaining({ userId: 'u1' }), 'sr_00exp1', expect.objectContaining({ via: 'chat', conversationId: 'conv1' }))
+    expect(out).toContain('Solicitud reactivada')
+    expect(actions.recordAction).toHaveBeenCalledWith(expect.objectContaining({ tool: 'reactivar_solicitud', status: 'executed' }))
+  })
+
+  it('una solicitud activa no se reactiva', async () => {
+    requests.listClientRequests.mockResolvedValue({ serviceRequests: [{ id: 'sr_00act1', status: 'ACTIVE', expiresAt: new Date(Date.now() + 3600_000), service: { name: 'Plomería' } }] })
+    const out = await runPlatformTool('reactivar_solicitud', { solicitud_ref: '00act1' }, ctx())
+    expect(out).toMatch(/sigue activa/)
+    expect(requests.reactivateServiceRequest).not.toHaveBeenCalled()
   })
 })

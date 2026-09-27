@@ -16,7 +16,12 @@ const STATUSES: AdminIncidentStatus[] = ['OPEN', 'ACKNOWLEDGED', 'RESOLVED']
 
 export async function openIncident(input: { type: string; title: string; description?: string | null; severity?: string; source?: string; route?: string | null }) {
   const severity = SEVERITIES.includes(input.severity as AdminSeverity) ? (input.severity as AdminSeverity) : 'MEDIUM'
-  return prisma.adminIncident.create({ data: { type: input.type.slice(0, 80), title: input.title.slice(0, 200), description: input.description?.slice(0, 2000) ?? null, severity, source: input.source ?? 'manual', route: input.route ?? null } })
+  const incident = await prisma.adminIncident.create({ data: { type: input.type.slice(0, 80), title: input.title.slice(0, 200), description: input.description?.slice(0, 2000) ?? null, severity, source: input.source ?? 'manual', route: input.route ?? null } })
+  if (severity === 'CRITICAL') {
+    const { waCriticalIncident } = await import('@/lib/messaging/wa-events')
+    await waCriticalIncident({ incidentId: incident.id, title: incident.title })
+  }
+  return incident
 }
 
 /** Changes an incident's status; reopening clears who resolved it. Returns the previous status. */
@@ -57,6 +62,10 @@ type ReminderPayment = { id: string; bookingId: string; clientReportedMethod: st
 /** The reminder the payment-reminders cron sends: to the partner, who must confirm what the client reported. */
 export async function sendPaymentReminder(p: ReminderPayment) {
   if (!p.partnerUserId) return false
+  // C21 by template (the free text of the notification is then skipped)
+  const reminder = await prisma.payment.findUnique({ where: { id: p.id }, select: { reminderCount: true } }).catch(() => null)
+  const { waPaymentReminder } = await import('@/lib/messaging/wa-events')
+  await waPaymentReminder(p.bookingId, (reminder?.reminderCount ?? 0) + 1)
   await createNotification({
     userId: p.partnerUserId,
     type: 'PAYMENT_PENDING_REMINDER',

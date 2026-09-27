@@ -108,6 +108,10 @@ export async function openGuaranteeClaim(actor: Actor, input: OpenClaimInput, or
 
   await addBookingEvent({ bookingId: booking.id, type: 'guarantee', actor, origin, detail: `Reclamo de garantía abierto: ${TYPE_LABEL[input.type]}` })
 
+  // B20 (client), C24 (partner) and D3 (team) by WhatsApp template first
+  const { waGuaranteeOpened } = await import('@/lib/messaging/wa-events')
+  await waGuaranteeOpened(claim.id, origin)
+
   const data = { bookingId: booking.id, claimId: claim.id, kind: 'GUARANTEE_CLAIM' }
   if (booking.partner?.userId) {
     await createNotification({
@@ -237,8 +241,9 @@ export async function resolveGuaranteeClaim(actor: Actor, claimId: string, input
   })
 
   let consequence: ReturnType<typeof strikeConsequence> = 'none'
+  let strikes = 0
   if (strike && claim.partnerId) {
-    const strikes = await partnerStrikes(claim.partnerId, now)
+    strikes = await partnerStrikes(claim.partnerId, now)
     consequence = strikeConsequence(strikes)
     if (consequence !== 'none') {
       await setPartnerAvailability(claim.partnerId, false)
@@ -282,6 +287,10 @@ export async function resolveGuaranteeClaim(actor: Actor, claimId: string, input
   }
 
   await addBookingEvent({ bookingId: booking.id, type: 'guarantee', actor, origin: ADMIN_ORIGIN, detail: `Garantía: ${REMEDY_LABEL[input.remedy]}${strike ? ' · falta al socio' : ''}` })
+
+  // B21 to the client; C25 / C26 / C27 to the partner
+  const { waGuaranteeResolved } = await import('@/lib/messaging/wa-events')
+  await waGuaranteeResolved({ claimId: claim.id, remedy: input.remedy, strike, consequence, strikes })
 
   await createNotification({
     userId: booking.userId,

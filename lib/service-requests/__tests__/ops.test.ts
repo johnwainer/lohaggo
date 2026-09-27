@@ -27,6 +27,7 @@ vi.mock('@/lib/prisma', () => ({
   },
 }))
 vi.mock('@/lib/logger', () => ({ createLogger: () => ({ info() {}, warn() {}, error() {} }) }))
+vi.mock('@/lib/messaging/wa-events', () => ({ waRequestCancelled: vi.fn(async () => null), waRequestNoProposals: vi.fn(async () => null), waRequestExpired: vi.fn(async () => null), waProposalAccepted: vi.fn(async () => null) }))
 vi.mock('@/lib/notifications/notificationService', () => ({
   notifyNewServiceRequest: m.notifyNewServiceRequest,
   notifyProposalRejected: m.notifyProposalRejected,
@@ -55,7 +56,7 @@ describe('crear solicitud', () => {
     expect(data).toMatchObject({ userId: 'u1', origin: 'app', originChannel: null, originConversationId: null, originAgentId: null, status: 'ACTIVE' })
     expect(data.preferredTime).toBe('10:00')
     expect(data.preferredDate.toISOString()).toBe('2026-10-02T15:00:00.000Z')
-    expect(m.notifyNewServiceRequest).toHaveBeenCalledWith('r1')
+    expect(m.notifyNewServiceRequest).toHaveBeenCalledWith('r1', { origin: expect.objectContaining({ via: 'app' }) })
     expect(m.recordPromptContext).toHaveBeenCalledWith('u1', 'CLIENT_REQUEST_CREATED', expect.objectContaining({ serviceRequestId: 'r1' }))
   })
 

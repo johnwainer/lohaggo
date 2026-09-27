@@ -49,6 +49,11 @@ export async function deliverPartnerAccessLink(user: { id: string; email: string
       (async () => {
         const to = toE164(user.phone)
         if (!to) return { ok: false }
+        // C1 with the access link in its button; free text only while Meta has not approved it
+        const { waAccountCreated } = await import('@/lib/messaging/wa-events')
+        const { urlSuffix } = await import('@/lib/messaging/wa-format')
+        const tpl = await waAccountCreated({ userId: user.id, role: 'PARTNER', name: user.name, suffix: urlSuffix(url) })
+        if (tpl?.ok) return { ok: true }
         const runtime = await getMessagingProviderRuntimeConfig()
         return sendMessageViaProvider({ channel: 'WHATSAPP', to, body: accessLinkMessage(user.name, 'PARTNER', url) }, runtime)
       })(),

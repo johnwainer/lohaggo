@@ -17,7 +17,7 @@ import { askConfirmationText, awaitingApprovalText, confirmationGate, cop, dryRu
 import { expireStaleProposals, latestProposed, leaveTrail, overDailyLimit, recordAction, settleAction } from '@/lib/ai/actions'
 import { chatOrigin, OpsError, type Actor, type Origin } from '@/lib/ops/origin'
 import { fmtDate } from '@/lib/ai/platform-data'
-import { cancelServiceRequest, createServiceRequest, listClientRequests, listOpenRequestsForPartner, partnerAvailabilitySummary, partnersForService, requestSummaryForChat } from '@/lib/service-requests/ops'
+import { cancelServiceRequest, createServiceRequest, isRequestExpired, listClientRequests, listOpenRequestsForPartner, partnerAvailabilitySummary, partnersForService, reactivateServiceRequest, requestSummaryForChat } from '@/lib/service-requests/ops'
 import { acceptProposal, createProposal, listProposalsForClient, proposalSummaryForChat } from '@/lib/proposals/ops'
 import { bookingsFor, bookingSummaryForChat, bookingWhen, rescheduleBooking, transitionBooking } from '@/lib/bookings/ops'
 import { confirmPartnerPayment, mercadoPagoLinkFor, paymentSummaryForChat, rejectPartnerPayment, reportClientPayment } from '@/lib/payments/ops'
@@ -49,6 +49,7 @@ export type PlatformToolName =
   | 'registrar_cuenta_bancaria'
   | 'subir_documento'
   | 'reportar_problema_servicio'
+  | 'reactivar_solicitud'
 
 const str = (description: string) => ({ type: 'string', description })
 const confirmado = { type: 'boolean', description: 'false la primera vez (para proponer); true solo después de que la persona diga claramente que sí' }
@@ -255,6 +256,13 @@ export const PLATFORM_TOOLS: Record<PlatformToolName, CatalogEntry> = {
       required: ['reserva_ref', 'tipo', 'descripcion', 'confirmado'],
       additionalProperties: false,
     }),
+  },
+  reactivar_solicitud: {
+    label: 'Reactivar una solicitud vencida',
+    description: 'Vuelve a abrir por 24 horas una solicitud vencida de la persona: recupera las propuestas que tenía y los socios reciben el aviso otra vez (máximo 3 veces por solicitud).',
+    guidance: `Úsala cuando la persona pida reactivar una solicitud que venció (por ejemplo, pulsó «Reactivar» en nuestro aviso de WhatsApp: el contexto trae la referencia). No requiere confirmación: la persona ya lo pidió. Si no sabes cuál, deja la referencia vacía y se usa su última solicitud vencida. ${NEEDS_LINK}`,
+    writes: true, group: 'client', platform: true,
+    schema: () => ({ type: 'object', properties: { solicitud_ref: str('Referencia de 6 caracteres de la solicitud (del contexto o de una consulta), o vacío para su última solicitud vencida') }, required: ['solicitud_ref'], additionalProperties: false }),
   },
 }
 
@@ -587,6 +595,26 @@ const PLANNERS: Partial<Record<PlatformToolName, Planner>> = {
       },
     }
   },
+  reactivar_solicitud: async (input, ctx, actor) => {
+    const ref = s(input, 'solicitud_ref')
+    if (ref && !validRef(ref)) return { error: 'Referencia inválida: usa los 6 caracteres de la solicitud o déjala vacía.' }
+    const { serviceRequests } = await listClientRequests(actor.userId)
+    const expired = serviceRequests.filter((r) => isRequestExpired(r))
+    const r = ref ? serviceRequests.find((x) => x.id.endsWith(ref.trim())) : expired[0]
+    if (!r) return { error: ref ? 'Esa referencia no corresponde a ninguna solicitud de esta persona.' : 'La persona no tiene solicitudes vencidas.' }
+    if (!isRequestExpired(r)) return { error: r.status === 'ACTIVE' ? 'Esa solicitud sigue activa: no hace falta reactivarla.' : 'Solo se reactivan solicitudes vencidas; esa ya no se puede.' }
+    const service = r.service?.name ?? 'servicio'
+    return {
+      summary: `Reactivar por 24 horas la solicitud de ${service} (ref ${shortId(r.id)})`,
+      wouldRecord: 'la solicitud activa de nuevo, sus propuestas recuperadas y el aviso a los socios',
+      run: async () => {
+        const res = await reactivateServiceRequest(actor, r.id, originFor(ctx))
+        const back = res.restoredProposals ? ` Recuperó ${res.restoredProposals} propuesta${res.restoredProposals === 1 ? '' : 's'}.` : ''
+        return { text: `Solicitud reactivada hasta ${fmtDate(res.expiresAt)}; los socios ya recibieron el aviso.${back} Le quedan ${res.remaining} reactivaciones.`, entityType: 'ServiceRequest', entityId: r.id }
+      },
+    }
+  },
+
   reportar_problema_servicio: async (input, ctx, actor) => {
     const b = await bookingByRef(actor, s(input, 'reserva_ref'))
     if (!b) return { error: 'Esa referencia no corresponde a ninguna reserva de esta persona. Consulta ver_mis_reservas.' }

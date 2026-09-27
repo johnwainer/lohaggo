@@ -168,6 +168,11 @@ describe('reglas de detección', () => {
     expect(keys({ system: { cronsFailing: 1, cronsLate: 2, errorsLastHour: 6, criticalIncidents: 1 }, channels: { problems: ['Instagram'] } })).toEqual(['sys:channels:Instagram', 'sys:crons-failing', 'sys:error-spike', 'sys:critical-incidents'])
   })
 
+  it('plantillas de WhatsApp rechazadas por Meta', () => {
+    expect(keys({ waTemplates: { approved: 60, pending: 5, rejected: ['lh_cliente_nueva_propuesta'], recategorized: [] } })).toEqual(['sys:wa-templates-rejected'])
+    expect(keys({ waTemplates: { approved: 60, pending: 11, rejected: [], recategorized: ['x'] } })).toEqual([])
+  })
+
   it('presupuesto de IA de una cuenta: advertencia al 80 %, crítico al 100 %', () => {
     expect(detect({ ...base, budgets: [{ workspace: 'LoHaggo', pct: 85 }] })[0].severity).toBe('warning')
     expect(detect({ ...base, budgets: [{ workspace: 'LoHaggo', pct: 100 }] })[0].severity).toBe('critical')

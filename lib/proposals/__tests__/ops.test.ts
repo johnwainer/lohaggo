@@ -34,6 +34,7 @@ vi.mock('@/lib/prisma', () => {
   return { prisma }
 })
 vi.mock('@/lib/logger', () => ({ createLogger: () => ({ info() {}, warn() {}, error() {} }) }))
+vi.mock('@/lib/messaging/wa-events', () => ({ waRequestCancelled: vi.fn(async () => null), waRequestNoProposals: vi.fn(async () => null), waRequestExpired: vi.fn(async () => null), waProposalAccepted: vi.fn(async () => null) }))
 vi.mock('@/lib/notifications/notificationService', () => ({
   notifyNewProposal: m.notifyNewProposal,
   notifyProposalAccepted: m.notifyProposalAccepted,
@@ -151,7 +152,7 @@ describe('aceptar propuesta', () => {
     expect(m.proposalFindMany.mock.calls[0][0].where).toMatchObject({ serviceRequestId: 'r1', id: { not: 'pr1' }, status: 'PENDING' })
     expect(m.proposalUpdateMany).toHaveBeenCalledWith({ where: { id: { in: ['pr2'] } }, data: { status: 'REJECTED' } })
     expect(m.srUpdate).toHaveBeenCalledWith({ where: { id: 'r1' }, data: { status: 'ACCEPTED' } })
-    expect(m.notifyProposalRejected).toHaveBeenCalledWith('pr2')
+    expect(m.notifyProposalRejected).toHaveBeenCalledWith('pr2', { notChosen: true })
     expect(m.notifyProposalAccepted).toHaveBeenCalledWith('pr1')
     expect(m.scheduleAutomationsForUser).toHaveBeenCalledWith('u1', 'BOOKING_CREATED', { targetRole: 'CLIENT', contextId: 'b1' })
     expect(m.scheduleAutomationsForUser).toHaveBeenCalledWith('pu1', 'BOOKING_CREATED', { targetRole: 'PARTNER', contextId: 'b1' })

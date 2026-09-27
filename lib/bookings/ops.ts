@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { createLogger } from '@/lib/logger'
 import { notifyBookingStatusChange, createNotification } from '@/lib/notifications/notificationService'
 import { computeRefundPolicy, calculateSlaDueAt } from '@/lib/launch-ops'
 import { recordPromptContext } from '@/lib/pwa/adoption-strategy'
@@ -15,35 +16,10 @@ import { BOOKING_STATUS_LABEL, canTransition, transitionRoleOf, type TransitionR
 
 export { BOOKING_TRANSITIONS, BOOKING_STATUS_LABEL, canTransition, transitionRoleOf, type TransitionRole } from '@/lib/bookings/transitions'
 
-/**
- * The moment of the service in Bogotá (UTC-5, no DST): the calendar date of `scheduledDate` plus
- * `scheduledTime`. The date part is read in UTC because the app stores the day at midnight (UTC or
- * Bogotá, both fall on the same UTC day). Accepts 'HH:mm', 'H:mm' and 'h:mm AM/PM'.
- */
-export function bookingWhen(b: { scheduledDate: Date; scheduledTime: string }): Date {
-  // A date-only value is stored as midnight UTC (keep that calendar day); any other instant is read as
-  // its Bogotá calendar day, so a booking at 19:00 Bogotá (00:00 UTC next day) keeps its real day.
-  const when = new Date(b.scheduledDate)
-  const dateOnly = when.getUTCHours() === 0 && when.getUTCMinutes() === 0 && when.getUTCSeconds() === 0 && when.getUTCMilliseconds() === 0
-  const day = dateOnly ? when.toISOString().slice(0, 10) : new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' }).format(when)
-  const m = /(\d{1,2}):(\d{2})\s*([ap]\.?\s?m\.?)?/i.exec(b.scheduledTime || '')
-  let hours = m ? Number(m[1]) : 0
-  const minutes = m ? Number(m[2]) : 0
-  const suffix = m?.[3]?.toLowerCase().replace(/[^ap]/g, '')
-  if (suffix === 'p' && hours < 12) hours += 12
-  if (suffix === 'a' && hours === 12) hours = 0
-  return new Date(`${day}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00-05:00`)
-}
+const logger = createLogger('bookings-ops')
 
-const BOGOTA = 'America/Bogota'
-
-export function formatBookingWhen(b: { scheduledDate: Date; scheduledTime: string }) {
-  const d = bookingWhen(b)
-  const parts = new Intl.DateTimeFormat('es-CO', { timeZone: BOGOTA, weekday: 'short', day: 'numeric', month: 'short' }).formatToParts(d)
-  const get = (type: string) => parts.find((p) => p.type === type)?.value.replace(/\./g, '') ?? ''
-  const time = new Intl.DateTimeFormat('es-CO', { timeZone: BOGOTA, hour: '2-digit', minute: '2-digit', hour12: false }).format(d)
-  return `${get('weekday')} ${get('day')} ${get('month')} ${time}`
-}
+export { bookingWhen, formatBookingWhen } from '@/lib/bookings/when'
+import { bookingWhen, formatBookingWhen } from '@/lib/bookings/when'
 
 export const formatCOP = (n: number) => `$${new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(n)}`
 
@@ -222,9 +198,60 @@ export async function transitionBooking(actor: Actor, bookingId: string, to: Boo
   await addBookingEvent({ bookingId, type: 'status', actor, origin, fromStatus: booking.status, toStatus: to, detail: opts.reason ?? null })
 
   if (to === 'CANCELLED') await openRefundCaseIfPaid(actor, origin, booking)
+  const reopened = to === 'CANCELLED' && actor.role === 'PARTNER' ? await reopenRequestAfterPartnerCancel(booking) : false
+  // WhatsApp template first: the notifications' free-text WhatsApp is then skipped for that person
+  const { waBookingStatus } = await import('@/lib/messaging/wa-events')
+  await waBookingStatus({ bookingId, from: booking.status, to, actorRole: actor.role, origin, reopened })
   await afterStatusChange(actor, booking, to)
 
   return updated
+}
+
+export const REQUEST_REOPEN_ACTION = 'REQUEST_REOPEN'
+
+/**
+ * The partner dropped a booking: its request opens again for 24 h so other partners can propose (the
+ * proposals the client had not chosen come back), and matching partners are told. Returns whether it reopened.
+ */
+async function reopenRequestAfterPartnerCancel(booking: { id: string; proposalId: string | null; partnerId: string | null }) {
+  try {
+    if (!booking.proposalId) return false
+    const proposal = await prisma.proposal.findUnique({ where: { id: booking.proposalId }, select: { id: true, serviceRequestId: true, serviceRequest: { select: { status: true, partnerId: true } } } })
+    if (!proposal || proposal.serviceRequest.status !== 'ACCEPTED') return false
+    const expiresAt = new Date(Date.now() + 24 * 3600_000)
+    const res = await prisma.serviceRequest.updateMany({
+      where: { id: proposal.serviceRequestId, status: 'ACCEPTED' },
+      // A request directed to this partner opens to everyone
+      data: { status: 'ACTIVE', expiresAt, ...(proposal.serviceRequest.partnerId ? { partnerId: null } : {}) },
+    })
+    if (res.count === 0) return false
+    await prisma.proposal.update({ where: { id: proposal.id }, data: { status: 'REJECTED' } })
+    // Only the proposals the accept closed come back (not the ones the client turned down before)
+    const closed = await prisma.adminAuditLog.findFirst({ where: { action: 'PROPOSALS_CLOSED_BY_ACCEPT', entityType: 'ServiceRequest', entityId: proposal.serviceRequestId }, orderBy: { createdAt: 'desc' }, select: { details: true } })
+    const closedIds = closedProposalIds(closed?.details).filter((id) => id !== proposal.id)
+    const restored = closedIds.length
+      ? await prisma.proposal.updateMany({ where: { id: { in: closedIds }, serviceRequestId: proposal.serviceRequestId, status: 'REJECTED' }, data: { status: 'PENDING' } })
+      : { count: 0 }
+    const previousReopens = await prisma.adminAuditLog.count({ where: { action: REQUEST_REOPEN_ACTION, entityType: 'ServiceRequest', entityId: proposal.serviceRequestId } })
+    await prisma.adminAuditLog.create({
+      data: { action: REQUEST_REOPEN_ACTION, entityType: 'ServiceRequest', entityId: proposal.serviceRequestId, actorEmail: 'sistema', details: JSON.stringify({ bookingId: booking.id, restoredProposals: restored.count, expiresAt: expiresAt.toISOString() }) },
+    })
+    const { notifyNewServiceRequest } = await import('@/lib/notifications/notificationService')
+    await notifyNewServiceRequest(proposal.serviceRequestId, { partnersOnly: true, round: 20 + previousReopens + 1 }).catch(() => 0)
+    return true
+  } catch (err) {
+    logger.warn('Request not reopened after the partner cancelled (the booking is cancelled anyway)', { bookingId: booking.id, err: err instanceof Error ? err.message : err })
+    return false
+  }
+}
+
+function closedProposalIds(details?: string | null): string[] {
+  try {
+    const ids = (JSON.parse(details ?? '{}') as { proposalIds?: unknown }).proposalIds
+    return Array.isArray(ids) ? ids.filter((x): x is string => typeof x === 'string') : []
+  } catch {
+    return []
+  }
 }
 
 /**
@@ -274,6 +301,9 @@ export async function rescheduleBooking(actor: Actor, bookingId: string, when: R
     await addBookingEvent({ bookingId, type: 'status', actor, origin, fromStatus: 'CONFIRMED', toStatus: 'PENDING', detail: 'Reprogramada por el cliente: el socio debe confirmar de nuevo' })
     // notifyBookingStatusChange has no PENDING message, so the reschedule notice below carries the news.
   }
+
+  const { waBookingRescheduled } = await import('@/lib/messaging/wa-events')
+  await waBookingRescheduled({ bookingId, actorRole: actor.role })
 
   // There is no NotificationType for a reschedule; BOOKING_CONFIRMED is the booking-flavoured type whose
   // action URL lands on the bookings tab of both panels, so it is reused with its own title and message.

@@ -15,6 +15,16 @@ const m = vi.hoisted(() => ({
   createNotification: vi.fn(async (_a: any) => ({})),
   automations: vi.fn(async () => {}),
   promptContext: vi.fn(async () => {}),
+  proposalFindUnique: vi.fn(async (_a: any): Promise<any> => null),
+  proposalUpdate: vi.fn(async (_a: any) => ({})),
+  proposalUpdateMany: vi.fn(async (_a: any) => ({ count: 1 })),
+  srUpdateMany: vi.fn(async (_a: any) => ({ count: 1 })),
+  auditFindFirst: vi.fn(async (_a: any): Promise<any> => null),
+  auditCount: vi.fn(async (_a: any) => 0),
+  auditCreate: vi.fn(async (_a: any) => ({})),
+  notifyNewRequest: vi.fn(async (..._a: any[]) => 3),
+  waBookingStatus: vi.fn(async (_a: any) => null),
+  waBookingRescheduled: vi.fn(async (_a: any) => null),
 }))
 
 vi.mock('@/lib/prisma', () => ({
@@ -27,10 +37,14 @@ vi.mock('@/lib/prisma', () => ({
     paymentIncidentEvent: { create: m.incidentEventCreate },
     adminSupportCase: { create: m.supportCaseCreate },
     partnerProfile: { findUnique: m.partnerFindUnique },
+    proposal: { findUnique: m.proposalFindUnique, update: m.proposalUpdate, updateMany: m.proposalUpdateMany },
+    serviceRequest: { updateMany: m.srUpdateMany },
+    adminAuditLog: { findFirst: m.auditFindFirst, count: m.auditCount, create: m.auditCreate },
   },
 }))
 vi.mock('@/lib/logger', () => ({ createLogger: () => ({ info() {}, warn() {}, error() {}, debug() {} }) }))
-vi.mock('@/lib/notifications/notificationService', () => ({ notifyBookingStatusChange: m.notifyStatus, createNotification: m.createNotification }))
+vi.mock('@/lib/notifications/notificationService', () => ({ notifyBookingStatusChange: m.notifyStatus, createNotification: m.createNotification, notifyNewServiceRequest: m.notifyNewRequest }))
+vi.mock('@/lib/messaging/wa-events', () => ({ waBookingStatus: m.waBookingStatus, waBookingRescheduled: m.waBookingRescheduled }))
 vi.mock('@/lib/messaging/automation-service', () => ({ scheduleAutomationsForUser: m.automations }))
 vi.mock('@/lib/pwa/adoption-strategy', () => ({ recordPromptContext: m.promptContext }))
 
@@ -254,5 +268,46 @@ describe('bookingWhen · día en Bogotá', () => {
   it('una fecha sola (medianoche UTC) usa ese día', () => {
     const d = bookingWhen({ scheduledDate: new Date('2026-10-03T00:00:00Z'), scheduledTime: '10:00' })
     expect(d.toISOString()).toBe('2026-10-03T15:00:00.000Z')
+  })
+})
+
+describe('el socio suelta la reserva: la solicitud se reabre', () => {
+  it('pone la solicitud ACTIVE 24 h, abre a todos una directa, recupera solo las propuestas que cerró la aceptación y avisa', async () => {
+    m.bookingFindUnique.mockResolvedValue(baseBooking({ status: 'CONFIRMED', proposalId: 'pr1' }))
+    m.proposalFindUnique.mockResolvedValue({ id: 'pr1', serviceRequestId: 'sr1', serviceRequest: { status: 'ACCEPTED', partnerId: 'p1' } })
+    m.auditFindFirst.mockResolvedValue({ details: JSON.stringify({ proposalIds: ['pr2', 'pr3'] }) })
+    await transitionBooking(partner, 'bk-abc123', 'CANCELLED', APP_ORIGIN)
+    const upd = m.srUpdateMany.mock.calls[0][0]
+    expect(upd.where).toEqual({ id: 'sr1', status: 'ACCEPTED' })
+    expect(upd.data).toMatchObject({ status: 'ACTIVE', partnerId: null })
+    expect(upd.data.expiresAt.getTime() - Date.now()).toBeGreaterThan(23 * 3600_000)
+    expect(m.proposalUpdate).toHaveBeenCalledWith({ where: { id: 'pr1' }, data: { status: 'REJECTED' } })
+    expect(m.proposalUpdateMany.mock.calls[0][0].where).toMatchObject({ id: { in: ['pr2', 'pr3'] }, status: 'REJECTED' })
+    expect(m.auditCreate.mock.calls[0][0].data).toMatchObject({ action: 'REQUEST_REOPEN', entityId: 'sr1' })
+    expect(m.notifyNewRequest).toHaveBeenCalledWith('sr1', { partnersOnly: true, round: 21 })
+    expect(m.waBookingStatus).toHaveBeenCalledWith(expect.objectContaining({ from: 'CONFIRMED', to: 'CANCELLED', actorRole: 'PARTNER', reopened: true }))
+  })
+
+  it('sin marca de la aceptación no recupera propuestas; si la solicitud ya no está aceptada no hace nada', async () => {
+    m.bookingFindUnique.mockResolvedValue(baseBooking({ proposalId: 'pr1' }))
+    m.proposalFindUnique.mockResolvedValue({ id: 'pr1', serviceRequestId: 'sr1', serviceRequest: { status: 'ACCEPTED', partnerId: null } })
+    m.auditFindFirst.mockResolvedValue(null)
+    await transitionBooking(partner, 'bk-abc123', 'CANCELLED', APP_ORIGIN)
+    expect(m.proposalUpdateMany).not.toHaveBeenCalled()
+    expect(m.srUpdateMany.mock.calls[0][0].data).not.toHaveProperty('partnerId')
+
+    vi.clearAllMocks()
+    m.bookingFindUnique.mockResolvedValue(baseBooking({ proposalId: 'pr1' }))
+    m.proposalFindUnique.mockResolvedValue({ id: 'pr1', serviceRequestId: 'sr1', serviceRequest: { status: 'EXPIRED', partnerId: null } })
+    await transitionBooking(partner, 'bk-abc123', 'CANCELLED', APP_ORIGIN)
+    expect(m.srUpdateMany).not.toHaveBeenCalled()
+    expect(m.waBookingStatus).toHaveBeenCalledWith(expect.objectContaining({ reopened: false }))
+  })
+
+  it('si cancela el cliente no se reabre nada', async () => {
+    m.bookingFindUnique.mockResolvedValue(baseBooking({ proposalId: 'pr1' }))
+    await transitionBooking(client, 'bk-abc123', 'CANCELLED', APP_ORIGIN)
+    expect(m.proposalFindUnique).not.toHaveBeenCalled()
+    expect(m.waBookingStatus).toHaveBeenCalledWith(expect.objectContaining({ actorRole: 'CLIENT', reopened: false }))
   })
 })

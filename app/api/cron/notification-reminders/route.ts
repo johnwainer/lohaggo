@@ -5,6 +5,8 @@ import { createNotification } from '@/lib/notifications/notificationService'
 import { createLogger } from '@/lib/logger'
 import { formatBookingWhen } from '@/lib/bookings/ops'
 import { REMINDER_WINDOWS, candidateScheduledRange, expiringSoonMessage, inReminderWindow } from '@/lib/notifications/reminder-window'
+import { waBookingReminder, waRatingReminder, waRequestExpiring } from '@/lib/messaging/wa-events'
+import { runWaPaymentPending } from '@/lib/messaging/wa-scheduled'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,6 +32,8 @@ async function remindBookings(now: Date, kind: 'day' | 'soon') {
     if (!inReminderWindow(b, now, REMINDER_WINDOWS[kind])) continue
     if (await alreadyReminded(b.userId, type, b.id, since)) continue
     const time = formatBookingWhen(b).split(' ').pop()
+    // B11 + C17 / B12 + C18 by template first; the notifications' free-text WhatsApp is then skipped
+    await waBookingReminder(b.id, kind)
 
     await createNotification({
       userId: b.userId,
@@ -69,6 +73,7 @@ async function runRequestExpiringSoon(now: Date) {
   let sent = 0
   for (const r of requests) {
     if (await alreadyReminded(r.userId, 'REQUEST_EXPIRING_SOON', r.id, new Date(now.getTime() - 3 * 3600_000))) continue
+    await waRequestExpiring(r.id, now)
     await createNotification({
       userId: r.userId,
       type: 'REQUEST_EXPIRING_SOON',
@@ -104,6 +109,7 @@ async function runRatingReminder(now: Date) {
   for (const b of candidates) {
     const r = b.review
     if (!r?.clientToPartnerRating) {
+      await waRatingReminder(b.id)
       await createNotification({
         userId: b.userId,
         type: 'RATING_REMINDER',
@@ -130,14 +136,15 @@ async function runRatingReminder(now: Date) {
 async function handler(_req: NextRequest) {
   const now = new Date()
   try {
-    const [r24, r1, expiring, ratings] = await Promise.all([
+    const [r24, r1, expiring, ratings, paymentPending] = await Promise.all([
       remindBookings(now, 'day').catch((e) => { logger.error('24h reminder failed', e); return 0 }),
       remindBookings(now, 'soon').catch((e) => { logger.error('1h reminder failed', e); return 0 }),
       runRequestExpiringSoon(now).catch((e) => { logger.error('request expiring failed', e); return 0 }),
       runRatingReminder(now).catch((e) => { logger.error('rating reminder failed', e); return 0 }),
+      runWaPaymentPending(now).catch((e) => { logger.error('payment pending WhatsApp failed', e); return {} }),
     ])
-    logger.info('Notification reminders run complete', { r24, r1, expiring, ratings })
-    return NextResponse.json({ ok: true, sent: { booking24h: r24, bookingSoon: r1, requestExpiring: expiring, ratingReminder: ratings } })
+    logger.info('Notification reminders run complete', { r24, r1, expiring, ratings, paymentPending })
+    return NextResponse.json({ ok: true, sent: { booking24h: r24, bookingSoon: r1, requestExpiring: expiring, ratingReminder: ratings, whatsapp: paymentPending } })
   } catch (error) {
     logger.error('Cron failed', error)
     return NextResponse.json({ ok: false, error: 'Cron run failed' }, { status: 500 })

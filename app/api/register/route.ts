@@ -12,7 +12,6 @@ import {
   isLikelyBotSubmission,
   verifyTurnstileToken,
 } from '@/lib/security/bot-protection'
-import { sendWelcomePartner } from '@/lib/messaging/whatsapp-templates'
 import { scheduleAutomationsForUser } from '@/lib/messaging/automation-service'
 import { normalizePhone } from '@/lib/phone'
 import { createSessionHandoffToken, deliverPartnerAccessLink, generateStrongPassword, type AccessLinkDelivery } from '@/lib/accounts/partner-signup'
@@ -210,11 +209,11 @@ async function handlePOST(request: NextRequest) {
       }
     }
 
-    // Fire-and-forget: send WhatsApp welcome to new partners
-    if (role === 'PARTNER' && phone) {
-      sendWelcomePartner(phone, name).catch((err) =>
-        logger.error('Welcome WA send failed', { userId: user.id, err })
-      )
+    // B1 / C1 by WhatsApp template. A partner signed up without a password gets C1 with the access link
+    // from deliverPartnerAccessLink below; the others get a button to their panel.
+    if (phone && !(role === 'PARTNER' && serverPassword)) {
+      const { waAccountCreated } = await import('@/lib/messaging/wa-events')
+      await waAccountCreated({ userId: user.id, role: role === 'PARTNER' ? 'PARTNER' : 'CLIENT', name, suffix: role === 'PARTNER' ? 'partner/verification' : 'dashboard' })
     }
 
     // Schedule all active automation rules for this user's role

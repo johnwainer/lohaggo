@@ -115,7 +115,7 @@ export async function createServiceRequest(actor: Actor, input: ServiceRequestIn
   })
 
   try {
-    await notifyNewServiceRequest(serviceRequest.id)
+    await notifyNewServiceRequest(serviceRequest.id, { origin })
   } catch (err) {
     logger.warn('notifyNewServiceRequest failed (non-fatal)', { serviceRequestId: serviceRequest.id, err })
   }
@@ -129,7 +129,7 @@ export async function createServiceRequest(actor: Actor, input: ServiceRequestIn
   return serviceRequest
 }
 
-export async function cancelServiceRequest(actor: Actor, requestId: string, _origin: Origin) {
+export async function cancelServiceRequest(actor: Actor, requestId: string, origin: Origin) {
   const serviceRequest = await prisma.serviceRequest.findUnique({
     where: { id: requestId },
     select: { id: true, userId: true, status: true, proposals: { select: { id: true, status: true } } },
@@ -154,6 +154,9 @@ export async function cancelServiceRequest(actor: Actor, requestId: string, _ori
       logger.warn('Notify rejected failed (non-fatal)', { proposalId, err })
     }
   }
+
+  const { waRequestCancelled } = await import('@/lib/messaging/wa-events')
+  await waRequestCancelled(requestId, origin)
 
   return { id: requestId, cancelledProposals: pendingProposalIds.length }
 }
@@ -340,7 +343,7 @@ export async function reactivateServiceRequest(actor: Actor, requestId: string, 
   })
 
   try {
-    await notifyNewServiceRequest(requestId, { partnersOnly: true })
+    await notifyNewServiceRequest(requestId, { partnersOnly: true, round: 10 + done + 1 })
   } catch (err) {
     logger.warn('notify on reactivation failed (non-fatal)', { requestId, err })
   }
@@ -377,7 +380,10 @@ export async function resendUnansweredRequests(now: Date = new Date(), limit = 5
   for (const { id } of candidates.filter((c) => !skip.has(c.id)).slice(0, limit)) {
     // Mark first so a crash mid-send never produces a second round
     await prisma.adminAuditLog.create({ data: { action: REQUEST_RESEND_ACTION, entityType: 'ServiceRequest', entityId: id, actorEmail: 'sistema', details: JSON.stringify({ reason: 'sin propuestas tras 2 h' }) } })
-    partnersNotified += await notifyNewServiceRequest(id, { partnersOnly: true }).catch(() => 0)
+    partnersNotified += await notifyNewServiceRequest(id, { partnersOnly: true, round: 1 }).catch(() => 0)
+    // B4: the client hears that partners were told again and can adjust the request
+    const { waRequestNoProposals } = await import('@/lib/messaging/wa-events')
+    await waRequestNoProposals(id)
     resent++
   }
   return { resent, partnersNotified }
@@ -421,6 +427,9 @@ export function requestExpiredMessage(serviceName: string) {
 
 async function notifyRequestExpired(userId: string, requestId: string, serviceName: string) {
   const { createNotification } = await import('@/lib/notifications/notificationService')
+  // B6 by WhatsApp template (the free text would miss the 24 h window, so WhatsApp stays out of the notification)
+  const { waRequestExpired } = await import('@/lib/messaging/wa-events')
+  await waRequestExpired(requestId)
   await createNotification({
     userId,
     type: 'NEW_SERVICE_REQUEST',

@@ -35,7 +35,12 @@ export async function recordAction(p: RecordActionInput) {
       resolvedAt: p.status === 'proposed' || p.status === 'awaiting_approval' ? null : new Date(),
     },
   })
-  if (p.status === 'awaiting_approval') emitInboxEvent({ type: 'status-update', conversationId: p.conversationId, workspaceId: p.workspaceId })
+  if (p.status === 'awaiting_approval') {
+    emitInboxEvent({ type: 'status-update', conversationId: p.conversationId, workspaceId: p.workspaceId })
+    // D2: the team hears there is an action to approve
+    const { waActionAwaiting } = await import('@/lib/messaging/wa-events')
+    await waActionAwaiting({ actionId: row.id, conversationId: p.conversationId, workspaceId: p.workspaceId, summary: p.summary })
+  }
   return row
 }
 

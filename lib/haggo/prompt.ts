@@ -81,7 +81,7 @@ export const REVIEW_CHECKLIST: Array<{ area: string; tools: string[] }> = [
   { area: 'Operación por chat: qué hicieron los agentes en cuentas de clientes y socios, fallos repetidos, cancelaciones', tools: ['acciones_por_chat'] },
   { area: 'Origen de las conversaciones: anuncios (clic a WhatsApp, Messenger, Instagram) y páginas de la web, y cuántas terminan en solicitud', tools: ['origen_conversaciones'] },
   { area: 'Marketing: publicaciones, revisión humana y editorial (corrector y editor), fallos, agentes de marketing y publicidad', tools: ['marketing', 'agentes_marketing', 'publicidad'] },
-  { area: 'Mensajería: campañas y envíos fallidos', tools: ['mensajeria'] },
+  { area: 'Mensajería: campañas, envíos fallidos y plantillas de WhatsApp (estado en Meta y envíos por plantilla)', tools: ['mensajeria'] },
   { area: 'Sistema: tareas automáticas, errores, integraciones, incidentes y casos', tools: ['salud_sistema', 'incidentes_abiertos'] },
   { area: 'Seguridad: ataques e IP bloqueadas', tools: ['seguridad'] },
   { area: 'Configuración: funciones y botones encendidos o apagados, comisiones, medios de pago y ciudades', tools: ['funciones', 'configuracion_plataforma'] },

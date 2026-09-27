@@ -1,5 +1,6 @@
 import type Anthropic from '@anthropic-ai/sdk'
 import type { Retrieval } from '@/lib/ai/knowledge'
+import { BUTTON_GUIDANCE, TEMPLATE_FIELD_KEYS, templateContextLines } from '@/lib/messaging/wa-format'
 
 export type PromptAgent = {
   name: string
@@ -29,6 +30,8 @@ export type PromptContext = {
   copilot?: boolean
   /** Public comment on a post (Facebook / Instagram) */
   comment?: CommentPromptContext
+  /** For the «less than 72 h» check of the template context (default: now) */
+  now?: Date
 }
 
 export type CommentPromptContext = {
@@ -97,7 +100,7 @@ function rulesBlock(agent: PromptAgent, ctx: Pick<PromptContext, 'toolGuidance' 
   ]
   if (ctx.toolGuidance.trim()) {
     sections.push('', 'Herramientas. Tenerlas no obliga a usarlas; úsalas solo cuando corresponda:', ctx.toolGuidance.trim())
-    if (/\b(crear_solicitud|aceptar_propuesta|enviar_propuesta|reportar_pago|confirmar_pago|cancelar_reserva|reprogramar_reserva|cambiar_estado_reserva|calificar|registrar_cuenta_bancaria|subir_documento|gestionar_servicio|reportar_problema_servicio)\b/.test(ctx.toolGuidance)) {
+    if (/\b(crear_solicitud|aceptar_propuesta|enviar_propuesta|reportar_pago|confirmar_pago|cancelar_reserva|reprogramar_reserva|cambiar_estado_reserva|calificar|registrar_cuenta_bancaria|subir_documento|gestionar_servicio|reportar_problema_servicio|reactivar_solicitud)\b/.test(ctx.toolGuidance)) {
       sections.push(
         '',
         'Cuando gestiones la cuenta de la persona (solicitudes, propuestas, reservas, pagos, calificaciones, perfil de socio):',
@@ -108,6 +111,8 @@ function rulesBlock(agent: PromptAgent, ctx: Pick<PromptContext, 'toolGuidance' 
         '- Nunca inventes precios, socios, fechas ni estados: solo lo que devuelven las herramientas. Los precios del catálogo son «desde».',
         '- Si una herramienta dice que no se pudo, explícalo con tus palabras y ofrece la alternativa que te dio; no reintentes lo mismo.',
         '- Ante disputas de pago, quejas serias o si la persona duda, ofrece que una persona del equipo continúe y usa [[HANDOFF]] o asignar_a_persona.',
+        '',
+        BUTTON_GUIDANCE,
       )
     }
   }
@@ -159,8 +164,9 @@ function commentBlock(c: CommentPromptContext, copilot: boolean) {
 
 function contextBlock(ctx: PromptContext) {
   const fields = Object.entries(ctx.contact.fields || {})
-    .filter(([, v]) => v !== null && v !== undefined && String(v).trim())
+    .filter(([k, v]) => !TEMPLATE_FIELD_KEYS.has(k) && v !== null && v !== undefined && typeof v !== 'object' && String(v).trim())
     .map(([k, v]) => `${k}: ${String(v)}`)
+  const templates = templateContextLines(ctx.contact.fields, ctx.now)
   const lines = [
     `Fecha y hora actuales: hoy es ${ctx.nowText} (zona horaria ${ctx.timezone}). Úsala para interpretar "hoy", "mañana" y horarios.`,
     `Canal: ${CHANNEL_LABEL[ctx.channel] || ctx.channel}.`,
@@ -168,6 +174,7 @@ function contextBlock(ctx: PromptContext) {
     ctx.contact.tags.length ? `Etiquetas: ${ctx.contact.tags.join(', ')}.` : '',
     fields.length ? `Datos guardados: ${fields.join('; ')}.` : '',
     ctx.summary ? `Resumen de la conversación anterior:\n${ctx.summary}` : '',
+    ...templates,
     ctx.pendingActions || '',
     ctx.flowOutputs?.length ? `Estás en un paso de un flujo. Salidas posibles: ${ctx.flowOutputs.join(', ')}.` : '',
     ctx.copilot

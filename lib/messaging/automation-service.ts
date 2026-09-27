@@ -155,6 +155,15 @@ export async function processDueAutomations(limit = 100) {
   for (const execution of due) {
     const { rule, user } = execution
 
+    if (supersededWaExecution(execution.channel, rule.waTemplateFn)) {
+      await prisma.automationExecution.update({
+        where: { id: execution.id },
+        data: { status: 'SKIPPED', executedAt: new Date(), error: 'Reemplazada por una plantilla del catálogo de WhatsApp' },
+      })
+      skipped++
+      continue
+    }
+
     // One relevance check per user+rule per run (a rule with two channels has two executions)
     const relevanceKey = `${user.id}:${rule.id}`
     if (!relevance.has(relevanceKey)) {
@@ -263,6 +272,28 @@ export async function processDueAutomations(limit = 100) {
 
   logger.info('processDueAutomations done', { sent, failed, skipped })
   return { sent, failed, skipped }
+}
+
+/**
+ * WhatsApp functions of the automation rules that the catalog templates now send from the event itself
+ * (lib/messaging/wa-events.ts, wa-scheduled.ts). Their WhatsApp executions are skipped so nobody gets two
+ * messages; the SMS and email parts of the same rules keep working.
+ */
+export const SUPERSEDED_WA_FNS: ReadonlySet<string> = new Set([
+  'sendVerificationReminder', // C3 lh_socio_falta_documento (days 1, 3, 7)
+  'sendDocumentosAprobados', // C5
+  'sendDocumentosRechazados', // C6
+  'sendSocioActivado', // C7
+  'sendReservaConfirmadaCliente', // B8 on creation, reserva_confirmada_cliente on confirmation
+  'sendPropuestaAceptadaSocio', // C12
+  'sendReservaCancelada', // C16, B9, B19, reserva_cancelada
+  'sendReservaCompletadaCliente', // B14
+  'sendReservaCompletadaSocio', // C22
+  'sendWelcomePartner', // C1
+])
+
+export function supersededWaExecution(channel: string, waTemplateFn: string | null | undefined) {
+  return channel === 'WHATSAPP' && Boolean(waTemplateFn) && SUPERSEDED_WA_FNS.has(waTemplateFn!)
 }
 
 /** Triggers that promote (not a reply to something the user did): they respect `excludedFromMarketing`. */
@@ -421,7 +452,7 @@ export const DEFAULT_AUTOMATION_RULES = [
   // ── RECORDATORIOS ──────────────────────────────────────────
   {
     name: 'Verificación Documentos Socio (WhatsApp)',
-    description: 'Recordatorio WhatsApp a las 24h si el socio aún no ha verificado sus documentos.',
+    description: 'Reemplazada por la plantilla lh_socio_falta_documento (días 1, 3 y 7), que se envía sola.',
     trigger: 'PARTNER_DOCS_REMINDER' as AutomationTrigger,
     targetRole: 'PARTNER' as const,
     delayHours: 24,
@@ -429,7 +460,7 @@ export const DEFAULT_AUTOMATION_RULES = [
     waTemplateFn: 'sendVerificationReminder',
     subject: null,
     customBody: null,
-    isActive: true,
+    isActive: false,
   },
   {
     name: 'Verificación Documentos Socio (SMS)',
@@ -527,7 +558,7 @@ export const DEFAULT_AUTOMATION_RULES = [
     waTemplateFn: 'sendReservaConfirmadaCliente',
     subject: null,
     customBody: null,
-    isActive: true,
+    isActive: false,
   },
   {
     name: 'Reserva Creada — Aviso Socio (WhatsApp)',
@@ -539,7 +570,7 @@ export const DEFAULT_AUTOMATION_RULES = [
     waTemplateFn: 'sendPropuestaAceptadaSocio',
     subject: null,
     customBody: null,
-    isActive: true,
+    isActive: false,
   },
   {
     name: 'Reserva Confirmada — Aviso Cliente (WhatsApp)',
@@ -551,7 +582,7 @@ export const DEFAULT_AUTOMATION_RULES = [
     waTemplateFn: 'sendReservaConfirmadaCliente',
     subject: null,
     customBody: null,
-    isActive: true,
+    isActive: false,
   },
   {
     name: 'Reserva Cancelada — Aviso (WhatsApp + SMS)',

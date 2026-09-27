@@ -35,6 +35,8 @@ export type Snapshot = {
   config?: { commissionEnabled: boolean; activeCities: number }
   /** Guarantee claims (lib/guarantee): active, past their 72 h SLA, strikes in 90 days and partners at the pause limit */
   guarantee?: { open: number; overdue: number; strikesLast90: number; partnersAtLimit?: Array<{ partnerId: string; strikes: number }> }
+  /** WhatsApp catalog templates by Meta state (names of the rejected and of the approved under another category) */
+  waTemplates?: { approved: number; pending: number; rejected: string[]; recategorized: string[] }
 }
 
 export type Severity = 'info' | 'warning' | 'critical'
@@ -110,6 +112,8 @@ export function detect(s: Snapshot): Detection[] {
   if (s.system.cronsFailing) add({ key: 'sys:crons-failing', domain: 'system', severity: 'critical', title: `${plural(s.system.cronsFailing, 'tarea automática falla', 'tareas automáticas fallan')}`, detail: `${s.system.cronsLate} atrasadas.` })
   else if (s.system.cronsLate) add({ key: 'sys:crons-late', domain: 'system', severity: 'warning', title: `${plural(s.system.cronsLate, 'tarea automática atrasada', 'tareas automáticas atrasadas')}`, detail: 'Revisar Salud del sistema.' })
   if (s.system.errorsLastHour >= 5) add({ key: 'sys:error-spike', domain: 'system', severity: 'warning', title: `${s.system.errorsLastHour} errores nuevos en la última hora`, detail: 'Pico de errores de la aplicación.' })
+  const wa = s.waTemplates
+  if (wa?.rejected.length) add({ key: 'sys:wa-templates-rejected', domain: 'system', severity: 'warning', title: `${plural(wa.rejected.length, 'plantilla de WhatsApp rechazada', 'plantillas de WhatsApp rechazadas')} por Meta`, detail: `${wa.rejected.slice(0, 6).join(', ')}${wa.rejected.length > 6 ? '…' : ''}. Esos avisos no salen (o salen con la plantilla vieja): ajustar el texto y crearlas con otro nombre.` })
   if (s.system.criticalIncidents) add({ key: 'sys:critical-incidents', domain: 'system', severity: 'critical', title: `${plural(s.system.criticalIncidents, 'incidente crítico abierto', 'incidentes críticos abiertos')}`, detail: 'Ver Casos e incidentes.' })
 
   const bookingsDrop = drop(s.bookings.last7, s.bookings.prev7)

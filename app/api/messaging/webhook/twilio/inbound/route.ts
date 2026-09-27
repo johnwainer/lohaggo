@@ -14,6 +14,9 @@ import { normalizeContactAddress } from '@/lib/messaging/contact-address'
 import { resolveInboundContact } from '@/lib/inbox/contacts'
 import { autopilotCovers, drainAgentTasks, scheduleInboundAgent } from '@/lib/ai/autopilot'
 import { extractWebRef, parseTwilioReferral, recordConversationAttribution } from '@/lib/messaging/attribution'
+import { parseButtonReply, withButtonMark } from '@/lib/messaging/wa-format'
+import { NO_MARKETING_TAG } from '@/lib/messaging/wa-send'
+import type { Prisma } from '@prisma/client'
 
 const logger = createLogger('twilio-inbound')
 
@@ -75,9 +78,12 @@ export async function POST(request: NextRequest) {
   const channel: 'WHATSAPP' | 'SMS' = isWhatsApp ? 'WHATSAPP' : 'SMS'
   const contactPhone = normalizeContactAddress(from)
 
+  // A quick-reply button of one of our templates (its title can be «Cancelar»: never an opt-out)
+  const button = isWhatsApp ? parseButtonReply((k) => formData.get(k)) : null
+
   // STOP / opt-out detection
   const trimmedBody = body.trim().toLowerCase()
-  if (STOP_KEYWORDS.has(trimmedBody)) {
+  if (!button && STOP_KEYWORDS.has(trimmedBody)) {
     await prisma.messagingOptOut.upsert({
       where: { channel_destination: { channel, destination: contactPhone } },
       create: { channel, destination: contactPhone, isActive: true },
@@ -170,6 +176,7 @@ export async function POST(request: NextRequest) {
   })
 
   logger.info('Inbound saved', { conversationId: conversation.id, messageSid })
+  if (button) await recordButtonPress(conversation.id, button, String(formData.get('OriginalRepliedMessageSid') || '') || null, user?.id ?? null)
   // Ad / website attribution (Click-to-WhatsApp params, or the web's «(ref: web-…)» tag)
   const adReferral = isWhatsApp ? parseTwilioReferral((k) => formData.get(k)) : null
   await recordConversationAttribution(conversation.id, { adReferral, webRef: extractWebRef(body) })
@@ -191,6 +198,31 @@ export async function POST(request: NextRequest) {
   })
 
   return twiml()
+}
+
+/**
+ * Keeps the pressed button in the conversation (customFields.lastButton, linked to the template it answers)
+ * so the AI agent acts on the right booking or payment. «No más avisos» (optout_soft) is applied here:
+ * the conversation is tagged and a linked user is excluded from marketing.
+ */
+async function recordButtonPress(conversationId: string, button: { id: string; text: string }, repliedSid: string | null, userId: string | null) {
+  try {
+    const conv = await prisma.conversation.findUnique({ where: { id: conversationId }, select: { customFields: true, tags: true } })
+    if (!conv) return
+    const optOut = button.id === 'optout_soft'
+    await prisma.conversation.update({
+      where: { id: conversationId },
+      data: {
+        customFields: withButtonMark(conv.customFields, button, repliedSid) as Prisma.InputJsonValue,
+        ...(optOut && !conv.tags.includes(NO_MARKETING_TAG) ? { tags: [...conv.tags, NO_MARKETING_TAG] } : {}),
+      },
+    })
+    if (optOut && userId) {
+      await prisma.user.update({ where: { id: userId }, data: { excludedFromMarketing: true, excludedFromMarketingAt: new Date(), excludedFromMarketingBy: 'whatsapp:optout_soft' } })
+    }
+  } catch (err) {
+    logger.warn('Button press not recorded', { conversationId, err: err instanceof Error ? err.message : err })
+  }
 }
 
 function twiml() {
