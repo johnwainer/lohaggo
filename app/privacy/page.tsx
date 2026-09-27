@@ -64,8 +64,7 @@ export default function PrivacyPage() {
               <div className="pl-11 space-y-3 text-gray-700">
                 <p><strong>Razón Social:</strong> LoHaggo S.A.S.</p>
                 <p><strong>Domicilio:</strong> Medellín, Antioquia, Colombia</p>
-                <p><strong>Correo electrónico:</strong> privacidad@lohaggo.com</p>
-                <p><strong>Contacto general:</strong> hola@lohaggo.com</p>
+                <p><strong>Correo electrónico:</strong> hola@lohaggo.com</p>
               </div>
             </div>
 
@@ -211,7 +210,7 @@ export default function PrivacyPage() {
                   <li><strong>Portabilidad:</strong> Recibir sus datos en formato estructurado</li>
                 </ul>
                 <p className="mt-4">
-                  Para ejercer estos derechos, puede contactarnos en: <strong>privacidad@lohaggo.com</strong>
+                  Para ejercer estos derechos, escribe a <strong>hola@lohaggo.com</strong> con el asunto &quot;Datos personales&quot;.
                 </p>
                 <p>
                   Responderemos a su solicitud dentro de los 15 días hábiles siguientes a su recepción, 
@@ -349,7 +348,7 @@ export default function PrivacyPage() {
                   <div className="space-y-2">
                     <p className="flex items-center gap-2">
                       <Mail className="w-4 h-4 text-primary-600" />
-                      <strong>Email:</strong> privacidad@lohaggo.com
+                      <strong>Email:</strong> hola@lohaggo.com (asunto &quot;Datos personales&quot;)
                     </p>
                     <p><strong>Dirección:</strong> Medellín, Antioquia, Colombia</p>
                   </div>

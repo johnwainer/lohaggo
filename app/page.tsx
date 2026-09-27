@@ -59,7 +59,7 @@ export default async function Home() {
   // Server-render the default (Medellín) catalogue so the first paint already
   // contains real service cards — no client fetch chain, no spinner, no shift.
   // Failures degrade gracefully to the client-side fetch path.
-  const [initialResult, initialCategories, testimonials] = await Promise.all([
+  const [initialResult, initialCategories, trust] = await Promise.all([
     queryServices({ citySlug: 'medellin' }).catch(() => undefined),
     prisma.category
       .findMany({
@@ -67,10 +67,45 @@ export default async function Home() {
         orderBy: { name: 'asc' },
       })
       .catch(() => undefined),
-    getPublicTrustSafe()
-      .then((t) => (t.claims.trust_real_testimonials ? realTestimonials(6) : []))
-      .catch(() => []),
+    getPublicTrustSafe(),
   ])
+  const testimonials = trust.claims.trust_real_testimonials
+    ? await realTestimonials(6).catch(() => [])
+    : []
+
+  // Real reviews only, above the minimum; nothing is claimed if the database is unreachable
+  const rating = trust.stats.rating
+  const trustSchema =
+    rating || trust.claims.trust_support_247
+      ? {
+          '@context': 'https://schema.org',
+          '@type': 'LocalBusiness',
+          '@id': 'https://www.lohaggo.com/#localbusiness',
+          name: 'LoHaggo',
+          url: 'https://www.lohaggo.com',
+          ...(trust.claims.trust_support_247
+            ? {
+                openingHoursSpecification: {
+                  '@type': 'OpeningHoursSpecification',
+                  dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+                  opens: '00:00',
+                  closes: '23:59',
+                },
+              }
+            : {}),
+          ...(rating
+            ? {
+                aggregateRating: {
+                  '@type': 'AggregateRating',
+                  ratingValue: rating.value.toFixed(1),
+                  reviewCount: rating.reviews.toString(),
+                  bestRating: '5',
+                  worstRating: '1',
+                },
+              }
+            : {}),
+        }
+      : null
 
   return (
     <>
@@ -78,6 +113,12 @@ export default async function Home() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(homePageSchema) }}
       />
+      {trustSchema && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(trustSchema) }}
+        />
+      )}
       <HomeClientWrapper>
         <div className="min-h-screen bg-slate-50">
           <HomeActiveBookingsBanner />

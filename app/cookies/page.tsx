@@ -433,10 +433,8 @@ export default function CookiesPage() {
                   <div className="space-y-2">
                     <p className="flex items-center gap-2">
                       <Mail className="w-4 h-4 text-primary-600" />
-                      <strong>Email:</strong> privacidad@lohaggo.com
+                      <strong>Email:</strong> hola@lohaggo.com
                     </p>
-                    <p><strong>Soporte:</strong> soporte@lohaggo.com</p>
-                    <p><strong>Teléfono:</strong> +57 (1) 234 5678</p>
                   </div>
                 </div>
               </div>

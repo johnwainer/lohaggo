@@ -13,7 +13,6 @@ import ChunkErrorHandler from '@/components/ChunkErrorHandler'
 import AcquisitionTracker from '@/components/analytics/AcquisitionTracker'
 import InAppNotificationToast from '@/components/InAppNotificationToast'
 import { prisma } from '@/lib/prisma'
-import { getPublicTrustSafe } from '@/lib/public/trust'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' })
 
@@ -152,9 +151,6 @@ export default async function RootLayout({
     const config = await prisma.paymentConfig.findFirst()
     isTestMode = !config || config.environment === 'TEST'
   } catch { /* default to true if DB unreachable */ }
-  // Real reviews only, above the minimum; nothing is claimed if the database is unreachable
-  const trust = await getPublicTrustSafe()
-  const rating = trust.stats.rating
 
   return (
     <html lang="es-CO" translate="no" className={inter.variable}>
@@ -179,6 +175,7 @@ export default async function RootLayout({
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "LocalBusiness",
+              "@id": "https://www.lohaggo.com/#localbusiness",
               "name": "LoHaggo",
               "description": "Plataforma de servicios profesionales en Colombia. Conecta con expertos verificados en plomería, electricidad, limpieza, reparaciones y más en Medellín.",
               "url": "https://www.lohaggo.com",
@@ -197,28 +194,11 @@ export default async function RootLayout({
                 "longitude": "-75.5812"
               },
               "priceRange": "$$",
-              ...(trust.claims.trust_support_247 ? {
-                "openingHoursSpecification": {
-                  "@type": "OpeningHoursSpecification",
-                  "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],
-                  "opens": "00:00",
-                  "closes": "23:59"
-                },
-              } : {}),
               "sameAs": [
                 "https://facebook.com/lohaggo",
                 "https://twitter.com/lohaggo",
                 "https://instagram.com/lohaggo"
               ],
-              ...(rating ? {
-                "aggregateRating": {
-                  "@type": "AggregateRating",
-                  "ratingValue": rating.value.toFixed(1),
-                  "reviewCount": rating.reviews.toString(),
-                  "bestRating": "5",
-                  "worstRating": "1"
-                },
-              } : {}),
               "areaServed": {
                 "@type": "City",
                 "name": "Medellín",

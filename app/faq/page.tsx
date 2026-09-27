@@ -238,7 +238,7 @@ export default function FAQPage() {
           </p>
           <div className="flex flex-wrap gap-4 justify-center">
             <a
-              href="mailto:soporte@lohaggo.com"
+              href="mailto:hola@lohaggo.com"
               className="inline-flex items-center gap-2 bg-white text-gray-900 px-6 py-3 rounded-xl font-bold hover:shadow-lg transition-all border-2 border-gray-200"
             >
               Enviar un correo

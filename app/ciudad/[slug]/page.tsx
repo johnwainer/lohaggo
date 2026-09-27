@@ -1,9 +1,9 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
+import { use, useEffect, useState, type FormEvent } from 'react'
 import { useCity } from '@/lib/city-context'
 import { useRouter } from 'next/navigation'
-import { Sparkles, Shield, Star, Zap, Users, Award, TrendingUp, ArrowRight, Bell, Heart, Rocket, Gift, Calendar, Mail, MessageCircle } from 'lucide-react'
+import { Sparkles, Shield, Star, Zap, Users, Award, TrendingUp, ArrowRight, Bell, Heart, Rocket, Gift, Calendar, Mail, MessageCircle, CheckCircle2, Loader2 } from 'lucide-react'
 import ServiceIcon from '@/components/ServiceIcon'
 import Link from 'next/link'
 import { useTrust } from '@/lib/public/useTrust'
@@ -17,6 +17,13 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
   const trust = useTrust()
   const [isAnimating, setIsAnimating] = useState(false)
   const [activeTab, setActiveTab] = useState<'benefits' | 'services' | 'how'>('benefits')
+  const [email, setEmail] = useState('')
+  const [name, setName] = useState('')
+  const [role, setRole] = useState<'client' | 'partner'>('client')
+  const [consent, setConsent] = useState(false)
+  const [website, setWebsite] = useState('')
+  const [formState, setFormState] = useState<'idle' | 'sending' | 'done' | 'error'>('idle')
+  const [formError, setFormError] = useState<string | null>(null)
 
   const city = cities.find(c => c.slug === slug)
 
@@ -43,7 +50,30 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
     )
   }
 
-  // There is no waitlist table: the visitor writes to us and the team answers when the city opens
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!consent) {
+      setFormState('error')
+      setFormError('Para avisarte necesitamos tu autorización.')
+      return
+    }
+    setFormState('sending')
+    setFormError(null)
+    try {
+      const res = await fetch('/api/public/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ citySlug: city.slug, email, name: name || undefined, role, consent, website }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'No pudimos guardar tu registro. Intenta de nuevo.')
+      setFormState('done')
+    } catch (err: any) {
+      setFormState('error')
+      setFormError(err.message || 'No pudimos guardar tu registro. Intenta de nuevo.')
+    }
+  }
+
   const notifyText = `Hola, quiero que me avisen cuando LoHaggo llegue a ${city.name}.`
   const notifyHref = trust.whatsappPhone
     ? `https://wa.me/${trust.whatsappPhone}?text=${encodeURIComponent(notifyText)}`
@@ -208,18 +238,137 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
               ¡Sé el primero en saberlo! 🎉
             </h2>
             <p className="text-lg text-gray-600">
-              {trust.whatsappPhone ? 'Escríbenos por WhatsApp' : 'Escríbenos'} y te avisamos cuando lleguemos a {city.name}
+              Déjanos tu correo y te avisamos cuando lleguemos a {city.name}
             </p>
           </div>
 
           <div className="max-w-md mx-auto">
+            {formState === 'done' ? (
+              <div className="rounded-3xl bg-white border-2 border-green-200 p-6 text-center" role="status">
+                <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-3" />
+                <p className="text-lg font-bold text-gray-900">¡Listo! Te avisaremos</p>
+                <p className="text-sm text-gray-600 mt-1">
+                  Te escribiremos a {email.trim().toLowerCase()} cuando LoHaggo llegue a {city.name}.
+                </p>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+                <div className="grid grid-cols-2 gap-2 rounded-full bg-white p-1 border-2 border-primary-100" role="radiogroup" aria-label="Quién eres">
+                  {([
+                    ['client', 'Soy cliente'],
+                    ['partner', 'Quiero ser socio'],
+                  ] as const).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      role="radio"
+                      aria-checked={role === value}
+                      onClick={() => setRole(value)}
+                      className={`rounded-full px-3 py-2.5 text-sm font-bold transition-all ${
+                        role === value
+                          ? 'bg-gradient-to-r from-primary-500 to-secondary-500 text-white shadow'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                <div>
+                  <label htmlFor="waitlist-email" className="block text-sm font-semibold text-gray-700 mb-1">
+                    Correo electrónico
+                  </label>
+                  <input
+                    id="waitlist-email"
+                    type="email"
+                    required
+                    autoComplete="email"
+                    inputMode="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="tucorreo@ejemplo.com"
+                    className="w-full rounded-2xl border-2 border-gray-200 bg-white px-4 py-3 text-base focus:border-primary-400 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="waitlist-name" className="block text-sm font-semibold text-gray-700 mb-1">
+                    Nombre <span className="font-normal text-gray-400">(opcional)</span>
+                  </label>
+                  <input
+                    id="waitlist-name"
+                    type="text"
+                    autoComplete="name"
+                    maxLength={120}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full rounded-2xl border-2 border-gray-200 bg-white px-4 py-3 text-base focus:border-primary-400 focus:outline-none"
+                  />
+                </div>
+
+                <div className="absolute -left-[9999px] w-px h-px overflow-hidden" aria-hidden="true">
+                  <label htmlFor="waitlist-website">Sitio web</label>
+                  <input
+                    id="waitlist-website"
+                    type="text"
+                    tabIndex={-1}
+                    autoComplete="off"
+                    value={website}
+                    onChange={(e) => setWebsite(e.target.value)}
+                  />
+                </div>
+
+                <label className="flex items-start gap-3 text-sm text-gray-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    required
+                    checked={consent}
+                    onChange={(e) => setConsent(e.target.checked)}
+                    className="mt-0.5 h-5 w-5 shrink-0 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <span>
+                    Acepto que LoHaggo me contacte sobre el lanzamiento según la{' '}
+                    <Link href="/privacy" className="font-semibold text-primary-600 underline" target="_blank">
+                      política de privacidad
+                    </Link>
+                    .
+                  </span>
+                </label>
+
+                {formState === 'error' && formError && (
+                  <p className="rounded-2xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700" role="alert">
+                    {formError}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={formState === 'sending' || !email.trim() || !consent}
+                  className="w-full bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-8 py-4 rounded-full font-bold hover:shadow-2xl transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {formState === 'sending' ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Enviando…
+                    </>
+                  ) : (
+                    <>
+                      Avísame
+                      <Bell className="w-5 h-5" />
+                    </>
+                  )}
+                </button>
+              </form>
+            )}
+
             <a
               href={notifyHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-8 py-4 rounded-full font-bold hover:shadow-2xl transition-all flex items-center justify-center gap-2"
+              className="mt-4 w-full border-2 border-primary-200 bg-white text-primary-700 px-6 py-3 rounded-full font-semibold hover:bg-primary-50 transition-all flex items-center justify-center gap-2"
             >
-              {trust.whatsappPhone ? 'Avísame por WhatsApp' : 'Avísame por correo'}
+              {trust.whatsappPhone ? 'O escríbenos por WhatsApp' : 'O escríbenos por correo'}
               <MessageCircle className="w-5 h-5" />
             </a>
             {trust.launchBenefits.length > 0 && (

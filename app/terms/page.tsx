@@ -344,7 +344,7 @@ export default function TermsPage() {
                   <h3 className="font-bold text-gray-900 mb-2">11.1. Por el Usuario</h3>
                   <p>
                     Puede cancelar su cuenta en cualquier momento desde la configuración de su perfil o 
-                    contactando a soporte@lohaggo.com.
+                    escribiendo a hola@lohaggo.com.
                   </p>
                 </div>
                 <div>
@@ -464,9 +464,8 @@ export default function TermsPage() {
                   <div className="space-y-2">
                     <p className="flex items-center gap-2">
                       <Mail className="w-4 h-4 text-primary-600" />
-                      <strong>Email:</strong> legal@lohaggo.com
+                      <strong>Email:</strong> hola@lohaggo.com
                     </p>
-                    <p><strong>Soporte:</strong> hola@lohaggo.com</p>
                     <p><strong>Dirección:</strong> Medellín, Antioquia, Colombia</p>
                   </div>
                 </div>
