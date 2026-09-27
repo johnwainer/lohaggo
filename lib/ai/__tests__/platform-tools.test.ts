@@ -146,3 +146,16 @@ describe('runPlatformTool · the yes must match the proposal', () => {
     expect(actions.settleAction).toHaveBeenCalledWith('prop-action', expect.objectContaining({ status: 'expired' }))
   })
 })
+
+describe('runPlatformTool · playground linking', () => {
+  it('a simulated code links the pretend client so the rest of the flow can be tried', async () => {
+    const c = ctx({ mode: 'playground', dryRun: true, conversationId: null, userId: null })
+    expect(await runPlatformTool('confirmar_codigo', { codigo: 'abc' }, c)).toMatch(/incorrecto/)
+    expect(await runPlatformTool('confirmar_codigo', { codigo: '482913' }, c)).toMatch(/vinculada/)
+    expect(c.userId).toBe('__playground__')
+    db.service.findMany.mockResolvedValue([{ id: 's1', name: 'Plomería', basePrice: 100000, slug: 'plomeria' }])
+    const out = await runPlatformTool('crear_solicitud', { servicio: 'Plomería', direccion: 'Calle 10 #43-20', ciudad: 'Medellín', fecha: '', hora: '', urgente: true, detalles: 'fuga', presupuesto: 0, socio_ref: '', confirmado: false }, c)
+    expect(out).toMatch(/Simulado en pruebas: Crear solicitud de Plomería/)
+    expect(actions.recordAction).not.toHaveBeenCalled()
+  })
+})

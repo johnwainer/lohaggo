@@ -266,8 +266,12 @@ export async function findServiceByName(name: string) {
   return services.find((s) => norm(s.name) === n) ?? services.find((s) => norm(s.name).includes(n) || n.includes(norm(s.name))) ?? null
 }
 
+/** Playground: after a simulated code, the rest of the flow runs as this pretend client (reads real catalog data, writes nothing). */
+export const PLAYGROUND_USER = '__playground__'
+
 async function actorFor(ctx: ToolContext): Promise<Actor | null> {
   if (!ctx.userId) return null
+  if (ctx.mode === 'playground' && ctx.userId === PLAYGROUND_USER) return { userId: PLAYGROUND_USER, role: 'CLIENT', partnerId: null, email: null }
   const u = await prisma.user.findUnique({ where: { id: ctx.userId }, select: { id: true, role: true, email: true, isActive: true, partnerProfile: { select: { id: true } } } })
   if (!u || !u.isActive) return null
   return { userId: u.id, role: u.role === 'ADMIN' ? 'ADMIN' : u.partnerProfile ? 'PARTNER' : 'CLIENT', partnerId: u.partnerProfile?.id ?? null, email: u.email }
@@ -599,7 +603,12 @@ async function runRead(name: PlatformToolName, input: Record<string, unknown>, c
 // ─── Identity (direct: runs without proposal; the code goes to the account's own phone or email) ─────
 
 async function runIdentity(name: PlatformToolName, input: Record<string, unknown>, ctx: ToolContext): Promise<string> {
-  if (ctx.mode === 'playground' || !ctx.conversationId) return name === 'vincular_cuenta' ? 'Código enviado (simulado en pruebas) al teléfono o correo de la cuenta.' : 'Código comprobado (simulado en pruebas): conversación vinculada.'
+  if (ctx.mode === 'playground' || !ctx.conversationId) {
+    if (name === 'vincular_cuenta') return 'Código enviado (simulado en pruebas) al teléfono o correo de la cuenta. Pídele los 6 dígitos.'
+    if (!/^\d{6}$/.test(s(input, 'codigo'))) return 'Código incorrecto (simulado en pruebas): deben ser 6 dígitos.'
+    ctx.userId = PLAYGROUND_USER
+    return 'Código comprobado (simulado en pruebas): conversación vinculada a una cuenta de cliente de prueba. Ya puedes usar las herramientas de su cuenta.'
+  }
   const conv = await prisma.conversation.findUnique({ where: { id: ctx.conversationId }, select: { contactId: true, userId: true, workspaceId: true } })
   if (!conv?.contactId) return 'No se pudo vincular: esta conversación no tiene contacto. Pasa el caso a una persona.'
   if (name === 'vincular_cuenta') {
