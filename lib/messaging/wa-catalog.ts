@@ -1197,7 +1197,112 @@ export const WA_CATALOG: WaCatalogEntry[] = [
       "title": "Abrir Haggo",
       "url": "https://www.lohaggo.com/{{6}}"
     }
+  },
+{
+  "code": "C10",
+  "name": "lh_socio_nueva_solicitud_v3",
+  "category": "UTILITY",
+  "body": "🔔 Hola {{1}}, se creó la solicitud #{{2}} de *{{3}}* en {{4}}, que coincide con los servicios de tu cuenta. Puedes ver los detalles y responder desde tu panel o por aquí.",
+  "variables": {
+    "1": "Carlos",
+    "2": "A1B2C3",
+    "3": "Plomería",
+    "4": "Laureles",
+    "5": "partner?tab=my-requests"
+  },
+  "quickReplies": [
+    {
+      "title": "Proponer por aquí",
+      "id": "proposal_chat"
+    },
+    {
+      "title": "No puedo",
+      "id": "request_skip"
+    }
+  ],
+  "url": {
+    "title": "Ver solicitud",
+    "url": "https://www.lohaggo.com/{{5}}"
   }
+},
+{
+  "code": "C11",
+  "name": "lh_socio_solicitud_directa_v3",
+  "category": "UTILITY",
+  "body": "⭐ Hola {{1}}, recibiste la solicitud directa #{{2}} de *{{3}}* en {{4}}. Solo se envió a tu cuenta; puedes ver los detalles y responder desde tu panel.",
+  "variables": {
+    "1": "Carlos",
+    "2": "A1B2C3",
+    "3": "Electricidad",
+    "4": "Envigado",
+    "5": "partner?tab=my-requests"
+  },
+  "quickReplies": [
+    {
+      "title": "Proponer por aquí",
+      "id": "proposal_chat"
+    }
+  ],
+  "url": {
+    "title": "Ver solicitud",
+    "url": "https://www.lohaggo.com/{{5}}"
+  }
+},
+{
+  "code": "B19",
+  "name": "lh_cliente_reserva_cancelada_socio_v3",
+  "category": "UTILITY",
+  "body": "⚠️ Hola {{1}}, tu reserva #{{2}} de *{{3}}* del {{4}} fue cancelada por el socio. Tu solicitud volvió a quedar abierta para recibir otras propuestas.",
+  "variables": {
+    "1": "Ana",
+    "2": "A1B2C3",
+    "3": "Plomería",
+    "4": "vie 3 oct"
+  },
+  "quickReplies": [],
+  "url": null
+},
+{
+  "code": "C8",
+  "name": "lh_socio_sin_servicios_v3",
+  "category": "UTILITY",
+  "body": "🧰 Hola {{1}}, tu cuenta de socio está verificada pero no tiene servicios activos, por lo que no se te asignan solicitudes. Puedes activarlos desde tu panel o respondiendo este mensaje.",
+  "variables": {
+    "1": "Carlos",
+    "2": "partner/services"
+  },
+  "quickReplies": [
+    {
+      "title": "Activar servicios",
+      "id": "services_setup"
+    }
+  ],
+  "url": {
+    "title": "Ir a mis servicios",
+    "url": "https://www.lohaggo.com/{{2}}"
+  }
+},
+{
+  "code": "C9",
+  "name": "lh_socio_falta_cuenta_bancaria_v3",
+  "category": "UTILITY",
+  "body": "🏦 Hola {{1}}, tu cuenta de socio no tiene una cuenta bancaria registrada para recibir las transferencias de la reserva #{{2}}. Puedes registrarla desde tu panel o respondiendo este mensaje.",
+  "variables": {
+    "1": "Carlos",
+    "2": "A1B2C3",
+    "3": "partner/bank-accounts"
+  },
+  "quickReplies": [
+    {
+      "title": "Registrar por aquí",
+      "id": "bank_setup"
+    }
+  ],
+  "url": {
+    "title": "Registrar en la app",
+    "url": "https://www.lohaggo.com/{{3}}"
+  }
+}
 ]
 
 /** The Twilio Content «types» object for an entry: text, quick replies, URL, both (card) or authentication. */
