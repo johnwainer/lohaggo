@@ -8,6 +8,7 @@ import { DOMAINS, type Domain } from '@/lib/haggo/config'
 import { askedToRemember, buildWindow, cleanUserText, linksBlock, MAX_FACTS, needsSummary, rateLimited, sanitizeLinks, WINDOW, type ChatRunOutput, type ChatTurn, type Proposal } from '@/lib/haggo/chat-core'
 import { cleanDirectiveText, describeRule, parseRule } from '@/lib/haggo/directives'
 import { buildSystem } from '@/lib/haggo/prompt'
+import { configStatusBlock } from '@/lib/haggo/config-status'
 import { getHaggoConfig, haggoSpend } from '@/lib/haggo/store'
 import { READ_TOOL_DEFS, READ_TOOLS, runReadTool } from '@/lib/haggo/tools/read'
 import { ACTION_REASONING, PROPOSE_ACTION_TOOL } from '@/lib/haggo/actions/registry'
@@ -190,13 +191,14 @@ export async function converse(userId: string, raw: unknown) {
     return finish(`Llegué al tope ${spend.blocked === 'month' ? 'mensual' : 'diario'} de mi presupuesto de IA (${spend.blocked === 'month' ? `US$${spend.monthUsd.toFixed(2)} de US$${cfg.monthlyBudgetUsd}` : `US$${spend.todayUsd.toFixed(2)} de US$${cfg.dailyBudgetUsd}`}), así que no puedo investigar ahora. Puedes subirlo en [Haggo → Ajustes](/admin/haggo). Mientras tanto sigo vigilando con reglas.`, 'skipped')
   }
 
-  const [ctx, directives, memory, history] = await Promise.all([
+  const [ctx, directives, memory, history, configBlock] = await Promise.all([
     chatContext(),
     prisma.haggoDirective.findMany({ where: { active: true }, orderBy: { createdAt: 'asc' }, take: 50, select: { text: true } }),
     prisma.haggoMemory.findMany({ where: { kind: { notIn: ['chat_summary', 'notice'] } }, orderBy: { updatedAt: 'desc' }, take: 20, select: { content: true } }),
     prisma.haggoMessage.findMany({ orderBy: { createdAt: 'desc' }, take: WINDOW, select: { role: true, content: true } }),
+    configStatusBlock(),
   ])
-  const system: Anthropic.TextBlockParam[] = [...buildSystem({ directives, memory }), { type: 'text', text: ACTION_REASONING, cache_control: { type: 'ephemeral' } }, { type: 'text', text: `${CHAT_PROMPT}\n\n${ctx.text}` }]
+  const system: Anthropic.TextBlockParam[] = [...buildSystem({ directives, memory }), { type: 'text', text: ACTION_REASONING, cache_control: { type: 'ephemeral' } }, { type: 'text', text: `${CHAT_PROMPT}\n\n${configBlock}\n\n${ctx.text}` }]
   const messages: Anthropic.MessageParam[] = buildWindow(history.reverse() as ChatTurn[]).map((t) => ({ role: t.role, content: t.content }))
   const modelId = cfg.model || (await getAiSettings()).defaultModel
 

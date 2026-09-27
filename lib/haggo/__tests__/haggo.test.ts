@@ -8,6 +8,9 @@ import { detect, novelDetections, type Snapshot } from '@/lib/haggo/detect'
 import { parseAnalysis, parseReport, REVIEW_CHECKLIST, untrusted } from '@/lib/haggo/prompt'
 import { READ_TOOLS } from '@/lib/haggo/tools/read'
 import { DOMAINS } from '@/lib/haggo/config'
+import { PLATFORM_CHANGELOG, PLATFORM_FACTS_PROMPT, configStatusText } from '@/lib/haggo/platform-facts'
+import { mergeActivity } from '@/lib/haggo/tools/platform'
+import { SYSTEM_PROMPT } from '@/lib/haggo/prompt'
 
 // Bogotá is UTC-5 all year
 const bog = (iso: string) => new Date(`${iso}-05:00`)
@@ -188,6 +191,29 @@ describe('reglas de detección', () => {
     expect(keys({ search: { total24h: 200, zero24h: 6 } })).toEqual([])
   })
 
+  it('documentos pendientes más de 48 h, pagos a socios de más de 7 días', () => {
+    expect(keys({ docs: { pending: 2, oldestHours: 49 } })).toEqual(['ops:docs-pending'])
+    expect(keys({ docs: { pending: 2, oldestHours: 30 } })).toEqual([])
+    expect(keys({ docs: { pending: 0, oldestHours: 0 } })).toEqual([])
+    expect(keys({ payouts: { ...base.payouts, pending: 1, oldestPendingDays: 8 } })).toEqual(['money:payouts-old'])
+    expect(keys({ payouts: { ...base.payouts, pending: 1, oldestPendingDays: 7 } })).toEqual([])
+  })
+
+  it('acciones de agentes esperando aprobación más de 30 min', () => {
+    expect(keys({ aiActions: { ...base.aiActions, awaitingApproval: 2, oldestAwaitingMinutes: 31 } })).toEqual(['ai:actions-awaiting'])
+    expect(keys({ aiActions: { ...base.aiActions, awaitingApproval: 2, oldestAwaitingMinutes: 20 } })).toEqual([])
+  })
+
+  it('socios verificados sin servicios (≥3) y afirmaciones sin respaldo (crítico, una por clave)', () => {
+    expect(keys({ catalog: { servicesWithoutPartners: 4, partnersVerifiedNoServices: 3 } })).toEqual(['catalog:partners-no-services'])
+    expect(keys({ catalog: { servicesWithoutPartners: 4, partnersVerifiedNoServices: 2 } })).toEqual([])
+    const d = detect({ ...base, trust: { unbacked: ['trust_support_247', 'promo_no_commission'] } })
+    expect(d.map((x) => x.key)).toEqual(['trust:unbacked:trust_support_247', 'trust:unbacked:promo_no_commission'])
+    expect(d.every((x) => x.severity === 'critical' && x.domain === 'config')).toBe(true)
+    expect(d[0].title).toContain('Atención 24/7 por chat')
+    expect(keys({ trust: { unbacked: [] } })).toEqual([])
+  })
+
   it('novedad: lo que no estaba antes o empeoró', () => {
     const now = detect({ ...base, inbox: { ...base.inbox, waiting: 1 }, marketing: { ...base.marketing, failedWeek: 2 } })
     expect(novelDetections(now, [{ key: 'inbox:waiting', severity: 'critical' }, { key: 'mk:failed', severity: 'warning' }])).toEqual([])
@@ -235,5 +261,41 @@ describe('visión completa', () => {
     }
     const covered = new Set(detect(hot).map((d) => d.domain))
     expect(DOMAINS.filter((d) => d !== 'config' && !covered.has(d))).toEqual([])
+  })
+})
+
+describe('conciencia del producto', () => {
+  it('el changelog no está vacío, está ordenado de lo más nuevo a lo más viejo y tiene formato', () => {
+    expect(PLATFORM_CHANGELOG.length).toBeGreaterThan(0)
+    expect(PLATFORM_CHANGELOG.length).toBeLessThanOrEqual(15)
+    for (const e of PLATFORM_CHANGELOG) {
+      expect(e.date, e.change).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+      expect(Number.isNaN(new Date(e.date).getTime())).toBe(false)
+      for (const k of ['area', 'change', 'impacto', 'comoVerlo'] as const) expect(e[k].trim(), `${e.date} ${k}`).toBeTruthy()
+    }
+    const dates = PLATFORM_CHANGELOG.map((e) => e.date)
+    expect(dates).toEqual([...dates].sort().reverse())
+  })
+
+  it('las capacidades y novedades van en la parte fija del prompt', () => {
+    expect(SYSTEM_PROMPT).toContain(PLATFORM_FACTS_PROMPT)
+    expect(PLATFORM_FACTS_PROMPT).toContain('Operación por chat')
+  })
+
+  it('estado de configuración legible, con las afirmaciones sin respaldo', () => {
+    const t = configStatusText({ commission: { enabled: false, clientRate: 5, partnerRate: 10 }, payments: { cash: true, transfer: true, mercadoPago: false }, cities: { active: ['Medellín'], comingSoon: ['Bogotá'] }, claimsOn: ['trust_support_247'], unbacked: [{ key: 'trust_support_247', why: 'No hay agente' }] })
+    expect(t).toContain('apagadas (no se cobra)')
+    expect(t).toContain('efectivo, transferencia')
+    expect(t).toContain('Medellín; próximamente: Bogotá')
+    expect(t).toContain('trust_support_247 (No hay agente)')
+  })
+
+  it('actividad reciente: más nuevo primero y con tope', () => {
+    const rows = Array.from({ length: 100 }, (_, i) => ({ at: new Date(Date.UTC(2026, 8, 27, 0, i)), area: 'reservas', que: `r${i}`, ref: `Booking:${i}` }))
+    const out = mergeActivity(rows)
+    expect(out).toHaveLength(80)
+    expect(out[0].que).toBe('r99')
+    expect(out[0]).not.toHaveProperty('origen')
+    expect(mergeActivity([{ at: new Date('x'), area: 'a', que: 'b', ref: 'c' }])).toEqual([])
   })
 })

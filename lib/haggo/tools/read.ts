@@ -1,4 +1,3 @@
-import type Anthropic from '@anthropic-ai/sdk'
 import { prisma } from '@/lib/prisma'
 import { business, cleanFilters, funnelTab, peopleTab, searchTab, serviceTab, supplyTab } from '@/lib/analytics/queries'
 import { parsePeriod } from '@/lib/analytics/core'
@@ -6,8 +5,9 @@ import { systemOverview } from '@/lib/system/health'
 import { periodOf } from '@/lib/ai/pricing'
 import { actionStats } from '@/lib/ai/actions'
 import { untrusted } from '@/lib/haggo/prompt'
-
-type ReadTool = { def: Anthropic.Tool; run: (input: Record<string, unknown>) => Promise<unknown> }
+import { TOOL_CATALOG, TOOL_NAMES } from '@/lib/ai/tools'
+import { TOOL_GROUPS } from '@/lib/ai/actions-core'
+import { PLATFORM_READ_TOOLS, type ReadTool } from '@/lib/haggo/tools/platform'
 
 const H = 3600_000
 const MAX_OUTPUT = 8000
@@ -17,6 +17,17 @@ const bogotaTime = (d: Date) => new Intl.DateTimeFormat('es-CO', { timeZone: 'Am
 const mins = (d: Date | null | undefined) => (d ? Math.round((Date.now() - d.getTime()) / 60_000) : null)
 /** AiAgentAction statuses that still wait for someone: proposed by the model, waiting for approval, or confirmed but not yet run */
 const ACTION_PENDING = ['proposed', 'awaiting_approval', 'confirmed']
+/** An agent's tools by the groups of its screen, plus the catalog tools it does not have (to propose adding). */
+export function toolsByGroup(tools: string[]) {
+  const known = new Set<string>(TOOL_NAMES)
+  const groups: Array<{ grupo: string; nombre: string; activas: string[]; sin_activar: string[] }> = Object.entries(TOOL_GROUPS).map(([group, label]) => {
+    const all: string[] = TOOL_NAMES.filter((n) => TOOL_CATALOG[n].group === group)
+    return { grupo: group, nombre: label, activas: all.filter((n) => tools.includes(n)), sin_activar: all.filter((n) => !tools.includes(n)) }
+  })
+  const unknown = tools.filter((t) => !known.has(t))
+  if (unknown.length) groups.push({ grupo: 'desconocidas', nombre: 'Fuera del catálogo', activas: unknown, sin_activar: [] })
+  return groups
+}
 const actionSummary = (byStatus: Record<string, number>) => ({
   ejecutadas: byStatus.executed ?? 0,
   fallidas: byStatus.failed ?? 0,
@@ -62,12 +73,12 @@ export const READ_TOOLS: Record<string, ReadTool> = {
     },
   },
   agente_ia: {
-    def: { name: 'agente_ia', description: 'Un agente de IA de la bandeja en los últimos 7 días: respuestas, traspasos, costo, acciones que hizo en la plataforma (ejecutadas, fallidas, pendientes) y preguntas que no supo responder.', input_schema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] } },
+    def: { name: 'agente_ia', description: 'Un agente de IA de la bandeja en los últimos 7 días: respuestas, traspasos, costo, acciones que hizo en la plataforma (ejecutadas, fallidas, pendientes), preguntas que no supo responder, sus herramientas por grupo (activas y sin activar) y su modo por canal (piloto o copiloto). El id sale de la foto (aiAgents).', input_schema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] } },
     run: async (i) => {
       const id = String(i.id ?? '')
       const since = new Date(Date.now() - 7 * 24 * H)
       const [agent, replies, handoffs, cost, gaps, actions] = await Promise.all([
-        prisma.aiAgent.findUnique({ where: { id }, select: { id: true, workspaceId: true, name: true, status: true, autopilot: true, model: true, conversations: true, handoffs: true } }),
+        prisma.aiAgent.findUnique({ where: { id }, select: { id: true, workspaceId: true, name: true, status: true, autopilot: true, model: true, conversations: true, handoffs: true, tools: true, channels: true, autopilotChannels: true, copilotChannels: true } }),
         prisma.conversationMessage.count({ where: { aiAgentId: id, direction: 'OUTBOUND', sentAt: { gte: since } } }),
         prisma.conversation.count({ where: { aiAgentId: id, aiHandoffAt: { gte: since }, isTest: false } }),
         prisma.aiCall.aggregate({ where: { agentId: id, createdAt: { gte: since } }, _sum: { costUsd: true }, _count: { _all: true } }),
@@ -75,7 +86,9 @@ export const READ_TOOLS: Record<string, ReadTool> = {
         actionStats({ agentId: id, days: 7 }).catch(() => ({ byStatus: {} as Record<string, number>, byTool: [] })),
       ])
       if (!agent) return { error: 'Agente no encontrado' }
-      return { agente: agent, ultimos_7_dias: { respuestas: replies, traspasos: handoffs, llamadas_ia: cost._count._all, costo_usd: Math.round((cost._sum.costUsd ?? 0) * 100) / 100 }, acciones_7d: actionSummary(actions.byStatus), preguntas_sin_respuesta: gaps.map((g) => ({ gapId: g.id, pregunta: untrusted(g.question.slice(0, 200)) })) }
+      const { tools, channels, autopilotChannels, copilotChannels, ...info } = agent
+      const modo = Array.from(new Set([...channels, ...autopilotChannels, ...copilotChannels])).map((c) => ({ canal: c, modo: agent.autopilot && autopilotChannels.includes(c) ? 'piloto' : copilotChannels.includes(c) ? 'copiloto' : 'sin responder' }))
+      return { agente: info, modo_por_canal: modo, herramientas: toolsByGroup(tools), ultimos_7_dias: { respuestas: replies, traspasos: handoffs, llamadas_ia: cost._count._all, costo_usd: Math.round((cost._sum.costUsd ?? 0) * 100) / 100 }, acciones_7d: actionSummary(actions.byStatus), preguntas_sin_respuesta: gaps.map((g) => ({ gapId: g.id, pregunta: untrusted(g.question.slice(0, 200)) })) }
     },
   },
   acciones_por_chat: {
@@ -309,6 +322,7 @@ export const READ_TOOLS: Record<string, ReadTool> = {
     def: { name: 'funciones', description: 'Funciones y botones de la plataforma (interruptores): clave, nombre, descripción y si están encendidos. Úsalo antes de proponer encender o apagar una.', input_schema: { type: 'object', properties: {} } },
     run: async () => (await prisma.featureFlag.findMany({ orderBy: { key: 'asc' }, take: 60, select: { key: true, name: true, description: true, enabled: true, updatedAt: true } })).map((f) => ({ ...f, description: f.description?.slice(0, 200) ?? null })),
   },
+  ...PLATFORM_READ_TOOLS,
   hallazgos_abiertos: {
     def: { name: 'hallazgos_abiertos', description: 'Los hallazgos que Haggo ya tiene abiertos, para no repetirlos.', input_schema: { type: 'object', properties: {} } },
     run: async () => {
@@ -326,7 +340,8 @@ export async function runReadTool(name: string, input: unknown) {
   if (!tool) return { output: JSON.stringify({ error: `Herramienta desconocida: ${name}` }), isError: true }
   try {
     const out = JSON.stringify(await tool.run(input && typeof input === 'object' ? (input as Record<string, unknown>) : {}))
-    return { output: out.length > MAX_OUTPUT ? `${out.slice(0, MAX_OUTPUT)}…(recortado)` : out, isError: false }
+    const max = tool.maxOutput ?? MAX_OUTPUT
+    return { output: out.length > max ? `${out.slice(0, max)}…(recortado)` : out, isError: false }
   } catch (err) {
     return { output: JSON.stringify({ error: err instanceof Error ? err.message.slice(0, 300) : 'Error' }), isError: true }
   }

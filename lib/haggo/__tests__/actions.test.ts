@@ -150,6 +150,10 @@ const FIXTURES: Record<string, { raw: Record<string, unknown>; before: unknown }
   'config.toggle_feature': { raw: { key: 'whatsapp_float_button', enabled: true }, before: { enabled: false, name: 'Botón de WhatsApp' } },
   'users.set_partner_availability': { raw: { partnerId: 'partner_123456', isAvailable: false }, before: { isAvailable: true, name: 'Juan' } },
   'money.remind_cash_payment': { raw: { paymentId: 'pay_1234567' }, before: { reminderCount: 1, amount: 80000 } },
+  'trust.set_claim': { raw: { key: 'trust_support_247', enabled: false }, before: { enabled: true, name: 'Atención 24/7 por chat' } },
+  'money.set_commission': { raw: { enabled: true, clientRate: 5, partnerRate: 10 }, before: { enabled: false, clientRate: 5, partnerRate: 8 } },
+  'config.set_city_status': { raw: { slug: 'bogota', status: 'COMING_SOON' }, before: { name: 'Bogotá', status: 'INACTIVE' } },
+  'ai_agents.set_tools': { raw: { agentId: 'agent_123456', add: ['crear_solicitud'], remove: [] }, before: { name: 'Soporte', tools: ['buscar_conocimiento'] } },
 }
 
 describe('registro de acciones', () => {
@@ -196,6 +200,36 @@ describe('registro de acciones', () => {
   it('respuestas de vacíos e instrucciones de agentes son de riesgo alto (las leen clientes)', () => {
     expect(getAction('ai_agents.answer_gap')?.risk).toBe('high')
     expect(getAction('ai_agents.update_instructions')?.risk).toBe('high')
+  })
+
+  it('decisiones de producto: riesgo alto, reversibles, y comisiones marcadas como dinero', () => {
+    for (const id of ['trust.set_claim', 'money.set_commission', 'config.set_city_status', 'ai_agents.set_tools']) {
+      const a = getAction(id)!
+      expect(a.risk, id).toBe('high')
+      expect(a.undo && a.unchanged, id).toBeTruthy()
+    }
+    expect(getAction('money.set_commission')!.sideEffects).toContain('changes_money')
+    expect(getAction('trust.set_claim')!.sideEffects).toContain('customer_facing')
+    expect(getAction('money.set_commission')!.parse({ clientRate: 45 }).ok).toBe(false)
+    expect(getAction('money.set_commission')!.parse({}).ok).toBe(false)
+    expect(getAction('trust.set_claim')!.parse({ key: 'inventada', enabled: true }).ok).toBe(false)
+    expect(getAction('ai_agents.set_tools')!.parse({ agentId: 'agent_123456', add: ['borrar_todo'] }).ok).toBe(false)
+    expect(getAction('config.set_city_status')!.parse({ slug: 'bogota', status: 'CERRADA' }).ok).toBe(false)
+  })
+
+  it('no enciende una afirmación sin respaldo', async () => {
+    db.current = {
+      featureFlag: { findMany: async () => [], createMany: async () => ({ count: 0 }) },
+      partnerProfile: { count: async () => 0 }, booking: { count: async () => 0 }, user: { count: async () => 0 },
+      review: { aggregate: async () => ({ _avg: { clientToPartnerRating: null }, _count: { clientToPartnerRating: 0 } }) },
+      cityConfig: { findMany: async () => [] }, service: { count: async () => 0 },
+      platformConfig: { findFirst: async () => ({ commissionEnabled: true, mercadoPagoEnabled: false }) },
+      aiAgent: { count: async () => 0 },
+    }
+    const r = await getAction('trust.set_claim')!.preconditions({ key: 'promo_no_commission', enabled: true })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.reason).toContain('comisiones están encendidas')
+    db.current = null
   })
 
   it('riesgo máximo: solo claves reales del registro', () => {
@@ -283,12 +317,12 @@ describe('Haggo puede encontrar lo que cada acción necesita', () => {
   const SOURCES: Record<string, string[]> = {
     postId: ['marketing'], publicationId: ['marketing'], ideaId: ['marketing'], agentId: ['marketing', 'foto'], gapId: ['agente_ia'], workspaceId: ['agente_ia', 'equipo'],
     conversationId: ['conversaciones_en_espera'], userId: ['equipo'], serviceRequestId: ['solicitudes_sin_propuestas'], incidentId: ['incidentes_abiertos'],
-    key: ['funciones'], partnerId: ['socios', 'resenas'], paymentId: ['dinero'],
+    key: ['funciones', 'configuracion_plataforma'], partnerId: ['socios', 'resenas', 'verificacion_documentos'], paymentId: ['dinero'], slug: ['configuracion_plataforma'],
   }
   it('todo identificador requerido tiene una herramienta de lectura que lo muestra', () => {
     for (const a of ACTIONS) {
       for (const [name, prop] of Object.entries((a.schema.properties ?? {}) as Record<string, { type?: string; enum?: unknown[] }>)) {
-        if (prop.type !== 'string' || prop.enum || !/Id$|^key$/.test(name)) continue
+        if (prop.type !== 'string' || prop.enum || !/Id$|^key$|^slug$/.test(name)) continue
         const tools = SOURCES[name]
         expect(tools, `${a.id}.${name} no tiene de dónde salir`).toBeDefined()
         for (const t of tools!) if (t !== 'foto') expect(READ_TOOLS[t], `${t} no existe`).toBeDefined()

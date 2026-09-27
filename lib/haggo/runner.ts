@@ -9,6 +9,7 @@ import type { HaggoConfig } from '@/lib/haggo/config'
 import { detect, novelDetections, type Detection, type Snapshot } from '@/lib/haggo/detect'
 import { dueJobs, type LastRuns } from '@/lib/haggo/schedule'
 import { takeSnapshot } from '@/lib/haggo/snapshot'
+import { configStatusBlock } from '@/lib/haggo/config-status'
 import { getHaggoConfig, haggoSpend, withHaggoLock } from '@/lib/haggo/store'
 import { READ_TOOL_DEFS, READ_TOOLS, runReadTool } from '@/lib/haggo/tools/read'
 import { ACTION_REASONING, PROPOSE_ACTION_TOOL } from '@/lib/haggo/actions/registry'
@@ -54,7 +55,9 @@ async function context(withActions = true) {
     prisma.haggoMemory.findMany({ where: { kind: { notIn: ['chat_summary', NOTICE_KIND] } }, orderBy: { updatedAt: 'desc' }, take: 20, select: { content: true } }),
   ])
   const system = buildSystem({ directives, memory })
-  return withActions ? [...system, { type: 'text' as const, text: ACTION_REASONING }] : system
+  // Live configuration last: it changes more often than the rest, so the cached prefix stays intact
+  const config = { type: 'text' as const, text: await configStatusBlock() }
+  return withActions ? [...system, { type: 'text' as const, text: ACTION_REASONING }, config] : [...system, config]
 }
 
 /**

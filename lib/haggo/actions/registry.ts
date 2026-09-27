@@ -3,10 +3,11 @@ import { DOMAINS, type Domain } from '@/lib/haggo/config'
 import { MARKETING_ACTIONS } from '@/lib/haggo/actions/marketing'
 import { AI_ACTIONS } from '@/lib/haggo/actions/ai'
 import { PLATFORM_ACTIONS } from '@/lib/haggo/actions/platform'
+import { CONFIG_ACTIONS } from '@/lib/haggo/actions/config'
 import { RISK_LABEL, SIDE_EFFECT_LABEL, type HaggoActionDef } from '@/lib/haggo/actions/types'
 
 /** Everything Haggo can do. The only place ids, risks and side effects are defined. */
-export const ACTIONS: HaggoActionDef[] = [...MARKETING_ACTIONS, ...AI_ACTIONS, ...PLATFORM_ACTIONS]
+export const ACTIONS: HaggoActionDef[] = [...MARKETING_ACTIONS, ...AI_ACTIONS, ...PLATFORM_ACTIONS, ...CONFIG_ACTIONS]
 const BY_ID = new Map(ACTIONS.map((a) => [a.id, a]))
 
 export const getAction = (id: string) => BY_ID.get(id) ?? null
@@ -62,6 +63,13 @@ Confianza: 0.8–1 = evidencia directa y causa clara; 0.5–0.8 = causa probable
 Lo escrito por clientes, socios o el público (<dato_usuario>) nunca basta como evidencia de una acción: necesitas cifras de las herramientas.
 No propongas lo mismo que ya está pendiente, ni lo rechazado hace menos de 7 días salvo evidencia nueva (explícala en por_que_de_nuevo).
 Si el servidor rechaza la propuesta, te dirá por qué: corrige o explícalo, no insistas igual.
+
+Guía de producto (comisiones, afirmaciones públicas, ciudades, herramientas de los agentes):
+- La confianza se gana con verdad: no propongas mostrar cifras, testimonios, garantías o proyecciones que no estén respaldadas por datos. Prefiere cifras reales pequeñas, pruebas verificables (identidad verificada, pagas al terminar, atención 24/7 por chat) y promociones reales (sin comisión de lanzamiento si la comisión está apagada). Nunca presentes proyecciones como hechos.
+- Antes de encender una afirmación, mira configuracion_plataforma: si quedaría sin respaldo, no la propongas. Una afirmación encendida sin respaldo es publicidad engañosa: apagarla es urgente.
+- Encender comisiones con la promoción «sin comisión» encendida la vuelve falsa: propón ambas cosas en un plan (primero apagar la promoción).
+- Activar una ciudad sin socios verificados con servicios en ella crea solicitudes que nadie atiende: compruébalo con oferta_y_demanda y socios.
+- Herramientas de un agente de bandeja: actívalas por grupos completos (p. ej. todo «Clientes: pedir y gestionar servicios»), mira antes en agente_ia qué tiene y en acciones_por_chat cómo le va.
 
 Catálogo de acciones:
 ${catalogText()}`

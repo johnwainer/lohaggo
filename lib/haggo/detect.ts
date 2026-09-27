@@ -1,13 +1,14 @@
 import type { Domain } from '@/lib/haggo/config'
+import { CLAIMS, isClaimKey } from '@/lib/public/claims'
 
 /** The compact picture Haggo looks at each cycle. Numbers only: no customer text. */
 export type Snapshot = {
   at: string
   sales: { today: number; todayDelta: number | null; month: number; monthDelta: number | null; last7: number; prev7: number }
-  bookings: { today: number; pending: number; cancelledToday: number; last7: number; prev7: number }
+  bookings: { today: number; pending: number; cancelledToday: number; last7: number; prev7: number; rescheduledToday?: number }
   requests: { active: number; withoutProposals: number }
   partners: { available: number; verified: number; pendingVerification: number }
-  payouts: { pending: number; failed: number; paymentsToConfirm: number }
+  payouts: { pending: number; failed: number; paymentsToConfirm: number; oldestPendingDays?: number }
   payments: { rejected24h: number; pendingOld: number; refundsOpen: number }
   reviews: { low7d: number }
   search: { total24h: number; zero24h: number }
@@ -16,7 +17,7 @@ export type Snapshot = {
   inbox: { open: number; unassigned: number; waiting: number; aiHandling: number; inboundToday: number; handoffsToday: number }
   aiAgents: Array<{ id: string; name: string; messagesToday: number; handoffsToday: number; openGaps: number; actionsToday?: { executed: number; failed: number; awaiting: number } }>
   /** What the inbox agents did on the platform today (AiAgentAction) and the day's cancellations by origin (BookingEvent) */
-  aiActions: { actionsToday: { executed: number; failed: number; awaiting: number }; chatCancellationsToday: number; cancellationsToday: number }
+  aiActions: { actionsToday: { executed: number; failed: number; awaiting: number }; chatCancellationsToday: number; cancellationsToday: number; awaitingApproval?: number; oldestAwaitingMinutes?: number }
   aiCost: { today: number; month: number }
   aiProviders: { down: Array<{ name: string; reason: string }>; answering: string | null }
   marketing: { inReview: number; failedWeek: number; scheduledToday: number; ideasPending: number; runErrors24h: number; degraded: Array<{ id: string; campaign: string; reason: string }>; editorial?: { held: number; reviewedWeek: number; notApprovedWeek: number; failedWeek: number } }
@@ -24,6 +25,14 @@ export type Snapshot = {
   channels: { problems: string[] }
   system: { cronsFailing: number; cronsLate: number; errorsLastHour: number; criticalIncidents: number }
   budgets: Array<{ workspace: string; pct: number }>
+  /** Partner verification documents waiting for review */
+  docs?: { pending: number; oldestHours: number }
+  catalog?: { servicesWithoutPartners: number; partnersVerifiedNoServices: number }
+  /** Today's requests and bookings by where they were created */
+  origin?: { requestsTodayChat: number; requestsTodayApp: number; bookingsTodayChat: number; bookingsTodayApp: number }
+  /** Public claims that are on without backing (lib/public/claims.ts) */
+  trust?: { unbacked: string[] }
+  config?: { commissionEnabled: boolean; activeCities: number }
 }
 
 export type Severity = 'info' | 'warning' | 'critical'
@@ -58,6 +67,10 @@ export function detect(s: Snapshot): Detection[] {
   if (s.messaging.failed24h >= 5 && s.messaging.failed24h / Math.max(1, s.messaging.sent24h + s.messaging.failed24h) > 0.2) add({ key: 'sys:deliveries-failing', domain: 'system', severity: 'warning', title: `${s.messaging.failed24h} envíos de mensajes fallaron en 24 h`, detail: `${s.messaging.sent24h} enviados.` })
   if (s.security.high24h) add({ key: 'sys:security-high', domain: 'system', severity: 'warning', title: `${plural(s.security.high24h, 'evento de seguridad grave', 'eventos de seguridad graves')} en 24 h`, detail: `${s.security.events24h} eventos en total, ${s.security.blockedIps} IP bloqueadas.` })
   if (s.partners.pendingVerification >= 3) add({ key: 'users:partners-pending', domain: 'users', severity: 'info', title: `${s.partners.pendingVerification} socios activos sin verificar`, detail: 'No reciben solicitudes hasta verificarse.' })
+  if (s.docs && s.docs.pending && s.docs.oldestHours > 48) add({ key: 'ops:docs-pending', domain: 'users', severity: 'warning', title: `${plural(s.docs.pending, 'documento de socio espera', 'documentos de socios esperan')} revisión (el más antiguo hace ${Math.round(s.docs.oldestHours / 24)} días)`, detail: 'Sin revisar, esos socios no se verifican ni reciben solicitudes. Ver verificacion_documentos.' })
+  if (s.payouts.oldestPendingDays != null && s.payouts.oldestPendingDays > 7) add({ key: 'money:payouts-old', domain: 'money', severity: 'warning', title: `Hay un pago a socio pendiente hace ${s.payouts.oldestPendingDays} días`, detail: `${s.payouts.pending} pagos a socios pendientes. Revisar en dinero.` })
+  if (s.catalog && s.catalog.partnersVerifiedNoServices >= 3) add({ key: 'catalog:partners-no-services', domain: 'users', severity: 'info', title: `${s.catalog.partnersVerifiedNoServices} socios verificados sin servicios activos`, detail: `No reciben solicitudes. ${s.catalog.servicesWithoutPartners} servicios del catálogo no tienen socios. Ver verificacion_documentos.` })
+  for (const key of s.trust?.unbacked ?? []) add({ key: `trust:unbacked:${key}`, domain: 'config', severity: 'critical', title: `El sitio afirma «${isClaimKey(key) ? CLAIMS[key].name : key}» sin respaldo`, detail: 'Una afirmación pública encendida sin lo que la hace verdad es publicidad engañosa: apágala (trust.set_claim) o cumple lo que requiere. Ver configuracion_plataforma.' })
   if (s.quality.casesSla) add({ key: 'ops:cases-sla', domain: 'operations', severity: 'warning', title: `${plural(s.quality.casesSla, 'caso', 'casos')} de soporte con el plazo vencido`, detail: `${s.quality.casesOpen} casos abiertos.` })
 
   for (const a of s.aiAgents) {
@@ -67,6 +80,7 @@ export function detect(s: Snapshot): Detection[] {
   }
   const act = s.aiActions
   if (act && act.actionsToday.failed >= 3) add({ key: 'ai:actions-failed', domain: 'ai_agents', severity: 'warning', title: `${act.actionsToday.failed} acciones de los agentes fallaron hoy`, detail: `Los agentes de la bandeja intentaron actuar en cuentas de clientes o socios y ${act.actionsToday.failed === 1 ? 'una falló' : `${act.actionsToday.failed} fallaron`} (${act.actionsToday.executed} ejecutadas, ${act.actionsToday.awaiting} esperando aprobación). Mira acciones_por_chat para ver qué herramienta falla y por qué.` })
+  if (act && act.awaitingApproval && (act.oldestAwaitingMinutes ?? 0) > 30) add({ key: 'ai:actions-awaiting', domain: 'inbox', severity: 'warning', title: `${plural(act.awaitingApproval, 'acción de un agente espera', 'acciones de agentes esperan')} aprobación hace ${act.oldestAwaitingMinutes} min`, detail: 'En copiloto el cliente o socio queda esperando hasta que alguien del equipo apruebe en la bandeja. Ver acciones_por_chat.' })
   if (act && act.chatCancellationsToday >= 3 && act.chatCancellationsToday / Math.max(1, act.cancellationsToday) > 0.3) add({ key: 'ai:chat-cancellations', domain: 'ai_agents', severity: 'warning', title: `${act.chatCancellationsToday} de ${act.cancellationsToday} cancelaciones de hoy salieron del chat`, detail: `Más del 30 % de las cancelaciones del día las hicieron los agentes desde la conversación. Revisar en acciones_por_chat si los clientes lo pidieron o si el agente cancela de más.` })
   if (s.aiProviders.down.length) {
     add({

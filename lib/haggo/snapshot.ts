@@ -3,6 +3,7 @@ import { platformOverview } from '@/lib/admin/overview'
 import { bogotaDayStart } from '@/lib/admin/overview-core'
 import { evaluateBudget, workspaceUsage } from '@/lib/ai/limits'
 import { systemAlerts } from '@/lib/system/health'
+import { trustReport } from '@/lib/public/trust'
 import type { Snapshot } from '@/lib/haggo/detect'
 
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0)
@@ -55,6 +56,7 @@ export async function takeSnapshot(now = new Date()): Promise<Snapshot> {
     failed: sum(rows.filter((r) => r.status === 'failed').map((r) => r._count._all)),
     awaiting: sum(rows.filter((r) => AWAITING.includes(r.status)).map((r) => r._count._all)),
   })
+  const platform = await platformExtras(now, today)
   const budgets = await Promise.all(capped.map(async (w) => ({ workspace: w.name, pct: evaluateBudget(await workspaceUsage(w.id), { costCapUsd: w.aiMonthlyCostCapUsd, callCap: w.aiMonthlyCallCap }).pct })))
   const [rejected24h, pendingOld, refundsOpen, low7d, total24h, zero24h, sent24h, failed24h, events24h, high24h, blockedIps, runErrors24h, pendingVerification] = extra
   const s = o.series
@@ -64,7 +66,7 @@ export async function takeSnapshot(now = new Date()): Promise<Snapshot> {
   return {
     at: now.toISOString(),
     sales: { today: o.sales.today.amount, todayDelta: o.sales.today.delta, month: o.sales.month.amount, monthDelta: o.sales.month.delta, last7: last7(s.sales), prev7: prev7(s.sales) },
-    bookings: { today: o.bookings.today, pending: o.bookings.pending, cancelledToday: o.bookings.cancelledToday, last7: last7(s.bookings), prev7: prev7(s.bookings) },
+    bookings: { today: o.bookings.today, pending: o.bookings.pending, cancelledToday: o.bookings.cancelledToday, last7: last7(s.bookings), prev7: prev7(s.bookings), rescheduledToday: platform.rescheduledToday },
     requests: { active: o.requests.active, withoutProposals: o.requests.withoutProposals },
     partners: { available: o.users.partnersAvailable, verified: o.users.partnersVerified, pendingVerification },
     payments: { rejected24h, pendingOld, refundsOpen },
@@ -72,7 +74,7 @@ export async function takeSnapshot(now = new Date()): Promise<Snapshot> {
     search: { total24h, zero24h },
     messaging: { sent24h, failed24h },
     security: { events24h, high24h, blockedIps },
-    payouts: { pending: o.payouts.pending, failed: o.payouts.failed, paymentsToConfirm: o.payouts.paymentsToConfirm },
+    payouts: { pending: o.payouts.pending, failed: o.payouts.failed, paymentsToConfirm: o.payouts.paymentsToConfirm, oldestPendingDays: platform.oldestPayoutDays },
     inbox: { open: o.inbox.open, unassigned: o.inbox.unassigned, waiting: o.inbox.waiting, aiHandling: o.inbox.aiHandling, inboundToday: o.inbox.today.inbound, handoffsToday: o.inbox.today.handoffs },
     aiAgents: o.ai.agents.map((a) => ({
       id: a.id, name: a.name, messagesToday: a.messagesToday,
@@ -80,7 +82,7 @@ export async function takeSnapshot(now = new Date()): Promise<Snapshot> {
       openGaps: gaps.find((g) => g.agentId === a.id)?._count._all ?? 0,
       actionsToday: actionsOf(actionRows.filter((r) => r.agentId === a.id)),
     })),
-    aiActions: { actionsToday: actionsOf(actionRows), chatCancellationsToday, cancellationsToday },
+    aiActions: { actionsToday: actionsOf(actionRows), chatCancellationsToday, cancellationsToday, awaitingApproval: platform.awaiting.count, oldestAwaitingMinutes: platform.awaiting.oldestMinutes },
     aiCost: { today: round(o.ai.costToday), month: round(o.ai.costMonth) },
     aiProviders: { down: sys.aiDown, answering: sys.aiAnswering },
     marketing: {
@@ -97,5 +99,42 @@ export async function takeSnapshot(now = new Date()): Promise<Snapshot> {
       criticalIncidents,
     },
     budgets,
+    docs: platform.docs,
+    catalog: platform.catalog,
+    origin: platform.origin,
+    trust: platform.trust,
+    config: platform.config,
+  }
+}
+
+const zero = <T,>(v: T) => () => v
+
+/** Documents, catalog, payouts, approvals, origin and configuration. Each part falls back to zeros. */
+async function platformExtras(now: Date, today: Date) {
+  const H = 3600_000
+  const [docs, servicesWithoutPartners, partnersVerifiedNoServices, payout, awaiting, rescheduledToday, origin, trust] = await Promise.all([
+    prisma.verificationDocument.aggregate({ where: { status: 'PENDING' }, _count: { _all: true }, _min: { createdAt: true } }).then((r) => ({ pending: r._count._all, oldestHours: r._min.createdAt ? Math.round((now.getTime() - r._min.createdAt.getTime()) / H) : 0 })).catch(zero({ pending: 0, oldestHours: 0 })),
+    prisma.service.count({ where: { partners: { none: { active: true, partner: { verified: true, isActive: true } } } } }).catch(zero(0)),
+    prisma.partnerProfile.count({ where: { verified: true, isActive: true, services: { none: { active: true } } } }).catch(zero(0)),
+    prisma.payout.aggregate({ where: { status: { in: ['PENDING', 'PROCESSING'] } }, _min: { createdAt: true } }).then((r) => (r._min.createdAt ? Math.floor((now.getTime() - r._min.createdAt.getTime()) / (24 * H)) : 0)).catch(zero(0)),
+    prisma.aiAgentAction.aggregate({ where: { status: 'awaiting_approval' }, _count: { _all: true }, _min: { createdAt: true } }).then((r) => ({ count: r._count._all, oldestMinutes: r._min.createdAt ? Math.round((now.getTime() - r._min.createdAt.getTime()) / 60_000) : 0 })).catch(zero({ count: 0, oldestMinutes: 0 })),
+    prisma.bookingEvent.count({ where: { type: 'reschedule', createdAt: { gte: today } } }).catch(zero(0)),
+    Promise.all([
+      prisma.serviceRequest.count({ where: { createdAt: { gte: today }, origin: 'chat' } }),
+      prisma.serviceRequest.count({ where: { createdAt: { gte: today }, origin: { not: 'chat' } } }),
+      prisma.booking.count({ where: { createdAt: { gte: today }, origin: 'chat' } }),
+      prisma.booking.count({ where: { createdAt: { gte: today }, origin: { not: 'chat' } } }),
+    ]).then(([requestsTodayChat, requestsTodayApp, bookingsTodayChat, bookingsTodayApp]) => ({ requestsTodayChat, requestsTodayApp, bookingsTodayChat, bookingsTodayApp })).catch(zero({ requestsTodayChat: 0, requestsTodayApp: 0, bookingsTodayChat: 0, bookingsTodayApp: 0 })),
+    trustReport().then((t) => ({ unbacked: t.unbacked.map((u) => u.key as string), commissionEnabled: t.facts.commissionEnabled, activeCities: t.facts.activeCities.length })).catch(zero({ unbacked: [] as string[], commissionEnabled: false, activeCities: 0 })),
+  ])
+  return {
+    docs,
+    catalog: { servicesWithoutPartners, partnersVerifiedNoServices },
+    oldestPayoutDays: payout,
+    awaiting,
+    rescheduledToday,
+    origin,
+    trust: { unbacked: trust.unbacked },
+    config: { commissionEnabled: trust.commissionEnabled, activeCities: trust.activeCities },
   }
 }
