@@ -9,7 +9,7 @@ import { applySignature, formatForChannel, parseMarkers } from '@/lib/ai/format'
 import { buildSystem, type CommentPromptContext } from '@/lib/ai/prompt'
 import type { CommentSignals } from '@/lib/ai/comments-core'
 import { recordGap, retrieve, type KnowledgeChunk, type Retrieval } from '@/lib/ai/knowledge'
-import { buildToolDefs, executeTool, isWriteTool, toolGuidance, type ToolCallRecord, type ToolRunState } from '@/lib/ai/tools'
+import { buildToolDefs, executeTool, toolGuidance, toolsForMode, type ToolCallRecord, type ToolMode, type ToolRunState } from '@/lib/ai/tools'
 import { auxBudgetAvailable, checkWorkspaceBudget } from '@/lib/ai/limits'
 import type { UsageTokens } from '@/lib/ai/pricing'
 import type { AiCallKind } from '@/lib/ai/calls'
@@ -175,8 +175,8 @@ export const AgentRuntimeService = {
   async reply(opts: ReplyOptions): Promise<ReplyResult> {
     // In copilot mode the agent only reads: tools that write stay out of its reach entirely
     // Public comments come from anyone: like the copilot, the agent only reads there (no accounts, tasks or status changes)
-    const readOnly = opts.copilot || Boolean(opts.comment)
-    const agent = readOnly ? { ...opts.agent, tools: opts.agent.tools.filter((t) => !isWriteTool(t)) } : opts.agent
+    const agent = { ...opts.agent, tools: toolsForMode(opts.agent.tools, { copilot: Boolean(opts.copilot), comment: Boolean(opts.comment) }) }
+    const mode: ToolMode = opts.dryRun && !opts.copilot ? 'playground' : opts.copilot ? 'copilot' : 'autopilot'
     const now = opts.now ?? new Date()
     const requestedModel = await resolveModel(agent)
     const result: ReplyResult = {
@@ -222,7 +222,7 @@ export const AgentRuntimeService = {
     const state: ToolRunState = { handoff: null, chosenOutput: null, chunks: [] }
     const toolCtx = {
       agent, workspaceId: opts.workspaceId, conversationId: opts.conversationId, userId: opts.userId,
-      contact: { name: opts.contact.name, phone: opts.contact.phone, channel: opts.channel }, dryRun: opts.dryRun, state,
+      contact: { name: opts.contact.name, phone: opts.contact.phone, channel: opts.channel }, dryRun: opts.dryRun, mode, state,
     }
 
     let final: Anthropic.Message | null = null

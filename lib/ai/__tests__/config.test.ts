@@ -152,7 +152,7 @@ describe('crear cuentas desde la bandeja', () => {
   it('en el área de pruebas crea en seco y valida el correo', async () => {
     const ctx = {
       agent: { id: 'a', name: 'S', tools: ['crear_cuenta_cliente'], crmModules: [], webhookUrl: null },
-      workspaceId: 'w', conversationId: null, userId: null, contact: { name: null, phone: null, channel: 'WHATSAPP' }, dryRun: true,
+      workspaceId: 'w', conversationId: null, userId: null, contact: { name: null, phone: null, channel: 'WHATSAPP' }, dryRun: true, mode: 'playground' as const,
       state: { handoff: null, chosenOutput: null, chunks: [] },
     }
     const ok = await executeTool('crear_cuenta_cliente', { nombre: 'Ana Pérez', correo: 'ana@x.co' }, ctx)
@@ -166,7 +166,7 @@ describe('crear cuentas desde la bandeja', () => {
   it('un agente sin la capacidad no puede ejecutarla', async () => {
     const r = await executeTool('crear_cuenta_cliente', { nombre: 'Ana', correo: 'ana@x.co' }, {
       agent: { id: 'a', name: 'S', tools: [], crmModules: [], webhookUrl: null },
-      workspaceId: 'w', conversationId: 'c', userId: null, contact: { name: null, phone: null, channel: 'WHATSAPP' }, dryRun: false,
+      workspaceId: 'w', conversationId: 'c', userId: null, contact: { name: null, phone: null, channel: 'WHATSAPP' }, dryRun: false, mode: 'autopilot' as const,
       state: { handoff: null, chosenOutput: null, chunks: [] },
     })
     expect(r.isError).toBe(true)
@@ -183,7 +183,7 @@ describe('crear cuenta desde el chat: sin fugas', () => {
 describe('crear cuenta de socio desde el chat', () => {
   const ctx = (tools: string[]) => ({
     agent: { id: 'a', name: 'S', tools, crmModules: [], webhookUrl: null },
-    workspaceId: 'w', conversationId: null, userId: null, contact: { name: null, phone: null, channel: 'WHATSAPP' }, dryRun: true,
+    workspaceId: 'w', conversationId: null, userId: null, contact: { name: null, phone: null, channel: 'WHATSAPP' }, dryRun: true, mode: 'playground' as const,
     state: { handoff: null, chosenOutput: null, chunks: [] },
   })
   it('activable por agente, independiente de la de clientes', () => {

@@ -6,6 +6,8 @@ import { assertPublicHttpsUrl } from '@/lib/ai/net'
 import { CATALOG_TOPICS, CRM_MODULES, catalogLookup, crmLookup } from '@/lib/ai/platform-data'
 import { ACCESS_LINK_TTL_HOURS, MAX_PARTNER_SERVICES, createAccountFromContact, emailAccessLink, emailProviderReady, resolvePartnerChoices, validateAccountInput, type AccountRole } from '@/lib/accounts/from-contact'
 import { maskEmail } from '@/lib/ai/platform-data'
+import { TOOL_GROUPS, dailyLimitFor, type ToolGroup } from '@/lib/ai/actions-core'
+import { PLATFORM_TOOLS, runPlatformTool, type PlatformToolName } from '@/lib/ai/platform-tools'
 
 /** Account-creation attempts an AI agent may make per conversation per day (anti-abuse). */
 export const MAX_ACCOUNT_ATTEMPTS_PER_DAY = 3
@@ -15,7 +17,7 @@ export const ACCOUNT_TOOL_FAILURE = 'No se pudo crear la cuenta con esos datos. 
 export { CRM_MODULES }
 export type { CrmModule } from '@/lib/ai/platform-data'
 
-export type ToolName =
+export type InboxToolName =
   | 'etiquetar_contacto'
   | 'guardar_dato'
   | 'cambiar_estado'
@@ -28,25 +30,34 @@ export type ToolName =
   | 'crear_cuenta_cliente'
   | 'crear_cuenta_socio'
 
-type CatalogEntry = {
+export type ToolName = InboxToolName | PlatformToolName
+
+export type CatalogEntry = {
   label: string
   description: string
   /** When to use it and when not: tools get over-used unless the prompt says so. */
   guidance: string
   writes: boolean
+  /** Where the agent screen lists it */
+  group: ToolGroup
+  /** Money or commitment: the person must say yes before it runs (schema carries `confirmado`) */
+  confirm?: boolean
+  /** Platform tools act on the linked user's account through lib/*\/ops.ts (origin chat) */
+  platform?: boolean
   schema: (agent: ToolAgent) => Anthropic.Tool.InputSchema
 }
 
 export type ToolAgent = { id: string; name: string; tools: string[]; crmModules: string[]; webhookUrl: string | null }
 
-const str = (description: string) => ({ type: 'string', description })
+export const str = (description: string) => ({ type: 'string', description })
 
-export const TOOL_CATALOG: Record<ToolName, CatalogEntry> = {
+const INBOX_TOOLS: Record<InboxToolName, CatalogEntry> = {
   etiquetar_contacto: {
     label: 'Etiquetar contacto',
     description: 'Añade una etiqueta a la conversación del contacto (p. ej. "interesado", "reclamo").',
     guidance: 'Úsala solo cuando el cliente muestre claramente una intención o situación que el equipo quiera filtrar después. No etiquetes en cada mensaje ni con etiquetas inventadas sin motivo.',
     writes: true,
+    group: 'inbox',
     schema: () => ({ type: 'object', properties: { etiqueta: str('Etiqueta corta en minúsculas') }, required: ['etiqueta'], additionalProperties: false }),
   },
   guardar_dato: {
@@ -54,6 +65,7 @@ export const TOOL_CATALOG: Record<ToolName, CatalogEntry> = {
     description: 'Guarda un dato que el cliente te dio (nombre, correo, ciudad, dirección…) en la ficha de la conversación.',
     guidance: 'Úsala cuando el cliente te dé explícitamente un dato útil. Nunca guardes datos que tú supones ni datos de pago.',
     writes: true,
+    group: 'inbox',
     schema: () => ({ type: 'object', properties: { campo: str('Nombre del campo, p. ej. "correo"'), valor: str('Valor exacto que dio el cliente') }, required: ['campo', 'valor'], additionalProperties: false }),
   },
   cambiar_estado: {
@@ -61,6 +73,7 @@ export const TOOL_CATALOG: Record<ToolName, CatalogEntry> = {
     description: 'Cambia el estado de la conversación.',
     guidance: 'Marca "resuelta" solo cuando el cliente confirme que ya no necesita nada más. No cierres conversaciones con preguntas pendientes.',
     writes: true,
+    group: 'inbox',
     schema: () => ({ type: 'object', properties: { estado: { type: 'string', enum: ['abierta', 'en_curso', 'resuelta', 'cerrada'] } }, required: ['estado'], additionalProperties: false }),
   },
   asignar_a_persona: {
@@ -68,6 +81,7 @@ export const TOOL_CATALOG: Record<ToolName, CatalogEntry> = {
     description: 'Traspasa la conversación a una persona del equipo.',
     guidance: 'Úsala cuando el cliente pida hablar con una persona, cuando haya una queja seria o cuando la gestión requiera a alguien del equipo. No la uses para preguntas que puedes responder con el conocimiento.',
     writes: true,
+    group: 'inbox',
     schema: () => ({ type: 'object', properties: { motivo: str('Motivo breve del traspaso para el equipo') }, required: ['motivo'], additionalProperties: false }),
   },
   crear_tarea: {
@@ -75,6 +89,7 @@ export const TOOL_CATALOG: Record<ToolName, CatalogEntry> = {
     description: 'Crea una tarea de seguimiento para el equipo sobre este contacto.',
     guidance: 'Úsala cuando haya que hacer algo después (devolver una llamada, enviar una cotización). No la uses para cosas que resuelves en este mismo chat.',
     writes: true,
+    group: 'inbox',
     schema: () => ({ type: 'object', properties: { titulo: str('Qué hay que hacer'), en_horas: { type: 'number', description: 'En cuántas horas vence (0 = sin fecha)' } }, required: ['titulo', 'en_horas'], additionalProperties: false }),
   },
   avisar_webhook: {
@@ -82,6 +97,7 @@ export const TOOL_CATALOG: Record<ToolName, CatalogEntry> = {
     description: 'Envía un aviso con un resumen al sistema externo del negocio.',
     guidance: 'Úsala solo cuando se cumpla el objetivo o haya un dato que el negocio necesite recibir de inmediato. Una vez por hecho, no en cada mensaje.',
     writes: true,
+    group: 'inbox',
     schema: () => ({ type: 'object', properties: { resumen: str('Resumen en una o dos frases'), datos: str('Datos relevantes en texto o JSON') }, required: ['resumen', 'datos'], additionalProperties: false }),
   },
   buscar_en_conocimiento: {
@@ -89,6 +105,7 @@ export const TOOL_CATALOG: Record<ToolName, CatalogEntry> = {
     description: 'Busca en la base de conocimiento del negocio.',
     guidance: 'Úsala cuando el conocimiento que ya tienes en el contexto no responde la pregunta. No la uses para saludos ni para preguntas que ya respondiste.',
     writes: false,
+    group: 'inbox',
     schema: () => ({ type: 'object', properties: { pregunta: str('Qué quieres encontrar') }, required: ['pregunta'], additionalProperties: false }),
   },
   consultar_catalogo: {
@@ -96,6 +113,7 @@ export const TOOL_CATALOG: Record<ToolName, CatalogEntry> = {
     description: 'Consulta datos públicos de LoHaggo: servicios disponibles con precio base, duración y cuántos socios verificados los ofrecen; ciudades activas y próximas; medios de pago habilitados y tarifas.',
     guidance: 'Úsala cuando pregunten qué servicios hay, cuánto cuesta un servicio, en qué ciudades operamos o cómo se puede pagar. Para un servicio concreto usa tema "servicios" y escribe el nombre en busqueda; para todo el catálogo deja busqueda vacía. El precio base es un "desde": el precio final lo pone el socio en su propuesta.',
     writes: false,
+    group: 'inbox',
     schema: () => ({
       type: 'object',
       properties: { tema: { type: 'string', enum: [...CATALOG_TOPICS] }, busqueda: str('Palabra del servicio buscado, o vacío para todo') },
@@ -108,6 +126,7 @@ export const TOOL_CATALOG: Record<ToolName, CatalogEntry> = {
     description: 'Crea la cuenta de cliente en LoHaggo de la persona con la que hablas y le envía a su correo un enlace para crear su contraseña.',
     guidance: 'Úsala solo cuando la persona quiera registrarse o necesite cuenta para pedir un servicio, después de pedirle su nombre completo y su correo y confirmarle el correo leyéndoselo. Nunca la uses si consultar datos del usuario muestra que ya tiene cuenta, ni para crear cuentas de otras personas ni de socios (para socios usa crear_cuenta_socio si la tienes; si no, envíalo a lohaggo.com/unete). El enlace de acceso llega a su correo, no al chat: dile que revise su bandeja de entrada y spam, y que vence en ' + ACCESS_LINK_TTL_HOURS + ' horas. Nunca inventes ni pidas un enlace. Si la herramienta dice que no se pudo, repite exactamente la alternativa que te da.',
     writes: true,
+    group: 'inbox',
     schema: () => ({
       type: 'object',
       properties: { nombre: str('Nombre completo de la persona'), correo: str('Correo que la persona confirmó') },
@@ -120,6 +139,7 @@ export const TOOL_CATALOG: Record<ToolName, CatalogEntry> = {
     description: 'Crea la cuenta de socio (profesional que ofrece servicios) de la persona con la que hablas, sin verificar, y le envía a su correo un enlace para crear su contraseña y subir sus documentos.',
     guidance: 'Úsala solo cuando la persona quiera trabajar como socio en LoHaggo, después de pedirle nombre completo, correo (confírmaselo leyéndoselo), ciudad y de 1 a ' + MAX_PARTNER_SERVICES + ' servicios que ofrece. Usa consultar catálogo para saber los nombres exactos de servicios y ciudades antes de llamarla. Nunca la uses si ya tiene cuenta, ni para otras personas. Explícale que la cuenta queda sin verificar hasta que suba su documento de identidad y el equipo lo apruebe, y que sin verificación no recibe solicitudes. El enlace llega a su correo, no al chat: dile que revise bandeja de entrada y spam, y que vence en ' + ACCESS_LINK_TTL_HOURS + ' horas. Si la herramienta dice que no se pudo, repite exactamente la alternativa que te da.',
     writes: true,
+    group: 'inbox',
     schema: () => ({
       type: 'object',
       properties: {
@@ -137,6 +157,7 @@ export const TOOL_CATALOG: Record<ToolName, CatalogEntry> = {
     description: 'Consulta los datos en la plataforma de la persona que atiendes (solo los suyos): su cuenta y, como cliente, reservas, solicitudes y pagos; como socio, estado de verificación, documentos, servicios, reservas, propuestas y pagos.',
     guidance: 'Úsala cuando la persona pregunte por algo de su cuenta, sus reservas, solicitudes, pagos o, si es socio, su verificación, documentos, servicios, propuestas o pagos. Elige el módulo que responde la pregunta; no consultes módulos que no hacen falta. Si responde "no disponible", di que no puedes consultarlo ahora; nunca afirmes que no tiene registros. Si responde que no es socio, trátala como cliente o aspirante.',
     writes: false,
+    group: 'inbox',
     schema: (agent) => ({
       type: 'object',
       properties: { modulo: { type: 'string', enum: agent.crmModules.filter((m) => m in CRM_MODULES) } },
@@ -146,7 +167,17 @@ export const TOOL_CATALOG: Record<ToolName, CatalogEntry> = {
   },
 }
 
+export const TOOL_CATALOG: Record<ToolName, CatalogEntry> = { ...INBOX_TOOLS, ...PLATFORM_TOOLS }
+
 export const TOOL_NAMES = Object.keys(TOOL_CATALOG) as ToolName[]
+
+/** Catalog for the admin screen: grouped, with what each needs (confirmation, daily limit). */
+export function toolCatalogForAdmin() {
+  return TOOL_NAMES.map((name) => {
+    const t = TOOL_CATALOG[name]
+    return { name, label: t.label, description: t.description, writes: t.writes, group: t.group, groupLabel: TOOL_GROUPS[t.group], confirm: Boolean(t.confirm), platform: Boolean(t.platform), dailyLimit: dailyLimitFor(name) }
+  })
+}
 
 /** Tool list in catalog order (stable → cacheable prefix). Only what the agent has in tools[]. */
 export function agentToolNames(agent: ToolAgent): ToolName[] {
@@ -190,6 +221,13 @@ export type ToolRunState = {
   chunks: KnowledgeChunk[]
 }
 
+/**
+ * autopilot: the agent answers alone and platform actions run after the person's yes.
+ * copilot: a person sends the replies; platform actions wait for that person's approval in the inbox.
+ * playground: nothing is written.
+ */
+export type ToolMode = 'autopilot' | 'copilot' | 'playground'
+
 export type ToolContext = {
   agent: ToolAgent
   workspaceId: string
@@ -199,6 +237,7 @@ export type ToolContext = {
   contact: { name: string | null; phone: string | null; channel: string }
   /** Playground: tools that write run dry; reads are real. */
   dryRun: boolean
+  mode: ToolMode
   state: ToolRunState
 }
 
@@ -296,6 +335,7 @@ async function runOne(name: string, input: Record<string, unknown>, ctx: ToolCon
       return `Salida "${s('salida')}" elegida.`
     }
     default:
+      if (name in PLATFORM_TOOLS) return runPlatformTool(name as PlatformToolName, input, ctx)
       return `Herramienta "${name}" no disponible.`
   }
 }
@@ -349,6 +389,21 @@ async function createAccountFromChat(role: AccountRole, input: Record<string, un
 
 export function isWriteTool(name: string) {
   return (TOOL_CATALOG as Record<string, CatalogEntry | undefined>)[name]?.writes ?? false
+}
+
+export function isPlatformTool(name: string) {
+  return Boolean((TOOL_CATALOG as Record<string, CatalogEntry | undefined>)[name]?.platform)
+}
+
+/**
+ * Tools a mode may see. Copilot and public comments drop the inbox tools that write (they act on the
+ * conversation right away); platform tools stay in copilot because there they only propose, and a person
+ * approves them from the inbox. Comments never get platform tools: anyone can comment.
+ */
+export function toolsForMode(tools: string[], p: { copilot: boolean; comment: boolean }) {
+  if (p.comment) return tools.filter((t) => !isWriteTool(t))
+  if (p.copilot) return tools.filter((t) => !isWriteTool(t) || isPlatformTool(t))
+  return tools
 }
 
 export async function executeTool(name: string, input: Record<string, unknown>, ctx: ToolContext): Promise<ToolCallRecord> {

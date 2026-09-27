@@ -95,6 +95,17 @@ function rulesBlock(agent: PromptAgent, ctx: Pick<PromptContext, 'toolGuidance' 
   ]
   if (ctx.toolGuidance.trim()) {
     sections.push('', 'Herramientas. Tenerlas no obliga a usarlas; úsalas solo cuando corresponda:', ctx.toolGuidance.trim())
+    if (/\b(crear_solicitud|aceptar_propuesta|enviar_propuesta|reportar_pago|confirmar_pago|cancelar_reserva|reprogramar_reserva|cambiar_estado_reserva|calificar|registrar_cuenta_bancaria|subir_documento|gestionar_servicio)\b/.test(ctx.toolGuidance)) {
+      sections.push(
+        '',
+        'Cuando gestiones la cuenta de la persona (solicitudes, propuestas, reservas, pagos, calificaciones, perfil de socio):',
+        '- Actúas solo sobre la cuenta vinculada a esta conversación. Si no está vinculada, primero vincúlala o crea la cuenta; nunca operes con datos de otra persona ni con referencias que la persona te dicte.',
+        '- Reúne los datos preguntando una cosa a la vez; luego resume exactamente lo que vas a hacer (qué, cuándo, dónde, cuánto) y pide confirmación. Solo con un sí claro llamas la herramienta con confirmado: true. «Ok», «dale», «sí» cuentan; una pregunta o un cambio no.',
+        '- Nunca inventes precios, socios, fechas ni estados: solo lo que devuelven las herramientas. Los precios del catálogo son «desde».',
+        '- Si una herramienta dice que no se pudo, explícalo con tus palabras y ofrece la alternativa que te dio; no reintentes lo mismo.',
+        '- Ante disputas de pago, quejas serias o si la persona duda, ofrece que una persona del equipo continúe y usa [[HANDOFF]] o asignar_a_persona.',
+      )
+    }
   }
   return sections.join('\n').replace(/\n{3,}/g, '\n\n').trim()
 }
@@ -149,7 +160,7 @@ function contextBlock(ctx: PromptContext) {
   const lines = [
     `Fecha y hora actuales: hoy es ${ctx.nowText} (zona horaria ${ctx.timezone}). Úsala para interpretar "hoy", "mañana" y horarios.`,
     `Canal: ${CHANNEL_LABEL[ctx.channel] || ctx.channel}.`,
-    `Cliente: ${ctx.contact.name?.trim() || 'sin nombre conocido'}${ctx.contact.linkedUser ? ' (usuario registrado en la plataforma)' : ''}.`,
+    `Cliente: ${ctx.contact.name?.trim() || 'sin nombre conocido'}${ctx.contact.linkedUser ? ' (conversación vinculada a su cuenta de la plataforma: puedes consultar y gestionar su cuenta)' : ' (conversación NO vinculada a ninguna cuenta: para gestionar su cuenta primero vincúlala o créala)'}.`,
     ctx.contact.tags.length ? `Etiquetas: ${ctx.contact.tags.join(', ')}.` : '',
     fields.length ? `Datos guardados: ${fields.join('; ')}.` : '',
     ctx.summary ? `Resumen de la conversación anterior:\n${ctx.summary}` : '',
