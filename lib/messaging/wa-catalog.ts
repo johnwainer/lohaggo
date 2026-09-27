@@ -1302,6 +1302,135 @@ export const WA_CATALOG: WaCatalogEntry[] = [
     "title": "Registrar en la app",
     "url": "https://www.lohaggo.com/{{3}}"
   }
+},
+{
+  "code": "B1",
+  "name": "lh_cliente_cuenta_creada_v3",
+  "category": "UTILITY",
+  "body": "✅ Hola {{1}}, se creó tu cuenta de cliente en LoHaggo. Desde ella puedes ver el estado de tus solicitudes y reservas.",
+  "variables": {
+    "1": "Ana",
+    "2": "dashboard"
+  },
+  "quickReplies": [],
+  "url": {
+    "title": "Ver mi cuenta",
+    "url": "https://www.lohaggo.com/{{2}}"
+  }
+},
+{
+  "code": "B4",
+  "name": "lh_cliente_sin_propuestas_v3",
+  "category": "UTILITY",
+  "body": "⏳ Hola {{1}}, tu solicitud #{{2}} de *{{3}}* aún no tiene propuestas y la volvimos a enviar a los socios. Puedes ajustar la fecha o el presupuesto respondiendo este mensaje.",
+  "variables": {
+    "1": "Ana",
+    "2": "A1B2C3",
+    "3": "Pintura"
+  },
+  "quickReplies": [
+    {
+      "title": "Ajustar solicitud",
+      "id": "request_adjust"
+    },
+    {
+      "title": "Esperar",
+      "id": "request_wait"
+    }
+  ],
+  "url": null
+},
+{
+  "code": "B6",
+  "name": "lh_cliente_solicitud_vencida_v3",
+  "category": "UTILITY",
+  "body": "📋 Hola {{1}}, tu solicitud #{{2}} de *{{3}}* venció sin una propuesta aceptada. Puedes reactivarla por 24 horas respondiendo este mensaje.",
+  "variables": {
+    "1": "Ana",
+    "2": "A1B2C3",
+    "3": "Electricidad",
+    "4": "dashboard?tab=requests"
+  },
+  "quickReplies": [
+    {
+      "title": "Reactivar",
+      "id": "request_reactivate"
+    }
+  ],
+  "url": {
+    "title": "Ver solicitud",
+    "url": "https://www.lohaggo.com/{{4}}"
+  }
+},
+{
+  "code": "B7",
+  "name": "lh_cliente_solicitud_cancelada_v3",
+  "category": "UTILITY",
+  "body": "✅ Hola {{1}}, confirmamos la cancelación de tu solicitud #{{2}} de *{{3}}*. No recibirás más propuestas para esta solicitud.",
+  "variables": {
+    "1": "Ana",
+    "2": "A1B2C3",
+    "3": "Pintura"
+  },
+  "quickReplies": [],
+  "url": null
+},
+{
+  "code": "C7",
+  "name": "lh_socio_perfil_activo_v3",
+  "category": "UTILITY",
+  "body": "✅ Hola {{1}}, aprobamos tu documento de identidad y tu cuenta de socio #{{2}} quedó verificada. Recibirás avisos de las solicitudes de tus servicios activos.",
+  "variables": {
+    "1": "Carlos",
+    "2": "A1B2C3"
+  },
+  "quickReplies": [],
+  "url": null
+},
+{
+  "code": "C13",
+  "name": "lh_socio_propuesta_no_elegida_v3",
+  "category": "UTILITY",
+  "body": "📋 Hola {{1}}, la solicitud #{{2}} de *{{3}}* se cerró con otra propuesta. Tu propuesta para esta solicitud ya no está activa.",
+  "variables": {
+    "1": "Carlos",
+    "2": "A1B2C3",
+    "3": "Pintura"
+  },
+  "quickReplies": [],
+  "url": null
+},
+{
+  "code": "C22",
+  "name": "lh_socio_servicio_completado_v3",
+  "category": "UTILITY",
+  "body": "✅ Hola {{1}}, la reserva #{{2}} de *{{3}}* quedó marcada como completada. Falta confirmar el pago y calificar al cliente desde tu panel o respondiendo este mensaje.",
+  "variables": {
+    "1": "Carlos",
+    "2": "A1B2C3",
+    "3": "Plomería"
+  },
+  "quickReplies": [],
+  "url": null
+},
+{
+  "code": "D7",
+  "name": "lh_admin_solicitud_sin_socios_v3",
+  "category": "UTILITY",
+  "body": "📭 Hola {{1}}, la solicitud #{{2}} de *{{3}}* en {{4}} sigue sin propuestas después de {{5}} horas de publicada. Revísala en el panel.",
+  "variables": {
+    "1": "Juan",
+    "2": "A1B2C3",
+    "3": "Pintura",
+    "4": "Belén",
+    "5": "4",
+    "6": "admin/service-requests"
+  },
+  "quickReplies": [],
+  "url": {
+    "title": "Ver solicitud",
+    "url": "https://www.lohaggo.com/{{6}}"
+  }
 }
 ]
 

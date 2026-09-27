@@ -62,15 +62,15 @@ type BookingData = { id: string; when: Date; service: string; price?: number; cl
 export const WA = {
   A1: (p: { code: string; codeId: string }) => spec('A1', [['lh_codigo_verificacion', { 1: p.code }]], E('ContactLinkCode', p.codeId)),
 
-  B1: (p: { userId: string; name: string; suffix: string }) => spec('B1', [['lh_cliente_cuenta_creada', { 1: client(p.name), 2: p.suffix }]], E('User', p.userId)),
+  B1: (p: { userId: string; name: string; suffix: string }) => spec('B1', [['lh_cliente_cuenta_creada_v3', { 1: client(p.name), 2: p.suffix }], ['lh_cliente_cuenta_creada', { 1: client(p.name), 2: p.suffix }]], E('User', p.userId)),
   B3: (p: { proposalId: string; clientName: string; service: string; price: number; partnerName: string }) =>
     spec('B3', [['lh_cliente_nueva_propuesta', { 1: client(p.clientName), 2: p.service, 3: waMoney(p.price), 4: partner(p.partnerName), 5: 'dashboard?tab=requests' }]], E('Proposal', p.proposalId)),
-  B4: (p: { requestId: string; clientName: string; service: string }) => spec('B4', [['lh_cliente_sin_propuestas', { 1: client(p.clientName), 2: p.service }]], E('ServiceRequest', p.requestId)),
+  B4: (p: { requestId: string; clientName: string; service: string }) => spec('B4', [['lh_cliente_sin_propuestas_v3', { 1: client(p.clientName), 2: waRef(p.requestId), 3: p.service }], ['lh_cliente_sin_propuestas', { 1: client(p.clientName), 2: p.service }]], E('ServiceRequest', p.requestId)),
   B5: (p: { requestId: string; clientName: string; service: string; expiresAt: Date; proposals: number; now?: Date }) =>
     spec('B5', [['lh_cliente_solicitud_por_vencer_v2', { 1: client(p.clientName), 2: p.service, 3: waDuration(p.expiresAt.getTime() - (p.now ?? new Date()).getTime()), 4: p.proposals, 5: 'dashboard?tab=requests' }]], E('ServiceRequest', p.requestId), { dedupeWindowMs: 20 * 3600_000 }),
   B6: (p: { requestId: string; clientName: string; service: string }) =>
-    spec('B6', [['lh_cliente_solicitud_vencida', { 1: client(p.clientName), 2: p.service, 3: 'dashboard?tab=requests' }]], E('ServiceRequest', p.requestId), { dedupeWindowMs: 20 * 3600_000 }),
-  B7: (p: { requestId: string; clientName: string; service: string }) => spec('B7', [['lh_cliente_solicitud_cancelada', { 1: client(p.clientName), 2: p.service }]], E('ServiceRequest', p.requestId)),
+    spec('B6', [['lh_cliente_solicitud_vencida_v3', { 1: client(p.clientName), 2: waRef(p.requestId), 3: p.service, 4: 'dashboard?tab=requests' }], ['lh_cliente_solicitud_vencida', { 1: client(p.clientName), 2: p.service, 3: 'dashboard?tab=requests' }]], E('ServiceRequest', p.requestId), { dedupeWindowMs: 20 * 3600_000 }),
+  B7: (p: { requestId: string; clientName: string; service: string }) => spec('B7', [['lh_cliente_solicitud_cancelada_v3', { 1: client(p.clientName), 2: waRef(p.requestId), 3: p.service }], ['lh_cliente_solicitud_cancelada', { 1: client(p.clientName), 2: p.service }]], E('ServiceRequest', p.requestId)),
   B8: (b: BookingData) => spec('B8', [['lh_cliente_reserva_pendiente', { 1: client(b.clientName), 2: partner(b.partnerName), 3: b.service, 4: waWhen(b.when) }]], E('Booking', b.id)),
   B9: (b: BookingData) => spec('B9', [['lh_cliente_socio_no_disponible', { 1: client(b.clientName), 2: partner(b.partnerName), 3: b.service, 4: 'dashboard?tab=requests' }]], E('Booking', b.id)),
   B10: (b: BookingData & { pending: boolean }) =>
@@ -104,7 +104,7 @@ export const WA = {
   C6: (p: { documentId: string; name: string; type: string; reason: string }) =>
     spec('C6', [['lh_socio_documento_rechazado_v2', { 1: partner(p.name), 2: docLabel(p.type), 3: p.reason || 'no se pudo validar', 4: 'partner/verification' }]], E('VerificationDocument', p.documentId)),
   C7: (p: { partnerId: string; name: string; services: string[] }) =>
-    spec('C7', [['lh_socio_perfil_activo', { 1: partner(p.name), 2: servicesText(p.services) }]], E('PartnerProfile', p.partnerId)),
+    spec('C7', [['lh_socio_perfil_activo_v3', { 1: partner(p.name), 2: waRef(p.partnerId) }], ['lh_socio_perfil_activo', { 1: partner(p.name), 2: servicesText(p.services) }]], E('PartnerProfile', p.partnerId)),
   C8: (p: { partnerId: string; name: string }) => spec('C8', [
     ['lh_socio_sin_servicios_v3', { 1: partner(p.name), 2: 'partner/services' }],
     ['lh_socio_sin_servicios_v2', { 1: partner(p.name), 2: 'partner/services' }],
@@ -130,7 +130,7 @@ export const WA = {
     return spec('C10', [['lh_socio_nueva_solicitud_v3', { 1: name, 2: waRef(p.requestId), 3: p.service, 4: zone, 5: url }], generic], E('ServiceRequest', p.requestId), extra)
   },
   C12: (b: BookingData) => spec('C12', [['lh_socio_propuesta_aceptada_v2', { 1: partner(b.partnerName), 2: client(b.clientName), 3: b.service, 4: waWhen(b.when), 5: 'partner?tab=bookings' }]], E('Booking', b.id)),
-  C13: (p: { proposalId: string; partnerName: string; service: string }) => spec('C13', [['lh_socio_propuesta_no_elegida', { 1: partner(p.partnerName), 2: p.service }]], E('Proposal', p.proposalId)),
+  C13: (p: { proposalId: string; partnerName: string; service: string }) => spec('C13', [['lh_socio_propuesta_no_elegida_v3', { 1: partner(p.partnerName), 2: waRef(p.proposalId), 3: p.service }], ['lh_socio_propuesta_no_elegida', { 1: partner(p.partnerName), 2: p.service }]], E('Proposal', p.proposalId)),
   C14: (b: BookingData) => spec('C14', [['lh_socio_confirmar_reserva', { 1: partner(b.partnerName), 2: b.service, 3: waWhen(b.when) }]], E('Booking', b.id), { dedupeKey: `C14:Booking:${b.id}:${b.when.toISOString()}` }),
   C15: (b: BookingData) => spec('C15', [['lh_socio_reserva_reprogramada', { 1: partner(b.partnerName), 2: b.service, 3: waWhen(b.when) }]], E('Booking', b.id), { dedupeKey: `C15:Booking:${b.id}:${b.when.toISOString()}` }),
   C16: (b: BookingData) => spec('C16', [['lh_socio_reserva_cancelada', { 1: partner(b.partnerName), 2: b.service, 3: waDay(b.when) }]], E('Booking', b.id)),
@@ -141,7 +141,7 @@ export const WA = {
     spec('C20', [['lh_socio_pago_reportado_v2', { 1: partner(b.partnerName), 2: client(b.clientName), 3: waMoney(b.price), 4: PAYMENT_METHOD_TEXT[b.method] ?? 'efectivo', 5: b.service }]], E('Booking', b.id), { dedupeKey: `C20:Booking:${b.id}:${b.at.getTime()}` }),
   C21: (b: BookingData & { reminder: number }) =>
     spec('C21', [['lh_socio_pago_por_confirmar_v2', { 1: partner(b.partnerName), 2: waMoney(b.price), 3: b.service, 4: client(b.clientName) }]], E('Booking', b.id), { dedupeKey: `C21:Booking:${b.id}:${b.reminder}` }),
-  C22: (b: BookingData) => spec('C22', [['lh_socio_servicio_completado_v2', { 1: partner(b.partnerName), 2: b.service, 3: client(b.clientName) }]], E('Booking', b.id)),
+  C22: (b: BookingData) => spec('C22', [['lh_socio_servicio_completado_v3', { 1: partner(b.partnerName), 2: waRef(b.id), 3: b.service }], ['lh_socio_servicio_completado_v2', { 1: partner(b.partnerName), 2: b.service, 3: client(b.clientName) }]], E('Booking', b.id)),
   C23: (p: { bookingId: string; partnerName: string; clientName: string; rating: number; service: string }) =>
     spec('C23', [['lh_socio_calificacion_recibida_v2', { 1: partner(p.partnerName), 2: client(p.clientName), 3: p.rating, 4: p.service }]], E('Booking', p.bookingId)),
   C24: (p: { claimId: string; partnerName: string; service: string; type: string }) =>
@@ -172,7 +172,7 @@ export const WA = {
   D6: (b: BookingData & { adminName: string }) =>
     spec('D6', [['lh_admin_reserva_sin_confirmar', { 1: admin(b.adminName), 2: b.service, 3: waDay(b.when), 4: partner(b.partnerName), 5: 'admin?section=bookings' }]], E('Booking', b.id)),
   D7: (p: { adminName: string; requestId: string; service: string; address: string | null; city: string; hours: number }) =>
-    spec('D7', [['lh_admin_solicitud_sin_socios', { 1: admin(p.adminName), 2: p.service, 3: waZone(p.address, p.city), 4: p.hours, 5: 'admin/service-requests' }]], E('ServiceRequest', p.requestId)),
+    spec('D7', [['lh_admin_solicitud_sin_socios_v3', { 1: admin(p.adminName), 2: waRef(p.requestId), 3: p.service, 4: waZone(p.address, p.city), 5: p.hours, 6: 'admin/service-requests' }], ['lh_admin_solicitud_sin_socios', { 1: admin(p.adminName), 2: p.service, 3: waZone(p.address, p.city), 4: p.hours, 5: 'admin/service-requests' }]], E('ServiceRequest', p.requestId)),
   D8: (p: { adminName: string; pending: number; oldestMs: number; dateKey: string }) =>
     spec('D8', [['lh_admin_documentos_por_revisar', { 1: admin(p.adminName), 2: p.pending, 3: waDuration(p.oldestMs), 4: 'admin/documents' }]], null, { dedupeKey: `D8:${p.dateKey}` }),
   D9: (p: { adminName: string; incidentId: string; title: string }) =>

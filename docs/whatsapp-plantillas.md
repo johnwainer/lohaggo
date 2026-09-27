@@ -561,6 +561,14 @@ Meta pasó a MARKETING cinco plantillas enviadas como UTILITY (`lh_socio_nueva_s
 | B19 | lh_cliente_reserva_cancelada_socio_v3 | ⚠️ Hola {{1}}, tu reserva #{{2}} de *{{3}}* del {{4}} fue cancelada por el socio. Tu solicitud volvió a quedar abierta para recibir otras propuestas. |
 | C8 | lh_socio_sin_servicios_v3 | 🧰 Hola {{1}}, tu cuenta de socio está verificada pero no tiene servicios activos, por lo que no se te asignan solicitudes. Puedes activarlos desde tu panel o respondiendo este mensaje. |
 | C9 | lh_socio_falta_cuenta_bancaria_v3 | 🏦 Hola {{1}}, tu cuenta de socio no tiene una cuenta bancaria registrada para recibir las transferencias de la reserva #{{2}}. Puedes registrarla desde tu panel o respondiendo este mensaje. |
+| B1 | lh_cliente_cuenta_creada_v3 | ✅ Hola {{1}}, se creó tu cuenta de cliente en LoHaggo. Desde ella puedes ver el estado de tus solicitudes y reservas. |
+| B4 | lh_cliente_sin_propuestas_v3 | ⏳ Hola {{1}}, tu solicitud #{{2}} de *{{3}}* aún no tiene propuestas y la volvimos a enviar a los socios. Puedes ajustar la fecha o el presupuesto respondiendo este mensaje. |
+| B6 | lh_cliente_solicitud_vencida_v3 | 📋 Hola {{1}}, tu solicitud #{{2}} de *{{3}}* venció sin una propuesta aceptada. Puedes reactivarla por 24 horas respondiendo este mensaje. |
+| B7 | lh_cliente_solicitud_cancelada_v3 | ✅ Hola {{1}}, confirmamos la cancelación de tu solicitud #{{2}} de *{{3}}*. No recibirás más propuestas para esta solicitud. |
+| C7 | lh_socio_perfil_activo_v3 | ✅ Hola {{1}}, aprobamos tu documento de identidad y tu cuenta de socio #{{2}} quedó verificada. Recibirás avisos de las solicitudes de tus servicios activos. |
+| C13 | lh_socio_propuesta_no_elegida_v3 | 📋 Hola {{1}}, la solicitud #{{2}} de *{{3}}* se cerró con otra propuesta. Tu propuesta para esta solicitud ya no está activa. |
+| C22 | lh_socio_servicio_completado_v3 | ✅ Hola {{1}}, la reserva #{{2}} de *{{3}}* quedó marcada como completada. Falta confirmar el pago y calificar al cliente desde tu panel o respondiendo este mensaje. |
+| D7 | lh_admin_solicitud_sin_socios_v3 | 📭 Hola {{1}}, la solicitud #{{2}} de *{{3}}* en {{4}} sigue sin propuestas después de {{5}} horas de publicada. Revísala en el panel. |
 
 ## Resumen
 

@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { WA_CATALOG, contentTypes } from '@/lib/messaging/wa-catalog'
 
 describe('WA_CATALOG · reglas de Meta', () => {
-  it('71 plantillas con nombres únicos', () => {
-    expect(WA_CATALOG).toHaveLength(71)
-    expect(new Set(WA_CATALOG.map((t) => t.name)).size).toBe(71)
+  it('79 plantillas con nombres únicos', () => {
+    expect(WA_CATALOG).toHaveLength(79)
+    expect(new Set(WA_CATALOG.map((t) => t.name)).size).toBe(79)
   })
   it('ningún texto empieza ni termina con variable, ni junta dos variables', () => {
     for (const t of WA_CATALOG.filter((x) => x.body)) {
