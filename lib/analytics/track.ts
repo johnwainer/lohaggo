@@ -36,7 +36,16 @@ function ga4Params(p: TrackParams): Record<string, unknown> {
   return out
 }
 
-export function track(event: TrackEventName, params: TrackParams = {}) {
+/** Whether GA4 is loaded on the page (the server then skips its own copy of a Lead). */
+export function ga4Loaded() {
+  return typeof window !== 'undefined' && typeof (window as unknown as { gtag?: Fn }).gtag === 'function'
+}
+
+/**
+ * `eventId` is shared with the server's Conversions API event (lead-{requestId}) so Meta counts it once;
+ * GA4 gets it as a parameter to find it in reports.
+ */
+export function track(event: TrackEventName, params: TrackParams = {}, opts: { eventId?: string } = {}) {
   if (typeof window === 'undefined') return
   const w = window as unknown as { fbq?: Fn; gtag?: Fn }
   const names = TRACK_EVENTS[event]
@@ -45,10 +54,11 @@ export function track(event: TrackEventName, params: TrackParams = {}) {
     if (typeof w.fbq === 'function') {
       const meta = { ...clean } as TrackParams
       if (meta.value !== undefined && !meta.currency) meta.currency = 'COP'
-      w.fbq('track', names.meta, meta)
+      if (opts.eventId) w.fbq('track', names.meta, meta, { eventID: opts.eventId })
+      else w.fbq('track', names.meta, meta)
     }
   } catch { /* analytics must never break the page */ }
   try {
-    if (typeof w.gtag === 'function') w.gtag('event', names.ga4, ga4Params(clean as TrackParams))
+    if (typeof w.gtag === 'function') w.gtag('event', names.ga4, { ...ga4Params(clean as TrackParams), ...(opts.eventId ? { event_id: opts.eventId } : {}) })
   } catch { /* idem */ }
 }

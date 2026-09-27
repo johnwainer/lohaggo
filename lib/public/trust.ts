@@ -152,6 +152,18 @@ export function parseLaunchBenefits(metadata: string | null | undefined): string
   }
 }
 
+/** The public WhatsApp number (the floating button's), digits only; null when it is off or unset. */
+export async function publicWhatsappPhone(): Promise<string | null> {
+  const wa = await prisma.featureFlag.findUnique({ where: { key: 'whatsapp_float_button' }, select: { enabled: true, metadata: true } }).catch(() => null)
+  if (!wa?.enabled || !wa.metadata) return null
+  try {
+    const phone = (JSON.parse(wa.metadata) as { phone?: string }).phone
+    return phone ? phone.replace(/\D/g, '') || null : null
+  } catch {
+    return null
+  }
+}
+
 /** Contact extras for public pages: the WhatsApp number of the floating button and the launch benefits. */
 export async function publicContactExtras(claims: ClaimState): Promise<{ whatsappPhone: string | null; launchBenefits: string[] }> {
   try {

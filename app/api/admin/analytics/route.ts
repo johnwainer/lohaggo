@@ -4,6 +4,7 @@ import { createLogger } from '@/lib/logger'
 import { parsePeriod } from '@/lib/analytics/core'
 import { business, cleanFilters, filterOptions, funnelTab, peopleTab, searchTab, serviceTab, supplyTab } from '@/lib/analytics/queries'
 import { Ga4Error, trafficTab } from '@/lib/analytics/ga4'
+import { originsTab } from '@/lib/analytics/origins'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -30,6 +31,7 @@ export async function GET(request: NextRequest) {
   try {
     if (tab === 'options') return NextResponse.json(await filterOptions())
     if (tab === 'traffic') return NextResponse.json({ period, data: await trafficTab(period) })
+    if (tab === 'origins') return NextResponse.json({ period, data: await originsTab(period, sp.get('model') === 'first' ? 'first' : 'last') })
     const fn = TABS[tab as keyof typeof TABS]
     if (!fn) return NextResponse.json({ error: 'Pestaña no válida' }, { status: 400 })
     return NextResponse.json({ period, data: await fn(period, filters) })

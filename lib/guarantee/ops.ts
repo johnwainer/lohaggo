@@ -185,7 +185,7 @@ export async function resolveGuaranteeClaim(actor: Actor, claimId: string, input
       preferredDate: null,
       preferredTime: null,
       photoUrls: [],
-    }, ADMIN_ORIGIN)
+    }, ADMIN_ORIGIN, { conversion: false })
     extra = ` Solicitud nueva #${short(request.id)}.`
     // The original booking of a no-show is dropped so its partner stops seeing it
     if (type === 'NO_SHOW' && (booking.status === 'PENDING' || booking.status === 'CONFIRMED' || booking.status === 'IN_PROGRESS')) {

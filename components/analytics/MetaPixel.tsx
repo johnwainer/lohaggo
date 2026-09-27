@@ -10,7 +10,6 @@ declare global {
     }
 }
 
-const FB_PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID
 
 export const pageview = () => {
     if (typeof window !== 'undefined' && window.fbq) {
@@ -24,7 +23,7 @@ export const trackEvent = (name: string, options = {}) => {
     }
 }
 
-function MetaPixelContent() {
+function MetaPixelContent({ pixelId }: { pixelId: string | null }) {
     const pathname = usePathname()
     const searchParams = useSearchParams()
     const lastTrackedUrl = useRef('')
@@ -40,7 +39,7 @@ function MetaPixelContent() {
         }
     }, [pathname, searchParams])
 
-    if (!FB_PIXEL_ID) return null
+    if (!pixelId || !/^\d+$/.test(pixelId)) return null
 
     return (
         <Script
@@ -56,17 +55,19 @@ function MetaPixelContent() {
           t.src=v;s=b.getElementsByTagName(e)[0];
           s.parentNode.insertBefore(t,s)}(window, document,'script',
           'https://connect.facebook.net/en_US/fbevents.js');
-          fbq('init', '${FB_PIXEL_ID}');
+          fbq('init', '${pixelId}');
+          fbq('track', 'PageView');
         `,
             }}
         />
     )
 }
 
-export default function MetaPixel() {
+/** The pixel id comes from Analítica → Conversiones (or the old env var), read by the server layout. */
+export default function MetaPixel({ pixelId }: { pixelId: string | null }) {
     return (
         <Suspense fallback={null}>
-            <MetaPixelContent />
+            <MetaPixelContent pixelId={pixelId} />
         </Suspense>
     )
 }

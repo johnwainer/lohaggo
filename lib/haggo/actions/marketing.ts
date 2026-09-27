@@ -4,6 +4,9 @@ import { AGENT_CHANNELS, sanitizeAgentConfig, type AgentConfig } from '@/lib/mar
 import { activateAgent, activationError, approvePost, fitsAgentSchedule, reschedulePost, retryPublication, returnToReview } from '@/lib/marketing/ops'
 import type { MarketingChannel } from '@prisma/client'
 import { reviewNow } from '@/lib/marketing/editorial-ops'
+import { adBlock, createAdDraft } from '@/lib/marketing/ads'
+import { sanitizeAdInput } from '@/lib/marketing/ads-core'
+import { getDefaultWorkspaceId } from '@/lib/workspaces'
 import { ID, done, isObj, parseDate, parseId, parseText, requireObj, when, type HaggoActionDef } from '@/lib/haggo/actions/types'
 
 const DONE_POST = ['published', 'partial', 'publishing', 'archived']
@@ -446,4 +449,76 @@ const reviewPostAction: HaggoActionDef<{ postId: string }> = {
   },
 }
 
-export const MARKETING_ACTIONS = [reschedule, retry, approve, cancel, pause, activate, updateSchedule, requestPlan, decideIdeasAction, draftIdeaAction, reviewPostAction] as unknown as HaggoActionDef[]
+
+type AdPackageParams = { service: string; city: string; instruction: string }
+
+const requestAdPackage: HaggoActionDef<AdPackageParams> = {
+  id: 'marketing.request_ad_package',
+  domain: 'marketing',
+  risk: 'high',
+  label: 'Pedir un paquete de pauta al agente de pauta',
+  hint: 'Crea en Marketing → Pauta un paquete para Meta Ads (campaña de mensajes a WhatsApp, textos, público, imágenes y mensaje prellenado con su ref). No publica ni gasta en Meta: una persona lo sube a mano. Úsala cuando resultados_marketing muestre un servicio con demanda y sin pauta, o una pauta que hay que reemplazar. Gasta en IA.',
+  schema: { type: 'object', properties: { service: { type: 'string', description: 'Nombre exacto del servicio del catálogo' }, city: { type: 'string', description: 'Ciudad activa, p. ej. Medellín' }, instruction: { type: 'string', description: 'Qué debe lograr y por qué (datos de resultados_marketing)' } }, required: ['service', 'city', 'instruction'] },
+  sideEffects: ['spends'],
+  parse: (raw) => {
+    const r = requireObj(raw)
+    const e: string[] = []
+    if (!r) return { ok: false, errors: ['Parámetros inválidos'] }
+    return done(e, { service: parseText(r, 'service', e, { min: 2, max: 120 }) ?? '', city: parseText(r, 'city', e, { min: 2, max: 80 }) ?? '', instruction: parseText(r, 'instruction', e, { min: 10, max: 800 }) ?? '' })
+  },
+  describe: (p) => `Pedir una pauta de ${p.service} en ${p.city}`,
+  entity: () => null,
+  preconditions: async (p) => {
+    const service = await prisma.service.findFirst({ where: { name: { equals: p.service, mode: 'insensitive' } }, select: { name: true } })
+    if (!service) return { ok: false, reason: `«${p.service}» no está en el catálogo` }
+    const city = await prisma.cityConfig.findFirst({ where: { name: { equals: p.city, mode: 'insensitive' }, status: 'ACTIVE' }, select: { name: true } })
+    if (!city) return { ok: false, reason: `${p.city} no es una ciudad activa` }
+    const workspaceId = await getDefaultWorkspaceId()
+    const blocked = await adBlock(workspaceId)
+    if (blocked) return { ok: false, reason: blocked }
+    return { ok: true, before: { service: service.name, city: city.name, workspaceId } }
+  },
+  preview: async (p, before) => {
+    const b = before as { service: string; city: string }
+    return { summary: `Paquete de pauta de ${b.service} en ${b.city} (mensajes a WhatsApp) para subir a Meta Ads a mano`, diff: [{ field: 'Pautas', from: '—', to: `nueva: ${b.service} · ${b.city}` }] }
+  },
+  execute: async (p, ctx, before) => {
+    const b = before as { service: string; city: string; workspaceId: string }
+    const input = sanitizeAdInput({ service: b.service, city: b.city, objective: 'messages', destination: 'whatsapp', instruction: `Pedido por Haggo: ${p.instruction}` })
+    const draft = await createAdDraft(b.workspaceId, input, ctx.approverId)
+    return { after: { adDraftId: draft.id }, result: `Pauta «${draft.title}» (${draft.status}) en Marketing → Pauta` }
+  },
+}
+
+type BudgetParams = { fromAdSet: string; toAdSet: string; dailyCop: number; reason: string }
+
+const proposeBudgetShift: HaggoActionDef<BudgetParams> = {
+  id: 'marketing.propose_budget_shift',
+  domain: 'marketing',
+  risk: 'high',
+  label: 'Proponer mover presupuesto entre conjuntos de anuncios',
+  hint: 'Recomienda pasar presupuesto diario de un conjunto de Meta Ads a otro según el costo por solicitud o por reserva (resultados_marketing). LoHaggo no tiene acceso para cambiarlo en Meta: al aprobarla queda la instrucción exacta para hacerlo en Ads Manager. Úsala con al menos 3 días de gasto cargado.',
+  schema: { type: 'object', properties: { fromAdSet: { type: 'string', description: 'Conjunto que baja (p. ej. Hogar)' }, toAdSet: { type: 'string', description: 'Conjunto que sube (p. ej. Reparaciones)' }, dailyCop: { type: 'integer', minimum: 1000, maximum: 1000000, description: 'Pesos diarios que se mueven' }, reason: { type: 'string', description: 'Costo por solicitud de cada conjunto y periodo' } }, required: ['fromAdSet', 'toAdSet', 'dailyCop', 'reason'] },
+  sideEffects: [],
+  parse: (raw) => {
+    const r = requireObj(raw)
+    const e: string[] = []
+    if (!r) return { ok: false, errors: ['Parámetros inválidos'] }
+    const daily = Math.round(Number(r.dailyCop))
+    if (!Number.isFinite(daily) || daily < 1000 || daily > 1_000_000) e.push('dailyCop: entre 1.000 y 1.000.000')
+    return done(e, { fromAdSet: parseText(r, 'fromAdSet', e, { min: 2, max: 80 }) ?? '', toAdSet: parseText(r, 'toAdSet', e, { min: 2, max: 80 }) ?? '', dailyCop: daily, reason: parseText(r, 'reason', e, { min: 10, max: 600 }) ?? '' })
+  },
+  describe: (p) => `Mover $${p.dailyCop.toLocaleString('es-CO')}/día de ${p.fromAdSet} a ${p.toAdSet}`,
+  entity: () => null,
+  preconditions: async (p) => {
+    if (p.fromAdSet.toLowerCase() === p.toAdSet.toLowerCase()) return { ok: false, reason: 'Los dos conjuntos son el mismo' }
+    const since = new Date(Date.now() - 7 * 24 * 3600_000)
+    const days = await prisma.marketingAdSpend.findMany({ where: { day: { gte: since }, amountCop: { gt: 0 } }, select: { day: true }, distinct: ['day'] })
+    if (days.length < 3) return { ok: false, reason: 'Hay menos de 3 días con gasto cargado en la última semana: todavía no hay base para mover presupuesto' }
+    return { ok: true, before: { daysWithSpend: days.length } }
+  },
+  preview: async (p) => ({ summary: `En Ads Manager: bajar ${p.fromAdSet} $${p.dailyCop.toLocaleString('es-CO')}/día y subir ${p.toAdSet} lo mismo. ${p.reason}`, diff: [{ field: p.fromAdSet, from: 'actual', to: `−$${p.dailyCop.toLocaleString('es-CO')}/día` }, { field: p.toAdSet, from: 'actual', to: `+$${p.dailyCop.toLocaleString('es-CO')}/día` }] }),
+  execute: async (p) => ({ after: null, result: `Hacer en Meta Ads Manager → Conjuntos de anuncios: bajar el presupuesto diario de «${p.fromAdSet}» en $${p.dailyCop.toLocaleString('es-CO')} y subir «${p.toAdSet}» en $${p.dailyCop.toLocaleString('es-CO')}. Motivo: ${p.reason}` }),
+}
+
+export const MARKETING_ACTIONS = [reschedule, retry, approve, cancel, pause, activate, updateSchedule, requestPlan, decideIdeasAction, draftIdeaAction, reviewPostAction, requestAdPackage, proposeBudgetShift] as unknown as HaggoActionDef[]

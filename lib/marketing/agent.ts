@@ -418,7 +418,12 @@ async function writeDraft(postId: string, draft: PostDraft, channels: MarketingC
     patches.push(safe({ channel: 'INSTAGRAM', body: ensureHashtags(applyUtmToText(draft.instagram.caption, u('INSTAGRAM'), own), config.voice.brandHashtags), format: draft.instagram.format, aiGenerated: true }))
   }
   if (channels.includes('FACEBOOK') && draft.facebook) {
-    patches.push(safe({ channel: 'FACEBOOK', body: applyUtmToText(draft.facebook.text, u('FACEBOOK'), own), linkUrl: draft.facebook.link ? withUtm(draft.facebook.link, u('FACEBOOK'), own) : null, aiGenerated: true }))
+    // Every piece leads to a request: the service's page (with UTM) and a WhatsApp short link tagged with the post
+    const service = draft.service ? await prisma.service.findFirst({ where: { name: draft.service }, select: { slug: true } }).catch(() => null) : null
+    const link = draft.facebook.link || (service?.slug ? `${SITE_URL}/servicios/${service.slug}` : null)
+    const text = applyUtmToText(draft.facebook.text, u('FACEBOOK'), own)
+    const wa = `${SITE_URL}/w/post-${postId}`
+    patches.push(safe({ channel: 'FACEBOOK', body: text.includes('/w/post-') ? text : `${text.trimEnd()}\n\n📲 Pídelo por WhatsApp: ${wa}`, linkUrl: link ? withUtm(link, u('FACEBOOK'), own) : null, aiGenerated: true }))
   }
   await prisma.marketingPost.update({ where: { id: postId }, data: { title: draft.title.slice(0, 200), brief: draft.brief || null } })
   await saveVariants(postId, patches)

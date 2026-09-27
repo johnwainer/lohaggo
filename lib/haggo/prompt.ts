@@ -80,6 +80,7 @@ export const REVIEW_CHECKLIST: Array<{ area: string; tools: string[] }> = [
   { area: 'Agentes de IA de la bandeja: traspasos, vacíos de conocimiento, costo, herramientas activas y modo por canal', tools: ['agente_ia'] },
   { area: 'Operación por chat: qué hicieron los agentes en cuentas de clientes y socios, fallos repetidos, cancelaciones', tools: ['acciones_por_chat'] },
   { area: 'Origen de las conversaciones: anuncios (clic a WhatsApp, Messenger, Instagram) y páginas de la web, y cuántas terminan en solicitud', tools: ['origen_conversaciones'] },
+  { area: 'Resultados de marketing: solicitudes, reservas y ventas por canal, pauta y pieza; gasto y costo por solicitud (meta < $25.000); conversiones a Meta y Google', tools: ['resultados_marketing'] },
   { area: 'Marketing: publicaciones, revisión humana y editorial (corrector y editor), fallos, agentes de marketing y publicidad', tools: ['marketing', 'agentes_marketing', 'publicidad'] },
   { area: 'Mensajería: campañas, envíos fallidos y plantillas de WhatsApp (estado en Meta y envíos por plantilla)', tools: ['mensajeria'] },
   { area: 'Sistema: tareas automáticas, errores, integraciones, incidentes y casos', tools: ['salud_sistema', 'incidentes_abiertos'] },

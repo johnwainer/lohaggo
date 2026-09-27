@@ -1,6 +1,7 @@
 import type { MarketingChannel } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { latestSnapshots } from '@/lib/marketing/metrics'
+import { postResults } from '@/lib/marketing/post-results'
 import type { AgentConfig } from '@/lib/marketing/agent-input'
 import { learningStats, type LearningRow, type LearningStats, type PostFeatures, type Rejection } from '@/lib/marketing/agent-core'
 import type { Catalog, MomentFacts } from '@/lib/marketing/agent-prompt'
@@ -56,6 +57,18 @@ export async function learningRows(scope: { agentId: string } | { workspaceId: s
   const views = webIds.length ? await prisma.webPageView.groupBy({ by: ['variantId'], where: { variantId: { in: webIds } }, _sum: { views: true } }) : []
   const externalIds = pubs.map((p) => p.externalId).filter((x): x is string => Boolean(x))
   const convs = externalIds.length ? await prisma.conversation.groupBy({ by: ['postId'], where: { postId: { in: externalIds } }, _count: { _all: true } }) : []
+  const results = await postResults(Array.from(new Set(pubs.map((p) => p.post.id))), new Date(now.getTime() - days * DAY))
+  // A post's requests go to the channel they came through; the ones without channel, to its first send
+  const firstPub = new Map<string, string>()
+  for (const p of [...pubs].reverse()) if (!firstPub.has(p.post.id)) firstPub.set(p.post.id, p.id)
+  const resultFor = (p: (typeof pubs)[number]) => {
+    const r = results.get(p.post.id)
+    if (!r) return { requests: 0, bookings: 0 }
+    const ch = r.byChannel[p.channel as MarketingChannel] ?? { requests: 0, bookings: 0 }
+    const creditedByChannel = Object.values(r.byChannel).reduce((a, c) => ({ requests: a.requests + (c?.requests ?? 0), bookings: a.bookings + (c?.bookings ?? 0) }), { requests: 0, bookings: 0 })
+    const rest = firstPub.get(p.post.id) === p.id ? { requests: r.requests - creditedByChannel.requests, bookings: r.bookings - creditedByChannel.bookings } : { requests: 0, bookings: 0 }
+    return { requests: ch.requests + rest.requests, bookings: ch.bookings + rest.bookings }
+  }
   const viewsBy = new Map(views.map((v) => [v.variantId, v._sum.views ?? 0]))
   const convBy = new Map(convs.map((c) => [c.postId, c._count._all]))
   return pubs.map((p) => {
@@ -72,6 +85,7 @@ export async function learningRows(scope: { agentId: string } | { workspaceId: s
         reach: s?.reach ?? 0, likes: s?.likes ?? 0, comments: s?.comments ?? 0, shares: s?.shares ?? 0, saves: s?.saves ?? 0, clicks: s?.clicks ?? 0,
         webViews: p.channel === 'WEB' ? viewsBy.get(p.variantId) ?? 0 : 0,
         conversations: p.externalId ? convBy.get(p.externalId) ?? 0 : 0,
+        ...resultFor(p),
       },
     }
   })

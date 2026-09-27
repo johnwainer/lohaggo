@@ -4,6 +4,7 @@ import { campaignStats } from '@/lib/marketing/stats'
 import { mkCan, type MarketingAccess, type MarketingPermission } from '@/lib/marketing/permissions'
 import { KPI_LABEL } from '@/lib/marketing/agent-input'
 import { campaignKpi } from '@/lib/marketing/agent-core'
+import { postResults } from '@/lib/marketing/post-results'
 import { agentSpend, configOf, loadAgent, modeFor, settingsOf, strategyOf, type Agent } from '@/lib/marketing/agent'
 
 /** The agent if the person has `perm` in its workspace; otherwise a 404 (no hint that it exists). */
@@ -30,6 +31,8 @@ export async function agentSummary(agent: Agent) {
     ]),
   ])
   const conversations = stats.posts.reduce((a, p) => a + p.inboxConversations, 0)
+  const results = await postResults(stats.posts.map((p) => p.postId), agent.campaign.startsAt ?? new Date(Date.now() - 120 * 24 * 3600_000))
+  const requestsBookings = Array.from(results.values()).reduce((a, r) => ({ requests: a.requests + r.requests, bookings: a.bookings + r.bookings }), { requests: 0, bookings: 0 })
   const channels = (['INSTAGRAM', 'FACEBOOK', 'WEB'] as const).filter((c) => config.channels[c].enabled)
   return {
     id: agent.id,
@@ -46,7 +49,7 @@ export async function agentSummary(agent: Agent) {
     nextPlanAt: agent.status === 'active' && agent.strategyApprovedAt ? new Date((agent.lastPlannedAt?.getTime() ?? Date.now()) + (agent.lastPlannedAt ? PLAN_EVERY_MS : 0)) : null,
     spentUsd: Math.round(spent * 100) / 100,
     monthlyBudgetUsd: agent.monthlyBudgetUsd,
-    kpi: { key: config.kpi, label: KPI_LABEL[config.kpi], value: campaignKpi(config.kpi, stats.totals, conversations), goal: config.goal },
+    kpi: { key: config.kpi, label: KPI_LABEL[config.kpi], value: campaignKpi(config.kpi, stats.totals, conversations, requestsBookings), goal: config.goal },
     counts: { ideasProposed: counts[0], toApprove: counts[1], upcoming: counts[2], published: counts[3] },
     channels,
   }

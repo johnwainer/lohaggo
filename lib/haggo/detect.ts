@@ -35,6 +35,8 @@ export type Snapshot = {
   config?: { commissionEnabled: boolean; activeCities: number }
   /** Guarantee claims (lib/guarantee): active, past their 72 h SLA, strikes in 90 days and partners at the pause limit */
   guarantee?: { open: number; overdue: number; strikesLast90: number; partnersAtLimit?: Array<{ partnerId: string; strikes: number }> }
+  /** Marketing results: requests with origin, ad spend typed in, packages spending without requests, failed conversions */
+  attribution?: { requests7d: number; withOrigin7d: number; spend7d: number; spendWithoutRequests: Array<{ adDraftId: string; title: string; daysWithSpend: number; spendCop: number }>; conversionsFailed7d: number }
   /** WhatsApp catalog templates by Meta state (names of the rejected and of the approved under another category) */
   waTemplates?: { approved: number; pending: number; rejected: string[]; recategorized: string[] }
 }
@@ -106,6 +108,10 @@ export function detect(s: Snapshot): Detection[] {
   if (ed && ed.held >= 3) add({ key: 'mk:editorial-held', domain: 'marketing', severity: 'warning', title: `El editor retiene ${ed.held} publicaciones`, detail: 'Piezas con cambios pedidos, rechazadas o sin poder revisarse: revisar qué pide el editor o si el agente necesita otras instrucciones.' })
   if (ed && ed.reviewedWeek >= 5 && ed.notApprovedWeek / ed.reviewedWeek >= 0.6) add({ key: 'mk:editorial-low', domain: 'marketing', severity: 'info', title: `El editor no aprobó ${Math.round((ed.notApprovedWeek / ed.reviewedWeek) * 100)} % de sus revisiones en 7 días`, detail: 'Puntajes bajos repetidos: la voz, la estrategia del agente o la exigencia del editor no encajan.' })
   if (ed && ed.failedWeek >= 3) add({ key: 'mk:editorial-failed', domain: 'marketing', severity: 'warning', title: `${plural(ed.failedWeek, 'revisión editorial falló', 'revisiones editoriales fallaron')} en 7 días`, detail: 'Sin revisión las piezas no salen: revisar presupuesto e IA.' })
+  for (const a of s.attribution?.spendWithoutRequests ?? []) {
+    add({ key: `mk:spend-no-requests:${a.adDraftId}`, domain: 'marketing', severity: 'warning', title: `La pauta «${a.title}» gastó $${Math.round(a.spendCop).toLocaleString('es-CO')} en ${a.daysWithSpend} días sin traer solicitudes`, detail: 'Revisar el anuncio (texto, público, mensaje prellenado con su ref) o pasar el presupuesto a otro conjunto (resultados_marketing).', entityType: 'MarketingAdDraft', entityId: a.adDraftId })
+  }
+  if ((s.attribution?.conversionsFailed7d ?? 0) >= 3) add({ key: 'mk:conversions-failed', domain: 'marketing', severity: 'warning', title: `${s.attribution!.conversionsFailed7d} conversiones no llegaron a Meta o Google en 7 días`, detail: 'Revisar el token y el píxel en Analítica → Origen → Conversiones.' })
   if (s.marketing.inReview >= 5) add({ key: 'mk:review-backlog', domain: 'marketing', severity: 'info', title: `${s.marketing.inReview} publicaciones esperan revisión`, detail: 'Se acumulan borradores sin aprobar.' })
 
   if (s.channels.problems.length) add({ key: `sys:channels:${[...s.channels.problems].sort().join(',')}`, domain: 'system', severity: 'critical', title: `Canales con problemas: ${s.channels.problems.join(', ')}`, detail: 'Hay que reconectarlos.' })

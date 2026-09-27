@@ -57,9 +57,12 @@ export function parseMetaReferral(
   }
 }
 
-/** `(ref: web-plomeria)` / `(ref: blog-como-...)` → 'web-plomeria'; null when the text has no website tag. */
+/**
+ * `(ref: web-plomeria)` / `(ref: blog-como-...)` / `(ref: post-<id>)` (a marketing post) / `(ref: ad-<code>)`
+ * (the prefilled message of an ad package) → the tag; null when the text has none.
+ */
 export function extractWebRef(body: string | null | undefined): string | null {
-  const m = /\(ref:\s*((?:web|blog)-[a-z0-9][a-z0-9_-]{0,80})\s*\)/i.exec(body || '')
+  const m = /\(ref:\s*((?:web|blog|post|ad)-[a-z0-9][a-z0-9_-]{0,80})\s*\)/i.exec(body || '')
   return m ? m[1].toLowerCase() : null
 }
 

@@ -164,8 +164,20 @@ const slug = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCa
  * «Parámetros de URL» for the ad in Meta Ads Manager: Meta fills {{site_source_name}} (fb / ig) and the ad's
  * id, so every visit is tracked by network and ad in Resultados.
  */
-export function adUrlParams(title: string) {
-  return `utm_source={{site_source_name}}&utm_medium=paid_social&utm_campaign=${slug(title)}&utm_content={{ad.id}}`
+export function adUrlParams(title: string, draftId?: string) {
+  return `utm_source={{site_source_name}}&utm_medium=paid_social&utm_campaign=${draftId ? `ad-${adRefCode(draftId)}` : slug(title)}&utm_content={{ad.id}}`
+}
+
+/** Short code of an ad package: in its UTM campaign and its WhatsApp ref, so both land on the same row of the board. */
+export const adRefCode = (draftId: string) => draftId.slice(-8).toLowerCase()
+
+/**
+ * Prefilled message of a Click-to-WhatsApp ad («Mensaje de bienvenida» → pregunta frecuente / mensaje
+ * prellenado in Ads Manager). Its `(ref: ad-…)` tag ties the chat, and any request it ends in, to this package.
+ */
+export function adWelcomeMessage(draftId: string, service: string | null) {
+  const what = service ? `quiero pedir ${service.toLowerCase()}` : 'necesito un servicio'
+  return `Hola, vi su anuncio y ${what} (ref: ad-${adRefCode(draftId)})`
 }
 
 export const cloudinaryDownload = (url: string) => url.replace('/image/upload/', '/image/upload/fl_attachment/')

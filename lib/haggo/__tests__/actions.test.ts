@@ -136,6 +136,8 @@ const FIXTURES: Record<string, { raw: Record<string, unknown>; before: unknown }
   'marketing.decide_ideas': { raw: { agentId: 'agent_123456', ideaIds: ['idea_123456'], decision: 'reject', reason: 'Ya se habló de eso' }, before: { ideas: [{ id: 'idea_123456', angle: 'Goteras en invierno' }] } },
   'marketing.draft_idea': { raw: { agentId: 'agent_123456', ideaId: 'idea_123456' }, before: { angle: 'Goteras', mode: 'supervised', campaign: 'Consejos' } },
   'marketing.review_post': { raw: { postId: 'post_123456' }, before: { title: 'Goteras', reviewStatus: 'failed' } },
+  'marketing.request_ad_package': { raw: { service: 'Plomería', city: 'Medellín', instruction: 'Plomería trae solicitudes a $12.000 y no tiene pauta activa' }, before: { service: 'Plomería', city: 'Medellín', workspaceId: 'ws_default_lohaggo' } },
+  'marketing.propose_budget_shift': { raw: { fromAdSet: 'Hogar', toAdSet: 'Reparaciones', dailyCop: 3000, reason: 'Hogar $40.000 por solicitud frente a $15.000 de Reparaciones en 7 días' }, before: { daysWithSpend: 5 } },
   'ai_agents.pause': { raw: { agentId: 'agent_123456' }, before: { name: 'Soporte', status: 'active', open: 3 } },
   'ai_agents.activate': { raw: { agentId: 'agent_123456' }, before: { name: 'Soporte', status: 'paused', open: 0 } },
   'ai_agents.update_instructions': { raw: { agentId: 'agent_123456', tone: 'Cercano' }, before: { name: 'Soporte', instructions: 'a', goal: 'b', tone: 'Formal' } },

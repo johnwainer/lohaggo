@@ -8,6 +8,9 @@ import { notifyNewServiceRequest, notifyProposalRejected } from '@/lib/notificat
 import { recordPromptContext } from '@/lib/pwa/adoption-strategy'
 import { OpsError, originColumns, type Actor, type Origin } from '@/lib/ops/origin'
 import { DEFAULT_COMMISSION, loadEffectiveRates, loadPlatformConfigRow } from '@/lib/payments/commission'
+import { compactTouch } from '@/lib/analytics/attribution-core'
+import { conversationAttribution, type RequestAttribution } from '@/lib/analytics/touches'
+import { runAfterResponse } from '@/lib/ops/after'
 
 /**
  * Service-request operations shared by the app routes and the inbox AI agents. They load, validate state
@@ -57,7 +60,16 @@ export function preferredDateTimeBogota(date?: string | null, time?: string | nu
   return Number.isNaN(d.getTime()) ? null : d
 }
 
-export async function createServiceRequest(actor: Actor, input: ServiceRequestInput, origin: Origin) {
+export type CreateRequestOptions = {
+  /** First / last touch from the browser (web); a chat request reads its conversation's */
+  attribution?: RequestAttribution | null
+  /** The page fires the pixel's Lead with the same event id */
+  browserSent?: boolean
+  /** false for requests that are not a new lead (a guarantee's replacement) */
+  conversion?: boolean
+}
+
+export async function createServiceRequest(actor: Actor, input: ServiceRequestInput, origin: Origin, opts: CreateRequestOptions = {}) {
   const parsed = serviceRequestSchema.safeParse(input)
   if (!parsed.success) throw new OpsError(parsed.error.errors[0]?.message || 'Datos inválidos', 400)
   const data = sanitizeObject(parsed.data)
@@ -93,6 +105,11 @@ export async function createServiceRequest(actor: Actor, input: ServiceRequestIn
   expiresAt.setHours(expiresAt.getHours() + 24)
 
   const preferredDateTime = preferredDateTimeBogota(data.preferredDate, data.preferredTime)
+  const attribution = opts.attribution ?? (origin.via === 'chat' ? await conversationAttribution(origin.conversationId) : null)
+  const touches = {
+    ...(attribution?.first ? { acquisition: compactTouch(attribution.first) as Prisma.InputJsonValue } : {}),
+    ...(attribution?.last ? { lastTouch: compactTouch(attribution.last) as Prisma.InputJsonValue } : {}),
+  }
 
   const serviceRequest = await prisma.serviceRequest.create({
     data: {
@@ -109,6 +126,7 @@ export async function createServiceRequest(actor: Actor, input: ServiceRequestIn
       status: 'ACTIVE',
       expiresAt,
       ...originColumns(origin),
+      ...touches,
       photos: data.photoUrls && data.photoUrls.length > 0 ? { create: data.photoUrls.map((url, index) => ({ url, order: index })) } : undefined,
     },
     include: createdRequestInclude,
@@ -118,6 +136,14 @@ export async function createServiceRequest(actor: Actor, input: ServiceRequestIn
     await notifyNewServiceRequest(serviceRequest.id, { origin })
   } catch (err) {
     logger.warn('notifyNewServiceRequest failed (non-fatal)', { serviceRequestId: serviceRequest.id, err })
+  }
+
+  if (opts.conversion !== false) {
+    const id = serviceRequest.id
+    runAfterResponse(async () => {
+      const { sendLeadConversion } = await import('@/lib/analytics/conversions')
+      await sendLeadConversion(id, { browser: attribution?.browser ?? null, browserSent: opts.browserSent })
+    })
   }
 
   await recordPromptContext(actor.userId, 'CLIENT_REQUEST_CREATED', {

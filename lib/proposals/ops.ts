@@ -127,6 +127,9 @@ export async function acceptProposal(actor: Actor, proposalId: string, origin: O
   const sr = proposal.serviceRequest
   const { scheduledDate, scheduledTime } = resolveSchedule(sr, opts)
 
+  // Asked for by name: the default reads leave attribution out (lib/prisma-tracking.ts)
+  const touches = await prisma.serviceRequest.findUnique({ where: { id: sr.id }, select: { acquisition: true, lastTouch: true } })
+
   const { booking, rejectedIds } = await prisma.$transaction(async (tx) => {
     await tx.proposal.update({ where: { id: proposalId }, data: { status: 'ACCEPTED' } })
 
@@ -152,6 +155,8 @@ export async function acceptProposal(actor: Actor, proposalId: string, origin: O
         clientCommissionRate: rates.client,
         partnerCommissionRate: rates.partner,
         ...originColumns(origin),
+        ...(touches?.acquisition ? { acquisition: touches.acquisition as Prisma.InputJsonValue } : {}),
+        ...(touches?.lastTouch ? { lastTouch: touches.lastTouch as Prisma.InputJsonValue } : {}),
       },
       include: bookingInclude,
     })

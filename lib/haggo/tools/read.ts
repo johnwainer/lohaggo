@@ -11,6 +11,9 @@ import { TOOL_CATALOG, TOOL_NAMES } from '@/lib/ai/tools'
 import { TOOL_GROUPS } from '@/lib/ai/actions-core'
 import { PLATFORM_READ_TOOLS, type ReadTool } from '@/lib/haggo/tools/platform'
 import { summarizeConversationOrigins } from '@/lib/messaging/attribution'
+import { originsTab } from '@/lib/analytics/origins'
+import { conversionStats } from '@/lib/analytics/conversions'
+import { trafficTab } from '@/lib/analytics/ga4'
 
 const H = 3600_000
 const MAX_OUTPUT = 8000
@@ -137,6 +140,26 @@ export const READ_TOOLS: Record<string, ReadTool> = {
       // Ad headlines are written by whoever ran the ad: data, not instructions
       const summary = summarizeConversationOrigins(convs, requests)
       return { dias: days, ...summary, por_anuncio: summary.por_anuncio.map((a) => ({ ...a, titulo: a.titulo ? untrusted(String(a.titulo).slice(0, 120)) : null })) }
+    },
+  },
+  resultados_marketing: {
+    def: { name: 'resultados_marketing', description: 'Resultados de marketing de punta a punta: por canal, por campaña o pauta y por pieza (anuncio, publicación, artículo), cuántas conversaciones, solicitudes, reservas, completadas y ventas trajo, el gasto cargado de cada pauta y el costo por solicitud y por reserva (meta de la pauta: menos de $25.000 por solicitud). Modelo de último toque o primer toque. Incluye si las conversiones llegan a Meta y Google, y el tráfico de GA4 si está conectado. Úsala para decidir en qué pauta o pieza poner el dinero.', input_schema: { type: 'object', properties: { periodo: { type: 'string', enum: ['7d', '30d', '90d'] }, modelo: { type: 'string', enum: ['last', 'first'], description: 'last (por defecto) o first' } } } },
+    maxOutput: 12000,
+    run: async (i) => {
+      const p = parsePeriod({ preset: period(i.periodo) })
+      const [o, conv, ga] = await Promise.all([
+        originsTab(p, i.modelo === 'first' ? 'first' : 'last'),
+        conversionStats(30),
+        trafficTab(p).then((t) => (t && typeof t === 'object' && 'configured' in t && t.configured === false ? null : t)).catch(() => null),
+      ])
+      const row = (r: (typeof o.channels)[number]) => ({ origen: untrusted(r.label.slice(0, 120)), canal: r.channelLabel, conversaciones: r.conversations, solicitudes: r.requests, reservas: r.bookings, completadas: r.completed, ventas: Math.round(r.sales), gasto: r.spend, costo_por_solicitud: r.costPerRequest, costo_por_reserva: r.costPerBooking })
+      const gaSources = ga && typeof ga === 'object' && 'channels' in ga ? (ga as { channels?: unknown }).channels : null
+      return {
+        periodo: p.label, modelo: o.model, totales: o.totals, solicitudes_sin_origen: o.requestsWithoutData,
+        por_canal: o.channels.map(row), por_campana: o.campaigns.slice(0, 12).map(row), por_pieza: o.pieces.slice(0, 12).map(row),
+        conversiones_enviadas_30d: conv.rows, ultima_conversion_fallida: conv.lastFailed ? { destino: conv.lastFailed.destination, detalle: conv.lastFailed.detail?.slice(0, 200) ?? null } : null,
+        ga4_canales: Array.isArray(gaSources) ? gaSources.slice(0, 10) : 'GA4 sin conectar',
+      }
     },
   },
   marketing: {

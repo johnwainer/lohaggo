@@ -143,8 +143,10 @@ export function nextAgentState(current: AgentState, event: AgentEvent, mode: Age
 }
 
 /** The campaign's KPI now, from its published totals, to show against the goal. */
-export function campaignKpi(kpi: Kpi, t: { reach: number; clicks: number; webViews: number; engagementRate: number | null }, conversations: number): number | null {
+export function campaignKpi(kpi: Kpi, t: { reach: number; clicks: number; webViews: number; engagementRate: number | null }, conversations: number, results: { requests: number; bookings: number } = { requests: 0, bookings: 0 }): number | null {
   switch (kpi) {
+    case 'requests': return results.requests
+    case 'bookings': return results.bookings
     case 'reach': return t.reach + t.webViews
     case 'web_visits': return t.webViews
     case 'clicks': return t.clicks
@@ -547,13 +549,16 @@ export function postFeatures(p: {
   return f
 }
 
-export type RowMetrics = { reach: number; likes: number; comments: number; shares: number; saves: number; clicks: number; webViews: number; conversations: number }
+export type RowMetrics = { reach: number; likes: number; comments: number; shares: number; saves: number; clicks: number; webViews: number; conversations: number; requests?: number; bookings?: number }
 export type LearningRow = { postId: string; title: string; channel: MarketingChannel; publishedAt: Date; features: PostFeatures; metrics: RowMetrics }
 
 /** Value of the campaign's KPI for one channel send; null when that channel cannot measure it. */
 export function kpiValue(kpi: Kpi, channel: MarketingChannel, m: RowMetrics): number | null {
   const web = channel === 'WEB'
   switch (kpi) {
+    // What the platform lives on: requests (and bookings) the send brought, on every channel
+    case 'requests': return m.requests ?? 0
+    case 'bookings': return m.bookings ?? 0
     case 'reach': return web ? m.webViews : m.reach
     case 'web_visits': return web ? m.webViews : m.clicks
     case 'clicks': return web ? m.webViews : m.clicks

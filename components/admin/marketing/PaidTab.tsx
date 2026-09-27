@@ -10,6 +10,7 @@ import {
   AD_LIMITS,
   AD_OBJECTIVES,
   adUrlParams,
+  adWelcomeMessage,
   cloudinaryDownload,
   type AdFormat,
   type AdPackage,
@@ -78,10 +79,64 @@ function Section({ title, children, action }: { title: string; children: React.R
   )
 }
 
+type Spend = { id: string; day: string; adSet: string; amountCop: number; note: string | null }
+const todayBogota = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(new Date())
+
+/** Daily spend typed from Ads Manager: what Analítica → Origen divides to get the cost per request. */
+function SpendSection({ draftId, canEdit }: { draftId: string; canEdit: boolean }) {
+  const [rows, setRows] = useState<Spend[] | null>(null)
+  const [f, setF] = useState({ day: todayBogota(), adSet: '', amountCop: '' })
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  useEffect(() => { api<{ spend: Spend[] }>(`/api/admin/marketing/paid/${draftId}/spend`).then((r) => setRows(r.spend)).catch(() => setRows([])) }, [draftId])
+  async function save() {
+    setBusy(true)
+    setError(null)
+    try {
+      const r = await api<{ spend: Spend[] }>(`/api/admin/marketing/paid/${draftId}/spend`, { method: 'PUT', json: { day: f.day, adSet: f.adSet, amountCop: Number(f.amountCop.replace(/\D/g, '')) } })
+      setRows(r.spend)
+      setF((x) => ({ ...x, amountCop: '' }))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error')
+    } finally {
+      setBusy(false)
+    }
+  }
+  async function remove(id: string) {
+    const r = await api<{ spend: Spend[] }>(`/api/admin/marketing/paid/${draftId}/spend?spendId=${id}`, { method: 'DELETE' }).catch(() => null)
+    if (r) setRows(r.spend)
+  }
+  const total = (rows ?? []).reduce((a, r) => a + r.amountCop, 0)
+  return (
+    <Section title="Gasto diario" action={<span className="text-sm font-semibold text-gray-900">{cop(total)}</span>}>
+      <p className="text-xs text-gray-500">Copia de Ads Manager lo gastado cada día (columna «Importe gastado»). Con esto, Analítica → Origen calcula el costo por solicitud de esta pauta.</p>
+      {canEdit && (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-[auto_1fr_auto_auto]">
+          <input type="date" className={input} value={f.day} max={todayBogota()} onChange={(e) => setF({ ...f, day: e.target.value })} />
+          <input className={input} placeholder="Conjunto (opcional): Reparaciones" value={f.adSet} onChange={(e) => setF({ ...f, adSet: e.target.value })} />
+          <input className={input} inputMode="numeric" placeholder="Gasto en COP" value={f.amountCop} onChange={(e) => setF({ ...f, amountCop: e.target.value })} />
+          <button onClick={save} disabled={busy || !f.amountCop.trim()} className="inline-flex items-center justify-center gap-1.5 rounded-full bg-primary-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy && <Loader2 size={14} className="animate-spin" />} Guardar</button>
+        </div>
+      )}
+      {error && <p className="text-sm text-rose-600">{error}</p>}
+      {rows === null ? <Loader2 size={16} className="animate-spin text-gray-400" /> : rows.length === 0 ? <p className="text-sm text-gray-500">Sin gasto cargado.</p> : (
+        <ul className="divide-y divide-gray-100 text-sm">
+          {rows.map((r) => (
+            <li key={r.id} className="flex items-center justify-between gap-2 py-1.5">
+              <span className="min-w-0 truncate text-gray-700">{r.day}{r.adSet ? ` · ${r.adSet}` : ''}</span>
+              <span className="flex shrink-0 items-center gap-2 font-semibold tabular-nums text-gray-900">{cop(r.amountCop)}{canEdit && <button onClick={() => remove(r.id)} className="text-xs font-normal text-gray-400 hover:text-rose-600">Quitar</button>}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Section>
+  )
+}
+
 function DraftDetail({ d, canEdit, onBack, onChanged }: { d: Draft; canEdit: boolean; onBack: () => void; onChanged: (d: Draft) => void }) {
   const [busy, setBusy] = useState(false)
   const p = d.output
-  const params = adUrlParams(d.title)
+  const params = adUrlParams(d.title, d.id)
   async function setStatus(status: 'used' | 'ready' | 'archived') {
     setBusy(true)
     try {
@@ -173,6 +228,13 @@ function DraftDetail({ d, canEdit, onBack, onChanged }: { d: Draft; canEdit: boo
             ) : <p className="text-sm text-gray-500">Esta pauta no tiene imágenes.</p>}
           </Section>
 
+          {d.input.destination === 'whatsapp' && (
+            <Section title="Mensaje de bienvenida y seguimiento">
+              <Field label="Mensaje prellenado del chat" text={adWelcomeMessage(d.id, d.input.service)} />
+              <p className="text-xs text-gray-500">En Ads Manager, en «Plantilla de mensaje» → «Mensaje prellenado», pega este texto tal cual. El código del final une el chat, la solicitud y la reserva a esta pauta en Analítica → Origen.</p>
+            </Section>
+          )}
+
           {d.input.destination === 'website' && (
             <Section title="Enlace y seguimiento">
               <Field label="Sitio web" text="https://www.lohaggo.com/" />
@@ -180,6 +242,8 @@ function DraftDetail({ d, canEdit, onBack, onChanged }: { d: Draft; canEdit: boo
               <p className="text-xs text-gray-500">Así las visitas de este anuncio se ven en Resultados separadas por Facebook e Instagram.</p>
             </Section>
           )}
+
+          {(d.status === 'used' || d.status === 'ready') && <SpendSection draftId={d.id} canEdit={canEdit} />}
 
           <Section title="Cómo subirla a Meta Ads">
             <ol className="list-decimal space-y-1.5 pl-5 text-sm text-gray-700">{p.checklist.map((x, i) => <li key={i}>{x}</li>)}</ol>

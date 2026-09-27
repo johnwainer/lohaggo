@@ -7,6 +7,7 @@ import PWARegister from '@/components/PWARegister'
 import PublicLayout from '@/components/PublicLayout'
 import TestModeBanner from '@/components/TestModeBanner'
 import MetaPixel from '@/components/analytics/MetaPixel'
+import { metaPixelIdForPage } from '@/lib/analytics/conversions'
 import GoogleAnalytics from '@/components/analytics/GoogleAnalytics'
 import MicrosoftClarity from '@/components/analytics/MicrosoftClarity'
 import ChunkErrorHandler from '@/components/ChunkErrorHandler'
@@ -150,6 +151,7 @@ export default async function RootLayout({
     isTestMode = !config || config.environment === 'TEST'
   } catch { /* default to true if DB unreachable */ }
   const footerServices = await getTopServicesSafe(6)
+  const metaPixelId = await metaPixelIdForPage()
 
   return (
     <html lang="es-CO" translate="no" className={inter.variable}>
@@ -282,7 +284,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
             {children}
           </PublicLayout>
         </Providers>
-        <MetaPixel />
+        <MetaPixel pixelId={metaPixelId} />
         <GoogleAnalytics />
         <MicrosoftClarity />
       </body>

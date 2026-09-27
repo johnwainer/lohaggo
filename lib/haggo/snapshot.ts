@@ -1,3 +1,4 @@
+import { attributionSnapshot } from '@/lib/analytics/origins'
 import { prisma } from '@/lib/prisma'
 import { platformOverview } from '@/lib/admin/overview'
 import { bogotaDayStart } from '@/lib/admin/overview-core'
@@ -117,6 +118,7 @@ export async function takeSnapshot(now = new Date()): Promise<Snapshot> {
     config: platform.config,
     guarantee,
     waTemplates,
+    attribution: await attributionSnapshot(now).catch(() => undefined),
   }
 }
 

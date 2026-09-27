@@ -1,4 +1,7 @@
-import { NextResponse } from "next/server"
+import { NextResponse, type NextRequest } from "next/server"
+import type { Prisma } from '@prisma/client'
+import { compactTouch } from '@/lib/analytics/attribution-core'
+import { webAttribution } from '@/lib/analytics/touches'
 import { z } from 'zod'
 import { prisma } from "@/lib/prisma"
 import { createNotification } from "@/lib/notifications/notificationService"
@@ -34,7 +37,7 @@ export async function GET(request: Request) {
 
 const citySchema = z.object({ city: z.nativeEnum(City).optional() })
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const actor = await currentActor()
     if (!actor) return NextResponse.json({ error: "Debe iniciar sesión para reservar" }, { status: 401 })
@@ -68,6 +71,7 @@ export async function POST(request: Request) {
       partnerCity = partner.city
     }
 
+    const touches = webAttribution(request)
     const booking = await prisma.booking.create({
       data: {
         userId: actor.userId,
@@ -84,6 +88,8 @@ export async function POST(request: Request) {
         partnerCommissionRate: rates.partner,
         status: "PENDING",
         ...originColumns(APP_ORIGIN),
+        ...(touches.first ? { acquisition: compactTouch(touches.first) as Prisma.InputJsonValue } : {}),
+        ...(touches.last ? { lastTouch: compactTouch(touches.last) as Prisma.InputJsonValue } : {}),
       },
       include: BOOKING_INCLUDE,
     })

@@ -5,6 +5,7 @@ import { computeRefundPolicy, calculateSlaDueAt } from '@/lib/launch-ops'
 import { recordPromptContext } from '@/lib/pwa/adoption-strategy'
 import { scheduleAutomationsForUser } from '@/lib/messaging/automation-service'
 import { APP_ORIGIN, OpsError, actorTypeOf, originColumns, type Actor, type Origin } from '@/lib/ops/origin'
+import { runAfterResponse } from '@/lib/ops/after'
 import type { BookingStatus } from '@prisma/client'
 import { BOOKING_STATUS_LABEL, canTransition, transitionRoleOf, type TransitionRole } from '@/lib/bookings/transitions'
 
@@ -203,8 +204,17 @@ export async function transitionBooking(actor: Actor, bookingId: string, to: Boo
   const { waBookingStatus } = await import('@/lib/messaging/wa-events')
   await waBookingStatus({ bookingId, from: booking.status, to, actorRole: actor.role, origin, reopened })
   await afterStatusChange(actor, booking, to)
+  if (to === 'COMPLETED') schedulePurchaseConversion(bookingId)
 
   return updated
+}
+
+/** Purchase to Meta / GA4 after the response; the ledger keeps it to one per booking (completed or paid). */
+export function schedulePurchaseConversion(bookingId: string) {
+  runAfterResponse(async () => {
+    const { sendPurchaseConversion } = await import('@/lib/analytics/conversions')
+    await sendPurchaseConversion(bookingId)
+  })
 }
 
 export const REQUEST_REOPEN_ACTION = 'REQUEST_REOPEN'
@@ -265,6 +275,7 @@ export async function systemTransition(bookingId: string, to: BookingStatus, det
   await prisma.bookingEvent.create({
     data: { bookingId, type: 'status', fromStatus: booking.status, toStatus: to, actorType: 'system', ...originColumns(APP_ORIGIN), detail: detail ?? null },
   })
+  if (to === 'COMPLETED') schedulePurchaseConversion(bookingId)
   return updated
 }
 

@@ -17,7 +17,7 @@ import AddressStep from '@/components/service-request/AddressStep'
 import RequestSuccess from '@/components/service-request/RequestSuccess'
 import StickyRequestBar from '@/components/service-request/StickyRequestBar'
 import GuaranteeStrip from '@/components/service-request/GuaranteeStrip'
-import { track } from '@/lib/analytics/track'
+import { ga4Loaded, track } from '@/lib/analytics/track'
 import { withRedirect } from '@/lib/navigation/safe-redirect'
 import { cityEnumFromName, splitAddressText } from '@/lib/geo/address'
 import {
@@ -664,14 +664,16 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
           isUrgent: timing.isUrgent,
           city: finalCity || undefined,
           photoUrls,
-          partnerId: selectedPartnerId || null
+          partnerId: selectedPartnerId || null,
+          gaTracked: ga4Loaded()
         })
       })
 
       if (res.ok) {
+        const created = await res.clone().json().catch(() => null) as { id?: string } | null
         if (!usingSaved) await saveNewAddress()
         clearDraft(safeStorage())
-        track('lead', { content_name: service.name, content_ids: [service.id], content_category: service.category.name, value: requestData.budget ? parseFloat(requestData.budget) : undefined })
+        track('lead', { content_name: service.name, content_ids: [service.id], content_category: service.category.name, value: requestData.budget ? parseFloat(requestData.budget) : undefined }, { eventId: created?.id ? `lead-${created.id}` : undefined })
         const partner = selectedPartnerId ? service.partners.find(p => p.partner.id === selectedPartnerId)?.partner : null
         setSuccessInfo({ partnerName: partner ? (partner.isCompany && partner.companyName ? partner.companyName : partner.user.name) : null })
       } else {

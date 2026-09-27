@@ -9,10 +9,12 @@ export type AgentMode = (typeof AGENT_MODES)[number]
 export const AGENT_STATUS = ['draft', 'active', 'paused', 'finished'] as const
 export type AgentStatus = (typeof AGENT_STATUS)[number]
 
-export const KPIS = ['reach', 'web_visits', 'clicks', 'conversations', 'engagement'] as const
+export const KPIS = ['requests', 'bookings', 'reach', 'web_visits', 'clicks', 'conversations', 'engagement'] as const
 export type Kpi = (typeof KPIS)[number]
 
 export const KPI_LABEL: Record<Kpi, string> = {
+  requests: 'Solicitudes de servicio',
+  bookings: 'Reservas',
   reach: 'Alcance',
   web_visits: 'Visitas al blog',
   clicks: 'Clics',
@@ -22,7 +24,7 @@ export const KPI_LABEL: Record<Kpi, string> = {
 
 /** Main KPI suggested for each campaign objective (the person can change it). */
 export const KPI_BY_OBJECTIVE: Record<string, Kpi> = {
-  reach: 'reach', brand: 'reach', traffic: 'web_visits', leads: 'conversations', sales: 'conversations', engagement: 'engagement',
+  reach: 'reach', brand: 'reach', traffic: 'web_visits', leads: 'requests', sales: 'bookings', engagement: 'engagement',
 }
 
 export const AGENT_CHANNELS: MarketingChannel[] = ['INSTAGRAM', 'FACEBOOK', 'WEB']

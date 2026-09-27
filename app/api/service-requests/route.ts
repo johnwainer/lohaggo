@@ -3,6 +3,7 @@ import { handleApiError } from '@/lib/errors'
 import { APP_ORIGIN } from '@/lib/ops/origin'
 import { currentActor, opsErrorResponse } from '@/lib/ops/actor'
 import { createServiceRequest, listClientRequests } from '@/lib/service-requests/ops'
+import { webAttribution } from '@/lib/analytics/touches'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,7 +14,7 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json()
     try {
-      const serviceRequest = await createServiceRequest(actor, body, APP_ORIGIN)
+      const serviceRequest = await createServiceRequest(actor, body, APP_ORIGIN, { attribution: webAttribution(req), browserSent: body?.gaTracked === true })
       return NextResponse.json(serviceRequest, { status: 201 })
     } catch (err) {
       return opsErrorResponse(err)

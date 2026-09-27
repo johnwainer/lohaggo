@@ -2,13 +2,15 @@
 
 import { Suspense, useCallback, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { AlertTriangle, BarChart3, Filter, Globe, Headphones, Loader2, Search, Smartphone, TrendingUp, Users, Wallet } from 'lucide-react'
+import { AlertTriangle, BarChart3, Filter, Globe, Headphones, Loader2, Search, Smartphone, Target, TrendingUp, Users, Wallet } from 'lucide-react'
 import { BusinessTab, FunnelTab, PeopleTab, SearchTab, ServiceTab, SupplyTab, TrafficTab } from '@/components/admin/analytics/tabs'
 import PwaTab from '@/components/admin/analytics/PwaTab'
+import { OriginsTab } from '@/components/admin/analytics/OriginsTab'
 import { CITY_LABEL, Empty } from '@/components/admin/analytics/ui'
 
 const TABS = [
   { key: 'business', label: 'Negocio', icon: Wallet, help: 'Dinero cobrado, comisión, ticket y ventas por servicio, categoría y ciudad.', filters: true },
+  { key: 'origins', label: 'Origen', icon: Target, help: 'De dónde vienen las solicitudes: canal, campaña y pieza, de la conversación a la venta, con el costo por solicitud de la pauta.', filters: false },
   { key: 'funnel', label: 'Embudo', icon: TrendingUp, help: 'De la búsqueda al pago, siguiendo cada solicitud: dónde se pierden los clientes.', filters: true },
   { key: 'supply', label: 'Oferta y demanda', icon: BarChart3, help: 'Qué se pide frente a los socios que lo ofrecen: dónde faltan socios y qué no encuentra la gente.', filters: true },
   { key: 'people', label: 'Clientes y socios', icon: Users, help: 'Registros, cohortes (activación y repetición) y de dónde llega cada cuenta.', filters: true },
@@ -80,6 +82,7 @@ function AnalyticsInner() {
   const [custom, setCustom] = useState<{ from: string; to: string } | null>(null)
   const [city, setCity] = useState('')
   const [categoryId, setCategoryId] = useState('')
+  const [model, setModel] = useState<'last' | 'first'>('last')
   const [options, setOptions] = useState<{ categories: Array<{ id: string; name: string }>; cities: string[] } | null>(null)
   const [data, setData] = useState<{ tab: Tab; period: { label: string }; data: Record<string, unknown> & { configured?: boolean } } | null>(null)
   const [loading, setLoading] = useState(false)
@@ -96,6 +99,7 @@ function AnalyticsInner() {
     if (custom?.from && custom?.to) { q.set('from', custom.from); q.set('to', custom.to) } else q.set('preset', preset)
     if (meta.filters && city) q.set('city', city)
     if (meta.filters && categoryId) q.set('categoryId', categoryId)
+    if (tab === 'origins') q.set('model', model)
     try {
       const res = await fetch(`/api/admin/analytics?${q}`)
       const d = await res.json()
@@ -107,7 +111,7 @@ function AnalyticsInner() {
     } finally {
       setLoading(false)
     }
-  }, [tab, preset, custom, city, categoryId, meta.filters])
+  }, [tab, preset, custom, city, categoryId, meta.filters, model])
   useEffect(() => { setData(null); load() }, [load])
 
   // Only the data fetched for this tab: another tab's shape would break the charts while switching
@@ -167,6 +171,7 @@ function AnalyticsInner() {
       ) : !d || loading ? (
         <div className="flex items-center gap-2 py-16 text-gray-500"><Loader2 size={18} className="animate-spin" /> Calculando…</div>
       ) : tab === 'business' ? <BusinessTab d={d} />
+        : tab === 'origins' ? <OriginsTab d={d} model={model} onModel={setModel} />
         : tab === 'funnel' ? <FunnelTab d={d} />
         : tab === 'supply' ? <SupplyTab d={d} />
         : tab === 'people' ? <PeopleTab d={d} />

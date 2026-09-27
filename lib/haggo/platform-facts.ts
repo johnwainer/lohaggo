@@ -15,13 +15,21 @@ export const PLATFORM_CAPABILITIES = `Cómo funciona LoHaggo hoy:
 - Marketing: agentes de marketing por campaña (estrategia, plan, redacción, programación), editor de publicaciones con revisión editorial (corrector y editor), blog y redes (Facebook, Instagram), y agente de pauta que prepara anuncios para Meta Ads (se suben a mano).
 - Garantía LoHaggo (lib/guarantee/policy.ts, página /garantia): cubre «no llegó» (hasta 24 h después de la hora), trabajo incompleto o distinto (hasta 72 h después de completada) y daños (siempre una persona; LoHaggo media, no paga daños). Remedios: otro socio con prioridad (solicitud nueva urgente), cancelación sin costo, que el mismo socio corrija, y reembolso solo si pagó en línea. SLA: solución en 24 h, resuelto en 72 h. 2 faltas del socio en 90 días lo pausan solo; con 3 el equipo decide suspender. El cliente reclama por chat (reportar_problema_servicio) y el equipo resuelve en /admin/guarantee; tú solo recomiendas.
 - Afirmaciones públicas del sitio (confianza y promociones) controladas por interruptores (lib/public/claims.ts); las cifras salen de la base y solo se muestran sobre un mínimo. Nada inventado.
-- Analítica del admin con corte app frente a chat, salud del sistema, casos e incidentes, modo TV.
+- Atribución de punta a punta: cada solicitud y reserva guarda su primer y último toque (anuncio de Meta con su pauta, publicación, blog, página de la web, perfil de Google, chat directo). Las pautas llevan su código (ad-…) en la UTM y en el mensaje prellenado de WhatsApp; el gasto diario se carga a mano en Marketing → Pauta. Lead (solicitud) y Purchase (reserva completada) van a Meta (API de Conversiones) y GA4 una vez cada uno. Meta de la pauta: menos de $25.000 por solicitud.
+- Analítica del admin con corte app frente a chat, pestaña Origen (de dónde vienen las solicitudes), salud del sistema, casos e incidentes, modo TV.
 - Tú (Haggo) supervisas todo, propones acciones y el superadmin aprueba; en las áreas que él ponga en autónomo actúas solo con riesgo bajo o medio permitido.`
 
 export type ChangelogEntry = { date: string; area: string; change: string; impacto: string; comoVerlo: string }
 
 /** Newest first. At most ~15 entries: the big features only. */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
+  {
+    date: '2026-09-28',
+    area: 'Marketing y medición',
+    change: 'Atribución de punta a punta: ServiceRequest y Booking guardan acquisition (primer toque) y lastTouch (último); la web lo toma de las cookies lh_acq y lh_lt (UTM, fbclid, gclid, referrer) y el chat de la conversación (anuncio con ctwa_clid, refs post-/ad-/web-/blog-). Conversiones Lead y Purchase al servidor (API de Conversiones de Meta, también business_messaging para clic a WhatsApp, y GA4 Measurement Protocol) con registro en ConversionEvent. Gasto diario manual por pauta (MarketingAdSpend), pestaña Analítica → Origen, KPI «solicitudes» y «reservas» del agente de marketing, enlace corto /w/post-… en Facebook y mensaje prellenado con código en cada pauta. Acciones marketing.request_ad_package y marketing.propose_budget_shift.',
+    impacto: 'Se sabe qué anuncio, publicación o página trae solicitudes y reservas y cuánto cuesta cada una; Meta optimiza la pauta con conversiones reales.',
+    comoVerlo: 'resultados_marketing, la foto (attribution.*) y las reglas mk:spend-no-requests y mk:conversions-failed.',
+  },
   {
     date: '2026-09-27',
     area: 'WhatsApp',
@@ -119,13 +127,6 @@ export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
     change: 'Analítica de negocio, salud del sistema y limpieza del admin.',
     impacto: 'Embudo, oferta y demanda, personas y atención en un solo lugar.',
     comoVerlo: 'tendencias_negocio, oferta_y_demanda, salud_sistema.',
-  },
-  {
-    date: '2026-09-24',
-    area: 'Marketing',
-    change: 'Agente de marketing autónomo por campaña y publicaciones omnicanal (blog, Facebook, Instagram) con programación y estadísticas.',
-    impacto: 'Contenido constante sin trabajo manual.',
-    comoVerlo: 'marketing y agentes_marketing.',
   },
 ]
 

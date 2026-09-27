@@ -186,6 +186,9 @@ model Booking {
   originChannel         String?
   originConversationId  String?
   originAgentId         String?
+  /// First touch and last touch, copied from the request it came from
+  acquisition           Json?
+  lastTouch             Json?
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
   partner               PartnerProfile?    @relation(fields: [partnerId], references: [id])
@@ -265,6 +268,9 @@ model ServiceRequest {
   originChannel        String?
   originConversationId String?
   originAgentId        String?
+  /// First touch (the lh_acq cookie, or the conversation's first ad / web ref) and the last touch before converting
+  acquisition          Json?
+  lastTouch            Json?
   createdAt            DateTime             @default(now())
   updatedAt            DateTime             @updatedAt
   proposals            Proposal[]
@@ -2680,8 +2686,61 @@ model AnalyticsSettings {
   id                      String   @id @default("platform")
   ga4PropertyId           String?
   ga4CredentialsEncrypted String?
+  /// Meta pixel (browser) and Conversions API (server); the token is stored encrypted
+  metaPixelId             String?
+  metaCapiTokenEncrypted  String?
+  metaTestEventCode       String?
+  /// WhatsApp Business Account id: conversions of Click-to-WhatsApp chats go to Meta with it and the ctwa_clid
+  metaWabaId              String?
+  /// GA4 Measurement Protocol (server events): measurement id G-… and the API secret, encrypted
+  ga4MeasurementId        String?
+  ga4ApiSecretEncrypted   String?
   updatedByEmail          String?
   updatedAt               DateTime @updatedAt
+}
+
+/// Conversions sent from the server (Meta Conversions API). eventId is shared with the browser pixel so Meta dedupes.
+model ConversionEvent {
+  id          String   @id @default(cuid())
+  /// Lead | Purchase
+  event       String
+  /// meta_capi | ga4_mp
+  destination String
+  /// lead-{serviceRequestId} | purchase-{bookingId}
+  eventId     String
+  entityType  String
+  entityId    String
+  value       Float?
+  /// sent | failed | skipped
+  status      String
+  detail      String?
+  attempts    Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([destination, eventId])
+  @@index([createdAt])
+}
+
+/// Daily ad spend typed in by hand (until ads_read): what the attribution board divides by
+model MarketingAdSpend {
+  id          String   @id @default(cuid())
+  workspaceId String
+  day         DateTime @db.Date
+  /// adDraftId, or campaignId, or "general"
+  key         String
+  adDraftId   String?
+  campaignId  String?
+  /// The ad set as named in Meta Ads (Reparaciones, Hogar…); empty = the whole campaign
+  adSet       String   @default("")
+  amountCop   Int
+  note        String?
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([workspaceId, day, key, adSet])
+  @@index([workspaceId, day])
 }
 
 // ─── Haggo: master agent ─────────────────────────────────────────────────────
