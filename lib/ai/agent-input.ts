@@ -1,6 +1,9 @@
 import { TOOL_NAMES, CRM_MODULES } from '@/lib/ai/tools'
 import { COMMENT_CHANNELS, COMMENT_SCOPES_MODES, REPLY_MODES, SENSITIVE_ACTIONS } from '@/lib/ai/comments-core'
 
+/** Business instructions: long enough for a full playbook; they sit in the cached part of the prompt. */
+export const MAX_INSTRUCTIONS = 20000
+
 export const AGENT_CHANNELS = ['WHATSAPP', 'SMS', 'MESSENGER', 'INSTAGRAM'] as const
 /** Configured in the agent's "Comentarios" tab, apart from messaging channels */
 export const AGENT_COMMENT_CHANNELS = COMMENT_CHANNELS
@@ -44,7 +47,7 @@ export function sanitizeAgentInput(body: AgentInput, opts: { allowModel: boolean
   set('name', text(body.name, 80))
   set('avatar', oneOf(body.avatar, AVATARS.map((a) => a.key)))
   set('goal', text(body.goal, 1000))
-  set('instructions', text(body.instructions, 12000))
+  set('instructions', text(body.instructions, MAX_INSTRUCTIONS))
   set('tone', text(body.tone, 200))
   set('language', oneOf(body.language, LANGUAGES))
   set('status', oneOf(body.status, ['active', 'paused'] as const))
