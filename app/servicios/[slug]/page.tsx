@@ -13,6 +13,7 @@ import ConfirmModal from '@/components/ConfirmModal'
 import AdBanner from '@/components/ads/AdBanner'
 import ServiceDetailTour from '@/components/ServiceDetailTour'
 import PlatformTrustBanner from '@/components/PlatformTrustBanner'
+import { useTrust } from '@/lib/public/useTrust'
 
 interface Service {
   id: string
@@ -70,6 +71,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
   const { data: session, status } = useSession()
   const router = useRouter()
   const { getCityBySlug } = useCity()
+  const { whatsappPhone } = useTrust()
   const [service, setService] = useState<Service | null>(null)
   const [loading, setLoading] = useState(true)
   const [showRequestModal, setShowRequestModal] = useState(false)
@@ -958,13 +960,14 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                       </p>
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
                         <p className="text-xs text-blue-800">
-                          <span className="font-semibold">💡 Beneficio:</span> Serás el primero en recibir ofertas especiales y descuentos de lanzamiento.
+                          <span className="font-semibold">💡 Aviso:</span> Te avisamos cuando haya profesionales para este servicio.
                         </p>
                       </div>
                       <button
                         onClick={() => {
                           const message = `Hola, estoy interesado en el servicio de ${service.name} en ${getCityBySlug(slug)?.name || 'mi ciudad'}. ¿Cuándo estará disponible?`
-                          window.open(`https://wa.me/573001234567?text=${encodeURIComponent(message)}`, '_blank')
+                          if (whatsappPhone) window.open(`https://wa.me/${whatsappPhone}?text=${encodeURIComponent(message)}`, '_blank')
+                          else window.location.href = `mailto:hola@lohaggo.com?subject=${encodeURIComponent(`Interés en ${service.name}`)}&body=${encodeURIComponent(message)}`
                         }}
                         className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-semibold py-3 px-4 rounded-lg hover:from-blue-600 hover:to-indigo-600 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 group"
                       >
@@ -987,8 +990,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                   <div className="flex-1 text-center md:text-left">
                     <h4 className="font-bold text-gray-900 mb-1">¿Por qué unirte a LoHaggo?</h4>
                     <p className="text-gray-700 text-sm">
-                      Más de <span className="font-semibold text-primary-600">10,000 clientes</span> confían en nosotros.
-                      Únete a nuestra comunidad de profesionales verificados y empieza a generar ingresos hoy mismo.
+                      Únete a nuestra comunidad de profesionales verificados y recibe solicitudes de clientes en tu ciudad.
                     </p>
                   </div>
                   <button

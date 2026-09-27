@@ -19,9 +19,12 @@ import {
   Sparkles
 } from 'lucide-react'
 import PlatformTrustBanner from '@/components/PlatformTrustBanner'
+import { useTrust } from '@/lib/public/useTrust'
+import { clientPayment, partnerPayout, supportShort } from '@/lib/public/copy'
 
 export default function HowItWorksPage() {
   const [activeTab, setActiveTab] = useState<'client' | 'partner'>('client')
+  const trust = useTrust()
 
   const clientSteps = [
     {
@@ -35,7 +38,7 @@ export default function HowItWorksPage() {
       icon: UserCheck,
       title: '2. Elige tu profesional',
       description: 'Revisa perfiles, calificaciones y precios de profesionales verificados.',
-      details: 'Compara múltiples opciones, lee reseñas de otros clientes y verifica certificaciones.',
+      details: 'Compara múltiples opciones y lee reseñas de otros clientes.',
       color: 'from-purple-500 to-purple-600'
     },
     {
@@ -49,21 +52,25 @@ export default function HowItWorksPage() {
       icon: Calendar,
       title: '4. Agenda y confirma',
       description: 'Selecciona fecha y hora que te convengan y confirma la reserva.',
-      details: 'Recibe confirmación instantánea y recordatorios automáticos antes del servicio.',
+      details: 'El socio confirma la reserva y te avisamos por WhatsApp.',
       color: 'from-primary-500 to-primary-600'
     },
     {
       icon: CheckCircle,
       title: '5. Recibe el servicio',
       description: 'El profesional llega a tiempo y realiza el trabajo acordado.',
-      details: 'Seguimiento en tiempo real, soporte 24/7 y garantía de satisfacción.',
+      details: [
+        'Sigue el estado de tu reserva en la app.',
+        `${supportShort(trust)}.`,
+        trust.claims.trust_guarantee ? 'Si algo sale mal, te ayudamos a resolverlo.' : '',
+      ].filter(Boolean).join(' '),
       color: 'from-green-500 to-green-600'
     },
     {
       icon: Star,
       title: '6. Califica y paga',
-      description: 'Evalúa el servicio y realiza el pago de forma segura.',
-      details: 'Múltiples métodos de pago, protección de compra y sistema de reembolso.',
+      description: 'Evalúa el servicio y paga al profesional.',
+      details: trust.claims.trust_online_payment_protection ? clientPayment(trust) : 'Pagas al terminar el servicio, en efectivo o transferencia.',
       color: 'from-yellow-500 to-yellow-600'
     }
   ]
@@ -73,7 +80,7 @@ export default function HowItWorksPage() {
       icon: UserCheck,
       title: '1. Regístrate gratis',
       description: 'Crea tu perfil profesional en minutos con tus datos y certificaciones.',
-      details: 'Proceso simple y rápido. Verifica tu identidad y habilidades para ganar confianza.',
+      details: 'Proceso simple y rápido. Verificamos tu identidad para que los clientes confíen en ti.',
       color: 'from-blue-500 to-blue-600'
     },
     {
@@ -107,8 +114,8 @@ export default function HowItWorksPage() {
     {
       icon: DollarSign,
       title: '6. Recibe tu pago',
-      description: 'Cobra de forma segura y rápida después de completar cada servicio.',
-      details: 'Pagos garantizados, transferencias rápidas y historial detallado de ingresos.',
+      description: 'Cobra al completar cada servicio.',
+      details: `${partnerPayout(trust)} Llevas el historial de tus ingresos en la app.`,
       color: 'from-yellow-500 to-yellow-600'
     }
   ]
@@ -116,13 +123,15 @@ export default function HowItWorksPage() {
   const benefits = [
     {
       icon: Shield,
-      title: 'Seguridad garantizada',
-      description: 'Todos los profesionales están verificados y los pagos son seguros.'
+      title: 'Profesionales verificados',
+      description: trust.claims.trust_background_check
+        ? 'Revisamos identidad y antecedentes de cada profesional.'
+        : 'Verificamos la identidad de cada profesional.'
     },
     {
       icon: Clock,
       title: 'Ahorra tiempo',
-      description: 'Encuentra y contrata profesionales en minutos, no en días.'
+      description: 'Solicita en línea y recibe propuestas sin llamadas ni esperas innecesarias.'
     },
     {
       icon: DollarSign,
@@ -132,7 +141,9 @@ export default function HowItWorksPage() {
     {
       icon: Users,
       title: 'Comunidad confiable',
-      description: 'Miles de usuarios satisfechos y profesionales calificados.'
+      description: trust.stats.verifiedPartners !== null
+        ? `${trust.stats.verifiedPartners.toLocaleString('es-CO')} profesionales verificados y reseñas reales de clientes.`
+        : 'Profesionales verificados y reseñas reales de clientes.'
     }
   ]
 
@@ -276,7 +287,7 @@ export default function HowItWorksPage() {
             ¿Listo para comenzar?
           </h2>
           <p className="text-xl mb-10 text-white/90 font-medium">
-            Únete a miles de usuarios que ya confían en LoHaggo
+            Crea tu cuenta gratis y solicita tu primer servicio
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link

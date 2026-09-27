@@ -48,11 +48,11 @@ const TOPICS: Record<HelpTopic, TopicConfig> = {
     ],
     responses: {
       CLIENT:
-        '👋 LoHaggo conecta clientes con profesionales verificados. Tú creas una solicitud, los socios envían propuestas con precio, eliges la que más te conviene, chatean para coordinar y al terminar pagas dentro de la app (seguro y respaldado).',
+        '👋 LoHaggo conecta clientes con profesionales verificados. Tú creas una solicitud, los socios envían propuestas con precio, eliges la que más te conviene, chatean para coordinar y al terminar le pagas directo al socio (efectivo o transferencia) y lo reportas en la app.',
       PARTNER:
-        '👋 LoHaggo te conecta con clientes que necesitan tus servicios. Los clientes publican solicitudes en tus categorías, tú envías propuesta con tu precio, si te aceptan coordinan por chat, ejecutas el trabajo y recibes el pago en tu cuenta bancaria (depósito 24-48h tras servicio confirmado).',
+        '👋 LoHaggo te conecta con clientes que necesitan tus servicios. Los clientes publican solicitudes en tus categorías, tú envías propuesta con tu precio, si te aceptan coordinan por chat, ejecutas el trabajo y al terminar el cliente te paga directo (efectivo o transferencia a tu cuenta).',
       default:
-        'LoHaggo conecta clientes con profesionales verificados. Cliente solicita → socio propone → se acepta → se ejecuta → pago seguro dentro de la app.',
+        'LoHaggo conecta clientes con profesionales verificados. Cliente solicita → socio propone → se acepta → se ejecuta → el cliente paga directo al socio al terminar.',
     },
   },
 
@@ -119,8 +119,8 @@ const TOPICS: Record<HelpTopic, TopicConfig> = {
     ],
     responses: {
       PARTNER:
-        '⏱️ Recibes el pago en tu cuenta bancaria 24-48 horas hábiles después de que el servicio quede marcado como completado y el cliente lo confirme. Si no has registrado tu cuenta bancaria, hazlo en "Cuenta → Cuenta bancaria" para evitar retrasos.',
-      default: 'El socio recibe el pago 24-48h hábiles tras servicio completado y confirmado por el cliente.',
+        '⏱️ El cliente te paga directo al terminar el servicio, en efectivo o por transferencia a tu cuenta. Registra tu cuenta bancaria en "Cuenta → Cuenta bancaria" para que el cliente pueda transferirte, y confirma la recepción del pago desde la app.',
+      default: 'El cliente le paga directo al socio al terminar el servicio (efectivo o transferencia).',
     },
   },
 
@@ -133,7 +133,7 @@ const TOPICS: Record<HelpTopic, TopicConfig> = {
     ],
     responses: {
       default:
-        '🔒 Sí. Los pagos se procesan con Mercado Pago (estándar de la industria) y quedan retenidos hasta que ambas partes confirman que el servicio se completó. Si hay disputa, LoHaggo media y protege a quien tenga razón. Por eso pedimos mantener TODO dentro de la app (chat, pagos, fotos): si sales de la plataforma pierdes esa protección.',
+        '🔒 El pago se hace directo entre cliente y socio al terminar el servicio (efectivo o transferencia), y se reporta y confirma en la app. No pagues por adelantado fuera de lo acordado. Si hay un problema, nuestro equipo revisa el caso con lo que quedó registrado: por eso pedimos mantener TODO dentro de la app (chat, acuerdos, reporte del pago).',
     },
   },
 
@@ -178,7 +178,7 @@ const TOPICS: Record<HelpTopic, TopicConfig> = {
     ],
     responses: {
       default:
-        '🛡️ Por seguridad de ambas partes, todo (chat, pagos, fotos) debe quedar dentro de LoHaggo. Si salen de la plataforma pierden la protección del pago retenido, el respaldo ante disputas y el historial. Si necesitan coordinar algo, háganlo aquí — funciona igual que WhatsApp.',
+        '🛡️ Por seguridad de ambas partes, todo (chat, pagos, fotos) debe quedar dentro de LoHaggo. Si salen de la plataforma no queda registro de lo acordado y no podemos ayudarles ante un problema. Si necesitan coordinar algo, háganlo aquí — funciona igual que WhatsApp.',
     },
   },
 
@@ -194,7 +194,7 @@ const TOPICS: Record<HelpTopic, TopicConfig> = {
     ],
     responses: {
       default:
-        '🆘 Para hablar con soporte: escríbenos a hola@lohaggo.com o desde el chat de WhatsApp del botón flotante (esquina inferior derecha). También puedes ir a /contact desde el menú. Tiempo de respuesta: 24h hábiles.',
+        '🆘 Para hablar con soporte: escríbenos a hola@lohaggo.com o desde el chat de WhatsApp del botón flotante (esquina inferior derecha). También puedes ir a /contact desde el menú. El equipo responde en horario hábil.',
     },
   },
 
@@ -206,9 +206,9 @@ const TOPICS: Record<HelpTopic, TopicConfig> = {
     ],
     responses: {
       PARTNER:
-        '💼 LoHaggo cobra una comisión sobre cada servicio completado (la verás detallada en cada propuesta antes de enviarla). Esa comisión cubre el procesamiento de pagos, soporte, seguro de responsabilidad y la difusión de tu perfil. El neto que recibes en tu cuenta ya lleva la comisión descontada.',
+        '💼 La tarifa de LoHaggo, si aplica, se muestra antes de aceptar cada servicio. Registrarte y recibir solicitudes es gratis, sin suscripciones.',
       default:
-        'LoHaggo cobra una comisión al socio sobre cada servicio completado. Se detalla en cada propuesta.',
+        'La tarifa de LoHaggo, si aplica, se muestra antes de aceptar cada servicio.',
     },
   },
 
@@ -222,11 +222,11 @@ const TOPICS: Record<HelpTopic, TopicConfig> = {
     ],
     responses: {
       CLIENT:
-        '✅ Sí, todos los socios pasan un proceso de verificación: documento de identidad aprobado por nuestro equipo + certificados de estudios/experiencia. Verás el badge de "Verificado" en su perfil. Además, tienes el sistema de calificaciones y reseñas para tomar mejor decisión.',
+        '✅ Sí, nuestro equipo verifica el documento de identidad de cada socio antes de que pueda recibir reservas. Verás el badge de "Verificado" en su perfil. Además, tienes el sistema de calificaciones y reseñas para tomar mejor decisión.',
       PARTNER:
-        '✅ Para verificar tu perfil entra a "Cuenta → Verificación" y sube: 1) Documento de identidad (cédula/PEP/pasaporte). 2) Certificados de estudios o cursos del oficio. Nuestro equipo aprueba en 24-48h. Sin verificación NO puedes recibir reservas.',
+        '✅ Para verificar tu perfil entra a "Cuenta → Verificación" y sube tu documento de identidad (cédula/PEP/pasaporte). Si tienes certificados del oficio puedes subirlos también. Nuestro equipo revisa tus documentos y te avisamos al aprobarlos. Sin verificación NO puedes recibir reservas.',
       default:
-        'Los socios pasan verificación de identidad y estudios antes de poder operar. Cliente puede ver badge "Verificado" en el perfil del socio.',
+        'Los socios pasan verificación de identidad antes de poder operar. El cliente puede ver el badge "Verificado" en el perfil del socio.',
     },
   },
 
@@ -238,10 +238,10 @@ const TOPICS: Record<HelpTopic, TopicConfig> = {
     ],
     responses: {
       CLIENT:
-        '⏱️ Los socios suelen enviar propuestas en 1-24h (depende de su disponibilidad y la zona). Si es urgente, márcalo en la solicitud (toggle "URGENTE") — aparece destacado para socios cercanos.',
+        '⏱️ Depende de la disponibilidad de los socios y la zona; te avisamos cuando llegue una propuesta. Si es urgente, márcalo en la solicitud (toggle "URGENTE") — aparece destacado para socios cercanos.',
       PARTNER:
-        '⏱️ Responde rápido — los clientes valoran muchísimo la rapidez. Recomendamos contestar en menos de 1 hora cuando puedas; tu tasa de respuesta afecta el orden en que apareces para los clientes.',
-      default: 'Tiempos típicos: propuestas en 1-24h. Las solicitudes URGENTES aparecen destacadas.',
+        '⏱️ Responde rápido — los clientes valoran muchísimo la rapidez. Recomendamos contestar en menos de 1 hora cuando puedas: responder primero te da más chance de ganar el trabajo.',
+      default: 'El tiempo depende de la disponibilidad de los socios. Las solicitudes URGENTES aparecen destacadas.',
     },
   },
 

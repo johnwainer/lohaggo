@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { ShieldCheck, Wallet, Zap, ArrowRight } from 'lucide-react'
+import { HeroCityName } from '@/components/client/HeroCityName'
 
 /**
  * Above-the-fold hero with a single dominant call to action. Heatmaps showed
@@ -14,7 +15,7 @@ export function HomeHeroCTA() {
           ¿Qué necesitas resolver hoy?
         </h1>
         <p className="mt-1.5 text-sm font-medium text-white/85 md:text-lg">
-          Profesionales verificados en Medellín. Reserva en minutos y paga al finalizar.
+          Profesionales verificados<HeroCityName />. Reserva rápido y paga al finalizar.
         </p>
 
         <Link
@@ -33,7 +34,7 @@ export function HomeHeroCTA() {
             <Wallet className="h-4 w-4" /> Paga al finalizar
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <Zap className="h-4 w-4" /> En minutos
+            <Zap className="h-4 w-4" /> Rápido
           </span>
         </div>
       </div>

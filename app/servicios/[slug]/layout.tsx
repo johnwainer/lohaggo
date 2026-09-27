@@ -1,6 +1,10 @@
 import type { Metadata } from 'next'
 import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
+import { cache } from 'react'
+import { getPublicTrustSafe } from '@/lib/public/trust'
+import { STAT_MINIMUMS } from '@/lib/public/claims'
+import { citiesLine, clientPayment, verificationLong, verificationShort } from '@/lib/public/copy'
 
 type Props = { params: Promise<{ slug: string }>; children: React.ReactNode }
 
@@ -35,6 +39,25 @@ function buildKeywords(name: string, category: string): string[] {
   return base
 }
 
+/** Verified, active partners offering the service, and the rating from their real reviews of it. */
+const serviceTrust = cache(async (serviceId: string) => {
+  const partnerWhere = { verified: true, isActive: true }
+  const [verifiedPartners, rating] = await Promise.all([
+    prisma.partnerService.count({ where: { serviceId, active: true, partner: partnerWhere } }),
+    prisma.review.aggregate({
+      where: { clientToPartnerRating: { not: null }, booking: { serviceId, partner: partnerWhere } },
+      _avg: { clientToPartnerRating: true },
+      _count: { clientToPartnerRating: true },
+    }),
+  ])
+  const reviews = rating._count.clientToPartnerRating
+  const avg = rating._avg.clientToPartnerRating
+  return {
+    verifiedPartners,
+    rating: avg && reviews >= STAT_MINIMUMS.reviewsForRating ? { value: (Math.round(avg * 10) / 10).toFixed(1), reviews } : null,
+  }
+})
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
 
@@ -43,17 +66,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     select: {
       name: true,
       description: true,
+      id: true,
       icon: true,
       basePrice: true,
       category: { select: { name: true } },
-      _count: { select: { partners: true } },
     },
   })
 
   if (!service) return notFound()
 
+  const { verifiedPartners } = await serviceTrust(service.id).catch(() => ({ verifiedPartners: 0 }))
+
   const title = `${service.name} en Medellín – Profesionales Verificados`
-  const description = `Contrata ${service.name.toLowerCase()} en Medellín con LoHaggo. ${service.description} ${service._count.partners} profesionales verificados disponibles. Precios desde $${Math.round(service.basePrice).toLocaleString('es-CO')}. ¡Reserva en minutos!`
+  const description = `Contrata ${service.name.toLowerCase()} en Medellín con LoHaggo. ${service.description}${verifiedPartners > 0 ? ` ${verifiedPartners} profesionales verificados disponibles.` : ''} Precios desde $${Math.round(service.basePrice).toLocaleString('es-CO')}. Reserva fácil y paga al terminar.`
   const url = `${BASE_URL}/servicios/${slug}`
 
   return {
@@ -61,7 +86,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     description,
     keywords: buildKeywords(service.name, service.category.name),
     alternates: { canonical: url },
-    robots: service._count.partners > 0 ? undefined : { index: false, follow: true },
+    robots: verifiedPartners > 0 ? undefined : { index: false, follow: true },
     openGraph: {
       title,
       description,
@@ -86,26 +111,23 @@ export default async function ServiceSlugLayout({ params, children }: Props) {
   const service = await prisma.service.findUnique({
     where: { slug },
     select: {
+      id: true,
       name: true,
       description: true,
       basePrice: true,
       category: { select: { name: true } },
-      _count: { select: { partners: true } },
-      partners: {
-        where: { active: true },
-        select: { partner: { select: { rating: true, totalReviews: true } } },
-        take: 100,
-      },
     },
   })
 
   if (!service) return <>{children}</>
 
-  const reviews = service.partners.flatMap(p => Array(p.partner.totalReviews).fill(p.partner.rating))
-  const avgRating = reviews.length
-    ? (reviews.reduce((a, b) => a + b, 0) / reviews.length).toFixed(1)
-    : '4.8'
-  const reviewCount = reviews.length || service._count.partners * 3
+  const [{ verifiedPartners, rating }, trust] = await Promise.all([
+    serviceTrust(service.id).catch(() => ({ verifiedPartners: 0, rating: null })),
+    getPublicTrustSafe(),
+  ])
+  // Real ratings only, and only when the public stats switch is on
+  const shownRating = trust.claims.trust_real_stats ? rating : null
+  const coverage = citiesLine(trust)
 
   const schemaType = getServiceSchemaType(service.name, service.category.name)
   const url = `${BASE_URL}/servicios/${slug}`
@@ -134,10 +156,10 @@ export default async function ServiceSlugLayout({ params, children }: Props) {
       availability: 'https://schema.org/InStock',
       url,
     },
-    aggregateRating: reviews.length > 0 ? {
+    aggregateRating: shownRating ? {
       '@type': 'AggregateRating',
-      ratingValue: avgRating,
-      reviewCount: reviewCount.toString(),
+      ratingValue: shownRating.value,
+      reviewCount: shownRating.reviews.toString(),
       bestRating: '5',
       worstRating: '1',
     } : undefined,
@@ -183,12 +205,16 @@ export default async function ServiceSlugLayout({ params, children }: Props) {
             {service.description}
           </p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', fontSize: '0.85rem' }}>
-            <span style={{ background: 'rgba(255,255,255,0.15)', padding: '0.35rem 0.75rem', borderRadius: '999px' }}>
-              ⭐ {avgRating}/5 · {reviewCount} reseñas
-            </span>
-            <span style={{ background: 'rgba(255,255,255,0.15)', padding: '0.35rem 0.75rem', borderRadius: '999px' }}>
-              👷 {service._count.partners} profesionales verificados
-            </span>
+            {shownRating && (
+              <span style={{ background: 'rgba(255,255,255,0.15)', padding: '0.35rem 0.75rem', borderRadius: '999px' }}>
+                ⭐ {shownRating.value}/5 · {shownRating.reviews} reseñas
+              </span>
+            )}
+            {verifiedPartners > 0 && (
+              <span style={{ background: 'rgba(255,255,255,0.15)', padding: '0.35rem 0.75rem', borderRadius: '999px' }}>
+                👷 {verifiedPartners} profesionales verificados
+              </span>
+            )}
             <span style={{ background: 'rgba(255,255,255,0.15)', padding: '0.35rem 0.75rem', borderRadius: '999px' }}>
               💰 Desde ${priceFormatted} COP
             </span>
@@ -203,18 +229,18 @@ export default async function ServiceSlugLayout({ params, children }: Props) {
             ¿Por qué contratar {service.name.toLowerCase()} con LoHaggo?
           </h2>
           <p style={{ color: '#374151', lineHeight: 1.7, marginBottom: '1.5rem' }}>
-            En LoHaggo conectamos a clientes con profesionales de {service.name.toLowerCase()} en Medellín
-            que han pasado por un riguroso proceso de verificación. Todos nuestros socios tienen
-            experiencia comprobada, documentos en regla y calificaciones reales de otros clientes.
+            En LoHaggo conectamos a clientes con profesionales de {service.name.toLowerCase()}.
+            {' '}{verificationLong(trust)}
+            {shownRating ? ' Las calificaciones que ves vienen de reseñas de reservas completadas.' : ''}
           </p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
             {[
-              { icon: '✅', title: 'Profesionales verificados', desc: 'Identidad y antecedentes comprobados' },
+              { icon: '✅', title: 'Profesionales verificados', desc: trust.claims.trust_background_check ? verificationShort(trust) : 'Identidad verificada por nuestro equipo' },
               { icon: '💰', title: 'Precio transparente', desc: `Desde $${Math.round(service.basePrice).toLocaleString('es-CO')} COP` },
-              { icon: '⭐', title: `${avgRating}/5 calificación`, desc: `Basada en ${reviewCount} reseñas reales` },
-              { icon: '📅', title: 'Reserva en minutos', desc: 'Sin llamadas ni esperas innecesarias' },
-              { icon: '🔒', title: 'Pago seguro', desc: 'Solo pagas cuando termina el servicio' },
-              { icon: '📍', title: 'Medellín y área metropolitana', desc: 'Cobertura en toda la ciudad' },
+              ...(shownRating ? [{ icon: '⭐', title: `${shownRating.value}/5 calificación`, desc: `Basada en ${shownRating.reviews} reseñas reales` }] : []),
+              { icon: '📅', title: 'Reserva en línea', desc: 'Sin llamadas ni esperas innecesarias' },
+              { icon: '🔒', title: trust.claims.trust_online_payment_protection ? 'Pago protegido' : 'Pagas al terminar', desc: clientPayment(trust) },
+              ...(coverage ? [{ icon: '📍', title: 'Cobertura', desc: coverage }] : []),
             ].map(item => (
               <div key={item.title} style={{ background: 'white', padding: '1rem', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
                 <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>{item.icon}</div>
@@ -227,14 +253,13 @@ export default async function ServiceSlugLayout({ params, children }: Props) {
             Sobre el servicio de {service.name.toLowerCase()} en Medellín
           </h2>
           <p style={{ color: '#374151', lineHeight: 1.7, marginBottom: '1rem' }}>
-            {service.description} Contamos con {service._count.partners} profesionales verificados
-            en la categoría {service.category.name} disponibles en Medellín.
-            Puedes reservar en minutos y recibir atención el mismo día o cuando lo prefieras.
+            {service.description}
+            {verifiedPartners > 0 ? ` Contamos con ${verifiedPartners} profesionales verificados en la categoría ${service.category.name}.` : ''}
+            {' '}Puedes reservar en línea y agendar para el día que prefieras.
           </p>
           <p style={{ color: '#374151', lineHeight: 1.7 }}>
-            LoHaggo es la plataforma líder de servicios profesionales en Colombia. Cada profesional
-            es seleccionado tras verificación de identidad, revisión de antecedentes y evaluación
-            de su experiencia. Las calificaciones son 100% de clientes reales que ya usaron el servicio.
+            LoHaggo es una plataforma de servicios profesionales en Colombia. {verificationLong(trust)}
+            {shownRating ? ' Las calificaciones son 100 % de clientes reales que ya usaron el servicio.' : ''}
           </p>
         </div>
       </section>

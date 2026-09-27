@@ -227,7 +227,7 @@ export default function TermsPage() {
                   Las tarifas actuales son:
                 </p>
                 <ul className="list-disc pl-6 space-y-2">
-                  <li>Comisión de servicio para Profesionales: Variable según el tipo de servicio</li>
+                  <li>Comisión de servicio: una comisión única configurada por LoHaggo (puede estar desactivada), que se muestra antes de aceptar cada servicio</li>
                   <li>Tarifa de procesamiento de pagos: Según proveedor de pagos</li>
                   <li>Servicios premium opcionales: Según plan seleccionado</li>
                 </ul>
@@ -466,8 +466,7 @@ export default function TermsPage() {
                       <Mail className="w-4 h-4 text-primary-600" />
                       <strong>Email:</strong> legal@lohaggo.com
                     </p>
-                    <p><strong>Soporte:</strong> soporte@lohaggo.com</p>
-                    <p><strong>Teléfono:</strong> +57 (4) 604 5678</p>
+                    <p><strong>Soporte:</strong> hola@lohaggo.com</p>
                     <p><strong>Dirección:</strong> Medellín, Antioquia, Colombia</p>
                   </div>
                 </div>

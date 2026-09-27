@@ -109,7 +109,7 @@ describe('runPlatformTool · modes and scope', () => {
 
   it('playground writes nothing and says what would be recorded', async () => {
     const out = await runPlatformTool('cancelar_reserva', { reserva_ref: '000abc', motivo: 'viaje', confirmado: true }, ctx({ mode: 'playground', dryRun: true, conversationId: null }))
-    expect(out).toMatch(/Simulado en pruebas/)
+    expect(out).toMatch(/simulado en pruebas/i)
     expect(out).toMatch(/origen «chat»/)
     expect(ops.transitionBooking).not.toHaveBeenCalled()
     expect(actions.recordAction).not.toHaveBeenCalled()

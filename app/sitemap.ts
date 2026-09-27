@@ -88,12 +88,12 @@ try {
       select: {
         slug: true,
         updatedAt: true,
-        partners: { where: { active: true }, select: { id: true }, take: 1 },
+        partners: { where: { active: true, partner: { verified: true, isActive: true } }, select: { id: true }, take: 1 },
       },
     }),
-    prisma.cityConfig.findMany({ select: { slug: true, updatedAt: true } }),
+    prisma.cityConfig.findMany({ where: { status: { in: ['ACTIVE', 'COMING_SOON'] } }, select: { slug: true, updatedAt: true } }),
     prisma.partnerProfile.findMany({
-        where: { isPublicProfile: true, isActive: true, slug: { not: null } },
+        where: { isPublicProfile: true, isActive: true, verified: true, slug: { not: null } },
         select: { slug: true, updatedAt: true, totalReviews: true, services: { where: { active: true }, select: { id: true }, take: 1 } },    }),
     sitemapArticles().catch(() => []),
     ])

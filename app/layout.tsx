@@ -13,6 +13,7 @@ import ChunkErrorHandler from '@/components/ChunkErrorHandler'
 import AcquisitionTracker from '@/components/analytics/AcquisitionTracker'
 import InAppNotificationToast from '@/components/InAppNotificationToast'
 import { prisma } from '@/lib/prisma'
+import { getPublicTrustSafe } from '@/lib/public/trust'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' })
 
@@ -147,23 +148,13 @@ export default async function RootLayout({
   children: React.ReactNode
 }) {
   let isTestMode = true
-  let avgRating = '4.8'
-  let reviewCount = 1250
   try {
     const config = await prisma.paymentConfig.findFirst()
     isTestMode = !config || config.environment === 'TEST'
   } catch { /* default to true if DB unreachable */ }
-  try {
-    const ratingAgg = await prisma.partnerProfile.aggregate({
-      where: { isActive: true, totalReviews: { gt: 0 } },
-      _avg: { rating: true },
-      _sum: { totalReviews: true },
-    })
-    const avg = ratingAgg._avg?.rating
-    const sum = ratingAgg._sum?.totalReviews
-    if (avg) avgRating = avg.toFixed(1)
-    if (sum) reviewCount = sum
-  } catch { /* keep defaults */ }
+  // Real reviews only, above the minimum; nothing is claimed if the database is unreachable
+  const trust = await getPublicTrustSafe()
+  const rating = trust.stats.rating
 
   return (
     <html lang="es-CO" translate="no" className={inter.variable}>
@@ -193,7 +184,7 @@ export default async function RootLayout({
               "url": "https://www.lohaggo.com",
               "logo": "https://www.lohaggo.com/icon-512.png",
               "image": "https://www.lohaggo.com/icon-512.png",
-              "email": "contacto@lohaggo.com",
+              "email": "hola@lohaggo.com",
               "address": {
                 "@type": "PostalAddress",
                 "addressCountry": "CO",
@@ -206,24 +197,28 @@ export default async function RootLayout({
                 "longitude": "-75.5812"
               },
               "priceRange": "$$",
-              "openingHoursSpecification": {
-                "@type": "OpeningHoursSpecification",
-                "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],
-                "opens": "00:00",
-                "closes": "23:59"
-              },
+              ...(trust.claims.trust_support_247 ? {
+                "openingHoursSpecification": {
+                  "@type": "OpeningHoursSpecification",
+                  "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],
+                  "opens": "00:00",
+                  "closes": "23:59"
+                },
+              } : {}),
               "sameAs": [
                 "https://facebook.com/lohaggo",
                 "https://twitter.com/lohaggo",
                 "https://instagram.com/lohaggo"
               ],
-              "aggregateRating": {
-                "@type": "AggregateRating",
-                "ratingValue": avgRating,
-                "reviewCount": reviewCount.toString(),
-                "bestRating": "5",
-                "worstRating": "1"
-              },
+              ...(rating ? {
+                "aggregateRating": {
+                  "@type": "AggregateRating",
+                  "ratingValue": rating.value.toFixed(1),
+                  "reviewCount": rating.reviews.toString(),
+                  "bestRating": "5",
+                  "worstRating": "1"
+                },
+              } : {}),
               "areaServed": {
                 "@type": "City",
                 "name": "Medellín",
@@ -253,7 +248,7 @@ export default async function RootLayout({
               "alternateName": ["Lo Haggo", "lohaggo", "lo hago", "lohago", "Lo Hago"],
               "url": "https://www.lohaggo.com",
               "logo": "https://www.lohaggo.com/icon-512.png",
-              "description": "Plataforma líder en Colombia para contratar servicios profesionales verificados. Plomeros, electricistas, limpieza, carpinteros y más en Medellín.",
+              "description": "Plataforma en Colombia para contratar servicios profesionales verificados. Plomeros, electricistas, limpieza, carpinteros y más en Medellín.",
               "foundingDate": "2024",
               "founders": [
                 {
@@ -270,7 +265,7 @@ export default async function RootLayout({
               "contactPoint": {
                 "@type": "ContactPoint",
                 "contactType": "customer service",
-                "email": "contacto@lohaggo.com",
+                "email": "hola@lohaggo.com",
                 "availableLanguage": ["Spanish"]
               },
               "sameAs": [

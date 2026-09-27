@@ -16,7 +16,6 @@ import {
     DollarSign,
     Clock,
     Shield,
-    Star,
     ChevronDown,
     ChevronUp,
     Share2,
@@ -27,63 +26,46 @@ import { useCity } from '@/lib/city-context'
 import TurnstileWidget from '@/components/security/TurnstileWidget'
 import { trackPwaEvent } from '@/lib/pwa/telemetry-client'
 import { PWA_EVENTS } from '@/lib/pwa/events'
+import type { PublicTrust } from '@/lib/public/trust'
+import { partnerCommission, partnerPayout, partnersJoinLine } from '@/lib/public/copy'
 
 // ─── How it works steps ────────────────────────────────────────────────────
-const HOW_IT_WORKS = [
-    { num: '1', icon: '📋', title: 'Deja tus datos', desc: 'Llena el formulario en 30 segundos, es gratis.' },
-    { num: '2', icon: '💬', title: 'Activa tu perfil', desc: 'Completa tu perfil: sube tus documentos y servicios en minutos.' },
-    { num: '3', icon: '📲', title: 'Recibe solicitudes', desc: 'Clientes en tu ciudad te encuentran y solicitan tu servicio.' },
-    { num: '4', icon: '💰', title: 'Cobra seguro', desc: 'Recibes el pago protegido por LoHaggo, sin riesgo de estafa.' },
-]
-
-// ─── Testimonials ────────────────────────────────────────────────────────
-const TESTIMONIALS = [
-    {
-        initials: 'CR',
-        name: 'Carlos R.',
-        trade: 'Electricista',
-        city: 'Medellín',
-        quote: 'Antes buscaba clientes en grupos de Facebook. Con LoHaggo me llegaron 4 trabajos la primera semana.',
-    },
-    {
-        initials: 'MA',
-        name: 'María A.',
-        trade: 'Limpieza',
-        city: 'Medellín',
-        quote: 'Nunca pensé que conseguir trabajo fuera tan fácil. Mi horario es mío y cobro directo.',
-    },
-    {
-        initials: 'JP',
-        name: 'Juan P.',
-        trade: 'Plomero',
-        city: 'Medellín',
-        quote: 'El pago llega seguro, sin preocupaciones. LoHaggo me da confianza para crecer.',
-    },
-]
+function howItWorks(trust: PublicTrust) {
+    return [
+        { num: '1', icon: '📋', title: 'Deja tus datos', desc: 'Llena el formulario en 30 segundos, es gratis.' },
+        { num: '2', icon: '💬', title: 'Activa tu perfil', desc: 'Completa tu perfil: sube tus documentos y servicios en minutos.' },
+        { num: '3', icon: '📲', title: 'Recibe solicitudes', desc: 'Clientes en tu ciudad te encuentran y solicitan tu servicio.' },
+        { num: '4', icon: '💰', title: trust.claims.trust_online_payment_protection ? 'Cobra seguro' : 'Cobra al terminar', desc: partnerPayout(trust) },
+    ]
+}
 
 // ─── FAQ ─────────────────────────────────────────────────────────────────
-const FAQ_ITEMS = [
-    {
-        q: '¿Cuánto cobra LoHaggo por cada trabajo?',
-        a: 'LoHaggo retiene un porcentaje de servicio por cada trabajo completado. Consulta los detalles completos en tu perfil al activarlo.',
-    },
-    {
-        q: '¿Cuándo y cómo me pagan?',
-        a: 'El pago se procesa de forma segura dentro de la plataforma y se transfiere a tu cuenta una vez el cliente confirma el servicio.',
-    },
-    {
-        q: '¿Necesito experiencia formal o certificados?',
-        a: 'No necesitas título universitario. Solo tener el oficio, ganas de trabajar y pasar nuestra verificación básica de identidad.',
-    },
-    {
-        q: '¿Puedo trabajar en mi tiempo libre o tiene que ser tiempo completo?',
-        a: 'Tú defines tu horario. Puedes recibir trabajos los fines de semana, entre semana o cuando quieras. Sin jefes.',
-    },
-    {
-        q: '¿En qué ciudades opera LoHaggo?',
-        a: 'Actualmente operamos en Medellín y estamos expandiéndonos. Si estás en otra ciudad, déjanos tus datos y te avisamos cuando lleguemos.',
-    },
-]
+function faqItems(trust: PublicTrust) {
+    return [
+        {
+            q: '¿Cuánto cobra LoHaggo por cada trabajo?',
+            a: partnerCommission(trust),
+        },
+        {
+            q: '¿Cuándo y cómo me pagan?',
+            a: partnerPayout(trust),
+        },
+        {
+            q: '¿Necesito experiencia formal o certificados?',
+            a: 'No necesitas título universitario. Solo tener el oficio, ganas de trabajar y pasar nuestra verificación básica de identidad.',
+        },
+        {
+            q: '¿Puedo trabajar en mi tiempo libre o tiene que ser tiempo completo?',
+            a: 'Tú defines tu horario. Puedes recibir trabajos los fines de semana, entre semana o cuando quieras. Sin jefes.',
+        },
+        {
+            q: '¿En qué ciudades opera LoHaggo?',
+            a: trust.stats.activeCities.length
+                ? `Hoy operamos en ${trust.stats.activeCities.join(', ')}. Si estás en otra ciudad, déjanos tus datos y te avisamos cuando lleguemos.`
+                : 'Si tu ciudad aún no está activa, déjanos tus datos y te avisamos cuando lleguemos.',
+        },
+    ]
+}
 
 const SERVICES_PAGE_SIZE = 8
 
@@ -112,12 +94,12 @@ const FEATURED_SERVICES = [
 ]
 
 // ─── Steps section ───────────────────────────────────────────────────────
-function HowItWorksSection({ className = '' }: { className?: string }) {
+function HowItWorksSection({ className = '', trust }: { className?: string; trust: PublicTrust }) {
     return (
         <div className={`bg-white py-10 px-6 md:px-10 ${className}`}>
             <h2 className="text-xl font-black text-gray-900 mb-6 text-center">¿Cómo funciona?</h2>
             <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
-                {HOW_IT_WORKS.map((step) => (
+                {howItWorks(trust).map((step) => (
                     <div key={step.num} className="flex items-start gap-3">
                         <div className="flex-shrink-0 w-9 h-9 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center font-black text-sm">
                             {step.num}
@@ -137,13 +119,13 @@ function HowItWorksSection({ className = '' }: { className?: string }) {
 }
 
 // ─── FAQ accordion ───────────────────────────────────────────────────────
-function FAQSection() {
+function FAQSection({ trust }: { trust: PublicTrust }) {
     const [openIndex, setOpenIndex] = useState<number | null>(null)
     return (
         <div className="bg-gray-50 py-12 px-6 md:px-10">
             <h2 className="text-xl font-black text-gray-900 mb-6 text-center">Preguntas frecuentes</h2>
             <div className="space-y-3 max-w-2xl mx-auto">
-                {FAQ_ITEMS.map((item, i) => (
+                {faqItems(trust).map((item, i) => (
                     <div key={i} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                         <button
                             className="w-full flex items-center justify-between px-5 py-4 text-left font-bold text-gray-900 text-sm hover:bg-gray-50 transition"
@@ -164,40 +146,8 @@ function FAQSection() {
     )
 }
 
-// ─── Testimonials section ────────────────────────────────────────────────
-function TestimonialsSection() {
-    return (
-        <div className="bg-white py-12 px-6 md:px-10">
-            <h2 className="text-xl font-black text-gray-900 mb-6 text-center">Lo que dicen nuestros socios</h2>
-            {/* Mobile: 1 column stacked; Desktop: 3 columns */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto">
-                {TESTIMONIALS.map((t) => (
-                    <div
-                        key={t.name}
-                        className="bg-white border border-gray-200 rounded-xl shadow-sm p-5"
-                    >
-                        <div className="flex items-center gap-3 mb-3">
-                            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-primary-500 to-secondary-500 flex items-center justify-center text-white font-black text-sm flex-shrink-0">
-                                {t.initials}
-                            </div>
-                            <div>
-                                <div className="font-bold text-gray-900 text-sm">{t.name}</div>
-                                <div className="text-xs text-gray-500">{t.trade} · {t.city}</div>
-                            </div>
-                        </div>
-                        <div className="flex mb-2">
-                            {[...Array(5)].map((_, i) => <Star key={i} size={12} className="text-yellow-400 fill-yellow-400" />)}
-                        </div>
-                        <p className="text-sm text-gray-700 italic">"{t.quote}"</p>
-                    </div>
-                ))}
-            </div>
-        </div>
-    )
-}
-
 // ─── Main form ───────────────────────────────────────────────────────────
-function SqueezeForm() {
+function SqueezeForm({ trust }: { trust: PublicTrust }) {
     const router = useRouter()
     const { cities, loading: citiesLoading } = useCity()
 
@@ -484,12 +434,14 @@ function SqueezeForm() {
                                 <span className="bg-green-400/30 text-green-200 text-xs font-bold px-2 py-0.5 rounded-full border border-green-300/30">Lanzamiento Jul 2026</span>
                             </div>
                             <p className="text-white/80 text-lg md:text-xl font-medium">
-                                Conviértete en socio de la plataforma líder y recibe clientes en tu ciudad cada día. Sin jefes, maneja tu propio tiempo y aumenta tus ingresos.
+                                Conviértete en socio de LoHaggo y recibe solicitudes de clientes en tu ciudad. Sin jefes, maneja tu propio tiempo.
                             </p>
 
                             <div className="bg-white/10 p-5 rounded-2xl border border-white/20 backdrop-blur-sm shadow-xl md:mr-8">
                                 <h3 className="text-base sm:text-lg font-black text-white mb-4 flex flex-wrap items-center gap-2 leading-tight">
-                                    Más de <span className="bg-yellow-400 text-yellow-900 text-xs sm:text-sm px-2 py-0.5 rounded-full inline-block">100+</span> servicios disponibles:
+                                    {allServices.length > 0 ? (
+                                        <><span className="bg-yellow-400 text-yellow-900 text-xs sm:text-sm px-2 py-0.5 rounded-full inline-block">{allServices.length}</span> servicios disponibles:</>
+                                    ) : 'Servicios disponibles:'}
                                 </h3>
                                 <div className="flex flex-wrap gap-2.5">
                                     {['💅 Manicuristas', '💇 Estilistas', '👁️ Lashistas', '💆 Masajistas', '🧹 Aseo y Limpieza', '⚡ LoHaggo Ya'].map((s) => {
@@ -512,7 +464,7 @@ function SqueezeForm() {
                                             </button>
                                         )
                                     })}
-                                    <span className="text-yellow-300 text-xs sm:text-sm font-black px-1 py-1.5 flex items-center drop-shadow-md">y decenas más...</span>
+                                    <span className="text-yellow-300 text-xs sm:text-sm font-black px-1 py-1.5 flex items-center drop-shadow-md">y más...</span>
                                 </div>
                                 <p className="mt-3 text-white/60 text-xs leading-snug">
                                     <span className="font-bold text-white/80">⚡ LoHaggo Ya</span> — servicio express: el cliente solicita ayuda urgente y tú respondes de inmediato.
@@ -524,7 +476,7 @@ function SqueezeForm() {
                             {[
                                 { icon: <DollarSign size={18} />, text: 'Decide cuánto ganas. Cero suscripciones para entrar.' },
                                 { icon: <Clock size={18} />, text: 'Tú controlas tu tiempo. Sin jefes.' },
-                                { icon: <Shield size={18} />, text: 'Soporte y pagos protegidos por LoHaggo.' },
+                                { icon: <Shield size={18} />, text: partnerPayout(trust) },
                             ].map(({ icon, text }) => (
                                 <div key={text} className="flex items-center gap-3 bg-white/10 border border-white/20 rounded-xl px-4 py-3">
                                     <div className="flex-shrink-0 w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center text-white">
@@ -543,26 +495,14 @@ function SqueezeForm() {
                             Registrarme ahora <ArrowRight size={16} />
                         </button>
 
-                        {/* Social proof */}
+                        {/* Social proof: only the real number of verified partners */}
                         <div className="mt-10 pt-8 border-t border-white/20">
-                            <div className="flex items-center gap-4">
-                                <div className="flex -space-x-3">
-                                    <div className="w-10 h-10 rounded-full border-2 border-primary-500 bg-slate-200 flex items-center justify-center font-bold text-xs text-slate-800 shadow-sm">CR</div>
-                                    <div className="w-10 h-10 rounded-full border-2 border-primary-500 bg-slate-300 flex items-center justify-center font-bold text-xs text-slate-800 shadow-sm">MA</div>
-                                    <div className="w-10 h-10 rounded-full border-2 border-primary-500 bg-secondary-400 flex items-center justify-center font-bold text-xs text-white shadow-sm">+500</div>
-                                </div>
-                                <div className="text-sm">
-                                    <div className="flex text-yellow-300">
-                                        {[...Array(5)].map((_, i) => <Star key={i} size={14} fill="currentColor" />)}
-                                    </div>
-                                    <span className="font-semibold text-white/90">Socios activos hoy</span>
-                                </div>
-                            </div>
+                            <p className="text-sm font-semibold text-white/90">{partnersJoinLine(trust)}</p>
                         </div>
                     </div>
 
                     {/* Steps — single instance, always visible, in left col */}
-                    <HowItWorksSection />
+                    <HowItWorksSection trust={trust} />
                 </div>
 
                 {/* ── Right column: Form ────────────────────────────── */}
@@ -721,8 +661,7 @@ function SqueezeForm() {
             </div>
 
             {/* ── Full-width sections ────────────────────────────────── */}
-            <TestimonialsSection />
-            <FAQSection />
+            <FAQSection trust={trust} />
 
             {/* ── Success Modal ──────────────────────────────────────── */}
             {showSuccessModal && (() => {
@@ -851,10 +790,10 @@ function SqueezeForm() {
     )
 }
 
-export default function UneteClient() {
+export default function UneteClient({ trust }: { trust: PublicTrust }) {
     return (
         <Suspense fallback={<div className="min-h-screen bg-slate-50 relative z-[100]" />}>
-            <SqueezeForm />
+            <SqueezeForm trust={trust} />
         </Suspense>
     )
 }

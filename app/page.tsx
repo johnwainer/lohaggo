@@ -8,6 +8,8 @@ import { HomeFeaturedPartners } from '@/components/client/HomeFeaturedPartners'
 import { HomeHeroCTA } from '@/components/client/HomeHeroCTA'
 import { queryServices } from '@/lib/services/queryServices'
 import { prisma } from '@/lib/prisma'
+import { getPublicTrustSafe, realTestimonials } from '@/lib/public/trust'
+import { STAT_MINIMUMS } from '@/lib/public/claims'
 
 export const dynamic = 'force-dynamic'
 
@@ -57,7 +59,7 @@ export default async function Home() {
   // Server-render the default (Medellín) catalogue so the first paint already
   // contains real service cards — no client fetch chain, no spinner, no shift.
   // Failures degrade gracefully to the client-side fetch path.
-  const [initialResult, initialCategories] = await Promise.all([
+  const [initialResult, initialCategories, testimonials] = await Promise.all([
     queryServices({ citySlug: 'medellin' }).catch(() => undefined),
     prisma.category
       .findMany({
@@ -65,6 +67,9 @@ export default async function Home() {
         orderBy: { name: 'asc' },
       })
       .catch(() => undefined),
+    getPublicTrustSafe()
+      .then((t) => (t.claims.trust_real_testimonials ? realTestimonials(6) : []))
+      .catch(() => []),
   ])
 
   return (
@@ -93,7 +98,9 @@ export default async function Home() {
             />
           </Suspense>
 
-          <HomePublicTestimonials />
+          {testimonials.length >= STAT_MINIMUMS.testimonials && (
+            <HomePublicTestimonials testimonials={testimonials} />
+          )}
         </div>
       </HomeClientWrapper>
     </>

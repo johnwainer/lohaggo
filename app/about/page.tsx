@@ -16,10 +16,12 @@ import {
   Clock,
   DollarSign
 } from 'lucide-react'
+import { getPublicTrustSafe } from '@/lib/public/trust'
+import { fmtCount } from '@/lib/public/claims'
 
 export const metadata: Metadata = {
   title: 'Acerca de Nosotros - LoHaggo | Plataforma de Servicios Profesionales en Colombia',
-  description: 'Descubre LoHaggo, la plataforma líder en Colombia para contratar servicios profesionales. Conectamos miles de usuarios con expertos verificados en plomería, electricidad, limpieza y más.',
+  description: 'Descubre LoHaggo, la plataforma en Colombia para contratar servicios profesionales. Conectamos clientes con expertos verificados en plomería, electricidad, limpieza y más.',
   openGraph: {
     title: 'Acerca de LoHaggo - Conectando Profesionales con Clientes',
     description: 'Conoce cómo LoHaggo está revolucionando la forma de contratar servicios profesionales en Colombia.',
@@ -30,24 +32,31 @@ export const metadata: Metadata = {
   },
 }
 
-export default function AboutPage() {
+export const revalidate = 600
+
+export default async function AboutPage() {
+  const trust = await getPublicTrustSafe()
+  // Real numbers only, each above its minimum; the section hides itself when none qualifies
   const stats = [
-    { icon: Users, value: '1K+', label: 'Probadores beta' },
-    { icon: CheckCircle, value: '500+', label: 'Servicios en prueba' },
-    { icon: Star, value: '4.8/5', label: 'Calificación beta' },
-    { icon: Globe, value: '5+', label: 'Ciudades piloto' }
-  ]
+    trust.stats.verifiedPartners !== null && { icon: Users, value: fmtCount(trust.stats.verifiedPartners), label: 'Socios verificados' },
+    trust.stats.completedServices !== null && { icon: CheckCircle, value: fmtCount(trust.stats.completedServices), label: 'Servicios completados' },
+    trust.stats.rating !== null && { icon: Star, value: `${trust.stats.rating.value.toFixed(1)}/5`, label: `Calificación (${fmtCount(trust.stats.rating.reviews)} reseñas)` },
+    trust.stats.activeCities.length > 0 && { icon: Globe, value: String(trust.stats.activeCities.length), label: trust.stats.activeCities.length === 1 ? 'Ciudad activa' : 'Ciudades activas' },
+  ].filter((x): x is { icon: typeof Users; value: string; label: string } => Boolean(x))
+  const showStats = trust.stats.verifiedPartners !== null || trust.stats.completedServices !== null || trust.stats.rating !== null
 
   const values = [
     {
       icon: Shield,
       title: 'Confianza',
-      description: 'Verificamos cada profesional para garantizar servicios de calidad y seguridad en cada interacción.'
+      description: trust.claims.trust_background_check
+        ? 'Revisamos identidad y antecedentes de cada profesional antes de que reciba solicitudes.'
+        : 'Verificamos la identidad de cada profesional antes de que reciba solicitudes.'
     },
     {
       icon: Zap,
       title: 'Rapidez',
-      description: 'Conectamos clientes con profesionales en minutos, no en días. Tu tiempo es valioso.'
+      description: 'Solicitas en línea y recibes propuestas sin llamadas ni esperas innecesarias. Tu tiempo es valioso.'
     },
     {
       icon: Heart,
@@ -58,33 +67,6 @@ export default function AboutPage() {
       icon: Award,
       title: 'Excelencia',
       description: 'Buscamos constantemente mejorar nuestra plataforma y el servicio que ofrecemos.'
-    }
-  ]
-
-  const team = [
-    {
-      name: 'María González',
-      role: 'CEO & Fundadora',
-      description: 'Visionaria con 15 años de experiencia en tecnología y servicios.',
-      image: '👩‍💼'
-    },
-    {
-      name: 'Carlos Rodríguez',
-      role: 'CTO',
-      description: 'Experto en desarrollo de plataformas escalables y seguras.',
-      image: '👨‍💻'
-    },
-    {
-      name: 'Ana Martínez',
-      role: 'Head of Operations',
-      description: 'Especialista en optimización de procesos y experiencia del usuario.',
-      image: '👩‍💼'
-    },
-    {
-      name: 'Luis Fernández',
-      role: 'Head of Growth',
-      description: 'Estratega de crecimiento con enfoque en comunidades digitales.',
-      image: '👨‍💼'
     }
   ]
 
@@ -144,8 +126,8 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="py-20 bg-white">
+      {/* Stats Section: real numbers only */}
+      {showStats && <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {stats.map((stat, index) => {
@@ -166,7 +148,7 @@ export default function AboutPage() {
             })}
           </div>
         </div>
-      </section>
+      </section>}
 
       {/* Mission Section */}
       <section className="py-20 bg-gradient-to-br from-gray-50 to-white">
@@ -186,9 +168,9 @@ export default function AboutPage() {
                 ambos puedan prosperar.
               </p>
               <p className="text-lg text-gray-600 leading-relaxed font-medium">
-                Actualmente estamos en fase de consolidación, perfeccionando cada detalle de nuestra plataforma
-                y preparándonos para nuestro lanzamiento oficial en 2026. Utilizamos tecnología de vanguardia para
-                verificar profesionales, facilitar transacciones seguras y garantizar experiencias excepcionales.
+                Estamos en nuestro lanzamiento oficial de 2026, perfeccionando cada detalle de la plataforma.
+                Usamos tecnología para verificar la identidad de los profesionales y hacer simple cada reserva:
+                el cliente paga al terminar el servicio.
               </p>
             </div>
             <div className="relative">
@@ -196,18 +178,22 @@ export default function AboutPage() {
                 <div className="grid grid-cols-2 gap-6">
                   <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
                     <Clock className="w-10 h-10 text-white mb-4" />
-                    <div className="text-3xl font-black text-white mb-2">24/7</div>
-                    <div className="text-white/90 font-semibold">Soporte continuo</div>
+                    <div className="text-3xl font-black text-white mb-2">{trust.claims.trust_support_247 ? '24/7' : 'Chat'}</div>
+                    <div className="text-white/90 font-semibold">
+                      {trust.claims.trust_support_247
+                        ? 'Por chat con asistente de IA; equipo humano en horario hábil'
+                        : 'Por WhatsApp; equipo humano en horario hábil'}
+                    </div>
                   </div>
                   <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
                     <Shield className="w-10 h-10 text-white mb-4" />
-                    <div className="text-3xl font-black text-white mb-2">100%</div>
-                    <div className="text-white/90 font-semibold">Verificados</div>
+                    <div className="text-3xl font-black text-white mb-2">ID</div>
+                    <div className="text-white/90 font-semibold">{trust.claims.trust_background_check ? 'Identidad y antecedentes verificados' : 'Identidad verificada'}</div>
                   </div>
                   <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
                     <DollarSign className="w-10 h-10 text-white mb-4" />
-                    <div className="text-3xl font-black text-white mb-2">Seguro</div>
-                    <div className="text-white/90 font-semibold">Pagos protegidos</div>
+                    <div className="text-3xl font-black text-white mb-2">{trust.claims.trust_online_payment_protection ? 'Protegido' : 'Al final'}</div>
+                    <div className="text-white/90 font-semibold">{trust.claims.trust_online_payment_protection ? 'Pago protegido hasta que confirmas' : 'Pagas al terminar'}</div>
                   </div>
                   <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
                     <TrendingUp className="w-10 h-10 text-white mb-4" />
@@ -325,40 +311,6 @@ export default function AboutPage() {
                 </div>
               ))}
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Team Section */}
-      <section className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-4">
-              Nuestro equipo
-            </h2>
-            <p className="text-xl text-gray-600 font-medium">
-              Las personas detrás de LoHaggo
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {team.map((member, index) => (
-              <div
-                key={index}
-                className="bg-gradient-to-br from-gray-50 to-white rounded-2xl p-8 text-center border border-gray-100 hover:shadow-xl transition-all transform hover:-translate-y-2"
-              >
-                <div className="text-6xl mb-4">{member.image}</div>
-                <h3 className="text-xl font-black text-gray-900 mb-2">
-                  {member.name}
-                </h3>
-                <div className="text-primary-600 font-bold mb-3">
-                  {member.role}
-                </div>
-                <p className="text-gray-600 text-sm font-medium">
-                  {member.description}
-                </p>
-              </div>
-            ))}
           </div>
         </div>
       </section>

@@ -1,4 +1,8 @@
 import type { Metadata } from 'next'
+import { getPublicTrustSafe, type PublicTrust } from '@/lib/public/trust'
+import { commissionFaq, partnerPayout } from '@/lib/public/copy'
+
+export const revalidate = 600
 
 const BASE_URL = 'https://www.lohaggo.com'
 
@@ -33,14 +37,14 @@ export const metadata: Metadata = {
   },
 }
 
-const FAQ_ITEMS = [
+const faqItems = (trust: PublicTrust) => [
   {
     q: '¿Cómo puedo reservar un servicio?',
     a: 'Para reservar un servicio, primero debes registrarte en la plataforma. Luego, navega a la sección de "Servicios", selecciona el servicio que necesitas, completa los detalles de tu solicitud (fecha, hora, dirección) y confirma tu reserva. Recibirás una notificación cuando un socio acepte tu solicitud.',
   },
   {
     q: '¿Cuánto tiempo tarda en confirmarse mi reserva?',
-    a: 'El tiempo de confirmación varía según la disponibilidad de los socios. Generalmente, las reservas se confirman en un plazo de 1 a 24 horas.',
+    a: 'Depende de la disponibilidad de los socios. El socio confirma la reserva y te avisamos por WhatsApp.',
   },
   {
     q: '¿Puedo cancelar o modificar mi reserva?',
@@ -52,7 +56,9 @@ const FAQ_ITEMS = [
   },
   {
     q: '¿Los socios están verificados?',
-    a: 'Sí, todos nuestros socios pasan por un proceso de verificación que incluye validación de identidad, experiencia y referencias. Además, contamos con un sistema de calificaciones y reseñas.',
+    a: trust.claims.trust_background_check
+      ? 'Sí, revisamos la identidad y los antecedentes de cada socio antes de que reciba solicitudes. Además, contamos con un sistema de calificaciones y reseñas.'
+      : 'Sí, nuestro equipo verifica la identidad de cada socio antes de que reciba solicitudes. Además, contamos con un sistema de calificaciones y reseñas.',
   },
   {
     q: '¿Qué hago si tengo un problema con el servicio?',
@@ -60,23 +66,24 @@ const FAQ_ITEMS = [
   },
   {
     q: '¿Cómo puedo registrarme como socio?',
-    a: 'Para registrarte como socio, haz clic en "Registrarse" y selecciona la opción "Soy Profesional". Completa el formulario con tu información personal, experiencia profesional y los servicios que ofreces. Nuestro equipo revisará tu solicitud en un plazo de 24-48 horas.',
+    a: 'Para registrarte como socio, haz clic en "Registrarse" y selecciona la opción "Soy Profesional". Completa el formulario con tu información personal, experiencia profesional y los servicios que ofreces. Nuestro equipo revisa tus documentos y te avisamos al aprobarlos.',
   },
   {
     q: '¿Cuánto cobra LoHaggo por cada servicio completado?',
-    a: 'LoHaggo cobra una comisión por cada servicio completado exitosamente. La comisión exacta depende del tipo de servicio y se detalla en tu panel de socio.',
+    a: commissionFaq(trust),
   },
   {
     q: '¿Cuándo y cómo recibo mis pagos como socio?',
-    a: 'Los pagos se procesan automáticamente después de que el cliente confirme la finalización del servicio. El dinero se transfiere a tu cuenta bancaria registrada dentro de los siguientes 2-3 días hábiles.',
+    a: partnerPayout(trust),
   },
 ]
 
-export default function FAQLayout({ children }: { children: React.ReactNode }) {
+export default async function FAQLayout({ children }: { children: React.ReactNode }) {
+  const trust = await getPublicTrustSafe()
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
-    mainEntity: FAQ_ITEMS.map(({ q, a }) => ({
+    mainEntity: faqItems(trust).map(({ q, a }) => ({
       '@type': 'Question',
       name: q,
       acceptedAnswer: { '@type': 'Answer', text: a },

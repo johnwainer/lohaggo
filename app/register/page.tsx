@@ -477,8 +477,8 @@ function RegisterForm() {
               </h1>
               <p className="text-xl text-white/80">
                 {formData.role === 'PARTNER'
-                  ? 'Crea tu perfil profesional y conecta con miles de clientes que necesitan tus servicios'
-                  : 'Crea tu cuenta y accede a miles de servicios profesionales verificados en tu ciudad'
+                  ? 'Crea tu perfil profesional y conecta con clientes que necesitan tus servicios'
+                  : 'Crea tu cuenta y contrata profesionales verificados en tu ciudad'
                 }
               </p>
             </div>
@@ -492,7 +492,7 @@ function RegisterForm() {
                     </div>
                     <div>
                       <h3 className="font-semibold mb-1">Gana dinero extra</h3>
-                      <p className="text-sm text-white/70">Define tus tarifas y recibe pagos seguros después de cada servicio</p>
+                      <p className="text-sm text-white/70">Define tus tarifas y cobra directo al cliente al terminar cada servicio</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-4 bg-white/10 backdrop-blur-sm p-4 rounded-2xl">
@@ -509,8 +509,8 @@ function RegisterForm() {
                       <Users className="w-6 h-6" />
                     </div>
                     <div>
-                      <h3 className="font-semibold mb-1">Miles de clientes</h3>
-                      <p className="text-sm text-white/70">Accede a una red de clientes verificados que buscan tus servicios</p>
+                      <h3 className="font-semibold mb-1">Clientes en tu ciudad</h3>
+                      <p className="text-sm text-white/70">Recibe solicitudes de clientes que buscan tus servicios</p>
                     </div>
                   </div>
                 </>
@@ -522,7 +522,7 @@ function RegisterForm() {
                     </div>
                     <div>
                       <h3 className="font-semibold mb-1">Profesionales verificados</h3>
-                      <p className="text-sm text-white/70">Todos nuestros profesionales están verificados y certificados</p>
+                      <p className="text-sm text-white/70">Verificamos la identidad de cada profesional</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-4 bg-white/10 backdrop-blur-sm p-4 rounded-2xl">
@@ -531,7 +531,7 @@ function RegisterForm() {
                     </div>
                     <div>
                       <h3 className="font-semibold mb-1">Respuesta rápida</h3>
-                      <p className="text-sm text-white/70">Recibe propuestas en minutos y elige la mejor opción para ti</p>
+                      <p className="text-sm text-white/70">Recibe propuestas de profesionales y elige la mejor opción para ti</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-4 bg-white/10 backdrop-blur-sm p-4 rounded-2xl">

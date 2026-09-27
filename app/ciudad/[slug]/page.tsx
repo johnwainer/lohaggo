@@ -3,16 +3,18 @@
 import { use, useEffect, useState } from 'react'
 import { useCity } from '@/lib/city-context'
 import { useRouter } from 'next/navigation'
-import { MapPin, Sparkles, Clock, Shield, Star, CheckCircle, Zap, Users, Award, TrendingUp, ArrowRight, Bell, Heart, Rocket, Gift, Calendar, Phone, Mail, MessageCircle } from 'lucide-react'
+import { Sparkles, Shield, Star, Zap, Users, Award, TrendingUp, ArrowRight, Bell, Heart, Rocket, Gift, Calendar, Mail, MessageCircle } from 'lucide-react'
 import ServiceIcon from '@/components/ServiceIcon'
 import Link from 'next/link'
+import { useTrust } from '@/lib/public/useTrust'
+import { fmtCount } from '@/lib/public/claims'
+import { guarantee, verificationLong, verificationShort } from '@/lib/public/copy'
 
 export default function CityComingSoonPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params)
   const router = useRouter()
   const { cities } = useCity()
-  const [email, setEmail] = useState('')
-  const [subscribed, setSubscribed] = useState(false)
+  const trust = useTrust()
   const [isAnimating, setIsAnimating] = useState(false)
   const [activeTab, setActiveTab] = useState<'benefits' | 'services' | 'how'>('benefits')
 
@@ -41,35 +43,38 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
     )
   }
 
-  const handleSubscribe = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSubscribed(true)
-    setEmail('')
-  }
+  // There is no waitlist table: the visitor writes to us and the team answers when the city opens
+  const notifyText = `Hola, quiero que me avisen cuando LoHaggo llegue a ${city.name}.`
+  const notifyHref = trust.whatsappPhone
+    ? `https://wa.me/${trust.whatsappPhone}?text=${encodeURIComponent(notifyText)}`
+    : `mailto:hola@lohaggo.com?subject=${encodeURIComponent(`Avísenme cuando lleguen a ${city.name}`)}&body=${encodeURIComponent(notifyText)}`
+  const guaranteeText = guarantee(trust)
 
   const benefits = [
     {
       icon: <Zap className="w-6 h-6" />,
-      title: "Servicio Rápido",
-      description: "Conectamos con profesionales en minutos, no en días",
+      title: "Solicita en línea",
+      description: "Describe lo que necesitas y recibe propuestas de profesionales",
       color: "from-primary-500 to-red-500"
     },
     {
       icon: <Shield className="w-6 h-6" />,
-      title: "100% Verificado",
-      description: "Todos nuestros profesionales están verificados y certificados",
+      title: verificationShort(trust),
+      description: verificationLong(trust),
       color: "from-blue-500 to-cyan-500"
     },
-    {
+    ...(guaranteeText ? [{
       icon: <Star className="w-6 h-6" />,
-      title: "Calidad Garantizada",
-      description: "Satisfacción garantizada o te devolvemos tu dinero",
+      title: "Garantía de servicio",
+      description: guaranteeText,
       color: "from-yellow-500 to-primary-400"
-    },
+    }] : []),
     {
       icon: <Users className="w-6 h-6" />,
       title: "Red de Expertos",
-      description: "Miles de profesionales listos para ayudarte",
+      description: trust.stats.verifiedPartners !== null
+        ? `${fmtCount(trust.stats.verifiedPartners)} profesionales verificados en LoHaggo`
+        : "Profesionales verificados de distintos oficios",
       color: "from-purple-500 to-secondary-500"
     },
     {
@@ -128,12 +133,12 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
     }
   ]
 
+  // Real numbers only, each above its minimum; the block disappears when none qualifies
   const stats = [
-    { value: "50K+", label: "Servicios completados" },
-    { value: "10K+", label: "Profesionales activos" },
-    { value: "4.9", label: "Calificación promedio" },
-    { value: "98%", label: "Clientes satisfechos" }
-  ]
+    trust.stats.completedServices !== null && { value: fmtCount(trust.stats.completedServices), label: "Servicios completados" },
+    trust.stats.verifiedPartners !== null && { value: fmtCount(trust.stats.verifiedPartners), label: "Profesionales verificados" },
+    trust.stats.rating !== null && { value: trust.stats.rating.value.toFixed(1), label: `Calificación promedio (${fmtCount(trust.stats.rating.reviews)} reseñas)` },
+  ].filter((x): x is { value: string; label: string } => Boolean(x))
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50">
@@ -174,12 +179,12 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
           </p>
           
           <p className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
-            Estamos preparando algo increíble para ti. Pronto podrás acceder a cientos de servicios profesionales 
+            Estamos preparando algo increíble para ti. Pronto podrás contratar servicios profesionales
             con solo un clic desde {city.name}.
           </p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-16">
+        {stats.length > 0 && <div className={`grid grid-cols-2 ${stats.length === 3 ? 'md:grid-cols-3' : 'md:grid-cols-4'} gap-6 mb-16`}>
           {stats.map((stat, index) => (
             <div
               key={index}
@@ -192,7 +197,7 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
               <div className="text-sm text-gray-600 font-semibold">{stat.label}</div>
             </div>
           ))}
-        </div>
+        </div>}
 
         <div className={`bg-gradient-to-br from-white to-primary-50 rounded-3xl shadow-2xl p-8 sm:p-12 mb-16 border-2 border-primary-200 transition-all duration-1000 delay-300 ${isAnimating ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
           <div className="text-center mb-8">
@@ -203,56 +208,34 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
               ¡Sé el primero en saberlo! 🎉
             </h2>
             <p className="text-lg text-gray-600">
-              Regístrate ahora y obtén <span className="text-primary-600 font-bold">beneficios exclusivos</span> de lanzamiento
+              {trust.whatsappPhone ? 'Escríbenos por WhatsApp' : 'Escríbenos'} y te avisamos cuando lleguemos a {city.name}
             </p>
           </div>
 
-          {!subscribed ? (
-            <form onSubmit={handleSubscribe} className="max-w-md mx-auto">
-              <div className="flex flex-col sm:flex-row gap-3">
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="tu@email.com"
-                  required
-                  className="flex-1 px-6 py-4 rounded-xl border-2 border-primary-200 focus:border-primary-500 focus:outline-none text-lg shadow-sm"
-                />
-                <button
-                  type="submit"
-                  className="bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-8 py-4 rounded-xl font-bold hover:shadow-2xl transform hover:scale-105 transition-all flex items-center justify-center gap-2 whitespace-nowrap"
-                >
-                  Notificarme
-                  <Rocket className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="mt-6 bg-gradient-to-r from-primary-100 to-secondary-100 rounded-xl p-4 border-2 border-primary-200">
+          <div className="max-w-md mx-auto">
+            <a
+              href={notifyHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full bg-gradient-to-r from-primary-500 to-secondary-500 text-white px-8 py-4 rounded-full font-bold hover:shadow-2xl transition-all flex items-center justify-center gap-2"
+            >
+              {trust.whatsappPhone ? 'Avísame por WhatsApp' : 'Avísame por correo'}
+              <MessageCircle className="w-5 h-5" />
+            </a>
+            {trust.launchBenefits.length > 0 && (
+              <div className="mt-6 bg-gradient-to-r from-primary-100 to-secondary-100 rounded-2xl p-4 border-2 border-primary-200">
                 <div className="flex items-start gap-3">
                   <Gift className="w-6 h-6 text-primary-600 flex-shrink-0 mt-1" />
                   <div>
-                    <p className="font-bold text-primary-900 mb-1">🎁 Beneficios de Pre-Lanzamiento:</p>
+                    <p className="font-bold text-primary-900 mb-1">Beneficios de lanzamiento:</p>
                     <ul className="text-sm text-primary-800 space-y-1">
-                      <li>✨ 50% de descuento en tu primer servicio</li>
-                      <li>🎯 Acceso prioritario a profesionales premium</li>
-                      <li>💎 Membresía VIP gratis por 3 meses</li>
+                      {trust.launchBenefits.map((b) => <li key={b}>{b}</li>)}
                     </ul>
                   </div>
                 </div>
               </div>
-            </form>
-          ) : (
-            <div className="max-w-md mx-auto text-center">
-              <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-300 rounded-2xl p-8 shadow-lg">
-                <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4 animate-bounce" />
-                <h3 className="text-2xl font-black text-green-900 mb-3">
-                  ¡Genial! Ya estás en la lista 🎊
-                </h3>
-                <p className="text-green-700 text-lg">
-                  Te avisaremos cuando lancemos en <span className="font-bold">{city.name}</span>
-                </p>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         <div className="mb-16">
@@ -313,7 +296,7 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
           {activeTab === 'services' && (
             <div className="bg-white rounded-3xl p-8 shadow-xl border-2 border-primary-100">
               <h3 className="text-3xl font-black text-center mb-8 bg-gradient-to-r from-primary-500 to-secondary-500 bg-clip-text text-transparent">
-                Más de 100 servicios disponibles
+                Algunos de nuestros servicios
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                 {services.map((service, index) => (
@@ -379,10 +362,6 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
 
         <div className="mt-16 text-center space-y-6">
           <div className="flex justify-center gap-8 text-gray-600">
-            <a href="tel:+573001234567" className="flex items-center gap-2 hover:text-primary-500 transition-colors">
-              <Phone className="w-5 h-5" />
-              <span className="font-semibold">+57 300 123 4567</span>
-            </a>
             <a href="mailto:hola@lohaggo.com" className="flex items-center gap-2 hover:text-primary-500 transition-colors">
               <Mail className="w-5 h-5" />
               <span className="font-semibold">hola@lohaggo.com</span>

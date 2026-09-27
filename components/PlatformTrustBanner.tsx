@@ -2,6 +2,8 @@
 
 import { Shield, AlertTriangle, CheckCircle, Lock, HeadphonesIcon, FileCheck, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useTrust } from '@/lib/public/useTrust'
+import { supportShort } from '@/lib/public/copy'
 
 interface PlatformTrustBannerProps {
   variant?: 'warning' | 'info' | 'success'
@@ -19,6 +21,9 @@ export default function PlatformTrustBanner({
 }: PlatformTrustBannerProps) {
   const [dismissed, setDismissed] = useState(false)
   const [hydrated, setHydrated] = useState(false)
+  const trust = useTrust()
+  const support = supportShort(trust)
+  const hasGuarantee = trust.claims.trust_guarantee
 
   useEffect(() => {
     setHydrated(true)
@@ -44,21 +49,21 @@ export default function PlatformTrustBanner({
         return {
           icon: <AlertTriangle className="w-5 h-5 flex-shrink-0" />,
           title: '⚠️ Mantén tu comunicación en la plataforma',
-          message: 'Por tu seguridad, NO compartas números de teléfono, WhatsApp, emails o redes sociales. Toda comunicación debe ser a través de LoHaggo para garantizar tu protección.',
+          message: 'Por tu seguridad, NO compartas números de teléfono, WhatsApp, emails o redes sociales. Mantén la comunicación en LoHaggo para que podamos ayudarte si hay un problema.',
           benefits: [
-            'Protección contra fraudes y estafas',
-            'Soporte 24/7 ante cualquier problema',
+            'Registro de lo acordado ante cualquier problema',
+            `${support} ante cualquier problema`,
             'Historial completo de conversaciones',
-            'Garantía de servicio respaldada'
+            ...(hasGuarantee ? ['Garantía de servicio respaldada'] : []),
           ]
         }
       case 'booking':
         return {
           icon: <Shield className="w-5 h-5 flex-shrink-0" />,
           title: '🛡️ Tu seguridad es nuestra prioridad',
-          message: 'El pago se acuerda directamente con el socio (efectivo o transferencia a su cuenta). Mantén el chat y el reporte del pago dentro de LoHaggo para conservar tus garantías y soporte.',
+          message: 'El pago se acuerda directamente con el socio (efectivo o transferencia a su cuenta). Mantén el chat y el reporte del pago dentro de LoHaggo para que podamos ayudarte si hay un problema.',
           benefits: [
-            'Profesionales verificados y calificados',
+            'Profesionales con identidad verificada',
             'Historial completo del servicio y conversaciones',
             'Reporte y confirmación de pago en la app',
             'Soporte y mediación en caso de conflictos'
@@ -68,12 +73,12 @@ export default function PlatformTrustBanner({
         return {
           icon: <Shield className="w-5 h-5 flex-shrink-0" />,
           title: '💼 Trabaja seguro con LoHaggo',
-          message: 'El cliente te paga directamente en efectivo o por transferencia a tu cuenta. Mantén la comunicación dentro del chat de LoHaggo para conservar tus garantías y reputación.',
+          message: 'El cliente te paga directamente en efectivo o por transferencia a tu cuenta. Mantén la comunicación dentro del chat de LoHaggo para que podamos ayudarte y cuidar tu reputación.',
           benefits: [
-            'Cliente verificado con historial en la plataforma',
+            'Cliente con cuenta e historial en la plataforma',
             'Confirmación de pago documentada en la app',
             'Soporte y mediación ante disputas',
-            'Reputación y calificaciones verificadas'
+            'Reputación con calificaciones de clientes reales'
           ]
         }
       default:
@@ -82,9 +87,9 @@ export default function PlatformTrustBanner({
           title: '✅ Beneficios de usar LoHaggo',
           message: 'Catálogo de profesionales verificados, chat seguro y reporte de pago en la app. El pago se acuerda directamente entre cliente y socio.',
           benefits: [
-            'Profesionales verificados y calificados',
+            'Profesionales con identidad verificada',
             'Chat e historial dentro de la app',
-            'Soporte al cliente 24/7',
+            support,
             'Calificaciones y mediación ante disputas'
           ]
         }
@@ -139,7 +144,7 @@ export default function PlatformTrustBanner({
         <div className="mt-4 pt-4 border-t border-current/20">
           <div className="flex items-center gap-2 text-xs md:text-sm font-bold">
             <Lock className="w-4 h-4" />
-            <span>Comunicarte fuera del chat de LoHaggo anula las garantías y el soporte</span>
+            <span>Si te comunicas fuera del chat de LoHaggo, no podemos ayudarte a resolver un problema</span>
           </div>
         </div>
       )}

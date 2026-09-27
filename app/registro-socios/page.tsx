@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useCity } from '@/lib/city-context'
+import { useTrust } from '@/lib/public/useTrust'
+import { partnerPayout, partnerCommission } from '@/lib/public/copy'
 import { UserPlus, CheckCircle, TrendingUp, Shield, DollarSign, Clock, Users, ArrowRight, MapPin, Sparkles, Star, Award, Zap } from 'lucide-react'
 
 export default function RegistroSociosPage() {
@@ -11,6 +13,7 @@ export default function RegistroSociosPage() {
   const router = useRouter()
   const { selectedCity, getCityBySlug } = useCity()
   const [isLoading, setIsLoading] = useState(false)
+  const trust = useTrust()
 
   const currentCity = getCityBySlug(selectedCity)
   const cityName = currentCity?.name || 'tu ciudad'
@@ -75,7 +78,7 @@ export default function RegistroSociosPage() {
               </div>
               <h3 className="text-xl font-black text-gray-900 mb-3">Genera Más Ingresos</h3>
               <p className="text-gray-600 leading-relaxed">
-                Accede a miles de clientes potenciales en {cityName} y aumenta tus ingresos hasta un 300%.
+                Recibe solicitudes de clientes en {cityName} y decide qué trabajos aceptar. {partnerCommission(trust)}
               </p>
             </div>
 
@@ -83,9 +86,9 @@ export default function RegistroSociosPage() {
               <div className="w-14 h-14 bg-gradient-to-br from-secondary-500 to-secondary-600 rounded-xl flex items-center justify-center mb-4 shadow-lg">
                 <Shield className="w-7 h-7 text-white" />
               </div>
-              <h3 className="text-xl font-black text-gray-900 mb-3">Verificación Segura</h3>
+              <h3 className="text-xl font-black text-gray-900 mb-3">Perfil Verificado</h3>
               <p className="text-gray-600 leading-relaxed">
-                Proceso de verificación completo que genera confianza y te destaca como profesional certificado.
+                Verificamos tu identidad y tu perfil muestra el sello de socio verificado, que genera confianza en los clientes.
               </p>
             </div>
 
@@ -93,9 +96,9 @@ export default function RegistroSociosPage() {
               <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center mb-4 shadow-lg">
                 <DollarSign className="w-7 h-7 text-white" />
               </div>
-              <h3 className="text-xl font-black text-gray-900 mb-3">Pagos Inmediatos</h3>
+              <h3 className="text-xl font-black text-gray-900 mb-3">Cobra al Terminar</h3>
               <p className="text-gray-600 leading-relaxed">
-                Recibe tus pagos de forma rápida y segura. Sin complicaciones, sin esperas.
+                {partnerPayout(trust)}
               </p>
             </div>
 
@@ -115,7 +118,7 @@ export default function RegistroSociosPage() {
               </div>
               <h3 className="text-xl font-black text-gray-900 mb-3">Red de Clientes</h3>
               <p className="text-gray-600 leading-relaxed">
-                Conecta con clientes verificados que buscan servicios de calidad en {cityName}.
+                Conecta con clientes que buscan servicios de calidad en {cityName}.
               </p>
             </div>
 
@@ -125,7 +128,9 @@ export default function RegistroSociosPage() {
               </div>
               <h3 className="text-xl font-black text-gray-900 mb-3">Soporte Dedicado</h3>
               <p className="text-gray-600 leading-relaxed">
-                Equipo de soporte 24/7 para ayudarte en todo momento. Nunca estarás solo.
+                {trust.claims.trust_support_247
+                  ? 'Te atendemos 24/7 por chat con asistente de IA; el equipo humano responde en horario hábil.'
+                  : 'Te atendemos por WhatsApp; el equipo humano responde en horario hábil.'}
               </p>
             </div>
           </div>
@@ -147,8 +152,8 @@ export default function RegistroSociosPage() {
             </h2>
             
             <p className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto leading-relaxed">
-              Completa el formulario de registro y nuestro equipo se pondrá en contacto contigo 
-              en menos de 24 horas para iniciar tu proceso de verificación.
+              Completa el formulario de registro y sube tus documentos. Nuestro equipo los revisa
+              y te avisamos al aprobarlos.
             </p>
             
             <button

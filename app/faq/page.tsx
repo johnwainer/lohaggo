@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { ChevronDown, Users, Briefcase, HelpCircle } from 'lucide-react'
+import { useTrust } from '@/lib/public/useTrust'
+import { commissionFaq, partnerPayout } from '@/lib/public/copy'
 
 interface FAQItem {
   question: string
@@ -18,6 +20,7 @@ interface FAQSection {
 export default function FAQPage() {
   const [activeTab, setActiveTab] = useState<'clients' | 'partners'>('clients')
   const [openIndex, setOpenIndex] = useState<number | null>(null)
+  const trust = useTrust()
 
   const faqData: Record<'clients' | 'partners', FAQSection> = {
     clients: {
@@ -31,7 +34,7 @@ export default function FAQPage() {
         },
         {
           question: '¿Cuánto tiempo tarda en confirmarse mi reserva?',
-          answer: 'El tiempo de confirmación varía según la disponibilidad de los socios. Generalmente, las reservas se confirman en un plazo de 1 a 24 horas. Recibirás una notificación por correo electrónico y en la plataforma cuando tu reserva sea confirmada.'
+          answer: 'Depende de la disponibilidad de los socios. El socio confirma la reserva y te avisamos por WhatsApp y en la plataforma.'
         },
         {
           question: '¿Puedo cancelar o modificar mi reserva?',
@@ -47,7 +50,9 @@ export default function FAQPage() {
         },
         {
           question: '¿Los socios están verificados?',
-          answer: 'Sí, todos nuestros socios pasan por un proceso de verificación que incluye validación de identidad, experiencia y referencias. Además, contamos con un sistema de calificaciones y reseñas para que puedas tomar decisiones informadas.'
+          answer: trust.claims.trust_background_check
+            ? 'Sí, revisamos la identidad y los antecedentes de cada socio antes de que reciba solicitudes. Además, contamos con un sistema de calificaciones y reseñas para que puedas tomar decisiones informadas.'
+            : 'Sí, nuestro equipo verifica la identidad de cada socio antes de que reciba solicitudes. Además, contamos con un sistema de calificaciones y reseñas para que puedas tomar decisiones informadas.'
         },
         {
           question: '¿Puedo solicitar un servicio personalizado?',
@@ -59,7 +64,7 @@ export default function FAQPage() {
         },
         {
           question: '¿Qué pasa si el socio no se presenta?',
-          answer: 'Si el socio no se presenta en la fecha y hora acordadas, por favor repórtalo inmediatamente a través de tu panel. No se te cobrará por el servicio y te ayudaremos a encontrar otro socio disponible lo antes posible.'
+          answer: 'Si el socio no se presenta en la fecha y hora acordadas, por favor repórtalo inmediatamente a través de tu panel. No se te cobrará por el servicio: puedes cancelar sin costo y pedir otro socio.'
         },
         {
           question: '¿Puedo solicitar el mismo socio para servicios futuros?',
@@ -74,7 +79,7 @@ export default function FAQPage() {
       faqs: [
         {
           question: '¿Cómo puedo registrarme como socio?',
-          answer: 'Para registrarte como socio, haz clic en "Registrarse" y selecciona la opción "Soy Profesional". Completa el formulario con tu información personal, experiencia profesional y los servicios que ofreces. Nuestro equipo revisará tu solicitud en un plazo de 24-48 horas.'
+          answer: 'Para registrarte como socio, haz clic en "Registrarse" y selecciona la opción "Soy Profesional". Completa el formulario con tu información personal, experiencia profesional y los servicios que ofreces. Nuestro equipo revisa tus documentos y te avisamos al aprobarlos.'
         },
         {
           question: '¿Cuáles son los requisitos para ser socio?',
@@ -82,15 +87,15 @@ export default function FAQPage() {
         },
         {
           question: '¿Cuánto cobra la plataforma por comisión?',
-          answer: 'Nuestra comisión es competitiva y transparente. Cobramos un porcentaje del valor del servicio que varía según la categoría. Los detalles específicos se proporcionan durante el proceso de registro. No hay costos ocultos ni tarifas de membresía.'
+          answer: `${commissionFaq(trust)} No hay costos ocultos ni tarifas de membresía.`
         },
         {
           question: '¿Cómo recibo los pagos?',
-          answer: 'Los pagos se procesan automáticamente después de que el servicio sea completado y confirmado. El dinero se deposita en tu cuenta bancaria registrada en un plazo de 3-5 días hábiles. Puedes ver el historial de pagos en tu panel de socio.'
+          answer: `${partnerPayout(trust)} Puedes ver el historial de pagos en tu panel de socio.`
         },
         {
           question: '¿Puedo elegir qué solicitudes aceptar?',
-          answer: 'Sí, tienes total libertad para aceptar o rechazar solicitudes según tu disponibilidad, ubicación y preferencias. No hay penalización por rechazar solicitudes, pero mantener una buena tasa de aceptación mejora tu visibilidad en la plataforma.'
+          answer: 'Sí, tienes total libertad para aceptar o rechazar solicitudes según tu disponibilidad, ubicación y preferencias. No hay penalización por rechazar solicitudes.'
         },
         {
           question: '¿Cómo funciona el sistema de calificaciones?',
@@ -114,11 +119,11 @@ export default function FAQPage() {
         },
         {
           question: '¿Hay soporte disponible si tengo dudas?',
-          answer: 'Sí, nuestro equipo de soporte está disponible para ayudarte. Puedes contactarnos a través del chat en vivo, correo electrónico o teléfono. También tenemos una base de conocimientos con guías y tutoriales para socios.'
+          answer: 'Sí, nuestro equipo de soporte está disponible para ayudarte. Escríbenos por WhatsApp o a hola@lohaggo.com.'
         },
         {
-          question: '¿Puedo trabajar en múltiples ciudades?',
-          answer: 'Sí, puedes configurar tu perfil para ofrecer servicios en múltiples ciudades o zonas. Esto te permite expandir tu área de cobertura y recibir más solicitudes de diferentes ubicaciones.'
+          question: '¿Dónde puedo trabajar?',
+          answer: 'Ofreces tus servicios en tu ciudad, la que eliges al registrarte, y recibes solicitudes de clientes cercanos.'
         }
       ]
     }
