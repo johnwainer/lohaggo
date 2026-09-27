@@ -35,6 +35,11 @@
 - ✅ El SW solo cachea `/_next/static/` (cache-first), imágenes y los archivos de `PRECACHE_URLS`; las navegaciones van network-first (offline como respaldo).
 - ✅ Cualquier cambio de estrategia de caché en `sw.js` sube la versión (`lohaggo-vN`) para purgar las cachés viejas en los navegadores.
 
+#### Reglas duras aprendidas (incidente del 2026-09-27 — el agente de WhatsApp pedía confirmación sin fin)
+- ❌ **NUNCA** asumir que el modelo ve sus llamadas a herramientas de turnos anteriores: el historial que recibe es solo texto. Tras el «sí», volvía a proponer con `confirmado: false` y preguntaba otra vez (5 propuestas, 0 solicitudes creadas).
+- ✅ Toda herramienta con confirmación debe funcionar sin ese historial: lo pendiente se inyecta en el prompt (`pendingActionsText`) y el servidor ejecuta lo propuesto ante un sí claro (`isClearYes` + `sameActionCore` en `runPlatformTool`).
+- ✅ Al crear o cambiar una herramienta con `confirm: true`, probar el flujo completo en varios turnos (proponer → «sí» → ejecutada), no solo la primera llamada.
+
 ### 4. Dirección de diseño y producto
 
 **Look & feel: estilo Rappi.** Decidido tras research de competidores directos (TaskRabbit, Thumbtack, Angi, IguanaFix, Habitissimo — ninguno usa mapa principal en home services).
