@@ -11,7 +11,7 @@ vi.mock('@/lib/notifications/user-preferences', () => ({ mapUserChannelPreferenc
 vi.mock('@/lib/env', () => ({ env: {} }))
 vi.mock('@/lib/supabase-admin', () => ({ emitUserNotificationBroadcast: vi.fn() }))
 
-import { PUSH_NOT_DELIVERABLE, notificationTargetPath } from '@/lib/notifications/notificationService'
+import { PUSH_NOT_DELIVERABLE, notificationTargetPath, referenceFor } from '@/lib/notifications/notificationService'
 
 describe('destino del push y del enlace', () => {
   it('usa data.url cuando es una ruta interna', () => {
@@ -26,5 +26,13 @@ describe('destino del push y del enlace', () => {
   it('sin suscripción o suscripción vencida no cuenta como fallo', () => {
     for (const code of ['NO_SUBSCRIPTION', 'INVALID_SUBSCRIPTION', '404', '410']) expect(PUSH_NOT_DELIVERABLE.has(code)).toBe(true)
     expect(PUSH_NOT_DELIVERABLE.has('VAPID_NOT_CONFIGURED')).toBe(false)
+  })
+})
+
+describe('referenceFor', () => {
+  it('gives the short ref of the entity the notification is about', () => {
+    expect(referenceFor({ proposalId: 'cmuken6qp00072hfzrqopvh6i', serviceRequestId: 'cmuke94mh004ct4nla3ip4sxn' })).toBe('#ip4sxn')
+    expect(referenceFor({ bookingId: 'abcdefghijkl' })).toBe('#ghijkl')
+    expect(referenceFor(null)).toBe('')
   })
 })

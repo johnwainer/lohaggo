@@ -252,6 +252,13 @@ async function buildEnrichedVars(
   return vars
 }
 
+/** Short reference the app and the chat agent use («#abc123») for the entity the notification is about. */
+export function referenceFor(data: unknown): string {
+  const d = (typeof data === 'object' && data !== null ? data : {}) as Record<string, unknown>
+  const id = [d.bookingId, d.serviceRequestId, d.proposalId, d.chatId, d.paymentId].find((v): v is string => typeof v === 'string' && v.length > 0)
+  return id ? `#${id.slice(-6)}` : ''
+}
+
 /** Marker action of lib/messaging/wa-send.ts (kept literal: this module must not import the sender). */
 const WA_TEMPLATE_SENT = 'WA_TEMPLATE_SENT'
 const TEMPLATE_SUPPRESS_MS = 3 * 60_000
@@ -416,6 +423,12 @@ async function dispatchAutomaticNotificationChannels(params: {
       year: new Date().getFullYear(),
       ...enriched,
     }
+    // The templates seeded in February use camelCase names; without these they reach people blank
+    const legacyVars = {
+      userName: baseVars.user_name,
+      actionUrl: enriched.action_url,
+      referenceId: referenceFor(params.data),
+    }
 
     let subject = params.title
     let body = params.message
@@ -428,7 +441,7 @@ async function dispatchAutomaticNotificationChannels(params: {
         bodyTemplate: template.bodyTemplate,
         bodyHtmlTemplate: template.bodyHtmlTemplate,
         bodyTextTemplate: template.bodyTextTemplate,
-        vars: baseVars,
+        vars: { ...baseVars, ...legacyVars },
       })
       subject = rendered.subject || subject
       body = channel === 'EMAIL' ? rendered.bodyHtml || rendered.body : rendered.body
