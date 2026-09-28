@@ -329,8 +329,8 @@ export const PLATFORM_TOOLS: Record<PlatformToolName, CatalogEntry> = {
   },
   enviar_enlace_acceso: {
     label: 'Enviar enlace para entrar (magic link)',
-    description: 'Envía al correo registrado de la cuenta un enlace para entrar a LoHaggo sin contraseña (vence en 1 hora, un solo uso). El enlace nunca llega a este chat.',
-    guidance: 'Úsala cuando la persona no pueda entrar a la app, olvidó su contraseña o pida un enlace para entrar. Si la conversación está vinculada, llámala con dato vacío: va al correo de su cuenta. Si no lo está, pídele el correo o el teléfono con el que se registró. El enlace llega SOLO al correo registrado (así sabemos que es ella): dile que lo abra desde ese correo, que revise spam y que vence en 1 hora. Nunca pidas ni escribas el enlace en el chat. Si no está vinculada, no afirmes que la cuenta existe.',
+    description: 'Envía un enlace para entrar a LoHaggo sin contraseña (un solo uso): a este WhatsApp como mensaje aparte si la persona escribe desde el número de su cuenta, o al correo registrado. El enlace nunca se escribe en el chat.',
+    guidance: 'Úsala cuando la persona no pueda entrar a la app, olvidó su contraseña o pida un enlace para entrar. Si la conversación está vinculada, llámala con dato vacío. Si no lo está, pídele el correo o el teléfono con el que se registró. Si escribe por WhatsApp desde el número de su cuenta, el enlace le llega a este mismo WhatsApp como mensaje aparte con el botón «Entrar»; si no, llega al correo registrado. Dile por dónde le llegó y cuánto dura según lo que responda la herramienta (si fue al correo, que revise spam). Nunca escribas ni pidas un enlace en el chat. Si no está vinculada, no afirmes que la cuenta existe.',
     writes: true, group: 'identity', platform: true,
     schema: () => ({ type: 'object', properties: { dato: str('Correo o teléfono con el que se registró, o vacío si la conversación está vinculada') }, required: ['dato'], additionalProperties: false }),
   },
@@ -896,7 +896,7 @@ async function runRead(name: PlatformToolName, input: Record<string, unknown>, c
 
 async function runIdentity(name: PlatformToolName, input: Record<string, unknown>, ctx: ToolContext): Promise<string> {
   if (ctx.mode === 'playground' || !ctx.conversationId) {
-    if (name === 'enviar_enlace_acceso') return `Enlace enviado (simulado en pruebas) al correo registrado de la cuenta. Dile que lo abra desde ese correo, que revise spam y que vence en ${LOGIN_LINK_TTL_MIN} minutos.`
+    if (name === 'enviar_enlace_acceso') return `Enlace enviado (simulado en pruebas): en producción llega a este WhatsApp con el botón «Entrar» si escribe desde el número de su cuenta, o al correo registrado (vence en ${LOGIN_LINK_TTL_MIN} minutos). No escribas ningún enlace en el chat.`
     if (name === 'vincular_cuenta') return 'Código enviado (simulado en pruebas) al teléfono o correo de la cuenta. Pídele los 6 dígitos.'
     if (!/^\d{6}$/.test(s(input, 'codigo'))) return 'Código incorrecto (simulado en pruebas): deben ser 6 dígitos.'
     ctx.userId = PLAYGROUND_USER
