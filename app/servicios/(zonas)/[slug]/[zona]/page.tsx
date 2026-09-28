@@ -8,6 +8,7 @@ import { jsonLdScript, SITE_URL } from '@/lib/marketing/seo'
 import { firstNameInitial, getPublicTrustSafe, publicWhatsappPhone } from '@/lib/public/trust'
 import { withRef } from '@/lib/public/whatsapp'
 import { WhatsAppButton } from '@/components/WhatsAppButton'
+import { RemoteImage } from '@/components/ui/RemoteImage'
 import { FaqList, HowItWorks, ZoneLinks } from '@/components/public/ServiceSeoBlocks'
 import {
   faqJsonLd, focusPairs, focusZones, isFocusService, isFocusZone, pesos, serviceFaq, serviceZonePath, typicalJobs, zoneWhere,
@@ -196,8 +197,7 @@ export default async function ServiceZonePage({ params }: Props) {
                 const body = (
                   <>
                     {p.image ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={p.image} alt="" width={48} height={48} loading="lazy" className="h-12 w-12 shrink-0 rounded-full object-cover" />
+                      <RemoteImage src={p.image} alt="" width={48} height={48} sizes="48px" className="h-12 w-12 shrink-0 rounded-full object-cover" />
                     ) : (
                       <span aria-hidden className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary-100 text-lg font-bold text-primary-700">
                         {p.name.charAt(0)}

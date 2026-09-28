@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { CheckCircle, Star, ChevronRight } from 'lucide-react'
 import type { FeaturedPartner } from '@/lib/featured-partners'
+import { RemoteImage } from '@/components/ui/RemoteImage'
 
 const CITY_NAMES: Record<string, string> = {
   MEDELLIN: 'Medellín',
@@ -27,11 +28,12 @@ export function FeaturedPartnerCard({ partner }: { partner: FeaturedPartner }) {
     >
       <div className="relative flex-shrink-0">
         {partner.image ? (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
+          <RemoteImage
             src={partner.image}
             alt={partner.name}
-            loading="lazy"
+            width={56}
+            height={56}
+            sizes="56px"
             className="w-14 h-14 rounded-full object-cover border border-white shadow-sm"
           />
         ) : (

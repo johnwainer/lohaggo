@@ -6,6 +6,7 @@ import { articleJsonLd, articleUrl, jsonLdScript, makeExcerpt, readingMinutes, r
 import { deliveryUrl, ogImageUrl } from '@/lib/marketing/media'
 import ViewBeacon from '@/components/blog/ViewBeacon'
 import { WhatsAppButton } from '@/components/WhatsAppButton'
+import { RemoteImage } from '@/components/ui/RemoteImage'
 import { getTopServicesSafe, type TopService } from '@/lib/public/topServices'
 import { normalizeText, rankByIntent } from '@/lib/services/searchIntent'
 import { blogWaMessage } from '@/lib/public/whatsapp'
@@ -138,7 +139,7 @@ export default async function ArticlePage({ params }: Props) {
               const img = r.coverUrl || r.post.media[0]?.url
               return (
                 <Link key={r.slug} href={`/blog/${r.slug}`} className="group overflow-hidden rounded-3xl bg-gray-50 transition hover:shadow-md">
-                  <div className="aspect-[1.91/1] bg-gray-100">{img && <img src={ogImageUrl(img) || img} alt="" loading="lazy" className="h-full w-full object-cover" />}</div>
+                  <div className="relative aspect-[1.91/1] overflow-hidden bg-gray-100">{img && <RemoteImage src={ogImageUrl(img) || img} alt="" fill sizes="(min-width: 640px) 33vw, 100vw" className="object-cover" />}</div>
                   <p className="p-4 font-semibold text-gray-900 group-hover:text-primary-700">{r.post.title}</p>
                 </Link>
               )

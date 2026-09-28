@@ -143,6 +143,31 @@ export function summarizeOrigins(p: {
   }
 }
 
+export type PackageWeek = { adDraftId: string; title: string; adSets: string[]; spendCop: number; requests: number; bookings: number }
+
+/**
+ * The weekly budget check: among packages with enough spend, the one whose cost per booking (or per request
+ * when there are no bookings yet) is at least twice the best one's gives budget to the best. Null when there
+ * is not enough data or no clear gap. Pure.
+ */
+export function budgetShiftSuggestion(rows: PackageWeek[], opts: { minSpendCop?: number; ratio?: number } = {}) {
+  const minSpend = opts.minSpendCop ?? 30_000
+  const ratio = opts.ratio ?? 2
+  const measured = rows.filter((r) => r.spendCop >= minSpend)
+  if (measured.length < 2) return null
+  const byBookings = measured.some((r) => r.bookings > 0)
+  const cost = (r: PackageWeek) => {
+    const n = byBookings ? r.bookings : r.requests
+    return n > 0 ? r.spendCop / n : Infinity
+  }
+  const withResults = measured.filter((r) => Number.isFinite(cost(r)))
+  if (!withResults.length) return null
+  const best = withResults.reduce((a, b) => (cost(b) < cost(a) ? b : a))
+  const worst = measured.filter((r) => r.adDraftId !== best.adDraftId).reduce((a, b) => (cost(b) > cost(a) ? b : a))
+  if (!(cost(worst) >= cost(best) * ratio)) return null
+  return { from: worst, to: best, metric: byBookings ? 'reserva' as const : 'solicitud' as const, fromCost: Number.isFinite(cost(worst)) ? Math.round(cost(worst)) : null, toCost: Math.round(cost(best)) }
+}
+
 /**
  * Packages with spend on `minDays` of the last days and no request credited to them: the «gasto sin
  * solicitudes» rule. `requestsByCampaign` counts requests per ad-<code> (any model).

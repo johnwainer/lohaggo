@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auditAdminAction, requireAdmin } from '@/lib/admin-utils'
-import { processCampaign } from '@/lib/messaging/campaign-service'
+import { campaignBlockedByQuietHours, processCampaign } from '@/lib/messaging/campaign-service'
 import { resolveCampaignRecipients, resolveDestination } from '@/lib/messaging/campaign-recipients'
 
 type RouteContext = {
@@ -15,6 +15,13 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
   const campaign = await prisma.messagingCampaign.findUnique({ where: { id } })
   if (!campaign) return NextResponse.json({ error: 'Campaign not found' }, { status: 404 })
+
+  if (campaignBlockedByQuietHours(campaign.channel)) {
+    return NextResponse.json(
+      { error: 'Las campañas de WhatsApp solo se envían entre 8:00 a. m. y 9:00 p. m. (hora de Colombia). Prográmala o envíala en ese horario.' },
+      { status: 409 }
+    )
+  }
 
   if (campaign.channel === 'PUSH') {
     const recipients = await resolveCampaignRecipients({

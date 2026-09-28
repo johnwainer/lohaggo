@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { flushSync } from 'react-dom'
 import { DollarSign, Clock, Star, CheckCircle, MapPin, Plus, Calendar, X, ChevronRight, Camera, Upload, Trash2, Shield, CreditCard, GraduationCap, ShieldCheck, UserPlus, Bell, Briefcase, TrendingUp, Users, Sparkles, Heart, Building2 } from 'lucide-react'
 import ServiceIcon from '@/components/ServiceIcon'
+import { RemoteImage } from '@/components/ui/RemoteImage'
 import { useSession, signOut } from 'next-auth/react'
 import { formatCurrency } from '@/lib/utils'
 import { useCity } from '@/lib/city-context'
@@ -1014,9 +1015,12 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
                       <div className="flex items-start gap-4 mb-4">
                         <div className="flex-shrink-0">
                           {partnerService.partner.user.image ? (
-                            <img
+                            <RemoteImage
                               src={partnerService.partner.user.image}
                               alt={partnerService.partner.user.name}
+                              width={64}
+                              height={64}
+                              sizes="64px"
                               className={`w-14 h-14 md:w-16 md:h-16 rounded-full object-cover shadow-md ${tier.ring}`}
                             />
                           ) : (

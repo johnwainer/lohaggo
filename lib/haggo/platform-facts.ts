@@ -28,6 +28,13 @@ export type ChangelogEntry = { date: string; area: string; change: string; impac
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-09-28',
+    area: 'Escala y Bogotá',
+    change: 'Campañas a clientes con segmentos (sin reservas, inactivos 30/60 días, por servicio, por zona), UTM y código cmp-… con solicitudes y reservas por campaña; las campañas de WhatsApp respetan horario y la etiqueta sin-marketing. Estado del reembolso por WhatsApp en cada cambio (B22) y aviso de transferencia al socio (C28). Regla semanal de pauta (mk:budget-shift). apertura_ciudad y config.set_city_status exige cobertura mínima (3 socios en cada servicio de foco y 15 en total) y al activar avisa a la lista de espera. Portada más liviana, botones flotantes sin choque y /servicios?q=.',
+    impacto: 'Se puede reactivar clientes y medir qué campaña trae solicitudes; Bogotá abre solo cuando está lista y con la gente avisada.',
+    comoVerlo: 'apertura_ciudad, resultados_marketing (canal «Campañas a clientes») y las reglas mk:budget-shift.',
+  },
+  {
+    date: '2026-09-28',
     area: 'Conversión y retención',
     change: 'Pedir sin cuenta con código por WhatsApp (PhoneLoginCode, límites compartidos en Postgres con RateLimitHit), entrar con código en /login y enlace de acceso a pedido por WhatsApp; propuestas con fecha y hora; tarjeta de propuesta con calificación, reseñas, trabajos y perfil, ordenadas por mejor valorado; reprogramar y cancelar con motivo obligatorio en la app; calificar sin esperar el pago; tarjeta «Reporta tu pago»; fotos del trabajo; «Pedir de nuevo» y «Solicitar a este socio»; zonas y horario del socio con avisos por zona; 24 páginas de servicio por zona (SEO local); lista de espera con WhatsApp y aviso real de apertura.',
     impacto: 'Menos abandono al final del formulario, reservas con fecha clara, más confianza al elegir socio y clientes que vuelven con el mismo socio.',
@@ -123,13 +130,6 @@ export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
     change: 'Fases 1 a 4: Haggo observa, conversa, propone acciones y actúa solo donde se le permite, verificando el resultado.',
     impacto: 'Supervisión continua de toda la plataforma.',
     comoVerlo: 'hallazgos_abiertos.',
-  },
-  {
-    date: '2026-09-25',
-    area: 'IA',
-    change: 'OpenAI como segundo proveedor de IA de texto con cambio automático si Claude falla.',
-    impacto: 'Los agentes siguen respondiendo si un proveedor cae.',
-    comoVerlo: 'salud_sistema y costos_ia (por proveedor).',
   },
 ]
 

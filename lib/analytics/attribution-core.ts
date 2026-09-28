@@ -13,7 +13,7 @@ export type Touch = {
   term?: string | null
   referrer?: string | null
   landing?: string | null
-  /** `(ref: …)` tag: web-… | blog-… | post-… | ad-… */
+  /** `(ref: …)` tag: web-… | blog-… | post-… | ad-… | cmp-… */
   ref?: string | null
   adId?: string | null
   adHeadline?: string | null
@@ -75,6 +75,7 @@ function refTouch(ref: string, at: string | null, channel: string | null): Touch
   const base: Touch = { via: 'chat', channel, source: null, medium: null, campaign: null, content: null, ref, at }
   if (kind === 'post') return { ...base, source: 'publicacion', medium: 'social', content: rest }
   if (kind === 'ad') return { ...base, source: 'meta', medium: 'paid_social', campaign: ref }
+  if (kind === 'cmp') return { ...base, source: 'campaign', medium: 'campaign', campaign: ref }
   if (kind === 'blog') return { ...base, source: 'blog', medium: 'organic', content: rest }
   return { ...base, source: 'web', medium: 'website', content: rest }
 }
@@ -98,7 +99,7 @@ export function touchesFromConversation(customFields: unknown, channel: string |
 
 export type ChannelKey =
   | 'meta_ads' | 'google_ads' | 'publicaciones' | 'instagram' | 'facebook' | 'blog' | 'gbp' | 'google'
-  | 'otros_sitios' | 'sitio_web' | 'chat_directo' | 'directo' | 'sin_dato'
+  | 'otros_sitios' | 'sitio_web' | 'campanas' | 'chat_directo' | 'directo' | 'sin_dato'
 
 export const CHANNEL_LABELS: Record<ChannelKey, string> = {
   meta_ads: 'Anuncios de Meta',
@@ -111,6 +112,7 @@ export const CHANNEL_LABELS: Record<ChannelKey, string> = {
   google: 'Google (búsqueda)',
   otros_sitios: 'Otros sitios',
   sitio_web: 'Botón de WhatsApp del sitio',
+  campanas: 'Campañas a clientes',
   chat_directo: 'Chat directo',
   directo: 'Directo',
   sin_dato: 'Sin dato',
@@ -128,6 +130,7 @@ export function classifyTouch(t: Touch | null | undefined): TouchBucket {
   const ref = t.ref ?? ''
   // A chat that arrived with no ad and no ref (someone wrote to us on WhatsApp, Instagram or Messenger)
   if (t.via === 'chat' && t.medium === 'direct') return { channel: 'chat_directo', campaign: null, content: t.channel ?? null }
+  if (t.medium === 'campaign' || ref.startsWith('cmp-')) return { channel: 'campanas', campaign: campaign ?? (ref || null), content }
   const metaSource = has(t.source, 'facebook', 'instagram', 'meta', 'fb', 'ig', 'msg', 'an')
   if (t.adId || t.ctwaClid || ref.startsWith('ad-') || t.fbclid || has(t.medium, 'paid_social') || (has(t.medium, 'paid', 'cpc', 'ads') && metaSource)) {
     return { channel: 'meta_ads', campaign, content: content ?? t.adId ?? null }

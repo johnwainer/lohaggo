@@ -64,6 +64,17 @@ describe('touches', () => {
     expect(adWelcomeMessage(id, 'Plomería')).toBe('Hola, vi su anuncio y quiero pedir plomería (ref: ad-fomkmudr)')
     expect(extractWebRef(adWelcomeMessage(id, null))).toBe('ad-fomkmudr')
   })
+
+  it('messaging campaigns: cmp- ref in chat and campaign UTM on the web', () => {
+    expect(extractWebRef('Hola, recibí su mensaje y necesito un servicio (ref: cmp-AB12cd34)')).toBe('cmp-ab12cd34')
+    const chat = touchesFromConversation({ webRef: 'cmp-ab12cd34' }, 'WHATSAPP').last
+    expect(chat).toMatchObject({ source: 'campaign', medium: 'campaign', campaign: 'cmp-ab12cd34' })
+    expect(classifyTouch(chat)).toMatchObject({ channel: 'campanas', campaign: 'cmp-ab12cd34' })
+    const web = touchFromCookie(cookie({ source: 'whatsapp', medium: 'campaign', campaign: 'cmp-ab12cd34' }))
+    expect(classifyTouch(web)).toMatchObject({ channel: 'campanas', campaign: 'cmp-ab12cd34' })
+    expect(classifyTouch(touchFromCookie(cookie({ source: 'email', medium: 'campaign', campaign: 'cmp-x' }))).channel).toBe('campanas')
+    expect(classifyTouch(touchFromCookie(cookie({ source: 'facebook', medium: 'social' }))).channel).toBe('facebook')
+  })
 })
 
 const base: ConversionInput = {
@@ -160,5 +171,17 @@ describe('attribution stays out of default query results', () => {
     expect(wantsTracking({ select: { id: true, lastTouch: true } })).toBe(true)
     expect(wantsTracking({ data: { lastTouch: {} }, include: { user: true } })).toBe(false)
     expect(wantsTracking({ include: { user: true } })).toBe(false)
+  })
+})
+
+describe('weekly budget check', () => {
+  it('suggests moving budget when one package costs twice as much', async () => {
+    const { budgetShiftSuggestion } = await import('@/lib/analytics/origins-core')
+    const pk = (id: string, spendCop: number, requests: number, bookings = 0) => ({ adDraftId: id, title: id, adSets: [id], spendCop, requests, bookings })
+    expect(budgetShiftSuggestion([pk('a', 70_000, 7), pk('b', 50_000, 1)])).toMatchObject({ from: { adDraftId: 'b' }, to: { adDraftId: 'a' }, metric: 'solicitud', fromCost: 50000, toCost: 10000 })
+    expect(budgetShiftSuggestion([pk('a', 70_000, 7), pk('b', 50_000, 0)])).toMatchObject({ from: { adDraftId: 'b' }, fromCost: null })
+    expect(budgetShiftSuggestion([pk('a', 70_000, 7), pk('b', 50_000, 4)])).toBeNull()
+    expect(budgetShiftSuggestion([pk('a', 70_000, 7), pk('b', 10_000, 0)])).toBeNull()
+    expect(budgetShiftSuggestion([pk('a', 70_000, 7, 2), pk('b', 60_000, 6, 0)])).toMatchObject({ from: { adDraftId: 'b' }, metric: 'reserva' })
   })
 })

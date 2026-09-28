@@ -68,6 +68,9 @@ export const WA = {
   C2: (p: { tokenId: string; name: string; suffix: string }) => spec('C2', [['lh_socio_acceso_enlace', { 1: partner(p.name), 2: p.suffix }]], E('MagicToken', p.tokenId)),
   /** The city of a waitlist entry opened: promotional (only with the entry's WhatsApp consent) */
   B25: (p: { entryId: string; name: string | null; city: string }) => spec('B25', [['lh_lista_espera_ciudad_abierta', { 1: client(p.name ?? ''), 2: p.city }]], E('CityWaitlist', p.entryId), { marketing: true }),
+  /** Refund of a cancelled paid booking changed state (one message per state) */
+  B22: (p: { refundId: string; clientName: string; amount: number; service: string; state: string }) =>
+    spec('B22', [['lh_cliente_reembolso_estado', { 1: client(p.clientName), 2: waMoney(p.amount), 3: p.service, 4: p.state }]], E('RefundCase', p.refundId), { dedupeKey: `B22:RefundCase:${p.refundId}:${p.state}` }),
   B1: (p: { userId: string; name: string; suffix: string }) => spec('B1', [['lh_cliente_cuenta_creada_v3', { 1: client(p.name), 2: p.suffix }], ['lh_cliente_cuenta_creada', { 1: client(p.name), 2: p.suffix }]], E('User', p.userId)),
   B3: (p: { proposalId: string; clientName: string; service: string; price: number; partnerName: string }) =>
     spec('B3', [['lh_cliente_nueva_propuesta', { 1: client(p.clientName), 2: p.service, 3: waMoney(p.price), 4: partner(p.partnerName), 5: 'dashboard?tab=requests' }]], E('Proposal', p.proposalId)),
@@ -102,6 +105,9 @@ export const WA = {
   B24: (p: { conversationId: string; name: string | null; service: string }) =>
     spec('B24', [['lh_cliente_solicitud_sin_terminar', { 1: client(p.name), 2: p.service }]], E('Conversation', p.conversationId), { marketing: true, dedupeWindowMs: 14 * DAY }),
 
+  /** The platform transferred the partner's net amount of a paid booking */
+  C28: (p: { payoutId: string; partnerName: string; amount: number; service: string; last4: string }) =>
+    spec('C28', [['lh_socio_pago_plataforma_enviado', { 1: partner(p.partnerName), 2: waMoney(p.amount), 3: p.service, 4: p.last4 }]], E('Payout', p.payoutId)),
   C1: (p: { userId: string; name: string; suffix: string }) => spec('C1', [['lh_socio_cuenta_creada', { 1: partner(p.name), 2: p.suffix }]], E('User', p.userId)),
   C3: (p: { userId: string; name: string; day: 1 | 3 | 7 }) =>
     spec('C3', [['lh_socio_falta_documento', { 1: partner(p.name), 2: 'partner/verification' }]], E('User', p.userId), { dedupeKey: `C3:User:${p.userId}:d${p.day}` }),

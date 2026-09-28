@@ -14,7 +14,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ ref
   const { ref: raw } = await context.params
   const ref = raw.toLowerCase()
   const home = new URL('/', request.nextUrl.origin)
-  if (!/^(post|ad|web|blog)-[a-z0-9][a-z0-9_-]{0,80}$/.test(ref)) return NextResponse.redirect(home)
+  if (!/^(post|ad|web|blog|cmp)-[a-z0-9][a-z0-9_-]{0,80}$/.test(ref)) return NextResponse.redirect(home)
   const phone = await publicWhatsappPhone()
   if (!phone) return NextResponse.redirect(home)
   let service: string | null = null
@@ -24,6 +24,8 @@ export async function GET(request: NextRequest, context: { params: Promise<{ ref
     service = typeof s === 'string' && s.trim() ? s.trim().slice(0, 60) : null
   }
   const lead = ref.startsWith('ad-') ? 'vi su anuncio' : 'vi su publicación'
-  const text = withRef(`Hola, ${lead} y ${service ? `quiero pedir ${service.toLowerCase()}` : 'necesito un servicio'}`, ref)
+  const text = ref.startsWith('cmp-')
+    ? withRef('Hola, recibí su mensaje y necesito un servicio', ref)
+    : withRef(`Hola, ${lead} y ${service ? `quiero pedir ${service.toLowerCase()}` : 'necesito un servicio'}`, ref)
   return NextResponse.redirect(waHref(phone, text), 302)
 }

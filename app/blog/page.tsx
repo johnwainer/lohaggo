@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { BLOG_PAGE_SIZE, listArticles } from '@/lib/marketing/blog'
 import { makeExcerpt, readingMinutes, SITE_URL } from '@/lib/marketing/seo'
 import { ogImageUrl } from '@/lib/marketing/media'
+import { RemoteImage } from '@/components/ui/RemoteImage'
 
 export const revalidate = 300
 
@@ -67,9 +68,9 @@ export default async function BlogPage({ searchParams }: Props) {
               const image = a.coverUrl || a.post.media[0]?.url || null
               return (
                 <Link key={a.slug} href={`/blog/${a.slug}`} className="group overflow-hidden rounded-3xl bg-white shadow-sm transition hover:shadow-md">
-                  <div className="aspect-[1.91/1] bg-gray-100 overflow-hidden">
+                  <div className="relative aspect-[1.91/1] bg-gray-100 overflow-hidden">
                     {image
-                      ? <img src={ogImageUrl(image) || image} alt="" loading="lazy" className="h-full w-full object-cover transition group-hover:scale-[1.02]" />
+                      ? <RemoteImage src={ogImageUrl(image) || image} alt="" fill sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" className="object-cover transition group-hover:scale-[1.02]" />
                       : <div className="h-full w-full bg-gradient-to-br from-primary-100 to-secondary-100" />}
                   </div>
                   <div className="p-5">

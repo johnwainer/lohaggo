@@ -59,10 +59,10 @@ export function parseMetaReferral(
 
 /**
  * `(ref: web-plomeria)` / `(ref: blog-como-...)` / `(ref: post-<id>)` (a marketing post) / `(ref: ad-<code>)`
- * (the prefilled message of an ad package) → the tag; null when the text has none.
+ * (the prefilled message of an ad package) / `(ref: cmp-<code>)` (a messaging campaign) → the tag; null when none.
  */
 export function extractWebRef(body: string | null | undefined): string | null {
-  const m = /\(ref:\s*((?:web|blog|post|ad)-[a-z0-9][a-z0-9_-]{0,80})\s*\)/i.exec(body || '')
+  const m = /\(ref:\s*((?:web|blog|post|ad|cmp)-[a-z0-9][a-z0-9_-]{0,80})\s*\)/i.exec(body || '')
   return m ? m[1].toLowerCase() : null
 }
 

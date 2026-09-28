@@ -300,6 +300,10 @@ export async function PATCH(request: NextRequest) {
     where: { id: body.id },
     data,
   })
+  if (nextStatus && nextStatus !== current.status) {
+    const { waRefundStatus } = await import('@/lib/messaging/wa-events')
+    await waRefundStatus(refundCase.id)
+  }
 
   if (nextStatus === 'PROCESSED' && refundCase.paymentId) {
     const allProcessedCases = await prisma.refundCase.findMany({

@@ -1,6 +1,7 @@
 import type { City, MessagingChannel, UserRole } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { normalizePhone } from '@/lib/phone'
+import { clientSegmentWhere, parseClientSegment, zoneUserIds, type ClientSegment } from '@/lib/messaging/campaign-segments'
 
 type BasicUser = {
   id: string
@@ -124,6 +125,7 @@ export async function resolveCampaignRecipients(params: {
   metadata?: string | null
   controlOverride?: RecipientControl
   audienceOverride?: CampaignAudienceFilter
+  clientSegmentOverride?: ClientSegment
   take?: number
   includeInactive?: boolean
   search?: string
@@ -230,6 +232,29 @@ export async function resolveCampaignRecipients(params: {
       }
     : undefined
 
+  const clientSegment = params.clientSegmentOverride || parseClientSegment(params.metadata)
+  const appliesClientSegment = Boolean(params.targetRole) && roleFilter === 'CLIENT' && clientSegment.type !== 'all'
+  let clientSegmentFilter = null as ReturnType<typeof clientSegmentWhere>
+  if (appliesClientSegment) {
+    let zoneIds: string[] | undefined
+    if (clientSegment.type === 'zone' && clientSegment.zoneKeys.length) {
+      const [zoneRequests, addresses] = await Promise.all([
+        prisma.serviceRequest.findMany({
+          where: { zone: { in: clientSegment.zoneKeys }, user: { role: 'CLIENT' } },
+          select: { userId: true, zone: true },
+          distinct: ['userId'],
+        }),
+        prisma.address.findMany({
+          where: { isActive: true, user: { role: 'CLIENT', excludedFromMarketing: false } },
+          select: { userId: true, neighborhood: true, isPrimary: true, createdAt: true },
+          take: 50000,
+        }),
+      ])
+      zoneIds = zoneUserIds(clientSegment.zoneKeys, zoneRequests, addresses)
+    }
+    clientSegmentFilter = clientSegmentWhere(clientSegment, { zoneUserIds: zoneIds })
+  }
+
   const hasPartnerProfileFilter = partnerServiceWhere || partnerCategoryWhere || partnerWithoutDocsWhere || partnerWithoutStudiesWhere || partnerWithoutServicesWhere || partnerOnlyVerifiedWhere
 
   // When targetRole is null (manual-only mode), skip the segment query entirely.
@@ -251,6 +276,7 @@ export async function resolveCampaignRecipients(params: {
               ...(partnerOnlyVerifiedWhere || {}),
             },
           }),
+          ...(clientSegmentFilter ? { AND: [clientSegmentFilter] } : {}),
           ...(params.targetCity
             ? {
                 OR: [
@@ -325,6 +351,7 @@ export async function resolveCampaignRecipients(params: {
     partnerServiceIds,
     partnerCategoryIds,
     partnerFilterMode,
+    clientSegment: appliesClientSegment ? clientSegment : null,
     segmentCount: segmentUsers.length,
     manualIncludedCount: manualUsers.filter((user) => !segmentUsers.find((segment) => segment.id === user.id)).length,
   }

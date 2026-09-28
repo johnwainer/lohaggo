@@ -9,6 +9,7 @@ import {
   type RecipientControl,
   type CampaignAudienceFilter,
 } from '@/lib/messaging/campaign-recipients'
+import { normalizeClientSegment } from '@/lib/messaging/campaign-segments'
 
 function parseIds(value: string | null) {
   if (!value) return []
@@ -58,6 +59,16 @@ export async function GET(request: NextRequest) {
     audienceOverride.partnerOnlyActive === true ||
     audienceOverride.partnerOnlyVerified === true
 
+  const segmentParam = request.nextUrl.searchParams.get('clientSegment')
+  const clientSegmentOverride = segmentParam
+    ? normalizeClientSegment({
+        type: segmentParam,
+        inactiveDays: request.nextUrl.searchParams.get('inactiveDays'),
+        serviceIds: parseIds(request.nextUrl.searchParams.get('segmentServiceIds')),
+        zoneKeys: parseIds(request.nextUrl.searchParams.get('segmentZoneKeys')),
+      })
+    : undefined
+
   let targetRole = request.nextUrl.searchParams.get('targetRole') as UserRole | null
   let targetCity = request.nextUrl.searchParams.get('targetCity') as City | null
   let metadata: string | null = null
@@ -82,6 +93,7 @@ export async function GET(request: NextRequest) {
     metadata,
     controlOverride: hasOverride ? controlOverride : undefined,
     audienceOverride: hasAudienceOverride ? audienceOverride : campaignAudience || undefined,
+    clientSegmentOverride: campaignId ? undefined : clientSegmentOverride,
     take: 2500,
     includeInactive: true,
     search: search || undefined,
@@ -119,6 +131,7 @@ export async function GET(request: NextRequest) {
       partnerFilterMode: recipients.partnerFilterMode,
       partnerCategoryIds: recipients.partnerCategoryIds,
       partnerServiceIds: recipients.partnerServiceIds,
+      clientSegment: recipients.clientSegment,
       includeUserIds: recipients.includeUserIds,
       excludeUserIds: recipients.excludeUserIds,
     },

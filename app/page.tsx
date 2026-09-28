@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
 import { Metadata } from 'next'
 import HomeClientWrapper from '@/components/HomeClientWrapper'
-import { ServiciosContent } from './servicios/page'
+import { HomeCatalog } from '@/components/home/HomeCatalog'
 import { HomeActiveBookingsBanner } from '@/components/client/HomeActiveBookingsBanner'
 import { HomePublicTestimonials } from '@/components/client/HomePublicTestimonials'
 import { HomeFeaturedPartners } from '@/components/client/HomeFeaturedPartners'
@@ -125,22 +125,13 @@ export default async function Home() {
           <HomeActiveBookingsBanner />
           <HomeHeroCTA showGuarantee={trust.claims.trust_guarantee} whatsappPhone={contact.whatsappPhone} />
 
-          <Suspense
-            fallback={
-              <div className="flex justify-center py-16">
-                <div className="animate-spin rounded-full h-10 w-10 border-4 border-primary-500 border-t-transparent" />
-              </div>
-            }
-          >
-            <ServiciosContent
-              showHeading={false}
-              interleaveSlot={<HomeFeaturedPartners />}
-              initialResult={initialResult}
-              initialCategories={initialCategories as any}
-              whatsappPhone={contact.whatsappPhone}
-              homeLimit={8}
-            />
-          </Suspense>
+          <HomeCatalog
+            services={(initialResult?.services ?? []) as any}
+            categories={(initialCategories ?? []) as any}
+            interleaveSlot={<Suspense fallback={null}><HomeFeaturedPartners /></Suspense>}
+            whatsappPhone={contact.whatsappPhone}
+            limit={8}
+          />
 
           {testimonials.length >= STAT_MINIMUMS.testimonials && (
             <HomePublicTestimonials testimonials={testimonials} />

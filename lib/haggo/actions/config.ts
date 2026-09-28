@@ -1,3 +1,5 @@
+import { cityLaunchStatus } from '@/lib/cities/launch'
+import { notifyWaitlistOpened } from '@/lib/waitlist/notify'
 import type { CityStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { CLAIMS, CLAIM_KEYS, isClaimKey, unbackedClaims, type ClaimKey } from '@/lib/public/claims'
@@ -117,9 +119,9 @@ const setCityAction: HaggoActionDef<{ slug: string; status: CityStatus }> = {
   domain: 'config',
   risk: 'high',
   label: 'Cambiar el estado de una ciudad',
-  hint: 'Pasa una ciudad a activa (recibe solicitudes), próximamente (el sitio la anuncia) o inactiva. El slug sale de configuracion_plataforma. No actives una ciudad sin socios verificados con servicios allí.',
+  hint: 'Pasa una ciudad a activa (recibe solicitudes), próximamente (el sitio la anuncia) o inactiva. El slug sale de configuracion_plataforma. Activar exige la cobertura mínima de apertura_ciudad y, al activarse, avisa a su lista de espera (WhatsApp con autorización o correo).',
   schema: { type: 'object', properties: { slug: { type: 'string' }, status: { type: 'string', enum: [...CITY_STATUSES] } }, required: ['slug', 'status'] },
-  sideEffects: ['customer_facing'],
+  sideEffects: ['customer_facing', 'notifies_customers'],
   parse: (raw) => {
     const r = requireObj(raw)
     if (!r) return { ok: false, errors: ['Parámetros inválidos'] }
@@ -134,6 +136,11 @@ const setCityAction: HaggoActionDef<{ slug: string; status: CityStatus }> = {
     const c = await prisma.cityConfig.findUnique({ where: { slug: p.slug }, select: { name: true, status: true } })
     if (!c) return { ok: false, reason: 'La ciudad no existe' }
     if (c.status === p.status) return { ok: false, reason: `Ya está ${CITY_LABEL[p.status]}` }
+    if (p.status === 'ACTIVE') {
+      const launch = await cityLaunchStatus(p.slug)
+      if (!launch?.supported) return { ok: false, reason: `${c.name} todavía no existe como ciudad de servicio en la plataforma (hace falta un cambio de código)` }
+      if (!launch.ready) return { ok: false, reason: `Falta cobertura: ${launch.checks.filter((x) => !x.ok && !x.item.startsWith('Gente')).map((x) => `${x.item} (${x.detail})`).join('; ')}` }
+    }
     return { ok: true, before: { name: c.name, status: c.status } }
   },
   preview: async (p, before) => {
@@ -141,7 +148,13 @@ const setCityAction: HaggoActionDef<{ slug: string; status: CityStatus }> = {
     const what = p.status === 'ACTIVE' ? 'recibe solicitudes y aparece en el sitio' : p.status === 'COMING_SOON' ? 'aparece como «próximamente» y no recibe solicitudes' : 'deja de aparecer y de recibir solicitudes'
     return { summary: `${b.name} ${what}`, diff: [{ field: 'Estado', from: CITY_LABEL[b.status], to: CITY_LABEL[p.status] }] }
   },
-  execute: async (p) => { await setCityStatus(p.slug, p.status); return { after: { status: p.status }, result: `Ciudad ${CITY_LABEL[p.status]}` } },
+  execute: async (p) => {
+    await setCityStatus(p.slug, p.status)
+    if (p.status !== 'ACTIVE') return { after: { status: p.status }, result: `Ciudad ${CITY_LABEL[p.status]}` }
+    // Opened: the people who asked to be told hear it now
+    const sent = await notifyWaitlistOpened(p.slug).catch(() => null)
+    return { after: { status: p.status }, result: `Ciudad activa${sent ? ` · lista de espera avisada: ${sent.whatsapp} por WhatsApp, ${sent.email} por correo${sent.failed ? `, ${sent.failed} sin enviar` : ''}` : ' · no se pudo avisar a la lista de espera (hazlo desde Admin → Lista de espera)'}` }
+  },
   unchanged: async (p) => (await prisma.cityConfig.findUnique({ where: { slug: p.slug }, select: { status: true } }))?.status === p.status,
   undo: async (p, before) => { await setCityStatus(p.slug, (before as { status: CityStatus }).status) },
 }

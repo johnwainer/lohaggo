@@ -44,7 +44,7 @@ vi.mock('@/lib/prisma', () => ({
 }))
 vi.mock('@/lib/logger', () => ({ createLogger: () => ({ info() {}, warn() {}, error() {}, debug() {} }) }))
 vi.mock('@/lib/notifications/notificationService', () => ({ notifyBookingStatusChange: m.notifyStatus, createNotification: m.createNotification, notifyNewServiceRequest: m.notifyNewRequest }))
-vi.mock('@/lib/messaging/wa-events', () => ({ waBookingStatus: m.waBookingStatus, waBookingRescheduled: m.waBookingRescheduled }))
+vi.mock('@/lib/messaging/wa-events', () => ({ waBookingStatus: m.waBookingStatus, waBookingRescheduled: m.waBookingRescheduled, waRefundStatus: vi.fn(async () => null) }))
 vi.mock('@/lib/messaging/automation-service', () => ({ scheduleAutomationsForUser: m.automations }))
 vi.mock('@/lib/pwa/adoption-strategy', () => ({ recordPromptContext: m.promptContext }))
 

@@ -1,3 +1,5 @@
+import { normalizePhone } from '@/lib/phone'
+import { toE164 } from '@/lib/inbox/contacts'
 import type { MessagingCampaign, MessagingCampaignStatus, MessagingChannel, UserRole } from '@prisma/client'
 import { randomBytes } from 'crypto'
 import { prisma } from '@/lib/prisma'
@@ -6,6 +8,14 @@ import { sendMessageViaProvider, sendWhatsAppTemplate, sendMetaWhatsAppTemplate 
 import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
 import { resolveCampaignRecipients, resolveDestination } from '@/lib/messaging/campaign-recipients'
 import { getDefaultWorkspaceId } from '@/lib/workspaces'
+import { isMarketingQuietHour } from '@/lib/messaging/wa-format'
+import { NO_MARKETING_TAG } from '@/lib/messaging/wa-send'
+import { campaignRefCode, campaignWaLink, withCampaignUtm } from '@/lib/messaging/campaign-tracking'
+
+/** WhatsApp campaigns are promotional: they only go out in the allowed marketing hours (Bogotá). */
+export function campaignBlockedByQuietHours(channel: MessagingChannel, now: Date = new Date()) {
+  return channel === 'WHATSAPP' && isMarketingQuietHour(now)
+}
 
 export async function processCampaign(campaignId: string) {
   const campaign = await prisma.messagingCampaign.findUnique({
@@ -20,6 +30,9 @@ export async function processCampaign(campaignId: string) {
   if (campaign.status === 'PROCESSING') {
     throw new Error('Campaign is already processing')
   }
+
+  // Outside marketing hours a WhatsApp campaign is left as it is (a scheduled one goes out on a later run).
+  if (campaignBlockedByQuietHours(campaign.channel)) return campaign
 
   await prisma.messagingCampaign.update({
     where: { id: campaign.id },
@@ -50,6 +63,24 @@ export async function processCampaign(campaignId: string) {
   const magicLinkRequirePasswordChange = Boolean(campaignMeta.magicLinkRequirePasswordChange)
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || ''
+  const siteUrl = appUrl || 'https://lohaggo.com'
+  const campaignRef = campaignRefCode(campaign.id)
+  const campaignLink = campaignWaLink(siteUrl, campaign.id)
+  const trackLinks = (text: string) => withCampaignUtm(text, { channel: campaign.channel, campaignId: campaign.id, appUrl })
+
+  // People who pressed «no más avisos» on a WhatsApp marketing template (same rule as deliverWa).
+  const noMarketingPhones = new Set<string>()
+  if (campaign.channel === 'WHATSAPP' && users.length > 0) {
+    const tagged = await prisma.conversation.findMany({
+      where: { channel: 'WHATSAPP', tags: { has: NO_MARKETING_TAG } },
+      select: { contactPhone: true, userId: true },
+    })
+    for (const t of tagged) {
+      const e164 = toE164(t.contactPhone)
+      if (e164) noMarketingPhones.add(e164)
+      if (t.userId) noMarketingPhones.add(`user:${t.userId}`)
+    }
+  }
 
   // Determine if this campaign needs {{action_url}} resolved per user.
   const needsActionUrl =
@@ -165,7 +196,11 @@ export async function processCampaign(campaignId: string) {
       },
     })
 
-    if (optedOut) {
+    const taggedNoMarketing =
+      noMarketingPhones.size > 0 &&
+      (noMarketingPhones.has(`user:${user.id}`) || noMarketingPhones.has(toE164(normalizePhone(destination)) ?? ''))
+
+    if (optedOut || taggedNoMarketing) {
       await prisma.messagingDelivery.create({
         data: {
           campaignId: campaign.id,
@@ -174,8 +209,8 @@ export async function processCampaign(campaignId: string) {
           destination,
           status: 'UNSUBSCRIBED',
           provider: 'internal',
-          errorCode: 'OPTOUT',
-          errorMessage: 'Recipient opted out',
+          errorCode: optedOut ? 'OPTOUT' : 'NO_MARKETING',
+          errorMessage: optedOut ? 'Recipient opted out' : 'Recipient asked for no marketing messages',
         },
       })
       continue
@@ -196,8 +231,10 @@ export async function processCampaign(campaignId: string) {
       user_name: user.name,
       user_email: user.email,
       action_url: magicUrlByUser.get(user.id) ?? '',
+      campaign_link: campaignLink,
+      campaign_ref: campaignRef,
     }
-    const body = renderTextTemplate(bodyTemplate, userVars)
+    const body = trackLinks(renderTextTemplate(bodyTemplate, userVars))
     const subject = subjectTemplate
       ? renderTextTemplate(subjectTemplate, userVars)
       : null
@@ -209,7 +246,7 @@ export async function processCampaign(campaignId: string) {
     let result: Awaited<ReturnType<typeof sendMessageViaProvider>>
     if (campaign.channel === 'WHATSAPP' && waContentSid) {
       for (const [key, val] of Object.entries(waTemplateVariables)) {
-        resolvedVars[key] = renderTextTemplate(val, userVars)
+        resolvedVars[key] = trackLinks(renderTextTemplate(val, userVars))
       }
 
       // Twilio rejects ContentVariables with empty strings — catch it before the API call

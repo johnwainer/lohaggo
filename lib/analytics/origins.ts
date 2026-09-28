@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { bogotaDay, type Period } from '@/lib/analytics/core'
-import { spendWithoutRequests, summarizeOrigins, type AttributionModel } from '@/lib/analytics/origins-core'
+import { budgetShiftSuggestion, spendWithoutRequests, summarizeOrigins, type AttributionModel } from '@/lib/analytics/origins-core'
 import { spendByDraft, spendDays } from '@/lib/marketing/ad-spend'
 
 /**
@@ -66,6 +66,26 @@ export async function attributionSnapshot(now = new Date()) {
     for (const c of Array.from(camps)) byCampaign.set(c, (byCampaign.get(c) ?? 0) + 1)
   }
   const idle = spendWithoutRequests({ spendDays: days, requestsByCampaign: byCampaign, minDays: 3 })
+  // Per package for the weekly budget check: spend, requests and bookings credited to its ad-<code>
+  const bookings = await prisma.booking.findMany({ where: { createdAt: { gte: week } }, select: { acquisition: true, lastTouch: true } }).catch(() => [])
+  const bookingsByCampaign = new Map<string, number>()
+  for (const b of bookings) {
+    const camps = new Set([b.acquisition, b.lastTouch].map((t) => (t && typeof t === 'object' ? (t as { campaign?: unknown }).campaign : null)).filter((c): c is string => typeof c === 'string'))
+    for (const c of Array.from(camps)) bookingsByCampaign.set(c, (bookingsByCampaign.get(c) ?? 0) + 1)
+  }
+  const spendRows = await prisma.marketingAdSpend.findMany({ where: { day: { gte: new Date(`${bogotaDay(week)}T00:00:00Z`) } }, select: { key: true, adSet: true, amountCop: true } }).catch(() => [])
+  const perDraft = new Map<string, { spend: number; adSets: Set<string> }>()
+  for (const r of spendRows) {
+    const d = perDraft.get(r.key) ?? { spend: 0, adSets: new Set<string>() }
+    d.spend += r.amountCop
+    if (r.adSet) d.adSets.add(r.adSet)
+    perDraft.set(r.key, d)
+  }
+  const draftTitles = perDraft.size ? await prisma.marketingAdDraft.findMany({ where: { id: { in: Array.from(perDraft.keys()) } }, select: { id: true, title: true } }) : []
+  const packages = Array.from(perDraft.entries()).map(([id, d]) => {
+    const code = `ad-${id.slice(-8).toLowerCase()}`
+    return { adDraftId: id, title: draftTitles.find((t) => t.id === id)?.title ?? 'Pauta', adSets: Array.from(d.adSets), spendCop: d.spend, requests: byCampaign.get(code) ?? 0, bookings: bookingsByCampaign.get(code) ?? 0 }
+  })
   const titles = idle.length ? await prisma.marketingAdDraft.findMany({ where: { id: { in: idle.map((i) => i.adDraftId) } }, select: { id: true, title: true } }) : []
   return {
     requests7d: requests.length,
@@ -73,5 +93,6 @@ export async function attributionSnapshot(now = new Date()) {
     spend7d: days.reduce((a, d) => a + d.amountCop, 0),
     spendWithoutRequests: idle.map((i) => ({ ...i, title: titles.find((t) => t.id === i.adDraftId)?.title ?? 'Pauta' })),
     conversionsFailed7d: failed,
+    budgetShift: budgetShiftSuggestion(packages),
   }
 }

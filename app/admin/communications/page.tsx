@@ -1,6 +1,23 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { ZONES } from '@/lib/geo/zones'
+
+type ClientSegmentOption = 'all' | 'no_booking' | 'inactive_30' | 'inactive_60' | 'service' | 'zone'
+
+const CLIENT_SEGMENT_OPTIONS: Array<{ value: ClientSegmentOption; label: string }> = [
+  { value: 'all', label: 'Todos los clientes' },
+  { value: 'no_booking', label: 'Sin reservas' },
+  { value: 'inactive_30', label: 'Inactivos 30 días' },
+  { value: 'inactive_60', label: 'Inactivos 60 días' },
+  { value: 'service', label: 'Por servicio' },
+  { value: 'zone', label: 'Por zona' },
+]
+
+function clientSegmentPayload(option: ClientSegmentOption, serviceIds: string[], zoneKeys: string[]) {
+  if (option === 'inactive_30' || option === 'inactive_60') return { type: 'inactive', inactiveDays: option === 'inactive_60' ? 60 : 30, serviceIds: [], zoneKeys: [] }
+  return { type: option, inactiveDays: 30, serviceIds: option === 'service' ? serviceIds : [], zoneKeys: option === 'zone' ? zoneKeys : [] }
+}
 
 type Template = {
   id: string
@@ -32,6 +49,7 @@ type Campaign = {
   template?: { id: string; key: string; name: string } | null
   abTestEnabled?: boolean
   abTestConfig?: string | null
+  results?: { code: string; solicitudes: number; reservas: number } | null
 }
 
 type ServiceOption = {
@@ -256,6 +274,9 @@ export default function AdminCommunicationsPage() {
     partnerWithoutServices: false,
     partnerOnlyActive: true,
     partnerOnlyVerified: false,
+    clientSegment: 'all' as ClientSegmentOption,
+    clientServiceIds: [] as string[],
+    clientZoneKeys: [] as string[],
     customSubject: '',
     customBody: '',
     templateId: '',
@@ -463,6 +484,13 @@ export default function AdminCommunicationsPage() {
           if (campForm.partnerOnlyActive) params.set('partnerOnlyActive', 'true')
           if (campForm.partnerOnlyVerified) params.set('partnerOnlyVerified', 'true')
         }
+        if (selectionMode === 'SEGMENT' && campForm.targetRole === 'CLIENT' && campForm.clientSegment !== 'all') {
+          const seg = clientSegmentPayload(campForm.clientSegment, campForm.clientServiceIds, campForm.clientZoneKeys)
+          params.set('clientSegment', seg.type)
+          params.set('inactiveDays', String(seg.inactiveDays))
+          if (seg.serviceIds.length) params.set('segmentServiceIds', seg.serviceIds.join(','))
+          if (seg.zoneKeys.length) params.set('segmentZoneKeys', seg.zoneKeys.join(','))
+        }
         if (recipientIncludeIds.length) params.set('includeUserIds', recipientIncludeIds.join(','))
         if (recipientExcludeIds.length) params.set('excludeUserIds', recipientExcludeIds.join(','))
       }
@@ -545,6 +573,9 @@ export default function AdminCommunicationsPage() {
     campForm.partnerWithoutServices,
     campForm.partnerOnlyActive,
     campForm.partnerOnlyVerified,
+    campForm.clientSegment,
+    campForm.clientServiceIds,
+    campForm.clientZoneKeys,
     recipientIncludeIds,
     recipientExcludeIds,
     selectionMode,
@@ -670,6 +701,14 @@ export default function AdminCommunicationsPage() {
       setCampaignFeedback({ type: 'error', message: 'Selecciona al menos un servicio para filtrar socios.' })
       return
     }
+    if (selectionMode === 'SEGMENT' && campForm.targetRole === 'CLIENT' && campForm.clientSegment === 'service' && !campForm.clientServiceIds.length) {
+      setCampaignFeedback({ type: 'error', message: 'Selecciona al menos un servicio para el segmento.' })
+      return
+    }
+    if (selectionMode === 'SEGMENT' && campForm.targetRole === 'CLIENT' && campForm.clientSegment === 'zone' && !campForm.clientZoneKeys.length) {
+      setCampaignFeedback({ type: 'error', message: 'Selecciona al menos una zona para el segmento.' })
+      return
+    }
     if (selectionMode === 'MANUAL' && recipientIncludeIds.length === 0) {
       setCampaignFeedback({ type: 'error', message: 'Selecciona al menos un destinatario en modo manual.' })
       return
@@ -703,6 +742,9 @@ export default function AdminCommunicationsPage() {
         partnerWithoutServices: selectionMode === 'SEGMENT' && campForm.targetRole === 'PARTNER' ? campForm.partnerWithoutServices : false,
         partnerOnlyActive: selectionMode === 'SEGMENT' && campForm.targetRole === 'PARTNER' ? campForm.partnerOnlyActive : false,
         partnerOnlyVerified: selectionMode === 'SEGMENT' && campForm.targetRole === 'PARTNER' ? campForm.partnerOnlyVerified : false,
+        clientSegment: selectionMode === 'SEGMENT' && campForm.targetRole === 'CLIENT'
+          ? clientSegmentPayload(campForm.clientSegment, campForm.clientServiceIds, campForm.clientZoneKeys)
+          : null,
         customSubject: campForm.customSubject || null,
         templateId: isWaTemplate ? null : (campForm.templateId || null),
         status: campForm.scheduledAt ? 'SCHEDULED' : 'DRAFT',
@@ -762,6 +804,9 @@ export default function AdminCommunicationsPage() {
       partnerWithoutServices: false,
       partnerOnlyActive: true,
       partnerOnlyVerified: false,
+      clientSegment: 'all',
+      clientServiceIds: [],
+      clientZoneKeys: [],
       customSubject: '',
       customBody: '',
       templateId: '',
@@ -1337,6 +1382,9 @@ export default function AdminCommunicationsPage() {
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600">
                       <span>Destinatarios: <b>{campaign.totalRecipients}</b></span>
                       <span>Enviados: <b>{campaign.totalSent}</b></span>
+                      {campaign.results && (
+                        <span>Solicitudes: <b>{campaign.results.solicitudes}</b> · Reservas: <b>{campaign.results.reservas}</b></span>
+                      )}
                       {campaign.totalFailed > 0 ? (
                         <button
                           className="rounded border border-rose-200 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100"
@@ -1368,6 +1416,7 @@ export default function AdminCommunicationsPage() {
                       <th className="px-3 py-2 text-left font-medium">Destinatarios</th>
                       <th className="px-3 py-2 text-left font-medium">Enviados</th>
                       <th className="px-3 py-2 text-left font-medium">Fallidos</th>
+                      <th className="px-3 py-2 text-left font-medium">Solicitudes / Reservas</th>
                       <th className="px-3 py-2 text-left font-medium">Creada</th>
                       <th className="px-3 py-2 text-right font-medium">Acciones</th>
                     </tr>
@@ -1393,6 +1442,7 @@ export default function AdminCommunicationsPage() {
                             <span>{campaign.totalFailed}</span>
                           )}
                         </td>
+                        <td className="px-3 py-2">{campaign.results ? `${campaign.results.solicitudes} / ${campaign.results.reservas}` : '—'}</td>
                         <td className="px-3 py-2">{formatDate(campaign.createdAt)}</td>
                         <td className="px-3 py-2">
                           <div className="flex justify-end gap-2">
@@ -1403,7 +1453,7 @@ export default function AdminCommunicationsPage() {
                     ))}
                     {orderedCampaigns.length === 0 && (
                       <tr>
-                        <td className="px-3 py-4 text-gray-500" colSpan={9}>
+                        <td className="px-3 py-4 text-gray-500" colSpan={10}>
                           Sin campañas registradas.
                         </td>
                       </tr>
@@ -1613,6 +1663,19 @@ export default function AdminCommunicationsPage() {
                         </div>
                       ))}
                     </div>
+                    {detailCampaign.results && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="rounded-lg border border-primary-200 bg-primary-50 p-2.5 text-center">
+                          <p className="text-lg font-bold text-primary-700">{detailCampaign.results.solicitudes}</p>
+                          <p className="text-xs text-primary-600">Solicitudes</p>
+                        </div>
+                        <div className="rounded-lg border border-primary-200 bg-primary-50 p-2.5 text-center">
+                          <p className="text-lg font-bold text-primary-700">{detailCampaign.results.reservas}</p>
+                          <p className="text-xs text-primary-600">Reservas</p>
+                        </div>
+                        <p className="col-span-2 text-xs text-gray-500">Atribuidas al código <code>{detailCampaign.results.code}</code> (UTM o enlace de WhatsApp) desde el inicio del envío.</p>
+                      </div>
+                    )}
 
                     {/* Content */}
                     {isWa ? (
@@ -2046,6 +2109,94 @@ export default function AdminCommunicationsPage() {
                           : 'socios por servicio específico'}
                       </b>
                       .
+                    </p>
+                  </div>
+                )}
+                {campForm.targetRole === 'CLIENT' && (
+                  <div className="space-y-2 rounded-lg border p-3">
+                    <div className="flex flex-wrap items-end gap-2">
+                      <label className="text-xs text-gray-700 space-y-1 block w-full sm:w-64">
+                        <span className="font-medium">Segmento</span>
+                        <select
+                          className="border rounded px-2 py-2 text-sm w-full"
+                          value={campForm.clientSegment}
+                          onChange={(e) => setCampForm((p) => ({ ...p, clientSegment: e.target.value as ClientSegmentOption }))}
+                        >
+                          {CLIENT_SEGMENT_OPTIONS.map((o) => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
+                          ))}
+                        </select>
+                      </label>
+                      {selectionMode === 'SEGMENT' ? (
+                        <span className="rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1.5 text-xs text-emerald-800">
+                          {loadingRecipients ? 'Calculando…' : <>Clientes en el segmento: <b>{recipientSummary?.total ?? 0}</b> · con destino: <b>{recipientSummary?.eligible ?? 0}</b></>}
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-800"
+                          onClick={() => { setSelectionMode('SEGMENT'); setRecipientIncludeIds([]); setRecipientIncludeDetails([]); setRecipientExcludeIds([]) }}
+                        >
+                          Aplica en «Segmento automático» · activar
+                        </button>
+                      )}
+                    </div>
+                    {campForm.clientSegment === 'inactive_30' || campForm.clientSegment === 'inactive_60' ? (
+                      <p className="text-xs text-gray-500">Clientes con al menos una solicitud o reserva, y ninguna en los últimos {campForm.clientSegment === 'inactive_60' ? 60 : 30} días.</p>
+                    ) : campForm.clientSegment === 'no_booking' ? (
+                      <p className="text-xs text-gray-500">Clientes que nunca han tenido una reserva.</p>
+                    ) : null}
+                    {campForm.clientSegment === 'service' && (
+                      <div className="space-y-1">
+                        <p className="text-xs font-medium text-gray-700">Clientes que pidieron o reservaron ({campForm.clientServiceIds.length} seleccionados)</p>
+                        <div className="max-h-44 overflow-auto rounded border p-2">
+                          <div className="grid md:grid-cols-2 gap-2">
+                            {serviceOptions.map((service) => (
+                              <label key={service.id} className="flex items-start gap-2 text-xs cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={campForm.clientServiceIds.includes(service.id)}
+                                  onChange={() => setCampForm((p) => ({
+                                    ...p,
+                                    clientServiceIds: p.clientServiceIds.includes(service.id)
+                                      ? p.clientServiceIds.filter((id) => id !== service.id)
+                                      : [...p.clientServiceIds, service.id],
+                                  }))}
+                                />
+                                <span><b>{service.name}</b><span className="text-gray-500"> · {service.categoryName}</span></span>
+                              </label>
+                            ))}
+                            {serviceOptions.length === 0 && <p className="text-xs text-gray-500">No se pudieron cargar los servicios.</p>}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {campForm.clientSegment === 'zone' && (
+                      <div className="space-y-1">
+                        <p className="text-xs font-medium text-gray-700">Zonas ({campForm.clientZoneKeys.length} seleccionadas)</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {ZONES.map((zone) => {
+                            const on = campForm.clientZoneKeys.includes(zone.key)
+                            return (
+                              <button
+                                key={zone.key}
+                                type="button"
+                                aria-pressed={on}
+                                className={`rounded-full border px-3 py-1.5 text-xs ${on ? 'bg-primary-600 border-primary-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                                onClick={() => setCampForm((p) => ({
+                                  ...p,
+                                  clientZoneKeys: on ? p.clientZoneKeys.filter((k) => k !== zone.key) : [...p.clientZoneKeys, zone.key],
+                                }))}
+                              >
+                                {zone.name}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    <p className="text-xs text-gray-500">
+                      Los enlaces a lohaggo.com del mensaje se envían con UTM de la campaña. En WhatsApp puedes usar <code>{'{{campaign_link}}'}</code> para un enlace que abre el chat y cuenta las solicitudes de esta campaña.
                     </p>
                   </div>
                 )}

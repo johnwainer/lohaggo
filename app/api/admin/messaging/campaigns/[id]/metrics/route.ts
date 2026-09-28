@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/admin-utils'
+import { loadCampaignResults } from '@/lib/messaging/campaign-results'
 
 type RouteContext = {
   params: Promise<{ id: string }>
@@ -31,6 +32,8 @@ export async function GET(_: Request, context: RouteContext) {
     return acc
   }, {})
 
+  const results = await loadCampaignResults([campaign]).catch(() => new Map())
+
   const deliverabilityRate = campaign.totalRecipients > 0
     ? Number(((campaign.totalSent / campaign.totalRecipients) * 100).toFixed(2))
     : 0
@@ -44,6 +47,7 @@ export async function GET(_: Request, context: RouteContext) {
       totalRecipients: campaign.totalRecipients,
       totalSent: campaign.totalSent,
       totalFailed: campaign.totalFailed,
+      results: results.get(campaign.id) ?? null,
     },
     metrics: {
       byStatus,

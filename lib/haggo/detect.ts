@@ -36,7 +36,11 @@ export type Snapshot = {
   /** Guarantee claims (lib/guarantee): active, past their 72 h SLA, strikes in 90 days and partners at the pause limit */
   guarantee?: { open: number; overdue: number; strikesLast90: number; partnersAtLimit?: Array<{ partnerId: string; strikes: number }> }
   /** Marketing results: requests with origin, ad spend typed in, packages spending without requests, failed conversions */
-  attribution?: { requests7d: number; withOrigin7d: number; spend7d: number; spendWithoutRequests: Array<{ adDraftId: string; title: string; daysWithSpend: number; spendCop: number }>; conversionsFailed7d: number }
+  attribution?: {
+    requests7d: number; withOrigin7d: number; spend7d: number; spendWithoutRequests: Array<{ adDraftId: string; title: string; daysWithSpend: number; spendCop: number }>; conversionsFailed7d: number
+    /** Weekly budget check: the package that costs at least twice as much per booking (or request) as the best one */
+    budgetShift?: { from: { adDraftId: string; title: string; adSets: string[] }; to: { adDraftId: string; title: string; adSets: string[] }; metric: 'reserva' | 'solicitud'; fromCost: number | null; toCost: number } | null
+  }
   /** WhatsApp code login of the last 24 h: codes sent and confirmed */
   phoneLogin?: { sent24h: number; used24h: number }
   /** WhatsApp catalog templates by Meta state (names of the rejected and of the approved under another category) */
@@ -112,6 +116,16 @@ export function detect(s: Snapshot): Detection[] {
   if (ed && ed.failedWeek >= 3) add({ key: 'mk:editorial-failed', domain: 'marketing', severity: 'warning', title: `${plural(ed.failedWeek, 'revisión editorial falló', 'revisiones editoriales fallaron')} en 7 días`, detail: 'Sin revisión las piezas no salen: revisar presupuesto e IA.' })
   for (const a of s.attribution?.spendWithoutRequests ?? []) {
     add({ key: `mk:spend-no-requests:${a.adDraftId}`, domain: 'marketing', severity: 'warning', title: `La pauta «${a.title}» gastó $${Math.round(a.spendCop).toLocaleString('es-CO')} en ${a.daysWithSpend} días sin traer solicitudes`, detail: 'Revisar el anuncio (texto, público, mensaje prellenado con su ref) o pasar el presupuesto a otro conjunto (resultados_marketing).', entityType: 'MarketingAdDraft', entityId: a.adDraftId })
+  }
+  const shift = s.attribution?.budgetShift
+  if (shift) {
+    const cop = (n: number | null) => (n == null ? 'sin resultados' : `$${Math.round(n).toLocaleString('es-CO')}`)
+    add({
+      key: `mk:budget-shift:${shift.from.adDraftId}`, domain: 'marketing', severity: 'info',
+      title: `La pauta «${shift.from.title}» cuesta ${cop(shift.fromCost)} por ${shift.metric} frente a ${cop(shift.toCost)} de «${shift.to.title}»`,
+      detail: `Propón marketing.propose_budget_shift de ${shift.from.adSets[0] ?? shift.from.title} a ${shift.to.adSets[0] ?? shift.to.title} (datos de 7 días en resultados_marketing).`,
+      entityType: 'MarketingAdDraft', entityId: shift.from.adDraftId,
+    })
   }
   if ((s.attribution?.conversionsFailed7d ?? 0) >= 3) add({ key: 'mk:conversions-failed', domain: 'marketing', severity: 'warning', title: `${s.attribution!.conversionsFailed7d} conversiones no llegaron a Meta o Google en 7 días`, detail: 'Revisar el token y el píxel en Analítica → Origen → Conversiones.' })
   if (s.phoneLogin && s.phoneLogin.sent24h >= 5 && s.phoneLogin.used24h === 0) add({ key: 'ops:phone-codes-unused', domain: 'users', severity: 'warning', title: `${s.phoneLogin.sent24h} códigos de acceso por WhatsApp en 24 h y ninguno confirmado`, detail: 'Puede que la plantilla lh_codigo_verificacion no esté llegando: revisar mensajeria (estado en Meta y envíos) y probar el acceso con código.' })

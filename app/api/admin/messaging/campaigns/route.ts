@@ -8,6 +8,8 @@ import {
   parseCampaignAudience,
   parseRecipientControl,
 } from '@/lib/messaging/campaign-recipients'
+import { clientSegmentError, mergeClientSegmentMetadata, normalizeClientSegment, parseClientSegment } from '@/lib/messaging/campaign-segments'
+import { loadCampaignResults } from '@/lib/messaging/campaign-results'
 
 export async function GET(request: NextRequest) {
   const admin = await requireAdmin()
@@ -29,7 +31,8 @@ export async function GET(request: NextRequest) {
     take: 300,
   })
 
-  return NextResponse.json({ campaigns })
+  const results = await loadCampaignResults(campaigns).catch(() => new Map())
+  return NextResponse.json({ campaigns: campaigns.map((c) => ({ ...c, results: results.get(c.id) ?? null })) })
 }
 
 export async function POST(request: NextRequest) {
@@ -81,6 +84,10 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  const clientSegment = normalizeClientSegment((body.targetRole as UserRole | undefined) === 'CLIENT' ? body.clientSegment : null)
+  const segmentError = clientSegmentError(clientSegment)
+  if (segmentError) return NextResponse.json({ error: segmentError }, { status: 400 })
+
   const includeUserIds = Array.isArray(body.includeUserIds) ? body.includeUserIds : []
   const excludeUserIds = Array.isArray(body.excludeUserIds) ? body.excludeUserIds : []
   const isManualMode = !body.targetRole
@@ -89,7 +96,7 @@ export async function POST(request: NextRequest) {
     body.metadata ? JSON.stringify(body.metadata) : null,
     { includeUserIds, excludeUserIds }
   )
-  const metadata = mergeCampaignAudienceMetadata(metadataWithControl, {
+  const metadataWithAudience = mergeCampaignAudienceMetadata(metadataWithControl, {
     partnerFilterMode,
     partnerCategoryIds,
     partnerServiceIds,
@@ -99,6 +106,7 @@ export async function POST(request: NextRequest) {
     partnerOnlyActive: Boolean(body.partnerOnlyActive),
     partnerOnlyVerified: Boolean(body.partnerOnlyVerified),
   })
+  const metadata = mergeClientSegmentMetadata(metadataWithAudience, clientSegment)
 
   // For manual campaigns, set totalRecipients at creation time since we know the exact list.
   const initialTotalRecipients = isManualMode ? includeUserIds.length : 0
@@ -176,7 +184,13 @@ export async function PATCH(request: NextRequest) {
     }
   }
 
-  const metadata =
+  const nextClientSegment = nextTargetRole === 'CLIENT'
+    ? (body.clientSegment !== undefined ? normalizeClientSegment(body.clientSegment) : parseClientSegment(current.metadata))
+    : normalizeClientSegment(null)
+  const patchSegmentError = clientSegmentError(nextClientSegment)
+  if (patchSegmentError) return NextResponse.json({ error: patchSegmentError }, { status: 400 })
+
+  const audienceMetadata =
     body.metadata !== undefined ||
     body.includeUserIds !== undefined ||
     body.excludeUserIds !== undefined ||
@@ -218,6 +232,10 @@ export async function PATCH(request: NextRequest) {
               : Boolean(currentAudience.partnerOnlyVerified),
           },
         )
+      : undefined
+  const metadata =
+    audienceMetadata !== undefined || body.clientSegment !== undefined || body.targetRole !== undefined
+      ? mergeClientSegmentMetadata(audienceMetadata ?? current.metadata, nextClientSegment)
       : undefined
 
   const campaign = await prisma.messagingCampaign.update({

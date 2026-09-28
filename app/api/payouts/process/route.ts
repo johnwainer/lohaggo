@@ -88,6 +88,8 @@ async function processSinglePayout(payoutId: string, actorEmail: string) {
   })
 
   if (providerResult.success) {
+    const { waPayoutSent } = await import('@/lib/messaging/wa-events')
+    await waPayoutSent(payoutId)
     await createNotification({
       userId: payout.partner.user?.id ?? payout.partner.userId,
       type: 'BOOKING_CONFIRMED',

@@ -12,6 +12,7 @@ import { TOOL_GROUPS } from '@/lib/ai/actions-core'
 import { PLATFORM_READ_TOOLS, type ReadTool } from '@/lib/haggo/tools/platform'
 import { summarizeConversationOrigins } from '@/lib/messaging/attribution'
 import { originsTab } from '@/lib/analytics/origins'
+import { cityLaunchStatus } from '@/lib/cities/launch'
 import { conversionStats } from '@/lib/analytics/conversions'
 import { trafficTab } from '@/lib/analytics/ga4'
 
@@ -190,6 +191,15 @@ export const READ_TOOLS: Record<string, ReadTool> = {
         pedidos_repetidos_al_mismo_socio: repeat,
         lista_espera_con_whatsapp_sin_avisar: waitlistPhone,
       }
+    },
+  },
+  apertura_ciudad: {
+    def: { name: 'apertura_ciudad', description: 'Lista de chequeo para abrir una ciudad (Bogotá y las próximas): socios verificados por cada servicio de foco (plomería, electricidad, pintura, limpieza) y en total frente al mínimo, personas en la lista de espera (con WhatsApp) y qué servicios reclutar primero. Sin slug revisa todas las ciudades que no están activas.', input_schema: { type: 'object', properties: { slug: { type: 'string', description: 'Slug de la ciudad (configuracion_plataforma), p. ej. bogota' } } } },
+    run: async (i) => {
+      const slugs = typeof i.slug === 'string' && i.slug ? [i.slug] : (await prisma.cityConfig.findMany({ where: { status: { not: 'ACTIVE' } }, select: { slug: true } })).map((c) => c.slug)
+      const out = []
+      for (const slug of slugs.slice(0, 6)) out.push(await cityLaunchStatus(slug))
+      return out.filter(Boolean)
     },
   },
   marketing: {

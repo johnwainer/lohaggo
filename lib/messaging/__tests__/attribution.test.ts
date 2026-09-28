@@ -41,6 +41,7 @@ describe('ref de la web', () => {
     expect(extractWebRef('Hola (REF: Web-Ciudad-medellin)')).toBe('web-ciudad-medellin')
     expect(extractWebRef('ref: web-home')).toBeNull()
     expect(extractWebRef('(ref: promo)')).toBeNull()
+    expect(extractWebRef('Hola (ref: cmp-ab12cd34)')).toBe('cmp-ab12cd34')
     expect(extractWebRef(null)).toBeNull()
   })
 })

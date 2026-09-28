@@ -87,6 +87,7 @@ export const REVIEW_CHECKLIST: Array<{ area: string; tools: string[] }> = [
   { area: 'Sistema: tareas automáticas, errores, integraciones, incidentes y casos', tools: ['salud_sistema', 'incidentes_abiertos'] },
   { area: 'Seguridad: ataques e IP bloqueadas', tools: ['seguridad'] },
   { area: 'Configuración: funciones y botones encendidos o apagados, comisiones, medios de pago y ciudades', tools: ['funciones', 'configuracion_plataforma'] },
+  { area: 'Apertura de ciudades (Bogotá): cobertura de socios por servicio, lista de espera y qué reclutar', tools: ['apertura_ciudad'] },
   { area: 'Confianza y afirmaciones públicas: qué dice el sitio y si es verdad', tools: ['configuracion_plataforma'] },
   { area: 'Novedades del producto: qué cambió y si ya se nota en los datos', tools: ['novedades_plataforma'] },
   { area: 'Actividad reciente: todo lo que pasó (registros, solicitudes, reservas, pagos, documentos, agentes, admin, marketing)', tools: ['actividad_reciente'] },

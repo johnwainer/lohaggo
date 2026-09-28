@@ -143,6 +143,8 @@ async function openRefundCaseIfPaid(actor: Actor, origin: Origin, booking: { id:
       metadata: JSON.stringify({ source: 'booking-cancel', cancelledByRole: actor.role, refundableAmount: policy.refundableAmount, origin: origin.via }),
     },
   })
+  const { waRefundStatus } = await import('@/lib/messaging/wa-events')
+  await waRefundStatus(refundCase.id)
 
   const incident = await prisma.paymentIncident.create({
     data: {

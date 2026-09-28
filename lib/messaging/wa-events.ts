@@ -363,6 +363,42 @@ export function waAccessLink(p: { userId: string; role: 'CLIENT' | 'PARTNER'; na
   return safe(p.role === 'PARTNER' ? 'C2' : 'B2', () => sendWaToUser(p.userId, p.role === 'PARTNER' ? WA.C2(p) : WA.B2(p)))
 }
 
+// ─── Refunds and payouts ────────────────────────────────────────────────────
+
+/** Words of B22 for each refund state (the client reads «tu reembolso … está {estado}»). */
+export const REFUND_STATE_TEXT: Record<string, string> = {
+  REQUESTED: 'en revisión',
+  UNDER_REVIEW: 'en revisión',
+  APPROVED: 'aprobado y en proceso',
+  PROCESSED: 'enviado a tu medio de pago',
+  REJECTED: 'rechazado; te escribimos con el detalle',
+}
+
+/** B22: the single point every refund state change goes through (creation on cancel and the admin's review). */
+export function waRefundStatus(refundId: string) {
+  return safe('B22', async () => {
+    const r = await prisma.refundCase.findUnique({
+      where: { id: refundId },
+      select: { id: true, status: true, userId: true, approvedAmount: true, requestedAmount: true, booking: { select: { service: { select: { name: true } } } }, user: { select: { name: true } } },
+    })
+    const state = r ? REFUND_STATE_TEXT[r.status] : null
+    if (!r || !state || !r.userId) return null
+    return sendWaToUser(r.userId, WA.B22({ refundId: r.id, clientName: r.user?.name ?? '', amount: Number(r.approvedAmount ?? r.requestedAmount), service: r.booking?.service?.name ?? 'tu servicio', state }))
+  })
+}
+
+/** C28: the platform sent the partner's money (online payments only; cash and transfers go straight to the partner). */
+export function waPayoutSent(payoutId: string) {
+  return safe('C28', async () => {
+    const p = await prisma.payout.findUnique({
+      where: { id: payoutId },
+      select: { id: true, status: true, netAmount: true, partner: { select: { userId: true, user: { select: { name: true } } } }, bankAccount: { select: { accountNumber: true } }, payment: { select: { booking: { select: { service: { select: { name: true } } } } } } },
+    })
+    if (!p || p.status !== 'COMPLETED' || !p.bankAccount) return null
+    return sendWaToUser(p.partner.userId, WA.C28({ payoutId: p.id, partnerName: p.partner.user?.name ?? '', amount: p.netAmount, service: p.payment?.booking?.service?.name ?? 'el servicio', last4: p.bankAccount.accountNumber.slice(-4) }))
+  })
+}
+
 // ─── Team alerts ────────────────────────────────────────────────────────────
 
 /** D1: the AI handed a conversation to a person (admins of that workspace). */
