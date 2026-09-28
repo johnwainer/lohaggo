@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { Loader2, ShieldCheck, X } from 'lucide-react'
 
@@ -66,12 +67,17 @@ export default function PhoneVerify({ mode = 'request', loginHref, onVerified, o
     setInfo(data.message)
   }
 
+  // Rendered on <body>: inside a transformed card a fixed sheet would sit under the bottom nav
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+
   const phoneDigits = phone.replace(/\D/g, '')
   const canSend = (!needName || name.trim().length >= 2) && phoneDigits.length >= 10
   const field = 'w-full rounded-2xl border border-gray-200 px-4 py-3 text-base outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/30'
 
-  return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/40 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="phone-verify-title">
+  if (!mounted) return null
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="phone-verify-title">
       <div className="max-h-[90dvh] w-full overflow-y-auto rounded-t-3xl bg-white p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:max-w-md sm:rounded-3xl">
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
@@ -111,7 +117,7 @@ export default function PhoneVerify({ mode = 'request', loginHref, onVerified, o
             <button onClick={sendCode} disabled={!canSend || busy} className="flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-r from-primary-500 to-secondary-500 py-3.5 font-semibold text-white disabled:opacity-50">
               {busy && <Loader2 size={18} className="animate-spin" />} Enviarme el código
             </button>
-            <p className="flex items-start gap-1.5 text-xs text-gray-500"><ShieldCheck size={14} className="mt-0.5 shrink-0" /> Solo usamos tu número para esta solicitud y sus avisos. Al continuar aceptas los <Link href="/terms" className="underline">términos</Link> y la <Link href="/privacy" className="underline">política de privacidad</Link>.</p>
+            <p className="flex items-start gap-1.5 text-xs text-gray-500"><ShieldCheck size={14} className="mt-0.5 shrink-0" /><span>{login ? 'Usamos tu número solo para entrar y para los avisos de tus servicios.' : 'Solo usamos tu número para esta solicitud y sus avisos.'} Al continuar aceptas los <Link href="/terms" className="underline">términos</Link> y la <Link href="/privacy" className="underline">política de privacidad</Link>.</span></p>
             {loginHref && <Link href={loginHref} className="block text-center text-sm font-medium text-primary-700 hover:underline">Ya tengo cuenta con correo</Link>}
             {login && <button onClick={sendLink} disabled={phoneDigits.length < 10 || busy} className="block w-full text-center text-sm font-medium text-primary-700 hover:underline disabled:opacity-50">Prefiero que me envíen un enlace de acceso</button>}
           </div>
@@ -145,6 +151,7 @@ export default function PhoneVerify({ mode = 'request', loginHref, onVerified, o
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

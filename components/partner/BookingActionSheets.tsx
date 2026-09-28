@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 
 function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
@@ -9,8 +10,9 @@ function Sheet({ title, onClose, children }: { title: string; onClose: () => voi
     document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = prev }
   }, [])
-  return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={title}>
+  // On <body>, above the bottom nav whatever the parent's stacking context
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={title}>
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-xl sm:rounded-3xl">
         <div className="mb-4 flex items-center justify-between gap-3">
@@ -21,7 +23,8 @@ function Sheet({ title, onClose, children }: { title: string; onClose: () => voi
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
