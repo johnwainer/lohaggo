@@ -289,18 +289,22 @@ const ratingDist = [5, 4, 3, 2, 1].map((stars) => ({
             <h2 className="text-lg font-bold text-gray-900 mb-4">Servicios que ofrezco</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {partner.services.map((s) => (
-                <Link
-                  key={s.id}
-                  href={`/servicios/${s.slug}`}
-                  className="flex items-center gap-3 p-4 rounded-xl border border-gray-100 hover:border-primary-200 hover:bg-primary-50 transition-all group"
-                >
-                  <ServiceIcon slug={s.slug} emoji={s.icon} size="sm" />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 truncate">{s.name}</p>
-                    <p className="text-primary-600 font-bold text-sm">desde {formatPrice(s.price)}</p>
-                  </div>
-                  <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-primary-500 transition-colors flex-shrink-0" />
-                </Link>
+                <div key={s.id} className="flex flex-col gap-3 p-4 rounded-2xl border border-gray-100">
+                  <Link href={`/servicios/${s.slug}`} className="flex items-center gap-3 group">
+                    <ServiceIcon slug={s.slug} emoji={s.icon} size="sm" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-900 truncate group-hover:text-primary-700">{s.name}</p>
+                      <p className="text-primary-600 font-bold text-sm">desde {formatPrice(s.price)}</p>
+                    </div>
+                    <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-primary-500 transition-colors flex-shrink-0" />
+                  </Link>
+                  <Link
+                    href={`/servicios/${s.slug}?partnerId=${encodeURIComponent(partner.id)}`}
+                    className="flex min-h-[44px] items-center justify-center rounded-full bg-primary-600 px-4 text-sm font-semibold text-white hover:bg-primary-700 transition-colors"
+                  >
+                    Solicitar a este socio
+                  </Link>
+                </div>
               ))}
             </div>
           </section>

@@ -23,6 +23,8 @@ import OfflinePaymentActions from '@/components/payments/OfflinePaymentActions'
 import ServiceIcon from '@/components/ServiceIcon'
 import ClientDashboardNav from '@/components/ClientDashboardNav'
 import { getBookingVisualState, type BookingVisualState } from '@/lib/booking-status'
+import { CancelBookingSheet, RescheduleBookingSheet } from '@/components/bookings/BookingSheets'
+import BookingPhotos from '@/components/bookings/BookingPhotos'
 import { useNotificationUnreadCount } from '@/hooks/useNotificationUnreadCount'
 
 const ChatModal = dynamic(() => import('@/components/ChatModal'), {
@@ -101,8 +103,15 @@ interface ServiceRequest {
     status: string
     origin?: string | null
     originChannel?: string | null
+    proposedDate?: string | null
+    proposedTime?: string | null
     partner: {
       verified: boolean
+      rating?: number
+      totalReviews?: number
+      completedServicesCount?: number
+      slug?: string | null
+      isPublicProfile?: boolean
       user: {
         name: string
       }
@@ -166,6 +175,8 @@ export default function DashboardPage() {
   const [favoritesSort, setFavoritesSort] = useState<'recent' | 'rating' | 'name'>('recent')
   const [mobileStatusSheetOpen, setMobileStatusSheetOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<'overview' | 'bookings' | 'requests' | 'favorites'>('overview')
+  const [cancelSheet, setCancelSheet] = useState<{ id: string; serviceName: string } | null>(null)
+  const [rescheduleSheet, setRescheduleSheet] = useState<{ id: string; serviceName: string; confirmed: boolean } | null>(null)
   const [imageGallery, setImageGallery] = useState<{ isOpen: boolean; photos: Array<{ id: string; url: string; order: number }>; initialIndex: number }>({ isOpen: false, photos: [], initialIndex: 0 })
 
 
@@ -475,12 +486,13 @@ export default function DashboardPage() {
           if (res.ok) {
             setModal({
               isOpen: true,
-              title: '¡Propuesta Aceptada!',
-              message: `Has aceptado la propuesta de ${partnerName}.\n\nSe ha creado una reserva automáticamente.`,
+              title: '¡Reserva creada!',
+              message: `Qué sigue:\n1. ${partnerName} confirma la reserva (te avisamos por WhatsApp).\n2. Si necesitas otra hora, usa «Reprogramar» en tu reserva.\n3. El día del servicio pagas al socio en efectivo o transferencia y lo reportas aquí.\n4. Al terminar, califica el servicio.`,
               type: 'success'
             })
             fetchServiceRequests()
             fetchBookings()
+            setActiveTab('bookings')
           } else {
             const error = await res.json()
             setModal({
@@ -564,45 +576,7 @@ export default function DashboardPage() {
     }
   }
 
-  const cancelBooking = async (id: string, serviceName: string) => {
-    setConfirmModal({
-      isOpen: true,
-      title: 'Cancelar Reserva',
-      message: `¿Estás seguro de cancelar la reserva de "${serviceName}"?\n\nEsta acción no se puede deshacer.`,
-      type: 'danger',
-      onConfirm: async () => {
-        try {
-          const res = await fetch(`/api/bookings/${id}`, {
-            method: 'DELETE'
-          })
-
-          if (res.ok) {
-            setModal({
-              isOpen: true,
-              title: 'Reserva Cancelada',
-              message: `La reserva de "${serviceName}" ha sido cancelada exitosamente.`,
-              type: 'success'
-            })
-            fetchBookings()
-          } else {
-            setModal({
-              isOpen: true,
-              title: 'Error al Cancelar',
-              message: 'No se pudo cancelar la reserva.',
-              type: 'error'
-            })
-          }
-        } catch (error) {
-          setModal({
-            isOpen: true,
-            title: 'Error de Conexión',
-            message: 'No se pudo conectar con el servidor.',
-            type: 'error'
-          })
-        }
-      }
-    })
-  }
+  const cancelBooking = (id: string, serviceName: string) => setCancelSheet({ id, serviceName })
 
   const openPaymentModal = async (bookingId: string, serviceName: string, amount: number) => {
     setLoadingBreakdown(true)
@@ -1075,6 +1049,22 @@ export default function DashboardPage() {
                 </h2>
               </div>
 
+              {(() => {
+                // Completed services whose payment the client has not reported yet
+                const toReport = bookings.filter((b) => b.status === 'COMPLETED' && b.payment?.status !== 'APPROVED' && (b.payment as { confirmationStatus?: string } | undefined)?.confirmationStatus !== 'CLIENT_REPORTED')
+                if (!toReport.length) return null
+                return (
+                  <button onClick={() => setActiveTab('bookings')} className="flex w-full items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left shadow-card">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700"><DollarSign size={20} /></span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-semibold text-amber-950">Pendiente: reporta tu pago</span>
+                      <span className="block truncate text-sm text-amber-900">{toReport.length === 1 ? toReport[0].service.name : `${toReport.length} servicios completados`} · cuéntanos cómo le pagaste al socio</span>
+                    </span>
+                    <ChevronRight size={18} className="shrink-0 text-amber-700" />
+                  </button>
+                )
+              })()}
+
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                 <div className="rounded-2xl bg-white border border-slate-100 shadow-card p-4 sm:p-5">
                   <span className="inline-flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-primary-100 text-primary-700 mb-2 sm:mb-3">
@@ -1468,14 +1458,32 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                   {filteredBookings.map((booking) => {
                     const visualState = getBookingVisualState('CLIENT', booking)
+                    const isRated = Boolean(booking.review?.clientToPartnerRating)
+                    // Rating does not wait for the partner to confirm the payment
+                    const canRate = booking.status === 'COMPLETED' && !isRated
                     const priorityBadges: string[] = []
                     if (visualState === 'COMPLETED' || booking.payment?.status === 'PENDING') {
                       priorityBadges.push('PAGO PENDIENTE')
                     }
-                    if (visualState === 'PAID') priorityBadges.push('SIN CALIFICAR')
+                    if (canRate) priorityBadges.push('SIN CALIFICAR')
+                    const rateAction = {
+                      label: 'Calificar servicio',
+                      onClick: () =>
+                        setRatingModal({
+                          isOpen: true,
+                          bookingId: booking.id,
+                          serviceName: booking.service.name,
+                          partnerName: booking.partner?.user.name || 'el socio',
+                          scheduledAt: `${new Date(booking.scheduledDate).toLocaleDateString('es-ES')} · ${booking.scheduledTime}`,
+                        }),
+                      icon: <Star size={18} />,
+                      variant: 'primary' as const,
+                      disabled: session?.user?.isActive === false,
+                    }
+                    const payFirst = visualState === 'COMPLETED' && paymentConfig?.mercadoPagoEnabled
 
                     const primaryAction =
-                      visualState === 'COMPLETED' && paymentConfig?.mercadoPagoEnabled
+                      payFirst
                         ? {
                             label: 'Pagar ahora',
                             onClick: () => openPaymentModal(booking.id, booking.service.name, booking.totalPrice),
@@ -1483,21 +1491,8 @@ export default function DashboardPage() {
                             variant: 'primary' as const,
                             disabled: session?.user?.isActive === false,
                           }
-                        : visualState === 'PAID'
-                        ? {
-                            label: 'Calificar servicio',
-                            onClick: () =>
-                              setRatingModal({
-                                isOpen: true,
-                                bookingId: booking.id,
-                                serviceName: booking.service.name,
-                                partnerName: booking.partner?.user.name || 'el socio',
-                                scheduledAt: `${new Date(booking.scheduledDate).toLocaleDateString('es-ES')} · ${booking.scheduledTime}`,
-                              }),
-                            icon: <Star size={18} />,
-                            variant: 'primary' as const,
-                            disabled: session?.user?.isActive === false,
-                          }
+                        : canRate
+                        ? rateAction
                         : undefined
 
                     const secondaryActions: Array<{
@@ -1523,6 +1518,29 @@ export default function DashboardPage() {
                         variant: 'secondary',
                         disabled: session?.user?.isActive === false,
                         badge: unreadCounts[booking.proposalId] || 0,
+                      })
+                    }
+
+                    if (payFirst && canRate) secondaryActions.push({ ...rateAction, variant: 'secondary' })
+
+                    if (booking.status === 'PENDING' || booking.status === 'CONFIRMED') {
+                      secondaryActions.push({
+                        label: 'Reprogramar',
+                        onClick: () => setRescheduleSheet({ id: booking.id, serviceName: booking.service.name, confirmed: booking.status === 'CONFIRMED' }),
+                        icon: <Calendar size={16} />,
+                        variant: 'secondary',
+                        disabled: session?.user?.isActive === false,
+                      })
+                    }
+
+                    const partnerId = (booking.partner as { id?: string } | undefined)?.id
+                    if (booking.status === 'COMPLETED' && partnerId && booking.service.slug) {
+                      secondaryActions.push({
+                        label: 'Pedir de nuevo',
+                        onClick: () => router.push(`/servicios/${booking.service.slug}?partnerId=${partnerId}`),
+                        icon: <RefreshCw size={16} />,
+                        variant: 'secondary',
+                        disabled: session?.user?.isActive === false,
                       })
                     }
 
@@ -1558,6 +1576,7 @@ export default function DashboardPage() {
                           origin={booking.origin}
                           originChannel={booking.originChannel}
                         />
+                        {(booking.status === 'IN_PROGRESS' || booking.status === 'COMPLETED') && <BookingPhotos bookingId={booking.id} />}
                         {booking.status === 'COMPLETED' && (
                           <OfflinePaymentActions
                             bookingId={booking.id}
@@ -1825,6 +1844,12 @@ export default function DashboardPage() {
                       )
                       const isFullyVerifiedB = hasIdentityB && hasEducationB && hasBackgroundB
 
+                      // Best rated first (with reviews), then most jobs, then fully verified documents
+                      const ratingA = (a.partner.totalReviews ?? 0) > 0 ? a.partner.rating ?? 0 : 0
+                      const ratingB = (b.partner.totalReviews ?? 0) > 0 ? b.partner.rating ?? 0 : 0
+                      if (ratingA !== ratingB) return ratingB - ratingA
+                      const jobs = (b.partner.completedServicesCount ?? 0) - (a.partner.completedServicesCount ?? 0)
+                      if (jobs !== 0) return jobs
                       if (isFullyVerifiedA && !isFullyVerifiedB) return -1
                       if (!isFullyVerifiedA && isFullyVerifiedB) return 1
                       return 0
@@ -1995,7 +2020,22 @@ export default function DashboardPage() {
                                           </span>
                                         )}
                                       </div>
-                                      <div className="flex items-center gap-2">
+                                      <p className="flex flex-wrap items-center gap-x-1.5 text-xs text-gray-600">
+                                        {(proposal.partner.totalReviews ?? 0) > 0 ? (
+                                          <>
+                                            <Star size={12} className="fill-amber-400 text-amber-400" />
+                                            <span className="font-semibold text-gray-900">{(proposal.partner.rating ?? 0).toLocaleString('es-CO', { maximumFractionDigits: 1 })}</span>
+                                            <span>· {proposal.partner.totalReviews} {proposal.partner.totalReviews === 1 ? 'reseña' : 'reseñas'}</span>
+                                          </>
+                                        ) : (
+                                          <span className="font-medium text-gray-700">Nuevo{hasIdentity ? ' · identidad verificada' : ''}</span>
+                                        )}
+                                        {(proposal.partner.completedServicesCount ?? 0) > 0 && <span>· {proposal.partner.completedServicesCount} {proposal.partner.completedServicesCount === 1 ? 'trabajo' : 'trabajos'}</span>}
+                                        {proposal.partner.slug && proposal.partner.isPublicProfile && (
+                                          <a href={`/pro/${proposal.partner.slug}`} target="_blank" rel="noopener" className="font-semibold text-primary-700 underline-offset-2 hover:underline">Ver perfil</a>
+                                        )}
+                                      </p>
+                                      <div className="mt-1 flex items-center gap-2">
                                         {getVerificationBadges(proposal.partner.documents)}
                                       </div>
                                       <OriginBadge variant="user" origin={proposal.origin} originChannel={proposal.originChannel} className="mt-0.5" />
@@ -2003,6 +2043,12 @@ export default function DashboardPage() {
                                     <p className="text-lg font-bold text-primary-600 shrink-0">{formatCurrency(totalAmount)}</p>
                                   </div>
 
+                                  {proposal.proposedDate && (
+                                    <p className="mb-2 flex items-center gap-1.5 rounded-lg bg-primary-50 px-2 py-1.5 text-xs text-primary-900">
+                                      <Calendar size={13} className="shrink-0" />
+                                      Propone ir el {new Intl.DateTimeFormat('es-CO', { timeZone: 'America/Bogota', weekday: 'long', day: 'numeric', month: 'short' }).format(new Date(proposal.proposedDate))}{proposal.proposedTime ? ` a las ${proposal.proposedTime}` : ''}
+                                    </p>
+                                  )}
                                   {proposal.notes && (
                                     <p className="text-xs sm:text-sm text-gray-600 mb-2">{proposal.notes}</p>
                                   )}
@@ -2166,6 +2212,23 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {cancelSheet && (
+        <CancelBookingSheet
+          bookingId={cancelSheet.id}
+          serviceName={cancelSheet.serviceName}
+          onClose={() => setCancelSheet(null)}
+          onDone={() => { setCancelSheet(null); fetchBookings(); setModal({ isOpen: true, title: 'Reserva cancelada', message: `Cancelamos la reserva de "${cancelSheet.serviceName}" y le avisamos al socio.`, type: 'success' }) }}
+        />
+      )}
+      {rescheduleSheet && (
+        <RescheduleBookingSheet
+          bookingId={rescheduleSheet.id}
+          serviceName={rescheduleSheet.serviceName}
+          note={rescheduleSheet.confirmed ? `${rescheduleSheet.serviceName}. El socio debe confirmar la nueva hora.` : undefined}
+          onClose={() => setRescheduleSheet(null)}
+          onDone={() => { setRescheduleSheet(null); fetchBookings() }}
+        />
+      )}
       <RatingModal
         isOpen={ratingModal.isOpen}
         onClose={() => setRatingModal({ isOpen: false, bookingId: '', serviceName: '', partnerName: '', scheduledAt: '' })}

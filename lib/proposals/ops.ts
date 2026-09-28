@@ -7,7 +7,7 @@ import { notifyNewProposal, notifyProposalAccepted, notifyProposalRejected } fro
 import { scheduleAutomationsForUser } from '@/lib/messaging/automation-service'
 import { recordPromptContext } from '@/lib/pwa/adoption-strategy'
 import { OpsError, actorTypeOf, originColumns, type Actor, type Origin } from '@/lib/ops/origin'
-import { loadPlatformConfig } from '@/lib/service-requests/ops'
+import { loadPlatformConfig, preferredDateTimeBogota } from '@/lib/service-requests/ops'
 import { effectiveRates } from '@/lib/payments/commission'
 
 /**
@@ -21,6 +21,9 @@ export const proposalInputSchema = z.object({
   serviceRequestId: z.string().min(1, 'La solicitud de servicio es requerida'),
   price: z.number().positive('El precio debe ser mayor a 0').max(100000000, 'El precio es demasiado alto'),
   notes: z.string().max(2000, 'La descripción es demasiado larga').nullable().optional(),
+  /** Day and time the partner offers (Bogotá); accepting the proposal books it then */
+  proposedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida (AAAA-MM-DD)').nullable().optional(),
+  proposedTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Hora inválida (HH:mm)').nullable().optional(),
 })
 export type ProposalInput = z.input<typeof proposalInputSchema>
 
@@ -65,11 +68,19 @@ export async function createProposal(actor: Actor, input: ProposalInput, origin:
     if (!offers) throw new OpsError('No ofreces este servicio en la ciudad solicitada', 400)
   }
 
+  const proposedAt = data.proposedDate ? preferredDateTimeBogota(data.proposedDate, data.proposedTime ?? null) : null
+  if (data.proposedDate && !proposedAt) throw new OpsError('Fecha propuesta inválida', 400)
+  if (proposedAt) {
+    const minAt = Date.now() + (data.proposedTime ? 60 * 60_000 : -24 * 3600_000)
+    if (proposedAt.getTime() < minAt) throw new OpsError(data.proposedTime ? 'La hora propuesta debe ser al menos en una hora' : 'La fecha propuesta ya pasó', 400)
+    if (proposedAt.getTime() > Date.now() + 60 * 24 * 3600_000) throw new OpsError('Propón una fecha dentro de los próximos 60 días', 400)
+  }
+
   const existing = await prisma.proposal.findUnique({ where: { serviceRequestId_partnerId: { serviceRequestId: sr.id, partnerId: partner.id } }, select: { id: true } })
   if (existing) throw new OpsError('Ya has enviado una propuesta para esta solicitud', 400)
 
   const proposal = await prisma.proposal.create({
-    data: { serviceRequestId: sr.id, partnerId: partner.id, price: data.price, notes: data.notes || null, status: 'PENDING', ...originColumns(origin) },
+    data: { serviceRequestId: sr.id, partnerId: partner.id, price: data.price, notes: data.notes || null, proposedDate: proposedAt, proposedTime: proposedAt ? data.proposedTime || null : null, status: 'PENDING', ...originColumns(origin) },
     include: proposalInclude,
   })
 
@@ -125,7 +136,9 @@ export async function acceptProposal(actor: Actor, proposalId: string, origin: O
 
   const rates = effectiveRates(await loadPlatformConfig())
   const sr = proposal.serviceRequest
-  const { scheduledDate, scheduledTime } = resolveSchedule(sr, opts)
+  // The client's own change wins; otherwise the date the partner proposed; otherwise the request's
+  const proposed = proposal.proposedDate ? { scheduledDate: proposal.proposedDate, scheduledTime: proposal.proposedTime ?? sr.preferredTime ?? '09:00' } : undefined
+  const { scheduledDate, scheduledTime } = resolveSchedule(sr, opts?.scheduledDate ? opts : proposed ?? opts)
 
   // Asked for by name: the default reads leave attribution out (lib/prisma-tracking.ts)
   const touches = await prisma.serviceRequest.findUnique({ where: { id: sr.id }, select: { acquisition: true, lastTouch: true } })

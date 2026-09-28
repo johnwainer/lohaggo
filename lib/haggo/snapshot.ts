@@ -119,6 +119,10 @@ export async function takeSnapshot(now = new Date()): Promise<Snapshot> {
     guarantee,
     waTemplates,
     attribution: await attributionSnapshot(now).catch(() => undefined),
+    phoneLogin: await Promise.all([
+      prisma.phoneLoginCode.count({ where: { createdAt: { gte: day } } }),
+      prisma.phoneLoginCode.count({ where: { createdAt: { gte: day }, usedAt: { not: null } } }),
+    ]).then(([sent24h, used24h]) => ({ sent24h, used24h })).catch(() => undefined),
   }
 }
 

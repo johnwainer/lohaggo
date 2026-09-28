@@ -9,6 +9,7 @@ import TurnstileWidget from '@/components/security/TurnstileWidget'
 import { trackPwaEvent } from '@/lib/pwa/telemetry-client'
 import { PWA_EVENTS } from '@/lib/pwa/events'
 import { safeInternalPath, withRedirect } from '@/lib/navigation/safe-redirect'
+import PhoneVerify from '@/components/service-request/PhoneVerify'
 
 function safeRedirect(url: string | null, fallback: string): string {
   return safeInternalPath(url, fallback)
@@ -18,7 +19,8 @@ function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirect = searchParams.get('redirect') || '/dashboard'
-  const { data: session, status } = useSession()
+  const { data: session, status, update: updateSession } = useSession()
+  const [phoneOpen, setPhoneOpen] = useState(false)
 
   const [formData, setFormData] = useState({
     email: '',
@@ -361,6 +363,24 @@ function LoginForm() {
                   )}
                 </button>
               </form>
+
+              <button
+                type="button"
+                onClick={() => setPhoneOpen(true)}
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-full border-2 border-emerald-500 py-3 font-semibold text-emerald-700 hover:bg-emerald-50"
+              >
+                Entrar con código por WhatsApp
+              </button>
+              {phoneOpen && (
+                <PhoneVerify
+                  mode="login"
+                  onClose={() => setPhoneOpen(false)}
+                  onVerified={async () => {
+                    setPhoneOpen(false)
+                    await updateSession()
+                  }}
+                />
+              )}
 
               <div className="mt-8 text-center">
                 <p className="text-gray-600">

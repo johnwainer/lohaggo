@@ -1,3 +1,4 @@
+import { notifyWaitlistOpened } from '@/lib/waitlist/notify'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
@@ -132,21 +133,20 @@ export async function POST(request: NextRequest) {
 
   const { citySlug } = parsed.data
   try {
-    const result = await prisma.cityWaitlist.updateMany({
-      where: { citySlug, notifiedAt: null },
-      data: { notifiedAt: new Date() },
-    })
+    const sent = await notifyWaitlistOpened(citySlug).catch((err: Error) => ({ error: err.message }))
+    if ('error' in sent) return NextResponse.json({ error: sent.error }, { status: 400 })
+    const result = { count: sent.whatsapp + sent.email, ...sent }
     await auditAdminAction({
       actorId: admin.id,
       actorEmail: admin.email,
-      action: 'WAITLIST_MARK_NOTIFIED',
+      action: 'WAITLIST_NOTIFIED',
       entityType: 'CityWaitlist',
       entityId: citySlug,
       route: '/api/admin/waitlist',
-      details: JSON.stringify({ citySlug, updated: result.count }),
+      details: JSON.stringify({ citySlug, ...result }),
       request,
     })
-    return NextResponse.json({ ok: true, updated: result.count })
+    return NextResponse.json({ ok: true, updated: result.count, whatsapp: result.whatsapp, email: result.email, failed: result.failed })
   } catch (error) {
     logger.error('Error marking waitlist as notified', error || undefined)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

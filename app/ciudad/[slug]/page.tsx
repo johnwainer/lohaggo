@@ -21,6 +21,8 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
   const [name, setName] = useState('')
   const [role, setRole] = useState<'client' | 'partner'>('client')
   const [consent, setConsent] = useState(false)
+  const [phone, setPhone] = useState('')
+  const [phoneConsent, setPhoneConsent] = useState(false)
   const [website, setWebsite] = useState('')
   const [formState, setFormState] = useState<'idle' | 'sending' | 'done' | 'error'>('idle')
   const [formError, setFormError] = useState<string | null>(null)
@@ -57,13 +59,18 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
       setFormError('Para avisarte necesitamos tu autorización.')
       return
     }
+    if (phone.trim() && !phoneConsent) {
+      setFormState('error')
+      setFormError('Marca la autorización para avisarte por WhatsApp, o deja el número vacío.')
+      return
+    }
     setFormState('sending')
     setFormError(null)
     try {
       const res = await fetch('/api/public/waitlist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ citySlug: city.slug, email, name: name || undefined, role, consent, website }),
+        body: JSON.stringify({ citySlug: city.slug, email, name: name || undefined, role, consent, website, phone: phone.trim() || undefined, phoneConsent: phone.trim() ? phoneConsent : undefined }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'No pudimos guardar tu registro. Intenta de nuevo.')
@@ -308,6 +315,29 @@ export default function CityComingSoonPage({ params }: { params: Promise<{ slug:
                     onChange={(e) => setName(e.target.value)}
                     className="w-full rounded-2xl border-2 border-gray-200 bg-white px-4 py-3 text-base focus:border-primary-400 focus:outline-none"
                   />
+                </div>
+
+                <div>
+                  <label htmlFor="waitlist-phone" className="block text-sm font-semibold text-gray-700 mb-1">
+                    WhatsApp <span className="font-normal text-gray-400">(opcional)</span>
+                  </label>
+                  <input
+                    id="waitlist-phone"
+                    type="tel"
+                    autoComplete="tel-national"
+                    inputMode="tel"
+                    maxLength={30}
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="300 123 4567"
+                    className="w-full rounded-2xl border-2 border-gray-200 bg-white px-4 py-3 text-base focus:border-primary-400 focus:outline-none"
+                  />
+                  {phone.trim() && (
+                    <label className="mt-2 flex items-start gap-2 text-sm text-gray-600">
+                      <input type="checkbox" checked={phoneConsent} onChange={(e) => setPhoneConsent(e.target.checked)} className="mt-1" />
+                      <span>Autorizo que me avisen por WhatsApp cuando LoHaggo abra en {city.name}. Solo ese aviso.</span>
+                    </label>
+                  )}
                 </div>
 
                 <div className="absolute -left-[9999px] w-px h-px overflow-hidden" aria-hidden="true">

@@ -194,6 +194,8 @@ export async function transitionBooking(actor: Actor, bookingId: string, to: Boo
 
   const check = canTransition(booking.status, to, transitionRoleOf(actor))
   if (!check.ok) throw new OpsError(check.reason, booking.status === to ? 409 : 400)
+  // Clients and partners always say why they cancel (the other side and support see it)
+  if (to === 'CANCELLED' && actor.role !== 'ADMIN' && (opts.reason ?? '').trim().length < 5) throw new OpsError('Cuéntanos el motivo de la cancelación', 400)
 
   const updated = await prisma.booking.update({ where: { id: bookingId }, data: { status: to }, include: BOOKING_INCLUDE })
   await addBookingEvent({ bookingId, type: 'status', actor, origin, fromStatus: booking.status, toStatus: to, detail: opts.reason ?? null })

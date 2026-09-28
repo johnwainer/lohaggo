@@ -2,7 +2,10 @@ import type { Metadata } from 'next'
 import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import { cache } from 'react'
-import { getPublicTrustSafe } from '@/lib/public/trust'
+import { getPublicTrustSafe, publicWhatsappPhone } from '@/lib/public/trust'
+import { jsonLdScript } from '@/lib/marketing/seo'
+import { faqJsonLd, focusZones, isFocusService, serviceFaq, serviceZonePath } from '@/lib/public/serviceZones'
+import { FaqList, HowItWorks, ZoneLinks } from '@/components/public/ServiceSeoBlocks'
 import { STAT_MINIMUMS } from '@/lib/public/claims'
 import { citiesLine, clientPayment, verificationLong, verificationShort } from '@/lib/public/copy'
 
@@ -42,8 +45,9 @@ function buildKeywords(name: string, category: string): string[] {
 /** Verified, active partners offering the service, and the rating from their real reviews of it. */
 const serviceTrust = cache(async (serviceId: string) => {
   const partnerWhere = { verified: true, isActive: true }
-  const [verifiedPartners, rating] = await Promise.all([
+  const [verifiedPartners, medellinPartners, rating] = await Promise.all([
     prisma.partnerService.count({ where: { serviceId, active: true, partner: partnerWhere } }),
+    prisma.partnerService.count({ where: { serviceId, active: true, partner: { ...partnerWhere, city: 'MEDELLIN' } } }),
     prisma.review.aggregate({
       where: { clientToPartnerRating: { not: null }, booking: { serviceId, partner: partnerWhere } },
       _avg: { clientToPartnerRating: true },
@@ -54,6 +58,7 @@ const serviceTrust = cache(async (serviceId: string) => {
   const avg = rating._avg.clientToPartnerRating
   return {
     verifiedPartners,
+    medellinPartners,
     rating: avg && reviews >= STAT_MINIMUMS.reviewsForRating ? { value: (Math.round(avg * 10) / 10).toFixed(1), reviews } : null,
   }
 })
@@ -121,9 +126,10 @@ export default async function ServiceSlugLayout({ params, children }: Props) {
 
   if (!service) return <>{children}</>
 
-  const [{ verifiedPartners, rating }, trust] = await Promise.all([
-    serviceTrust(service.id).catch(() => ({ verifiedPartners: 0, rating: null })),
+  const [{ verifiedPartners, medellinPartners, rating }, trust, whatsappPhone] = await Promise.all([
+    serviceTrust(service.id).catch(() => ({ verifiedPartners: 0, medellinPartners: 0, rating: null })),
     getPublicTrustSafe(),
+    publicWhatsappPhone().catch(() => null),
   ])
   // Real ratings only, and only when the public stats switch is on
   const shownRating = trust.claims.trust_real_stats ? rating : null
@@ -174,6 +180,21 @@ export default async function ServiceSlugLayout({ params, children }: Props) {
   }
 
   const priceFormatted = Math.round(service.basePrice).toLocaleString('es-CO')
+
+  // Crawlable guide (how it works, zones, FAQ): only for services with verified partners, as the sitemap
+  const zoneLinks = isFocusService(slug)
+    ? focusZones().map((z) => ({ href: serviceZonePath(slug, z.key), label: `${service.name} en ${z.name}` }))
+    : []
+  const faq = verifiedPartners > 0
+    ? serviceFaq({
+        serviceName: service.name,
+        basePrice: service.basePrice,
+        medellinPartners,
+        trust,
+        hasWhatsapp: Boolean(whatsappPhone),
+        zoneNames: isFocusService(slug) ? focusZones().map((z) => z.name) : undefined,
+      })
+    : []
 
   return (
     <>
@@ -263,6 +284,16 @@ export default async function ServiceSlugLayout({ params, children }: Props) {
           </p>
         </div>
       </section>
+      {verifiedPartners > 0 && (
+        <section className="border-t border-gray-100 bg-white px-4 py-10" aria-label={`Guía de ${service.name.toLowerCase()} en Medellín`}>
+          <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(faqJsonLd(faq)) }} />
+          <div className="mx-auto max-w-3xl">
+            <HowItWorks serviceName={service.name} />
+            <ZoneLinks title={`${service.name} por zona`} links={zoneLinks} />
+            <FaqList items={faq} title={`Preguntas frecuentes sobre ${service.name.toLowerCase()}`} />
+          </div>
+        </section>
+      )}
     </>
   )
 }

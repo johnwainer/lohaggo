@@ -19,10 +19,10 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const validation = await validateRequest(proposalCreateSchema, body)
     if (!validation.success) return validation.error
-    const { serviceRequestId, price, notes } = validation.data
+    const { serviceRequestId, price, notes, proposedDate, proposedTime } = validation.data
 
     try {
-      const proposal = await createProposal(actor, { serviceRequestId, price, notes }, APP_ORIGIN)
+      const proposal = await createProposal(actor, { serviceRequestId, price, notes, proposedDate, proposedTime }, APP_ORIGIN)
       return NextResponse.json(proposal, { status: 201 })
     } catch (err) {
       return opsErrorResponse(err)

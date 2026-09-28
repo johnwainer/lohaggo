@@ -11,7 +11,9 @@ export const serviceRequestSchema = z.object({
   preferredTime: z.string().max(50).nullable().optional(),
   isUrgent: z.boolean().optional(),
   photoUrls: z.array(z.string().url('Invalid photo URL')).max(10, 'Maximum 10 photos').optional(),
-  partnerId: z.string().nullable().optional()
+  partnerId: z.string().nullable().optional(),
+  /** Coverage zone (lib/geo/zones.ts); inferred from the address when missing */
+  zone: z.string().max(40).nullable().optional()
 }).refine(
   (data) => data.isUrgent || (data.preferredDate !== null && data.preferredDate !== undefined),
   { message: 'You must indicate if you need urgent service or select a date' }

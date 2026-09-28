@@ -1,33 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createLogger } from './logger';
+import { clientIp, hit, memoryHit, unhit } from './rate-limit-store';
 
 const logger = createLogger('rate-limit');
-
-interface RateLimitStore {
-  [key: string]: {
-    count: number;
-    resetTime: number;
-  };
-}
-
-const store: RateLimitStore = {};
-
-function cleanupStore() {
-  const now = Date.now();
-  Object.keys(store).forEach((key) => {
-    if (store[key].resetTime < now) {
-      delete store[key];
-    }
-  });
-}
-
-setInterval(cleanupStore, 60000);
 
 interface RateLimitConfig {
   windowMs: number;
   max: number;
   message?: string;
   skipSuccessfulRequests?: boolean;
+  /** false: count in this instance's memory (high-frequency, low-risk routes: unread polling, webhooks) */
+  shared?: boolean;
 }
 
 export function createRateLimiter(config: RateLimitConfig) {
@@ -36,45 +19,36 @@ export function createRateLimiter(config: RateLimitConfig) {
     max,
     message = 'Demasiadas solicitudes, por favor intente más tarde',
     skipSuccessfulRequests = false,
+    shared = true,
   } = config;
 
   return async (
     req: NextRequest,
     handler: (req: NextRequest) => Promise<NextResponse>
   ): Promise<NextResponse> => {
-    const ip = req.headers.get('x-forwarded-for') || 
-               req.headers.get('x-real-ip') || 
-               'unknown';
-    
+    // Shared across instances (Postgres); keyed by the client IP the platform reports and the route
+    const ip = clientIp(req.headers);
     const key = `${ip}:${req.nextUrl.pathname}`;
     const now = Date.now();
+    const h = shared ? await hit(key, windowMs, now) : memoryHit(key, windowMs, now);
 
-    if (!store[key] || store[key].resetTime < now) {
-      store[key] = {
-        count: 0,
-        resetTime: now + windowMs,
-      };
-    }
-
-    store[key].count++;
-
-    if (store[key].count > max) {
+    if (h.count > max) {
       logger.warn('Rate limit exceeded', {
         ip,
         path: req.nextUrl.pathname,
-        count: store[key].count,
+        count: h.count,
         max,
       });
 
       return NextResponse.json(
         { error: message },
-        { 
+        {
           status: 429,
           headers: {
-            'Retry-After': Math.ceil((store[key].resetTime - now) / 1000).toString(),
+            'Retry-After': Math.max(1, Math.ceil((h.resetAt - now) / 1000)).toString(),
             'X-RateLimit-Limit': max.toString(),
             'X-RateLimit-Remaining': '0',
-            'X-RateLimit-Reset': new Date(store[key].resetTime).toISOString(),
+            'X-RateLimit-Reset': new Date(h.resetAt).toISOString(),
           }
         }
       );
@@ -82,13 +56,15 @@ export function createRateLimiter(config: RateLimitConfig) {
 
     const response = await handler(req);
 
+    let used = h.count;
     if (skipSuccessfulRequests && response.status < 400) {
-      store[key].count--;
+      if (shared) await unhit(key, windowMs, now);
+      used--;
     }
 
     response.headers.set('X-RateLimit-Limit', max.toString());
-    response.headers.set('X-RateLimit-Remaining', Math.max(0, max - store[key].count).toString());
-    response.headers.set('X-RateLimit-Reset', new Date(store[key].resetTime).toISOString());
+    response.headers.set('X-RateLimit-Remaining', Math.max(0, max - used).toString());
+    response.headers.set('X-RateLimit-Reset', new Date(h.resetAt).toISOString());
 
     return response;
   };
@@ -117,12 +93,14 @@ export const webhookRateLimiter = createRateLimiter({
   windowMs: 60 * 1000,
   max: 100,
   message: 'Demasiadas solicitudes de webhook.',
+  shared: false,
 });
 
 export const apiRateLimiter = createRateLimiter({
   windowMs: 60 * 1000,
   max: 60,
   message: 'Demasiadas solicitudes. Por favor, intente más tarde.',
+  shared: false,
 });
 
 export const forgotPasswordRateLimiter = createRateLimiter({

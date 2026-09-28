@@ -1,8 +1,7 @@
 import { MetadataRoute } from 'next'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 import { sitemapArticles } from '@/lib/marketing/blog'
-
-const prisma = new PrismaClient()
+import { focusPairs, serviceZonePath } from '@/lib/public/serviceZones'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://www.lohaggo.com'
@@ -113,6 +112,17 @@ try {
     priority: 0.85,
   }))
 
+  // Service × zone landings, only for services with verified partners (same rule as the service pages)
+  const withPartners = new Map(services.filter((s) => s.partners.length > 0).map((s) => [s.slug, s.updatedAt]))
+  const zonePages: MetadataRoute.Sitemap = focusPairs()
+    .filter((p) => withPartners.has(p.slug))
+    .map((p) => ({
+      url: `${baseUrl}${serviceZonePath(p.slug, p.zona)}`,
+      lastModified: withPartners.get(p.slug),
+      changeFrequency: 'weekly' as const,
+      priority: 0.8,
+    }))
+
   const cityPages: MetadataRoute.Sitemap = cities.map((c) => ({
     url: `${baseUrl}/ciudad/${c.slug}`,
     lastModified: c.updatedAt,
@@ -135,12 +145,11 @@ try {
     ...articles.filter((a) => a.slug).map((a) => ({ url: `${baseUrl}/blog/${a.slug}`, lastModified: a.updatedAt, changeFrequency: 'monthly' as const, priority: 0.65 })),
   ]
 
-  await prisma.$disconnect()
-
-  return [...staticPages, ...servicePages, ...cityPages, ...partnerPages, ...blogPages]
+  // One entry per URL (a /pro slug or a blog slug can't repeat, but never let the sitemap list one twice)
+  const seen = new Set<string>()
+  return [...staticPages, ...servicePages, ...zonePages, ...cityPages, ...partnerPages, ...blogPages].filter((e) => !seen.has(e.url) && seen.add(e.url))
 } catch (error) {
   console.error('Error generating sitemap:', error)
-  await prisma.$disconnect()
   return staticPages
 }
 }

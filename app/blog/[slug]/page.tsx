@@ -9,6 +9,7 @@ import { WhatsAppButton } from '@/components/WhatsAppButton'
 import { getTopServicesSafe, type TopService } from '@/lib/public/topServices'
 import { normalizeText, rankByIntent } from '@/lib/services/searchIntent'
 import { blogWaMessage } from '@/lib/public/whatsapp'
+import { focusZones, isFocusService, serviceZonePath } from '@/lib/public/serviceZones'
 
 export const revalidate = 300
 
@@ -113,6 +114,20 @@ export default async function ArticlePage({ params }: Props) {
             </Link>
           </div>
         </div>
+        {service && isFocusService(service.slug) && (
+          <nav aria-label={`${service.name} por zona`} className="mt-6">
+            <p className="font-bold text-gray-900">Pide {service.name.toLowerCase()} en tu zona</p>
+            <ul className="mt-3 flex flex-wrap gap-2">
+              {focusZones().map((z) => (
+                <li key={z.key}>
+                  <Link href={serviceZonePath(service.slug, z.key)} className="inline-flex min-h-[40px] items-center rounded-full border border-primary-100 bg-primary-50 px-4 text-sm font-semibold text-primary-700 hover:bg-primary-100">
+                    {service.name} en {z.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        )}
       </article>
 
       {related.length > 0 && (

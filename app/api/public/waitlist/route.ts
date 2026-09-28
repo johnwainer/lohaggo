@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
 import { createRateLimiter } from '@/lib/rate-limit'
 import { cityAcceptsWaitlist, parseWaitlist } from '@/lib/waitlist/schema'
+import { normalizePhone } from '@/lib/phone'
+import { toE164 } from '@/lib/inbox/contacts'
 
 const logger = createLogger('public-waitlist')
 
@@ -28,6 +30,8 @@ async function handlePOST(request: NextRequest) {
   }
 
   const { citySlug, email, name, role } = parsed.data
+  const phone = parsed.data.phone ? toE164(normalizePhone(parsed.data.phone)) : null
+  if (parsed.data.phone && !phone) return NextResponse.json({ error: 'Revisa el número de WhatsApp' }, { status: 400 })
   try {
     const city = await prisma.cityConfig.findUnique({ where: { slug: citySlug }, select: { status: true } })
     if (!city || !cityAcceptsWaitlist(city.status)) {
@@ -37,8 +41,8 @@ async function handlePOST(request: NextRequest) {
     const now = new Date()
     await prisma.cityWaitlist.upsert({
       where: { citySlug_email: { citySlug, email } },
-      create: { citySlug, email, name, role, consentAt: now, source: 'city_page' },
-      update: { ...(name ? { name } : {}), role, consentAt: now },
+      create: { citySlug, email, name, role, consentAt: now, source: 'city_page', ...(phone ? { phone, phoneConsentAt: now } : {}) },
+      update: { ...(name ? { name } : {}), role, consentAt: now, ...(phone ? { phone, phoneConsentAt: now } : {}) },
     })
 
     return NextResponse.json({ ok: true })

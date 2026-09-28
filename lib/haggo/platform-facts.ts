@@ -15,6 +15,9 @@ export const PLATFORM_CAPABILITIES = `Cómo funciona LoHaggo hoy:
 - Marketing: agentes de marketing por campaña (estrategia, plan, redacción, programación), editor de publicaciones con revisión editorial (corrector y editor), blog y redes (Facebook, Instagram), y agente de pauta que prepara anuncios para Meta Ads (se suben a mano).
 - Garantía LoHaggo (lib/guarantee/policy.ts, página /garantia): cubre «no llegó» (hasta 24 h después de la hora), trabajo incompleto o distinto (hasta 72 h después de completada) y daños (siempre una persona; LoHaggo media, no paga daños). Remedios: otro socio con prioridad (solicitud nueva urgente), cancelación sin costo, que el mismo socio corrija, y reembolso solo si pagó en línea. SLA: solución en 24 h, resuelto en 72 h. 2 faltas del socio en 90 días lo pausan solo; con 3 el equipo decide suspender. El cliente reclama por chat (reportar_problema_servicio) y el equipo resuelve en /admin/guarantee; tú solo recomiendas.
 - Afirmaciones públicas del sitio (confianza y promociones) controladas por interruptores (lib/public/claims.ts); las cifras salen de la base y solo se muestran sobre un mínimo. Nada inventado.
+- Pedir sin cuenta: al final del formulario el cliente confirma su celular con un código por WhatsApp (plantilla A1) y queda con sesión; si el número no tiene cuenta se crea una de cliente con correo interno (wa-…@clientes.lohaggo.com, nunca recibe correo). Una cuenta existente cuyo celular nunca se confirmó recibe el enlace en su correo. /login también entra con código, y el enlace de acceso a pedido llega por WhatsApp (B2/C2) al número de la cuenta.
+- Socios: zonas de cobertura (16 comunas de Medellín y 6 municipios, lib/geo/zones.ts) y horario semanal (Availability); cada solicitud guarda su zona y los avisos van primero a quien cubre la zona y el horario (si nadie, a toda la ciudad). Propuestas con fecha y hora: al aceptarlas la reserva queda para ese momento.
+- Reservas: el cliente y el socio reprograman desde la app; cancelar exige motivo; el cliente califica al completarse sin esperar el pago; el socio sube fotos antes y después (respaldo de la garantía); «Pedir de nuevo» crea una solicitud directa al mismo socio (app y chat, herramienta pedir_de_nuevo).
 - Atribución de punta a punta: cada solicitud y reserva guarda su primer y último toque (anuncio de Meta con su pauta, publicación, blog, página de la web, perfil de Google, chat directo). Las pautas llevan su código (ad-…) en la UTM y en el mensaje prellenado de WhatsApp; el gasto diario se carga a mano en Marketing → Pauta. Lead (solicitud) y Purchase (reserva completada) van a Meta (API de Conversiones) y GA4 una vez cada uno. Meta de la pauta: menos de $25.000 por solicitud.
 - Analítica del admin con corte app frente a chat, pestaña Origen (de dónde vienen las solicitudes), salud del sistema, casos e incidentes, modo TV.
 - Tú (Haggo) supervisas todo, propones acciones y el superadmin aprueba; en las áreas que él ponga en autónomo actúas solo con riesgo bajo o medio permitido.`
@@ -23,6 +26,13 @@ export type ChangelogEntry = { date: string; area: string; change: string; impac
 
 /** Newest first. At most ~15 entries: the big features only. */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
+  {
+    date: '2026-09-28',
+    area: 'Conversión y retención',
+    change: 'Pedir sin cuenta con código por WhatsApp (PhoneLoginCode, límites compartidos en Postgres con RateLimitHit), entrar con código en /login y enlace de acceso a pedido por WhatsApp; propuestas con fecha y hora; tarjeta de propuesta con calificación, reseñas, trabajos y perfil, ordenadas por mejor valorado; reprogramar y cancelar con motivo obligatorio en la app; calificar sin esperar el pago; tarjeta «Reporta tu pago»; fotos del trabajo; «Pedir de nuevo» y «Solicitar a este socio»; zonas y horario del socio con avisos por zona; 24 páginas de servicio por zona (SEO local); lista de espera con WhatsApp y aviso real de apertura.',
+    impacto: 'Menos abandono al final del formulario, reservas con fecha clara, más confianza al elegir socio y clientes que vuelven con el mismo socio.',
+    comoVerlo: 'conversion_clientes, socios (con_zonas, con_horario), la foto (phoneLogin.*) y la regla ops:phone-codes-unused.',
+  },
   {
     date: '2026-09-28',
     area: 'Marketing y medición',
@@ -120,13 +130,6 @@ export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
     change: 'OpenAI como segundo proveedor de IA de texto con cambio automático si Claude falla.',
     impacto: 'Los agentes siguen respondiendo si un proveedor cae.',
     comoVerlo: 'salud_sistema y costos_ia (por proveedor).',
-  },
-  {
-    date: '2026-09-25',
-    area: 'Admin',
-    change: 'Analítica de negocio, salud del sistema y limpieza del admin.',
-    impacto: 'Embudo, oferta y demanda, personas y atención en un solo lugar.',
-    comoVerlo: 'tendencias_negocio, oferta_y_demanda, salud_sistema.',
   },
 ]
 

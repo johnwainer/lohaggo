@@ -48,6 +48,7 @@ export const DAILY_ACTION_LIMITS: Record<string, number> = {
   subir_documento: 6,
   reportar_problema_servicio: 2,
   reactivar_solicitud: 3,
+  pedir_de_nuevo: 3,
   agregar_fotos: 5,
   enviar_mensaje_reserva: 40,
 }

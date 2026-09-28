@@ -152,14 +152,14 @@ describe('transitionBooking', () => {
   it('cancelar sin pago aprobado no abre caso de reembolso', async () => {
     m.bookingFindUnique.mockResolvedValue(baseBooking())
     m.paymentFindUnique.mockResolvedValue({ id: 'pay1', status: 'PENDING', totalAmount: 130000 })
-    await transitionBooking(client, 'bk-abc123', 'CANCELLED', APP_ORIGIN)
+    await transitionBooking(client, 'bk-abc123', 'CANCELLED', APP_ORIGIN, { reason: 'Ya no lo necesito' })
     expect(m.refundCreate).not.toHaveBeenCalled()
   })
 
   it('cancelar con pago aprobado abre refundCase, incidente, evento del incidente y caso de soporte', async () => {
     m.bookingFindUnique.mockResolvedValue(baseBooking({ status: 'CONFIRMED' }))
     m.paymentFindUnique.mockResolvedValue({ id: 'pay1', status: 'APPROVED', totalAmount: 130000 })
-    await transitionBooking(client, 'bk-abc123', 'CANCELLED', chat)
+    await transitionBooking(client, 'bk-abc123', 'CANCELLED', chat, { reason: 'Ya no lo necesito' })
     expect(m.refundCreate).toHaveBeenCalledTimes(1)
     const refund = m.refundCreate.mock.calls[0][0].data
     // three days ahead: full refund, no manual review
@@ -174,7 +174,7 @@ describe('transitionBooking', () => {
   it('sin correo del actor (agente) requestedBy es «chat»', async () => {
     m.bookingFindUnique.mockResolvedValue(baseBooking())
     m.paymentFindUnique.mockResolvedValue({ id: 'pay1', status: 'APPROVED', totalAmount: 100 })
-    await transitionBooking({ userId: 'u1', role: 'CLIENT' }, 'bk-abc123', 'CANCELLED', chat)
+    await transitionBooking({ userId: 'u1', role: 'CLIENT' }, 'bk-abc123', 'CANCELLED', chat, { reason: 'Ya no lo necesito' })
     expect(m.refundCreate.mock.calls[0][0].data.requestedBy).toBe('chat')
   })
 })
@@ -276,7 +276,7 @@ describe('el socio suelta la reserva: la solicitud se reabre', () => {
     m.bookingFindUnique.mockResolvedValue(baseBooking({ status: 'CONFIRMED', proposalId: 'pr1' }))
     m.proposalFindUnique.mockResolvedValue({ id: 'pr1', serviceRequestId: 'sr1', serviceRequest: { status: 'ACCEPTED', partnerId: 'p1' } })
     m.auditFindFirst.mockResolvedValue({ details: JSON.stringify({ proposalIds: ['pr2', 'pr3'] }) })
-    await transitionBooking(partner, 'bk-abc123', 'CANCELLED', APP_ORIGIN)
+    await transitionBooking(partner, 'bk-abc123', 'CANCELLED', APP_ORIGIN, { reason: 'Ya no lo necesito' })
     const upd = m.srUpdateMany.mock.calls[0][0]
     expect(upd.where).toEqual({ id: 'sr1', status: 'ACCEPTED' })
     expect(upd.data).toMatchObject({ status: 'ACTIVE', partnerId: null })
@@ -292,22 +292,37 @@ describe('el socio suelta la reserva: la solicitud se reabre', () => {
     m.bookingFindUnique.mockResolvedValue(baseBooking({ proposalId: 'pr1' }))
     m.proposalFindUnique.mockResolvedValue({ id: 'pr1', serviceRequestId: 'sr1', serviceRequest: { status: 'ACCEPTED', partnerId: null } })
     m.auditFindFirst.mockResolvedValue(null)
-    await transitionBooking(partner, 'bk-abc123', 'CANCELLED', APP_ORIGIN)
+    await transitionBooking(partner, 'bk-abc123', 'CANCELLED', APP_ORIGIN, { reason: 'Ya no lo necesito' })
     expect(m.proposalUpdateMany).not.toHaveBeenCalled()
     expect(m.srUpdateMany.mock.calls[0][0].data).not.toHaveProperty('partnerId')
 
     vi.clearAllMocks()
     m.bookingFindUnique.mockResolvedValue(baseBooking({ proposalId: 'pr1' }))
     m.proposalFindUnique.mockResolvedValue({ id: 'pr1', serviceRequestId: 'sr1', serviceRequest: { status: 'EXPIRED', partnerId: null } })
-    await transitionBooking(partner, 'bk-abc123', 'CANCELLED', APP_ORIGIN)
+    await transitionBooking(partner, 'bk-abc123', 'CANCELLED', APP_ORIGIN, { reason: 'Ya no lo necesito' })
     expect(m.srUpdateMany).not.toHaveBeenCalled()
     expect(m.waBookingStatus).toHaveBeenCalledWith(expect.objectContaining({ reopened: false }))
   })
 
   it('si cancela el cliente no se reabre nada', async () => {
     m.bookingFindUnique.mockResolvedValue(baseBooking({ proposalId: 'pr1' }))
-    await transitionBooking(client, 'bk-abc123', 'CANCELLED', APP_ORIGIN)
+    await transitionBooking(client, 'bk-abc123', 'CANCELLED', APP_ORIGIN, { reason: 'Ya no lo necesito' })
     expect(m.proposalFindUnique).not.toHaveBeenCalled()
     expect(m.waBookingStatus).toHaveBeenCalledWith(expect.objectContaining({ actorRole: 'CLIENT', reopened: false }))
+  })
+})
+
+describe('cancel reason', () => {
+  it('client and partner must say why; admin may not', async () => {
+    m.bookingFindUnique.mockResolvedValue(baseBooking())
+    await expect(transitionBooking({ userId: 'u1', role: 'CLIENT' }, 'bk-abc123', 'CANCELLED', APP_ORIGIN)).rejects.toMatchObject({ status: 400 })
+    await expect(transitionBooking({ userId: 'u1', role: 'CLIENT' }, 'bk-abc123', 'CANCELLED', APP_ORIGIN, { reason: 'no' })).rejects.toMatchObject({ status: 400 })
+  })
+})
+
+describe('cancel reason (admin)', () => {
+  it('an admin cancels without a reason (guarantee remedies)', async () => {
+    m.bookingFindUnique.mockResolvedValue(baseBooking())
+    await expect(transitionBooking({ userId: 'admin1', role: 'ADMIN' }, 'bk-abc123', 'CANCELLED', APP_ORIGIN)).resolves.toBeDefined()
   })
 })

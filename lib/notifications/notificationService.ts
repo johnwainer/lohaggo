@@ -546,6 +546,7 @@ export async function notifyNewServiceRequest(serviceRequestId: string, opts: { 
                 partner: {
                   include: {
                     user: { select: { id: true, name: true, phone: true } },
+                    availability: { where: { active: true, partnerServiceId: null }, select: { dayOfWeek: true, startTime: true, endTime: true } },
                   }
                 }
               }
@@ -604,9 +605,16 @@ export async function notifyNewServiceRequest(serviceRequestId: string, opts: { 
         await notifyPartner(serviceRequest.partner, true)
       }
     } else {
-      const partners = serviceRequest.service.partners.filter(
+      const cityPartners = serviceRequest.service.partners.filter(
         ps => ps.partner.city === serviceRequest.city
       )
+      // Prefer partners whose zones and schedule fit the request; if none does, tell the whole city
+      const { matchesRequest } = await import('@/lib/partners/coverage-core')
+      const matching = cityPartners.filter(ps => matchesRequest(
+        { coverageZones: ps.partner.coverageZones, schedule: ps.partner.availability },
+        { zone: serviceRequest.zone, preferredDate: serviceRequest.preferredDate, preferredTime: serviceRequest.preferredTime, isUrgent: serviceRequest.isUrgent },
+      ))
+      const partners = matching.length > 0 ? matching : cityPartners
       for (const { partner } of partners) {
         await notifyPartner(partner, false)
       }

@@ -29,6 +29,8 @@ import { CHAT_MESSAGE_MAX, chatRef, PHOTO_ONLY_TEXT, resolveChatByRef, sendChatM
 import { detectContactInfo } from '@/lib/chat/contact-guard'
 import { CHAT_PHOTO_WINDOW_MS, recentInboundPhotos, storeChatPhotos } from '@/lib/chat/photos'
 import { LOGIN_LINK_TTL_MIN, sendLoginLinkFromChat } from '@/lib/accounts/login-link'
+import { ACCESS_LINK_TTL_H, sendAccessLink } from '@/lib/accounts/access-link'
+import { toE164 } from '@/lib/inbox/contacts'
 import { eligibility, SLA_PROPOSAL_HOURS, SLA_RESOLUTION_HOURS, TYPE_LABEL, type GuaranteeType } from '@/lib/guarantee/policy'
 
 export type PlatformToolName =
@@ -58,6 +60,7 @@ export type PlatformToolName =
   | 'enviar_mensaje_reserva'
   | 'ver_mensajes_reserva'
   | 'enviar_enlace_acceso'
+  | 'pedir_de_nuevo'
 
 const str = (description: string) => ({ type: 'string', description })
 const confirmado = { type: 'boolean', description: 'false la primera vez (para proponer); true solo después de que la persona diga claramente que sí' }
@@ -147,7 +150,7 @@ export const PLATFORM_TOOLS: Record<PlatformToolName, CatalogEntry> = {
   cancelar_reserva: {
     label: 'Cancelar una reserva',
     description: 'Cancela una reserva pendiente o confirmada aplicando la política de cancelación (reembolso total con más de 24 h; parcial entre 2 y 24 h; sin reembolso con menos de 2 h).',
-    guidance: `${CONFIRM_RULE} Antes de proponer, explícale la política que aplica según la hora del servicio. Pregunta el motivo. ${NEEDS_LINK}`,
+    guidance: `${CONFIRM_RULE} Antes de proponer, explícale la política que aplica según la hora del servicio. Pregunta el motivo y pásalo como una frase (al menos 5 letras; el socio lo verá). ${NEEDS_LINK}`,
     writes: true, group: 'client', platform: true, confirm: true,
     schema: () => ({ type: 'object', properties: { reserva_ref: REF, motivo: str('Motivo con sus palabras'), confirmado }, required: ['reserva_ref', 'motivo', 'confirmado'], additionalProperties: false }),
   },
@@ -188,10 +191,10 @@ export const PLATFORM_TOOLS: Record<PlatformToolName, CatalogEntry> = {
   },
   enviar_propuesta: {
     label: 'Enviar una propuesta (socio)',
-    description: 'Envía la propuesta del socio a una solicitud: precio y nota, igual que desde la app.',
-    guidance: `Usa la referencia de ver_oportunidades. El precio debe ser al menos el precio base del servicio. ${CONFIRM_RULE} ${NEEDS_LINK}`,
+    description: 'Envía la propuesta del socio a una solicitud: precio, nota y, si quiere, el día y la hora en que puede ir (al aceptarla, la reserva queda para ese momento).',
+    guidance: `Usa la referencia de ver_oportunidades. El precio debe ser al menos el precio base del servicio. Pregúntale qué día y a qué hora puede ir: si lo dice, pásalo en fecha y hora; si no, déjalos vacíos. ${CONFIRM_RULE} ${NEEDS_LINK}`,
     writes: true, group: 'partner', platform: true, confirm: true,
-    schema: () => ({ type: 'object', properties: { solicitud_ref: REF, precio: { type: 'number', description: 'Precio total en pesos' }, nota: str('Qué incluye, cuándo puede ir, con sus palabras'), confirmado }, required: ['solicitud_ref', 'precio', 'nota', 'confirmado'], additionalProperties: false }),
+    schema: () => ({ type: 'object', properties: { solicitud_ref: REF, precio: { type: 'number', description: 'Precio total en pesos' }, nota: str('Qué incluye, con sus palabras'), fecha: str('Día que propone ir, YYYY-MM-DD, o vacío'), hora: str('Hora que propone, HH:mm (24 h), o vacío'), confirmado }, required: ['solicitud_ref', 'precio', 'nota', 'fecha', 'hora', 'confirmado'], additionalProperties: false }),
   },
   cambiar_estado_reserva: {
     label: 'Cambiar el estado de una reserva (socio)',
@@ -272,6 +275,26 @@ export const PLATFORM_TOOLS: Record<PlatformToolName, CatalogEntry> = {
     guidance: `Úsala cuando la persona pida reactivar una solicitud que venció (por ejemplo, pulsó «Reactivar» en nuestro aviso de WhatsApp: el contexto trae la referencia). No requiere confirmación: la persona ya lo pidió. Si no sabes cuál, deja la referencia vacía y se usa su última solicitud vencida. ${NEEDS_LINK}`,
     writes: true, group: 'client', platform: true,
     schema: () => ({ type: 'object', properties: { solicitud_ref: str('Referencia de 6 caracteres de la solicitud (del contexto o de una consulta), o vacío para su última solicitud vencida') }, required: ['solicitud_ref'], additionalProperties: false }),
+  },
+  pedir_de_nuevo: {
+    label: 'Pedir de nuevo al mismo socio',
+    description: 'Crea una solicitud directa al socio de una reserva completada, con el mismo servicio y dirección (se pueden cambiar), para la fecha que diga el cliente o urgente.',
+    guidance: `Úsala cuando el cliente quiera repetir un servicio con el mismo socio (por ejemplo, pulsó «Pedir de nuevo» en un aviso). Toma la referencia de ver_mis_reservas. Pregunta para cuándo (fecha y hora, o urgente) y si la dirección es la misma. ${CONFIRM_RULE} ${NEEDS_LINK}`,
+    writes: true, group: 'client', platform: true, confirm: true,
+    schema: () => ({
+      type: 'object',
+      properties: {
+        reserva_ref: REF,
+        urgente: { type: 'boolean', description: 'true si lo necesita lo antes posible' },
+        fecha: str('YYYY-MM-DD, o vacío si es urgente'),
+        hora: str('HH:mm (24 h), o vacío'),
+        direccion: str('Dirección si cambia, o vacío para usar la de la reserva'),
+        detalles: str('Qué necesita esta vez, o vacío'),
+        confirmado,
+      },
+      required: ['reserva_ref', 'urgente', 'fecha', 'hora', 'direccion', 'detalles', 'confirmado'],
+      additionalProperties: false,
+    }),
   },
   agregar_fotos: {
     label: 'Agregar fotos a una solicitud o reserva',
@@ -579,12 +602,16 @@ const PLANNERS: Partial<Record<PlatformToolName, Planner>> = {
     if (!r) return { error: 'Esa referencia no corresponde a ninguna solicitud disponible para este socio. Consulta ver_oportunidades.' }
     const price = n(input, 'precio')
     if (price <= 0) return { error: 'Falta el precio.' }
+    const fecha = s(input, 'fecha')
+    const hora = s(input, 'hora')
+    if (fecha && !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return { error: 'La fecha va como YYYY-MM-DD (o vacía).' }
+    if (hora && !/^([01]\d|2[0-3]):[0-5]\d$/.test(hora)) return { error: 'La hora va como HH:mm en 24 h (o vacía).' }
     return {
-      summary: `Enviar propuesta de ${cop(price)} a la solicitud de ${r.service?.name ?? 'servicio'} (ref ${shortId(r.id)})${s(input, 'nota') ? ` con la nota «${s(input, 'nota')}»` : ''}`,
+      summary: `Enviar propuesta de ${cop(price)} a la solicitud de ${r.service?.name ?? 'servicio'} (ref ${shortId(r.id)})${fecha ? ` para el ${fecha}${hora ? ` a las ${hora}` : ''}` : ''}${s(input, 'nota') ? ` con la nota «${s(input, 'nota')}»` : ''}`,
       wouldRecord: 'la propuesta (Proposal) y el aviso al cliente',
       run: async () => {
-        const p = await createProposal(actor, { serviceRequestId: r.id, price, notes: s(input, 'nota') || undefined }, originFor(ctx))
-        return { text: `Propuesta enviada (ref ${shortId(p.id)}). El cliente ya la ve; le avisaremos si la acepta.`, entityType: 'Proposal', entityId: p.id }
+        const p = await createProposal(actor, { serviceRequestId: r.id, price, notes: s(input, 'nota') || undefined, proposedDate: fecha || null, proposedTime: fecha && hora ? hora : null }, originFor(ctx))
+        return { text: `Propuesta enviada (ref ${shortId(p.id)}).${fecha ? ' Si el cliente la acepta, la reserva queda para la fecha que propusiste.' : ''} El cliente ya la ve; le avisaremos si la acepta.`, entityType: 'Proposal', entityId: p.id }
       },
     }
   },
@@ -658,6 +685,33 @@ const PLANNERS: Partial<Record<PlatformToolName, Planner>> = {
       },
     }
   },
+  pedir_de_nuevo: async (input, ctx, actor) => {
+    const b = await bookingByRef(actor, s(input, 'reserva_ref'))
+    if (!b || b.userId !== actor.userId) return { error: 'Esa referencia no corresponde a ninguna reserva de este cliente. Consulta ver_mis_reservas.' }
+    if (b.status !== 'COMPLETED' || !b.partnerId) return { error: 'Solo se pide de nuevo un servicio ya completado con un socio.' }
+    const urgent = input.urgente === true
+    const fecha = s(input, 'fecha')
+    const hora = s(input, 'hora')
+    if (!urgent && !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return { error: 'Falta la fecha (YYYY-MM-DD) o marcarla como urgente.' }
+    if (hora && !/^([01]\d|2[0-3]):[0-5]\d$/.test(hora)) return { error: 'La hora va como HH:mm en 24 h (o vacía).' }
+    const address = s(input, 'direccion') || b.address
+    const service = b.service?.name ?? 'servicio'
+    const partnerName = b.partner?.user?.name ?? 'el mismo socio'
+    const when = urgent ? 'lo antes posible (urgente)' : `${fecha}${hora ? ` a las ${hora}` : ''}`
+    return {
+      summary: `Pedir de nuevo ${service} a ${partnerName} en ${address} para ${when}`,
+      wouldRecord: 'una solicitud directa a ese socio (ServiceRequest) y su aviso',
+      run: async () => {
+        const sr = await createServiceRequest(actor, {
+          serviceId: b.serviceId, address, city: b.city, partnerId: b.partnerId,
+          notes: s(input, 'detalles') || `Pedido de nuevo (reserva ${shortId(b.id)})`,
+          preferredDate: urgent && !fecha ? null : fecha, preferredTime: hora || null, isUrgent: urgent,
+        }, originFor(ctx))
+        return { text: `Solicitud directa creada (ref ${shortId(sr.id)}): ${partnerName} ya recibió el aviso y te mandará su propuesta.`, entityType: 'ServiceRequest', entityId: sr.id }
+      },
+    }
+  },
+
   reactivar_solicitud: async (input, ctx, actor) => {
     const ref = s(input, 'solicitud_ref')
     if (ref && !validRef(ref)) return { error: 'Referencia inválida: usa los 6 caracteres de la solicitud o déjala vacía.' }
@@ -846,7 +900,21 @@ async function runIdentity(name: PlatformToolName, input: Record<string, unknown
     ctx.userId = PLAYGROUND_USER
     return 'Código comprobado (simulado en pruebas): conversación vinculada a una cuenta de cliente de prueba. Ya puedes usar las herramientas de su cuenta.'
   }
-  const conv = await prisma.conversation.findUnique({ where: { id: ctx.conversationId }, select: { contactId: true, userId: true, workspaceId: true } })
+  const conv = await prisma.conversation.findUnique({ where: { id: ctx.conversationId }, select: { contactId: true, userId: true, workspaceId: true, channel: true, contactPhone: true } })
+  if (name === 'enviar_enlace_acceso' && conv?.userId && conv.channel === 'WHATSAPP') {
+    // Writing from the account's own number proves the phone: the link goes to this WhatsApp (B2 / C2)
+    const owner = await prisma.user.findUnique({ where: { id: conv.userId }, select: { phone: true } })
+    if (owner?.phone && toE164(owner.phone) === toE164(conv.contactPhone)) {
+      const r = await sendAccessLink(conv.userId, { phoneTrusted: true })
+      if (r.ok) {
+        await prisma.conversationEvent.create({ data: { conversationId: ctx.conversationId, type: 'login_link', actorType: 'ai', actorId: ctx.agent.id, actorName: ctx.agent.name, detail: `Enlace de acceso por ${r.via === 'whatsapp' ? 'WhatsApp' : 'correo'}` } })
+        return r.via === 'whatsapp'
+          ? `Enlace enviado a este WhatsApp como mensaje aparte con el botón «Entrar». Vence en ${ACCESS_LINK_TTL_H} horas y solo sirve una vez. No escribas ningún enlace en el chat.`
+          : `Enlace enviado al correo registrado de la cuenta (vence en ${ACCESS_LINK_TTL_H} horas). Dile que revise spam. No escribas ningún enlace en el chat.`
+      }
+      if (r.reason === 'limit') return 'Ya se enviaron varios enlaces a esta cuenta en la última hora: dile que use el último que le llegó.'
+    }
+  }
   if (name === 'enviar_enlace_acceso') {
     const r = await sendLoginLinkFromChat({ conversationId: ctx.conversationId, userId: conv?.userId ?? null, given: s(input, 'dato'), actor: { id: ctx.agent.id, name: ctx.agent.name } })
     if (!r.ok) {

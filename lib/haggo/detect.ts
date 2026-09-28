@@ -37,6 +37,8 @@ export type Snapshot = {
   guarantee?: { open: number; overdue: number; strikesLast90: number; partnersAtLimit?: Array<{ partnerId: string; strikes: number }> }
   /** Marketing results: requests with origin, ad spend typed in, packages spending without requests, failed conversions */
   attribution?: { requests7d: number; withOrigin7d: number; spend7d: number; spendWithoutRequests: Array<{ adDraftId: string; title: string; daysWithSpend: number; spendCop: number }>; conversionsFailed7d: number }
+  /** WhatsApp code login of the last 24 h: codes sent and confirmed */
+  phoneLogin?: { sent24h: number; used24h: number }
   /** WhatsApp catalog templates by Meta state (names of the rejected and of the approved under another category) */
   waTemplates?: { approved: number; pending: number; rejected: string[]; recategorized: string[] }
 }
@@ -112,6 +114,7 @@ export function detect(s: Snapshot): Detection[] {
     add({ key: `mk:spend-no-requests:${a.adDraftId}`, domain: 'marketing', severity: 'warning', title: `La pauta «${a.title}» gastó $${Math.round(a.spendCop).toLocaleString('es-CO')} en ${a.daysWithSpend} días sin traer solicitudes`, detail: 'Revisar el anuncio (texto, público, mensaje prellenado con su ref) o pasar el presupuesto a otro conjunto (resultados_marketing).', entityType: 'MarketingAdDraft', entityId: a.adDraftId })
   }
   if ((s.attribution?.conversionsFailed7d ?? 0) >= 3) add({ key: 'mk:conversions-failed', domain: 'marketing', severity: 'warning', title: `${s.attribution!.conversionsFailed7d} conversiones no llegaron a Meta o Google en 7 días`, detail: 'Revisar el token y el píxel en Analítica → Origen → Conversiones.' })
+  if (s.phoneLogin && s.phoneLogin.sent24h >= 5 && s.phoneLogin.used24h === 0) add({ key: 'ops:phone-codes-unused', domain: 'users', severity: 'warning', title: `${s.phoneLogin.sent24h} códigos de acceso por WhatsApp en 24 h y ninguno confirmado`, detail: 'Puede que la plantilla lh_codigo_verificacion no esté llegando: revisar mensajeria (estado en Meta y envíos) y probar el acceso con código.' })
   if (s.marketing.inReview >= 5) add({ key: 'mk:review-backlog', domain: 'marketing', severity: 'info', title: `${s.marketing.inReview} publicaciones esperan revisión`, detail: 'Se acumulan borradores sin aprobar.' })
 
   if (s.channels.problems.length) add({ key: `sys:channels:${[...s.channels.problems].sort().join(',')}`, domain: 'system', severity: 'critical', title: `Canales con problemas: ${s.channels.problems.join(', ')}`, detail: 'Hay que reconectarlos.' })

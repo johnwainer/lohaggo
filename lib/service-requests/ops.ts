@@ -9,6 +9,7 @@ import { recordPromptContext } from '@/lib/pwa/adoption-strategy'
 import { OpsError, originColumns, type Actor, type Origin } from '@/lib/ops/origin'
 import { DEFAULT_COMMISSION, loadEffectiveRates, loadPlatformConfigRow } from '@/lib/payments/commission'
 import { compactTouch } from '@/lib/analytics/attribution-core'
+import { isZoneKey, zoneFromText } from '@/lib/geo/zones'
 import { conversationAttribution, type RequestAttribution } from '@/lib/analytics/touches'
 import { runAfterResponse } from '@/lib/ops/after'
 
@@ -105,6 +106,7 @@ export async function createServiceRequest(actor: Actor, input: ServiceRequestIn
   expiresAt.setHours(expiresAt.getHours() + 24)
 
   const preferredDateTime = preferredDateTimeBogota(data.preferredDate, data.preferredTime)
+  const zone = data.zone && isZoneKey(data.zone) ? data.zone : zoneFromText(data.address)
   const attribution = opts.attribution ?? (origin.via === 'chat' ? await conversationAttribution(origin.conversationId) : null)
   const touches = {
     ...(attribution?.first ? { acquisition: compactTouch(attribution.first) as Prisma.InputJsonValue } : {}),
@@ -127,6 +129,7 @@ export async function createServiceRequest(actor: Actor, input: ServiceRequestIn
       expiresAt,
       ...originColumns(origin),
       ...touches,
+      zone,
       photos: data.photoUrls && data.photoUrls.length > 0 ? { create: data.photoUrls.map((url, index) => ({ url, order: index })) } : undefined,
     },
     include: createdRequestInclude,
@@ -200,17 +203,20 @@ export async function listClientRequests(userId: string) {
 export async function listOpenRequestsForPartner(partnerId: string) {
   const partner = await prisma.partnerProfile.findUnique({
     where: { id: partnerId },
-    select: { id: true, verified: true, isActive: true, services: { where: { active: true }, select: { serviceId: true, city: true } } },
+    select: { id: true, verified: true, isActive: true, coverageZones: true, services: { where: { active: true }, select: { serviceId: true, city: true } } },
   })
   if (!partner) throw new OpsError('Solo los socios pueden ver solicitudes activas', 403)
   if (!partner.verified || !partner.isActive) throw new OpsError('Debes estar verificado para ver solicitudes de servicio', 403)
 
   const offers = partner.services.map((s) => ({ serviceId: s.serviceId, city: s.city }))
+  const zones = partner.coverageZones ?? []
+  // A partner with zones only sees open requests in them (or with no zone); direct ones always
+  const inZones = zones.length > 0 ? { AND: [{ OR: [{ zone: null }, { zone: { in: zones } }] }] } : {}
   const open = { status: 'ACTIVE' as const, expiresAt: { gt: new Date() }, NOT: { proposals: { some: { partnerId } } } }
   return prisma.serviceRequest.findMany({
     where: {
       ...open,
-      OR: [{ partnerId }, ...(offers.length > 0 ? [{ partnerId: null, OR: offers }] : [])],
+      OR: [{ partnerId }, ...(offers.length > 0 ? [{ partnerId: null, OR: offers, ...inZones }] : [])],
     },
     include: {
       service: { include: { category: true } },

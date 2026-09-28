@@ -13,6 +13,7 @@ import { formatCurrency } from '@/lib/utils'
 import AccountTopHeader from '@/components/shared/AccountTopHeader'
 import AccountPanel from '@/components/shared/AccountPanel'
 import ServiceIcon from '@/components/ServiceIcon'
+import CoverageEditor from '@/components/partner/CoverageEditor'
 import { opportunitiesFromResponse } from '@/lib/partners/opportunities'
 
 interface ApprovedDoc {
@@ -413,6 +414,8 @@ export default function ServicesManagementPage() {
                 </div>
               )}
             </div>
+
+            <CoverageEditor />
 
             {showAddModal && (
               <div className="fixed inset-0 bg-black/50 z-50 flex flex-col justify-end sm:items-center sm:justify-center sm:p-4">

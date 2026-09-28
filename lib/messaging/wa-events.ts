@@ -10,7 +10,7 @@ import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
 import { bookingWhen } from '@/lib/bookings/when'
 import { WA } from '@/lib/messaging/wa-specs'
-import { sendWaToAdmins, sendWaToUser, type WaOutcome } from '@/lib/messaging/wa-send'
+import { deliverWa, sendWaToAdmins, sendWaToUser, type WaOutcome } from '@/lib/messaging/wa-send'
 import { toE164 } from '@/lib/inbox/contacts'
 
 const logger = createLogger('wa-events')
@@ -347,6 +347,20 @@ export function waLinkCode(p: { userId: string; phone: string; code: string; cod
     if (!phone) return null
     return sendWaToUser(p.userId, WA.A1({ code: p.code, codeId: p.codeId }))
   })
+}
+
+/** A1 for the phone login: the number has no account yet (or we do not know which), so it goes to the phone. */
+export function waLoginCode(p: { phone: string; code: string; codeId: string }) {
+  return safe('A1', async () => {
+    const phone = toE164(p.phone)
+    if (!phone) return null
+    return deliverWa({ userId: null, phone }, WA.A1Login({ code: p.code, codeId: p.codeId }))
+  })
+}
+
+/** B2 / C2: an access link the person asked for, to the account's own WhatsApp. `suffix` = auth/magic?token=… */
+export function waAccessLink(p: { userId: string; role: 'CLIENT' | 'PARTNER'; name: string; suffix: string; tokenId: string }) {
+  return safe(p.role === 'PARTNER' ? 'C2' : 'B2', () => sendWaToUser(p.userId, p.role === 'PARTNER' ? WA.C2(p) : WA.B2(p)))
 }
 
 // ─── Team alerts ────────────────────────────────────────────────────────────

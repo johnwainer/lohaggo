@@ -14,6 +14,9 @@ export const waitlistSchema = z.object({
     .nullable()
     .transform((v) => (v ? v : null)),
   role: z.enum(WAITLIST_ROLES),
+  /** Optional WhatsApp to announce the opening; needs its own consent */
+  phone: z.string().trim().max(30).optional().nullable().transform((v) => (v ? v : null)),
+  phoneConsent: z.boolean().optional(),
   // Ley 1581 (habeas data): explicit consent is mandatory
   consent: z.literal(true),
   website: z.string().optional().nullable(),
@@ -30,6 +33,9 @@ export function parseWaitlist(body: unknown): WaitlistParse {
   const r = waitlistSchema.safeParse(body)
   if (!r.success) return { ok: false, reason: 'invalid', issues: r.error.issues }
   if (r.data.website && r.data.website.trim() !== '') return { ok: false, reason: 'honeypot' }
+  if (r.data.phone && r.data.phoneConsent !== true) {
+    return { ok: false, reason: 'invalid', issues: [{ code: 'custom', path: ['phoneConsent'], message: 'Autoriza el aviso por WhatsApp' }] }
+  }
   return { ok: true, data: r.data }
 }
 

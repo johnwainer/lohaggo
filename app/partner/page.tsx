@@ -10,7 +10,7 @@ import {
   Calendar, Clock, MapPin, DollarSign, Package, User, CheckCircle, XCircle,
   Send, AlertCircle, TrendingUp, Activity, Filter, Search, Menu, X,
   Home, Briefcase, Bell, Settings, LogOut, ChevronRight, Eye, MessageSquare, Shield, Star, MessageCircle, UserPlus,
-  Zap, WifiOff, ArrowRight, Timer
+  Zap, WifiOff, ArrowRight, Timer, CalendarClock
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { DESIGN_SYSTEM, getStatusClasses, getStatusLabel } from '@/lib/design-system'
@@ -29,6 +29,8 @@ import PlatformTrustBanner from '@/components/PlatformTrustBanner'
 import ServiceIcon from '@/components/ServiceIcon'
 import { getBookingVisualState, type BookingVisualState } from '@/lib/booking-status'
 import { opportunitiesFromResponse } from '@/lib/partners/opportunities'
+import WorkPhotosEditor from '@/components/bookings/WorkPhotosEditor'
+import { RescheduleSheet, CancelReasonSheet } from '@/components/partner/BookingActionSheets'
 
 const ChatModal = dynamic(() => import('@/components/ChatModal'), {
   ssr: false,
@@ -162,7 +164,13 @@ function PartnerDashboardContent() {
   const [selectedRequest, setSelectedRequest] = useState<ServiceRequest | null>(null)
   const [proposalPrice, setProposalPrice] = useState('')
   const [proposalNotes, setProposalNotes] = useState('')
+  const [proposalDate, setProposalDate] = useState('')
+  const [proposalTime, setProposalTime] = useState('')
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
+  const [rescheduleFor, setRescheduleFor] = useState<Booking | null>(null)
+  const [cancelFor, setCancelFor] = useState<Booking | null>(null)
+  const [afterPhotosFor, setAfterPhotosFor] = useState<{ id: string; serviceName: string } | null>(null)
+  const [photosVersion, setPhotosVersion] = useState(0)
   const [imageGallery, setImageGallery] = useState<{
     isOpen: boolean
     photos: Array<{ id: string; url: string; order: number }>
@@ -457,18 +465,23 @@ function PartnerDashboardContent() {
           })
 
           if (res.ok) {
-            setModal({
-              isOpen: true,
-              title: 'Estado Actualizado',
-              message: `El estado de la reserva "${serviceName}" ha sido actualizado exitosamente.`,
-              type: 'success'
-            })
+            if (newStatus === 'COMPLETED') {
+              setAfterPhotosFor({ id, serviceName })
+            } else {
+              setModal({
+                isOpen: true,
+                title: 'Estado Actualizado',
+                message: `El estado de la reserva "${serviceName}" ha sido actualizado exitosamente.`,
+                type: 'success'
+              })
+            }
             fetchBookings()
           } else {
+            const data = await res.json().catch(() => ({}))
             setModal({
               isOpen: true,
               title: 'Error al Actualizar',
-              message: 'No se pudo actualizar el estado de la reserva.',
+              message: data.error || 'No se pudo actualizar el estado de la reserva.',
               type: 'error'
             })
           }
@@ -488,6 +501,8 @@ function PartnerDashboardContent() {
     setSelectedRequest(request)
     setProposalPrice('')
     setProposalNotes('')
+    setProposalDate('')
+    setProposalTime('')
     setShowProposalModal(true)
   }
 
@@ -522,7 +537,9 @@ function PartnerDashboardContent() {
         body: JSON.stringify({
           serviceRequestId: selectedRequest.id,
           price: priceValue,
-          notes: proposalNotes
+          notes: proposalNotes,
+          proposedDate: proposalDate || null,
+          proposedTime: proposalDate && proposalTime ? proposalTime : null
         })
       })
 
@@ -624,6 +641,52 @@ function PartnerDashboardContent() {
         type={confirmModal.type}
         confirmText={confirmModal.type === 'danger' ? 'Sí, cancelar' : 'Sí, actualizar'}
       />
+
+      {rescheduleFor && (
+        <RescheduleSheet
+          booking={{ id: rescheduleFor.id, serviceName: rescheduleFor.service.name, scheduledDate: rescheduleFor.scheduledDate, scheduledTime: rescheduleFor.scheduledTime }}
+          onClose={() => setRescheduleFor(null)}
+          onDone={() => {
+            setRescheduleFor(null)
+            setModal({ isOpen: true, title: 'Reserva reprogramada', message: 'Le avisamos al cliente la nueva fecha y hora.', type: 'success' })
+            fetchBookings()
+          }}
+        />
+      )}
+
+      {cancelFor && (
+        <CancelReasonSheet
+          booking={{ id: cancelFor.id, serviceName: cancelFor.service.name }}
+          title={cancelFor.status === 'PENDING' ? 'Rechazar reserva' : 'Cancelar reserva'}
+          onClose={() => setCancelFor(null)}
+          onDone={() => {
+            setCancelFor(null)
+            setModal({ isOpen: true, title: 'Reserva cancelada', message: 'Le avisamos al cliente con el motivo que escribiste.', type: 'success' })
+            fetchBookings()
+          }}
+        />
+      )}
+
+      {afterPhotosFor && (
+        <Modal
+          isOpen
+          title="¡Servicio completado!"
+          type="success"
+          onClose={() => { setAfterPhotosFor(null); setPhotosVersion((v) => v + 1) }}
+        >
+          <p className="mb-3 text-sm text-gray-700">
+            Sube fotos de cómo quedó «{afterPhotosFor.serviceName}». Las fotos respaldan tu trabajo ante la garantía.
+          </p>
+          <WorkPhotosEditor bookingId={afterPhotosFor.id} status="COMPLETED" only="after" />
+          <button
+            type="button"
+            onClick={() => { setAfterPhotosFor(null); setPhotosVersion((v) => v + 1) }}
+            className="mt-4 flex min-h-[44px] w-full items-center justify-center rounded-full border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+          >
+            Listo
+          </button>
+        </Modal>
+      )}
 
       {imageGallery.isOpen && (
         <ImageGalleryModal
@@ -1179,10 +1242,17 @@ function PartnerDashboardContent() {
                       })
                     }
 
-                    if (booking.status === 'PENDING') {
+                    if (booking.status === 'PENDING' || booking.status === 'CONFIRMED') {
                       secondaryActions.push({
-                        label: 'Rechazar',
-                        onClick: () => updateBookingStatus(booking.id, 'CANCELLED', booking.service.name),
+                        label: 'Reprogramar',
+                        onClick: () => setRescheduleFor(booking),
+                        icon: <CalendarClock size={16} />,
+                        variant: 'secondary',
+                        disabled: session?.user?.isActive === false,
+                      })
+                      secondaryActions.push({
+                        label: booking.status === 'PENDING' ? 'Rechazar' : 'Cancelar',
+                        onClick: () => setCancelFor(booking),
                         icon: <XCircle size={16} />,
                         variant: 'secondary',
                         disabled: session?.user?.isActive === false,
@@ -1211,6 +1281,9 @@ function PartnerDashboardContent() {
                           origin={booking.origin}
                           originChannel={booking.originChannel}
                         />
+                        {['CONFIRMED', 'IN_PROGRESS', 'COMPLETED'].includes(booking.status) && (
+                          <WorkPhotosEditor key={`${booking.id}-${photosVersion}`} bookingId={booking.id} status={booking.status} />
+                        )}
                         {booking.status === 'COMPLETED' && (
                           <OfflinePaymentActions
                             bookingId={booking.id}
@@ -1525,6 +1598,32 @@ function PartnerDashboardContent() {
                     step="0.01"
                     required
                     className={`${DESIGN_SYSTEM.components.input.base} pl-10`}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className={`${DESIGN_SYSTEM.typography.label} mb-1 block`}>
+                  ¿Cuándo puedes ir? (opcional)
+                </label>
+                <p className="mb-2 text-xs text-gray-500">Si propones fecha y hora, al aceptar tu propuesta la reserva queda para ese momento.</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="date"
+                    value={proposalDate}
+                    min={new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(new Date())}
+                    onChange={(e) => setProposalDate(e.target.value)}
+                    className={DESIGN_SYSTEM.components.input.base}
+                    aria-label="Fecha propuesta"
+                  />
+                  <input
+                    type="time"
+                    value={proposalTime}
+                    step={1800}
+                    disabled={!proposalDate}
+                    onChange={(e) => setProposalTime(e.target.value)}
+                    className={`${DESIGN_SYSTEM.components.input.base} disabled:bg-gray-100`}
+                    aria-label="Hora propuesta"
                   />
                 </div>
               </div>

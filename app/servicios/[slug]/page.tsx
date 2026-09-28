@@ -13,6 +13,7 @@ import ConfirmModal from '@/components/ConfirmModal'
 import AdBanner from '@/components/ads/AdBanner'
 import ServiceDetailTour from '@/components/ServiceDetailTour'
 import { useTrust } from '@/lib/public/useTrust'
+import PhoneVerify from '@/components/service-request/PhoneVerify'
 import AddressStep from '@/components/service-request/AddressStep'
 import RequestSuccess from '@/components/service-request/RequestSuccess'
 import StickyRequestBar from '@/components/service-request/StickyRequestBar'
@@ -81,7 +82,9 @@ interface Address {
 
 export default function ServiceDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params)
-  const { data: session, status } = useSession()
+  const { data: session, status, update: updateSession } = useSession()
+  const [phoneVerifyOpen, setPhoneVerifyOpen] = useState(false)
+  const [submitAfterLogin, setSubmitAfterLogin] = useState(false)
   const router = useRouter()
   const { getCityBySlug } = useCity()
   const { whatsappPhone, claims } = useTrust()
@@ -136,6 +139,20 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     router.replace(`/servicios/${slug}`, { scroll: false })
     if (!loadDraft(safeStorage(), slug)) return
     void openRequestFlow(null, { resume: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [service, status])
+
+  // From a partner's public profile («Solicitar a este socio»): ?partnerId= preselects that partner.
+  const partnerParamHandled = useRef(false)
+  useEffect(() => {
+    if (partnerParamHandled.current || !service || status === 'loading') return
+    if (typeof window === 'undefined') return
+    const qs = new URLSearchParams(window.location.search)
+    const partnerId = qs.get('partnerId')
+    if (!partnerId || qs.get('resume') === '1') return
+    partnerParamHandled.current = true
+    if (!service.partners.some((ps) => ps.partner.id === partnerId)) return
+    void handleRequestToPartner(partnerId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [service, status])
 
@@ -601,8 +618,9 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
     }
 
     if (!session) {
+      // No account needed: the phone is confirmed with a WhatsApp code and the request goes out
       saveDraft(safeStorage(), draftSnapshot(TOTAL_STEPS))
-      router.push(withRedirect('/login', `/servicios/${slug}?resume=1`))
+      setPhoneVerifyOpen(true)
       return
     }
 
@@ -711,6 +729,14 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
   const trackWhatsApp = (source: string) => {
     track('whatsapp_click', { content_name: service?.name, source })
   }
+
+  // Signed in with the WhatsApp code: once the session is there, the request goes out with the draft
+  useEffect(() => {
+    if (!submitAfterLogin || !session?.user) return
+    setSubmitAfterLogin(false)
+    void submitRequest()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [submitAfterLogin, session])
 
   if (loading) {
     return (
@@ -1440,7 +1466,7 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
 
                   {!session && (
                     <p className="rounded-2xl bg-blue-50 px-3 py-2 text-xs text-blue-900">
-                      Al enviar te pediremos entrar o crear tu cuenta. No perderás nada de lo que escribiste.
+                      Al enviar confirmas tu celular con un código por WhatsApp. No necesitas crear contraseña.
                     </p>
                   )}
                 </div>
@@ -1535,6 +1561,17 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ slug: 
         confirmText="Entendido"
         type={successModal.type}
       />
+      {phoneVerifyOpen && (
+        <PhoneVerify
+          loginHref={withRedirect('/login', `/servicios/${slug}?resume=1`)}
+          onClose={() => setPhoneVerifyOpen(false)}
+          onVerified={async () => {
+            setPhoneVerifyOpen(false)
+            await updateSession()
+            setSubmitAfterLogin(true)
+          }}
+        />
+      )}
     </div>
   )
 }

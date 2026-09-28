@@ -62,6 +62,12 @@ type BookingData = { id: string; when: Date; service: string; price?: number; cl
 export const WA = {
   A1: (p: { code: string; codeId: string }) => spec('A1', [['lh_codigo_verificacion', { 1: p.code }]], E('ContactLinkCode', p.codeId)),
 
+  /** Login code of the phone login (no account yet, so the entity is the code) */
+  A1Login: (p: { code: string; codeId: string }) => spec('A1', [['lh_codigo_verificacion', { 1: p.code }]], E('PhoneLoginCode', p.codeId)),
+  B2: (p: { tokenId: string; name: string; suffix: string }) => spec('B2', [['lh_cliente_acceso_enlace_v2', { 1: client(p.name), 2: p.suffix }]], E('MagicToken', p.tokenId)),
+  C2: (p: { tokenId: string; name: string; suffix: string }) => spec('C2', [['lh_socio_acceso_enlace', { 1: partner(p.name), 2: p.suffix }]], E('MagicToken', p.tokenId)),
+  /** The city of a waitlist entry opened: promotional (only with the entry's WhatsApp consent) */
+  B25: (p: { entryId: string; name: string | null; city: string }) => spec('B25', [['lh_lista_espera_ciudad_abierta', { 1: client(p.name ?? ''), 2: p.city }]], E('CityWaitlist', p.entryId), { marketing: true }),
   B1: (p: { userId: string; name: string; suffix: string }) => spec('B1', [['lh_cliente_cuenta_creada_v3', { 1: client(p.name), 2: p.suffix }], ['lh_cliente_cuenta_creada', { 1: client(p.name), 2: p.suffix }]], E('User', p.userId)),
   B3: (p: { proposalId: string; clientName: string; service: string; price: number; partnerName: string }) =>
     spec('B3', [['lh_cliente_nueva_propuesta', { 1: client(p.clientName), 2: p.service, 3: waMoney(p.price), 4: partner(p.partnerName), 5: 'dashboard?tab=requests' }]], E('Proposal', p.proposalId)),

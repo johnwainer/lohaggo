@@ -14,6 +14,8 @@ model User {
   name                              String
   password                          String
   phone                             String?
+  /// When the phone was confirmed with a code (WhatsApp login); null = never checked
+  phoneVerifiedAt                   DateTime?
   image                             String?
   role                              UserRole                    @default(CLIENT)
   isActive                          Boolean                     @default(true)
@@ -85,6 +87,8 @@ model PartnerProfile {
   profileHeadline        String?
   isAvailable            Boolean                @default(true)
   isCompany              Boolean                @default(false)
+  /// Zones the partner covers (keys of lib/geo/zones.ts); empty = the whole city
+  coverageZones          String[]               @default([])
   companyName            String?
   companyNit             String?
   workPhotos             PartnerWorkPhoto[]
@@ -203,6 +207,7 @@ model Booking {
   refundCases           RefundCase[]
   events                BookingEvent[]
   guaranteeClaims       GuaranteeClaim[]
+  photos                BookingPhoto[]
 
   @@index([origin, createdAt])
 }
@@ -264,6 +269,8 @@ model ServiceRequest {
   isUrgent             Boolean              @default(false)
   status               ServiceRequestStatus @default(ACTIVE)
   expiresAt            DateTime
+  /// Zone of the address (key of lib/geo/zones.ts): partners who cover it are told first
+  zone                 String?
   origin               String               @default("app")
   originChannel        String?
   originConversationId String?
@@ -290,6 +297,9 @@ model Proposal {
   partnerId            String
   price                Float
   notes                String?
+  /// Date and time the partner offers (Bogotá wall clock); accepting keeps them
+  proposedDate         DateTime?
+  proposedTime         String?
   status               ProposalStatus @default(PENDING)
   origin               String         @default("app")
   originChannel        String?
@@ -2937,18 +2947,60 @@ model GuaranteeClaim {
 
 /// People who want LoHaggo in a city that is not active yet (the «Avísame» form on /ciudad/[slug]).
 model CityWaitlist {
-  id         String    @id @default(cuid())
-  citySlug   String
-  email      String
-  name       String?
+  id             String    @id @default(cuid())
+  citySlug       String
+  email          String
+  name           String?
+  /// Optional WhatsApp to announce the opening, with its own consent
+  phone          String?
+  phoneConsentAt DateTime?
   /// client | partner
-  role       String    @default("client")
+  role           String    @default("client")
   /// Habeas data: the person accepted to be contacted about the launch
-  consentAt  DateTime
-  source     String    @default("city_page")
-  notifiedAt DateTime?
-  createdAt  DateTime  @default(now())
+  consentAt      DateTime
+  source         String    @default("city_page")
+  notifiedAt     DateTime?
+  createdAt      DateTime  @default(now())
 
   @@unique([citySlug, email])
   @@index([citySlug, notifiedAt])
+}
+
+/// Photos of the work (before / after) the partner uploads when finishing: backing for the guarantee
+model BookingPhoto {
+  id           String   @id @default(cuid())
+  bookingId    String
+  url          String
+  /// before | after
+  kind         String   @default("after")
+  uploadedById String?
+  createdAt    DateTime @default(now())
+  booking      Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+}
+
+/// Request counters shared by every server instance (rate limits for signup, codes, waitlist, geo)
+model RateLimitHit {
+  key         String
+  windowStart DateTime
+  count       Int      @default(1)
+  expiresAt   DateTime
+
+  @@id([key, windowStart])
+  @@index([expiresAt])
+}
+
+/// One-time code sent by WhatsApp to log in or create an account with a phone (the code is stored hashed)
+model PhoneLoginCode {
+  id        String    @id @default(cuid())
+  phone     String
+  codeHash  String
+  attempts  Int       @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  ipHash    String?
+  createdAt DateTime  @default(now())
+
+  @@index([phone, createdAt])
 }

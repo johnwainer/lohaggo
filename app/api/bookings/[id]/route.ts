@@ -58,13 +58,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
 }
 
-export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   try {
     const actor = await currentActor()
     if (!actor) return NextResponse.json({ error: "No autorizado" }, { status: 401 })
 
-    await transitionBooking(actor, id, 'CANCELLED', originFor(actor))
+    const parsedReason = patchSchema.shape.reason.safeParse(new URL(request.url).searchParams.get('reason') ?? undefined)
+    const reason = parsedReason.success ? parsedReason.data?.trim() || undefined : undefined
+    await transitionBooking(actor, id, 'CANCELLED', originFor(actor), { reason })
     return NextResponse.json({ message: "Reserva cancelada" })
   } catch (error) {
     if (error instanceof OpsError) return opsErrorResponse(error)

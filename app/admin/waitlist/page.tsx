@@ -82,11 +82,11 @@ export default function AdminWaitlistPage() {
         body: JSON.stringify({ citySlug: row.citySlug }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'No se pudo marcar')
-      setNotice(`${data.updated} registro(s) de ${row.cityName} marcados como avisados.`)
+      if (!res.ok) throw new Error(data.error || 'No se pudo avisar')
+      setNotice(`${row.cityName}: ${data.whatsapp} por WhatsApp y ${data.email} por correo${data.failed ? ` · ${data.failed} sin enviar (se reintentan la próxima vez)` : ''}.`)
       await load()
     } catch (err: any) {
-      setError(err.message || 'No se pudo marcar')
+      setError(err.message || 'No se pudo avisar')
     }
   }
 
@@ -101,14 +101,14 @@ export default function AdminWaitlistPage() {
           if (confirmCity) markNotified(confirmCity)
           setConfirmCity(null)
         }}
-        title="Marcar como avisados"
+        title="Avisar que abrimos"
         message={
           confirmCity
-            ? `Se marcarán ${confirmCity.pending} registro(s) de ${confirmCity.cityName} como avisados. No se envía ningún mensaje desde aquí.`
+            ? `Se avisará a ${confirmCity.pending} persona(s) que ${confirmCity.cityName} ya está abierta: por WhatsApp a quien lo autorizó y por correo al resto. Solo funciona si la ciudad ya está activa.`
             : ''
         }
         type="warning"
-        confirmText="Marcar"
+        confirmText="Avisar"
       />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
@@ -154,7 +154,7 @@ export default function AdminWaitlistPage() {
                 className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-primary-200 px-3 py-1.5 text-xs font-semibold text-primary-700 hover:bg-primary-50 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <BellRing size={14} />
-                Marcar como avisados
+                Avisar que abrimos
               </button>
             </div>
           </div>

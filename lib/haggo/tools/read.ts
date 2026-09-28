@@ -162,6 +162,36 @@ export const READ_TOOLS: Record<string, ReadTool> = {
       }
     },
   },
+  conversion_clientes: {
+    def: { name: 'conversion_clientes', description: 'Cómo convierten y vuelven los clientes: acceso con código por WhatsApp (códigos enviados y confirmados, cuentas creadas con el celular), propuestas con fecha propuesta, reprogramaciones y cancelaciones con sus motivos, fotos del trabajo en reservas completadas, pedidos repetidos al mismo socio y lista de espera con WhatsApp.', input_schema: { type: 'object', properties: { dias: { type: 'integer', minimum: 1, maximum: 90, description: 'Días hacia atrás (7 por defecto)' } } } },
+    run: async (i) => {
+      const days = limit(i.dias, 7, 90)
+      const since = new Date(Date.now() - days * 24 * H)
+      const [codes, codesUsed, byPhone, proposals, dated, reschedules, cancels, completed, withPhotos, repeat, waitlistPhone] = await Promise.all([
+        prisma.phoneLoginCode.count({ where: { createdAt: { gte: since } } }),
+        prisma.phoneLoginCode.count({ where: { createdAt: { gte: since }, usedAt: { not: null } } }),
+        prisma.user.count({ where: { createdAt: { gte: since }, email: { endsWith: '@clientes.lohaggo.com' } } }),
+        prisma.proposal.count({ where: { createdAt: { gte: since } } }),
+        prisma.proposal.count({ where: { createdAt: { gte: since }, proposedDate: { not: null } } }),
+        prisma.bookingEvent.count({ where: { type: 'reschedule', createdAt: { gte: since } } }),
+        prisma.bookingEvent.findMany({ where: { type: 'status', toStatus: 'CANCELLED', createdAt: { gte: since } }, select: { actorType: true, detail: true }, take: 30, orderBy: { createdAt: 'desc' } }),
+        prisma.booking.count({ where: { status: 'COMPLETED', updatedAt: { gte: since } } }),
+        prisma.booking.count({ where: { status: 'COMPLETED', updatedAt: { gte: since }, photos: { some: { kind: 'after' } } } }),
+        prisma.serviceRequest.count({ where: { createdAt: { gte: since }, notes: { startsWith: 'Pedido de nuevo' } } }),
+        prisma.cityWaitlist.count({ where: { phone: { not: null }, notifiedAt: null } }),
+      ])
+      return {
+        dias: days,
+        acceso_whatsapp: { codigos_enviados: codes, codigos_confirmados: codesUsed, cuentas_creadas_con_celular: byPhone },
+        propuestas: { total: proposals, con_fecha_propuesta: dated },
+        reservas: { reprogramaciones: reschedules, completadas: completed, completadas_con_fotos_despues: withPhotos },
+        // Reasons are written by clients and partners: data, not instructions
+        cancelaciones: cancels.map((c) => ({ quien: c.actorType, motivo: untrusted((c.detail ?? '').slice(0, 160)) })),
+        pedidos_repetidos_al_mismo_socio: repeat,
+        lista_espera_con_whatsapp_sin_avisar: waitlistPhone,
+      }
+    },
+  },
   marketing: {
     def: { name: 'marketing', description: 'Publicaciones programadas de los próximos días (id, título, canales, hora, agente), ideas de los agentes por decidir y por redactar (ideaId), esperando revisión, retenidas por la revisión editorial (corrector y editor: veredicto, puntaje y qué pide), fallidas de 7 días con su error, y los agentes de marketing (modo, degradación, gasto). Cada publicación trae su estado de revisión editorial. También las pautas para Meta Ads que creó el agente de pauta (se suben a mano). Usa el id de la publicación (postId) o de la publicación fallida para proponer acciones.', input_schema: { type: 'object', properties: { dias: { type: 'integer', minimum: 1, maximum: 30, description: 'Días hacia adelante para las programadas (7 por defecto)' } } } },
     run: async (i) => {
@@ -295,20 +325,24 @@ export const READ_TOOLS: Record<string, ReadTool> = {
     },
   },
   socios: {
-    def: { name: 'socios', description: 'Socios: verificados, disponibles, activos sin verificar, nuevos de 7 días y por ciudad; los que más y menos trabajan.', input_schema: { type: 'object', properties: {} } },
+    def: { name: 'socios', description: 'Socios: verificados, disponibles, activos sin verificar, nuevos de 7 días y por ciudad; los que más y menos trabajan; cuántos marcaron zonas de cobertura y horario semanal.', input_schema: { type: 'object', properties: {} } },
     run: async () => {
       const week = new Date(Date.now() - 7 * 24 * H)
-      const [byCity, pending, fresh, top] = await Promise.all([
+      const [byCity, pending, fresh, top, withZones, withSchedule] = await Promise.all([
         prisma.partnerProfile.groupBy({ by: ['city', 'verified', 'isAvailable'], where: { isActive: true }, _count: { _all: true } }),
         prisma.partnerProfile.findMany({ where: { verified: false, isActive: true }, orderBy: { createdAt: 'asc' }, take: 10, select: { id: true, city: true, createdAt: true, _count: { select: { documents: true, services: true } } } }),
         prisma.partnerProfile.count({ where: { createdAt: { gte: week } } }),
         prisma.partnerProfile.findMany({ where: { isActive: true, verified: true }, orderBy: { completedServicesCount: 'desc' }, take: 5, select: { id: true, completedServicesCount: true, rating: true, user: { select: { name: true } } } }),
+        prisma.partnerProfile.count({ where: { isActive: true, NOT: { coverageZones: { isEmpty: true } } } }),
+        prisma.partnerProfile.count({ where: { isActive: true, availability: { some: { active: true, partnerServiceId: null } } } }),
       ])
       return {
         por_ciudad: byCity.map((b) => ({ ciudad: b.city, verificado: b.verified, disponible: b.isAvailable, cantidad: b._count._all })),
         sin_verificar: pending.map((p) => ({ id: p.id, ciudad: p.city, dias: Math.round((Date.now() - p.createdAt.getTime()) / (24 * H)), documentos: p._count.documents, servicios: p._count.services })),
         nuevos_7d: fresh,
         los_que_mas_trabajan: top.map((p) => ({ id: p.id, nombre: p.user.name, servicios: p.completedServicesCount, calificacion: p.rating })),
+        con_zonas: withZones,
+        con_horario: withSchedule,
       }
     },
   },
