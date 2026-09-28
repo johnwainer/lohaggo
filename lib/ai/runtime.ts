@@ -127,7 +127,7 @@ export const AgentRuntimeService = {
     const where = { conversationId: conversation.id, isInternal: false, ...(opts.excludeMessageId ? { id: { not: opts.excludeMessageId } } : {}) }
     const [total, recent] = await Promise.all([
       prisma.conversationMessage.count({ where }),
-      prisma.conversationMessage.findMany({ where, orderBy: { sentAt: 'desc' }, take: window, select: { direction: true, body: true } }),
+      prisma.conversationMessage.findMany({ where, orderBy: { sentAt: 'desc' }, take: window, select: { direction: true, body: true, mediaType: true, mediaUrl: true } }),
     ])
     let summary = conversation.aiSummary
     if (needsSummary(total, window, conversation.aiSummaryCount) && (await auxBudgetAvailable())) {

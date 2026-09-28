@@ -146,7 +146,21 @@ export function preHandoff(
 
 // ─── Memory window ───────────────────────────────────────────────────────────
 
-export type StoredMessage = { direction: 'INBOUND' | 'OUTBOUND'; body: string; isInternal?: boolean }
+export type StoredMessage = { direction: 'INBOUND' | 'OUTBOUND'; body: string; isInternal?: boolean; mediaType?: string | null; mediaUrl?: string | null }
+
+const MEDIA_LABEL: Array<[string, string]> = [['image/', '📷 Imagen'], ['audio/', '🎤 Nota de voz'], ['video/', '🎥 Video']]
+
+/**
+ * The model only reads text: a photo sent with a caption must still read as a photo («📷 Imagen: …»).
+ * Captionless media already carry the label as their body.
+ */
+export function messageText(m: StoredMessage) {
+  const body = m.body?.trim() ?? ''
+  if (!m.mediaUrl || m.direction !== 'INBOUND') return body
+  const label = MEDIA_LABEL.find(([prefix]) => (m.mediaType ?? '').toLowerCase().startsWith(prefix))?.[1] ?? '📎 Archivo'
+  if (!body || ['📷', '🎤', '🎥', '📎'].some((icon) => body.startsWith(icon))) return body || label
+  return `${label}: ${body}`
+}
 
 export function effectiveWindow(memoryWindow: number) {
   return Math.max(MIN_MEMORY_WINDOW, memoryWindow || 20)
@@ -166,11 +180,12 @@ export function needsSummary(total: number, window: number, summarizedCount: num
 export function toTurns(messages: StoredMessage[]): Array<{ role: 'user' | 'assistant'; content: string }> {
   const out: Array<{ role: 'user' | 'assistant'; content: string }> = []
   for (const m of messages) {
-    if (m.isInternal || !m.body?.trim()) continue
+    const text = messageText(m)
+    if (m.isInternal || !text) continue
     const role = m.direction === 'INBOUND' ? 'user' : 'assistant'
     const last = out[out.length - 1]
-    if (last && last.role === role) last.content += `\n${m.body.trim()}`
-    else out.push({ role, content: m.body.trim() })
+    if (last && last.role === role) last.content += `\n${text}`
+    else out.push({ role, content: text })
   }
   while (out.length && out[0].role === 'assistant') out.shift()
   return out

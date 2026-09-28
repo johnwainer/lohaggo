@@ -14,7 +14,7 @@ import type { BookingStatus, City, DocumentType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import type { CatalogEntry, ToolContext } from '@/lib/ai/tools'
 import { askConfirmationText, awaitingApprovalText, confirmationGate, cop, dryRunText, isClearYes, LIMIT_REACHED_TEXT, MISMATCH_CONFIRMATION_TEXT, sameActionCore, sameActionInput, shortId, STALE_CONFIRMATION_TEXT } from '@/lib/ai/actions-core'
-import { expireStaleProposals, latestProposed, leaveTrail, overDailyLimit, recordAction, settleAction } from '@/lib/ai/actions'
+import { expireStaleProposals, leaveTrail, overDailyLimit, proposedInWindow, recordAction, settleAction } from '@/lib/ai/actions'
 import { chatOrigin, OpsError, type Actor, type Origin } from '@/lib/ops/origin'
 import { fmtDate } from '@/lib/ai/platform-data'
 import { addRequestPhotos, cancelServiceRequest, createServiceRequest, isRequestExpired, listClientRequests, listOpenRequestsForPartner, partnerAvailabilitySummary, partnersForService, reactivateServiceRequest, requestSummaryForChat } from '@/lib/service-requests/ops'
@@ -276,9 +276,9 @@ export const PLATFORM_TOOLS: Record<PlatformToolName, CatalogEntry> = {
   agregar_fotos: {
     label: 'Agregar fotos a una solicitud o reserva',
     description: 'Guarda en la solicitud (y en el chat de la reserva, si ya hay socio) las fotos que el cliente mandó por este chat, para que el socio las vea.',
-    guidance: `Úsala cuando el cliente mande fotos de lo que necesita después de crear la solicitud, o pida que se las pases al socio. Solo cuenta las fotos nuevas de este chat (mensajes «📷 Imagen»); si no hay, pídele que las envíe primero. Para crear una solicitud nueva con fotos usa crear_solicitud con incluir_fotos. ${CONFIRM_RULE} ${NEEDS_LINK}`,
+    guidance: `Úsala cuando el cliente mande fotos de lo que necesita después de crear la solicitud, o pida que se las pases al socio. Solo cuenta las fotos nuevas de este chat (mensajes «📷 Imagen», con o sin texto); si no hay, pídele que las envíe primero. Si mandó la misma foto varias veces o solo quiere algunas, usa cantidad con cuántas de las últimas agregar. Para crear una solicitud nueva con fotos usa crear_solicitud con incluir_fotos. ${CONFIRM_RULE} ${NEEDS_LINK}`,
     writes: true, group: 'booking_chat', platform: true, confirm: true,
-    schema: () => ({ type: 'object', properties: { ref: str('Referencia de la solicitud, la propuesta o la reserva (de ver_propuestas o ver_mis_reservas)'), confirmado }, required: ['ref', 'confirmado'], additionalProperties: false }),
+    schema: () => ({ type: 'object', properties: { ref: str('Referencia de la solicitud, la propuesta o la reserva (de ver_propuestas o ver_mis_reservas)'), cantidad: { type: 'integer', minimum: 0, maximum: 10, description: 'Cuántas de las últimas fotos agregar (0 = todas las nuevas)' }, confirmado }, required: ['ref', 'cantidad', 'confirmado'], additionalProperties: false }),
   },
   enviar_mensaje_reserva: {
     label: 'Enviar mensaje al chat de la reserva',
@@ -717,7 +717,9 @@ const PLANNERS: Partial<Record<PlatformToolName, Planner>> = {
     })
     const sr = requests.find((r) => r.id.endsWith(ref) || r.proposals.some((p) => p.id.endsWith(ref) || p.bookings.some((b) => b.id.endsWith(ref))))
     if (!sr) return { error: 'Esa referencia no corresponde a ninguna solicitud ni reserva de esta persona.' }
-    const photos = ctx.conversationId && ctx.mode !== 'playground' ? await newChatPhotos(ctx.conversationId) : []
+    const all = ctx.conversationId && ctx.mode !== 'playground' ? await newChatPhotos(ctx.conversationId) : []
+    const cantidad = Math.max(0, Math.floor(n(input, 'cantidad')))
+    const photos = cantidad ? all.slice(-cantidad) : all
     if (!photos.length && ctx.mode !== 'playground') return { error: 'No hay fotos nuevas en este chat. Pídele que las envíe aquí primero y vuelve a intentarlo.' }
     const accepted = sr.proposals.find((p) => p.status === 'ACCEPTED')
     return {
@@ -914,14 +916,19 @@ export async function runPlatformTool(name: PlatformToolName, rawInput: Record<s
   // Tool calls are not in the chat history, so after the person's yes models tend to propose again
   // (confirmado: false) and ask forever. A plain yes to a proposal from an earlier turn confirms exactly
   // what the person was shown.
-  let proposed: Awaited<ReturnType<typeof latestProposed>> = null
+  // Several proposals of the same tool can wait at once (a message to each of three partners): the one
+  // this call is about is the one with the same content, not merely the latest.
+  let proposed: Awaited<ReturnType<typeof proposedInWindow>>[number] | null = null
+  let open: Awaited<ReturnType<typeof proposedInWindow>> = []
   let acceptedByYes = false
   if (entry.confirm && ctx.mode === 'autopilot' && ctx.conversationId) {
     await expireStaleProposals(ctx.conversationId)
-    proposed = await latestProposed(ctx.conversationId, name)
-    if (proposed && ctx.personText && isClearYes(ctx.personText) && proposed.createdAt < (ctx.turnStartedAt ?? new Date()) && sameActionCore(proposed.input, rawInput)) {
+    open = await proposedInWindow(ctx.conversationId, name)
+    const match = open.find((p) => sameActionCore(p.input, rawInput)) ?? null
+    proposed = match ?? (open.length === 1 ? open[0] : null)
+    if (match && ctx.personText && isClearYes(ctx.personText) && match.createdAt < (ctx.turnStartedAt ?? new Date())) {
       acceptedByYes = true
-      input = { ...(proposed.input as Record<string, unknown>), confirmado: true }
+      input = { ...(match.input as Record<string, unknown>), confirmado: true }
     }
   }
 
@@ -952,7 +959,8 @@ export async function runPlatformTool(name: PlatformToolName, rawInput: Record<s
     return MISMATCH_CONFIRMATION_TEXT
   }
   if (gate === 'ask') {
-    if (proposed) await settleAction(proposed.id, { status: 'expired' })
+    // Proposing the same thing again replaces it; other open proposals keep waiting for their yes
+    if (proposed && sameActionCore(proposed.input, input)) await settleAction(proposed.id, { status: 'expired' })
     await recordAction({ ...base, summary: plan.summary, status: 'proposed' })
     return askConfirmationText(plan.summary)
   }

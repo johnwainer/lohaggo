@@ -59,6 +59,15 @@ export async function latestProposed(conversationId: string, tool: string, now =
   })
 }
 
+/** Every still-valid proposal of this tool in the conversation, newest first. */
+export async function proposedInWindow(conversationId: string, tool: string, now = new Date()) {
+  return prisma.aiAgentAction.findMany({
+    where: { conversationId, tool, status: 'proposed', createdAt: { gte: new Date(now.getTime() - CONFIRM_WINDOW_MS) } },
+    orderBy: { createdAt: 'desc' },
+    take: 20,
+  })
+}
+
 /** Older proposals nobody confirmed are closed as expired, so the inbox card does not show them forever. */
 export async function expireStaleProposals(conversationId: string, now = new Date()) {
   await prisma.aiAgentAction.updateMany({

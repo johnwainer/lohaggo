@@ -13,6 +13,7 @@ const actions = vi.hoisted(() => ({
   recordAction: vi.fn(async (p: unknown) => ({ id: 'a1', ...(p as object) })),
   settleAction: vi.fn(async () => ({})),
   latestProposed: vi.fn(async () => null as null | { id: string; createdAt: Date }),
+  proposedInWindow: vi.fn(async (..._a: unknown[]) => [] as Array<{ id: string; createdAt: Date; input: unknown }>),
   expireStaleProposals: vi.fn(async () => undefined),
   overDailyLimit: vi.fn(async () => false),
   leaveTrail: vi.fn(async () => undefined),
@@ -76,6 +77,10 @@ beforeEach(() => {
   vi.clearAllMocks()
   db.user.findUnique.mockResolvedValue({ id: 'u1', role: 'CLIENT', email: 'ana@x.com', isActive: true, partnerProfile: null })
   actions.latestProposed.mockResolvedValue(null)
+  actions.proposedInWindow.mockImplementation(async (...a: unknown[]) => {
+    const p = await (actions.latestProposed as unknown as (...x: unknown[]) => Promise<unknown>)(...a)
+    return (p ? [p] : []) as never
+  })
   actions.overDailyLimit.mockResolvedValue(false)
 })
 
@@ -281,5 +286,20 @@ describe('runPlatformTool · enlace de acceso', () => {
     const out = await runPlatformTool('enviar_enlace_acceso', { dato: 'otra@persona.com' }, ctx())
     expect(login.sendLoginLinkFromChat).toHaveBeenCalledWith(expect.objectContaining({ userId: 'u1' }))
     expect(out).toMatch(/Enlace enviado al correo a•••@x.com/)
+  })
+})
+
+describe('runPlatformTool · varias propuestas abiertas a la vez', () => {
+  it('con «Si» cada mensaje confirma su propia propuesta (el caso de los tres socios)', async () => {
+    const msg = 'Por favor, miren en mi solicitud las fotos'
+    const props = ['93seye', '9u3xt5', 'opvh6i'].map((ref, i) => ({ id: `p-${ref}`, createdAt: new Date(Date.now() - 60_000 - i), input: { ref, mensaje: msg, incluir_fotos: false, confirmado: false } }))
+    actions.proposedInWindow.mockResolvedValue(props as never)
+    const turn = ctx({ personText: 'Si', turnStartedAt: new Date() })
+    for (const ref of ['93seye', '9u3xt5', 'opvh6i']) {
+      await runPlatformTool('enviar_mensaje_reserva', { ref, mensaje: msg, incluir_fotos: false, confirmado: false }, turn)
+    }
+    expect(chatOps.sendChatMessage).toHaveBeenCalledTimes(3)
+    for (const ref of ['93seye', '9u3xt5', 'opvh6i']) expect(actions.settleAction).toHaveBeenCalledWith(`p-${ref}`, expect.objectContaining({ status: 'executed' }))
+    expect(actions.recordAction).not.toHaveBeenCalledWith(expect.objectContaining({ status: 'proposed' }))
   })
 })
