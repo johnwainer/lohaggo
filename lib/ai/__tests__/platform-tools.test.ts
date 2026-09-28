@@ -121,10 +121,15 @@ describe('runPlatformTool · autopilot confirmation flow', () => {
   it('over the daily limit: nothing runs and the conversation is handed off', async () => {
     actions.overDailyLimit.mockResolvedValue(true)
     const c = ctx()
-    const out = await runPlatformTool('cancelar_reserva', { reserva_ref: '000abc', motivo: 'x', confirmado: false }, c)
+    const out = await runPlatformTool('cancelar_reserva', { reserva_ref: '000abc', motivo: 'Me surgió un viaje', confirmado: false }, c)
     expect(out).toMatch(/máximo de veces/)
     expect(c.state.handoff).not.toBeNull()
     expect(ops.transitionBooking).not.toHaveBeenCalled()
+  })
+  it('sin motivo suficiente pide el motivo antes de proponer (no falla después del sí)', async () => {
+    const out = await runPlatformTool('cancelar_reserva', { reserva_ref: '000abc', motivo: 'ya', confirmado: false }, ctx())
+    expect(out).toMatch(/Falta el motivo/)
+    expect(actions.recordAction).not.toHaveBeenCalled()
   })
 })
 

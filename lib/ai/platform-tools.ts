@@ -523,8 +523,10 @@ const PLANNERS: Partial<Record<PlatformToolName, Planner>> = {
     const b = await bookingByRef(actor, s(input, 'reserva_ref'))
     if (!b) return { error: 'Esa referencia no corresponde a ninguna reserva de esta persona. Consulta ver_mis_reservas.' }
     if (b.status === 'COMPLETED' || b.status === 'CANCELLED') return { error: `La reserva ya está ${b.status === 'COMPLETED' ? 'completada' : 'cancelada'}; no se puede cancelar.` }
+    // The motive is required (the partner reads it): ask for it before the yes, not after
+    if (s(input, 'motivo').length < 5) return { error: 'Falta el motivo de la cancelación: pregúntale por qué cancela (en una frase) y vuelve a proponer.' }
     return {
-      summary: `Cancelar la reserva de ${b.service?.name ?? 'servicio'} (ref ${shortId(b.id)}) por «${s(input, 'motivo') || 'sin motivo'}», aplicando la política de cancelación`,
+      summary: `Cancelar la reserva de ${b.service?.name ?? 'servicio'} (ref ${shortId(b.id)}) por «${s(input, 'motivo')}», aplicando la política de cancelación`,
       wouldRecord: 'la reserva cancelada, su historial y, si había pago aprobado, el caso de reembolso',
       run: async () => {
         await transitionBooking(actor, b.id, 'CANCELLED', originFor(ctx), { reason: s(input, 'motivo') || undefined })
