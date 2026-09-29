@@ -16,6 +16,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!admin.isSuperAdmin) return NextResponse.json({ error: 'Solo un superadmin puede cambiar esto' }, { status: 403 })
 
   const body = await request.json()
   if (!body?.key || !body?.name) {
@@ -44,6 +45,7 @@ export async function POST(request: NextRequest) {
     entityType: 'FeatureFlag',
     entityId: flag.id,
     details: flag.key,
+    route: '/api/admin/feature-flags',
     request,
   })
 
@@ -53,6 +55,7 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!admin.isSuperAdmin) return NextResponse.json({ error: 'Solo un superadmin puede cambiar esto' }, { status: 403 })
 
   const body = await request.json()
   if (!body?.id) return NextResponse.json({ error: 'id requerido' }, { status: 400 })
@@ -81,6 +84,7 @@ export async function PATCH(request: NextRequest) {
     entityType: 'FeatureFlag',
     entityId: flag.id,
     details: `${flag.key} -> ${flag.enabled ? 'ON' : 'OFF'}`,
+    route: '/api/admin/feature-flags',
     request,
   })
 

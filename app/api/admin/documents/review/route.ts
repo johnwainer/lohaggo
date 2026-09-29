@@ -6,6 +6,19 @@ import { createLogger } from '@/lib/logger'
 import { createNotification } from '@/lib/notifications/notificationService'
 import { scheduleAutomationsForUser } from '@/lib/messaging/automation-service'
 import { waDocumentReviewed } from '@/lib/messaging/wa-events'
+import { z } from 'zod'
+import { auditAdminAction } from '@/lib/admin-utils'
+
+const reviewSchema = z
+  .object({
+    documentId: z.string().min(1, 'Documento requerido'),
+    status: z.enum(['APPROVED', 'REJECTED'], { errorMap: () => ({ message: 'Estado inválido: usa APPROVED o REJECTED' }) }),
+    rejectionReason: z.string().trim().max(1000, 'La razón es demasiado larga').optional().nullable(),
+  })
+  .refine((d) => d.status !== 'REJECTED' || Boolean(d.rejectionReason && d.rejectionReason.length >= 3), {
+    message: 'Escribe la razón del rechazo',
+    path: ['rejectionReason'],
+  })
 
 async function checkAndUnlockAchievements(partnerId: string) {
   const documents = await prisma.verificationDocument.findMany({
@@ -64,7 +77,7 @@ async function checkAndUnlockAchievements(partnerId: string) {
 
         const partner = await prisma.partnerProfile.findUnique({
           where: { id: partnerId },
-          include: { user: true }
+          select: { userId: true },
         })
 
         if (partner) {
@@ -91,18 +104,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
-    const body = await req.json()
-    const { documentId, status, rejectionReason } = body
-
-    if (!documentId || !status) {
-      return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 })
+    const parsed = reviewSchema.safeParse(await req.json().catch(() => null))
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Datos incompletos' }, { status: 400 })
     }
+    const { documentId, status } = parsed.data
+    const rejectionReason = status === 'REJECTED' ? parsed.data.rejectionReason ?? '' : undefined
 
     const document = await prisma.verificationDocument.findUnique({
       where: { id: documentId },
       include: {
         partner: {
-          include: { user: true }
+          select: { id: true, userId: true, user: { select: { id: true, name: true, email: true, phone: true } } },
         }
       }
     })
@@ -114,7 +127,7 @@ export async function POST(req: NextRequest) {
     const updatedDocument = await prisma.verificationDocument.update({
       where: { id: documentId },
       data: {
-        status: status as any,
+        status,
         rejectionReason: status === 'REJECTED' ? rejectionReason : null,
         reviewedBy: session.user.id,
         reviewedAt: new Date()
@@ -163,6 +176,22 @@ export async function POST(req: NextRequest) {
         ? 'Tu documento ha sido aprobado exitosamente'
         : `Tu documento ha sido rechazado. Razón: ${rejectionReason}`,
       data: { documentId }
+    })
+
+    await auditAdminAction({
+      actorId: session.user.id,
+      actorEmail: session.user.email,
+      action: status === 'APPROVED' ? 'DOCUMENT_APPROVED' : 'DOCUMENT_REJECTED',
+      entityType: 'VerificationDocument',
+      entityId: documentId,
+      route: '/api/admin/documents/review',
+      details: JSON.stringify({
+        partnerId: document.partnerId,
+        type: document.type,
+        previousStatus: document.status,
+        ...(status === 'REJECTED' ? { reason: rejectionReason } : {}),
+      }),
+      request: req,
     })
 
     return NextResponse.json(updatedDocument)

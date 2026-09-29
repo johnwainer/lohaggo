@@ -117,6 +117,7 @@ const FEED_ICON: Record<string, { icon: typeof Users; cls: string }> = {
 export default function CommandCenter() {
   const [data, setData] = useState<Overview | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [sessionExpired, setSessionExpired] = useState(false)
   const [loading, setLoading] = useState(false)
   const [tv, setTv] = useState(false)
   // Phone: the alerts fold into one line until tapped
@@ -129,6 +130,12 @@ export default function CommandCenter() {
     setLoading(true)
     try {
       const res = await fetch('/api/admin/overview', { cache: 'no-store' })
+      if (res.status === 401) {
+        setSessionExpired(true)
+        setError('Tu sesión venció')
+        return
+      }
+      setSessionExpired(false)
       const d = await res.json()
       if (!res.ok) throw new Error(d.error || `Error ${res.status}`)
       setData(d)
@@ -169,34 +176,69 @@ export default function CommandCenter() {
   /** Pixel sizes (icons, chart text) follow the TV scale. */
   const px = (n: number) => (tv ? Math.max(1, Math.round(n * scale * 1.25)) : n)
 
-  // Leaving full screen (Esc on the TV remote/keyboard) leaves TV mode too
-  useEffect(() => {
-    const onChange = () => { if (!document.fullscreenElement) setTv(false) }
-    document.addEventListener('fullscreenchange', onChange)
-    return () => document.removeEventListener('fullscreenchange', onChange)
+  const acquireWakeLock = useCallback(async () => {
+    try {
+      const nav = navigator as Navigator & { wakeLock?: { request: (t: 'screen') => Promise<{ release: () => Promise<void> }> } }
+      await wakeLock.current?.release().catch(() => null)
+      wakeLock.current = (await nav.wakeLock?.request('screen')) ?? null
+    } catch { /* not supported: the TV's own settings decide */ }
   }, [])
+  const releaseWakeLock = useCallback(async () => {
+    const lock = wakeLock.current
+    wakeLock.current = null
+    await lock?.release().catch(() => null)
+  }, [])
+
+  // Leaving full screen (Esc on the TV remote/keyboard) leaves TV mode too and lets the screen sleep
+  useEffect(() => {
+    const onChange = () => {
+      if (!document.fullscreenElement) {
+        setTv(false)
+        releaseWakeLock()
+      }
+    }
+    document.addEventListener('fullscreenchange', onChange)
+    return () => { document.removeEventListener('fullscreenchange', onChange); releaseWakeLock() }
+  }, [releaseWakeLock])
+
+  // The browser drops the wake lock when the tab is hidden: take it again when it comes back
+  useEffect(() => {
+    if (!tv) return
+    const onVisible = () => { if (document.visibilityState === 'visible') acquireWakeLock() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [tv, acquireWakeLock])
 
   async function toggleTv() {
     if (!tv) {
       setTv(true)
       await document.documentElement.requestFullscreen?.().catch(() => null)
-      try {
-        const nav = navigator as Navigator & { wakeLock?: { request: (t: 'screen') => Promise<{ release: () => Promise<void> }> } }
-        wakeLock.current = (await nav.wakeLock?.request('screen')) ?? null
-      } catch { /* not supported: the TV's own settings decide */ }
+      await acquireWakeLock()
     } else {
       setTv(false)
       if (document.fullscreenElement) await document.exitFullscreen().catch(() => null)
-      await wakeLock.current?.release().catch(() => null)
-      wakeLock.current = null
+      await releaseWakeLock()
     }
   }
+
+  const expiredBanner = sessionExpired ? (
+    <div role="alert" className="flex flex-wrap items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+      <AlertTriangle size={16} className="shrink-0" />
+      <span className="font-semibold">Tu sesión venció.</span>
+      <span>Vuelve a iniciar sesión para seguir viendo el centro de control.</span>
+      <a href="/login?redirect=%2Fadmin" className="ml-auto rounded-full bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-700">Iniciar sesión</a>
+    </div>
+  ) : null
 
   const t = tv ? THEMES.tv : THEMES.light
   const clock = new Intl.DateTimeFormat('es-CO', { timeZone: TZ, hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }).format(now)
   const today = new Intl.DateTimeFormat('es-CO', { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long' }).format(now)
   const age = data ? Math.round((now - new Date(data.generatedAt).getTime()) / 1000) : null
   const stale = age !== null && age > 120
+
+  if (!data && sessionExpired) {
+    return <div className="py-12">{expiredBanner}</div>
+  }
 
   if (!data) {
     return (
@@ -481,6 +523,7 @@ export default function CommandCenter() {
     return (
       <div ref={rootRef} className="fixed inset-0 z-[80] flex items-center justify-center overflow-hidden bg-slate-950">
         <div className="flex flex-col gap-4 p-6" style={{ width: '120rem', height: '67.5rem' }}>
+          {expiredBanner}
           {header}
           {alerts}
           {haggo}
@@ -500,6 +543,7 @@ export default function CommandCenter() {
 
   return (
     <div ref={rootRef} className="space-y-5">
+      {expiredBanner}
       {header}
       {alerts}
       {haggo}

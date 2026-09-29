@@ -4,14 +4,15 @@ import Link from 'next/link'
 import { ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, LogOut, Menu, X } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
-import { useEffect, useState } from 'react'
-import { ADMIN_MENU, itemHref, type MenuItem } from '@/components/admin/admin-menu'
+import { useEffect, useMemo, useState } from 'react'
+import { menuFor, itemHref, type MenuItem } from '@/components/admin/admin-menu'
 
 function useInboxUnread() {
   const [count, setCount] = useState(0)
   useEffect(() => {
     let active = true
     async function fetch_() {
+      if (typeof document !== 'undefined' && document.hidden) return
       try {
         const res = await fetch('/api/admin/inbox/unread-count')
         if (res.ok && active) {
@@ -22,13 +23,16 @@ function useInboxUnread() {
     }
     fetch_()
     const id = setInterval(fetch_, 30000)
-    return () => { active = false; clearInterval(id) }
+    const onVisible = () => { if (!document.hidden) fetch_() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => { active = false; clearInterval(id); document.removeEventListener('visibilitychange', onVisible) }
   }, [])
   return count
 }
 
 interface SidebarProps {
   activeSection: string
+  isSuperAdmin?: boolean
   /** Desktop only: icons-only rail */
   collapsed: boolean
   onToggleCollapsed: () => void
@@ -41,7 +45,8 @@ const getGroupKey = (label: string) =>
     .replace(/[̀-ͯ]/g, '')
     .replace(/\s+/g, '-')
 
-export default function Sidebar({ activeSection, collapsed, onToggleCollapsed }: SidebarProps) {
+export default function Sidebar({ activeSection, isSuperAdmin = false, collapsed, onToggleCollapsed }: SidebarProps) {
+  const ADMIN_MENU = useMemo(() => menuFor(isSuperAdmin), [isSuperAdmin])
   const [isOpen, setIsOpen] = useState(false)
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null)
   const pathname = usePathname()
@@ -50,7 +55,7 @@ export default function Sidebar({ activeSection, collapsed, onToggleCollapsed }:
   useEffect(() => {
     const activeGroup = ADMIN_MENU.find((group) => group.items.some((item) => item.id === activeSection))
     setExpandedGroup(activeGroup ? getGroupKey(activeGroup.label) : null)
-  }, [activeSection])
+  }, [activeSection, ADMIN_MENU])
 
   // Leaving a page closes the mobile drawer
   useEffect(() => { setIsOpen(false) }, [pathname])

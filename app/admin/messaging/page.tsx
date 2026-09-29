@@ -421,13 +421,24 @@ export default function MessagingPage() {
                       <button
                         onClick={async () => {
                           setSaving(true)
-                          await fetch('/api/admin/messaging/providers', {
-                            method: 'PATCH',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ provider: 'TWILIO', whatsappFrom: s.number }),
-                          })
-                          await fetchStatus()
-                          setSaving(false)
+                          setMsg(null)
+                          try {
+                            const res = await fetch('/api/admin/messaging/providers', {
+                              method: 'PATCH',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ provider: 'TWILIO', whatsappFrom: s.number }),
+                            })
+                            if (!res.ok) {
+                              const err = await res.json().catch(() => null)
+                              setMsg({ type: 'error', text: err?.error || (res.status === 403 ? 'Solo un superadmin puede cambiar esto' : 'Error al guardar') })
+                            } else {
+                              await fetchStatus()
+                            }
+                          } catch {
+                            setMsg({ type: 'error', text: 'Error al guardar: sin conexión' })
+                          } finally {
+                            setSaving(false)
+                          }
                         }}
                         disabled={saving}
                         className="text-xs font-semibold text-primary-600 hover:text-primary-700 px-3 py-1 rounded-lg hover:bg-primary-50 transition-colors disabled:opacity-50"

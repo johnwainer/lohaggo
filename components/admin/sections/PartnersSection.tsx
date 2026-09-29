@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Shield, ShieldCheck, Star, MapPin, Calendar, Package,
   CheckCircle, Users, TrendingUp, Activity, AlertCircle,
-  ChevronDown, ChevronUp, BellOff,
+  ChevronDown, ChevronUp, BellOff, RefreshCw, Search,
 } from 'lucide-react'
 import DataTable from '@/components/admin/DataTable'
 
@@ -125,26 +125,83 @@ function FilterPill({ label, active, onClick }: { label: string; active: boolean
 
 type FilterKey = 'all' | 'verified' | 'unverified' | 'active' | 'no_services' | 'new7d'
 
+type PartnerStats = {
+  total: number
+  verified: number
+  withServices: number
+  active: number
+  new7d: number
+  withProposals: number
+  avgRating: string
+  cityBreakdown: [string, number][]
+  serviceBreakdown: [string, number][]
+}
+
+const EMPTY_STATS: PartnerStats = {
+  total: 0, verified: 0, withServices: 0, active: 0, new7d: 0, withProposals: 0,
+  avgRating: '0.0', cityBreakdown: [], serviceBreakdown: [],
+}
+
 export default function PartnersSection() {
   const [partners, setPartners] = useState<Partner[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(false)
+  const [listTotal, setListTotal] = useState(0)
+  const [stats, setStats] = useState<PartnerStats>(EMPTY_STATS)
   const [filter, setFilter] = useState<FilterKey>('all')
+  const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch] = useState('')
   const [showAllCities, setShowAllCities] = useState(false)
   const [showAllServices, setShowAllServices] = useState(false)
+  const requestSeq = useRef(0)
 
-  useEffect(() => { fetchPartners() }, [])
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput.trim()), 350)
+    return () => clearTimeout(t)
+  }, [searchInput])
 
-  const fetchPartners = async () => {
+  const statsLoaded = useRef(false)
+
+  useEffect(() => { fetchPartners(1, !statsLoaded.current) }, [filter, search])
+
+  const fetchPartners = async (nextPage = 1, withStats = false) => {
+    const seq = ++requestSeq.current
+    if (nextPage === 1) setLoading(true)
+    else setLoadingMore(true)
+    setError(null)
     try {
-      const res = await fetch('/api/admin/partners')
-      const data = await res.json()
-      setPartners(data)
-    } catch (error) {
-      console.error('Error fetching partners:', error)
+      const params = new URLSearchParams({ page: String(nextPage), take: '50', filter })
+      if (search) params.set('q', search)
+      if (withStats) params.set('stats', '1')
+      const res = await fetch(`/api/admin/partners?${params.toString()}`, { cache: 'no-store' })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(data?.error || 'No se pudieron cargar los socios')
+      if (seq !== requestSeq.current) return
+      const items: Partner[] = Array.isArray(data?.items) ? data.items : []
+      setPartners(prev => (nextPage === 1 ? items : [...prev, ...items]))
+      setPage(nextPage)
+      setHasMore(Boolean(data?.hasMore))
+      setListTotal(Number(data?.total) || 0)
+      if (data?.stats) {
+        setStats(data.stats)
+        statsLoaded.current = true
+      }
+    } catch (err) {
+      if (seq !== requestSeq.current) return
+      if (nextPage === 1) setPartners([])
+      setError(err instanceof Error ? err.message : 'No se pudieron cargar los socios')
     } finally {
-      setLoading(false)
+      if (seq === requestSeq.current) {
+        setLoading(false)
+        setLoadingMore(false)
+      }
     }
   }
+
+  const reloadCurrent = () => fetchPartners(1, true)
 
   const handleVerifyPartner = async (partnerId: string, verified: boolean) => {
     try {
@@ -153,7 +210,7 @@ export default function PartnersSection() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ partnerId, verified }),
       })
-      if (res.ok) fetchPartners()
+      if (res.ok) reloadCurrent()
       else alert('Error al actualizar verificación')
     } catch {
       alert('Error al actualizar verificación')
@@ -181,51 +238,9 @@ export default function PartnersSection() {
     }
   }
 
-  // ── Stats derivadas ────────────────────────────────────────────────────────
-  const stats = useMemo(() => {
-    const total = partners.length
-    const verified = partners.filter(p => p.verified).length
-    const withServices = partners.filter(p => p.services.length > 0).length
-    const active = partners.filter(p => p._count.bookings > 0).length
-    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
-    const new7d = partners.filter(p => new Date(p.user.createdAt).getTime() > sevenDaysAgo).length
-    const avgRating = total > 0
-      ? (partners.reduce((s, p) => s + p.rating, 0) / total).toFixed(1)
-      : '0.0'
-    const withBookings = active
-    const withProposals = partners.filter(p => p._count.proposals > 0).length
-
-    return { total, verified, withServices, active, new7d, avgRating, withBookings, withProposals }
-  }, [partners])
-
-  // ── Por ciudad ────────────────────────────────────────────────────────────
-  const cityBreakdown = useMemo(() => {
-    const map = new Map<string, number>()
-    partners.forEach(p => map.set(p.city, (map.get(p.city) ?? 0) + 1))
-    return Array.from(map.entries()).sort((a, b) => b[1] - a[1])
-  }, [partners])
-
-  // ── Por servicio ──────────────────────────────────────────────────────────
-  const serviceBreakdown = useMemo(() => {
-    const map = new Map<string, number>()
-    partners.forEach(p =>
-      p.services.forEach(s => map.set(s.service.name, (map.get(s.service.name) ?? 0) + 1))
-    )
-    return Array.from(map.entries()).sort((a, b) => b[1] - a[1])
-  }, [partners])
-
-  // ── Filtrado de tabla ─────────────────────────────────────────────────────
-  const filteredPartners = useMemo(() => {
-    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
-    switch (filter) {
-      case 'verified': return partners.filter(p => p.verified)
-      case 'unverified': return partners.filter(p => !p.verified)
-      case 'active': return partners.filter(p => p._count.bookings > 0)
-      case 'no_services': return partners.filter(p => p.services.length === 0)
-      case 'new7d': return partners.filter(p => new Date(p.user.createdAt).getTime() > sevenDaysAgo)
-      default: return partners
-    }
-  }, [partners, filter])
+  const cityBreakdown = stats.cityBreakdown
+  const serviceBreakdown = stats.serviceBreakdown
+  const filteredPartners = partners
 
   // ── Columnas tabla ────────────────────────────────────────────────────────
   const columns = [
@@ -363,7 +378,7 @@ export default function PartnersSection() {
     },
   ]
 
-  if (loading) {
+  if (loading && partners.length === 0 && !error) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-500" />
@@ -381,6 +396,18 @@ export default function PartnersSection() {
         <h1 className="text-2xl font-black text-gray-900">Socios</h1>
         <p className="text-sm text-gray-500 mt-0.5">Estadísticas y gestión de la red de profesionales</p>
       </div>
+
+      {error && (
+        <div className="flex flex-col gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 sm:flex-row sm:items-center sm:justify-between">
+          <span className="flex items-center gap-2"><AlertCircle size={16} className="shrink-0" />{error}</span>
+          <button
+            onClick={reloadCurrent}
+            className="inline-flex items-center justify-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-red-700 border border-red-200 hover:bg-red-100"
+          >
+            <RefreshCw size={13} /> Reintentar
+          </button>
+        </div>
+      )}
 
       {/* ── KPIs principales ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
@@ -465,7 +492,7 @@ export default function PartnersSection() {
           <h3 className="text-sm font-black text-gray-800 uppercase tracking-wide">
             Lista de socios
             <span className="ml-2 text-xs font-normal text-gray-400 normal-case">
-              {filteredPartners.length} de {stats.total}
+              {filteredPartners.length} de {listTotal}
             </span>
           </h3>
           <div className="flex flex-wrap gap-2">
@@ -482,13 +509,36 @@ export default function PartnersSection() {
           </div>
         </div>
 
+        <div className="relative mb-4">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="search"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Buscar por nombre, correo o teléfono"
+            className="w-full rounded-xl border border-gray-200 py-2 pl-9 pr-3 text-sm focus:border-primary-400 focus:outline-none"
+          />
+        </div>
+
         <DataTable
           columns={columns}
           data={filteredPartners}
-          searchable
+          searchable={false}
           exportable
           itemsPerPage={15}
         />
+
+        {hasMore && (
+          <div className="mt-4 flex justify-center">
+            <button
+              onClick={() => fetchPartners(page + 1)}
+              disabled={loadingMore}
+              className="w-full rounded-full border border-gray-200 bg-white px-5 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 sm:w-auto"
+            >
+              {loadingMore ? 'Cargando…' : `Cargar más (${partners.length} de ${listTotal})`}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

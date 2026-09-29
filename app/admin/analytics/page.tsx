@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useCallback, useEffect, useState } from 'react'
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { AlertTriangle, BarChart3, Filter, Globe, Headphones, Loader2, Search, Smartphone, Target, TrendingUp, Users, Wallet } from 'lucide-react'
 import { BusinessTab, FunnelTab, PeopleTab, SearchTab, ServiceTab, SupplyTab, TrafficTab } from '@/components/admin/analytics/tabs'
@@ -21,6 +21,7 @@ const TABS = [
 ] as const
 type Tab = (typeof TABS)[number]['key']
 const PRESETS = [['7d', '7 días'], ['30d', '30 días'], ['90d', '90 días'], ['12m', '12 meses']] as const
+const isDate = (s?: string) => Boolean(s && /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(new Date(`${s}T00:00:00Z`).getTime()))
 
 function Ga4Connect({ onSaved }: { onSaved: () => void }) {
   const [info, setInfo] = useState<{ propertyId: string | null; serviceAccountEmail: string | null; canEdit: boolean } | null>(null)
@@ -88,31 +89,48 @@ function AnalyticsInner() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const meta = TABS.find((t) => t.key === tab)!
+  // A custom range counts only once both dates are valid and in order; until then nothing is reloaded
+  const rangeFrom = custom && isDate(custom.from) && isDate(custom.to) && custom.from <= custom.to ? custom.from : null
+  const rangeTo = rangeFrom ? custom!.to : null
+  const rangeReversed = Boolean(custom && isDate(custom.from) && isDate(custom.to) && custom.from > custom.to)
+  const pending = Boolean(custom) && !rangeFrom
+  // Only the latest request may write the result: a slow earlier one is aborted and ignored
+  const seq = useRef(0)
+  const inflight = useRef<AbortController | null>(null)
+  useEffect(() => () => inflight.current?.abort(), [])
 
   useEffect(() => { fetch('/api/admin/analytics?tab=options').then((r) => r.json()).then(setOptions).catch(() => null) }, [])
 
   const load = useCallback(async () => {
-    if (tab === 'app') return
+    if (pending) return
+    inflight.current?.abort()
+    const id = ++seq.current
+    if (tab === 'app') { inflight.current = null; setLoading(false); return }
+    const ctrl = new AbortController()
+    inflight.current = ctrl
+    setData(null)
     setLoading(true)
     setError(null)
     const q = new URLSearchParams({ tab })
-    if (custom?.from && custom?.to) { q.set('from', custom.from); q.set('to', custom.to) } else q.set('preset', preset)
+    if (rangeFrom && rangeTo) { q.set('from', rangeFrom); q.set('to', rangeTo) } else q.set('preset', preset)
     if (meta.filters && city) q.set('city', city)
     if (meta.filters && categoryId) q.set('categoryId', categoryId)
     if (tab === 'origins') q.set('model', model)
     try {
-      const res = await fetch(`/api/admin/analytics?${q}`)
+      const res = await fetch(`/api/admin/analytics?${q}`, { signal: ctrl.signal })
       const d = await res.json()
+      if (id !== seq.current) return
       if (!res.ok) throw new Error(d.error || `Error ${res.status}`)
       setData({ ...d, tab })
     } catch (err) {
+      if (id !== seq.current || ctrl.signal.aborted) return
       setError(err instanceof Error ? err.message : 'Error')
       setData(null)
     } finally {
-      setLoading(false)
+      if (id === seq.current) setLoading(false)
     }
-  }, [tab, preset, custom, city, categoryId, meta.filters, model])
-  useEffect(() => { setData(null); load() }, [load])
+  }, [tab, preset, rangeFrom, rangeTo, pending, city, categoryId, meta.filters, model])
+  useEffect(() => { load() }, [load])
 
   // Only the data fetched for this tab: another tab's shape would break the charts while switching
   const d = data?.tab === tab ? data.data : undefined
@@ -135,6 +153,7 @@ function AnalyticsInner() {
               <span className="text-gray-400">–</span>
               <input type="date" className="min-w-0 flex-1 rounded-xl border border-gray-200 px-2 py-1.5 sm:flex-none" value={custom?.to ?? ''} onChange={(e) => setCustom((c) => ({ from: c?.from || e.target.value, to: e.target.value }))} />
             </div>
+            {rangeReversed && <p className="w-full text-xs text-red-600 sm:w-auto">La fecha inicial debe ser anterior o igual a la final.</p>}
           </div>
         )}
       </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import {
   ArrowRight,
@@ -10,6 +10,7 @@ import {
   Clock,
   Loader2,
   MapPin,
+  RefreshCw,
   Send,
   UserCheck,
 } from 'lucide-react'
@@ -114,63 +115,142 @@ const FILTERS: Array<{ value: 'all' | ServiceRequest['status']; label: string }>
   { value: 'CANCELLED', label: 'Canceladas' },
 ]
 
+type Stats = { total: number; active: number; accepted: number; expired: number; cancelled: number; proposals: number }
+type PageResponse = { items: ServiceRequest[]; nextCursor: string | null; hasMore: boolean; stats?: Stats }
+
+const readError = async (res: Response) => {
+  if (res.status === 401 || res.status === 403) return 'Tu sesión venció o no tienes permiso.'
+  const data = await res.json().catch(() => null)
+  return (data && typeof data.error === 'string' && data.error) || `El servidor respondió ${res.status}.`
+}
+
 export default function AdminServiceRequestsPage() {
   const [requests, setRequests] = useState<ServiceRequest[]>([])
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
+  const [hasMore, setHasMore] = useState(false)
+  const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [listLoading, setListLoading] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | ServiceRequest['status']>('all')
   const [originFilter, setOriginFilter] = useState<'all' | 'app' | 'chat'>('all')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [attention, setAttention] = useState<Map<string, AttentionItem>>(new Map())
   const [attentionOnly, setAttentionOnly] = useState(false)
+  const [attentionRequests, setAttentionRequests] = useState<ServiceRequest[] | null>(null)
   const [lightbox, setLightbox] = useState<{ urls: string[]; index: number } | null>(null)
+  const requestSeq = useRef(0)
+
+  const queryFor = useCallback((cursor: string | null) => {
+    const q = new URLSearchParams()
+    if (filter !== 'all') q.set('status', filter)
+    if (originFilter !== 'all') q.set('origin', originFilter)
+    if (cursor) q.set('cursor', cursor)
+    return q.toString()
+  }, [filter, originFilter])
+
+  const loadFirstPage = useCallback(async () => {
+    const seq = ++requestSeq.current
+    setListLoading(true)
+    try {
+      const res = await fetch(`/api/admin/service-requests?${queryFor(null)}`)
+      if (!res.ok) throw new Error(await readError(res))
+      const data: PageResponse = await res.json()
+      if (seq !== requestSeq.current) return
+      setRequests(Array.isArray(data.items) ? data.items : [])
+      setNextCursor(data.nextCursor ?? null)
+      setHasMore(Boolean(data.hasMore))
+      if (data.stats) setStats(data.stats)
+      setError(null)
+    } catch (err) {
+      if (seq === requestSeq.current) setError(err instanceof Error && err.message !== 'Failed to fetch' ? err.message : 'Sin conexión.')
+    } finally {
+      if (seq === requestSeq.current) {
+        setListLoading(false)
+        setLoading(false)
+      }
+    }
+  }, [queryFor])
+
+  const loadMore = async () => {
+    if (!nextCursor || loadingMore) return
+    const seq = requestSeq.current
+    setLoadingMore(true)
+    try {
+      const res = await fetch(`/api/admin/service-requests?${queryFor(nextCursor)}`)
+      if (!res.ok) throw new Error(await readError(res))
+      const data: PageResponse = await res.json()
+      if (seq !== requestSeq.current) return
+      setRequests((prev) => {
+        const have = new Set(prev.map((r) => r.id))
+        return [...prev, ...(data.items ?? []).filter((r) => !have.has(r.id))]
+      })
+      setNextCursor(data.nextCursor ?? null)
+      setHasMore(Boolean(data.hasMore))
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error && err.message !== 'Failed to fetch' ? err.message : 'Sin conexión.')
+    } finally {
+      setLoadingMore(false)
+    }
+  }
+
+  // Status and origin filter on the server: a new filter starts from the first page
+  useEffect(() => { loadFirstPage() }, [loadFirstPage])
 
   useEffect(() => {
     let active = true
-    ;(async () => {
-      setLoading(true)
-      try {
-        const [res, att] = await Promise.all([
-          fetch('/api/admin/service-requests'),
-          fetch('/api/admin/service-requests/attention').then((r) => (r.ok ? r.json() : null)).catch(() => null),
-        ])
-        const data = await res.json()
+    fetch('/api/admin/service-requests/attention')
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null)
+      .then((att) => {
         if (!active) return
-        setRequests(Array.isArray(data) ? data : [])
         const items: AttentionItem[] = Array.isArray(att?.items) ? att.items : []
         setAttention(new Map(items.map((i) => [i.id, i])))
-      } catch {
-        if (active) setRequests([])
-      } finally {
-        if (active) setLoading(false)
-      }
-    })()
+      })
     return () => { active = false }
   }, [])
 
+  const flaggedIds = useMemo(() => Array.from(attention.values()).filter((a) => a.flags.length).map((a) => a.id), [attention])
+  const attentionCount = flaggedIds.length
+
+  // "Necesitan atención" shows every flagged request, not only the ones on the loaded pages
+  useEffect(() => {
+    if (!attentionOnly) return
+    if (!flaggedIds.length) { setAttentionRequests([]); return }
+    let active = true
+    setAttentionRequests(null)
+    ;(async () => {
+      try {
+        const res = await fetch(`/api/admin/service-requests?ids=${encodeURIComponent(flaggedIds.slice(0, 200).join(','))}`)
+        if (!res.ok) throw new Error(await readError(res))
+        const data: PageResponse = await res.json()
+        if (active) setAttentionRequests(Array.isArray(data.items) ? data.items : [])
+      } catch (err) {
+        if (!active) return
+        setAttentionRequests([])
+        setError(err instanceof Error && err.message !== 'Failed to fetch' ? err.message : 'Sin conexión.')
+      }
+    })()
+    return () => { active = false }
+  }, [attentionOnly, flaggedIds])
+
   const filtered = useMemo(() => {
-    const list = requests
-      .filter((r) => filter === 'all' || r.status === filter)
-      .filter((r) => originFilter === 'all' || (originFilter === 'chat' ? r.origin === 'chat' : r.origin !== 'chat'))
-    if (!attentionOnly) return list
+    if (!attentionOnly) return requests
     const rank = (id: string) => {
       const a = attention.get(id)
       return a?.flags.length ? SEVERITY_ORDER[a.flags[0].severity] : 9
     }
-    return list
+    return (attentionRequests ?? [])
+      .filter((r) => filter === 'all' || r.status === filter)
+      .filter((r) => originFilter === 'all' || (originFilter === 'chat' ? r.origin === 'chat' : r.origin !== 'chat'))
       .filter((r) => attention.get(r.id)?.flags.length)
       .sort((a, b) => rank(a.id) - rank(b.id) || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-  }, [filter, originFilter, requests, attentionOnly, attention])
+  }, [filter, originFilter, requests, attentionOnly, attentionRequests, attention])
 
-  const attentionCount = useMemo(() => requests.filter((r) => attention.get(r.id)?.flags.length).length, [requests, attention])
-
-  const stats = useMemo(() => ({
-    total: requests.length,
-    active: requests.filter((r) => r.status === 'ACTIVE').length,
-    accepted: requests.filter((r) => r.status === 'ACCEPTED').length,
-    expired: requests.filter((r) => r.status === 'EXPIRED').length,
-    cancelled: requests.filter((r) => r.status === 'CANCELLED').length,
-    proposals: requests.reduce((sum, r) => sum + (r._count?.proposals ?? 0), 0),
-  }), [requests])
+  const shownStats: Stats = stats ?? { total: 0, active: 0, accepted: 0, expired: 0, cancelled: 0, proposals: 0 }
+  const busy = attentionOnly ? attentionRequests === null : listLoading
 
   const toggleExpand = (id: string) => {
     setExpanded((prev) => {
@@ -200,12 +280,12 @@ export default function AdminServiceRequestsPage() {
       </div>
 
       <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:grid-cols-6">
-        <StatBox label="Total" value={stats.total} />
-        <StatBox label="Activas" value={stats.active} tone="yellow" />
-        <StatBox label="Aceptadas" value={stats.accepted} tone="green" />
-        <StatBox label="Expiradas" value={stats.expired} tone="gray" />
-        <StatBox label="Canceladas" value={stats.cancelled} tone="red" />
-        <StatBox label="Propuestas" value={stats.proposals} tone="primary" />
+        <StatBox label="Total" value={shownStats.total} />
+        <StatBox label="Activas" value={shownStats.active} tone="yellow" />
+        <StatBox label="Aceptadas" value={shownStats.accepted} tone="green" />
+        <StatBox label="Expiradas" value={shownStats.expired} tone="gray" />
+        <StatBox label="Canceladas" value={shownStats.cancelled} tone="red" />
+        <StatBox label="Propuestas" value={shownStats.proposals} tone="primary" />
       </div>
 
       <div className="flex gap-2 flex-wrap">
@@ -246,8 +326,20 @@ export default function AdminServiceRequestsPage() {
         </div>
       </div>
 
-      <div className="space-y-3">
-        {filtered.length === 0 && (
+      {error && (
+        <div role="alert" className="flex flex-wrap items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          <span className="min-w-0 flex-1">No se pudieron cargar las solicitudes. {error}</span>
+          <button onClick={() => loadFirstPage()} className="inline-flex items-center gap-1.5 rounded-full bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-700"><RefreshCw size={13} /> Reintentar</button>
+        </div>
+      )}
+
+      <div className={`space-y-3 transition-opacity ${busy ? 'opacity-60' : ''}`} aria-busy={busy}>
+        {busy && filtered.length === 0 && (
+          <div className="flex items-center justify-center gap-2 rounded-xl border border-gray-100 bg-white p-10 text-sm text-gray-400">
+            <Loader2 size={18} className="animate-spin" /> Cargando…
+          </div>
+        )}
+        {!busy && filtered.length === 0 && (
           <div className="rounded-xl border border-gray-100 bg-white p-10 text-center text-sm text-gray-400">
             No hay solicitudes para este filtro.
           </div>
@@ -346,7 +438,7 @@ export default function AdminServiceRequestsPage() {
                       {r.preferredDate && (
                         <p className="text-xs text-gray-700 flex flex-wrap items-center gap-1 mt-1">
                           <Calendar size={12} />
-                          {new Date(r.preferredDate).toLocaleDateString('es-CO')}
+                          {new Date(r.preferredDate).toLocaleDateString('es-CO', { timeZone: 'UTC' })}
                           {r.preferredTime && <> · <Clock size={12} /> {r.preferredTime}</>}
                         </p>
                       )}
@@ -528,6 +620,17 @@ export default function AdminServiceRequestsPage() {
           )
         })}
       </div>
+      {!attentionOnly && hasMore && (
+        <div className="flex justify-center">
+          <button
+            onClick={loadMore}
+            disabled={loadingMore || listLoading}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-gray-200 bg-white px-6 py-3 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-60 sm:w-auto"
+          >
+            {loadingMore ? <><Loader2 size={16} className="animate-spin" /> Cargando…</> : 'Cargar más'}
+          </button>
+        </div>
+      )}
       {lightbox && <Lightbox urls={lightbox.urls} index={lightbox.index} onClose={() => setLightbox(null)} />}
     </div>
   )

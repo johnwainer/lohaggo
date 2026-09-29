@@ -23,7 +23,7 @@ async function processSinglePayout(payoutId: string, actorEmail: string) {
       },
       partner: {
         include: {
-          user: true,
+          user: { select: { id: true, name: true, email: true } },
           bankAccounts: {
             where: { isActive: true },
             orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],

@@ -53,6 +53,7 @@ export default function ServicesSection() {
     showAvgRating: true,
   })
   const [togglingFlag, setTogglingFlag] = useState<string | null>(null)
+  const [flagError, setFlagError] = useState<string | null>(null)
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null)
   const [serviceForm, setServiceForm] = useState({
     name: '',
@@ -85,17 +86,28 @@ export default function ServicesSection() {
 
   const toggleGlobalFlag = async (key: 'show_partner_count' | 'show_avg_rating') => {
     setTogglingFlag(key)
-    const res = await fetch('/api/admin/feature-flags')
-    const data = await res.json()
-    const flag: FeatureFlag | undefined = (data.flags ?? []).find((f: FeatureFlag) => f.key === key)
-    if (!flag) { setTogglingFlag(null); return }
-    await fetch('/api/admin/feature-flags', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: flag.id, enabled: !flag.enabled }),
-    })
-    await fetchGlobalFlags()
-    setTogglingFlag(null)
+    setFlagError(null)
+    try {
+      const res = await fetch('/api/admin/feature-flags')
+      const data = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(data?.error || 'No se pudo leer la configuración')
+      const flag: FeatureFlag | undefined = (data?.flags ?? []).find((f: FeatureFlag) => f.key === key)
+      if (!flag) throw new Error('No se encontró esta opción')
+      const patch = await fetch('/api/admin/feature-flags', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: flag.id, enabled: !flag.enabled }),
+      })
+      if (!patch.ok) {
+        const body = await patch.json().catch(() => null)
+        throw new Error(body?.error || (patch.status === 403 ? 'Solo un superadmin puede cambiar esto' : 'No se pudo guardar el cambio'))
+      }
+      await fetchGlobalFlags()
+    } catch (err) {
+      setFlagError(err instanceof Error ? err.message : 'No se pudo guardar el cambio')
+    } finally {
+      setTogglingFlag(null)
+    }
   }
 
   useEffect(() => {
@@ -343,6 +355,9 @@ export default function ServicesSection() {
       <div className="bg-white rounded-xl shadow-md p-4 sm:p-5 border-l-4 border-primary-500">
         <h2 className="font-bold text-gray-900 mb-1">Visibilidad global para clientes</h2>
         <p className="text-gray-500 text-sm mb-4">Aplica a todos los servicios. Si está desactivado, se oculta aunque el servicio individual lo tenga habilitado.</p>
+        {flagError && (
+          <div className="mb-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{flagError}</div>
+        )}
         <div className="flex flex-col sm:flex-row gap-3">
           {[
             { key: 'show_partner_count' as const, label: 'Mostrar nº de socios disponibles', field: 'showPartnerCount' as const },

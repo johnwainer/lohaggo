@@ -47,6 +47,13 @@ export default function AdminSecurityPage() {
   const [newIp, setNewIp] = useState('')
   const [newReason, setNewReason] = useState('')
   const [newExpiresAt, setNewExpiresAt] = useState('')
+  const [actionError, setActionError] = useState<string | null>(null)
+
+  const errorText = async (res: Response, fallback: string) => {
+    const data = await res.json().catch(() => null)
+    if (data && typeof data.error === 'string' && data.error) return data.error
+    return res.status === 403 ? 'Solo un superadmin puede cambiar esto' : fallback
+  }
 
   const filteredEvents = useMemo(() => {
     return events.filter((event) => {
@@ -83,16 +90,26 @@ export default function AdminSecurityPage() {
 
   const blockIp = async () => {
     if (!newIp.trim() || !newReason.trim()) return
+    setActionError(null)
 
-    await fetch('/api/admin/security/blocked-ips', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ipAddress: newIp.trim(),
-        reason: newReason.trim(),
-        expiresAt: newExpiresAt || null,
-      }),
-    })
+    try {
+      const res = await fetch('/api/admin/security/blocked-ips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ipAddress: newIp.trim(),
+          reason: newReason.trim(),
+          expiresAt: newExpiresAt || null,
+        }),
+      })
+      if (!res.ok) {
+        setActionError(`No se pudo bloquear la IP: ${await errorText(res, `el servidor respondió ${res.status}`)}`)
+        return
+      }
+    } catch {
+      setActionError('No se pudo bloquear la IP: sin conexión')
+      return
+    }
 
     setNewIp('')
     setNewReason('')
@@ -101,11 +118,21 @@ export default function AdminSecurityPage() {
   }
 
   const unblockIp = async (ipAddress: string) => {
-    await fetch('/api/admin/security/blocked-ips', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ipAddress, action: 'UNBLOCK', unblockReason: 'Liberado por admin' }),
-    })
+    setActionError(null)
+    try {
+      const res = await fetch('/api/admin/security/blocked-ips', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ipAddress, action: 'UNBLOCK', unblockReason: 'Liberado por admin' }),
+      })
+      if (!res.ok) {
+        setActionError(`No se pudo desbloquear ${ipAddress}: ${await errorText(res, `el servidor respondió ${res.status}`)}`)
+        return
+      }
+    } catch {
+      setActionError(`No se pudo desbloquear ${ipAddress}: sin conexión`)
+      return
+    }
     await load()
   }
 
@@ -129,6 +156,13 @@ export default function AdminSecurityPage() {
           Actualizar
         </button>
       </div>
+
+      {actionError && (
+        <div role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <span className="min-w-0 flex-1 break-words">{actionError}</span>
+          <button type="button" onClick={() => setActionError(null)} className="shrink-0 font-semibold text-red-700" aria-label="Cerrar">×</button>
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-2 sm:gap-4">
         <div className="rounded-xl border bg-white p-3 sm:p-4">

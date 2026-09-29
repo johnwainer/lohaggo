@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import {
@@ -8,7 +8,6 @@ import {
   Search, CreditCard, GraduationCap, Shield, Zap, Building2
 } from 'lucide-react'
 import Modal from '@/components/Modal'
-import { pendingCountByPartner } from '@/lib/partners/document-queue'
 
 
 interface Document {
@@ -63,7 +62,17 @@ export default function AdminDocumentsPage() {
   const [documents, setDocuments] = useState<Document[]>([])
   const [filteredDocuments, setFilteredDocuments] = useState<Document[]>([])
   const [loading, setLoading] = useState(true)
-  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [statusFilter, setStatusFilter] = useState<string>('PENDING')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [docPage, setDocPage] = useState(1)
+  const [docHasMore, setDocHasMore] = useState(false)
+  const [docTotal, setDocTotal] = useState(0)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [docError, setDocError] = useState<string | null>(null)
+  const [reviewError, setReviewError] = useState<string | null>(null)
+  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({ PENDING: 0, APPROVED: 0, REJECTED: 0 })
+  const [pendingByPartner, setPendingByPartner] = useState<Record<string, number>>({})
+  const docSeq = useRef(0)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
   const [showReviewModal, setShowReviewModal] = useState(false)
@@ -91,25 +100,55 @@ export default function AdminDocumentsPage() {
   }, [session, status, router])
 
   useEffect(() => {
-    fetchDocuments()
     fetchPendingBackground()
   }, [])
 
   useEffect(() => {
-    filterDocuments()
-  }, [documents, statusFilter, searchTerm])
+    const t = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 350)
+    return () => clearTimeout(t)
+  }, [searchTerm])
 
-  const fetchDocuments = async () => {
+  useEffect(() => {
+    fetchDocuments(1)
+  }, [statusFilter, debouncedSearch])
+
+  useEffect(() => {
+    setFilteredDocuments(documents)
+  }, [documents])
+
+  const fetchDocuments = async (nextPage = 1) => {
+    const seq = ++docSeq.current
+    if (nextPage > 1) setLoadingMore(true)
+    setDocError(null)
     try {
-      const res = await fetch('/api/admin/documents')
-      if (res.ok) {
-        const data = await res.json()
-        setDocuments(data)
+      const params = new URLSearchParams({
+        page: String(nextPage),
+        take: '50',
+        status: statusFilter === 'all' ? 'ALL' : statusFilter,
+      })
+      if (debouncedSearch) params.set('q', debouncedSearch)
+      const res = await fetch(`/api/admin/documents?${params.toString()}`, { cache: 'no-store' })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(data?.error || 'No se pudieron cargar los documentos')
+      if (seq !== docSeq.current) return
+      const items: Document[] = Array.isArray(data?.items) ? data.items : []
+      setDocuments(prev => (nextPage === 1 ? items : [...prev, ...items]))
+      setDocPage(nextPage)
+      setDocHasMore(Boolean(data?.hasMore))
+      setDocTotal(Number(data?.total) || 0)
+      if (data?.counts) setStatusCounts(data.counts)
+      if (data?.pendingByPartner) {
+        setPendingByPartner(prev => (nextPage === 1 ? data.pendingByPartner : { ...prev, ...data.pendingByPartner }))
       }
     } catch (error) {
-      console.error('Error fetching documents:', error)
+      if (seq !== docSeq.current) return
+      if (nextPage === 1) setDocuments([])
+      setDocError(error instanceof Error ? error.message : 'No se pudieron cargar los documentos')
     } finally {
-      setLoading(false)
+      if (seq === docSeq.current) {
+        setLoading(false)
+        setLoadingMore(false)
+      }
     }
   }
 
@@ -126,23 +165,6 @@ export default function AdminDocumentsPage() {
     } finally {
       setPendingLoading(false)
     }
-  }
-
-  const filterDocuments = () => {
-    let filtered = documents
-
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(doc => doc.status === statusFilter)
-    }
-
-    if (searchTerm) {
-      filtered = filtered.filter(doc =>
-        doc.partner.user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        doc.partner.user.email.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    }
-
-    setFilteredDocuments(filtered)
   }
 
   const handleReview = async () => {
@@ -165,13 +187,18 @@ export default function AdminDocumentsPage() {
       })
 
       if (res.ok) {
-        await fetchDocuments()
+        await fetchDocuments(1)
         setShowReviewModal(false)
         setSelectedDocument(null)
         setRejectionReason('')
+        setReviewError(null)
+      } else {
+        const data = await res.json().catch(() => null)
+        setReviewError(data?.error || 'No se pudo guardar la revisión')
       }
     } catch (error) {
       console.error('Error reviewing document:', error)
+      setReviewError('No se pudo guardar la revisión')
     } finally {
       setReviewing(false)
     }
@@ -186,7 +213,7 @@ export default function AdminDocumentsPage() {
         body: JSON.stringify({ partnerId }),
       })
       if (res.ok) {
-        await fetchDocuments()
+        await fetchDocuments(1)
       } else {
         const data = await res.json()
         alert(data.error || 'Error al activar')
@@ -214,7 +241,7 @@ export default function AdminDocumentsPage() {
       })
 
       if (res.ok) {
-        await Promise.all([fetchDocuments(), fetchPendingBackground(pendingSearch)])
+        await Promise.all([fetchDocuments(1), fetchPendingBackground(pendingSearch)])
         setShowBackgroundModal(false)
         setSelectedPartner(null)
         setBackgroundFile(null)
@@ -271,8 +298,7 @@ export default function AdminDocumentsPage() {
     return <GraduationCap className="w-5 h-5 text-purple-600" />
   }
 
-  const pendingCount = documents.filter(d => d.status === 'PENDING').length
-  const pendingByPartner = pendingCountByPartner(documents)
+  const pendingCount = statusCounts.PENDING ?? 0
   const partnerPendingBadge = (doc: Document) => {
     const n = pendingByPartner[doc.partner.id] ?? 0
     if (doc.status !== 'PENDING' || n < 2) return null
@@ -405,7 +431,7 @@ export default function AdminDocumentsPage() {
                   <div>
                     <p className="text-xs text-green-600 font-medium sm:text-sm">Aprobados</p>
                     <p className="text-2xl font-bold text-green-900">
-                      {documents.filter(d => d.status === 'APPROVED').length}
+                      {statusCounts.APPROVED ?? 0}
                     </p>
                   </div>
                   <CheckCircle className="hidden w-8 h-8 text-green-600 sm:block" />
@@ -416,7 +442,7 @@ export default function AdminDocumentsPage() {
                   <div>
                     <p className="text-xs text-red-600 font-medium sm:text-sm">Rechazados</p>
                     <p className="text-2xl font-bold text-red-900">
-                      {documents.filter(d => d.status === 'REJECTED').length}
+                      {statusCounts.REJECTED ?? 0}
                     </p>
                   </div>
                   <XCircle className="hidden w-8 h-8 text-red-600 sm:block" />
@@ -447,6 +473,18 @@ export default function AdminDocumentsPage() {
               </select>
             </div>
           </div>
+
+          {docError && (
+            <div className="mb-4 flex flex-col gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 sm:flex-row sm:items-center sm:justify-between">
+              <span>{docError}</span>
+              <button
+                onClick={() => fetchDocuments(1)}
+                className="rounded-full border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100"
+              >
+                Reintentar
+              </button>
+            </div>
+          )}
 
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
             {filteredDocuments.length === 0 ? (
@@ -548,6 +586,17 @@ export default function AdminDocumentsPage() {
                 </table>
               </div>
               </>
+            )}
+            {docHasMore && (
+              <div className="flex justify-center border-t border-gray-100 p-4">
+                <button
+                  onClick={() => fetchDocuments(docPage + 1)}
+                  disabled={loadingMore}
+                  className="w-full rounded-full border border-gray-200 bg-white px-5 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 sm:w-auto"
+                >
+                  {loadingMore ? 'Cargando…' : `Cargar más (${documents.length} de ${docTotal})`}
+                </button>
+              </div>
             )}
           </div>
         </>
@@ -728,6 +777,7 @@ export default function AdminDocumentsPage() {
             setShowReviewModal(false)
             setSelectedDocument(null)
             setRejectionReason('')
+            setReviewError(null)
           }}
           title={reviewAction === 'APPROVED' ? 'Aprobar Documento' : 'Rechazar Documento'}
         >
@@ -742,6 +792,10 @@ export default function AdminDocumentsPage() {
               <p className="text-sm text-gray-600 mb-2">Documento</p>
               <p className="font-medium">{DOCUMENT_LABELS[selectedDocument.type]}</p>
             </div>
+
+            {reviewError && (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{reviewError}</div>
+            )}
 
             {reviewAction === 'REJECTED' && (
               <div>

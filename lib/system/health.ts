@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { getAiSettings } from '@/lib/ai/settings'
 import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
+import { getMercadoPagoRuntimeConfig } from '@/lib/mercadopago'
 import { getImageSettings } from '@/lib/marketing/images'
 import { getGa4Settings } from '@/lib/analytics/ga4'
 import { CRON_JOBS, JOB_LABEL } from '@/lib/system/cron'
@@ -54,7 +55,7 @@ export async function integrations(now = new Date()): Promise<Integration[]> {
   const t0 = Date.now()
   const dbOk = await prisma.$queryRaw`SELECT 1`.then(() => true).catch(() => false)
   const dbMs = Date.now() - t0
-  const [aiStatus, msg, img, ga4, channels, lastAi, lastOpenai, deliveries, lastPayment, webhookErrors] = await Promise.all([
+  const [aiStatus, msg, img, ga4, channels, lastAi, lastOpenai, deliveries, lastPayment, webhookErrors, mp] = await Promise.all([
     aiProviderStatus(now),
     getMessagingProviderRuntimeConfig().catch(() => null),
     getImageSettings().catch(() => null),
@@ -65,6 +66,7 @@ export async function integrations(now = new Date()): Promise<Integration[]> {
     prisma.messagingDelivery.groupBy({ by: ['status'], where: { createdAt: { gte: since } }, _count: { _all: true } }).catch(() => []),
     prisma.payment.findFirst({ where: { status: 'APPROVED', mercadopagoId: { not: null } }, orderBy: { updatedAt: 'desc' }, select: { updatedAt: true } }),
     prisma.webhookEvent.count({ where: { createdAt: { gte: since }, status: { not: 'OK' } } }).catch(() => 0),
+    getMercadoPagoRuntimeConfig().catch(() => null),
   ])
   const ago = (d?: Date | null) => (d ? `${Math.max(1, Math.round((now.getTime() - d.getTime()) / 60_000))} min` : null)
   const agoLabel = (d?: Date | null) => {
@@ -97,7 +99,7 @@ export async function integrations(now = new Date()): Promise<Integration[]> {
     { key: 'whatsapp', name: 'WhatsApp (Meta / Twilio)', level: msg?.metaWhatsApp.active || msg?.twilio.active ? 'ok' : 'off', detail: msg?.metaWhatsApp.active ? 'API de WhatsApp de Meta activa' : msg?.twilio.active ? 'Twilio activo' : 'sin proveedor activo' },
     { key: 'email', name: 'Correo (SendGrid)', level: msg?.sendgrid.active ? 'ok' : 'off', detail: msg?.sendgrid.active ? 'activo' : 'no configurado: los avisos solo llegan dentro de la app' },
     { key: 'deliveries', name: 'Envíos de mensajes (24 h)', level: !sent ? 'off' : failed / sent > 0.2 ? 'error' : failed ? 'warning' : 'ok', detail: sent ? `${sent} envíos, ${failed} fallidos` : 'sin envíos en 24 h' },
-    { key: 'mercadopago', name: 'Pagos (MercadoPago)', level: process.env.MERCADOPAGO_ACCESS_TOKEN ? 'ok' : 'error', detail: process.env.MERCADOPAGO_ACCESS_TOKEN ? `configurado · último pago aprobado ${lastPayment ? `hace ${ago(lastPayment.updatedAt)}` : 'sin registros'}` : 'falta MERCADOPAGO_ACCESS_TOKEN' },
+    { key: 'mercadopago', name: 'Pagos (MercadoPago)', level: mp?.accessToken ? 'ok' : 'error', detail: mp?.accessToken ? `configurado (${mp.source === 'db' ? 'Configuración de pagos' : 'variable de entorno'}, ${mp.environment === 'PRODUCTION' ? 'producción' : 'pruebas'}) · último pago aprobado ${lastPayment ? `hace ${ago(lastPayment.updatedAt)}` : 'sin registros'}` : 'sin credenciales: configúralas en Configuración de pagos' },
     { key: 'cloudinary', name: 'Imágenes (Cloudinary)', level: process.env.CLOUDINARY_API_KEY && process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ? 'ok' : 'error', detail: process.env.CLOUDINARY_API_KEY ? 'configurado' : 'faltan las claves de Cloudinary' },
     { key: 'pexels', name: 'Fotos (Pexels) e IA de imágenes', level: img?.keys.pexels ? 'ok' : 'warning', detail: `${img?.keys.pexels ? 'Pexels activo' : 'sin clave de Pexels'} · IA: ${img?.provider && img.provider !== 'none' ? img.provider : 'no configurada'}` },
     { key: 'push', name: 'Notificaciones push', level: process.env.VAPID_PRIVATE_KEY && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ? 'ok' : 'warning', detail: process.env.VAPID_PRIVATE_KEY ? 'configuradas' : 'faltan las claves VAPID' },

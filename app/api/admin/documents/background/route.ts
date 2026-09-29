@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
 
     const partnerProfile = await prisma.partnerProfile.findUnique({
       where: { id: partnerId },
-      include: { user: true }
+      select: { id: true, userId: true, user: { select: { id: true, name: true, email: true, phone: true } } },
     })
 
     if (!partnerProfile) {

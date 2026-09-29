@@ -3,6 +3,7 @@ import { periodOf } from '@/lib/ai/pricing'
 import { latestSnapshots } from '@/lib/marketing/metrics'
 import { systemAlerts } from '@/lib/system/health'
 import { alertsFrom, bogotaKey, delta, fillSeries, lastDays, windows } from '@/lib/admin/overview-core'
+import { dateOnlyUtc } from '@/lib/bookings/when'
 
 const OPEN = ['OPEN', 'IN_PROGRESS'] as const
 const range = (from: Date, to?: Date) => ({ gte: from, ...(to ? { lt: to } : {}) })
@@ -101,7 +102,8 @@ export async function platformOverview(now = new Date()) {
     sales(w.today), sales(w.yesterday, w.yesterdaySameTime), sales(w.week), sales(w.month), sales(w.prevMonth, w.prevMonthEnd),
     prisma.booking.count({ where: { createdAt: range(w.today) } }),
     prisma.booking.count({ where: { createdAt: range(w.yesterday, w.yesterdaySameTime) } }),
-    prisma.booking.count({ where: { scheduledDate: range(w.today, new Date(w.today.getTime() + 24 * 3600_000)), status: { not: 'CANCELLED' } } }),
+    // scheduledDate is the date-only day at 00:00 UTC
+    prisma.booking.count({ where: { scheduledDate: range(dateOnlyUtc(now), new Date(dateOnlyUtc(now).getTime() + 24 * 3600_000)), status: { not: 'CANCELLED' } } }),
     prisma.booking.groupBy({ by: ['status'], where: { OR: [{ status: { in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS'] } }, { updatedAt: range(w.today) }] }, _count: { _all: true } }),
     prisma.serviceRequest.count({ where: { status: 'ACTIVE' } }),
     prisma.serviceRequest.count({ where: { createdAt: range(w.today) } }),

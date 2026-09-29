@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { AlertTriangle, Loader2, RefreshCw, X } from 'lucide-react'
 
 type Incident = {
   id: string
@@ -40,21 +40,31 @@ export default function AdminOperationsPage() {
   const [newCaseSubject, setNewCaseSubject] = useState('')
   const [newCaseDescription, setNewCaseDescription] = useState('')
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
 
-  const load = async () => {
-    setLoading(true)
+  const load = async (silent = false) => {
+    if (!silent) setLoading(true)
     try {
       const [iRes, lRes, cRes] = await Promise.all([
         fetch('/api/admin/incidents'),
         fetch('/api/admin/audit'),
         fetch('/api/admin/support-cases'),
       ])
+      if (!iRes.ok || !lRes.ok || !cRes.ok) {
+        const failed = [iRes, lRes, cRes].find((r) => !r.ok)!
+        throw new Error(failed.status === 401 || failed.status === 403 ? 'Tu sesión venció o no tienes permiso.' : `El servidor respondió ${failed.status}.`)
+      }
       const [iData, lData, cData] = await Promise.all([iRes.json(), lRes.json(), cRes.json()])
       setIncidents(iData.incidents || [])
       setLogs(lData.logs || [])
       setCases(cData.cases || [])
+      setLoadError(null)
+    } catch (err) {
+      setLoadError(err instanceof Error && err.message !== 'Failed to fetch' ? err.message : 'Sin conexión.')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }
 
@@ -62,38 +72,70 @@ export default function AdminOperationsPage() {
     load()
   }, [])
 
+  const errorFrom = async (res: Response) => {
+    const data = await res.json().catch(() => null)
+    return (data && typeof data.error === 'string' && data.error) || `El servidor respondió ${res.status}.`
+  }
+
   const updateIncident = async (id: string, status: Incident['status']) => {
-    await fetch('/api/admin/incidents', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, status }),
-    })
-    await load()
+    const prev = incidents
+    setActionError(null)
+    setIncidents((list) => list.map((x) => (x.id === id ? { ...x, status } : x)))
+    try {
+      const res = await fetch('/api/admin/incidents', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status }),
+      })
+      if (!res.ok) throw new Error(await errorFrom(res))
+      await load(true)
+    } catch (err) {
+      setIncidents(prev)
+      setActionError(`No se pudo actualizar el incidente: ${err instanceof Error ? err.message : 'error desconocido'}`)
+    }
   }
 
   const createSupportCase = async () => {
-    if (!newCaseSubject.trim() || !newCaseDescription.trim()) return
-    await fetch('/api/admin/support-cases', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        subject: newCaseSubject,
-        description: newCaseDescription,
-        priority: 'MEDIUM',
-      }),
-    })
-    setNewCaseSubject('')
-    setNewCaseDescription('')
-    await load()
+    if (!newCaseSubject.trim() || !newCaseDescription.trim() || creating) return
+    setActionError(null)
+    setCreating(true)
+    try {
+      const res = await fetch('/api/admin/support-cases', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subject: newCaseSubject,
+          description: newCaseDescription,
+          priority: 'MEDIUM',
+        }),
+      })
+      if (!res.ok) throw new Error(await errorFrom(res))
+      setNewCaseSubject('')
+      setNewCaseDescription('')
+      await load(true)
+    } catch (err) {
+      setActionError(`No se pudo crear el caso: ${err instanceof Error ? err.message : 'error desconocido'}`)
+    } finally {
+      setCreating(false)
+    }
   }
 
   const updateCase = async (id: string, status: SupportCase['status']) => {
-    await fetch('/api/admin/support-cases', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, status }),
-    })
-    await load()
+    const prev = cases
+    setActionError(null)
+    setCases((list) => list.map((x) => (x.id === id ? { ...x, status } : x)))
+    try {
+      const res = await fetch('/api/admin/support-cases', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status }),
+      })
+      if (!res.ok) throw new Error(await errorFrom(res))
+      await load(true)
+    } catch (err) {
+      setCases(prev)
+      setActionError(`No se pudo actualizar el caso: ${err instanceof Error ? err.message : 'error desconocido'}`)
+    }
   }
 
   return (
@@ -102,6 +144,22 @@ export default function AdminOperationsPage() {
         <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Casos e incidentes</h1>
         <p className="text-gray-600 mt-1">Casos de soporte, incidentes de la plataforma (incluidas tareas automáticas que fallan) y registro de acciones del equipo.</p>
       </div>
+
+      {loadError && (
+        <div role="alert" className="flex flex-wrap items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          <AlertTriangle size={16} className="shrink-0" />
+          <span className="min-w-0 flex-1">No se pudo cargar la información. {loadError}</span>
+          <button onClick={() => load()} className="inline-flex items-center gap-1.5 rounded-full bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-700"><RefreshCw size={13} /> Reintentar</button>
+        </div>
+      )}
+
+      {actionError && (
+        <div role="alert" className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+          <span className="min-w-0 flex-1 break-words">{actionError}</span>
+          <button onClick={() => setActionError(null)} aria-label="Cerrar" className="shrink-0 rounded-lg p-1 hover:bg-amber-100"><X size={14} /></button>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-20 text-gray-400">
@@ -148,7 +206,7 @@ export default function AdminOperationsPage() {
             <h2 className="text-base font-bold text-gray-900">Soporte Unificado</h2>
             <div className="grid md:grid-cols-[1fr_auto] gap-3">
               <input value={newCaseSubject} onChange={(e) => setNewCaseSubject(e.target.value)} placeholder="Asunto del caso" className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none" />
-              <button onClick={createSupportCase} className="px-4 py-2 rounded-xl bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 transition-colors">Crear caso</button>
+              <button onClick={createSupportCase} disabled={creating} className="px-4 py-2 rounded-xl bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 transition-colors disabled:opacity-60">{creating ? 'Creando…' : 'Crear caso'}</button>
             </div>
             <textarea value={newCaseDescription} onChange={(e) => setNewCaseDescription(e.target.value)} placeholder="Descripción del caso" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm min-h-[80px] focus:ring-2 focus:ring-primary-500 outline-none resize-none" />
             <div className="space-y-2">

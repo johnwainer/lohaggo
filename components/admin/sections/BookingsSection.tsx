@@ -52,27 +52,40 @@ const statusLabels: Record<string, string> = {
   CANCELLED: 'Cancelada',
 }
 
+const PAGE_SIZE = 200
+const MAX_ROWS = 1000
+
 export default function BookingsSection() {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string>('all')
   const [originFilter, setOriginFilter] = useState<'all' | 'app' | 'chat'>('all')
+  const [limit, setLimit] = useState(PAGE_SIZE)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchBookings()
+    fetchBookings(PAGE_SIZE)
   }, [])
 
-  const fetchBookings = async () => {
+  const fetchBookings = async (take = limit) => {
+    if (take > limit) setLoadingMore(true)
+    setError(null)
     try {
-      const res = await fetch('/api/bookings')
-      const data = await res.json()
-      setBookings(data)
-    } catch (error) {
-      console.error('Error fetching bookings:', error)
+      const res = await fetch(`/api/bookings?take=${take}`, { cache: 'no-store' })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(data?.error || 'No se pudieron cargar las reservas')
+      setBookings(Array.isArray(data) ? data : [])
+      setLimit(take)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudieron cargar las reservas')
     } finally {
       setLoading(false)
+      setLoadingMore(false)
     }
   }
+
+  const hasMore = bookings.length >= limit && limit < MAX_ROWS
 
   const handleStatusChange = async (bookingId: string, newStatus: string) => {
     try {
@@ -84,7 +97,7 @@ export default function BookingsSection() {
 
       if (res.ok) {
         alert('Estado actualizado exitosamente')
-        fetchBookings()
+        fetchBookings(limit)
       } else {
         const body = await res.json().catch(() => ({}))
         alert(body?.error || 'Error al actualizar estado')
@@ -211,7 +224,7 @@ export default function BookingsSection() {
     }
   ]
 
-  if (loading) {
+  if (loading && bookings.length === 0 && !error) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
@@ -237,6 +250,18 @@ export default function BookingsSection() {
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Gestión de Reservas</h1>
         <p className="text-gray-600">Administra todas las reservas de la plataforma</p>
       </div>
+
+      {error && (
+        <div className="flex flex-col gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 sm:flex-row sm:items-center sm:justify-between">
+          <span>{error}</span>
+          <button
+            onClick={() => fetchBookings(limit)}
+            className="rounded-full border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100"
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-4 mb-6 sm:mb-8">
         <div className="bg-white rounded-xl shadow-md p-4">
@@ -352,6 +377,19 @@ export default function BookingsSection() {
         exportable
         itemsPerPage={15}
       />
+
+      {hasMore && (
+        <div className="flex flex-col items-center gap-1">
+          <button
+            onClick={() => fetchBookings(Math.min(limit + PAGE_SIZE, MAX_ROWS))}
+            disabled={loadingMore}
+            className="w-full rounded-full border border-gray-200 bg-white px-5 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 sm:w-auto"
+          >
+            {loadingMore ? 'Cargando…' : 'Cargar más'}
+          </button>
+          <span className="text-xs text-gray-400">Mostrando las {bookings.length} reservas más recientes</span>
+        </div>
+      )}
     </div>
   )
 }

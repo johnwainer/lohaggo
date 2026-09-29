@@ -1,4 +1,5 @@
 'use client'
+import { formatCalendarDay } from '@/lib/bookings/when'
 
 import { Fragment, useEffect, useState, use } from 'react'
 import { useRouter } from 'next/navigation'
@@ -857,7 +858,7 @@ function BookingTable({ title, bookings, mode, agentNames }: { title: string; bo
                           ? (b.partner?.user?.name || '—')
                           : (b.user?.name || '—')}
                       </td>
-                      <td className="px-4 py-2.5 text-gray-500">{fmt(b.scheduledDate)}<br /><span className="text-xs">{b.scheduledTime}</span></td>
+                      <td className="px-4 py-2.5 text-gray-500">{formatCalendarDay(b.scheduledDate)}<br /><span className="text-xs">{b.scheduledTime}</span></td>
                       <td className="px-4 py-2.5"><Badge label={st.label} cls={st.cls} /></td>
                       <td className="px-4 py-2.5 text-right font-medium">{currency(b.totalPrice)}</td>
                       <td className="px-4 py-2.5">

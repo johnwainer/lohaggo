@@ -9,8 +9,10 @@ const COLLAPSED_KEY = 'admin.sidebar.collapsed'
 
 export default function AdminLayoutClient({
   children,
+  isSuperAdmin = false,
 }: {
   children: React.ReactNode
+  isSuperAdmin?: boolean
 }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -34,7 +36,7 @@ export default function AdminLayoutClient({
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <Sidebar activeSection={activeSection} collapsed={collapsed} onToggleCollapsed={toggleCollapsed} />
+      <Sidebar activeSection={activeSection} isSuperAdmin={isSuperAdmin} collapsed={collapsed} onToggleCollapsed={toggleCollapsed} />
       <main data-admin-main className={isFullBleed ? `fixed inset-x-0 bottom-0 top-14 lg:top-0 ${collapsed ? 'lg:left-20' : 'lg:left-64'} overflow-hidden flex flex-col transition-all duration-300` : `flex-1 min-w-0 ml-0 ${offset} overflow-auto transition-all duration-300`}>
         {isFullBleed ? (
           children

@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Shield, Mail, Phone, Calendar, Trash2, ExternalLink } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Shield, Mail, Phone, Calendar, Trash2, ExternalLink, RefreshCw, Search } from 'lucide-react'
 import DataTable from '@/components/admin/DataTable'
 import ConfirmModal from '@/components/ConfirmModal'
 
@@ -13,6 +13,7 @@ interface User {
   image: string | null
   role: string
   isActive: boolean
+  isSuperAdmin?: boolean
   createdAt: string
   _count: {
     bookings: number
@@ -32,25 +33,60 @@ type ConfirmAction = { type: 'delete'; userId: string } | { type: 'toggle'; user
 export default function UsersSection() {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(false)
+  const [total, setTotal] = useState(0)
   const [filter, setFilter] = useState<string>('all')
+  const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch] = useState('')
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const requestSeq = useRef(0)
 
   useEffect(() => {
-    fetchUsers()
-  }, [filter])
+    const t = setTimeout(() => setSearch(searchInput.trim()), 350)
+    return () => clearTimeout(t)
+  }, [searchInput])
 
-  const fetchUsers = async () => {
+  useEffect(() => {
+    fetchUsers(1)
+  }, [filter, search])
+
+  const fetchUsers = async (nextPage = 1) => {
+    const seq = ++requestSeq.current
+    if (nextPage === 1) setLoading(true)
+    else setLoadingMore(true)
+    setLoadError(null)
     try {
-      const url = filter === 'all' ? '/api/admin/users' : `/api/admin/users?role=${filter}`
-      const res = await fetch(url)
-      const data = await res.json()
-      setUsers(data)
+      const params = new URLSearchParams({ page: String(nextPage), take: '50' })
+      if (filter !== 'all') params.set('role', filter)
+      if (search) params.set('q', search)
+      const res = await fetch(`/api/admin/users?${params.toString()}`, { cache: 'no-store' })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(data?.error || 'No se pudieron cargar los usuarios')
+      if (seq !== requestSeq.current) return
+      const items: User[] = Array.isArray(data?.items) ? data.items : []
+      setUsers(prev => (nextPage === 1 ? items : [...prev, ...items]))
+      setPage(nextPage)
+      setHasMore(Boolean(data?.hasMore))
+      setTotal(Number(data?.total) || 0)
     } catch (error) {
-      console.error('Error fetching users:', error)
+      if (seq !== requestSeq.current) return
+      if (nextPage === 1) setUsers([])
+      setLoadError(error instanceof Error ? error.message : 'No se pudieron cargar los usuarios')
     } finally {
-      setLoading(false)
+      if (seq === requestSeq.current) {
+        setLoading(false)
+        setLoadingMore(false)
+      }
     }
+  }
+
+  const readError = async (res: Response, fallback: string) => {
+    const data = await res.json().catch(() => null)
+    return data?.error || fallback
   }
 
   const executeConfirmAction = async () => {
@@ -63,12 +99,12 @@ export default function UsersSection() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: confirmAction.userId, role: confirmAction.role }),
         })
-        if (!res.ok) throw new Error('Error al actualizar rol')
-        fetchUsers()
+        if (!res.ok) throw new Error(await readError(res, 'Error al actualizar rol'))
+        fetchUsers(1)
       } else if (confirmAction.type === 'delete') {
         const res = await fetch(`/api/admin/users?userId=${confirmAction.userId}`, { method: 'DELETE' })
-        if (!res.ok) throw new Error('Error al eliminar usuario')
-        fetchUsers()
+        if (!res.ok) throw new Error(await readError(res, 'Error al eliminar usuario'))
+        fetchUsers(1)
       } else if (confirmAction.type === 'toggle') {
         const res = await fetch('/api/admin/users/toggle-active', {
           method: 'PATCH',
@@ -76,7 +112,7 @@ export default function UsersSection() {
           body: JSON.stringify({ userId: confirmAction.userId, isActive: !confirmAction.isActive }),
         })
         if (!res.ok) throw new Error('Error al actualizar estado')
-        fetchUsers()
+        fetchUsers(1)
       }
     } catch (err: any) {
       setActionError(err.message)
@@ -249,7 +285,7 @@ export default function UsersSection() {
     }
   ]
 
-  if (loading) {
+  if (loading && users.length === 0 && !loadError) {
     return (
       <div className="flex items-center justify-center py-20 text-gray-400">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-500 mr-3" />
@@ -260,7 +296,7 @@ export default function UsersSection() {
 
   const confirmMessage =
     confirmAction?.type === 'delete'
-      ? '¿Eliminar este usuario? Esta acción no se puede deshacer.'
+      ? '¿Eliminar este usuario? La cuenta quedará desactivada (su historial se conserva). Solo un superadmin puede hacerlo.'
       : confirmAction?.type === 'toggle'
       ? confirmAction.isActive ? '¿Desactivar este usuario?' : '¿Activar este usuario?'
       : '¿Cambiar el rol de este usuario?'
@@ -276,6 +312,18 @@ export default function UsersSection() {
         type={confirmAction?.type === 'delete' ? 'danger' : 'warning'}
         confirmText={confirmAction?.type === 'delete' ? 'Eliminar' : 'Confirmar'}
       />
+
+      {loadError && (
+        <div className="flex flex-col gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 sm:flex-row sm:items-center sm:justify-between">
+          <span>{loadError}</span>
+          <button
+            onClick={() => fetchUsers(1)}
+            className="inline-flex items-center justify-center gap-1.5 rounded-full border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100"
+          >
+            <RefreshCw size={13} /> Reintentar
+          </button>
+        </div>
+      )}
 
       {actionError && (
         <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
@@ -297,7 +345,7 @@ export default function UsersSection() {
               : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
           }`}
         >
-          Todos ({users.length})
+          Todos{filter === 'all' && total ? ` (${total})` : ''}
         </button>
         <button
           onClick={() => setFilter('CLIENT')}
@@ -331,13 +379,36 @@ export default function UsersSection() {
         </button>
       </div>
 
+      <div className="relative">
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <input
+          type="search"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          placeholder="Buscar por nombre, correo o teléfono"
+          className="w-full rounded-xl border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm focus:border-primary-400 focus:outline-none"
+        />
+      </div>
+
       <DataTable
         columns={columns}
         data={users}
-        searchable
+        searchable={false}
         exportable
         itemsPerPage={15}
       />
+
+      {hasMore && (
+        <div className="flex justify-center">
+          <button
+            onClick={() => fetchUsers(page + 1)}
+            disabled={loadingMore}
+            className="w-full rounded-full border border-gray-200 bg-white px-5 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 sm:w-auto"
+          >
+            {loadingMore ? 'Cargando…' : `Cargar más (${users.length} de ${total})`}
+          </button>
+        </div>
+      )}
     </div>
   )
 }

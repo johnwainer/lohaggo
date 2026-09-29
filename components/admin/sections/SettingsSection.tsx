@@ -21,17 +21,31 @@ export default function SettingsSection() {
   const [status, setStatus] = useState<SaveStatus>('idle')
   const [errorMsg, setErrorMsg] = useState('')
 
+  const [loadError, setLoadError] = useState('')
+
+  const loadConfig = async () => {
+    setLoading(true)
+    setLoadError('')
+    try {
+      const res = await fetch('/api/admin/commission-config', { cache: 'no-store' })
+      const data = await res.json().catch(() => null)
+      if (!res.ok || !data) throw new Error(data?.error || 'No se pudo cargar la configuración')
+      setConfig(data)
+      setForm({ minServicePrice: Number(data.minServicePrice) || 0, maxServicePrice: Number(data.maxServicePrice) || 0 })
+    } catch (e) {
+      setConfig(null)
+      setLoadError(e instanceof Error ? e.message : 'No se pudo cargar la configuración')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
-    fetch('/api/admin/commission-config')
-      .then(r => r.json())
-      .then(data => {
-        setConfig(data)
-        setForm({ minServicePrice: data.minServicePrice, maxServicePrice: data.maxServicePrice })
-      })
-      .finally(() => setLoading(false))
+    loadConfig()
   }, [])
 
   const handleSave = async () => {
+    if (!config) return
     if (form.minServicePrice >= form.maxServicePrice) {
       setErrorMsg('El precio mínimo debe ser menor al máximo.')
       setStatus('error')
@@ -44,18 +58,17 @@ export default function SettingsSection() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          clientCommissionRate: config?.clientCommissionRate ?? 5,
-          partnerCommissionRate: config?.partnerCommissionRate ?? 10,
           minServicePrice: form.minServicePrice,
           maxServicePrice: form.maxServicePrice,
         }),
       })
+      const data = await res.json().catch(() => null)
       if (!res.ok) {
-        const err = await res.json()
-        throw new Error(err.error || 'Error al guardar')
+        throw new Error(
+          data?.error || (res.status === 403 ? 'Solo un superadmin puede cambiar esto' : 'Error al guardar'),
+        )
       }
-      const updated = await res.json()
-      setConfig(updated)
+      if (data) setConfig(data)
       setStatus('success')
       setTimeout(() => setStatus('idle'), 3000)
     } catch (e: any) {
@@ -78,6 +91,18 @@ export default function SettingsSection() {
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Configuración</h1>
         <p className="text-gray-600 mt-1">Ajustes generales de la plataforma</p>
       </div>
+
+      {loadError && (
+        <div className="flex flex-col gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 sm:flex-row sm:items-center sm:justify-between">
+          <span className="flex items-center gap-3"><AlertCircle size={18} className="shrink-0" />{loadError}</span>
+          <button
+            onClick={loadConfig}
+            className="rounded-full border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100"
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
 
       {status === 'success' && (
         <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm">
@@ -173,7 +198,7 @@ export default function SettingsSection() {
       <div className="flex justify-end">
         <button
           onClick={handleSave}
-          disabled={status === 'saving'}
+          disabled={status === 'saving' || !config}
           className="inline-flex w-full items-center justify-center gap-2 px-6 py-2.5 sm:w-auto bg-primary-600 text-white rounded-xl font-semibold text-sm hover:bg-primary-700 transition-all disabled:opacity-50"
         >
           {status === 'saving' ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}

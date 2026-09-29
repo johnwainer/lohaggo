@@ -297,7 +297,7 @@ function RuleModal({
   onClose,
 }: {
   rule: Partial<AutomationRule> | null
-  onSave: (data: any) => Promise<void>
+  onSave: (data: any) => Promise<string | null>
   onClose: () => void
 }) {
   const isNew = !rule?.id
@@ -320,6 +320,7 @@ function RuleModal({
   })
   const [waVars, setWaVars] = useState<Record<string, string>>(initialWaVars)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [waTemplates, setWaTemplates] = useState<WaTemplate[]>([])
   const [waLoading, setWaLoading] = useState(false)
 
@@ -360,9 +361,11 @@ function RuleModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
+    setSaveError(null)
     const metadata = Object.keys(waVars).length > 0 ? JSON.stringify({ waVars }) : null
-    await onSave({ ...form, id: rule?.id, metadata })
+    const err = await onSave({ ...form, id: rule?.id, metadata })
     setSaving(false)
+    if (err) setSaveError(err)
   }
 
   const metaTemplates = waTemplates.filter(t => t.source === 'meta')
@@ -606,6 +609,13 @@ function RuleModal({
             <label htmlFor="isActive" className="text-sm font-medium text-gray-700">Regla activa</label>
           </div>
 
+          {saveError && (
+            <div role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              <AlertCircle size={16} className="mt-0.5 shrink-0" />
+              <span className="min-w-0 break-words">{saveError}</span>
+            </div>
+          )}
+
           <div className="flex gap-3 pt-2">
             <button
               type="button"
@@ -656,39 +666,86 @@ export default function AutomationsPage() {
 
   useEffect(() => { load() }, [load])
 
+  const errorText = async (res: Response) => {
+    const data = await res.json().catch(() => null)
+    if (data && typeof data.error === 'string' && data.error) return data.error
+    return res.status === 403 ? 'Solo un superadmin puede cambiar esto' : `El servidor respondió ${res.status}`
+  }
+
   const seed = async () => {
     setSeeding(true)
-    await fetch('/api/admin/automations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'seed' }) })
-    await load()
-    setSeeding(false)
+    setError(null)
+    try {
+      const res = await fetch('/api/admin/automations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'seed' }) })
+      if (!res.ok) setError(`No se pudieron crear las reglas: ${await errorText(res)}`)
+      else await load()
+    } catch {
+      setError('No se pudieron crear las reglas: sin conexión')
+    } finally {
+      setSeeding(false)
+    }
   }
 
   const reseed = async () => {
     if (!confirm('¿Actualizar los mensajes y canales de todas las reglas por defecto? Esto sobreescribe el contenido actual de las reglas estándar.')) return
     setSeeding(true)
-    const res = await fetch('/api/admin/automations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reseed' }) })
-    const data = await res.json()
-    await load()
-    setSeeding(false)
-    alert(`Actualizado: ${data.updated} reglas actualizadas, ${data.inserted} nuevas insertadas.`)
+    setError(null)
+    try {
+      const res = await fetch('/api/admin/automations', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reseed' }) })
+      if (!res.ok) {
+        setError(`No se pudieron actualizar las reglas: ${await errorText(res)}`)
+        return
+      }
+      const data = await res.json()
+      await load()
+      alert(`Actualizado: ${data.updated} reglas actualizadas, ${data.inserted} nuevas insertadas.`)
+    } catch {
+      setError('No se pudieron actualizar las reglas: sin conexión')
+    } finally {
+      setSeeding(false)
+    }
   }
 
   const handleToggle = async (id: string, val: boolean) => {
-    await fetch('/api/admin/automations', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, isActive: val }) })
-    setRules(r => r.map(rule => rule.id === id ? { ...rule, isActive: val } : rule))
+    setError(null)
+    try {
+      const res = await fetch('/api/admin/automations', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, isActive: val }) })
+      if (!res.ok) {
+        setError(`No se pudo cambiar la regla: ${await errorText(res)}`)
+        return
+      }
+      setRules(r => r.map(rule => rule.id === id ? { ...rule, isActive: val } : rule))
+    } catch {
+      setError('No se pudo cambiar la regla: sin conexión')
+    }
   }
 
   const handleDelete = async (id: string) => {
     if (!confirm('¿Eliminar esta regla? Las ejecuciones pendientes también se eliminarán.')) return
-    await fetch(`/api/admin/automations?id=${id}`, { method: 'DELETE' })
-    setRules(r => r.filter(rule => rule.id !== id))
+    setError(null)
+    try {
+      const res = await fetch(`/api/admin/automations?id=${id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        setError(`No se pudo eliminar la regla: ${await errorText(res)}`)
+        return
+      }
+      setRules(r => r.filter(rule => rule.id !== id))
+    } catch {
+      setError('No se pudo eliminar la regla: sin conexión')
+    }
   }
 
   const handleSave = async (data: any) => {
     const method = data.id ? 'PATCH' : 'POST'
-    await fetch('/api/admin/automations', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+    try {
+      const res = await fetch('/api/admin/automations', { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+      if (!res.ok) return `No se pudo guardar: ${await errorText(res)}`
+    } catch {
+      return 'No se pudo guardar: sin conexión'
+    }
     setEditRule(false)
     await load()
+    return null
   }
 
   // Group rules by trigger group

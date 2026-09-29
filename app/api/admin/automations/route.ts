@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/admin-utils'
+import { auditAdminAction, requireAdmin } from '@/lib/admin-utils'
 import { prisma } from '@/lib/prisma'
 import { DEFAULT_AUTOMATION_RULES } from '@/lib/messaging/automation-service'
 import { createLogger } from '@/lib/logger'
 
 const logger = createLogger('admin-automations')
+const ROUTE = '/api/admin/automations'
 
 export async function GET() {
   const admin = await requireAdmin()
@@ -59,6 +60,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!admin.isSuperAdmin) return NextResponse.json({ error: 'Solo un superadmin puede cambiar esto' }, { status: 403 })
 
   const body = await request.json()
 
@@ -76,6 +78,7 @@ export async function POST(request: NextRequest) {
       skipDuplicates: true,
     })
     logger.info('Seeded default automation rules', { count: created.count, adminId: admin.id })
+    await auditAdminAction({ actorId: admin.id, actorEmail: admin.email, action: 'automation.seed', entityType: 'AutomationRule', route: ROUTE, details: `${created.count} reglas creadas`, request })
     return NextResponse.json({ seeded: created.count })
   }
 
@@ -105,6 +108,7 @@ export async function POST(request: NextRequest) {
       }
     }
     logger.info('Reseeded automation rules', { updated, inserted, adminId: admin.id })
+    await auditAdminAction({ actorId: admin.id, actorEmail: admin.email, action: 'automation.reseed', entityType: 'AutomationRule', route: ROUTE, details: `${updated} actualizadas, ${inserted} creadas`, request })
     return NextResponse.json({ updated, inserted })
   }
 
@@ -131,12 +135,15 @@ export async function POST(request: NextRequest) {
     },
   })
 
+  await auditAdminAction({ actorId: admin.id, actorEmail: admin.email, action: 'automation.create', entityType: 'AutomationRule', entityId: rule.id, route: ROUTE, details: `${rule.name} (${rule.trigger})`, request })
+
   return NextResponse.json({ rule }, { status: 201 })
 }
 
 export async function PATCH(request: NextRequest) {
   const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!admin.isSuperAdmin) return NextResponse.json({ error: 'Solo un superadmin puede cambiar esto' }, { status: 403 })
 
   const body = await request.json()
   const { id, ...updates } = body
@@ -156,17 +163,20 @@ export async function PATCH(request: NextRequest) {
   if ('targetRole' in updates) data.targetRole = updates.targetRole ?? null
 
   const rule = await prisma.automationRule.update({ where: { id }, data })
+  await auditAdminAction({ actorId: admin.id, actorEmail: admin.email, action: 'automation.update', entityType: 'AutomationRule', entityId: rule.id, route: ROUTE, details: `${rule.name}: ${Object.keys(data).join(', ')}`, request })
   return NextResponse.json({ rule })
 }
 
 export async function DELETE(request: NextRequest) {
   const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!admin.isSuperAdmin) return NextResponse.json({ error: 'Solo un superadmin puede cambiar esto' }, { status: 403 })
 
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 })
 
-  await prisma.automationRule.delete({ where: { id } })
+  const deleted = await prisma.automationRule.delete({ where: { id } })
+  await auditAdminAction({ actorId: admin.id, actorEmail: admin.email, action: 'automation.delete', entityType: 'AutomationRule', entityId: id, route: ROUTE, details: deleted.name, request })
   return NextResponse.json({ ok: true })
 }

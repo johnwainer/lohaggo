@@ -6,6 +6,8 @@ export interface MenuItem {
   icon: LucideIcon
   /** Own page; without it the item is a section of /admin (?section=id) */
   href?: string
+  /** Only for the platform super administrator */
+  superAdminOnly?: boolean
 }
 
 export interface MenuGroup {
@@ -19,7 +21,7 @@ export const ADMIN_MENU: MenuGroup[] = [
     label: 'Panel General',
     hint: 'Vista global y salud del sistema',
     items: [
-      { id: 'haggo', label: 'Haggo', icon: Sparkles, href: '/admin/haggo' },
+      { id: 'haggo', label: 'Haggo', icon: Sparkles, href: '/admin/haggo', superAdminOnly: true },
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { id: 'analytics', label: 'Analítica', icon: BarChart3, href: '/admin/analytics' },
       { id: 'system', label: 'Salud del sistema', icon: HeartPulse, href: '/admin/system' },
@@ -95,11 +97,15 @@ const ITEMS = ADMIN_MENU.flatMap((g) => g.items)
 const ALIASES: Array<[prefix: string, id: string]> = [
   ['/admin/users/', 'users'],
   ['/admin/payment-config', 'connections'],
-  ['/admin/commissions', 'commissions'],
-  ['/admin/payouts', 'payouts'],
   ['/admin/search-analytics', 'analytics'],
   ['/admin/pwa-adoption', 'analytics'],
 ]
+
+/** The menu this admin can see (items for the super administrator are hidden from the rest). */
+export const menuFor = (isSuperAdmin: boolean): MenuGroup[] =>
+  isSuperAdmin
+    ? ADMIN_MENU
+    : ADMIN_MENU.map((g) => ({ ...g, items: g.items.filter((i) => !i.superAdminOnly) })).filter((g) => g.items.length > 0)
 
 export const itemHref = (item: MenuItem) => item.href ?? `/admin?section=${item.id}`
 

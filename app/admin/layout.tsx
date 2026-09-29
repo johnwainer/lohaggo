@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
 import type { Viewport } from 'next'
 import AdminLayoutClient from '@/components/admin/AdminLayoutClient'
 
@@ -29,5 +30,9 @@ export default async function AdminLayout({
     redirect('/')
   }
 
-  return <AdminLayoutClient>{children}</AdminLayoutClient>
+  const me = session.user.id
+    ? await prisma.user.findUnique({ where: { id: session.user.id }, select: { isSuperAdmin: true } }).catch(() => null)
+    : null
+
+  return <AdminLayoutClient isSuperAdmin={Boolean(me?.isSuperAdmin)}>{children}</AdminLayoutClient>
 }

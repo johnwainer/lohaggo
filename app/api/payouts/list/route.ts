@@ -1,3 +1,4 @@
+import { maskAccountNumber } from '@/lib/admin/pagination';
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -32,7 +33,7 @@ export async function GET(req: NextRequest) {
       include: {
         partner: {
           include: {
-            user: true,
+            user: { select: { id: true, name: true, email: true, phone: true } },
             bankAccounts: {
               where: { isActive: true },
               orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
@@ -65,7 +66,11 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    return NextResponse.json(payouts);
+    // Only the last digits of each bank account leave the server
+    return NextResponse.json(payouts.map((p) => ({
+      ...p,
+      partner: p.partner ? { ...p.partner, bankAccounts: p.partner.bankAccounts.map((b) => ({ ...b, accountNumber: maskAccountNumber(b.accountNumber) })) } : p.partner,
+    })));
   } catch (error) {
     logger.error('Error al obtener pagos pendientes:', error || undefined);
     return NextResponse.json(

@@ -17,11 +17,16 @@ interface PaymentConfig {
   productionPublicKey?: string
   productionClientId?: string
   activeEnvironmentReady?: boolean
+  activeEnvironmentValidated?: boolean
+  canEdit?: boolean
   validation?: {
-    test?: { ok: boolean; status: number; error?: string | null } | null
-    production?: { ok: boolean; status: number; error?: string | null } | null
-  }
+    test?: MpValidation | null
+    production?: MpValidation | null
+    checkedAt?: string
+  } | null
 }
+
+type MpValidation = { ok: boolean; status: number; error?: string | null; account?: { nickname?: string; email?: string } | null }
 
 export default function PaymentConfigPage() {
   const { data: session, status } = useSession()
@@ -29,6 +34,7 @@ export default function PaymentConfigPage() {
   const [config, setConfig] = useState<PaymentConfig | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [testing, setTesting] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   
   const [environment, setEnvironment] = useState<PaymentEnvironment>('TEST')
@@ -102,22 +108,57 @@ export default function PaymentConfigPage() {
         }),
       })
 
+      const data = await response.json().catch(() => ({}))
       if (response.ok) {
-        const data = await response.json()
         setConfig(data)
-        setMessage({ type: 'success', text: 'Configuración guardada exitosamente' })
+        setMessage({ type: 'success', text: 'Configuración guardada y validada con MercadoPago' })
         setTestAccessToken('')
         setTestClientSecret('')
         setProductionAccessToken('')
         setProductionClientSecret('')
+      } else if (response.status === 403) {
+        setMessage({ type: 'error', text: data?.error || 'Solo un superadmin puede cambiar esto' })
       } else {
-        setMessage({ type: 'error', text: 'Error al guardar la configuración' })
+        setMessage({ type: 'error', text: data?.error || 'Error al guardar la configuración' })
       }
     } catch (error) {
       setMessage({ type: 'error', text: 'Error al guardar la configuración' })
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleTest = async () => {
+    setTesting(true)
+    setMessage(null)
+    try {
+      const response = await fetch('/api/admin/payment-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'test' }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        setMessage({ type: 'error', text: data?.error || 'No se pudo probar la conexión' })
+        return
+      }
+      setConfig(data)
+      setMessage(
+        data.activeEnvironmentValidated
+          ? { type: 'success', text: 'MercadoPago respondió: las credenciales del ambiente activo funcionan' }
+          : { type: 'error', text: 'Las credenciales del ambiente activo no funcionan o faltan' }
+      )
+    } catch {
+      setMessage({ type: 'error', text: 'No se pudo probar la conexión' })
+    } finally {
+      setTesting(false)
+    }
+  }
+
+  const validationLabel = (v: MpValidation | null | undefined, hasToken: boolean) => {
+    if (!hasToken) return 'Sin access token'
+    if (!v) return 'Sin probar'
+    return v.ok ? `Funciona${v.account?.nickname ? ` · ${v.account.nickname}` : ''}` : `Falla: ${v.error || `error ${v.status}`}`
   }
 
   if (status === 'loading' || loading) {
@@ -152,7 +193,40 @@ export default function PaymentConfigPage() {
                 : 'bg-red-50 text-red-700 border border-red-200'
             }`}>
               <span className="font-semibold">Estado ambiente activo:</span>
-              <span>{config.activeEnvironmentReady ? 'Conectado y validado' : 'Credenciales inválidas o incompletas'}</span>
+              <span>
+                {!config.activeEnvironmentReady
+                  ? 'Credenciales incompletas'
+                  : config.activeEnvironmentValidated === true
+                    ? 'Conectado y validado'
+                    : config.activeEnvironmentValidated === false
+                      ? 'Credenciales inválidas'
+                      : 'Configurado (sin probar)'}
+              </span>
+            </div>
+          )}
+          {config && (
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+              <button
+                type="button"
+                onClick={handleTest}
+                disabled={testing}
+                className="w-full sm:w-auto rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                {testing ? 'Probando...' : 'Probar conexión'}
+              </button>
+              {config.validation?.checkedAt && (
+                <div className="text-xs text-gray-600 space-y-0.5 sm:ml-2">
+                  <p>Pruebas: {validationLabel(config.validation.test, !!config.hasTestCredentials || !!config.validation.test)}</p>
+                  <p>Producción: {validationLabel(config.validation.production, !!config.hasProductionCredentials || !!config.validation.production)}</p>
+                  <p className="text-gray-400">Probado a las {new Date(config.validation.checkedAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</p>
+                </div>
+              )}
+            </div>
+          )}
+          {config && config.canEdit === false && (
+            <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>Solo un superadmin puede cambiar esto. Puedes ver el estado y probar la conexión.</span>
             </div>
           )}
       </div>
@@ -390,7 +464,7 @@ export default function PaymentConfigPage() {
           <div className="flex gap-4">
             <button
               type="submit"
-              disabled={saving}
+              disabled={saving || config?.canEdit === false}
               className="flex-1 bg-primary-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-[#E02850] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {saving ? 'Guardando...' : 'Guardar Configuración'}

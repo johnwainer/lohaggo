@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { auditAdminAction, requireAdmin } from '@/lib/admin-utils';
 import { prisma } from '@/lib/prisma';
 import { createLogger } from '@/lib/logger';
 import { commissionConfigSchema, validateRequest } from '@/lib/validation';
@@ -12,10 +11,9 @@ const logger = createLogger('admin-commission-config');
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session || session.user.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
+    const admin = await requireAdmin();
+    if (!admin) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
     let config = await loadPlatformConfigRow();
@@ -46,10 +44,12 @@ export async function GET() {
 
 export async function PUT(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session || session.user.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
+    const admin = await requireAdmin();
+    if (!admin) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+    if (!admin.isSuperAdmin) {
+      return NextResponse.json({ error: 'Solo un superadmin puede cambiar esto' }, { status: 403 });
     }
 
     const body = await req.json();
@@ -70,6 +70,13 @@ export async function PUT(req: NextRequest) {
       mercadoPagoEnabled,
     } = validation.data;
 
+    if (minServicePrice !== undefined && maxServicePrice !== undefined && minServicePrice >= maxServicePrice) {
+      return NextResponse.json(
+        { error: 'El precio mínimo debe ser menor que el precio máximo' },
+        { status: 400 }
+      );
+    }
+
     const existingConfig = await loadPlatformConfigRow();
 
     let config;
@@ -77,9 +84,8 @@ export async function PUT(req: NextRequest) {
       config = await prisma.platformConfig.update({
         where: { id: existingConfig.id },
         data: {
-          clientCommissionRate,
-          partnerCommissionRate,
-          commissionRate: clientCommissionRate,
+          ...(clientCommissionRate !== undefined ? { clientCommissionRate, commissionRate: clientCommissionRate } : {}),
+          ...(partnerCommissionRate !== undefined ? { partnerCommissionRate } : {}),
           ...(minServicePrice !== undefined ? { minServicePrice } : {}),
           ...(maxServicePrice !== undefined ? { maxServicePrice } : {}),
           ...(commissionEnabled !== undefined ? { commissionEnabled } : {}),
@@ -92,9 +98,9 @@ export async function PUT(req: NextRequest) {
       config = await prisma.platformConfig.create({
         data: {
           key: 'commission_rates',
-          commissionRate: clientCommissionRate,
-          clientCommissionRate,
-          partnerCommissionRate,
+          commissionRate: clientCommissionRate ?? DEFAULT_COMMISSION.clientCommissionRate,
+          clientCommissionRate: clientCommissionRate ?? DEFAULT_COMMISSION.clientCommissionRate,
+          partnerCommissionRate: partnerCommissionRate ?? DEFAULT_COMMISSION.partnerCommissionRate,
           minServicePrice: minServicePrice ?? 10000,
           maxServicePrice: maxServicePrice ?? 10000000,
           commissionEnabled: commissionEnabled ?? false,
@@ -106,10 +112,21 @@ export async function PUT(req: NextRequest) {
     }
 
     logger.info('Commission configuration updated', {
-      adminId: session.user.id,
+      adminId: admin.id,
       clientCommissionRate: config.clientCommissionRate,
       partnerCommissionRate: config.partnerCommissionRate,
       commissionEnabled: config.commissionEnabled,
+    });
+
+    await auditAdminAction({
+      actorId: admin.id,
+      actorEmail: admin.email,
+      action: 'commission_config.update',
+      entityType: 'PlatformConfig',
+      entityId: config.id,
+      route: '/api/admin/commission-config',
+      details: JSON.stringify(validation.data),
+      request: req,
     });
 
     // Public pages promise «sin comisión» only while it is off: expire their cached facts right away.

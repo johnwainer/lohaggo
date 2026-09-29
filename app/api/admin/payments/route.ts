@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
 import { attachAgentNames } from '@/lib/ops/origin-labels'
+import { pagedResponse, parseAdminPagination } from '@/lib/admin/pagination'
+
+const USER_SAFE = { select: { id: true, name: true, email: true, phone: true } } as const
 
 
 const logger = createLogger('admin-payments')
@@ -25,6 +28,7 @@ export async function GET(req: NextRequest) {
     const refundableOnly = searchParams.get('refundableOnly') === 'true'
     const minAmount = searchParams.get('minAmount')
     const maxAmount = searchParams.get('maxAmount')
+    const p = parseAdminPagination(searchParams)
 
     const where: any = {}
     if (status && status !== 'ALL') {
@@ -61,16 +65,16 @@ export async function GET(req: NextRequest) {
       ]
     }
 
-    const payments = await prisma.payment.findMany({
+    const paymentsQuery = prisma.payment.findMany({
       where,
       include: {
         booking: {
           include: {
             service: true,
-            user: true,
+            user: USER_SAFE,
             partner: {
               include: {
-                user: true,
+                user: USER_SAFE,
               },
             },
           },
@@ -90,7 +94,14 @@ export async function GET(req: NextRequest) {
       orderBy: {
         createdAt: 'desc',
       },
+      skip: p.skip,
+      take: p.take,
     })
+    const [payments, total, stats] = await Promise.all([
+      paymentsQuery,
+      p.paged ? prisma.payment.count({ where }) : Promise.resolve(0),
+      p.paged && searchParams.get('stats') === '1' ? paymentStats(where) : Promise.resolve(null),
+    ])
     const withAgents = await attachAgentNames(payments)
     const enriched = withAgents.map((payment) => {
       const processedRefundAmount = payment.refundCases
@@ -111,12 +122,43 @@ export async function GET(req: NextRequest) {
       }
     })
 
-    return NextResponse.json(enriched)
+    if (!p.paged) return NextResponse.json(enriched)
+    return NextResponse.json({ ...pagedResponse(enriched, total, p), ...(stats ? { stats } : {}) })
   } catch (error) {
     logger.error('Error al obtener pagos:', error)
     return NextResponse.json(
       { error: 'Error al obtener pagos' },
       { status: 500 }
     )
+  }
+}
+
+async function paymentStats(where: any) {
+  const [byStatus, partnerCommission] = await Promise.all([
+    prisma.payment.groupBy({
+      by: ['status'],
+      where,
+      _count: { _all: true },
+      _sum: { totalAmount: true, clientCommission: true },
+    }),
+    prisma.payout.aggregate({
+      where: { payment: { AND: [where, { status: 'APPROVED' }] } },
+      _sum: { partnerCommission: true },
+    }),
+  ])
+  const row = (status: string) => byStatus.find((r) => r.status === status)
+  const approved = row('APPROVED')
+  const pending = row('PENDING')
+  const totalPartnerCommission = partnerCommission._sum.partnerCommission ?? 0
+  const totalClientCommission = approved?._sum.clientCommission ?? 0
+  return {
+    total: byStatus.reduce((sum, r) => sum + r._count._all, 0),
+    pending: pending?._count._all ?? 0,
+    approved: approved?._count._all ?? 0,
+    totalApproved: approved?._sum.totalAmount ?? 0,
+    totalPending: pending?._sum.totalAmount ?? 0,
+    totalClientCommission,
+    totalPartnerCommission,
+    totalAppRevenue: totalClientCommission + totalPartnerCommission,
   }
 }

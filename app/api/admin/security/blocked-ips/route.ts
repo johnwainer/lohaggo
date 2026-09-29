@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!admin.isSuperAdmin) return NextResponse.json({ error: 'Solo un superadmin puede cambiar esto' }, { status: 403 })
 
   const body = await request.json()
   const ipAddress = (body.ipAddress || '').trim()
@@ -77,6 +78,7 @@ export async function POST(request: NextRequest) {
     entityType: 'BlockedIp',
     entityId: block.id,
     details: `${ipAddress} - ${reason}`,
+    route: '/api/admin/security/blocked-ips',
     request,
   })
 
@@ -86,6 +88,7 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!admin.isSuperAdmin) return NextResponse.json({ error: 'Solo un superadmin puede cambiar esto' }, { status: 403 })
 
   const body = await request.json()
   const ipAddress = (body.ipAddress || '').trim()
@@ -112,6 +115,7 @@ export async function PATCH(request: NextRequest) {
       entityType: 'BlockedIp',
       entityId: updated.id,
       details: `${ipAddress}`,
+      route: '/api/admin/security/blocked-ips',
       request,
     })
 
@@ -135,6 +139,7 @@ export async function PATCH(request: NextRequest) {
       entityType: 'BlockedIp',
       entityId: updated.id,
       details: `${ipAddress}`,
+      route: '/api/admin/security/blocked-ips',
       request,
     })
 

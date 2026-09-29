@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { DollarSign, CheckCircle, Clock, XCircle, Search, TrendingUp } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { DollarSign, CheckCircle, Clock, XCircle, Search, TrendingUp, RefreshCw, AlertCircle } from 'lucide-react'
 import OriginBadge from '@/components/shared/OriginBadge'
 
 interface Payment {
@@ -40,66 +40,81 @@ interface Payment {
   }
 }
 
+type PaymentStats = {
+  total: number
+  pending: number
+  approved: number
+  totalApproved: number
+  totalPending: number
+  totalClientCommission: number
+  totalPartnerCommission: number
+  totalAppRevenue: number
+}
+
+const EMPTY_STATS: PaymentStats = {
+  total: 0, pending: 0, approved: 0, totalApproved: 0, totalPending: 0,
+  totalClientCommission: 0, totalPartnerCommission: 0, totalAppRevenue: 0,
+}
+
 export default function PaymentsSection() {
   const [payments, setPayments] = useState<Payment[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(false)
+  const [listTotal, setListTotal] = useState(0)
+  const [stats, setStats] = useState<PaymentStats>(EMPTY_STATS)
   const [filter, setFilter] = useState('ALL')
   const [searchTerm, setSearchTerm] = useState('')
+  const [search, setSearch] = useState('')
+  const requestSeq = useRef(0)
 
   useEffect(() => {
-    fetchPayments()
-  }, [filter])
+    const t = setTimeout(() => setSearch(searchTerm.trim()), 350)
+    return () => clearTimeout(t)
+  }, [searchTerm])
 
-  const fetchPayments = async () => {
+  useEffect(() => {
+    fetchPayments(1)
+  }, [filter, search])
+
+  const fetchPayments = async (nextPage = 1) => {
+    const seq = ++requestSeq.current
+    if (nextPage === 1) setLoading(true)
+    else setLoadingMore(true)
+    setError(null)
     try {
-      setLoading(true)
-      const url = filter === 'ALL'
-        ? '/api/admin/payments'
-        : `/api/admin/payments?status=${filter}`
-
-      const response = await fetch(url)
-      const data = await response.json()
-      setPayments(data)
-    } catch (error) {
-      console.error('Error al cargar pagos:', error)
+      const params = new URLSearchParams({ page: String(nextPage), take: '50' })
+      if (filter !== 'ALL') params.set('status', filter)
+      if (search) params.set('q', search)
+      if (nextPage === 1) params.set('stats', '1')
+      const response = await fetch(`/api/admin/payments?${params.toString()}`, { cache: 'no-store' })
+      const data = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(data?.error || 'No se pudieron cargar los pagos')
+      if (seq !== requestSeq.current) return
+      const items: Payment[] = Array.isArray(data?.items) ? data.items : []
+      setPayments(prev => (nextPage === 1 ? items : [...prev, ...items]))
+      setPage(nextPage)
+      setHasMore(Boolean(data?.hasMore))
+      setListTotal(Number(data?.total) || 0)
+      if (data?.stats) setStats(data.stats)
+    } catch (err) {
+      if (seq !== requestSeq.current) return
+      if (nextPage === 1) {
+        setPayments([])
+        setStats(EMPTY_STATS)
+      }
+      setError(err instanceof Error ? err.message : 'No se pudieron cargar los pagos')
     } finally {
-      setLoading(false)
+      if (seq === requestSeq.current) {
+        setLoading(false)
+        setLoadingMore(false)
+      }
     }
   }
 
-  const filteredPayments = payments.filter(payment => {
-    const searchLower = searchTerm.toLowerCase()
-    return (
-      payment.booking.user.name.toLowerCase().includes(searchLower) ||
-      payment.booking.user.email.toLowerCase().includes(searchLower) ||
-      payment.booking.service.name.toLowerCase().includes(searchLower)
-    )
-  })
-
-  const stats = {
-    total: payments.length,
-    pending: payments.filter(p => p.status === 'PENDING').length,
-    approved: payments.filter(p => p.status === 'APPROVED').length,
-    totalApproved: payments
-      .filter(p => p.status === 'APPROVED')
-      .reduce((sum, p) => sum + p.totalAmount, 0),
-    totalPending: payments
-      .filter(p => p.status === 'PENDING')
-      .reduce((sum, p) => sum + p.totalAmount, 0),
-    totalClientCommission: payments
-      .filter(p => p.status === 'APPROVED')
-      .reduce((sum, p) => sum + p.clientCommission, 0),
-    totalPartnerCommission: payments
-      .filter(p => p.status === 'APPROVED' && p.payout)
-      .reduce((sum, p) => sum + (p.payout?.partnerCommission || 0), 0),
-    totalAppRevenue: payments
-      .filter(p => p.status === 'APPROVED')
-      .reduce((sum, p) => {
-        const clientComm = p.clientCommission
-        const partnerComm = p.payout?.partnerCommission || 0
-        return sum + clientComm + partnerComm
-      }, 0),
-  }
+  const filteredPayments = payments
 
   const getStatusBadge = (status: string) => {
     const badges = {
@@ -136,7 +151,7 @@ export default function PaymentsSection() {
     })
   }
 
-  if (loading) {
+  if (loading && payments.length === 0 && !error) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
@@ -152,6 +167,18 @@ export default function PaymentsSection() {
           <p className="text-gray-600 mt-1">Gestiona todos los pagos de la plataforma</p>
         </div>
       </div>
+
+      {error && (
+        <div className="flex flex-col gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 sm:flex-row sm:items-center sm:justify-between">
+          <span className="flex items-center gap-2"><AlertCircle size={16} className="shrink-0" />{error}</span>
+          <button
+            onClick={() => fetchPayments(1)}
+            className="inline-flex items-center justify-center gap-1.5 rounded-full border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100"
+          >
+            <RefreshCw size={13} /> Reintentar
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4">
         <div className="bg-white rounded-lg shadow p-4 sm:p-6">
@@ -238,7 +265,7 @@ export default function PaymentsSection() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
                   type="text"
-                  placeholder="Buscar por cliente, email o servicio..."
+                  placeholder="Buscar por cliente, correo, socio o servicio..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
@@ -493,6 +520,18 @@ export default function PaymentsSection() {
             </tbody>
           </table>
         </div>
+
+        {hasMore && (
+          <div className="flex justify-center border-t border-gray-100 p-4">
+            <button
+              onClick={() => fetchPayments(page + 1)}
+              disabled={loadingMore}
+              className="w-full rounded-full border border-gray-200 bg-white px-5 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 sm:w-auto"
+            >
+              {loadingMore ? 'Cargando…' : `Cargar más (${payments.length} de ${listTotal})`}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )
