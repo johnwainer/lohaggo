@@ -537,7 +537,8 @@ async function recordMetaAttribution(
   text: string | null | undefined,
 ) {
   const { adReferral, ref } = parseMetaReferral(referral)
-  const webRef = extractWebRef(text) ?? (ref && /^(web|blog)-/i.test(ref) ? ref.toLowerCase() : null)
+  // The m.me / ig.me link's ref carries the same tags as the prefilled text (web-, blog-, post-, ad-, cmp-)
+  const webRef = extractWebRef(text) ?? (ref ? extractWebRef(`(ref: ${ref})`) : null)
   if (!adReferral && !webRef) return
   const conversation = await prisma.conversation.findUnique({ where: { channel_contactPhone: { channel, contactPhone: contactId } }, select: { id: true } })
   if (conversation) await recordConversationAttribution(conversation.id, { adReferral, webRef })

@@ -179,6 +179,12 @@ export function waBookingStatus(p: { bookingId: string; from: string; to: string
         if (!p.reopened) return sendWaToUser(clientId, WA.reservaCancelada(b.data))
         return sendWaToUser(clientId, p.from === 'CONFIRMED' ? WA.B19(b.data) : WA.B9(b.data))
       }
+      if (p.actorRole === 'ADMIN') {
+        // The team cancelled: both sides hear it (reopened → the client is told other partners can propose)
+        if (partnerUserId) await sendWaToUser(partnerUserId, WA.C16(b.data))
+        await sendWaToUser(clientId, p.reopened ? (p.from === 'CONFIRMED' ? WA.B19(b.data) : WA.B9(b.data)) : WA.reservaCancelada(b.data))
+        return true
+      }
     }
     return null
   })

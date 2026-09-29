@@ -1,4 +1,4 @@
-import type { City, MessagingChannel, UserRole } from '@prisma/client'
+import type { City, MessagingChannel, Prisma, UserRole } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { normalizePhone } from '@/lib/phone'
 import { clientSegmentWhere, parseClientSegment, zoneUserIds, type ClientSegment } from '@/lib/messaging/campaign-segments'
@@ -11,6 +11,10 @@ type BasicUser = {
   pushSubscription: string | null
   role: UserRole
 }
+
+const RECIPIENT_PAGE = 2000
+/** Safety bound for one send: 25 pages of 2000 (50 000 people). */
+const MAX_RECIPIENT_PAGES = 25
 
 export type RecipientControl = {
   includeUserIds: string[]
@@ -127,6 +131,8 @@ export async function resolveCampaignRecipients(params: {
   audienceOverride?: CampaignAudienceFilter
   clientSegmentOverride?: ClientSegment
   take?: number
+  /** Whole segment in pages (for sending), not capped by `take`. */
+  all?: boolean
   includeInactive?: boolean
   search?: string
 }) {
@@ -257,39 +263,60 @@ export async function resolveCampaignRecipients(params: {
 
   const hasPartnerProfileFilter = partnerServiceWhere || partnerCategoryWhere || partnerWithoutDocsWhere || partnerWithoutStudiesWhere || partnerWithoutServicesWhere || partnerOnlyVerifiedWhere
 
+  // Search, city and client segment each narrow the audience: combined with AND (spreading two `OR`s
+  // into one object kept only the last one)
+  const cityFilter = params.targetCity
+    ? {
+        OR: [
+          { role: 'CLIENT' as const, addresses: { some: { city: params.targetCity, isActive: true } } },
+          { role: 'CLIENT' as const, serviceRequests: { some: { city: params.targetCity } } },
+          { role: 'PARTNER' as const, partnerProfile: { city: params.targetCity } },
+        ],
+      }
+    : null
+  const and: Prisma.UserWhereInput[] = []
+  if (searchTerm) and.push(searchFilter as Prisma.UserWhereInput)
+  if (cityFilter) and.push(cityFilter)
+  if (clientSegmentFilter) and.push(clientSegmentFilter as Prisma.UserWhereInput)
+  const segmentWhere: Prisma.UserWhereInput = {
+    role: roleFilter,
+    excludedFromMarketing: false,
+    ...activeFilter,
+    ...(hasPartnerProfileFilter && {
+      partnerProfile: {
+        ...(partnerServiceWhere || {}),
+        ...(partnerCategoryWhere || {}),
+        ...(partnerWithoutDocsWhere || {}),
+        ...(partnerWithoutStudiesWhere || {}),
+        ...(partnerWithoutServicesWhere || {}),
+        ...(partnerOnlyVerifiedWhere || {}),
+      },
+    }),
+    ...(and.length ? { AND: and } : {}),
+  }
+  const userSelect = { id: true, name: true, email: true, phone: true, pushSubscription: true, role: true } as const
+
   // When targetRole is null (manual-only mode), skip the segment query entirely.
   // Recipients come exclusively from includeUserIds + search results.
-  const segmentUsers = params.targetRole
-    ? await prisma.user.findMany({
-        where: {
-          role: roleFilter,
-          excludedFromMarketing: false,
-          ...activeFilter,
-          ...searchFilter,
-          ...(hasPartnerProfileFilter && {
-            partnerProfile: {
-              ...(partnerServiceWhere || {}),
-              ...(partnerCategoryWhere || {}),
-              ...(partnerWithoutDocsWhere || {}),
-              ...(partnerWithoutStudiesWhere || {}),
-              ...(partnerWithoutServicesWhere || {}),
-              ...(partnerOnlyVerifiedWhere || {}),
-            },
-          }),
-          ...(clientSegmentFilter ? { AND: [clientSegmentFilter] } : {}),
-          ...(params.targetCity
-            ? {
-                OR: [
-                  { role: 'CLIENT', addresses: { some: { city: params.targetCity, isActive: true } } },
-                  { role: 'PARTNER', partnerProfile: { city: params.targetCity } },
-                ],
-              }
-            : {}),
-        },
-        select: { id: true, name: true, email: true, phone: true, pushSubscription: true, role: true },
-        take,
+  // `all`: the whole segment, read in pages (sending); otherwise the first `take` (preview).
+  let segmentUsers: BasicUser[] = []
+  if (params.targetRole && params.all) {
+    let cursor: string | null = null
+    for (let page = 0; page < MAX_RECIPIENT_PAGES; page++) {
+      const batch: BasicUser[] = await prisma.user.findMany({
+        where: segmentWhere, select: userSelect, orderBy: { id: 'asc' }, take: RECIPIENT_PAGE,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       })
-    : []
+      segmentUsers.push(...batch)
+      if (batch.length < RECIPIENT_PAGE) break
+      cursor = batch[batch.length - 1].id
+    }
+  } else if (params.targetRole) {
+    segmentUsers = await prisma.user.findMany({ where: segmentWhere, select: userSelect, orderBy: { id: 'asc' }, take })
+  }
+  const segmentTotal = params.targetRole
+    ? segmentUsers.length < take && !params.all ? segmentUsers.length : await prisma.user.count({ where: segmentWhere })
+    : 0
 
   // In MANUAL mode with a search term, find matching users across all roles (limit 50 for search results).
   const searchResultUsers = !params.targetRole && searchTerm
@@ -353,6 +380,8 @@ export async function resolveCampaignRecipients(params: {
     partnerFilterMode,
     clientSegment: appliesClientSegment ? clientSegment : null,
     segmentCount: segmentUsers.length,
+    /** Everyone in the segment; more than `segmentCount` when the preview was capped («X de Y»). */
+    segmentTotal,
     manualIncludedCount: manualUsers.filter((user) => !segmentUsers.find((segment) => segment.id === user.id)).length,
   }
 }

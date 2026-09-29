@@ -3,6 +3,7 @@
  * destination (ConversionEvent is the ledger: its unique key makes a second send a no-op). Credentials are
  * typed in Analítica → Conversiones and stored encrypted. Never throws: a conversion must not break a request.
  */
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
 import { decryptConfig, encryptConfig } from '@/lib/secure-config'
@@ -121,8 +122,10 @@ async function claim(destination: string, input: ConversionInput, entityType: st
       data: { event: input.kind, destination, eventId: conversionEventId(input.kind, input.entityId), entityType, entityId: input.entityId, value: input.value, status: 'pending' },
     })
     return true
-  } catch {
-    return false
+  } catch (err) {
+    // Only «already in the ledger» means someone else sends it; any other error is real
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') return false
+    throw err
   }
 }
 
@@ -133,41 +136,68 @@ async function settle(destination: string, input: ConversionInput, status: 'sent
   }).catch(() => null)
 }
 
+const configured = (s: ConversionSettings) => ({ meta: Boolean(s.metaPixelId && s.metaToken), ga4: Boolean(s.ga4MeasurementId && s.ga4ApiSecret) })
+
+/** Sends one claimed event to one destination and writes the outcome on its ledger row. */
+async function sendTo(destination: string, input: ConversionInput, s: ConversionSettings) {
+  try {
+    if (destination === 'meta_capi') {
+      const event = buildMetaEvent(input, { wabaId: s.metaWabaId })
+      const url = `https://graph.facebook.com/${META_GRAPH_DEFAULT_VERSION}/${s.metaPixelId}/events?access_token=${encodeURIComponent(s.metaToken as string)}`
+      const r = await postJson(url, { data: [event], ...(s.metaTestEventCode ? { test_event_code: s.metaTestEventCode } : {}) })
+      await settle(destination, input, r.ok ? 'sent' : 'failed', `${event.action_source} · ${r.status} ${r.text}`)
+      return r.ok
+    }
+    const url = `https://www.google-analytics.com/mp/collect?measurement_id=${encodeURIComponent(s.ga4MeasurementId as string)}&api_secret=${encodeURIComponent(s.ga4ApiSecret as string)}`
+    const r = await postJson(url, buildGa4Event(input))
+    await settle(destination, input, r.ok ? 'sent' : 'failed', `${r.status} ${r.text}`)
+    return r.ok
+  } catch (err) {
+    await settle(destination, input, 'failed', err instanceof Error ? err.message : 'error')
+    logger.warn('Conversion not sent', { destination, kind: input.kind, entityId: input.entityId })
+    return false
+  }
+}
+
 async function dispatch(input: ConversionInput, entityType: string, browserSent: boolean) {
   const s = await getConversionSettings()
-  const destinations = conversionDestinations({ kind: input.kind, browserSent, meta: Boolean(s.metaPixelId && s.metaToken), ga4: Boolean(s.ga4MeasurementId && s.ga4ApiSecret) })
+  const destinations = conversionDestinations({ kind: input.kind, browserSent, ...configured(s) })
   for (const destination of destinations) {
     if (!(await claim(destination, input, entityType))) continue
-    try {
-      if (destination === 'meta_capi') {
-        const event = buildMetaEvent(input, { wabaId: s.metaWabaId })
-        const url = `https://graph.facebook.com/${META_GRAPH_DEFAULT_VERSION}/${s.metaPixelId}/events?access_token=${encodeURIComponent(s.metaToken as string)}`
-        const r = await postJson(url, { data: [event], ...(s.metaTestEventCode ? { test_event_code: s.metaTestEventCode } : {}) })
-        await settle(destination, input, r.ok ? 'sent' : 'failed', `${event.action_source} · ${r.status} ${r.text}`)
-      } else {
-        const url = `https://www.google-analytics.com/mp/collect?measurement_id=${encodeURIComponent(s.ga4MeasurementId as string)}&api_secret=${encodeURIComponent(s.ga4ApiSecret as string)}`
-        const r = await postJson(url, buildGa4Event(input))
-        await settle(destination, input, r.ok ? 'sent' : 'failed', `${r.status} ${r.text}`)
-      }
-    } catch (err) {
-      await settle(destination, input, 'failed', err instanceof Error ? err.message : 'error')
-      logger.warn('Conversion not sent', { destination, kind: input.kind, entityId: input.entityId })
-    }
+    await sendTo(destination, input, s)
+  }
+}
+
+async function leadInput(serviceRequestId: string, browser: BrowserContext | null): Promise<ConversionInput | null> {
+  const r = await prisma.serviceRequest.findUnique({
+    where: { id: serviceRequestId },
+    select: { id: true, createdAt: true, budget: true, lastTouch: true, serviceId: true, service: { select: { name: true, basePrice: true } }, user: { select: { id: true, email: true, phone: true } } },
+  })
+  if (!r) return null
+  return {
+    kind: 'Lead', entityId: r.id, at: r.createdAt, value: r.budget ?? r.service.basePrice ?? null, serviceId: r.serviceId, serviceName: r.service.name,
+    user: r.user, touch: readTouch(r.lastTouch), browser, siteUrl: SITE_URL,
+  }
+}
+
+async function purchaseInput(bookingId: string, at: Date): Promise<ConversionInput | null> {
+  const b = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    select: { id: true, totalPrice: true, lastTouch: true, serviceId: true, service: { select: { name: true } }, user: { select: { id: true, email: true, phone: true } } },
+  })
+  if (!b) return null
+  return {
+    kind: 'Purchase', entityId: b.id, at, value: b.totalPrice, serviceId: b.serviceId, serviceName: b.service.name,
+    user: b.user, touch: readTouch(b.lastTouch), browser: null, siteUrl: SITE_URL,
   }
 }
 
 /** Lead of a new request. `browserSent`: the page fired the pixel with the same event id (web form). */
 export async function sendLeadConversion(serviceRequestId: string, opts: { browser?: BrowserContext | null; browserSent?: boolean } = {}) {
   try {
-    const r = await prisma.serviceRequest.findUnique({
-      where: { id: serviceRequestId },
-      select: { id: true, createdAt: true, budget: true, lastTouch: true, serviceId: true, service: { select: { name: true, basePrice: true } }, user: { select: { id: true, email: true, phone: true } } },
-    })
-    if (!r) return
-    await dispatch({
-      kind: 'Lead', entityId: r.id, at: r.createdAt, value: r.budget ?? r.service.basePrice ?? null, serviceId: r.serviceId, serviceName: r.service.name,
-      user: r.user, touch: readTouch(r.lastTouch), browser: opts.browser ?? null, siteUrl: SITE_URL,
-    }, 'ServiceRequest', Boolean(opts.browserSent))
+    const input = await leadInput(serviceRequestId, opts.browser ?? null)
+    if (!input) return
+    await dispatch(input, 'ServiceRequest', Boolean(opts.browserSent))
   } catch (err) {
     logger.warn('Lead conversion failed', { serviceRequestId, err: err instanceof Error ? err.message : err })
   }
@@ -176,17 +206,57 @@ export async function sendLeadConversion(serviceRequestId: string, opts: { brows
 /** Purchase of a booking (completed or paid, whichever comes first; the ledger keeps it to one). */
 export async function sendPurchaseConversion(bookingId: string) {
   try {
-    const b = await prisma.booking.findUnique({
-      where: { id: bookingId },
-      select: { id: true, totalPrice: true, lastTouch: true, serviceId: true, service: { select: { name: true } }, user: { select: { id: true, email: true, phone: true } } },
-    })
-    if (!b) return
-    await dispatch({
-      kind: 'Purchase', entityId: b.id, at: new Date(), value: b.totalPrice, serviceId: b.serviceId, serviceName: b.service.name,
-      user: b.user, touch: readTouch(b.lastTouch), browser: null, siteUrl: SITE_URL,
-    }, 'Booking', false)
+    const input = await purchaseInput(bookingId, new Date())
+    if (!input) return
+    await dispatch(input, 'Booking', false)
   } catch (err) {
     logger.warn('Purchase conversion failed', { bookingId, err: err instanceof Error ? err.message : err })
+  }
+}
+
+/** Retries: events that failed in the last day, up to 3 attempts, at least this long after the last one. */
+export const CONVERSION_RETRY = { maxAttempts: 3, withinMs: 24 * 3600_000, afterMs: 15 * 60_000 }
+
+/**
+ * Cron: sends again the conversions that failed (Meta or Google down, a timeout). Each row is taken
+ * atomically (failed → pending) so two runs never send it twice. Never throws.
+ */
+export async function retryFailedConversions(now: Date = new Date(), limit = 20) {
+  try {
+    const rows = await prisma.conversionEvent.findMany({
+      where: {
+        status: 'failed',
+        attempts: { lt: CONVERSION_RETRY.maxAttempts },
+        createdAt: { gte: new Date(now.getTime() - CONVERSION_RETRY.withinMs) },
+        updatedAt: { lt: new Date(now.getTime() - CONVERSION_RETRY.afterMs) },
+      },
+      orderBy: { updatedAt: 'asc' },
+      take: limit,
+    })
+    if (!rows.length) return { retried: 0, sent: 0 }
+    const s = await getConversionSettings()
+    const on = configured(s)
+    let retried = 0
+    let sent = 0
+    for (const row of rows) {
+      if ((row.destination === 'meta_capi' && !on.meta) || (row.destination === 'ga4_mp' && !on.ga4)) continue
+      const taken = await prisma.conversionEvent.updateMany({
+        where: { id: row.id, status: 'failed', attempts: { lt: CONVERSION_RETRY.maxAttempts } },
+        data: { status: 'pending', attempts: { increment: 1 } },
+      })
+      if (!taken.count) continue
+      const input = row.entityType === 'Booking' ? await purchaseInput(row.entityId, row.createdAt) : row.entityType === 'ServiceRequest' ? await leadInput(row.entityId, null) : null
+      if (!input) {
+        await prisma.conversionEvent.update({ where: { id: row.id }, data: { status: 'skipped', detail: 'La solicitud o la reserva ya no existe' } }).catch(() => null)
+        continue
+      }
+      retried++
+      if (await sendTo(row.destination, input, s)) sent++
+    }
+    return { retried, sent }
+  } catch (err) {
+    logger.warn('Conversion retry failed', { err: err instanceof Error ? err.message : err })
+    return { retried: 0, sent: 0 }
   }
 }
 

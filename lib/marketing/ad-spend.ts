@@ -28,6 +28,16 @@ export function parseAdSpendInput(b: Record<string, unknown>): AdSpendInput {
 export async function recordAdSpend(p: { workspaceId: string; adDraftId: string; campaignId: string | null; input: AdSpendInput; userId: string }) {
   const day = new Date(`${p.input.day}T00:00:00Z`)
   const adSet = p.input.adSet ?? ''
+  // A day is typed either for the whole package or per ad set: mixing both would count it twice
+  const clash = await prisma.marketingAdSpend.findFirst({
+    where: { workspaceId: p.workspaceId, day, key: p.adDraftId, adSet: adSet ? '' : { not: '' } },
+    select: { adSet: true },
+  })
+  if (clash) {
+    throw new AdSpendError(adSet
+      ? `El ${p.input.day} ya tiene el gasto de toda la pauta. Quítalo o carga ese día sin conjunto.`
+      : `El ${p.input.day} ya tiene gasto por conjunto (${clash.adSet}). Carga cada conjunto por separado o quita esas filas primero.`)
+  }
   return prisma.marketingAdSpend.upsert({
     where: { workspaceId_day_key_adSet: { workspaceId: p.workspaceId, day, key: p.adDraftId, adSet } },
     create: { workspaceId: p.workspaceId, day, key: p.adDraftId, adDraftId: p.adDraftId, campaignId: p.campaignId, adSet, amountCop: p.input.amountCop, note: p.input.note, createdById: p.userId },

@@ -12,6 +12,8 @@ import {
   adUrlParams,
   adWelcomeMessage,
   cloudinaryDownload,
+  metaAdIdsOf,
+  parseMetaAdIds,
   type AdFormat,
   type AdPackage,
 } from '@/lib/marketing/ads-core'
@@ -133,6 +135,48 @@ function SpendSection({ draftId, canEdit }: { draftId: string; canEdit: boolean 
   )
 }
 
+/** Ids of the ads made in Ads Manager from this package: Messenger/Instagram chats from those ads count for it. */
+function MetaAdIdsSection({ d, canEdit, onChanged }: { d: Draft; canEdit: boolean; onChanged: (d: Draft) => void }) {
+  const saved = metaAdIdsOf(d.output)
+  const [text, setText] = useState(saved.join(', '))
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [done, setDone] = useState(false)
+  const parsed = parseMetaAdIds(text)
+  const changed = parsed.join(',') !== saved.join(',')
+  async function save() {
+    setBusy(true)
+    setError(null)
+    setDone(false)
+    try {
+      const r = await api<{ draft: Draft }>(`/api/admin/marketing/paid/${d.id}`, { method: 'PATCH', json: { metaAdIds: parsed } })
+      onChanged(r.draft)
+      setText(metaAdIdsOf(r.draft.output).join(', '))
+      setDone(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error')
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <Section title="IDs de anuncios en Meta">
+      <p className="text-xs text-gray-500">En Ads Manager, columna «Identificador del anuncio». Los chats de Messenger e Instagram que llegan de esos anuncios cuentan para esta pauta en Analítica → Origen.</p>
+      {canEdit ? (
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <input className={`${input} min-w-0 flex-1`} inputMode="numeric" placeholder="120210000000000001, 120210000000000002" value={text} onChange={(e) => { setText(e.target.value); setDone(false) }} />
+          <button onClick={save} disabled={busy || !changed} className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full bg-primary-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy && <Loader2 size={14} className="animate-spin" />} Guardar</button>
+        </div>
+      ) : (
+        <p className="text-sm text-gray-900">{saved.join(', ') || '—'}</p>
+      )}
+      {canEdit && text.trim() && !parsed.length && <p className="text-xs text-amber-700">Escribe solo los números de los IDs, separados por comas.</p>}
+      {error && <p className="text-sm text-rose-600">{error}</p>}
+      {done && !error && <p className="inline-flex items-center gap-1 text-xs text-emerald-700"><Check size={12} /> Guardado</p>}
+    </Section>
+  )
+}
+
 function DraftDetail({ d, canEdit, onBack, onChanged }: { d: Draft; canEdit: boolean; onBack: () => void; onChanged: (d: Draft) => void }) {
   const [busy, setBusy] = useState(false)
   const p = d.output
@@ -243,6 +287,7 @@ function DraftDetail({ d, canEdit, onBack, onChanged }: { d: Draft; canEdit: boo
             </Section>
           )}
 
+          {(d.status === 'used' || d.status === 'ready') && <MetaAdIdsSection d={d} canEdit={canEdit} onChanged={onChanged} />}
           {(d.status === 'used' || d.status === 'ready') && <SpendSection draftId={d.id} canEdit={canEdit} />}
 
           <Section title="Cómo subirla a Meta Ads">

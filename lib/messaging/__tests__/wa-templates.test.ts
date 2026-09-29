@@ -240,7 +240,7 @@ describe('respuestas rápidas', () => {
     })
     const ctx = system[3].text
     expect(ctx).toContain('(id payment_confirm)')
-    expect(ctx).toContain('ciudad: Medellín')
+    expect(ctx).toContain('ciudad: «Medellín»')
     expect(ctx).not.toContain('[object Object]')
     expect(ctx).not.toContain('lastTemplate:')
     expect(system[1].text).toContain('payment_confirm: confirmar_pago de esa reserva')

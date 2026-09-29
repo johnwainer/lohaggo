@@ -23,7 +23,16 @@ export default function AcquisitionTracker() {
       const url = new URL(window.location.href)
       if (url.pathname.startsWith('/admin') || url.pathname.startsWith('/api')) return
       const p = url.searchParams
-      const ref = document.referrer && !document.referrer.startsWith(window.location.origin) ? document.referrer : null
+      // lohaggo.com → www.lohaggo.com (or http → https) is still our own site, not a referral
+      const bare = (h: string) => h.toLowerCase().replace(/^www\./, '')
+      const refHost = (() => {
+        try {
+          return document.referrer ? bare(new URL(document.referrer).hostname) : null
+        } catch {
+          return null
+        }
+      })()
+      const ref = refHost && refHost !== bare(window.location.hostname) ? document.referrer : null
       const data = {
         source: p.get('utm_source'), medium: p.get('utm_medium'), campaign: p.get('utm_campaign'), content: p.get('utm_content'), term: p.get('utm_term'),
         fbclid: p.get('fbclid')?.slice(0, 500) ?? null, gclid: p.get('gclid')?.slice(0, 300) ?? null,

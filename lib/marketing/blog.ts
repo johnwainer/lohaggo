@@ -1,6 +1,6 @@
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/prisma'
-import { refreshPostStatus } from '@/lib/marketing/publisher'
+import { holdAgentPost, refreshPostStatus } from '@/lib/marketing/publisher'
 
 /** Published web articles: a WEB variant with webPublishedAt of a post that is not archived. */
 const liveWhere = { channel: 'WEB' as const, webPublishedAt: { not: null, lte: new Date() }, slug: { not: null }, post: { status: { not: 'archived' } } }
@@ -54,6 +54,8 @@ export async function unpublishArticle(postId: string) {
   if (!v) throw new Error('La publicación no tiene versión web')
   await prisma.marketingPostVariant.update({ where: { id: v.id }, data: { webPublishedAt: null } })
   await prisma.marketingPublication.updateMany({ where: { postId, channel: 'WEB', status: 'published' }, data: { status: 'cancelled', lastError: 'Despublicado del sitio' } })
+  // A person took it down: the agent must not put it back
+  await holdAgentPost(postId)
   await refreshPostStatus(postId)
   try {
     revalidatePath('/blog')

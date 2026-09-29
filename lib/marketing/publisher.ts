@@ -129,19 +129,50 @@ export async function schedulePost(postId: string, targets: Target[], when: Date
   return prisma.marketingPublication.findMany({ where: { postId, status: { not: 'cancelled' } }, orderBy: { createdAt: 'desc' } })
 }
 
-/** Publish now: schedule for this instant and run those publications inside this request. */
-export async function publishNow(postId: string, targets: Target[]) {
-  const created = await schedulePost(postId, targets, new Date())
-  const due = created.filter((p) => p.status === 'scheduled')
+const targetKey = (t: { channel: string; connectionId: string | null }) => `${t.channel}:${t.connectionId || 'web'}`
+
+/**
+ * Publish now: schedule for this instant and run those publications inside this request. A target that
+ * is going out or already went out is refused (a double click must not post twice) unless `republish`;
+ * what is scheduled on the other channels (e.g. the agent's slots) stays unless `replaceOthers`.
+ */
+export async function publishNow(postId: string, targets: Target[], opts: { republish?: boolean; replaceOthers?: boolean } = {}) {
+  if (!opts.republish && targets.length) {
+    const pubs = await prisma.marketingPublication.findMany({ where: { postId }, select: { channel: true, connectionId: true, status: true, createdAt: true } })
+    const latest = new Map(latestPerTarget(pubs).map((p) => [targetKey(p), p.status]))
+    const busy: Array<{ channel: string; message: string }> = []
+    for (const t of targets) {
+      const st = latest.get(targetKey({ channel: t.channel, connectionId: t.channel === 'WEB' ? null : t.connectionId }))
+      if (st === 'published') busy.push({ channel: t.channel, message: 'Ya se publicó en esta cuenta. Confirma si quieres publicarla otra vez' })
+      else if (st === 'publishing' || st === 'processing') busy.push({ channel: t.channel, message: 'Ya se está publicando en esta cuenta' })
+    }
+    if (busy.length) throw new PublishValidationError(busy)
+  }
+  const created = await schedulePost(postId, targets, new Date(), { keepOtherTargets: !opts.replaceOthers })
+  const wanted = new Set(targets.map((t) => targetKey({ channel: t.channel, connectionId: t.channel === 'WEB' ? null : t.connectionId })))
+  const now = Date.now()
+  const due = created.filter((p) => p.status === 'scheduled' && wanted.has(targetKey(p)) && p.scheduledAt.getTime() <= now)
   const claimed = await claim(due.map((p) => p.id))
   await Promise.all(claimed.map((p) => runPublication(p)))
   return prisma.marketingPublication.findMany({ where: { postId, status: { not: 'cancelled' } }, orderBy: { createdAt: 'desc' } })
 }
 
-export async function cancelScheduled(postId: string) {
+export async function cancelScheduled(postId: string, opts: { byPerson?: boolean } = {}) {
   await prisma.marketingPublication.updateMany({ where: { postId, status: 'scheduled' }, data: { status: 'cancelled', lastError: 'Cancelada' } })
   await prisma.marketingPost.update({ where: { id: postId }, data: { scheduledAt: null } })
+  if (opts.byPerson) await holdAgentPost(postId)
   await refreshPostStatus(postId)
+}
+
+/**
+ * A person cancelled or took down an agent post: the agent must not queue it again on its own
+ * (approving it again clears the hold).
+ */
+export async function holdAgentPost(postId: string) {
+  const post = await prisma.marketingPost.findUnique({ where: { id: postId }, select: { agentId: true, agentMeta: true } })
+  if (!post?.agentId) return
+  const meta = post.agentMeta && typeof post.agentMeta === 'object' && !Array.isArray(post.agentMeta) ? (post.agentMeta as Prisma.JsonObject) : {}
+  await prisma.marketingPost.update({ where: { id: postId }, data: { agentMeta: { ...meta, hold: true } } })
 }
 
 /** Takes the listed scheduled publications atomically: a publication is run by one worker only. */
@@ -166,8 +197,15 @@ export async function refreshPostStatus(postId: string) {
   await prisma.marketingPost.update({ where: { id: postId }, data: { status, publishedAt: post.publishedAt ?? firstPublished } })
 }
 
-async function finish(pub: MarketingPublication, data: Prisma.MarketingPublicationUpdateInput) {
-  await prisma.marketingPublication.update({ where: { id: pub.id }, data: { ...data, claimToken: null } })
+/**
+ * Writes the outcome only while the claim is still ours and never over a row already published (a
+ * worker whose claim went stale must not undo what another worker finished).
+ */
+async function finish(pub: MarketingPublication, data: Prisma.MarketingPublicationUpdateManyMutationInput) {
+  await prisma.marketingPublication.updateMany({
+    where: { id: pub.id, status: { not: 'published' }, ...(pub.claimToken ? { claimToken: pub.claimToken } : {}) },
+    data: { ...data, claimToken: null },
+  })
   await refreshPostStatus(pub.postId)
 }
 
@@ -230,7 +268,8 @@ export async function runPublication(pub: MarketingPublication) {
     // A previous attempt may have published before dying: adopt that post instead of duplicating it
     if (pub.attempts > 1) {
       const recent = pub.channel === 'FACEBOOK' ? await recentFacebookPosts(ctx, pageId).catch(() => []) : await recentInstagramMedia(ctx, conn.externalId).catch(() => [])
-      const existing = findAlreadyPublished(recent, variant.body, pub.scheduledAt)
+      // scheduledAt was moved to the retry time: the first attempt ran after the publication was created
+      const existing = findAlreadyPublished(recent, variant.body, pub.createdAt)
       if (existing) return finish(pub, { status: 'published', externalId: existing.id, permalink: existing.permalink, publishedAt: existing.createdAt })
     }
 
@@ -251,6 +290,23 @@ export async function runPublication(pub: MarketingPublication) {
   }
 }
 
+/**
+ * Claim marker of a processing container: `proc:<epoch ms>` (13 digits until the year 2286, so the
+ * markers compare as strings), which lets a claim left by a dead worker expire.
+ */
+const procToken = (ms: number) => `proc:${ms}`
+
+/** Takes one processing container for this worker only (two crons must not publish it twice). */
+async function claimProcessing(pub: MarketingPublication) {
+  const now = Date.now()
+  const token = `${procToken(now)}:${randomUUID()}`
+  const r = await prisma.marketingPublication.updateMany({
+    where: { id: pub.id, status: 'processing', OR: [{ claimToken: null }, { claimToken: { lt: procToken(now - STALE_CLAIM_MS) } }] },
+    data: { claimToken: token },
+  })
+  return r.count ? { ...pub, claimToken: token } : null
+}
+
 /** Instagram containers still being processed by Meta (videos): publish them when ready. */
 async function runProcessing(limit: number) {
   const items = await prisma.marketingPublication.findMany({
@@ -260,7 +316,10 @@ async function runProcessing(limit: number) {
     take: limit,
   })
   let done = 0
-  for (const pub of items) {
+  for (const candidate of items) {
+    const claimed = await claimProcessing(candidate)
+    if (!claimed) continue
+    const pub = { ...candidate, claimToken: claimed.claimToken }
     try {
       if (!pub.connection || !pub.containerId) { await finish(pub, { status: 'failed', lastError: 'La cuenta ya no está conectada' }); continue }
       if (pub.claimedAt && Date.now() - pub.claimedAt.getTime() > CONTAINER_TIMEOUT_MS) {
@@ -275,6 +334,9 @@ async function runProcessing(limit: number) {
         done++
       } else if (r.status === 'error') {
         await finish(pub, { status: 'failed', lastError: r.detail })
+      } else {
+        // Still processing: release the claim for the next run
+        await prisma.marketingPublication.updateMany({ where: { id: pub.id, claimToken: pub.claimToken }, data: { claimToken: null } })
       }
     } catch (err) {
       await fail(pub, err)

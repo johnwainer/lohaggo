@@ -5,10 +5,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cronRoute } from '@/lib/system/cron'
 import { createLogger } from '@/lib/logger'
 import { runDuePublications } from '@/lib/marketing/publisher'
+import { retryFailedConversions } from '@/lib/analytics/conversions'
 
 const logger = createLogger('cron-publisher')
 
-/** Scheduled posts that are due (and Instagram videos Meta finished processing). */
+/** Scheduled posts that are due (and Instagram videos Meta finished processing), and failed conversions. */
 async function handle(request: NextRequest) {
   // Fails closed: these jobs publish to the networks and rewrite account tokens
   const cronSecret = process.env.CRON_SECRET
@@ -21,8 +22,10 @@ async function handle(request: NextRequest) {
   }
   try {
     const result = await runDuePublications()
-    logger.info('Run', result)
-    return NextResponse.json({ ok: true, ...result })
+    // Server conversions (Meta CAPI / GA4) that failed: retried here, every minute is cheap when there are none
+    const conversions = await retryFailedConversions()
+    logger.info('Run', { ...result, conversions })
+    return NextResponse.json({ ok: true, ...result, conversions })
   } catch (err) {
     logger.error('Run error', { message: err instanceof Error ? err.message : 'error' })
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })

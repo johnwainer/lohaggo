@@ -11,6 +11,8 @@ export const cleanFilters = (city?: string | null, categoryId?: string | null): 
 })
 
 const n = (v: unknown) => Number(v ?? 0)
+/** Rows indexed by one column, so daily/monthly series look each key up once instead of scanning. */
+const index = (rows: Array<Record<string, unknown>>, key: string) => new Map(rows.map((r) => [String(r[key]), r]))
 /** Day and month keys in Bogotá, computed in SQL. */
 const dayOf = (col: Prisma.Sql) => Prisma.sql`to_char(${col} - interval '5 hours', 'YYYY-MM-DD')`
 const monthOf = (col: Prisma.Sql) => Prisma.sql`to_char(${col} - interval '5 hours', 'YYYY-MM')`
@@ -72,12 +74,11 @@ export async function business(p: Period, f: Filters) {
       completionRate: { value: ratio(cur.completed, cur.bookings), previous: ratio(prev.completed, prev.bookings) },
       cancellationRate: { value: ratio(cur.cancelled, cur.bookings), previous: ratio(prev.cancelled, prev.bookings) },
     },
-    monthly: months.map((m) => ({
-      month: m,
-      amount: n(monthly.find((x) => x.m === m)?.amount),
-      payments: n(monthly.find((x) => x.m === m)?.payments),
-      bookings: n(monthlyBookings.find((x) => x.m === m)?.n),
-    })),
+    monthly: (() => {
+      const paid = index(monthly, 'm')
+      const booked = index(monthlyBookings, 'm')
+      return months.map((m) => ({ month: m, amount: n(paid.get(m)?.amount), payments: n(paid.get(m)?.payments), bookings: n(booked.get(m)?.n) }))
+    })(),
     byService: rows(byService),
     byCategory: rows(byCategory),
     byCity: rows(byCity),
@@ -162,6 +163,7 @@ export async function funnelTab(p: Period, f: Filters) {
   const hours = (Array.isArray(cur.hours) ? cur.hours : []).map(Number).filter((h) => Number.isFinite(h) && h >= 0)
   const prevHours = (Array.isArray(prev.hours) ? prev.hours : []).map(Number).filter((h) => Number.isFinite(h) && h >= 0)
   const days = periodDays(p)
+  const dailyBy = index(daily, 'd')
   return {
     stages: stages(cur),
     previous: stages(prev),
@@ -169,7 +171,7 @@ export async function funnelTab(p: Period, f: Filters) {
     directBookings: n(direct[0]?.n),
     firstProposalHours: { median: percentile(hours, 0.5), p75: percentile(hours, 0.75), prevMedian: percentile(prevHours, 0.5), sample: hours.length },
     requestStatus: cancels.map((c) => ({ status: String(c.status), n: n(c.n) })),
-    daily: days.map((d) => ({ d, n: n(daily.find((x) => x.d === d)?.n) })),
+    daily: days.map((d) => ({ d, n: n(dailyBy.get(d)?.n) })),
     byOrigin: origins,
   }
 }
@@ -271,8 +273,9 @@ export async function peopleTab(p: Period, f: Filters) {
     if (r.campaign) g.campaigns.add(String(r.campaign))
     bySource.set(label, g)
   }
+  const signupsBy = index(signups, 'm')
   return {
-    signups: months.map((m) => ({ month: m, clients: n(signups.find((x) => x.m === m)?.clients), partners: n(signups.find((x) => x.m === m)?.partners) })),
+    signups: months.map((m) => ({ month: m, clients: n(signupsBy.get(m)?.clients), partners: n(signupsBy.get(m)?.partners) })),
     clientCohorts: clientCohorts.map((c) => ({ month: String(c.m), users: n(c.users), activatedRate: ratio(n(c.activated), n(c.users)), repeatRate: ratio(n(c.repeat), n(c.users)) })),
     partnerCohorts: partnerCohorts.map((c) => ({ month: String(c.m), users: n(c.users), verifiedRate: ratio(n(c.verified), n(c.users)), workedRate: ratio(n(c.worked), n(c.users)) })),
     sources: Array.from(bySource.values()).map((s) => ({ ...s, campaigns: Array.from(s.campaigns).slice(0, 5), conversion: ratio(s.booked, s.clients + s.partners) })).sort((a, b) => b.clients + b.partners - (a.clients + a.partners)),
@@ -323,6 +326,7 @@ export async function serviceTab(p: Period) {
   const aiMins = response.filter((r) => r.ai).map((r) => n(r.minutes))
   const humanMins = response.filter((r) => !r.ai).map((r) => n(r.minutes))
   const days = periodDays(p)
+  const dailyBy = index(daily, 'd')
   return {
     kpis: {
       conversations: { value: total, change: change(total, prevCount) },
@@ -332,7 +336,7 @@ export async function serviceTab(p: Period) {
     },
     byChannel: byChannel.map((c) => ({ channel: String(c.channel), conversations: n(c.conversations), aiResolved: ratio(n(c.ai_only), n(c.conversations)), handoffs: n(c.handoffs) })),
     daily: days.map((d) => {
-      const r = daily.find((x) => x.d === d)
+      const r = dailyBy.get(d)
       return { d, inbound: n(r?.inbound), ai: n(r?.ai), human: n(r?.human) }
     }),
   }
@@ -360,6 +364,8 @@ export async function searchTab(p: Period) {
   const t = tot[0] ?? {}
   const pv = prev[0] ?? {}
   const days = periodDays(p)
+  const dailyBy = index(daily, 'd')
+  const hourBy = new Map(byHour.map((x) => [n(x.h), n(x.n)]))
   const since = await prisma.searchEvent.findFirst({ orderBy: { createdAt: 'asc' }, select: { createdAt: true } })
   return {
     trackingSince: since?.createdAt ?? null,
@@ -371,13 +377,37 @@ export async function searchTab(p: Period) {
     },
     top: top.map((x) => ({ q: String(x.q), n: n(x.n), people: n(x.people), results: n(x.results), zeroRate: ratio(n(x.zero), n(x.n)) })),
     byRole: byRole.map((r) => ({ role: String(r.role), n: n(r.n) })),
-    byHour: Array.from({ length: 24 }, (_, h) => ({ h, n: n(byHour.find((x) => n(x.h) === h)?.n) })),
+    byHour: Array.from({ length: 24 }, (_, h) => ({ h, n: hourBy.get(h) ?? 0 })),
     bySource: bySource.map((s) => ({ source: String(s.source), n: n(s.n) })),
-    daily: days.map((d) => ({ d, n: n(daily.find((x) => x.d === d)?.n), zero: n(daily.find((x) => x.d === d)?.zero) })),
+    daily: days.map((d) => ({ d, n: n(dailyBy.get(d)?.n), zero: n(dailyBy.get(d)?.zero) })),
+  }
+}
+
+/** "Medellín" / "medellin" / "bogota-dc" → the City code the bookings use (MEDELLIN, BOGOTA…), or null. */
+export function cityCode(c: { slug?: string | null; name?: string | null }) {
+  for (const raw of [c.slug, c.name]) {
+    const key = (raw || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase()
+    const hit = CITIES.find((code) => key === code || key.split(/[^A-Z]+/).includes(code))
+    if (hit) return hit
+  }
+  return null
+}
+
+/** Cities from the admin's city settings (active or coming soon), in their order; the fixed list if that fails. */
+async function cityOptions() {
+  try {
+    const rows = await prisma.cityConfig.findMany({ where: { status: { in: ['ACTIVE', 'COMING_SOON'] } }, orderBy: { order: 'asc' }, select: { slug: true, name: true } })
+    const codes = Array.from(new Set(rows.map(cityCode).filter((c): c is string => Boolean(c))))
+    return codes.length ? codes : CITIES
+  } catch {
+    return CITIES
   }
 }
 
 export async function filterOptions() {
-  const categories = await prisma.category.findMany({ select: { id: true, name: true }, orderBy: { order: 'asc' } })
-  return { categories, cities: CITIES }
+  const [categories, cities] = await Promise.all([
+    prisma.category.findMany({ select: { id: true, name: true }, orderBy: { order: 'asc' } }),
+    cityOptions(),
+  ])
+  return { categories, cities }
 }

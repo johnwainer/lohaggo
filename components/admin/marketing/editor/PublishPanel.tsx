@@ -80,7 +80,12 @@ export default function PublishPanel({ post, accounts, validations, canPublish, 
       {canPublish ? (
         <div className="space-y-2">
           <button
-            onClick={() => onPublish('now', targets)}
+            onClick={() => {
+              const again = targets.filter((t) => published.has(key(t)))
+              if (!again.length) return onPublish('now', targets)
+              // Already out on some of these accounts: publish again only after an explicit yes
+              if (window.confirm(`Ya está publicada en ${again.map((t) => options.find((o) => key(o) === key(t))?.label || CHANNEL_NAME[t.channel]).join(', ')}. ¿Publicarla otra vez?`)) onPublish('now', targets, 'republish')
+            }}
             disabled={busy || !targets.length || uniqueBlocking.length > 0}
             className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
           >

@@ -4,6 +4,8 @@ import { auditAdminAction, requireAdmin } from '@/lib/admin-utils'
 import { campaignBlockedByQuietHours, processCampaign } from '@/lib/messaging/campaign-service'
 import { resolveCampaignRecipients, resolveDestination } from '@/lib/messaging/campaign-recipients'
 
+export const maxDuration = 300
+
 type RouteContext = {
   params: Promise<{ id: string }>
 }

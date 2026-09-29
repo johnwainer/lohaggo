@@ -121,12 +121,14 @@ export const MANUAL_LEARN_EVERY_MS = 24 * 3600_000
  */
 export async function withAgentLock<T>(agentId: string, fn: () => Promise<T>): Promise<T | null> {
   const now = new Date()
-  const lock = await prisma.marketingAgent.updateMany({ where: { id: agentId, OR: [{ lockedUntil: null }, { lockedUntil: { lt: now } }] }, data: { lockedUntil: new Date(now.getTime() + 10 * 60_000) } })
+  const ourUntil = new Date(now.getTime() + 10 * 60_000)
+  const lock = await prisma.marketingAgent.updateMany({ where: { id: agentId, OR: [{ lockedUntil: null }, { lockedUntil: { lt: now } }] }, data: { lockedUntil: ourUntil } })
   if (!lock.count) return null
   try {
     return await fn()
   } finally {
-    await prisma.marketingAgent.update({ where: { id: agentId }, data: { lockedUntil: null } }).catch(() => null)
+    // Only our own lock: if it expired and another run took it, that one keeps it
+    await prisma.marketingAgent.updateMany({ where: { id: agentId, lockedUntil: ourUntil }, data: { lockedUntil: null } }).catch(() => null)
   }
 }
 

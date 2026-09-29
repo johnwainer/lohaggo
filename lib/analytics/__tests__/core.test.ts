@@ -21,6 +21,12 @@ describe('periodos', () => {
     expect(parsePeriod({ preset: 'x' }, now).days).toBe(30)
     expect(parsePeriod({ from: '2026-09-10', to: '2026-09-01' }, now).days).toBe(30)
   })
+  it('un rango personalizado de más de 730 días se recorta a los 730 más recientes', () => {
+    const p = parsePeriod({ from: '2015-01-01', to: '2026-09-25' }, now)
+    expect(p.days).toBe(730)
+    expect(p.to.toISOString()).toBe('2026-09-26T05:00:00.000Z')
+    expect(parsePeriod({ from: '2025-01-01', to: '2026-09-25' }, now).from.toISOString()).toBe('2025-01-01T05:00:00.000Z')
+  })
   it('últimos meses del calendario', () => {
     expect(lastMonths(new Date('2026-09-26T05:00:00Z'), 3)).toEqual(['2026-07', '2026-08', '2026-09'])
     expect(lastMonths(new Date('2026-01-01T05:00:00Z'), 2)).toEqual(['2025-11', '2025-12'])

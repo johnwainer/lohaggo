@@ -43,6 +43,18 @@ export async function saveGa4Settings(input: { propertyId?: string | null; crede
 
 let tokenCache: { token: string; exp: number; email: string } | null = null
 
+/** fetch with a 15 s limit; a slow Google answers as a readable error instead of hanging the tab. */
+async function gaFetch(url: string, init: RequestInit) {
+  const timeout = AbortSignal.timeout(15_000)
+  const signal = init.signal ? AbortSignal.any([init.signal, timeout]) : timeout
+  try {
+    return await fetch(url, { ...init, signal })
+  } catch (err) {
+    if (timeout.aborted) throw new Ga4Error('Google Analytics tardó demasiado en responder; intenta de nuevo en un momento')
+    throw err
+  }
+}
+
 const b64url = (b: Buffer | string) => Buffer.from(b).toString('base64').replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_')
 
 async function accessToken(account: ServiceAccount) {
@@ -53,7 +65,7 @@ async function accessToken(account: ServiceAccount) {
   const signer = createSign('RSA-SHA256')
   signer.update(`${header}.${claim}`)
   const jwt = `${header}.${claim}.${b64url(signer.sign(account.private_key))}`
-  const res = await fetch('https://oauth2.googleapis.com/token', {
+  const res = await gaFetch('https://oauth2.googleapis.com/token', {
     method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: jwt }), cache: 'no-store',
   })
@@ -66,7 +78,7 @@ async function accessToken(account: ServiceAccount) {
 type Report = { dimensionHeaders?: Array<{ name: string }>; metricHeaders?: Array<{ name: string }>; rows?: Array<{ dimensionValues?: Array<{ value: string }>; metricValues?: Array<{ value: string }> }> }
 
 async function runReport(propertyId: string, token: string, body: Record<string, unknown>): Promise<Report> {
-  const res = await fetch(`https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`, {
+  const res = await gaFetch(`https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`, {
     method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body), cache: 'no-store',
   })
   const data = await res.json().catch(() => ({}))

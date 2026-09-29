@@ -80,19 +80,52 @@ function refTouch(ref: string, at: string | null, channel: string | null): Touch
   return { ...base, source: 'web', medium: 'website', content: rest }
 }
 
+type LastCampaign = { code?: string; at?: string }
+
+/** A campaign message (WhatsApp) counts as the last touch for this long after it was sent. */
+export const CAMPAIGN_TOUCH_WINDOW_MS = 7 * 24 * 3600_000
+
+const timeOf = (t: Touch | null | undefined) => {
+  const ms = t?.at ? Date.parse(t.at) : NaN
+  return Number.isFinite(ms) ? ms : -Infinity
+}
+
 /**
- * First and last touch of a conversation from its customFields (adReferral / lastAdReferral / webRef).
- * An ad-draft ref in the prefilled message (`ad-…`) names the campaign even when Meta sends no ad id.
+ * First and last touch of a conversation from its customFields (adReferral / lastAdReferral / webRef /
+ * lastWebRef / lastCampaign). An ad-draft ref in the prefilled message (`ad-…`) names the campaign even
+ * when Meta sends no ad id; so does a Meta ad id registered on an ad package (`adCodeById`: ad id → code).
+ * The last touch is the newest of the last ad click, the last web ref and a campaign message of the last
+ * 7 days.
  */
-export function touchesFromConversation(customFields: unknown, channel: string | null): Touches {
+export function touchesFromConversation(
+  customFields: unknown,
+  channel: string | null,
+  opts: { now?: Date; adCodeById?: ReadonlyMap<string, string> } = {},
+): Touches {
   const f = (customFields && typeof customFields === 'object' && !Array.isArray(customFields) ? customFields : {}) as {
-    adReferral?: AdRef; lastAdReferral?: AdRef; webRef?: string; webRefAt?: string
+    adReferral?: AdRef; lastAdReferral?: AdRef; webRef?: string; webRefAt?: string; lastWebRef?: string; lastWebRefAt?: string; lastCampaign?: LastCampaign
   }
   const webRef = typeof f.webRef === 'string' ? f.webRef : null
-  const refT = webRef ? refTouch(webRef, f.webRefAt ?? null, channel) : null
-  const withRef = (t: Touch) => (refT && refT.ref?.startsWith('ad-') && !t.campaign ? { ...t, campaign: refT.campaign, ref: refT.ref } : t)
-  const first = f.adReferral ? withRef(adTouch(f.adReferral, channel)) : refT
-  const last = f.lastAdReferral ? withRef(adTouch(f.lastAdReferral, channel)) : first
+  const firstRefT = webRef ? refTouch(webRef, f.webRefAt ?? null, channel) : null
+  const lastWebRef = typeof f.lastWebRef === 'string' ? f.lastWebRef : null
+  const lastRefT = lastWebRef ? refTouch(lastWebRef, f.lastWebRefAt ?? null, channel) : firstRefT
+  const withRef = (t: Touch, ...refs: Array<Touch | null>) => {
+    if (t.campaign) return t
+    const adRef = refs.find((r) => r?.ref?.startsWith('ad-'))
+    if (adRef) return { ...t, campaign: adRef.campaign, ref: adRef.ref }
+    const code = t.adId ? opts.adCodeById?.get(t.adId) : undefined
+    return code ? { ...t, campaign: `ad-${code}`, ref: `ad-${code}` } : t
+  }
+  const first = f.adReferral ? withRef(adTouch(f.adReferral, channel), firstRefT) : firstRefT
+  const lastAd = f.lastAdReferral ? withRef(adTouch(f.lastAdReferral, channel), lastRefT, firstRefT) : null
+  let last: Touch | null = lastAd && lastRefT ? (timeOf(lastRefT) > timeOf(lastAd) ? lastRefT : lastAd) : lastAd ?? lastRefT ?? first
+
+  const cmp = f.lastCampaign && typeof f.lastCampaign === 'object' ? f.lastCampaign : null
+  if (cmp && typeof cmp.code === 'string' && /^cmp-[a-z0-9_-]{1,80}$/i.test(cmp.code) && typeof cmp.at === 'string') {
+    const at = Date.parse(cmp.at)
+    const now = (opts.now ?? new Date()).getTime()
+    if (Number.isFinite(at) && now - at <= CAMPAIGN_TOUCH_WINDOW_MS && at > timeOf(last)) last = refTouch(cmp.code.toLowerCase(), cmp.at, channel)
+  }
   const direct: Touch = { via: 'chat', channel, source: channel ? channel.toLowerCase() : 'chat', medium: 'direct', campaign: null, content: null, at: null }
   return { first: first ?? direct, last: last ?? first ?? direct }
 }
@@ -122,6 +155,13 @@ export type TouchBucket = { channel: ChannelKey; campaign: string | null; conten
 
 const has = (v: string | null | undefined, ...needles: string[]) => !!v && needles.some((n) => v.toLowerCase().includes(n))
 
+const META_TOKENS = new Set(['fb', 'ig', 'an', 'msg', 'meta', 'facebook', 'instagram'])
+/** utm_source of Meta: its exact placement tokens (fb, ig, an, msg…) or a facebook/instagram host. */
+export function isMetaSource(source: string | null | undefined) {
+  const s = (source || '').trim().toLowerCase()
+  return !!s && (META_TOKENS.has(s) || s.includes('facebook') || s.includes('instagram'))
+}
+
 /** Channel, campaign and content a touch is counted under. */
 export function classifyTouch(t: Touch | null | undefined): TouchBucket {
   if (!t) return { channel: 'sin_dato', campaign: null, content: null }
@@ -131,12 +171,18 @@ export function classifyTouch(t: Touch | null | undefined): TouchBucket {
   // A chat that arrived with no ad and no ref (someone wrote to us on WhatsApp, Instagram or Messenger)
   if (t.via === 'chat' && t.medium === 'direct') return { channel: 'chat_directo', campaign: null, content: t.channel ?? null }
   if (t.medium === 'campaign' || ref.startsWith('cmp-')) return { channel: 'campanas', campaign: campaign ?? (ref || null), content }
-  const metaSource = has(t.source, 'facebook', 'instagram', 'meta', 'fb', 'ig', 'msg', 'an')
-  if (t.adId || t.ctwaClid || ref.startsWith('ad-') || t.fbclid || has(t.medium, 'paid_social') || (has(t.medium, 'paid', 'cpc', 'ads') && metaSource)) {
+  const metaSource = isMetaSource(t.source)
+  const paidMedium = has(t.medium, 'paid', 'cpc', 'ads')
+  const organicMeta = has(t.medium, 'social', 'organic') && !paidMedium && has(t.source, 'instagram', 'facebook')
+  // Meta adds fbclid to organic clicks too: it means an ad only with no utm_medium or a paid one
+  // (the web cookie fills a missing utm_medium with «none», or «referral» when there is a referrer)
+  const noUtmMedium = !t.medium || t.medium === 'none' || t.medium === 'referral'
+  const paidClick = !!t.fbclid && (noUtmMedium || paidMedium)
+  if (t.adId || t.ctwaClid || ref.startsWith('ad-') || paidClick || has(t.medium, 'paid_social') || (paidMedium && metaSource)) {
     return { channel: 'meta_ads', campaign, content: content ?? t.adId ?? null }
   }
   if (t.gclid || has(t.medium, 'cpc', 'paid')) return { channel: 'google_ads', campaign, content }
-  if (ref.startsWith('post-') || (has(t.medium, 'social', 'organic') && campaign && content && has(t.source, 'instagram', 'facebook'))) {
+  if (ref.startsWith('post-') || (organicMeta && ((campaign && content) || t.fbclid))) {
     return { channel: 'publicaciones', campaign, content }
   }
   if (has(t.source, 'gbp', 'business.google')) return { channel: 'gbp', campaign, content }

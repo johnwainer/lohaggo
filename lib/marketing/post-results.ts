@@ -9,9 +9,11 @@ import { readTouch, type Touch } from '@/lib/analytics/attribution-core'
 
 export type PostResult = { requests: number; bookings: number; completed: number; byChannel: Partial<Record<MarketingChannel, { requests: number; bookings: number }>> }
 
-/** The channel a touch came through: the utm_source of the web link, or Instagram for a post's WhatsApp link. */
+/** The channel a touch came through: the utm_source of the web link, or Facebook for a post's WhatsApp link. */
 function channelOf(t: Touch | null): MarketingChannel | null {
   const s = (t?.source ?? '').toLowerCase()
+  // A chat from a post's /w/post-… link: that link lives in the post's Facebook text
+  if (s === 'publicacion') return 'FACEBOOK'
   if (s.includes('instagram')) return 'INSTAGRAM'
   if (s.includes('facebook')) return 'FACEBOOK'
   if (s.includes('blog')) return 'WEB'

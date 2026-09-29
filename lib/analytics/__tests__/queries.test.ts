@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 // Every raw query answers with one empty row: enough for the shape, no database involved
 vi.mock('@/lib/prisma', () => ({ prisma: { $queryRaw: vi.fn(async () => [{}]) } }))
-import { cleanFilters, funnelTab, originBreakdown } from '@/lib/analytics/queries'
+import { cityCode, cleanFilters, funnelTab, originBreakdown } from '@/lib/analytics/queries'
 import { parsePeriod } from '@/lib/analytics/core'
 
 describe('embudo por origen (app, chat, admin)', () => {
@@ -24,5 +24,14 @@ describe('embudo por origen (app, chat, admin)', () => {
     for (const r of d.byOrigin) expect(r).toEqual({ origin: r.origin, requests: 0, booked: 0, completed: 0, gmv: 0 })
     expect(d.stages).toHaveLength(5)
     expect(d.daily).toHaveLength(7)
+  })
+})
+
+describe('ciudades del filtro desde la configuración de ciudades', () => {
+  it('traduce slug o nombre al código que usan las reservas', () => {
+    expect(cityCode({ slug: 'medellin', name: 'Medellín' })).toBe('MEDELLIN')
+    expect(cityCode({ slug: 'bogota-dc', name: 'Bogotá D.C.' })).toBe('BOGOTA')
+    expect(cityCode({ slug: null, name: 'Barranquilla' })).toBe('BARRANQUILLA')
+    expect(cityCode({ slug: 'pereira', name: 'Pereira' })).toBeNull()
   })
 })

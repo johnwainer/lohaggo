@@ -98,6 +98,19 @@ export type AdPackage = {
   images: AdImagePlan[]
   checklist: string[]
   risks: string[]
+  /** Ids of the ads created in Meta Ads Manager from this package (typed by a person): chats whose ad id matches are credited to the package */
+  metaAdIds?: string[]
+}
+
+/** Meta ad ids from free text (commas, spaces or lines): digits only, deduplicated, at most 50. */
+export function parseMetaAdIds(v: unknown): string[] {
+  const raw = Array.isArray(v) ? v.map((x) => String(x ?? '')) : String(v ?? '').split(/[\s,;]+/)
+  return Array.from(new Set(raw.map((x) => x.trim()).filter((x) => /^\d{5,30}$/.test(x)))).slice(0, 50)
+}
+
+/** Meta ad ids stored on a package's output JSON. */
+export function metaAdIdsOf(output: unknown): string[] {
+  return output && typeof output === 'object' && !Array.isArray(output) ? parseMetaAdIds((output as { metaAdIds?: unknown }).metaAdIds ?? []) : []
 }
 
 type Json = Record<string, unknown>

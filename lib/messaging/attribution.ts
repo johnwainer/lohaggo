@@ -5,7 +5,9 @@ import { prisma } from '@/lib/prisma'
  * Where a conversation came from, kept in `Conversation.customFields` (no schema change):
  * - `adReferral`: the first ad click that opened it (Click-to-WhatsApp via Twilio, or a Messenger/Instagram
  *   ad via Meta), never overwritten; `lastAdReferral` holds the latest one.
- * - `webRef`: the first `(ref: web-…)` / `(ref: blog-…)` tag the website puts in its prefilled message.
+ * - `webRef`: the first `(ref: web-…)` / `(ref: blog-…)` tag the website puts in its prefilled message;
+ *   `lastWebRef` / `lastWebRefAt` the latest one.
+ * - `lastCampaign`: `{ code: 'cmp-…', at }` of the last messaging campaign sent on the conversation.
  */
 
 export type AdReferral = {
@@ -68,8 +70,11 @@ export function extractWebRef(body: string | null | undefined): string | null {
 
 type Fields = Record<string, unknown>
 
-/** New customFields with the attribution merged in (first ad and first webRef win), or null when nothing changes. Pure. */
-export function mergeAttribution(current: unknown, input: { adReferral?: AdReferral | null; webRef?: string | null }): Fields | null {
+/**
+ * New customFields with the attribution merged in (first ad and first webRef win; lastAdReferral and
+ * lastWebRef/lastWebRefAt always take the newest), or null when nothing changes. Pure.
+ */
+export function mergeAttribution(current: unknown, input: { adReferral?: AdReferral | null; webRef?: string | null }, now: Date = new Date()): Fields | null {
   const fields: Fields = current && typeof current === 'object' && !Array.isArray(current) ? { ...(current as Fields) } : {}
   let changed = false
   if (input.adReferral) {
@@ -77,9 +82,14 @@ export function mergeAttribution(current: unknown, input: { adReferral?: AdRefer
     fields.lastAdReferral = input.adReferral
     changed = true
   }
-  if (input.webRef && !fields.webRef) {
-    fields.webRef = input.webRef
-    fields.webRefAt = new Date().toISOString()
+  if (input.webRef) {
+    const at = now.toISOString()
+    if (!fields.webRef) {
+      fields.webRef = input.webRef
+      fields.webRefAt = at
+    }
+    fields.lastWebRef = input.webRef
+    fields.lastWebRefAt = at
     changed = true
   }
   return changed ? fields : null

@@ -5,19 +5,39 @@ import { MetaGraphError } from '@/lib/messaging/meta-graph'
 import { getConnectionCredentials, requireMetaApp } from '@/lib/messaging/meta-channels'
 import { facebookMetrics, instagramMetrics } from '@/lib/marketing/meta-publish'
 import { metricsDue } from '@/lib/marketing/publisher-core'
+import { bogotaDay } from '@/lib/analytics/core'
 
 const logger = createLogger('marketing-metrics')
 
-/** Cron: a snapshot of each social publication whose refresh is due (see metricsDue). */
+const H = 3600_000
+/** The refresh bands of metricsDue: age range and how often (5 min of slack, like metricsDue). */
+const METRIC_BANDS = [
+  { minAge: 0, maxAge: 48 * H, every: H },
+  { minAge: 48 * H, maxAge: 7 * 24 * H, every: 6 * H },
+  { minAge: 7 * 24 * H, maxAge: 30 * 24 * H, every: 24 * H },
+]
+
+/**
+ * Cron: a snapshot of each social publication whose refresh is due (see metricsDue). Each age band is
+ * queried with its own due condition, so a crowd of fresh posts never hides the older ones.
+ */
 export async function collectMetrics(limit = 60) {
   const now = new Date()
-  const candidates = await prisma.marketingPublication.findMany({
-    where: { status: 'published', channel: { in: ['FACEBOOK', 'INSTAGRAM'] }, externalId: { not: null }, publishedAt: { gte: new Date(now.getTime() - 31 * 24 * 3600_000) } },
+  const bands = await Promise.all(METRIC_BANDS.map((b) => prisma.marketingPublication.findMany({
+    where: {
+      status: 'published', channel: { in: ['FACEBOOK', 'INSTAGRAM'] }, externalId: { not: null },
+      publishedAt: { gte: new Date(now.getTime() - b.maxAge), lte: new Date(now.getTime() - b.minAge) },
+      OR: [{ metricsAt: null }, { metricsAt: { lte: new Date(now.getTime() - b.every + 5 * 60_000) } }],
+    },
     include: { connection: true, post: { select: { media: { select: { kind: true } } } } },
     orderBy: [{ metricsAt: { sort: 'asc', nulls: 'first' } }],
-    take: limit * 3,
-  })
-  const due = candidates.filter((p) => p.publishedAt && metricsDue(p.publishedAt, p.metricsAt, now)).slice(0, limit)
+    take: limit,
+  })))
+  const seen = new Set<string>()
+  const due = bands.flat()
+    .filter((p) => p.publishedAt && metricsDue(p.publishedAt, p.metricsAt, now) && !seen.has(p.id) && seen.add(p.id))
+    .sort((a, b) => (a.metricsAt?.getTime() ?? 0) - (b.metricsAt?.getTime() ?? 0))
+    .slice(0, limit)
   const app = due.length ? await requireMetaApp() : null
   let captured = 0
   for (const pub of due) {
@@ -46,7 +66,7 @@ export async function collectMetrics(limit = 60) {
 }
 
 /** Blog: one row per article and day (no cookies, no personal data). */
-export async function recordPageView(variantId: string, day = new Date().toISOString().slice(0, 10)) {
+export async function recordPageView(variantId: string, day = bogotaDay(new Date())) {
   await prisma.webPageView.upsert({
     where: { variantId_day: { variantId, day } },
     create: { variantId, day, views: 1 },

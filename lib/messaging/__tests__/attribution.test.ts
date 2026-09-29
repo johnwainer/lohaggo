@@ -54,10 +54,12 @@ describe('mezcla en customFields', () => {
     expect(first).toMatchObject({ city: 'MEDELLIN', adReferral: ad1, lastAdReferral: ad1 })
     expect(mergeAttribution(first, { adReferral: ad2 })).toMatchObject({ adReferral: ad1, lastAdReferral: ad2 })
   })
-  it('webRef: el primero gana y sin cambios devuelve null', () => {
-    const f = mergeAttribution(null, { webRef: 'web-home' })
-    expect(f).toMatchObject({ webRef: 'web-home' })
-    expect(mergeAttribution(f, { webRef: 'blog-x' })).toBeNull()
+  it('webRef: el primero gana, lastWebRef guarda el último y sin cambios devuelve null', () => {
+    const t1 = new Date('2026-10-01T10:00:00Z')
+    const t2 = new Date('2026-10-03T10:00:00Z')
+    const f = mergeAttribution(null, { webRef: 'web-home' }, t1)
+    expect(f).toMatchObject({ webRef: 'web-home', webRefAt: t1.toISOString(), lastWebRef: 'web-home', lastWebRefAt: t1.toISOString() })
+    expect(mergeAttribution(f, { webRef: 'blog-x' }, t2)).toMatchObject({ webRef: 'web-home', webRefAt: t1.toISOString(), lastWebRef: 'blog-x', lastWebRefAt: t2.toISOString() })
     expect(mergeAttribution(f, {})).toBeNull()
   })
 })

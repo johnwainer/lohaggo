@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { bogotaDay, type Period } from '@/lib/analytics/core'
-import { budgetShiftSuggestion, spendWithoutRequests, summarizeOrigins, type AttributionModel } from '@/lib/analytics/origins-core'
+import { adCodeMap, budgetShiftSuggestion, spendWithoutRequests, summarizeOrigins, type AttributionModel } from '@/lib/analytics/origins-core'
+import { metaAdIdsOf } from '@/lib/marketing/ads-core'
 import { spendByDraft, spendDays } from '@/lib/marketing/ad-spend'
 
 /**
@@ -17,7 +18,7 @@ export async function originsTab(period: Period, model: AttributionModel = 'last
       select: { id: true, status: true, totalPrice: true, acquisition: true, lastTouch: true, proposal: { select: { serviceRequestId: true } } },
       take: 20000,
     }),
-    prisma.marketingAdDraft.findMany({ where: { status: { in: ['ready', 'used', 'archived'] } }, select: { id: true, title: true }, orderBy: { createdAt: 'desc' }, take: 500 }),
+    prisma.marketingAdDraft.findMany({ where: { status: { in: ['ready', 'used', 'archived'] } }, select: { id: true, title: true, output: true }, orderBy: { createdAt: 'desc' }, take: 500 }),
     spendByDraft(new Date(`${bogotaDay(period.from)}T00:00:00Z`), new Date(`${bogotaDay(period.to)}T00:00:00Z`)),
   ])
   const postIds = new Set<string>()
@@ -44,6 +45,7 @@ export async function originsTab(period: Period, model: AttributionModel = 'last
       posts: new Map(posts.map((p) => [p.id, p.title])),
     },
     model,
+    adCodeById: adCodeMap(drafts.map((d) => ({ id: d.id, metaAdIds: metaAdIdsOf(d.output) }))),
   })
   const withoutData = requests.filter((r) => !r.acquisition && !r.lastTouch).length
   return { ...summary, requestsWithoutData: withoutData }

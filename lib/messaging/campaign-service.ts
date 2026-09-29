@@ -1,6 +1,6 @@
 import { normalizePhone } from '@/lib/phone'
 import { toE164 } from '@/lib/inbox/contacts'
-import type { MessagingCampaign, MessagingCampaignStatus, MessagingChannel, UserRole } from '@prisma/client'
+import type { MessagingCampaign, MessagingCampaignStatus, MessagingChannel, Prisma } from '@prisma/client'
 import { randomBytes } from 'crypto'
 import { prisma } from '@/lib/prisma'
 import { renderTextTemplate } from '@/lib/messaging/template'
@@ -11,45 +11,123 @@ import { getDefaultWorkspaceId } from '@/lib/workspaces'
 import { isMarketingQuietHour } from '@/lib/messaging/wa-format'
 import { NO_MARKETING_TAG } from '@/lib/messaging/wa-send'
 import { campaignRefCode, campaignWaLink, withCampaignUtm } from '@/lib/messaging/campaign-tracking'
+import { SITE_URL } from '@/lib/marketing/seo'
 
 /** WhatsApp campaigns are promotional: they only go out in the allowed marketing hours (Bogotá). */
 export function campaignBlockedByQuietHours(channel: MessagingChannel, now: Date = new Date()) {
   return channel === 'WHATSAPP' && isMarketingQuietHour(now)
 }
 
-export async function processCampaign(campaignId: string) {
-  const campaign = await prisma.messagingCampaign.findUnique({
+/** One run sends for at most this long (the routes allow 300 s); the rest is resumed by the cron. */
+export const CAMPAIGN_TIME_BUDGET_MS = 240_000
+/** A PROCESSING campaign with no progress for this long lost its worker: the cron resumes it. */
+export const CAMPAIGN_STUCK_MS = 30 * 60_000
+/** Metadata key of a send paused by the time budget (the cron picks it up on its next run). */
+const PAUSE_KEY = 'sendPausedAt'
+/** Statuses a person can (re)send from. */
+const MANUAL_FROM: MessagingCampaignStatus[] = ['DRAFT', 'SCHEDULED', 'SENT', 'PARTIAL', 'FAILED', 'CANCELLED']
+
+export class CampaignBusyError extends Error {
+  constructor() {
+    super('Campaign is already processing')
+  }
+}
+
+function parseMeta(raw: string | null | undefined): Record<string, unknown> {
+  if (!raw) return {}
+  try {
+    const v = JSON.parse(raw)
+    return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {}
+  } catch {
+    return {}
+  }
+}
+
+function withoutPause(raw: string | null) {
+  const meta = parseMeta(raw)
+  if (!(PAUSE_KEY in meta)) return raw
+  const { [PAUSE_KEY]: _paused, ...rest } = meta
+  return JSON.stringify(rest)
+}
+
+/**
+ * Takes the campaign for this run, atomically: a new send (from `from`, new startedAt) or the resume
+ * of a send that paused or whose worker died (same startedAt). Null when someone else has it.
+ */
+async function claimCampaign(c: MessagingCampaign, from: MessagingCampaignStatus[], now: Date): Promise<Date | null> {
+  const metadata = withoutPause(c.metadata)
+  if (c.status !== 'PROCESSING') {
+    if (!from.includes(c.status)) return null
+    const r = await prisma.messagingCampaign.updateMany({
+      where: { id: c.id, status: { in: from } },
+      data: { status: 'PROCESSING', startedAt: now, completedAt: null, metadata },
+    })
+    return r.count ? now : null
+  }
+  const startedAt = c.startedAt ?? now
+  const r = await prisma.messagingCampaign.updateMany({
+    where: {
+      id: c.id,
+      status: 'PROCESSING',
+      OR: [{ updatedAt: { lt: new Date(now.getTime() - CAMPAIGN_STUCK_MS) } }, { metadata: { contains: `"${PAUSE_KEY}"` } }],
+    },
+    data: { metadata, startedAt, updatedAt: now },
+  })
+  return r.count ? startedAt : null
+}
+
+/** Totals of one send only (a resend starts a new startedAt; earlier deliveries are history). */
+async function sendTotals(campaignId: string, startedAt: Date) {
+  const rows = await prisma.messagingDelivery.groupBy({
+    by: ['status'],
+    where: { campaignId, createdAt: { gte: startedAt } },
+    _count: { _all: true },
+  })
+  const count = (st: string) => rows.find((row) => row.status === st)?._count._all || 0
+  return { totalSent: count('SENT'), totalFailed: count('FAILED'), totalRecipients: rows.reduce((acc, row) => acc + row._count._all, 0) }
+}
+
+/**
+ * Sends a campaign. `from`: statuses a new send may start from (the cron passes SCHEDULED only). Runs
+ * for at most `budgetMs`; what is left stays PROCESSING (paused) for the cron, which resumes it
+ * without sending twice to anyone who already got this send.
+ */
+export async function processCampaign(campaignId: string, opts: { from?: MessagingCampaignStatus[]; budgetMs?: number } = {}) {
+  const t0 = Date.now()
+  const budgetMs = opts.budgetMs ?? CAMPAIGN_TIME_BUDGET_MS
+  const found = await prisma.messagingCampaign.findUnique({
     where: { id: campaignId },
     include: { template: true },
   })
 
-  if (!campaign) {
+  if (!found) {
     throw new Error('Campaign not found')
   }
 
-  if (campaign.status === 'PROCESSING') {
-    throw new Error('Campaign is already processing')
-  }
-
   // Outside marketing hours a WhatsApp campaign is left as it is (a scheduled one goes out on a later run).
-  if (campaignBlockedByQuietHours(campaign.channel)) return campaign
+  if (campaignBlockedByQuietHours(found.channel)) return found
 
-  await prisma.messagingCampaign.update({
-    where: { id: campaign.id },
-    data: { status: 'PROCESSING', startedAt: new Date() },
-  })
+  const startedAt = await claimCampaign(found, opts.from ?? MANUAL_FROM, new Date())
+  if (!startedAt) {
+    throw new CampaignBusyError()
+  }
+  const campaign = { ...found, metadata: withoutPause(found.metadata) }
 
-  const { users } = await resolveCampaignRecipients({
+  const { users: audience } = await resolveCampaignRecipients({
     targetRole: campaign.targetRole,
     targetCity: campaign.targetCity,
     metadata: campaign.metadata,
-    take: 2000,
+    all: true,
   })
+  // Resume: whoever already got a delivery in this send is not sent to again
+  const attempted = new Set(
+    (await prisma.messagingDelivery.findMany({ where: { campaignId: campaign.id, createdAt: { gte: startedAt } }, select: { userId: true } })).map((d) => d.userId),
+  )
+  const users = audience.filter((u) => !attempted.has(u.id))
   const runtimeConfig = await getMessagingProviderRuntimeConfig()
 
   // Parse campaign metadata once for all config below
-  let campaignMeta: Record<string, unknown> = {}
-  try { campaignMeta = JSON.parse(campaign.metadata ?? '{}') } catch { /* ignore */ }
+  const campaignMeta = parseMeta(campaign.metadata)
 
   // WA Content Template metadata (WHATSAPP channel only)
   let waContentSid: string | null = null
@@ -62,8 +140,8 @@ export async function processCampaign(campaignId: string) {
   const magicLinkRedirectUrl = (campaignMeta.magicLinkRedirectUrl as string) || '/partner/dashboard'
   const magicLinkRequirePasswordChange = Boolean(campaignMeta.magicLinkRequirePasswordChange)
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || ''
-  const siteUrl = appUrl || 'https://lohaggo.com'
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || SITE_URL).replace(/\/+$/, '')
+  const siteUrl = appUrl
   const campaignRef = campaignRefCode(campaign.id)
   const campaignLink = campaignWaLink(siteUrl, campaign.id)
   const trackLinks = (text: string) => withCampaignUtm(text, { channel: campaign.channel, campaignId: campaign.id, appUrl })
@@ -113,45 +191,36 @@ export async function processCampaign(campaignId: string) {
     const missingUserIds = users.map((u) => u.id).filter((id) => !magicUrlByUser.has(id))
     if (missingUserIds.length > 0) {
       const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000)
-      await Promise.all(
-        missingUserIds.map(async (userId) => {
-          try {
-            const token = randomBytes(32).toString('hex')
-            await prisma.magicToken.create({
-              data: { userId, token, redirectUrl: magicLinkRedirectUrl, requirePasswordChange: magicLinkRequirePasswordChange, expiresAt },
-            })
-            magicUrlByUser.set(userId, `${appUrl}/auth/magic?token=${token}`)
-          } catch {
-            // If auto-generation fails, the variable will be empty and caught below.
-          }
-        })
-      )
+      for (let i = 0; i < missingUserIds.length; i += 50) {
+        await Promise.all(
+          missingUserIds.slice(i, i + 50).map(async (userId) => {
+            try {
+              const token = randomBytes(32).toString('hex')
+              await prisma.magicToken.create({
+                data: { userId, token, redirectUrl: magicLinkRedirectUrl, requirePasswordChange: magicLinkRequirePasswordChange, expiresAt },
+              })
+              magicUrlByUser.set(userId, `${appUrl}/auth/magic?token=${token}`)
+            } catch {
+              // If auto-generation fails, the variable will be empty and caught below.
+            }
+          })
+        )
+      }
     }
   }
 
-  let sent = 0
-  let failed = 0
+  const contentMode: 'CUSTOM' | 'TEMPLATE' = campaignMeta.contentMode === 'CUSTOM' ? 'CUSTOM' : 'TEMPLATE'
 
-  let contentMode: 'CUSTOM' | 'TEMPLATE' = 'TEMPLATE'
-  if (campaign.metadata) {
+  type AbConfig = { variants?: Array<{ key: string; subject?: string; body: string; allocation: number }> }
+  let abConfig: AbConfig | null = null
+  if (campaign.abTestEnabled && campaign.abTestConfig) {
     try {
-      const parsed = JSON.parse(campaign.metadata) as { contentMode?: string }
-      if (parsed.contentMode === 'CUSTOM') contentMode = 'CUSTOM'
+      const parsed = JSON.parse(campaign.abTestConfig) as AbConfig
+      abConfig = parsed && typeof parsed === 'object' && Array.isArray(parsed.variants) ? parsed : null
     } catch {
-      contentMode = 'TEMPLATE'
+      abConfig = null
     }
   }
-
-  const abConfig = campaign.abTestEnabled && campaign.abTestConfig
-    ? (JSON.parse(campaign.abTestConfig) as {
-        variants?: Array<{
-          key: string
-          subject?: string
-          body: string
-          allocation: number
-        }>
-      })
-    : null
 
   function pickAbVariant(seed: string) {
     const variants = abConfig?.variants || []
@@ -169,10 +238,20 @@ export async function processCampaign(campaignId: string) {
     return variants[0]
   }
 
+  let paused = false
+  let sinceHeartbeat = 0
   for (const user of users) {
+    if (Date.now() - t0 > budgetMs) {
+      paused = true
+      break
+    }
+    // Progress on the campaign (also the heartbeat that tells a live send from a dead one)
+    if (++sinceHeartbeat >= 25) {
+      sinceHeartbeat = 0
+      await prisma.messagingCampaign.update({ where: { id: campaign.id }, data: await sendTotals(campaign.id, startedAt) }).catch(() => null)
+    }
     const destination = resolveDestination(campaign.channel, user)
     if (!destination) {
-      failed += 1
       await prisma.messagingDelivery.create({
         data: {
           campaignId: campaign.id,
@@ -351,38 +430,77 @@ export async function processCampaign(campaignId: string) {
             senderType: 'AUTOMATION',
           },
         })
+        // Last touch for the attribution board: a request in the next days counts for this campaign
+        if (campaign.channel === 'WHATSAPP') {
+          const fields = conv.customFields && typeof conv.customFields === 'object' && !Array.isArray(conv.customFields) ? (conv.customFields as Prisma.JsonObject) : {}
+          await prisma.conversation.update({
+            where: { id: conv.id },
+            data: { customFields: { ...fields, lastCampaign: { code: campaignRef, at: new Date().toISOString() } } },
+          })
+        }
       } catch {
         // Conversation tracking must not block campaign delivery
       }
     }
 
-    if (result.ok) sent += 1
-    else failed += 1
+  }
+
+  const totals = await sendTotals(campaign.id, startedAt)
+  if (paused) {
+    // Out of time: stays PROCESSING with the pause mark; the cron resumes it (same startedAt)
+    return prisma.messagingCampaign.update({
+      where: { id: campaign.id },
+      data: { ...totals, metadata: JSON.stringify({ ...parseMeta(campaign.metadata), [PAUSE_KEY]: new Date().toISOString() }) },
+    })
   }
 
   const finalStatus: MessagingCampaignStatus =
-    failed === 0 ? 'SENT' : sent === 0 ? 'FAILED' : 'PARTIAL'
-
-  const totalsByStatus = await prisma.messagingDelivery.groupBy({
-    by: ['status'],
-    where: { campaignId: campaign.id },
-    _count: { _all: true },
-  })
-
-  const totalSent = totalsByStatus.find((row) => row.status === 'SENT')?._count._all || 0
-  const totalFailed = totalsByStatus.find((row) => row.status === 'FAILED')?._count._all || 0
-  const totalRecipients = totalsByStatus.reduce((acc, row) => acc + row._count._all, 0)
+    totals.totalFailed === 0 ? 'SENT' : totals.totalSent === 0 ? 'FAILED' : 'PARTIAL'
 
   return prisma.messagingCampaign.update({
     where: { id: campaign.id },
     data: {
       status: finalStatus,
-      totalRecipients,
-      totalSent,
-      totalFailed,
+      ...totals,
       completedAt: new Date(),
     },
   })
+}
+
+/**
+ * Scheduled campaigns that are due, plus sends that paused or lost their worker. Each campaign on its
+ * own (one failing does not stop the rest), all inside one time budget.
+ */
+export async function runScheduledCampaigns(now: Date = new Date()) {
+  const t0 = Date.now()
+  const due = await prisma.messagingCampaign.findMany({
+    where: {
+      OR: [
+        { status: 'SCHEDULED', scheduledAt: { lte: now } },
+        {
+          status: 'PROCESSING',
+          OR: [{ updatedAt: { lt: new Date(now.getTime() - CAMPAIGN_STUCK_MS) } }, { metadata: { contains: `"${PAUSE_KEY}"` } }],
+        },
+      ],
+    },
+    orderBy: { scheduledAt: 'asc' },
+    take: 50,
+    select: { id: true },
+  })
+
+  const results: Array<{ id: string; status: string; sent: number; failed: number; error?: string }> = []
+  for (const c of due) {
+    const left = CAMPAIGN_TIME_BUDGET_MS - (Date.now() - t0)
+    if (left < 10_000) break
+    try {
+      const processed = await processCampaign(c.id, { from: ['SCHEDULED'], budgetMs: left })
+      results.push({ id: processed.id, status: processed.status, sent: processed.totalSent, failed: processed.totalFailed })
+    } catch (err) {
+      if (err instanceof CampaignBusyError) continue
+      results.push({ id: c.id, status: 'ERROR', sent: 0, failed: 0, error: err instanceof Error ? err.message : 'error' })
+    }
+  }
+  return results
 }
 
 export type CampaignWithTemplate = MessagingCampaign & { template: { id: string } | null }

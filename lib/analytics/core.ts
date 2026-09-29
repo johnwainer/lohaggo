@@ -10,7 +10,9 @@ const OFFSET = 5 * H
 export const PRESETS = ['7d', '30d', '90d', '12m'] as const
 export type Preset = (typeof PRESETS)[number]
 
-export type Period = { from: Date; to: Date; prevFrom: Date; prevTo: Date; days: number; label: string }
+export const MAX_DAYS = 730
+
+export type Period ={ from: Date; to: Date; prevFrom: Date; prevTo: Date; days: number; label: string }
 
 const dayStart = (d: Date) => {
   const local = d.getTime() - OFFSET
@@ -40,6 +42,8 @@ export function parsePeriod(p: { preset?: string | null; from?: string | null; t
   const end = new Date(dayStart(now).getTime() + DAY)
   if (to > end) to = end
   if (from >= to) from = new Date(to.getTime() - DAY)
+  // Custom ranges up to two years: longer ones are cut to the most recent 730 days
+  if (to.getTime() - from.getTime() > MAX_DAYS * DAY) from = new Date(to.getTime() - MAX_DAYS * DAY)
   const length = to.getTime() - from.getTime()
   const days = Math.round(length / DAY)
   return { from, to, prevFrom: new Date(from.getTime() - length), prevTo: from, days, label: `${bogotaDay(from)} – ${bogotaDay(new Date(to.getTime() - 1))}` }

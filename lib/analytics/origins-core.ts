@@ -4,8 +4,15 @@
  */
 import {
   CHANNEL_LABELS, classifyTouch, readTouch, touchesFromConversation,
-  type ChannelKey, type TouchBucket,
+  type ChannelKey, type Touch, type TouchBucket,
 } from '@/lib/analytics/attribution-core'
+
+/** Meta ad id → package code (`ad-<code>` without the prefix) from each package's typed ad ids. */
+export function adCodeMap(drafts: Array<{ id: string; metaAdIds: string[] }>) {
+  const m = new Map<string, string>()
+  for (const d of drafts) for (const adId of d.metaAdIds) if (!m.has(adId)) m.set(adId, d.id.slice(-8).toLowerCase())
+  return m
+}
 
 export type AttributionModel = 'last' | 'first'
 
@@ -69,8 +76,15 @@ export function summarizeOrigins(p: {
   spendByDraft: Map<string, number>
   labels: OriginLabels
   model: AttributionModel
+  /** Meta ad id → package code, from the ids typed on each package («IDs de anuncios en Meta») */
+  adCodeById?: ReadonlyMap<string, string>
+  now?: Date
 }) {
-  const pick = (first: unknown, last: unknown) => classifyTouch(readTouch(p.model === 'first' ? first : last) ?? readTouch(first) ?? readTouch(last))
+  const withPackage = (t: Touch | null): Touch | null => {
+    const code = t?.adId && !t.campaign ? p.adCodeById?.get(t.adId) : undefined
+    return t && code ? { ...t, campaign: `ad-${code}`, ref: t.ref ?? `ad-${code}` } : t
+  }
+  const pick = (first: unknown, last: unknown) => classifyTouch(withPackage(readTouch(p.model === 'first' ? first : last) ?? readTouch(first) ?? readTouch(last)))
   const byChannel = new Map<string, Omit<FunnelRow, 'label'>>()
   const byCampaign = new Map<string, Omit<FunnelRow, 'label'> & { bucket: TouchBucket }>()
   const byPiece = new Map<string, Omit<FunnelRow, 'label'> & { bucket: TouchBucket }>()
@@ -94,7 +108,7 @@ export function summarizeOrigins(p: {
   }
 
   for (const c of p.conversations) {
-    const t = touchesFromConversation(c.customFields, c.channel)
+    const t = touchesFromConversation(c.customFields, c.channel, { now: p.now, adCodeById: p.adCodeById })
     bump(classifyTouch(p.model === 'first' ? t.first : t.last), (r) => { r.conversations++ })
   }
   const requestBucket = new Map<string, TouchBucket>()

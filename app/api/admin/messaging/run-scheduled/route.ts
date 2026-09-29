@@ -1,29 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { NextResponse } from 'next/server'
 import { requireAdmin, auditAdminAction } from '@/lib/admin-utils'
-import { processCampaign } from '@/lib/messaging/campaign-service'
+import { runScheduledCampaigns } from '@/lib/messaging/campaign-service'
 import { cronRoute } from '@/lib/system/cron'
 
-async function runScheduled() {
-  const now = new Date()
-  const scheduled = await prisma.messagingCampaign.findMany({
-    where: { status: 'SCHEDULED', scheduledAt: { lte: now } },
-    orderBy: { scheduledAt: 'asc' },
-    take: 50,
-  })
+export const maxDuration = 300
 
-  const results: Array<{ id: string; status: string; sent: number; failed: number }> = []
-  for (const campaign of scheduled) {
-    const processed = await processCampaign(campaign.id)
-    results.push({
-      id: processed.id,
-      status: processed.status,
-      sent: processed.totalSent,
-      failed: processed.totalFailed,
-    })
-  }
-  return results
-}
+const runScheduled = () => runScheduledCampaigns()
 
 /** Manual run from the admin (audited). */
 export async function POST() {

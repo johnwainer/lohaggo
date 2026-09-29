@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { classifyTouch, fbcFrom, gaClientIdFrom, readTouch, compactTouch, touchFromCookie, touchesFromConversation } from '@/lib/analytics/attribution-core'
 import { buildGa4Event, buildMetaEvent, conversionDestinations, conversionEventId, hashEmail, hashPhone, type ConversionInput } from '@/lib/analytics/conversions-core'
-import { spendWithoutRequests, summarizeOrigins } from '@/lib/analytics/origins-core'
+import { adCodeMap, spendWithoutRequests, summarizeOrigins } from '@/lib/analytics/origins-core'
 import { creditPosts } from '@/lib/marketing/post-results'
-import { adRefCode, adUrlParams, adWelcomeMessage } from '@/lib/marketing/ads-core'
+import { adRefCode, adUrlParams, adWelcomeMessage, metaAdIdsOf, parseMetaAdIds } from '@/lib/marketing/ads-core'
 import { extractWebRef } from '@/lib/messaging/attribution'
 import { parseAdSpendInput } from '@/lib/marketing/ad-spend'
 
@@ -74,6 +74,54 @@ describe('touches', () => {
     expect(classifyTouch(web)).toMatchObject({ channel: 'campanas', campaign: 'cmp-ab12cd34' })
     expect(classifyTouch(touchFromCookie(cookie({ source: 'email', medium: 'campaign', campaign: 'cmp-x' }))).channel).toBe('campanas')
     expect(classifyTouch(touchFromCookie(cookie({ source: 'facebook', medium: 'social' }))).channel).toBe('facebook')
+  })
+
+  it('fbclid: organic post clicks are publicaciones, paid only without medium or with a paid one', () => {
+    const t = (o: Record<string, unknown>) => touchFromCookie(cookie(o))
+    expect(classifyTouch(t({ source: 'instagram', medium: 'social', fbclid: 'F1' })).channel).toBe('publicaciones')
+    expect(classifyTouch(t({ source: 'facebook', medium: 'organic', campaign: 'x', fbclid: 'F1' })).channel).toBe('publicaciones')
+    expect(classifyTouch(t({ fbclid: 'F1' })).channel).toBe('meta_ads')
+    expect(classifyTouch(t({ source: 'fb', medium: 'paid', fbclid: 'F1' })).channel).toBe('meta_ads')
+    expect(classifyTouch(t({ source: 'newsletter', medium: 'email', fbclid: 'F1' })).channel).not.toBe('meta_ads')
+  })
+
+  it('meta sources match exact tokens or facebook/instagram hosts, not substrings', () => {
+    const t = (o: Record<string, unknown>) => touchFromCookie(cookie(o))
+    expect(classifyTouch(t({ source: 'ig', medium: 'cpc' })).channel).toBe('meta_ads')
+    expect(classifyTouch(t({ source: 'l.facebook.com', medium: 'ads' })).channel).toBe('meta_ads')
+    expect(classifyTouch(t({ source: 'bing', medium: 'cpc' })).channel).toBe('google_ads')
+    expect(classifyTouch(t({ source: 'tiktok', medium: 'paid' })).channel).toBe('google_ads')
+    expect(classifyTouch(t({ source: 'amazon', medium: 'cpc' })).channel).not.toBe('meta_ads')
+  })
+
+  it('last touch: newest of the last ad click and the last web ref', () => {
+    const conv = {
+      adReferral: { source: 'ctwa', adId: '1', at: '2026-10-01T10:00:00.000Z' },
+      lastAdReferral: { source: 'ctwa', adId: '2', at: '2026-10-02T10:00:00.000Z' },
+      webRef: 'ad-aaaa1111', webRefAt: '2026-10-01T10:00:00.000Z',
+      lastWebRef: 'post-cmp1', lastWebRefAt: '2026-10-05T10:00:00.000Z',
+    }
+    const t = touchesFromConversation(conv, 'WHATSAPP')
+    expect(classifyTouch(t.first)).toMatchObject({ channel: 'meta_ads', campaign: 'ad-aaaa1111' })
+    expect(classifyTouch(t.last).channel).toBe('publicaciones')
+    const adLast = touchesFromConversation({ ...conv, lastWebRef: 'ad-bbbb2222', lastWebRefAt: '2026-10-01T12:00:00.000Z' }, 'WHATSAPP')
+    expect(classifyTouch(adLast.last)).toMatchObject({ channel: 'meta_ads', campaign: 'ad-bbbb2222', content: '2' })
+  })
+
+  it('a campaign message is the last touch for 7 days when newer', () => {
+    const conv = { webRef: 'web-home', webRefAt: '2026-10-01T10:00:00.000Z', lastCampaign: { code: 'cmp-ab12cd34', at: '2026-10-03T10:00:00.000Z' } }
+    const within = touchesFromConversation(conv, 'WHATSAPP', { now: new Date('2026-10-06T10:00:00Z') })
+    expect(classifyTouch(within.last)).toMatchObject({ channel: 'campanas', campaign: 'cmp-ab12cd34' })
+    expect(classifyTouch(within.first).channel).toBe('sitio_web')
+    const late = touchesFromConversation(conv, 'WHATSAPP', { now: new Date('2026-10-12T10:00:00Z') })
+    expect(classifyTouch(late.last).channel).toBe('sitio_web')
+    const older = touchesFromConversation({ ...conv, lastWebRef: 'blog-x', lastWebRefAt: '2026-10-04T10:00:00.000Z' }, 'WHATSAPP', { now: new Date('2026-10-06T10:00:00Z') })
+    expect(classifyTouch(older.last).channel).toBe('blog')
+  })
+
+  it('a Meta ad id registered on a package names its campaign', () => {
+    const t = touchesFromConversation({ adReferral: { source: 'meta', adId: '777', at: 'x' } }, 'MESSENGER', { adCodeById: new Map([['777', 'fomkmudr']]) })
+    expect(classifyTouch(t.first)).toMatchObject({ channel: 'meta_ads', campaign: 'ad-fomkmudr' })
   })
 })
 
@@ -183,5 +231,33 @@ describe('weekly budget check', () => {
     expect(budgetShiftSuggestion([pk('a', 70_000, 7), pk('b', 50_000, 4)])).toBeNull()
     expect(budgetShiftSuggestion([pk('a', 70_000, 7), pk('b', 10_000, 0)])).toBeNull()
     expect(budgetShiftSuggestion([pk('a', 70_000, 7, 2), pk('b', 60_000, 6, 0)])).toMatchObject({ from: { adDraftId: 'b' }, metric: 'reserva' })
+  })
+})
+
+describe('audit fixes', () => {
+  it('a chat from a post link is credited to the Facebook variant', () => {
+    const r = creditPosts(new Set(['p1']), [{ id: 'r1', acquisition: null, lastTouch: { via: 'chat', source: 'publicacion', medium: 'social', content: 'p1' } }], [])
+    expect(r.get('p1')?.byChannel).toEqual({ FACEBOOK: { requests: 1, bookings: 0 } })
+  })
+
+  it('Meta ad ids typed on a package: parsed and mapped to its code', () => {
+    expect(parseMetaAdIds('120210000000000001, 120210000000000001\n abc 12')).toEqual(['120210000000000001'])
+    expect(metaAdIdsOf({ metaAdIds: ['120210000000000002'] })).toEqual(['120210000000000002'])
+    expect(metaAdIdsOf(null)).toEqual([])
+    const draftId = 'cmukad0wf00241g10fomkmudr'
+    const map = adCodeMap([{ id: draftId, metaAdIds: ['777'] }])
+    const s = summarizeOrigins({
+      conversations: [{ id: 'c1', channel: 'MESSENGER', customFields: { adReferral: { source: 'meta', adId: '777', at: 'x' } } }],
+      requests: [{ id: 'r1', acquisition: null, lastTouch: { via: 'chat', source: 'meta', medium: 'paid_social', adId: '777' } }],
+      bookings: [], spendByDraft: new Map(), labels: { adDrafts: new Map(), posts: new Map() }, model: 'last', adCodeById: map,
+    })
+    expect(s.campaigns[0]).toMatchObject({ campaign: 'ad-fomkmudr', conversations: 1, requests: 1 })
+  })
+
+  it('referral.ref of an m.me link accepts ad-, post- and cmp- tags', () => {
+    expect(extractWebRef('(ref: ad-fomkmudr)')).toBe('ad-fomkmudr')
+    expect(extractWebRef('(ref: cmp-ab12cd34)')).toBe('cmp-ab12cd34')
+    expect(extractWebRef('(ref: post-cmabc)')).toBe('post-cmabc')
+    expect(extractWebRef('(ref: evil tag)')).toBeNull()
   })
 })

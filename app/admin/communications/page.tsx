@@ -335,6 +335,7 @@ export default function AdminCommunicationsPage() {
   const [detailCampaign, setDetailCampaign] = useState<Campaign | null>(null)
   const [syncingTemplates, setSyncingTemplates] = useState(false)
   const [syncFeedback, setSyncFeedback] = useState<string | null>(null)
+  const [providerFeedback, setProviderFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   // Magic link state
 
@@ -945,6 +946,28 @@ export default function AdminCommunicationsPage() {
     }))
   }
 
+  const patchProvider = async (payload: Record<string, unknown>, label: string) => {
+    setProviderFeedback(null)
+    try {
+      const res = await fetch('/api/admin/messaging/providers', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        const reason = data?.error || (res.status === 403 ? 'Solo un superadmin puede cambiar esto' : `el servidor respondió ${res.status}`)
+        setProviderFeedback({ type: 'error', text: `No se guardó ${label}: ${reason}` })
+        return false
+      }
+      setProviderFeedback({ type: 'success', text: `${label} guardado` })
+      return true
+    } catch {
+      setProviderFeedback({ type: 'error', text: `No se guardó ${label}: sin conexión` })
+      return false
+    }
+  }
+
   const saveTwilio = async () => {
     const payload: Record<string, unknown> = {
       provider: 'TWILIO',
@@ -955,11 +978,7 @@ export default function AdminCommunicationsPage() {
     if (twilioForm.accountSid.trim()) payload.accountSid = twilioForm.accountSid.trim()
     if (twilioForm.authToken.trim()) payload.authToken = twilioForm.authToken.trim()
 
-    await fetch('/api/admin/messaging/providers', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
+    if (!(await patchProvider(payload, 'Twilio'))) return
     setTwilioForm((prev) => ({ ...prev, authToken: '' }))
     await load()
   }
@@ -972,11 +991,7 @@ export default function AdminCommunicationsPage() {
     }
     if (sendgridForm.apiKey.trim()) payload.apiKey = sendgridForm.apiKey.trim()
 
-    await fetch('/api/admin/messaging/providers', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
+    if (!(await patchProvider(payload, 'SendGrid'))) return
     setSendgridForm((prev) => ({ ...prev, apiKey: '' }))
     await load()
   }
@@ -990,11 +1005,7 @@ export default function AdminCommunicationsPage() {
     }
     if (metaForm.accessToken.trim()) payload.accessToken = metaForm.accessToken.trim()
 
-    await fetch('/api/admin/messaging/providers', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
+    if (!(await patchProvider(payload, 'Meta WhatsApp'))) return
     setMetaForm((prev) => ({ ...prev, accessToken: '' }))
     await load()
   }
@@ -1229,6 +1240,16 @@ export default function AdminCommunicationsPage() {
                 <h2 className="text-lg font-semibold">Configuración de proveedores</h2>
                 <p className="text-sm text-gray-600">Gestión centralizada y cifrada de credenciales operativas.</p>
               </div>
+              {providerFeedback && (
+                <div
+                  role={providerFeedback.type === 'error' ? 'alert' : 'status'}
+                  className={`rounded-lg border px-3 py-2 text-sm break-words ${
+                    providerFeedback.type === 'error' ? 'border-red-200 bg-red-50 text-red-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                  }`}
+                >
+                  {providerFeedback.text}
+                </div>
+              )}
               <div className="grid lg:grid-cols-2 gap-4">
                 <div className="border rounded-lg p-4 space-y-2">
                   <div className="space-y-1">
