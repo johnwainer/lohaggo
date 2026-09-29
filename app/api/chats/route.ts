@@ -32,7 +32,7 @@ export async function GET(request: Request) {
               bookings: {
                 orderBy: { createdAt: 'desc' },
                 take: 1,
-                select: { status: true },
+                select: { status: true, updatedAt: true },
               },
             },
           },
@@ -65,6 +65,7 @@ export async function GET(request: Request) {
         serviceRequestStatus: chat.serviceRequest?.status ?? null,
         proposalStatus: chat.proposal?.status ?? null,
         bookingStatus,
+        bookingUpdatedAt: chat.proposal.bookings[0]?.updatedAt ?? null,
       })
       const { proposal: _p, serviceRequest: _sr, ...chatBase } = chat
       return NextResponse.json({
@@ -115,7 +116,8 @@ export async function POST(request: Request) {
       where: { id: proposalId },
       include: {
         serviceRequest: true,
-        partner: true
+        partner: true,
+        bookings: { orderBy: { createdAt: 'desc' }, take: 1, select: { status: true, updatedAt: true } },
       }
     })
 
@@ -130,12 +132,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     }
 
+    const bookingStatus = proposal.bookings[0]?.status ?? null
+    const state = computeChatState({
+      serviceRequestStatus: proposal.serviceRequest.status,
+      proposalStatus: proposal.status,
+      bookingStatus,
+      bookingUpdatedAt: proposal.bookings[0]?.updatedAt ?? null,
+    })
+    const withState = <T extends object>(chat: T) => ({ ...chat, bookingStatus, isActive: state.isActive, statusLabel: state.statusLabel })
+
     const existingChat = await prisma.chat.findUnique({
-      where: { proposalId }
+      where: { proposalId },
+      include: { messages: { orderBy: { createdAt: 'asc' } } }
     })
 
     if (existingChat) {
-      return NextResponse.json(existingChat)
+      return NextResponse.json(withState(existingChat))
     }
 
     const chat = await prisma.chat.create({
@@ -150,7 +162,7 @@ export async function POST(request: Request) {
       }
     })
 
-    return NextResponse.json(chat)
+    return NextResponse.json(withState(chat))
   } catch (error) {
     logger.error('Error creating chat:', error || undefined)
     return NextResponse.json({ error: 'Error al crear chat' }, { status: 500 })

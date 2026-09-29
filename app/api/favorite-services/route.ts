@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     const session = await getServerSession(authOptions)
 
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
     const favoriteServices = await prisma.favoriteService.findMany({
@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     logger.error('Error fetching favorite services:', error || undefined)
     return NextResponse.json(
-      { error: 'Error fetching favorite services' },
+      { error: 'No pudimos cargar tus servicios favoritos' },
       { status: 500 }
     )
   }
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions)
 
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
     const body = await req.json()
@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
 
     if (!serviceId) {
       return NextResponse.json(
-        { error: 'Service ID is required' },
+        { error: 'Falta el servicio' },
         { status: 400 }
       )
     }
@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
 
     if (!service) {
       return NextResponse.json(
-        { error: 'Service not found' },
+        { error: 'Servicio no encontrado' },
         { status: 404 }
       )
     }
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
 
     if (existingFavorite) {
       return NextResponse.json(
-        { error: 'Service already in favorites' },
+        { error: 'Este servicio ya está en tus favoritos' },
         { status: 400 }
       )
     }
@@ -134,7 +134,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     logger.error('Error adding favorite service:', error || undefined)
     return NextResponse.json(
-      { error: 'Error adding favorite service' },
+      { error: 'No pudimos agregar el servicio a favoritos' },
       { status: 500 }
     )
   }
@@ -145,7 +145,7 @@ export async function DELETE(req: NextRequest) {
     const session = await getServerSession(authOptions)
 
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
     const { searchParams } = new URL(req.url)
@@ -153,7 +153,7 @@ export async function DELETE(req: NextRequest) {
 
     if (!serviceId) {
       return NextResponse.json(
-        { error: 'Service ID is required' },
+        { error: 'Falta el servicio' },
         { status: 400 }
       )
     }
@@ -169,7 +169,7 @@ export async function DELETE(req: NextRequest) {
 
     if (!existingFavorite) {
       return NextResponse.json(
-        { error: 'Favorite service not found' },
+        { error: 'Ese servicio no está en tus favoritos' },
         { status: 404 }
       )
     }
@@ -185,11 +185,11 @@ export async function DELETE(req: NextRequest) {
       serviceId: serviceId
     })
 
-    return NextResponse.json({ message: 'Favorite service removed successfully' })
+    return NextResponse.json({ message: 'Servicio quitado de favoritos' })
   } catch (error) {
     logger.error('Error removing favorite service:', error || undefined)
     return NextResponse.json(
-      { error: 'Error removing favorite service' },
+      { error: 'No pudimos quitar el servicio de favoritos' },
       { status: 500 }
     )
   }

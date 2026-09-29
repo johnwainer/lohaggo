@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
+import { calendarDayKey } from '@/lib/bookings/when'
 
 function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   useEffect(() => {
@@ -47,7 +48,7 @@ export function RescheduleSheet({ booking, onClose, onDone }: {
   onDone: () => void
 }) {
   const min = todayBogota()
-  const current = booking.scheduledDate?.slice(0, 10)
+  const current = booking.scheduledDate ? calendarDayKey(booking.scheduledDate) : undefined
   const [date, setDate] = useState(current && current >= min ? current : min)
   const [time, setTime] = useState(TIME_SLOTS.includes(booking.scheduledTime) ? booking.scheduledTime : '08:00')
   const [saving, setSaving] = useState(false)

@@ -1,3 +1,4 @@
+import { formatCalendarDay } from '@/lib/bookings/when'
 import { prisma } from "@/lib/prisma"
 import { createLogger } from '@/lib/logger'
 import type { NotificationType as PrismaNotificationType, UserRole } from '@prisma/client'
@@ -184,7 +185,7 @@ async function buildEnrichedVars(
         vars.client_name = booking.user.name
         vars.partner_name = booking.partner?.user.name ?? ''
         vars.booking_date = booking.scheduledDate
-          ? new Date(booking.scheduledDate).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })
+          ? formatCalendarDay(booking.scheduledDate, { day: '2-digit', month: 'short', year: 'numeric' })
           : ''
         vars.booking_time = booking.scheduledTime ?? ''
         vars.price = booking.totalPrice ? `$${Math.round(booking.totalPrice).toLocaleString('es-CO')}` : ''
@@ -558,7 +559,8 @@ export async function notifyNewServiceRequest(serviceRequestId: string, opts: { 
           include: {
             user: { select: { id: true, name: true, phone: true } },
           }
-        }
+        },
+        proposals: { select: { partnerId: true } },
       }
     })
 
@@ -600,21 +602,26 @@ export async function notifyNewServiceRequest(serviceRequestId: string, opts: { 
     const isEligible = (p: { isActive: boolean; verified: boolean; isAvailable: boolean }) =>
       p.isActive && p.verified && p.isAvailable
 
+    // A partner who already proposed is not told again (reminder rounds, reopenings)
+    const proposed = new Set((serviceRequest.proposals ?? []).map(p => p.partnerId))
+
     if (serviceRequest.partnerId && serviceRequest.partner) {
-      if (isEligible(serviceRequest.partner)) {
+      if (isEligible(serviceRequest.partner) && !proposed.has(serviceRequest.partner.id)) {
         await notifyPartner(serviceRequest.partner, true)
       }
     } else {
+      // The city where the partner offers this service (not the profile's city); nobody who already proposed
       const cityPartners = serviceRequest.service.partners.filter(
-        ps => ps.partner.city === serviceRequest.city
+        ps => ps.city === serviceRequest.city && !proposed.has(ps.partner.id)
       )
-      // Prefer partners whose zones and schedule fit the request; if none does, tell the whole city
+      // Prefer partners whose zones and schedule fit the request; if none does, relax only the schedule (never the zone)
       const { matchesRequest } = await import('@/lib/partners/coverage-core')
+      const { coversZone } = await import('@/lib/geo/zones')
       const matching = cityPartners.filter(ps => matchesRequest(
         { coverageZones: ps.partner.coverageZones, schedule: ps.partner.availability },
         { zone: serviceRequest.zone, preferredDate: serviceRequest.preferredDate, preferredTime: serviceRequest.preferredTime, isUrgent: serviceRequest.isUrgent },
       ))
-      const partners = matching.length > 0 ? matching : cityPartners
+      const partners = matching.length > 0 ? matching : cityPartners.filter(ps => coversZone(ps.partner.coverageZones, serviceRequest.zone))
       for (const { partner } of partners) {
         await notifyPartner(partner, false)
       }

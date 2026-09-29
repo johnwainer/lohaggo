@@ -44,6 +44,7 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [viewerUrl, setViewerUrl] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -148,6 +149,7 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
     if (!newMessage.trim() || !chat || sending) return
 
     setSending(true)
+    setSendError(null)
     const messageContent = newMessage.trim()
     setNewMessage('')
 
@@ -168,12 +170,15 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
           setMessages(prev => [...prev, errorData.systemMessage])
           setNewMessage(messageContent)
         } else {
-          console.error('Error sending message:', errorData.error)
+          setSendError(errorData.error || 'No se pudo enviar el mensaje. Intenta de nuevo.')
           setNewMessage(messageContent)
+          if (response.status === 403 && /cerrada/i.test(errorData.error || '')) {
+            setChat(prev => (prev ? { ...prev, isActive: false } : prev))
+          }
         }
       }
     } catch (error) {
-      console.error('Error sending message:', error)
+      setSendError('No se pudo conectar. Revisa tu conexión e intenta de nuevo.')
       setNewMessage(messageContent)
     } finally {
       setSending(false)
@@ -340,12 +345,15 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
             onSubmit={sendMessage}
             className="border-t border-gray-200 bg-white px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+4.75rem)] sm:rounded-b-2xl sm:px-6 sm:py-4 sm:pb-4"
           >
+            {sendError && (
+              <p role="alert" className="mb-2 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700 ring-1 ring-red-200">{sendError}</p>
+            )}
             <div className="flex gap-2 md:gap-3">
               <input
                 ref={inputRef}
                 type="text"
                 value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
+                onChange={(e) => { setNewMessage(e.target.value); if (sendError) setSendError(null) }}
                 placeholder="Escribe un mensaje..."
                 disabled={loading || sending}
                 autoFocus

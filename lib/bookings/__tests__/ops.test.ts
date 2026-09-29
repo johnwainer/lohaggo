@@ -3,6 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const m = vi.hoisted(() => ({
   bookingFindUnique: vi.fn(),
   bookingUpdate: vi.fn<(a: any) => Promise<any>>(),
+  bookingUpdateMany: vi.fn<(a: any) => Promise<{ count: number }>>(),
+  bookingFindUniqueOrThrow: vi.fn<(a: any) => Promise<any>>(),
+  partnerProfileUpdate: vi.fn(async (_a: any) => ({})),
+  userUpdate: vi.fn(async (_a: any) => ({})),
   bookingFindMany: vi.fn<(a: any) => Promise<any[]>>(),
   eventCreate: vi.fn(async (a: { data: Record<string, unknown> }) => ({ id: 'e', ...a.data })),
   paymentFindUnique: vi.fn(),
@@ -29,14 +33,16 @@ const m = vi.hoisted(() => ({
 
 vi.mock('@/lib/prisma', () => ({
   prisma: {
-    booking: { findUnique: m.bookingFindUnique, update: m.bookingUpdate, findMany: m.bookingFindMany },
+    booking: { findUnique: m.bookingFindUnique, update: m.bookingUpdate, updateMany: m.bookingUpdateMany, findUniqueOrThrow: m.bookingFindUniqueOrThrow, findMany: m.bookingFindMany },
+    user: { update: m.userUpdate },
+    $transaction: async (ops: Promise<unknown>[]) => Promise.all(ops),
     bookingEvent: { create: m.eventCreate },
     payment: { findUnique: m.paymentFindUnique },
     refundCase: { create: m.refundCreate },
     paymentIncident: { create: m.incidentCreate },
     paymentIncidentEvent: { create: m.incidentEventCreate },
     adminSupportCase: { create: m.supportCaseCreate },
-    partnerProfile: { findUnique: m.partnerFindUnique },
+    partnerProfile: { findUnique: m.partnerFindUnique, update: m.partnerProfileUpdate },
     proposal: { findUnique: m.proposalFindUnique, update: m.proposalUpdate, updateMany: m.proposalUpdateMany },
     serviceRequest: { updateMany: m.srUpdateMany },
     adminAuditLog: { findFirst: m.auditFindFirst, count: m.auditCount, create: m.auditCreate },
@@ -70,6 +76,11 @@ beforeEach(() => {
   vi.clearAllMocks()
   m.bookingUpdate.mockImplementation(async (a: { where: { id: string }; data: Record<string, unknown> }) => ({
     ...baseBooking(), ...a.data, service: { name: 'Plomería' }, user: { name: 'Ana', email: 'c@x.co', phone: null }, partner: { user: { id: 'partner-user', name: 'Darwin', phone: null } },
+  }))
+  let written: Record<string, unknown> = {}
+  m.bookingUpdateMany.mockImplementation(async (a: { data: Record<string, unknown> }) => { written = a.data; return { count: 1 } })
+  m.bookingFindUniqueOrThrow.mockImplementation(async () => ({
+    ...baseBooking(), ...written, service: { name: 'Plomería' }, user: { name: 'Ana', email: 'c@x.co', phone: null }, partner: { user: { id: 'partner-user', name: 'Darwin', phone: null } },
   }))
   m.paymentFindUnique.mockResolvedValue(null)
 })
@@ -112,7 +123,7 @@ describe('transitionBooking', () => {
     m.bookingFindUnique.mockResolvedValue(baseBooking())
     await expect(transitionBooking(otherClient, 'bk-abc123', 'CANCELLED', APP_ORIGIN)).rejects.toMatchObject({ status: 403 })
     await expect(transitionBooking({ ...partner, partnerId: 'p-other' }, 'bk-abc123', 'CONFIRMED', APP_ORIGIN)).rejects.toMatchObject({ status: 403 })
-    expect(m.bookingUpdate).not.toHaveBeenCalled()
+    expect(m.bookingUpdateMany).not.toHaveBeenCalled()
   })
 
   it('reserva inexistente da 404; transición inválida 400; el mismo estado 409', async () => {
@@ -128,6 +139,8 @@ describe('transitionBooking', () => {
     m.bookingFindUnique.mockResolvedValue(baseBooking())
     const updated = await transitionBooking(partner, 'bk-abc123', 'CONFIRMED', APP_ORIGIN)
     expect(updated.status).toBe('CONFIRMED')
+    expect(m.bookingUpdateMany).toHaveBeenCalledWith({ where: { id: 'bk-abc123', status: 'PENDING' }, data: { status: 'CONFIRMED' } })
+    expect(m.partnerProfileUpdate).not.toHaveBeenCalled()
     expect(m.eventCreate).toHaveBeenCalledTimes(1)
     expect(m.eventCreate.mock.calls[0][0].data).toMatchObject({
       bookingId: 'bk-abc123', type: 'status', fromStatus: 'PENDING', toStatus: 'CONFIRMED', actorType: 'partner', actorId: 'pu1',
@@ -171,6 +184,24 @@ describe('transitionBooking', () => {
     expect(m.notifyStatus).toHaveBeenCalledWith('bk-abc123', 'CANCELLED')
   })
 
+  it('si otro cambio llegó primero (el estado ya no es el leído) da 409 y no escribe evento', async () => {
+    m.bookingFindUnique.mockResolvedValue(baseBooking())
+    m.bookingUpdateMany.mockResolvedValueOnce({ count: 0 })
+    await expect(transitionBooking(partner, 'bk-abc123', 'CONFIRMED', APP_ORIGIN)).rejects.toMatchObject({ status: 409, message: 'La reserva cambió de estado; recarga' })
+    expect(m.eventCreate).not.toHaveBeenCalled()
+    expect(m.notifyStatus).not.toHaveBeenCalled()
+  })
+
+  it('al completar suma un servicio completado al socio y al cliente, una sola vez', async () => {
+    m.bookingFindUnique.mockResolvedValue(baseBooking({ status: 'IN_PROGRESS' }))
+    await transitionBooking(partner, 'bk-abc123', 'COMPLETED', APP_ORIGIN)
+    expect(m.partnerProfileUpdate).toHaveBeenCalledWith({ where: { id: 'p1' }, data: { completedServicesCount: { increment: 1 } } })
+    expect(m.userUpdate).toHaveBeenCalledWith({ where: { id: 'u1' }, data: { completedServicesCount: { increment: 1 } } })
+    m.bookingUpdateMany.mockResolvedValueOnce({ count: 0 })
+    await expect(transitionBooking(partner, 'bk-abc123', 'COMPLETED', APP_ORIGIN)).rejects.toMatchObject({ status: 409 })
+    expect(m.partnerProfileUpdate).toHaveBeenCalledTimes(1)
+  })
+
   it('sin correo del actor (agente) requestedBy es «chat»', async () => {
     m.bookingFindUnique.mockResolvedValue(baseBooking())
     m.paymentFindUnique.mockResolvedValue({ id: 'pay1', status: 'APPROVED', totalAmount: 100 })
@@ -186,7 +217,7 @@ describe('systemTransition', () => {
     expect(m.eventCreate.mock.calls[0][0].data).toMatchObject({ type: 'status', fromStatus: 'PENDING', toStatus: 'CONFIRMED', actorType: 'system', origin: 'app', detail: 'Pago aprobado por MercadoPago' })
     m.bookingFindUnique.mockResolvedValue(baseBooking({ status: 'CONFIRMED' }))
     expect(await systemTransition('bk-abc123', 'CONFIRMED')).toBeNull()
-    expect(m.bookingUpdate).toHaveBeenCalledTimes(1)
+    expect(m.bookingUpdateMany).toHaveBeenCalledTimes(1)
   })
 })
 

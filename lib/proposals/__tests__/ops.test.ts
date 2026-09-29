@@ -4,6 +4,7 @@ const m = vi.hoisted(() => ({
   partnerFindUnique: vi.fn(),
   srFindUnique: vi.fn(),
   srUpdate: vi.fn(),
+  srUpdateMany: vi.fn(),
   psFindFirst: vi.fn(),
   configFindFirst: vi.fn(),
   proposalFindUnique: vi.fn(),
@@ -23,7 +24,7 @@ const m = vi.hoisted(() => ({
 vi.mock('@/lib/prisma', () => {
   const prisma: Record<string, unknown> = {
     partnerProfile: { findUnique: m.partnerFindUnique },
-    serviceRequest: { findUnique: m.srFindUnique, update: m.srUpdate },
+    serviceRequest: { findUnique: m.srFindUnique, update: m.srUpdate, updateMany: m.srUpdateMany },
     partnerService: { findFirst: m.psFindFirst },
     platformConfig: { findFirst: m.configFindFirst },
     proposal: { findUnique: m.proposalFindUnique, findMany: m.proposalFindMany, create: m.proposalCreate, update: m.proposalUpdate, updateMany: m.proposalUpdateMany },
@@ -45,6 +46,7 @@ vi.mock('@/lib/pwa/adoption-strategy', () => ({ recordPromptContext: m.recordPro
 
 import { APP_ORIGIN, chatOrigin } from '@/lib/ops/origin'
 import { acceptProposal, createProposal, proposalSummaryForChat, rejectProposal, resolveSchedule } from '@/lib/proposals/ops'
+import { bookingWhen } from '@/lib/bookings/when'
 
 const client = { userId: 'u1', role: 'CLIENT' as const }
 const partnerActor = { userId: 'pu1', role: 'PARTNER' as const, partnerId: 'p1' }
@@ -97,6 +99,16 @@ describe('crear propuesta', () => {
     expect(m.recordPromptContext).toHaveBeenCalledWith('u1', 'CLIENT_PROPOSAL_RECEIVED', { proposalId: 'pr1', serviceRequestId: 'r1' })
   })
 
+  it('la fecha propuesta se guarda como día solo (00:00 UTC) y la hora aparte; las reglas usan la hora real', async () => {
+    const day = new Date(Date.now() + 3 * 24 * 3600_000).toISOString().slice(0, 10)
+    await createProposal(partnerActor, { serviceRequestId: 'r1', price: 60000, proposedDate: day, proposedTime: '08:30' }, APP_ORIGIN)
+    expect(m.proposalCreate.mock.calls[0][0].data).toMatchObject({ proposedDate: new Date(`${day}T00:00:00.000Z`), proposedTime: '08:30' })
+    const past = new Date(Date.now() - 3 * 24 * 3600_000).toISOString().slice(0, 10)
+    await expect(createProposal(partnerActor, { serviceRequestId: 'r1', price: 60000, proposedDate: past }, APP_ORIGIN)).rejects.toMatchObject({ status: 400, message: 'La fecha propuesta ya pasó' })
+    const far = new Date(Date.now() + 90 * 24 * 3600_000).toISOString().slice(0, 10)
+    await expect(createProposal(partnerActor, { serviceRequestId: 'r1', price: 60000, proposedDate: far }, APP_ORIGIN)).rejects.toMatchObject({ status: 400, message: 'Propón una fecha dentro de los próximos 60 días' })
+  })
+
   it('solicitud directa al socio no exige PartnerService en la ciudad', async () => {
     m.srFindUnique.mockResolvedValue({ id: 'r1', userId: 'u1', serviceId: 's1', city: 'BOGOTA', status: 'ACTIVE', expiresAt: future, partnerId: 'p1', service: { basePrice: 50000 } })
     m.psFindFirst.mockResolvedValue(null)
@@ -111,35 +123,72 @@ describe('aceptar propuesta', () => {
     m.configFindFirst.mockResolvedValue({ commissionEnabled: true, clientCommissionRate: 5, partnerCommissionRate: 10 })
     m.proposalFindMany.mockResolvedValue([{ id: 'pr2' }])
     m.bookingCreate.mockImplementation(async (a: { data: Record<string, unknown> }) => ({ id: 'b1', ...a.data, partner: { user: { id: 'pu1' } } }))
+    m.proposalUpdateMany.mockResolvedValue({ count: 1 })
+    m.srUpdateMany.mockResolvedValue({ count: 1 })
   })
 
-  it('usa la fecha y hora preferidas de la solicitud', async () => {
+  it('usa la fecha y hora preferidas de la solicitud (el día solo, a las 00:00 UTC; la hora aparte)', async () => {
     const b = await acceptProposal(client, 'pr1', APP_ORIGIN)
     expect(b.id).toBe('b1')
     const data = m.bookingCreate.mock.calls[0][0].data
-    expect(data.scheduledDate).toEqual(new Date('2026-10-02T15:00:00.000Z'))
+    expect(data.scheduledDate).toEqual(new Date('2026-10-02T00:00:00.000Z'))
     expect(data.scheduledTime).toBe('10:00')
     expect(data).toMatchObject({ origin: 'app', originChannel: null, totalPrice: 130000, clientCommissionRate: 5, partnerCommissionRate: 10 })
   })
 
   it('con opts usa la fecha y hora indicadas', async () => {
-    const d = new Date('2026-10-05T19:00:00.000Z')
-    await acceptProposal(client, 'pr1', APP_ORIGIN, { scheduledDate: d, scheduledTime: '14:30' })
+    const day = new Date(Date.now() + 5 * 24 * 3600_000).toISOString().slice(0, 10)
+    await acceptProposal(client, 'pr1', APP_ORIGIN, { scheduledDate: new Date(`${day}T19:00:00.000Z`), scheduledTime: '14:30' })
     const data = m.bookingCreate.mock.calls[0][0].data
-    expect(data.scheduledDate).toEqual(d)
+    expect(data.scheduledDate).toEqual(new Date(`${day}T00:00:00.000Z`))
     expect(data.scheduledTime).toBe('14:30')
+  })
+
+  it('un instante sin hora (chat) guarda su día en Bogotá y su hora', async () => {
+    const day = new Date(Date.now() + 5 * 24 * 3600_000).toISOString().slice(0, 10)
+    await acceptProposal(client, 'pr1', APP_ORIGIN, { scheduledDate: new Date(`${day}T19:30:00-05:00`) })
+    const data = m.bookingCreate.mock.calls[0][0].data
+    expect(data.scheduledDate).toEqual(new Date(`${day}T00:00:00.000Z`))
+    expect(data.scheduledTime).toBe('19:30')
+  })
+
+  it('la fecha que propuso el socio se usa; sin hora queda a las 09:00, nunca a medianoche', async () => {
+    const day = new Date(Date.now() + 3 * 24 * 3600_000).toISOString().slice(0, 10)
+    const sr = { ...pendingProposal().serviceRequest, preferredTime: null }
+    m.proposalFindUnique.mockResolvedValue(pendingProposal({ proposedDate: new Date(`${day}T00:00:00.000Z`), proposedTime: null, serviceRequest: sr }))
+    await acceptProposal(client, 'pr1', APP_ORIGIN)
+    const data = m.bookingCreate.mock.calls[0][0].data
+    expect(data.scheduledDate).toEqual(new Date(`${day}T00:00:00.000Z`))
+    expect(data.scheduledTime).toBe('09:00')
+  })
+
+  it('una fecha elegida a menos de una hora (o pasada) se rechaza sin crear la reserva', async () => {
+    const yesterday = new Date(Date.now() - 24 * 3600_000).toISOString().slice(0, 10)
+    await expect(acceptProposal(client, 'pr1', APP_ORIGIN, { scheduledDate: new Date(`${yesterday}T00:00:00.000Z`), scheduledTime: '10:00' }))
+      .rejects.toMatchObject({ status: 400, message: 'Elige una fecha y hora futura (al menos en una hora)' })
+    m.proposalFindUnique.mockResolvedValue(pendingProposal({ proposedDate: new Date(`${yesterday}T00:00:00.000Z`), proposedTime: '10:00' }))
+    await expect(acceptProposal(client, 'pr1', APP_ORIGIN)).rejects.toMatchObject({ status: 400 })
+    expect(m.bookingCreate).not.toHaveBeenCalled()
+  })
+
+  it('dos aceptaciones a la vez: la segunda no crea otra reserva (409)', async () => {
+    m.proposalUpdateMany.mockResolvedValueOnce({ count: 0 })
+    await expect(acceptProposal(client, 'pr1', APP_ORIGIN)).rejects.toMatchObject({ status: 409, message: 'Esta solicitud ya tiene una reserva' })
+    m.srUpdateMany.mockResolvedValueOnce({ count: 0 })
+    await expect(acceptProposal(client, 'pr1', APP_ORIGIN)).rejects.toMatchObject({ status: 409 })
+    expect(m.bookingCreate).not.toHaveBeenCalled()
   })
 
   it('urgente sin fecha → la próxima hora en punto (hora de Bogotá)', async () => {
     const now = new Date('2026-10-01T14:20:00.000Z') // 09:20 en Bogotá
     const s = resolveSchedule({ preferredDate: null, preferredTime: null, isUrgent: true }, undefined, now)
-    expect(s.scheduledDate).toEqual(new Date('2026-10-01T15:00:00.000Z'))
+    expect(s.scheduledDate).toEqual(new Date('2026-10-01T00:00:00.000Z'))
     expect(s.scheduledTime).toBe('10:00')
     m.proposalFindUnique.mockResolvedValue(pendingProposal({ serviceRequest: { ...pendingProposal().serviceRequest, preferredDate: null, preferredTime: null, isUrgent: true } }))
     await acceptProposal(client, 'pr1', APP_ORIGIN)
     const data = m.bookingCreate.mock.calls[0][0].data
-    expect(data.scheduledDate.getMinutes()).toBe(0)
-    expect(data.scheduledDate.getTime()).toBeGreaterThan(Date.now())
+    expect(data.scheduledDate.toISOString()).toMatch(/T00:00:00\.000Z$/)
+    expect(bookingWhen(data).getTime()).toBeGreaterThan(Date.now())
     expect(data.scheduledTime).toMatch(/^\d{2}:00$/)
   })
 
@@ -150,8 +199,9 @@ describe('aceptar propuesta', () => {
       data: expect.objectContaining({ bookingId: 'b1', type: 'status', fromStatus: null, toStatus: 'PENDING', actorType: 'ai', actorId: 'u1', origin: 'chat', originChannel: 'WHATSAPP', originConversationId: 'c1', originAgentId: 'a1' }),
     })
     expect(m.proposalFindMany.mock.calls[0][0].where).toMatchObject({ serviceRequestId: 'r1', id: { not: 'pr1' }, status: 'PENDING' })
+    expect(m.proposalUpdateMany).toHaveBeenCalledWith({ where: { id: 'pr1', status: 'PENDING' }, data: { status: 'ACCEPTED' } })
     expect(m.proposalUpdateMany).toHaveBeenCalledWith({ where: { id: { in: ['pr2'] } }, data: { status: 'REJECTED' } })
-    expect(m.srUpdate).toHaveBeenCalledWith({ where: { id: 'r1' }, data: { status: 'ACCEPTED' } })
+    expect(m.srUpdateMany).toHaveBeenCalledWith({ where: { id: 'r1', status: 'ACTIVE' }, data: { status: 'ACCEPTED' } })
     expect(m.notifyProposalRejected).toHaveBeenCalledWith('pr2', { notChosen: true })
     expect(m.notifyProposalAccepted).toHaveBeenCalledWith('pr1')
     expect(m.scheduleAutomationsForUser).toHaveBeenCalledWith('u1', 'BOOKING_CREATED', { targetRole: 'CLIENT', contextId: 'b1' })

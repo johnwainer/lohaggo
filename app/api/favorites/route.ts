@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     const session = await getServerSession(authOptions)
 
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
     const favorites = await prisma.favoritePartner.findMany({
@@ -26,8 +26,7 @@ export async function GET(req: NextRequest) {
             user: {
               select: {
                 name: true,
-                phone: true,
-                email: true
+                image: true
               }
             },
             services: {
@@ -63,7 +62,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     logger.error('Error fetching favorites:', error || undefined)
     return NextResponse.json(
-      { error: 'Error fetching favorites' },
+      { error: 'No pudimos cargar tus favoritos' },
       { status: 500 }
     )
   }
@@ -74,7 +73,7 @@ export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions)
 
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
     const body = await req.json()
@@ -82,7 +81,7 @@ export async function POST(req: NextRequest) {
 
     if (!partnerId) {
       return NextResponse.json(
-        { error: 'Partner ID is required' },
+        { error: 'Falta el socio' },
         { status: 400 }
       )
     }
@@ -93,7 +92,7 @@ export async function POST(req: NextRequest) {
 
     if (!partner) {
       return NextResponse.json(
-        { error: 'Partner not found' },
+        { error: 'Socio no encontrado' },
         { status: 404 }
       )
     }
@@ -109,7 +108,7 @@ export async function POST(req: NextRequest) {
 
     if (existingFavorite) {
       return NextResponse.json(
-        { error: 'Partner already in favorites' },
+        { error: 'Este socio ya está en tus favoritos' },
         { status: 400 }
       )
     }
@@ -125,8 +124,7 @@ export async function POST(req: NextRequest) {
             user: {
               select: {
                 name: true,
-                phone: true,
-                email: true
+                image: true
               }
             }
           }
@@ -138,7 +136,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     logger.error('Error adding favorite:', error || undefined)
     return NextResponse.json(
-      { error: 'Error adding favorite' },
+      { error: 'No pudimos agregar el favorito' },
       { status: 500 }
     )
   }
@@ -149,14 +147,14 @@ export async function DELETE(req: NextRequest) {
     const session = await getServerSession(authOptions)
 
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 
     const { searchParams } = new URL(req.url)
     const partnerId = searchParams.get('partnerId')
 
     if (!partnerId) {
-      return NextResponse.json({ error: 'Partner ID is required' }, { status: 400 })
+      return NextResponse.json({ error: 'Falta el socio' }, { status: 400 })
     }
 
     await prisma.favoritePartner.delete({
@@ -168,11 +166,11 @@ export async function DELETE(req: NextRequest) {
       }
     })
 
-    return NextResponse.json({ message: 'Favorite removed successfully' })
+    return NextResponse.json({ message: 'Favorito eliminado' })
   } catch (error) {
     logger.error('Error removing favorite:', error || undefined)
     return NextResponse.json(
-      { error: 'Error removing favorite' },
+      { error: 'No pudimos quitar el favorito' },
       { status: 500 }
     )
   }

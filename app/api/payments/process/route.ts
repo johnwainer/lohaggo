@@ -17,6 +17,13 @@ async function handlePOST(req: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
+    // Test-only simulation: the real payment is /api/payments/create (Mercado Pago) + its webhook
+    if (process.env.NODE_ENV === 'production' && process.env.VERCEL_ENV === 'production') {
+      return NextResponse.json({ error: 'Este flujo de pago de prueba ya no está disponible. Usa Mercado Pago.' }, { status: 410 })
+    }
+    if (session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Solo el equipo puede simular pagos de prueba' }, { status: 403 })
+    }
 
     const body = await req.json()
     const validation = await validateRequest(paymentProcessSchema, body)
@@ -46,10 +53,6 @@ async function handlePOST(req: NextRequest) {
 
     if (!booking) {
       return NextResponse.json({ error: 'Reserva no encontrada' }, { status: 404 })
-    }
-
-    if (booking.userId !== session.user.id) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     }
 
     if (booking.status !== 'COMPLETED') {
@@ -105,7 +108,7 @@ async function handlePOST(req: NextRequest) {
       const newPayment = await prisma.payment.create({
         data: {
           bookingId,
-          userId: session.user.id,
+          userId: booking.userId,
           paymentMethodId: paymentMethodId || null,
           status: 'APPROVED',
           amount: totalAmount,
@@ -145,25 +148,7 @@ async function handlePOST(req: NextRequest) {
           },
         })
       }
-
-      await prisma.partnerProfile.update({
-        where: { id: booking.partnerId },
-        data: {
-          completedServicesCount: {
-            increment: 1
-          }
-        }
-      })
     }
-
-    await prisma.user.update({
-      where: { id: booking.userId },
-      data: {
-        completedServicesCount: {
-          increment: 1
-        }
-      }
-    })
 
     return NextResponse.json({
       success: true,

@@ -20,7 +20,7 @@ export { BOOKING_TRANSITIONS, BOOKING_STATUS_LABEL, canTransition, transitionRol
 const logger = createLogger('bookings-ops')
 
 export { bookingWhen, formatBookingWhen } from '@/lib/bookings/when'
-import { bookingWhen, formatBookingWhen } from '@/lib/bookings/when'
+import { bookingWhen, dateOnlyUtc, formatBookingWhen } from '@/lib/bookings/when'
 
 export const formatCOP = (n: number) => `$${new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(n)}`
 
@@ -199,7 +199,11 @@ export async function transitionBooking(actor: Actor, bookingId: string, to: Boo
   // Clients and partners always say why they cancel (the other side and support see it)
   if (to === 'CANCELLED' && actor.role !== 'ADMIN' && (opts.reason ?? '').trim().length < 5) throw new OpsError('Cuéntanos el motivo de la cancelación', 400)
 
-  const updated = await prisma.booking.update({ where: { id: bookingId }, data: { status: to }, include: BOOKING_INCLUDE })
+  // Guarded on the status read: two changes at once (partner + client, or a double tap) apply only once
+  const res = await prisma.booking.updateMany({ where: { id: bookingId, status: booking.status }, data: { status: to } })
+  if (res.count === 0) throw new OpsError('La reserva cambió de estado; recarga', 409)
+  if (to === 'COMPLETED') await countCompletedService(booking)
+  const updated = await prisma.booking.findUniqueOrThrow({ where: { id: bookingId }, include: BOOKING_INCLUDE })
   await addBookingEvent({ bookingId, type: 'status', actor, origin, fromStatus: booking.status, toStatus: to, detail: opts.reason ?? null })
 
   if (to === 'CANCELLED') await openRefundCaseIfPaid(actor, origin, booking)
@@ -212,6 +216,18 @@ export async function transitionBooking(actor: Actor, bookingId: string, to: Boo
   if (to === 'COMPLETED') schedulePurchaseConversion(bookingId)
 
   return updated
+}
+
+/** One more completed service for the partner and the client (called once, on the move into COMPLETED). */
+async function countCompletedService(booking: { id: string; userId: string; partnerId: string | null }) {
+  try {
+    await prisma.$transaction([
+      ...(booking.partnerId ? [prisma.partnerProfile.update({ where: { id: booking.partnerId }, data: { completedServicesCount: { increment: 1 } } })] : []),
+      prisma.user.update({ where: { id: booking.userId }, data: { completedServicesCount: { increment: 1 } } }),
+    ])
+  } catch (err) {
+    logger.warn('completedServicesCount not incremented (non-fatal)', { bookingId: booking.id, err: err instanceof Error ? err.message : err })
+  }
 }
 
 /** Purchase to Meta / GA4 after the response; the ledger keeps it to one per booking (completed or paid). */
@@ -276,7 +292,10 @@ function closedProposalIds(details?: string | null): string[] {
 export async function systemTransition(bookingId: string, to: BookingStatus, detail?: string) {
   const booking = await loadBooking(bookingId)
   if (booking.status === to) return null
-  const updated = await prisma.booking.update({ where: { id: bookingId }, data: { status: to }, include: BOOKING_INCLUDE })
+  const res = await prisma.booking.updateMany({ where: { id: bookingId, status: booking.status }, data: { status: to } })
+  if (res.count === 0) return null
+  if (to === 'COMPLETED') await countCompletedService(booking)
+  const updated = await prisma.booking.findUniqueOrThrow({ where: { id: bookingId }, include: BOOKING_INCLUDE })
   await prisma.bookingEvent.create({
     data: { bookingId, type: 'status', fromStatus: booking.status, toStatus: to, actorType: 'system', ...originColumns(APP_ORIGIN), detail: detail ?? null },
   })
@@ -309,7 +328,8 @@ export async function rescheduleBooking(actor: Actor, bookingId: string, when: R
 
   const updated = await prisma.booking.update({
     where: { id: bookingId },
-    data: { scheduledDate: when.scheduledDate, scheduledTime: when.scheduledTime, ...(backToPending ? { status: 'PENDING' as BookingStatus } : {}) },
+    // Stored the date-only way (the Bogotá day at 00:00 UTC); the hour lives in scheduledTime
+    data: { scheduledDate: dateOnlyUtc(when.scheduledDate), scheduledTime: when.scheduledTime, ...(backToPending ? { status: 'PENDING' as BookingStatus } : {}) },
     include: BOOKING_INCLUDE,
   })
   await addBookingEvent({ bookingId, type: 'reschedule', actor, origin, detail: `de ${before} a ${after}` })
@@ -375,9 +395,8 @@ export async function bookingsFor(actor: Actor, opts: { status?: BookingStatus[]
   }
   if (opts.status?.length) where.status = { in: opts.status }
   if (opts.upcomingOnly) {
-    const today = new Date()
-    today.setUTCHours(0, 0, 0, 0)
-    where.scheduledDate = { gte: today }
+    // Today's Bogotá day as stored (date-only at 00:00 UTC); older instant rows of that day fall after it too
+    where.scheduledDate = { gte: dateOnlyUtc(new Date()) }
   }
   return prisma.booking.findMany({
     where,

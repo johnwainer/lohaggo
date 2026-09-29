@@ -37,7 +37,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   } catch (error) {
     logger.error('Error accepting proposal:', error || undefined)
     return NextResponse.json(
-      { error: 'Error al aceptar la propuesta', details: error instanceof Error ? error.message : 'Unknown error' },
+      { error: 'No pudimos aceptar la propuesta. Intenta de nuevo.' },
       { status: 500 },
     )
   }

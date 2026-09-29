@@ -4,7 +4,13 @@ export type ChatStateInput = {
   serviceRequestStatus: ServiceRequestStatus | null
   proposalStatus: ProposalStatus | null
   bookingStatus: BookingStatus | null
+  /** Last change of the booking; for a COMPLETED one it approximates when it was completed */
+  bookingUpdatedAt?: Date | string | null
+  now?: Date
 }
+
+/** After the service is completed the chat stays open this long (warranty questions, payment, a forgotten item). */
+export const CHAT_OPEN_AFTER_COMPLETED_MS = 72 * 3600_000
 
 export type ChatState = {
   isActive: boolean
@@ -26,6 +32,8 @@ export function computeChatState({
   serviceRequestStatus,
   proposalStatus,
   bookingStatus,
+  bookingUpdatedAt,
+  now = new Date(),
 }: ChatStateInput): ChatState {
   if (serviceRequestStatus === 'CANCELLED') {
     return { isActive: false, statusLabel: 'Solicitud cancelada' }
@@ -37,7 +45,11 @@ export function computeChatState({
     return { isActive: false, statusLabel: 'Propuesta rechazada' }
   }
   if (bookingStatus) {
-    if (bookingStatus === 'COMPLETED') return { isActive: false, statusLabel: 'Servicio completado' }
+    if (bookingStatus === 'COMPLETED') {
+      const completedAt = bookingUpdatedAt ? new Date(bookingUpdatedAt).getTime() : NaN
+      const open = Number.isFinite(completedAt) && now.getTime() - completedAt < CHAT_OPEN_AFTER_COMPLETED_MS
+      return { isActive: open, statusLabel: 'Servicio completado' }
+    }
     if (bookingStatus === 'CANCELLED') return { isActive: false, statusLabel: 'Reserva cancelada' }
     if (ACTIVE_BOOKING_STATUSES.includes(bookingStatus)) {
       return { isActive: true, statusLabel: bookingActiveLabel(bookingStatus) }

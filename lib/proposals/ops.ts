@@ -7,7 +7,8 @@ import { notifyNewProposal, notifyProposalAccepted, notifyProposalRejected } fro
 import { scheduleAutomationsForUser } from '@/lib/messaging/automation-service'
 import { recordPromptContext } from '@/lib/pwa/adoption-strategy'
 import { OpsError, actorTypeOf, originColumns, type Actor, type Origin } from '@/lib/ops/origin'
-import { loadPlatformConfig, preferredDateTimeBogota } from '@/lib/service-requests/ops'
+import { loadPlatformConfig, preferredDateOnly } from '@/lib/service-requests/ops'
+import { DEFAULT_BOOKING_TIME, bogotaClockTime, bookingWhen, dateOnlyUtc } from '@/lib/bookings/when'
 import { effectiveRates } from '@/lib/payments/commission'
 
 /**
@@ -68,9 +69,11 @@ export async function createProposal(actor: Actor, input: ProposalInput, origin:
     if (!offers) throw new OpsError('No ofreces este servicio en la ciudad solicitada', 400)
   }
 
-  const proposedAt = data.proposedDate ? preferredDateTimeBogota(data.proposedDate, data.proposedTime ?? null) : null
-  if (data.proposedDate && !proposedAt) throw new OpsError('Fecha propuesta inválida', 400)
-  if (proposedAt) {
+  // Stored as the date-only day (00:00 UTC) plus proposedTime; the checks use the real Bogotá moment
+  const proposedDay = data.proposedDate ? preferredDateOnly(data.proposedDate) : null
+  if (data.proposedDate && !proposedDay) throw new OpsError('Fecha propuesta inválida', 400)
+  if (proposedDay) {
+    const proposedAt = bookingWhen({ scheduledDate: proposedDay, scheduledTime: data.proposedTime || '00:00' })
     const minAt = Date.now() + (data.proposedTime ? 60 * 60_000 : -24 * 3600_000)
     if (proposedAt.getTime() < minAt) throw new OpsError(data.proposedTime ? 'La hora propuesta debe ser al menos en una hora' : 'La fecha propuesta ya pasó', 400)
     if (proposedAt.getTime() > Date.now() + 60 * 24 * 3600_000) throw new OpsError('Propón una fecha dentro de los próximos 60 días', 400)
@@ -80,7 +83,7 @@ export async function createProposal(actor: Actor, input: ProposalInput, origin:
   if (existing) throw new OpsError('Ya has enviado una propuesta para esta solicitud', 400)
 
   const proposal = await prisma.proposal.create({
-    data: { serviceRequestId: sr.id, partnerId: partner.id, price: data.price, notes: data.notes || null, proposedDate: proposedAt, proposedTime: proposedAt ? data.proposedTime || null : null, status: 'PENDING', ...originColumns(origin) },
+    data: { serviceRequestId: sr.id, partnerId: partner.id, price: data.price, notes: data.notes || null, proposedDate: proposedDay, proposedTime: proposedDay ? data.proposedTime || null : null, status: 'PENDING', ...originColumns(origin) },
     include: proposalInclude,
   })
 
@@ -95,7 +98,7 @@ export async function createProposal(actor: Actor, input: ProposalInput, origin:
 }
 
 export function bogotaTime(d: Date) {
-  return new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit', hour12: false }).format(d).replace(/^24/, '00')
+  return bogotaClockTime(d)
 }
 
 /** The next full hour from now (urgent request with no date). */
@@ -106,15 +109,31 @@ export function nextFullHour(now = new Date()) {
   return d
 }
 
+/** The hour an instant carries, unless it is a date-only value or a bare Bogotá midnight (older rows). */
+function clockOf(d: Date): string | null {
+  const isUtcMidnight = d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0 && d.getUTCMilliseconds() === 0
+  if (isUtcMidnight) return null
+  const t = bogotaTime(d)
+  return t === '00:00' ? null : t
+}
+
+/**
+ * The booking's day and hour, stored the date-only way: `scheduledDate` is the Bogotá calendar day at
+ * 00:00 UTC and the hour lives only in `scheduledTime` (never 00:00 by default: 09:00).
+ */
 export function resolveSchedule(
   sr: { preferredDate: Date | null; preferredTime: string | null; isUrgent: boolean },
   opts?: { scheduledDate?: Date; scheduledTime?: string },
   now = new Date(),
 ) {
-  if (opts?.scheduledDate) return { scheduledDate: opts.scheduledDate, scheduledTime: opts.scheduledTime || sr.preferredTime || bogotaTime(opts.scheduledDate) }
-  if (sr.preferredDate) return { scheduledDate: sr.preferredDate, scheduledTime: opts?.scheduledTime || sr.preferredTime || bogotaTime(sr.preferredDate) }
+  if (opts?.scheduledDate) {
+    return { scheduledDate: dateOnlyUtc(opts.scheduledDate), scheduledTime: opts.scheduledTime || clockOf(opts.scheduledDate) || sr.preferredTime || DEFAULT_BOOKING_TIME }
+  }
+  if (sr.preferredDate) {
+    return { scheduledDate: dateOnlyUtc(sr.preferredDate), scheduledTime: opts?.scheduledTime || sr.preferredTime || clockOf(sr.preferredDate) || DEFAULT_BOOKING_TIME }
+  }
   const next = nextFullHour(now)
-  return { scheduledDate: next, scheduledTime: opts?.scheduledTime || bogotaTime(next) }
+  return { scheduledDate: dateOnlyUtc(next), scheduledTime: opts?.scheduledTime || bogotaTime(next) }
 }
 
 /** AdminAuditLog marker (entityType ServiceRequest) with the proposal ids an accept rejected. */
@@ -137,20 +156,27 @@ export async function acceptProposal(actor: Actor, proposalId: string, origin: O
   const rates = effectiveRates(await loadPlatformConfig())
   const sr = proposal.serviceRequest
   // The client's own change wins; otherwise the date the partner proposed; otherwise the request's
-  const proposed = proposal.proposedDate ? { scheduledDate: proposal.proposedDate, scheduledTime: proposal.proposedTime ?? sr.preferredTime ?? '09:00' } : undefined
-  const { scheduledDate, scheduledTime } = resolveSchedule(sr, opts?.scheduledDate ? opts : proposed ?? opts)
+  const proposed = proposal.proposedDate ? { scheduledDate: proposal.proposedDate, scheduledTime: proposal.proposedTime ?? sr.preferredTime ?? DEFAULT_BOOKING_TIME } : undefined
+  const chosen = opts?.scheduledDate ? opts : proposed
+  const { scheduledDate, scheduledTime } = resolveSchedule(sr, chosen ?? opts)
+  // A date the client or the partner chose must still be ahead (the request's own date is kept as it came)
+  if (chosen && bookingWhen({ scheduledDate, scheduledTime }).getTime() < Date.now() + 60 * 60_000) {
+    throw new OpsError('Elige una fecha y hora futura (al menos en una hora)', 400)
+  }
 
   // Asked for by name: the default reads leave attribution out (lib/prisma-tracking.ts)
   const touches = await prisma.serviceRequest.findUnique({ where: { id: sr.id }, select: { acquisition: true, lastTouch: true } })
 
   const { booking, rejectedIds } = await prisma.$transaction(async (tx) => {
-    await tx.proposal.update({ where: { id: proposalId }, data: { status: 'ACCEPTED' } })
+    // Guarded writes: two accepts at once (or an accept racing a cancel) must not create two bookings
+    const took = await tx.proposal.updateMany({ where: { id: proposalId, status: 'PENDING' }, data: { status: 'ACCEPTED' } })
+    if (took.count === 0) throw new OpsError('Esta solicitud ya tiene una reserva', 409)
+    const closed = await tx.serviceRequest.updateMany({ where: { id: sr.id, status: 'ACTIVE' }, data: { status: 'ACCEPTED' } })
+    if (closed.count === 0) throw new OpsError('Esta solicitud ya tiene una reserva', 409)
 
     const others = await tx.proposal.findMany({ where: { serviceRequestId: sr.id, id: { not: proposalId }, status: 'PENDING' }, select: { id: true } })
     const rejectedIds = others.map((p) => p.id)
     if (rejectedIds.length > 0) await tx.proposal.updateMany({ where: { id: { in: rejectedIds } }, data: { status: 'REJECTED' } })
-
-    await tx.serviceRequest.update({ where: { id: sr.id }, data: { status: 'ACCEPTED' } })
 
     const booking = await tx.booking.create({
       data: {

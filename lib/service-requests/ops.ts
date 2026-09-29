@@ -12,6 +12,7 @@ import { compactTouch } from '@/lib/analytics/attribution-core'
 import { isZoneKey, zoneFromText } from '@/lib/geo/zones'
 import { conversationAttribution, type RequestAttribution } from '@/lib/analytics/touches'
 import { runAfterResponse } from '@/lib/ops/after'
+import { dateOnlyUtc, formatCalendarDay } from '@/lib/bookings/when'
 
 /**
  * Service-request operations shared by the app routes and the inbox AI agents. They load, validate state
@@ -31,7 +32,7 @@ export const clientRequestInclude = {
     include: {
       partner: {
         include: {
-          user: { select: { name: true, email: true, phone: true } },
+          user: { select: { name: true, image: true } },
           documents: { where: { status: 'APPROVED' as const }, select: { type: true, status: true } },
         },
       },
@@ -51,7 +52,10 @@ export const loadPlatformConfig = loadPlatformConfigRow
 
 const money = (n: number) => `$${Math.round(n).toLocaleString('es-CO')}`
 
-/** A 'YYYY-MM-DD' day plus an optional 'HH:mm' time read as Bogotá wall-clock (-05:00), whatever the server's zone. */
+/**
+ * A 'YYYY-MM-DD' day plus an optional 'HH:mm' time read as Bogotá wall-clock (-05:00), whatever the server's
+ * zone. Only for checks: what is stored is the date-only day (preferredDateOnly) plus the time apart.
+ */
 export function preferredDateTimeBogota(date?: string | null, time?: string | null): Date | null {
   if (!date) return null
   const m = /^(\d{1,2}):(\d{2})/.exec(time || '')
@@ -59,6 +63,13 @@ export function preferredDateTimeBogota(date?: string | null, time?: string | nu
   const mm = m ? m[2] : '00'
   const d = new Date(`${date}T${hh}:${mm}:00-05:00`)
   return Number.isNaN(d.getTime()) ? null : d
+}
+
+/** The stored preferredDate: the 'YYYY-MM-DD' day at 00:00 UTC (the hour lives in preferredTime). */
+export function preferredDateOnly(date?: string | null): Date | null {
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null
+  const d = dateOnlyUtc(date)
+  return Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== date ? null : d
 }
 
 export type CreateRequestOptions = {
@@ -82,9 +93,10 @@ export async function createServiceRequest(actor: Actor, input: ServiceRequestIn
   if (data.partnerId) {
     const partner = await prisma.partnerProfile.findUnique({
       where: { id: data.partnerId },
-      select: { id: true, verified: true, isActive: true, services: { where: { serviceId: data.serviceId, active: true }, select: { price: true } } },
+      select: { id: true, verified: true, isActive: true, isAvailable: true, services: { where: { serviceId: data.serviceId, active: true }, select: { price: true } } },
     })
     if (!partner || !partner.verified || !partner.isActive || partner.services.length === 0) throw new OpsError('Ese socio no ofrece este servicio', 400)
+    if (!partner.isAvailable) throw new OpsError('Este socio no está disponible ahora; tu solicitud puede ir a otros socios', 400)
     partnerPrice = partner.services[0].price
   }
 
@@ -105,7 +117,8 @@ export async function createServiceRequest(actor: Actor, input: ServiceRequestIn
   const expiresAt = new Date()
   expiresAt.setHours(expiresAt.getHours() + 24)
 
-  const preferredDateTime = preferredDateTimeBogota(data.preferredDate, data.preferredTime)
+  const preferredDay = preferredDateOnly(data.preferredDate)
+  if (data.preferredDate && !preferredDay) throw new OpsError('Fecha preferida inválida', 400)
   const zone = data.zone && isZoneKey(data.zone) ? data.zone : zoneFromText(data.address)
   const attribution = opts.attribution ?? (origin.via === 'chat' ? await conversationAttribution(origin.conversationId) : null)
   const touches = {
@@ -122,7 +135,7 @@ export async function createServiceRequest(actor: Actor, input: ServiceRequestIn
       notes: data.notes || null,
       budget: data.budget || null,
       city: (data.city as City) || City.MEDELLIN,
-      preferredDate: preferredDateTime,
+      preferredDate: preferredDay,
       preferredTime: data.preferredTime || null,
       isUrgent: data.isUrgent || false,
       status: 'ACTIVE',
@@ -169,12 +182,11 @@ export async function cancelServiceRequest(actor: Actor, requestId: string, orig
 
   const pendingProposalIds = serviceRequest.proposals.filter((p) => p.status === 'PENDING').map((p) => p.id)
 
-  await prisma.$transaction([
-    prisma.serviceRequest.update({ where: { id: requestId }, data: { status: 'CANCELLED' } }),
-    ...(pendingProposalIds.length > 0
-      ? [prisma.proposal.updateMany({ where: { id: { in: pendingProposalIds } }, data: { status: 'REJECTED' } })]
-      : []),
-  ])
+  await prisma.$transaction(async (tx) => {
+    const res = await tx.serviceRequest.updateMany({ where: { id: requestId, status: 'ACTIVE' }, data: { status: 'CANCELLED' } })
+    if (res.count === 0) throw new OpsError('La solicitud cambió de estado; recarga', 409)
+    if (pendingProposalIds.length > 0) await tx.proposal.updateMany({ where: { id: { in: pendingProposalIds }, status: 'PENDING' }, data: { status: 'REJECTED' } })
+  })
 
   for (const proposalId of pendingProposalIds) {
     try {
@@ -294,7 +306,7 @@ export async function requestSummaryForChat(requestId: string) {
   const when = r.isUrgent && !r.preferredDate
     ? 'urgente'
     : r.preferredDate
-      ? (r.preferredTime ? `${formatBogota(r.preferredDate, false)} ${r.preferredTime}` : formatBogota(r.preferredDate, false))
+      ? (r.preferredTime ? `${formatCalendarDay(r.preferredDate, { day: 'numeric', month: 'short' })} ${r.preferredTime}` : formatCalendarDay(r.preferredDate, { day: 'numeric', month: 'short' }))
       : 'sin fecha'
   const parts = [
     `Solicitud #${r.id.slice(-6)} · ${r.service.name}`,

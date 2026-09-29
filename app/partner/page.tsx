@@ -31,6 +31,7 @@ import { getBookingVisualState, type BookingVisualState } from '@/lib/booking-st
 import { opportunitiesFromResponse } from '@/lib/partners/opportunities'
 import WorkPhotosEditor from '@/components/bookings/WorkPhotosEditor'
 import { RescheduleSheet, CancelReasonSheet } from '@/components/partner/BookingActionSheets'
+import { formatBookingWhen, formatCalendarDay } from '@/lib/bookings/when'
 
 const ChatModal = dynamic(() => import('@/components/ChatModal'), {
   ssr: false,
@@ -927,7 +928,7 @@ function PartnerDashboardContent() {
                         <ServiceIcon slug={booking.service.slug} emoji={booking.service.icon} size="sm" />
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold text-sm text-gray-900 truncate">{booking.service.name}</p>
-                          <p className="text-xs text-gray-500">{booking.scheduledDate} · {booking.scheduledTime}</p>
+                          <p className="text-xs text-gray-500">{formatBookingWhen({ scheduledDate: new Date(booking.scheduledDate), scheduledTime: booking.scheduledTime })}</p>
                         </div>
                         <p className="text-sm font-bold text-primary-600 whitespace-nowrap">{formatCurrency(booking.totalPrice)}</p>
                       </button>
@@ -1208,7 +1209,7 @@ function PartnerDashboardContent() {
                                 bookingId: booking.id,
                                 serviceName: booking.service.name,
                                 clientName: booking.user.name,
-                                scheduledAt: `${new Date(booking.scheduledDate).toLocaleDateString('es-ES')} · ${booking.scheduledTime}`,
+                                scheduledAt: `${formatBookingWhen({ scheduledDate: new Date(booking.scheduledDate), scheduledTime: booking.scheduledTime })}`,
                               }),
                             icon: <Star size={18} />,
                             variant: 'primary' as const,
@@ -1277,7 +1278,7 @@ function PartnerDashboardContent() {
                           priorityBadges={priorityBadges}
                           primaryAction={primaryAction}
                           secondaryActions={secondaryActions}
-                          metadataInline={`${new Date(booking.scheduledDate).toLocaleDateString('es-ES')} · ${booking.scheduledTime} · ${booking.address}`}
+                          metadataInline={`${formatBookingWhen({ scheduledDate: new Date(booking.scheduledDate), scheduledTime: booking.scheduledTime })} · ${booking.address}`}
                           origin={booking.origin}
                           originChannel={booking.originChannel}
                         />
@@ -1398,11 +1399,7 @@ function PartnerDashboardContent() {
                               <div>
                                 <p className="text-xs text-gray-500 font-semibold mb-1">Fecha preferida</p>
                                 <span className="text-sm font-medium text-gray-900">
-                                  {new Date(request.preferredDate).toLocaleDateString('es-ES', {
-                                    weekday: 'long',
-                                    day: 'numeric',
-                                    month: 'long'
-                                  })}
+                                  {formatCalendarDay(request.preferredDate, { weekday: 'long', day: 'numeric', month: 'long' })}
                                   {request.preferredTime && ` a las ${request.preferredTime}`}
                                 </span>
                               </div>
@@ -1539,7 +1536,7 @@ function PartnerDashboardContent() {
                   <p><strong>Competencia:</strong> {selectedRequest._count?.proposals ?? 0} {(selectedRequest._count?.proposals ?? 0) === 1 ? 'propuesta enviada' : 'propuestas enviadas'}</p>
                   {selectedRequest.preferredDate && (
                     <p>
-                      <strong>Fecha preferida:</strong> {new Date(selectedRequest.preferredDate).toLocaleDateString('es-ES')}
+                      <strong>Fecha preferida:</strong> {formatCalendarDay(selectedRequest.preferredDate, { day: 'numeric', month: 'short', year: 'numeric' })}
                       {selectedRequest.preferredTime && ` a las ${selectedRequest.preferredTime}`}
                     </p>
                   )}

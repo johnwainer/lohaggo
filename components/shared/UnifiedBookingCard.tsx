@@ -7,6 +7,7 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { DESIGN_SYSTEM } from '@/lib/design-system'
+import { bookingWhen, formatCalendarDay } from '@/lib/bookings/when'
 import { BookingVisualState, getBookingTimeline, getBookingVisualLabel, isStepComplete } from '@/lib/booking-status'
 
 type Action = {
@@ -70,7 +71,7 @@ export default function UnifiedBookingCard({
 }: UnifiedBookingCardProps) {
   const color = DESIGN_SYSTEM.statusColors[visualState]
   const timeline = getBookingTimeline(role)
-  const relativeTime = formatDistanceToNow(new Date(scheduledDate), { addSuffix: true, locale: es })
+  const relativeTime = formatDistanceToNow(bookingWhen({ scheduledDate: new Date(scheduledDate), scheduledTime }), { addSuffix: true, locale: es })
   const [pendingAction, setPendingAction] = useState<string | null>(null)
 
   const stepMicrocopy = useMemo(() => {
@@ -167,7 +168,7 @@ export default function UnifiedBookingCard({
             <p className="text-xs text-gray-700 md:text-sm">{metadataInline}</p>
           ) : (
             <div className="grid grid-cols-1 gap-1 text-xs text-gray-700 md:grid-cols-3 md:text-sm">
-              <p className="inline-flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" />{new Date(scheduledDate).toLocaleDateString('es-ES')}</p>
+              <p className="inline-flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" />{formatCalendarDay(scheduledDate)}</p>
               <p className="inline-flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" />{scheduledTime}</p>
               <p className="inline-flex items-center gap-1.5 truncate"><MapPin className="h-3.5 w-3.5" />{address}</p>
             </div>

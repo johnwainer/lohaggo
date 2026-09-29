@@ -1,5 +1,6 @@
 import { Calendar, MapPin, DollarSign, User, MessageSquare } from 'lucide-react'
 import { DESIGN_SYSTEM, getStatusClasses, getStatusLabel } from '@/lib/design-system'
+import { formatCalendarDay } from '@/lib/bookings/when'
 
 interface ServiceRequestCardProps {
   request: {
@@ -51,12 +52,7 @@ export default function ServiceRequestCard({
         <div className="flex items-center gap-2 text-gray-600">
           <Calendar size={16} className="flex-shrink-0" />
           <span className={DESIGN_SYSTEM.typography.bodySmall}>
-            {new Date(request.preferredDate).toLocaleDateString('es-ES', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-            })}
+            {formatCalendarDay(request.preferredDate, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </span>
         </div>
 

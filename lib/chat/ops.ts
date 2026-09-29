@@ -23,7 +23,7 @@ import { PHOTO_ONLY_TEXT } from '@/lib/chat/constants'
 
 const chatInclude = {
   serviceRequest: { select: { status: true, service: { select: { name: true } } } },
-  proposal: { select: { id: true, status: true, bookings: { orderBy: { createdAt: 'desc' as const }, take: 1, select: { id: true, status: true } } } },
+  proposal: { select: { id: true, status: true, bookings: { orderBy: { createdAt: 'desc' as const }, take: 1, select: { id: true, status: true, updatedAt: true } } } },
   client: { select: { id: true, name: true, isActive: true } },
   partner: { select: { id: true, isActive: true, userId: true, user: { select: { name: true } } } },
 }
@@ -116,6 +116,14 @@ export async function sendChatMessage(actor: Actor, chatId: string, input: { con
   if (side === 'PARTNER' && !chat.partner.isActive) throw new OpsError('Tu cuenta está inactiva. Contacta al administrador.', 403)
   const recipientUserId = side === 'CLIENT' ? chat.partner.userId : chat.clientId
 
+  const state = computeChatState({
+    serviceRequestStatus: chat.serviceRequest?.status ?? null,
+    proposalStatus: chat.proposal?.status ?? null,
+    bookingStatus: chat.proposal.bookings[0]?.status ?? null,
+    bookingUpdatedAt: chat.proposal.bookings[0]?.updatedAt ?? null,
+  })
+  if (!state.isActive) throw new OpsError(`Esta conversación está cerrada (${state.statusLabel.toLowerCase()}). Ya no se pueden enviar mensajes.`, 403)
+
   const contact = detectContactInfo(content)
   if (!contact.isValid) {
     const systemMessage = await prisma.chatMessage.create({
@@ -140,13 +148,6 @@ export async function sendChatMessage(actor: Actor, chatId: string, input: { con
     })
     return { blocked: true, reason: contact.reason ?? 'información de contacto', systemMessage }
   }
-
-  const state = computeChatState({
-    serviceRequestStatus: chat.serviceRequest?.status ?? null,
-    proposalStatus: chat.proposal?.status ?? null,
-    bookingStatus: chat.proposal.bookings[0]?.status ?? null,
-  })
-  if (!state.isActive) throw new OpsError(`Esta conversación está cerrada (${state.statusLabel.toLowerCase()}). Ya no se pueden enviar mensajes.`, 403)
 
   const message = await prisma.chatMessage.create({
     data: { chatId, senderId: actor.userId, content, imageUrl, ...originColumns(origin) },

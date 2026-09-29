@@ -8,24 +8,27 @@ const m = vi.hoisted(() => ({
   srCreate: vi.fn(),
   srFindUnique: vi.fn(),
   srUpdate: vi.fn(),
+  srUpdateMany: vi.fn(async (_a: any) => ({ count: 1 })),
   proposalUpdateMany: vi.fn(),
-  transaction: vi.fn(async (ops: unknown[]) => Promise.all(ops)),
+  transaction: vi.fn(),
   notifyNewServiceRequest: vi.fn(async () => 1),
   notifyProposalRejected: vi.fn(async () => {}),
   recordPromptContext: vi.fn(async () => {}),
 }))
 
-vi.mock('@/lib/prisma', () => ({
-  prisma: {
+vi.mock('@/lib/prisma', () => {
+  const prisma: Record<string, unknown> = {
     user: { findUnique: m.userFindUnique },
     partnerProfile: { findUnique: m.partnerFindUnique },
     service: { findUnique: m.serviceFindUnique },
     platformConfig: { findFirst: m.configFindFirst },
-    serviceRequest: { create: m.srCreate, findUnique: m.srFindUnique, update: m.srUpdate },
+    serviceRequest: { create: m.srCreate, findUnique: m.srFindUnique, update: m.srUpdate, updateMany: m.srUpdateMany },
     proposal: { updateMany: m.proposalUpdateMany },
     $transaction: m.transaction,
-  },
-}))
+  }
+  m.transaction.mockImplementation(async (arg: unknown) => (typeof arg === 'function' ? (arg as (tx: unknown) => unknown)(prisma) : Promise.all(arg as unknown[])))
+  return { prisma }
+})
 vi.mock('@/lib/logger', () => ({ createLogger: () => ({ info() {}, warn() {}, error() {} }) }))
 vi.mock('@/lib/messaging/wa-events', () => ({ waRequestCancelled: vi.fn(async () => null), waRequestNoProposals: vi.fn(async () => null), waRequestExpired: vi.fn(async () => null), waProposalAccepted: vi.fn(async () => null) }))
 vi.mock('@/lib/notifications/notificationService', () => ({
@@ -55,7 +58,8 @@ describe('crear solicitud', () => {
     const data = m.srCreate.mock.calls[0][0].data
     expect(data).toMatchObject({ userId: 'u1', origin: 'app', originChannel: null, originConversationId: null, originAgentId: null, status: 'ACTIVE' })
     expect(data.preferredTime).toBe('10:00')
-    expect(data.preferredDate.toISOString()).toBe('2026-10-02T15:00:00.000Z')
+    // Date-only convention: the day at 00:00 UTC, the hour only in preferredTime
+    expect(data.preferredDate.toISOString()).toBe('2026-10-02T00:00:00.000Z')
     expect(m.notifyNewServiceRequest).toHaveBeenCalledWith('r1', { origin: expect.objectContaining({ via: 'app' }) })
     expect(m.recordPromptContext).toHaveBeenCalledWith('u1', 'CLIENT_REQUEST_CREATED', expect.objectContaining({ serviceRequestId: 'r1' }))
   })
@@ -66,7 +70,7 @@ describe('crear solicitud', () => {
   })
 
   it('rechaza datos inválidos con 400 y el primer mensaje del schema', async () => {
-    await expect(createServiceRequest(client, { ...input, address: 'x' }, APP_ORIGIN)).rejects.toMatchObject({ status: 400, message: expect.stringContaining('Address') })
+    await expect(createServiceRequest(client, { ...input, address: 'x' }, APP_ORIGIN)).rejects.toMatchObject({ status: 400, message: expect.stringContaining('dirección') })
   })
 
   it('presupuesto por debajo del precio base → 400', async () => {
@@ -75,9 +79,11 @@ describe('crear solicitud', () => {
   })
 
   it('con socio directo exige que lo ofrezca activo y verificado', async () => {
-    m.partnerFindUnique.mockResolvedValue({ id: 'p1', verified: true, isActive: true, services: [] })
+    m.partnerFindUnique.mockResolvedValue({ id: 'p1', verified: true, isActive: true, isAvailable: true, services: [] })
     await expect(createServiceRequest(client, { ...input, partnerId: 'p1' }, APP_ORIGIN)).rejects.toMatchObject({ status: 400, message: 'Ese socio no ofrece este servicio' })
-    m.partnerFindUnique.mockResolvedValue({ id: 'p1', verified: true, isActive: true, services: [{ price: 60000 }] })
+    m.partnerFindUnique.mockResolvedValue({ id: 'p1', verified: true, isActive: true, isAvailable: false, services: [{ price: 60000 }] })
+    await expect(createServiceRequest(client, { ...input, partnerId: 'p1' }, APP_ORIGIN)).rejects.toMatchObject({ status: 400, message: 'Este socio no está disponible ahora; tu solicitud puede ir a otros socios' })
+    m.partnerFindUnique.mockResolvedValue({ id: 'p1', verified: true, isActive: true, isAvailable: true, services: [{ price: 60000 }] })
     const r = await createServiceRequest(client, { ...input, partnerId: 'p1' }, APP_ORIGIN)
     expect(r.partnerId).toBe('p1')
   })
@@ -108,9 +114,17 @@ describe('cancelar solicitud', () => {
     m.srFindUnique.mockResolvedValue({ id: 'r1', userId: 'u1', status: 'ACTIVE', proposals: [{ id: 'p1', status: 'PENDING' }, { id: 'p2', status: 'REJECTED' }] })
     const r = await cancelServiceRequest(client, 'r1', APP_ORIGIN)
     expect(r).toEqual({ id: 'r1', cancelledProposals: 1 })
-    expect(m.srUpdate).toHaveBeenCalledWith({ where: { id: 'r1' }, data: { status: 'CANCELLED' } })
-    expect(m.proposalUpdateMany).toHaveBeenCalledWith({ where: { id: { in: ['p1'] } }, data: { status: 'REJECTED' } })
+    expect(m.srUpdateMany).toHaveBeenCalledWith({ where: { id: 'r1', status: 'ACTIVE' }, data: { status: 'CANCELLED' } })
+    expect(m.proposalUpdateMany).toHaveBeenCalledWith({ where: { id: { in: ['p1'] }, status: 'PENDING' }, data: { status: 'REJECTED' } })
     expect(m.notifyProposalRejected).toHaveBeenCalledWith('p1')
+  })
+
+  it('si cambió de estado entre la lectura y la escritura → 409 y no avisa', async () => {
+    m.srFindUnique.mockResolvedValue({ id: 'r1', userId: 'u1', status: 'ACTIVE', proposals: [{ id: 'p1', status: 'PENDING' }] })
+    m.srUpdateMany.mockResolvedValueOnce({ count: 0 })
+    await expect(cancelServiceRequest(client, 'r1', APP_ORIGIN)).rejects.toMatchObject({ status: 409, message: 'La solicitud cambió de estado; recarga' })
+    expect(m.proposalUpdateMany).not.toHaveBeenCalled()
+    expect(m.notifyProposalRejected).not.toHaveBeenCalled()
   })
 })
 

@@ -10,6 +10,7 @@ import { setPartnerAvailability } from '@/lib/ops/platform-ops'
 import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
 import { isTrustedAttachmentUrl } from '@/lib/messaging/attachments'
 import { OpsError, originColumns, type Actor, type Origin } from '@/lib/ops/origin'
+import { dateOnlyUtc, formatBookingWhen } from '@/lib/bookings/when'
 
 /**
  * Partner (socio) operations shared by /api/partner/* and the inbox AI agents. They load, validate and
@@ -35,7 +36,6 @@ export const partnerInclude = {
 export type PartnerWithRelations = Prisma.PartnerProfileGetPayload<{ include: typeof partnerInclude }>
 
 const money = (n: number) => `$${Math.round(n).toLocaleString('es-CO')}`
-const fmtDate = (d: Date) => new Intl.DateTimeFormat('es-CO', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Bogota' }).format(d)
 
 // ─── Loading ────────────────────────────────────────────────────────────────
 
@@ -94,10 +94,10 @@ export async function partnerStatusSummary(partnerId: string): Promise<string> {
   const now = new Date()
   const [bookings, pendingPayments, pendingPayouts] = await Promise.all([
     prisma.booking.findMany({
-      where: { partnerId, status: { in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS'] }, scheduledDate: { gte: now } },
+      where: { partnerId, status: { in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS'] }, scheduledDate: { gte: dateOnlyUtc(now) } },
       orderBy: { scheduledDate: 'asc' },
       take: 3,
-      select: { id: true, status: true, scheduledDate: true, totalPrice: true, service: { select: { name: true } }, user: { select: { name: true } } },
+      select: { id: true, status: true, scheduledDate: true, scheduledTime: true, totalPrice: true, service: { select: { name: true } }, user: { select: { name: true } } },
     }),
     prisma.payment.findMany({
       where: { booking: { partnerId }, confirmationStatus: 'CLIENT_REPORTED' },
@@ -129,7 +129,7 @@ export async function partnerStatusSummary(partnerId: string): Promise<string> {
     : 'Servicios activos: ninguno.')
 
   lines.push(bookings.length
-    ? `Próximas reservas: ${bookings.map((b) => `${b.service.name} con ${b.user.name} el ${fmtDate(b.scheduledDate)} (${BOOKING_LABEL[b.status] ?? b.status}, ${money(b.totalPrice)}, ref. ${b.id.slice(-6)})`).join('; ')}.`
+    ? `Próximas reservas: ${bookings.map((b) => `${b.service.name} con ${b.user.name} el ${formatBookingWhen(b)} (${BOOKING_LABEL[b.status] ?? b.status}, ${money(b.totalPrice)}, ref. ${b.id.slice(-6)})`).join('; ')}.`
     : 'Próximas reservas: ninguna.')
 
   lines.push(pendingPayments.length

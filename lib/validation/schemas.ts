@@ -2,21 +2,21 @@ import { z } from 'zod'
 import { City } from '@prisma/client'
 
 export const serviceRequestSchema = z.object({
-  serviceId: z.string().min(1, 'Service is required'),
-  address: z.string().min(5, 'Address must be at least 5 characters').max(500, 'Address is too long'),
-  notes: z.string().max(2000, 'Notes are too long').optional(),
-  budget: z.number().positive('Budget must be greater than 0').max(100000000, 'Budget is too high').optional(),
-  city: z.nativeEnum(City, { errorMap: () => ({ message: 'Invalid city' }) }).optional(),
-  preferredDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date (format: YYYY-MM-DD)').nullable().optional(),
+  serviceId: z.string().min(1, 'El servicio es requerido'),
+  address: z.string().min(5, 'La dirección debe tener al menos 5 caracteres').max(500, 'La dirección es demasiado larga'),
+  notes: z.string().max(2000, 'Los detalles son demasiado largos').optional(),
+  budget: z.number().positive('El presupuesto debe ser mayor a 0').max(100000000, 'El presupuesto es demasiado alto').optional(),
+  city: z.nativeEnum(City, { errorMap: () => ({ message: 'Ciudad inválida' }) }).optional(),
+  preferredDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida (AAAA-MM-DD)').nullable().optional(),
   preferredTime: z.string().max(50).nullable().optional(),
   isUrgent: z.boolean().optional(),
-  photoUrls: z.array(z.string().url('Invalid photo URL')).max(10, 'Maximum 10 photos').optional(),
+  photoUrls: z.array(z.string().url('Foto inválida')).max(10, 'Máximo 10 fotos').optional(),
   partnerId: z.string().nullable().optional(),
   /** Coverage zone (lib/geo/zones.ts); inferred from the address when missing */
   zone: z.string().max(40).nullable().optional()
 }).refine(
   (data) => data.isUrgent || (data.preferredDate !== null && data.preferredDate !== undefined),
-  { message: 'You must indicate if you need urgent service or select a date' }
+  { message: 'Indica si es urgente o elige una fecha' }
 )
 
 export const proposalSchema = z.object({

@@ -1,18 +1,8 @@
-import { NextResponse, type NextRequest } from "next/server"
-import type { Prisma } from '@prisma/client'
-import { compactTouch } from '@/lib/analytics/attribution-core'
-import { webAttribution } from '@/lib/analytics/touches'
-import { z } from 'zod'
-import { prisma } from "@/lib/prisma"
-import { createNotification } from "@/lib/notifications/notificationService"
+import { NextResponse } from "next/server"
 import { createLogger } from '@/lib/logger'
-import { validateRequest } from '@/lib/validation'
-import { bookingCreateSchema } from '@/lib/validation/booking-schemas'
-import { currentActor, opsErrorResponse } from '@/lib/ops/actor'
-import { APP_ORIGIN, originColumns, OpsError } from '@/lib/ops/origin'
-import { BOOKING_INCLUDE, addBookingEvent, bookingsFor } from '@/lib/bookings/ops'
-import { loadEffectiveRates } from '@/lib/payments/commission'
-import { BookingStatus, City } from '@prisma/client'
+import { currentActor } from '@/lib/ops/actor'
+import { bookingsFor } from '@/lib/bookings/ops'
+import { BookingStatus } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,10 +14,14 @@ export async function GET(request: Request) {
     const actor = await currentActor()
     if (!actor) return NextResponse.json({ error: "No autorizado" }, { status: 401 })
 
-    const status = new URL(request.url).searchParams.get("status")
+    const searchParams = new URL(request.url).searchParams
+    const status = searchParams.get("status")
     const statuses = status && (Object.values(BookingStatus) as string[]).includes(status) ? [status as BookingStatus] : undefined
+    // Admin list only: cap rows (?take=). Client and partner keep their full lists.
+    const takeRaw = Math.floor(Number(searchParams.get("take")) || 0)
+    const take = actor.role === 'ADMIN' && takeRaw > 0 ? Math.min(takeRaw, 1000) : undefined
 
-    const bookings = await bookingsFor(actor, { status: statuses })
+    const bookings = await bookingsFor(actor, { status: statuses, take })
     return NextResponse.json(bookings)
   } catch (error) {
     logger.error('Error fetching bookings:', error)
@@ -35,81 +29,7 @@ export async function GET(request: Request) {
   }
 }
 
-const citySchema = z.object({ city: z.nativeEnum(City).optional() })
-
-export async function POST(request: NextRequest) {
-  try {
-    const actor = await currentActor()
-    if (!actor) return NextResponse.json({ error: "Debe iniciar sesión para reservar" }, { status: 401 })
-
-    const body = await request.json()
-
-    const validation = await validateRequest(bookingCreateSchema, body)
-    if (!validation.success) return validation.error
-    const { serviceId, scheduledDate, scheduledTime, address, notes, totalPrice, partnerId, proposalId } = validation.data
-    const bodyCity = citySchema.safeParse(body).data?.city
-
-    const [service, rates] = await Promise.all([
-      prisma.service.findUnique({ where: { id: serviceId }, select: { id: true, basePrice: true } }),
-      loadEffectiveRates(),
-    ])
-    if (!service) return NextResponse.json({ error: "Servicio no encontrado" }, { status: 404 })
-    if (totalPrice < service.basePrice) {
-      return NextResponse.json({ error: `El precio no puede ser menor al precio base del servicio ($${service.basePrice.toLocaleString('es-CO')})` }, { status: 400 })
-    }
-
-    let partnerCity: City | null = null
-    if (partnerId) {
-      const partner = await prisma.partnerProfile.findUnique({
-        where: { id: partnerId },
-        select: { id: true, verified: true, isActive: true, city: true },
-      })
-      if (!partner) return NextResponse.json({ error: "Socio no encontrado" }, { status: 404 })
-      if (!partner.verified || !partner.isActive) {
-        return NextResponse.json({ error: "Este socio no tiene la verificación completa para prestar servicios" }, { status: 403 })
-      }
-      partnerCity = partner.city
-    }
-
-    const touches = webAttribution(request)
-    const booking = await prisma.booking.create({
-      data: {
-        userId: actor.userId,
-        serviceId,
-        partnerId: partnerId || null,
-        proposalId: proposalId || null,
-        scheduledDate: new Date(scheduledDate),
-        scheduledTime,
-        address,
-        notes,
-        totalPrice,
-        ...(bodyCity ?? partnerCity ? { city: (bodyCity ?? partnerCity) as City } : {}),
-        clientCommissionRate: rates.client,
-        partnerCommissionRate: rates.partner,
-        status: "PENDING",
-        ...originColumns(APP_ORIGIN),
-        ...(touches.first ? { acquisition: compactTouch(touches.first) as Prisma.InputJsonValue } : {}),
-        ...(touches.last ? { lastTouch: compactTouch(touches.last) as Prisma.InputJsonValue } : {}),
-      },
-      include: BOOKING_INCLUDE,
-    })
-
-    await addBookingEvent({ bookingId: booking.id, type: 'status', actor, origin: APP_ORIGIN, toStatus: 'PENDING', detail: 'Reserva creada' })
-
-    if (booking.partner) {
-      await createNotification({
-        userId: booking.partner.userId,
-        type: "BOOKING_CONFIRMED",
-        title: "Nueva reserva pendiente",
-        message: `${booking.user.name} ha solicitado el servicio de ${booking.service.name}`,
-        data: { bookingId: booking.id, serviceId: booking.serviceId },
-      })
-    }
-
-    return NextResponse.json(booking, { status: 201 })
-  } catch (error) {
-    if (error instanceof OpsError) return opsErrorResponse(error)
-    logger.error('Error creating booking:', error)
-    return NextResponse.json({ error: "Error al crear reserva" }, { status: 500 })
-  }
+/** Retired: a booking is born from an accepted proposal (POST /api/proposals/[id]/accept). */
+export async function POST() {
+  return NextResponse.json({ error: 'Esta forma de reservar ya no está disponible. Crea una solicitud y acepta una propuesta.' }, { status: 410 })
 }

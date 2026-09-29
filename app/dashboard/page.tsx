@@ -26,6 +26,7 @@ import { getBookingVisualState, type BookingVisualState } from '@/lib/booking-st
 import { CancelBookingSheet, RescheduleBookingSheet } from '@/components/bookings/BookingSheets'
 import BookingPhotos from '@/components/bookings/BookingPhotos'
 import { useNotificationUnreadCount } from '@/hooks/useNotificationUnreadCount'
+import { formatBookingWhen, formatCalendarDay } from '@/lib/bookings/when'
 
 const ChatModal = dynamic(() => import('@/components/ChatModal'), {
   ssr: false,
@@ -271,14 +272,6 @@ export default function DashboardPage() {
     totalAmount: number
   } | null>(null)
 
-  const [paymentMethods, setPaymentMethods] = useState<Array<{
-    id: string
-    lastFourDigits: string
-    cardBrand: string
-    isDefault: boolean
-  }>>([])
-
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('')
   const [processingPayment, setProcessingPayment] = useState(false)
   const [loadingBreakdown, setLoadingBreakdown] = useState(false)
   const [paymentConfig, setPaymentConfig] = useState<{ cashEnabled: boolean; transferEnabled: boolean; mercadoPagoEnabled: boolean } | null>(null)
@@ -455,8 +448,8 @@ export default function DashboardPage() {
         setFavoriteServices(prev => prev.filter(fav => fav.serviceId !== serviceId))
         setModal({
           isOpen: true,
-          title: 'Service removed',
-          message: 'The service has been removed from your favorites',
+          title: 'Servicio quitado',
+          message: 'Quitamos el servicio de tus favoritos',
           type: 'success'
         })
       }
@@ -465,7 +458,7 @@ export default function DashboardPage() {
       setModal({
         isOpen: true,
         title: 'Error',
-        message: 'Could not remove the service from favorites',
+        message: 'No pudimos quitar el servicio de tus favoritos',
         type: 'error'
       })
     }
@@ -583,30 +576,6 @@ export default function DashboardPage() {
     setPaymentBreakdown(null)
 
     try {
-      const res = await fetch('/api/payment-methods')
-      if (res.ok) {
-        const methods = await res.json()
-        setPaymentMethods(Array.isArray(methods) ? methods : [])
-
-        if (Array.isArray(methods) && methods.length > 0) {
-          const defaultMethod = methods.find((m: any) => m.isDefault)
-          if (defaultMethod) {
-            setSelectedPaymentMethod(defaultMethod.id)
-          } else if (methods.length === 1) {
-            // Auto-select the only available method when there's exactly one
-            setSelectedPaymentMethod(methods[0].id)
-          } else {
-            setSelectedPaymentMethod('')
-          }
-        } else {
-          setSelectedPaymentMethod('')
-        }
-      }
-    } catch (error) {
-      // Handle error silently
-    }
-
-    try {
       const breakdownRes = await fetch('/api/payments/breakdown', {
         method: 'POST',
         headers: {
@@ -633,47 +602,29 @@ export default function DashboardPage() {
     })
   }
 
+  // Real payment: Mercado Pago checkout (the webhook confirms it and marks the booking paid)
   const processPayment = async () => {
-    if (!selectedPaymentMethod && paymentMethods.length > 0) {
-      setModal({
-        isOpen: true,
-        title: 'Método de Pago Requerido',
-        message: 'Por favor selecciona un método de pago.',
-        type: 'warning'
-      })
-      return
-    }
-
     setProcessingPayment(true)
+    let redirecting = false
 
     try {
-      const res = await fetch('/api/payments/process', {
+      const res = await fetch('/api/payments/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          bookingId: paymentModal.bookingId,
-          paymentMethodId: selectedPaymentMethod || null
-        })
+        body: JSON.stringify({ bookingId: paymentModal.bookingId })
       })
 
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
+      const url: string | undefined = data.initPoint || data.sandboxInitPoint
 
-      if (res.ok) {
-        const totalPaid = paymentBreakdown?.totalAmount || paymentModal.amount
-        setModal({
-          isOpen: true,
-          title: '¡Pago Exitoso!',
-          message: `El pago de ${formatCurrency(totalPaid)} ha sido procesado exitosamente.`,
-          type: 'success'
-        })
-        setPaymentModal({ isOpen: false, bookingId: '', serviceName: '', amount: 0 })
-        setPaymentBreakdown(null)
-        fetchBookings()
+      if (res.ok && url) {
+        redirecting = true
+        window.location.href = url
       } else {
         setModal({
           isOpen: true,
           title: 'Error en el Pago',
-          message: data.error || 'No se pudo procesar el pago.',
+          message: data.error || 'No pudimos abrir el pago en Mercado Pago. Intenta de nuevo.',
           type: 'error'
         })
       }
@@ -685,7 +636,7 @@ export default function DashboardPage() {
         type: 'error'
       })
     } finally {
-      setProcessingPayment(false)
+      if (!redirecting) setProcessingPayment(false)
     }
   }
 
@@ -952,26 +903,9 @@ export default function DashboardPage() {
               <p className="text-2xl font-bold text-primary-600 mb-6">Total: {formatCurrency(paymentModal.amount)}</p>
             )}
 
-            {paymentMethods.length > 0 ? (
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-slate-700 mb-2">Método de pago</label>
-                <select
-                  value={selectedPaymentMethod}
-                  onChange={(e) => setSelectedPaymentMethod(e.target.value)}
-                  className="w-full px-4 py-3 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 bg-slate-50 focus:bg-white"
-                >
-                  {paymentMethods.map((method) => (
-                    <option key={method.id} value={method.id}>
-                      {method.cardBrand} •••• {method.lastFourDigits} {method.isDefault ? '(Predeterminada)' : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : (
-              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6">
-                <p className="text-sm text-amber-800">El pago se acordará directamente con el socio (efectivo o transferencia).</p>
-              </div>
-            )}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 mb-6">
+              <p className="text-sm text-slate-700">Te llevaremos a Mercado Pago para pagar de forma segura con tarjeta, PSE u otros medios.</p>
+            </div>
 
             <div className="flex gap-3">
               <button
@@ -1184,7 +1118,7 @@ export default function DashboardPage() {
                                 <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                                   <span className="text-xs text-slate-500 flex items-center gap-1">
                                     <Calendar className="w-3 h-3" />
-                                    {new Date(booking.scheduledDate).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}
+                                    {formatCalendarDay(booking.scheduledDate, { day: 'numeric', month: 'short' })}
                                   </span>
                                   <span className="text-xs text-slate-400">·</span>
                                   <span className="text-xs text-slate-500">{booking.scheduledTime}</span>
@@ -1474,7 +1408,7 @@ export default function DashboardPage() {
                           bookingId: booking.id,
                           serviceName: booking.service.name,
                           partnerName: booking.partner?.user.name || 'el socio',
-                          scheduledAt: `${new Date(booking.scheduledDate).toLocaleDateString('es-ES')} · ${booking.scheduledTime}`,
+                          scheduledAt: `${formatBookingWhen({ scheduledDate: new Date(booking.scheduledDate), scheduledTime: booking.scheduledTime })}`,
                         }),
                       icon: <Star size={18} />,
                       variant: 'primary' as const,
@@ -1572,7 +1506,7 @@ export default function DashboardPage() {
                           priorityBadges={priorityBadges}
                           primaryAction={primaryAction}
                           secondaryActions={secondaryActions}
-                          metadataInline={`${new Date(booking.scheduledDate).toLocaleDateString('es-ES')} · ${booking.scheduledTime} · ${booking.address}`}
+                          metadataInline={`${formatBookingWhen({ scheduledDate: new Date(booking.scheduledDate), scheduledTime: booking.scheduledTime })} · ${booking.address}`}
                           origin={booking.origin}
                           originChannel={booking.originChannel}
                         />
@@ -1909,7 +1843,7 @@ export default function DashboardPage() {
                             <Calendar size={14} className="text-gray-500 shrink-0" />
                             <span className="text-gray-700 truncate">
                               {request.preferredDate
-                                ? `${new Date(request.preferredDate).toLocaleDateString('es-ES')}${request.preferredTime ? ` · ${request.preferredTime}` : ''}`
+                                ? `${formatCalendarDay(request.preferredDate, { day: 'numeric', month: 'short', year: 'numeric' })}${request.preferredTime ? ` · ${request.preferredTime}` : ''}`
                                 : 'Sin fecha preferida'}
                             </span>
                           </div>
@@ -2046,7 +1980,7 @@ export default function DashboardPage() {
                                   {proposal.proposedDate && (
                                     <p className="mb-2 flex items-center gap-1.5 rounded-lg bg-primary-50 px-2 py-1.5 text-xs text-primary-900">
                                       <Calendar size={13} className="shrink-0" />
-                                      Propone ir el {new Intl.DateTimeFormat('es-CO', { timeZone: 'America/Bogota', weekday: 'long', day: 'numeric', month: 'short' }).format(new Date(proposal.proposedDate))}{proposal.proposedTime ? ` a las ${proposal.proposedTime}` : ''}
+                                      Propone ir el {formatCalendarDay(proposal.proposedDate, { weekday: 'long', day: 'numeric', month: 'short' })}{proposal.proposedTime ? ` a las ${proposal.proposedTime}` : ''}
                                     </p>
                                   )}
                                   {proposal.notes && (

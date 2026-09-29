@@ -12,23 +12,9 @@ import { APP_ORIGIN, OpsError } from '@/lib/ops/origin'
 
 const logger = createLogger('chats-chatId-messages')
 
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ chatId: string }> }
-) {
-  const { chatId } = await params
-  try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
-    // Your GET logic here
-    // For example, fetching messages for the given chatId
-    return NextResponse.json({ message: `GET request for chat ${chatId}` })
-  } catch (error) {
-    logger.error('Error in GET request:', error || undefined)
-    return NextResponse.json({ error: 'Error processing GET request' }, { status: 500 })
-  }
+/** Unused: the messages come with the chat (GET /api/chats?proposalId=…). */
+export async function GET() {
+  return NextResponse.json({ error: 'Usa la conversación para ver sus mensajes.' }, { status: 410 })
 }
 
 export async function POST(

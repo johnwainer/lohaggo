@@ -29,3 +29,33 @@ export function formatBookingWhen(b: { scheduledDate: Date; scheduledTime: strin
   const time = new Intl.DateTimeFormat('es-CO', { timeZone: BOGOTA, hour: '2-digit', minute: '2-digit', hour12: false }).format(d)
   return `${get('weekday')} ${get('day')} ${get('month')} ${time}`
 }
+
+/** Time used when a booking has a day but nobody chose the hour. */
+export const DEFAULT_BOOKING_TIME = '09:00'
+
+function isUtcMidnight(d: Date) {
+  return d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0 && d.getUTCMilliseconds() === 0
+}
+
+/** 'YYYY-MM-DD' of a stored date: a midnight-UTC value keeps its UTC day, any other instant its Bogotá day. */
+export function calendarDayKey(value: Date | string): string {
+  const d = new Date(value)
+  if (isUtcMidnight(d)) return d.toISOString().slice(0, 10)
+  return new Intl.DateTimeFormat('en-CA', { timeZone: BOGOTA, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d)
+}
+
+/** The date-only value the app stores (scheduledDate / preferredDate / proposedDate): the calendar day at 00:00 UTC. */
+export function dateOnlyUtc(value: Date | string): Date {
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return new Date(`${value}T00:00:00.000Z`)
+  return new Date(`${calendarDayKey(value)}T00:00:00.000Z`)
+}
+
+/** The Bogotá wall-clock 'HH:mm' of an instant. */
+export function bogotaClockTime(d: Date): string {
+  return new Intl.DateTimeFormat('en-GB', { timeZone: BOGOTA, hour: '2-digit', minute: '2-digit', hour12: false }).format(d).replace(/^24/, '00')
+}
+
+/** Only the calendar day of a stored date (no time), in Spanish. */
+export function formatCalendarDay(value: Date | string, opts: Intl.DateTimeFormatOptions = { weekday: 'short', day: 'numeric', month: 'short' }) {
+  return new Intl.DateTimeFormat('es-CO', { ...opts, timeZone: 'UTC' }).format(new Date(`${calendarDayKey(value)}T12:00:00.000Z`))
+}

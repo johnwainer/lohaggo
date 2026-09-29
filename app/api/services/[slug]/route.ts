@@ -36,6 +36,7 @@ export async function GET(
       .toUpperCase()
       .replace(/\s+/g, '_')
 
+    // Public: only what a card shows (never phone, email, documents numbers nor bank data)
     const service = await prisma.service.findUnique({
       where: { slug },
       include: {
@@ -43,32 +44,37 @@ export async function GET(
         partners: {
           where: {
             active: true,
-            partner: {
-              city: cityEnum as any,
-              isActive: true,
-              verified: true,
-              isAvailable: true,
-            }
+            // The city the partner offers this service in (a partner may work in several cities)
+            city: cityEnum as any,
+            partner: { isActive: true, verified: true, isAvailable: true },
           },
-          include: {
+          select: {
+            id: true,
+            price: true,
+            city: true,
             partner: {
-              include: {
-                user: {
-                  select: {
-                    name: true,
-                    phone: true,
-                    image: true,
-                  }
-                },
-                documents: {
-                  where: { status: 'APPROVED' },
-                  select: { type: true, status: true }
-                }
-              }
-            }
-          }
-        }
-      }
+              select: {
+                id: true,
+                userId: true,
+                city: true,
+                slug: true,
+                bio: true,
+                profileHeadline: true,
+                rating: true,
+                totalReviews: true,
+                completedServicesCount: true,
+                verified: true,
+                isAvailable: true,
+                isPublicProfile: true,
+                isCompany: true,
+                companyName: true,
+                user: { select: { name: true, image: true } },
+                documents: { where: { status: 'APPROVED' }, select: { type: true, status: true } },
+              },
+            },
+          },
+        },
+      },
     })
 
     if (!service) {
@@ -101,7 +107,7 @@ export async function GET(
 
     return NextResponse.json({
       ...service,
-      partners: service.partners,
+      partners: service.partners.map(({ partner: { userId: _userId, city: _city, ...partner }, ...ps }) => ({ ...ps, partner })),
     })
   } catch (error) {
     logger.error('Error fetching servicio:', error || undefined)
