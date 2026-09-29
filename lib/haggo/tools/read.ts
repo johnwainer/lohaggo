@@ -1,3 +1,4 @@
+import { formatBookingWhen, formatCalendarDay } from '@/lib/bookings/when'
 import { prisma } from '@/lib/prisma'
 import { catalogStatus } from '@/lib/messaging/wa-registry'
 import { templateSendsSince } from '@/lib/messaging/wa-send'
@@ -10,6 +11,7 @@ import { untrusted } from '@/lib/haggo/prompt'
 import { TOOL_CATALOG, TOOL_NAMES } from '@/lib/ai/tools'
 import { TOOL_GROUPS } from '@/lib/ai/actions-core'
 import { PLATFORM_READ_TOOLS, type ReadTool } from '@/lib/haggo/tools/platform'
+import { DETAIL_READ_TOOLS } from '@/lib/haggo/tools/detail'
 import { summarizeConversationOrigins } from '@/lib/messaging/attribution'
 import { originsTab } from '@/lib/analytics/origins'
 import { requestCase, scanAttention } from '@/lib/admin/request-360'
@@ -19,6 +21,8 @@ import { trafficTab } from '@/lib/analytics/ga4'
 
 const H = 3600_000
 const MAX_OUTPUT = 8000
+/** Chat messages solicitud_detalle shows across all the proposals of a request */
+const CHAT_MESSAGES = 40
 const limit = (v: unknown, def: number, max: number) => (Number.isInteger(v) && (v as number) > 0 ? Math.min(v as number, max) : def)
 const period = (v: unknown) => (['7d', '30d', '90d'].includes(String(v)) ? String(v) : '30d')
 const bogotaTime = (d: Date) => new Intl.DateTimeFormat('es-CO', { timeZone: 'America/Bogota', weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(d)
@@ -36,6 +40,8 @@ export function toolsByGroup(tools: string[]) {
   if (unknown.length) groups.push({ grupo: 'desconocidas', nombre: 'Fuera del catálogo', activas: unknown, sin_activar: [] })
   return groups
 }
+/** Rate-limit keys are «scope:kind:value»; phone numbers are masked, IPs stay (they are what gets blocked). */
+export const maskLimitKey = (key: string) => key.split(':').map((part, i) => (i > 0 && /^\+?\d{7,}$/.test(part) ? '[número]' : part)).join(':').slice(0, 80)
 const actionSummary = (byStatus: Record<string, number>) => ({
   ejecutadas: byStatus.executed ?? 0,
   fallidas: byStatus.failed ?? 0,
@@ -61,11 +67,13 @@ export const READ_TOOLS: Record<string, ReadTool> = {
       const s = await systemOverview()
       return {
         estado: s.status,
-        tareas_con_problemas: s.crons.filter((c) => c.health !== 'ok' && c.health !== 'never').map((c) => ({ tarea: c.label, estado: c.health, ultimo_error: c.lastError?.slice(0, 200) ?? null, fallos_24h: c.failures24h })),
+        tareas_con_problemas: s.crons.filter((c) => c.health !== 'ok' && c.health !== 'never').map((c) => ({ tarea: c.label, estado: c.health, ultimo_error: c.lastError ? untrusted(c.lastError.slice(0, 200)) : null, fallos_24h: c.failures24h })),
         servicios_con_problemas: s.services.filter((x) => x.level === 'error' || x.level === 'warning').map((x) => ({ servicio: x.name, nivel: x.level, detalle: x.detail })),
-        errores_abiertos: s.errors.slice(0, 10).map((e) => ({ mensaje: e.message.slice(0, 160), ruta: e.route, veces: e.count, ultima: e.lastSeenAt })),
+        // Error messages can carry what a user typed (a search, a form): data, not instructions
+        errores_abiertos: s.errors.slice(0, 10).map((e) => ({ mensaje: untrusted(e.message.slice(0, 160)), ruta: e.route, veces: e.count, ultima: e.lastSeenAt })),
         errores_24h: s.errors24h,
         webhooks: s.webhooks.byChannel,
+        webhooks_con_error: s.webhooks.recentErrors.map((w) => ({ canal: w.channel, estado: w.status, detalle: w.detail ? untrusted(w.detail.slice(0, 160)) : null, fecha: w.createdAt })),
       }
     },
   },
@@ -225,32 +233,36 @@ export const READ_TOOLS: Record<string, ReadTool> = {
       if (!c) return { error: 'No encontré esa solicitud' }
       // Everything written by clients and partners is data, never instructions
       const u = (v: string | null | undefined, n = 300) => (v ? untrusted(v.slice(0, n)) : null)
+      // At most CHAT_MESSAGES messages across all the chats, the most recent ones: the output cap must not cut the rest
+      const recent = new Set(c.proposals.flatMap((p) => (p.chat?.messages ?? []).map((m) => m)).sort((a, b) => b.at.getTime() - a.at.getTime()).slice(0, CHAT_MESSAGES))
+      // Attention flags and the booking (payment, guarantee) first, the proposals and their chats last
       return {
-        id: c.id, ref: c.ref, estado: c.status, creada: bogotaTime(c.createdAt), vence: bogotaTime(c.expiresAt), servicio: c.service.name, precio_base: c.service.basePrice,
+        id: c.id, ref: c.ref, estado: c.status, servicio: c.service.name,
+        puntos_de_atencion: c.flags.map((f) => ({ gravedad: f.severity, codigo: f.code, que: f.title, detalle: f.detail, sugerido: f.suggest })),
+        reserva: c.booking ? {
+          id: c.booking.id, ref: c.booking.ref, estado: c.booking.status, fecha: formatBookingWhen({ scheduledDate: new Date(c.booking.scheduledDate), scheduledTime: c.booking.scheduledTime }), precio: c.booking.totalPrice, precio_propuesta: c.booking.proposalPrice,
+          pago: c.booking.payment ? { estado: c.booking.payment.status, confirmacion: c.booking.payment.confirmationStatus, reporto_cliente: c.booking.payment.clientReportedMethod, confirmo_socio: c.booking.payment.partnerConfirmedMethod } : null,
+          garantia: c.booking.guaranteeClaims.map((g) => ({ id: g.id, tipo: g.type, estado: g.status })),
+          reembolsos: c.booking.refundCases.map((r) => ({ estado: r.status, monto: r.approvedAmount ?? r.requestedAmount })),
+          resena: c.booking.review ? { al_socio: c.booking.review.clientToPartnerRating, comentario: u(c.booking.review.clientToPartnerComment, 200), al_cliente: c.booking.review.partnerToClientRating } : null,
+          fotos_trabajo: { antes: c.booking.photos.filter((x) => x.kind === 'before').length, despues: c.booking.photos.filter((x) => x.kind === 'after').length },
+          historial: c.booking.events.slice(-15).map((e) => ({ cuando: bogotaTime(e.at), tipo: e.type, de: e.from, a: e.to, quien: e.actorType, origen: e.origin, detalle: u(e.detail, 200) })),
+        } : null,
+        casos_de_soporte: c.supportCases.map((x) => ({ asunto: u(x.subject, 120), estado: x.status, prioridad: x.priority })),
+        creada: bogotaTime(c.createdAt), vence: bogotaTime(c.expiresAt), precio_base: c.service.basePrice,
         cliente: { id: c.client.id, nombre: u(c.client.name, 80), activo: c.client.isActive }, directa_a: c.direct ? u(c.direct.name, 80) : null,
-        direccion: u(c.address, 200), zona: c.zone, cuando: c.isUrgent ? 'urgente' : c.preferredDate ? `${bogotaTime(c.preferredDate)} ${c.preferredTime ?? ''}` : null, presupuesto: c.budget, notas: u(c.notes), fotos: c.photos.length,
+        direccion: u(c.address, 200), zona: c.zone, cuando: c.isUrgent ? 'urgente' : c.preferredDate ? `${formatCalendarDay(c.preferredDate)} ${c.preferredTime ?? ''}` : null, presupuesto: c.budget, notas: u(c.notes), fotos: c.photos.length,
         origen: { via: c.origin.via, canal: c.origin.channel, conversacionId: c.origin.conversation?.id ?? null },
         socios_avisados: c.notified.length, socios_que_leyeron: c.notified.filter((n) => n.read).length,
         propuestas: c.proposals.map((p) => ({
-          id: p.id, ref: p.ref, estado: p.status, precio: p.price, fecha_propuesta: p.proposedDate ? `${bogotaTime(p.proposedDate)}${p.proposedTime ? ` ${p.proposedTime}` : ''}` : null, nota: u(p.notes, 200),
+          id: p.id, ref: p.ref, estado: p.status, precio: p.price, fecha_propuesta: p.proposedDate ? `${formatCalendarDay(p.proposedDate)}${p.proposedTime ? ` ${p.proposedTime}` : ''}` : null, nota: u(p.notes, 200),
           socio: { nombre: u(p.partner.name, 80), calificacion: p.partner.reviews ? p.partner.rating : null, resenas: p.partner.reviews, trabajos: p.partner.jobs },
           chat: p.chat ? {
             mensajes: p.chat.messages.length,
-            ultimos: p.chat.messages.slice(-30).map((m) => ({ quien: m.side, cuando: bogotaTime(m.at), texto: u(m.content, 300), foto: Boolean(m.imageUrl) })),
-            intentos_bloqueados: p.chat.blocked.map((b) => ({ cuando: bogotaTime(b.at), detalle: u(b.details, 300) })),
+            intentos_bloqueados: p.chat.blocked.slice(-10).map((b) => ({ cuando: bogotaTime(b.at), detalle: u(b.details, 300) })),
+            ultimos: p.chat.messages.filter((m) => recent.has(m)).map((m) => ({ quien: m.side, cuando: bogotaTime(m.at), texto: u(m.content, 300), foto: Boolean(m.imageUrl) })),
           } : null,
         })),
-        reserva: c.booking ? {
-          id: c.booking.id, ref: c.booking.ref, estado: c.booking.status, fecha: `${c.booking.scheduledTime} · ${bogotaTime(c.booking.scheduledDate)}`, precio: c.booking.totalPrice, precio_propuesta: c.booking.proposalPrice,
-          historial: c.booking.events.map((e) => ({ cuando: bogotaTime(e.at), tipo: e.type, de: e.from, a: e.to, quien: e.actorType, origen: e.origin, detalle: u(e.detail, 200) })),
-          fotos_trabajo: { antes: c.booking.photos.filter((x) => x.kind === 'before').length, despues: c.booking.photos.filter((x) => x.kind === 'after').length },
-          pago: c.booking.payment ? { estado: c.booking.payment.status, confirmacion: c.booking.payment.confirmationStatus, reporto_cliente: c.booking.payment.clientReportedMethod, confirmo_socio: c.booking.payment.partnerConfirmedMethod } : null,
-          resena: c.booking.review ? { al_socio: c.booking.review.clientToPartnerRating, comentario: u(c.booking.review.clientToPartnerComment, 200), al_cliente: c.booking.review.partnerToClientRating } : null,
-          garantia: c.booking.guaranteeClaims.map((g) => ({ id: g.id, tipo: g.type, estado: g.status })),
-          reembolsos: c.booking.refundCases.map((r) => ({ estado: r.status, monto: r.approvedAmount ?? r.requestedAmount })),
-        } : null,
-        casos_de_soporte: c.supportCases.map((s) => ({ asunto: u(s.subject, 120), estado: s.status, prioridad: s.priority })),
-        puntos_de_atencion: c.flags.map((f) => ({ gravedad: f.severity, codigo: f.code, que: f.title, detalle: f.detail, sugerido: f.suggest })),
       }
     },
   },
@@ -325,7 +337,8 @@ export const READ_TOOLS: Record<string, ReadTool> = {
         prisma.adminSupportCase.findMany({ where: { status: { in: ['OPEN', 'IN_PROGRESS'] } }, orderBy: { createdAt: 'asc' }, take: 15 }).catch(() => []),
       ])
       return {
-        incidentes: incidents.map((i) => ({ ...i, description: i.description?.slice(0, 300) ?? null })),
+        // Titles and descriptions can quote user input (error messages, reports): data, not instructions
+        incidentes: incidents.map((i) => ({ ...i, title: untrusted(i.title.slice(0, 200)), description: i.description ? untrusted(i.description.slice(0, 300)) : null })),
         casos_soporte: cases.map((c) => {
           const r = c as Record<string, unknown>
           return { id: r.id, estado: r.status, prioridad: r.priority ?? null, titulo: untrusted(String(r.title ?? r.subject ?? '').slice(0, 160)), vence: r.slaDueAt ?? null, creado: r.createdAt }
@@ -334,7 +347,7 @@ export const READ_TOOLS: Record<string, ReadTool> = {
     },
   },
   dinero: {
-    def: { name: 'dinero', description: 'Pagos de clientes de 7 días por estado, pagos rechazados recientes con su motivo, pagos a socios fallidos o pendientes con el mensaje del procesador, pagos en efectivo por confirmar y reembolsos abiertos.', input_schema: { type: 'object', properties: {} } },
+    def: { name: 'dinero', description: 'Pagos de clientes de 7 días por estado, pagos rechazados recientes con su motivo, pagos a socios fallidos o pendientes con el mensaje del procesador, pagos en efectivo por confirmar, reembolsos abiertos y fallidos, e incidentes de pago abiertos (tipo, gravedad, plazo).', input_schema: { type: 'object', properties: {} } },
     run: async () => {
       const since = new Date(Date.now() - 7 * 24 * H)
       const [byStatus, rejected, payouts, payoutsPending, cash, refunds] = await Promise.all([
@@ -343,16 +356,20 @@ export const READ_TOOLS: Record<string, ReadTool> = {
         prisma.payout.findMany({ where: { status: 'FAILED' }, orderBy: { updatedAt: 'desc' }, take: 10, select: { id: true, netAmount: true, processorStatus: true, processorMessage: true, notes: true, updatedAt: true, partner: { select: { id: true, user: { select: { name: true } } } } } }),
         prisma.payout.aggregate({ where: { status: { in: ['PENDING', 'PROCESSING'] } }, _count: { _all: true }, _sum: { netAmount: true }, _min: { createdAt: true } }),
         prisma.payment.findMany({ where: { status: 'PENDING', confirmationStatus: { in: ['CLIENT_REPORTED', 'PARTNER_REPORTED'] } }, take: 10, select: { id: true, totalAmount: true, confirmationStatus: true, clientReportedAt: true, reminderCount: true } }),
-        prisma.refundCase.findMany({ where: { status: { in: ['REQUESTED', 'UNDER_REVIEW', 'APPROVED', 'FAILED'] } }, take: 10, select: { id: true, status: true, requestedAmount: true, reason: true, createdAt: true } }).catch(() => []),
+        prisma.refundCase.findMany({ where: { status: { in: ['REQUESTED', 'UNDER_REVIEW', 'APPROVED', 'FAILED'] } }, orderBy: { createdAt: 'desc' }, take: 15, select: { id: true, status: true, requestedAmount: true, reason: true, reviewNotes: true, createdAt: true, updatedAt: true } }).catch(() => []),
       ])
+      const incidents = await prisma.paymentIncident.findMany({ where: { status: { in: ['OPEN', 'INVESTIGATING', 'ACTION_REQUIRED'] } }, orderBy: [{ severity: 'desc' }, { createdAt: 'asc' }], take: 15, select: { id: true, incidentType: true, status: true, severity: true, title: true, description: true, paymentId: true, bookingId: true, partnerId: true, slaDueAt: true, createdAt: true } }).catch(() => [])
       const metaStatus = (m: string | null) => { try { const j = JSON.parse(m ?? '{}'); return j.status_detail ?? j.statusDetail ?? null } catch { return null } }
       return {
         pagos_7d: byStatus.map((b) => ({ estado: b.status, cantidad: b._count._all, total_cop: b._sum.totalAmount ?? 0 })),
         rechazados: rejected.map((p) => ({ id: p.id, monto: p.totalAmount, medio: p.paymentMethodType, motivo: p.rejectionReason ?? metaStatus(p.metadata), fecha: p.updatedAt })),
-        pagos_a_socios_fallidos: payouts.map((p) => ({ id: p.id, socio: p.partner.user.name, neto: p.netAmount, estado_procesador: p.processorStatus, mensaje: p.processorMessage?.slice(0, 200) ?? null, notas: p.notes?.slice(0, 200) ?? null, fecha: p.updatedAt })),
+        pagos_a_socios_fallidos: payouts.map((p) => ({ id: p.id, socio: untrusted(p.partner.user.name.slice(0, 80)), partnerId: p.partner.id, neto: p.netAmount, estado_procesador: p.processorStatus, mensaje: p.processorMessage?.slice(0, 200) ?? null, notas: p.notes ? untrusted(p.notes.slice(0, 200)) : null, fecha: p.updatedAt })),
         pagos_a_socios_pendientes: { cantidad: payoutsPending._count._all, neto_cop: payoutsPending._sum.netAmount ?? 0, mas_antiguo: payoutsPending._min.createdAt },
         efectivo_por_confirmar: cash,
-        reembolsos_abiertos: refunds.map((r) => ({ ...r, reason: untrusted(r.reason.slice(0, 200)) })),
+        reembolsos_abiertos: refunds.filter((r) => r.status !== 'FAILED').map((r) => ({ id: r.id, estado: r.status, monto: r.requestedAmount, motivo: untrusted(r.reason.slice(0, 200)), creado: r.createdAt })),
+        reembolsos_fallidos: refunds.filter((r) => r.status === 'FAILED').map((r) => ({ id: r.id, monto: r.requestedAmount, motivo: untrusted(r.reason.slice(0, 200)), notas: r.reviewNotes ? untrusted(r.reviewNotes.slice(0, 200)) : null, desde: r.updatedAt })),
+        // Titles and descriptions may quote customers or processors: data, not instructions
+        incidentes_de_pago: incidents.map((x) => ({ id: x.id, tipo: x.incidentType, estado: x.status, gravedad: x.severity, titulo: untrusted(x.title.slice(0, 160)), descripcion: untrusted(x.description.slice(0, 240)), pago: x.paymentId, reserva: x.bookingId, partnerId: x.partnerId, vence: x.slaDueAt, creado: x.createdAt })),
       }
     },
   },
@@ -362,7 +379,11 @@ export const READ_TOOLS: Record<string, ReadTool> = {
   },
   busquedas: {
     def: { name: 'busquedas', description: 'Qué busca la gente en el sitio: totales, términos más buscados y los que no dan resultados (demanda no atendida).', input_schema: { type: 'object', properties: { periodo: { type: 'string', enum: ['7d', '30d', '90d'] } } } },
-    run: async (i) => searchTab(parsePeriod({ preset: period(i.periodo) })),
+    run: async (i) => {
+      const t = await searchTab(parsePeriod({ preset: period(i.periodo) }))
+      // Terms are typed by the public: data, not instructions
+      return { ...t, top: t.top.map((x) => ({ ...x, q: untrusted(x.q.slice(0, 80)) })) }
+    },
   },
   personas_y_adquisicion: {
     def: { name: 'personas_y_adquisicion', description: 'Registros de clientes y socios, de dónde llegan (origen de adquisición), cohortes de recompra y actividad.', input_schema: { type: 'object', properties: { periodo: { type: 'string', enum: ['7d', '30d', '90d'] } } } },
@@ -381,8 +402,8 @@ export const READ_TOOLS: Record<string, ReadTool> = {
         prisma.partnerProfile.findMany({ where: { totalReviews: { gte: 3 }, isActive: true }, orderBy: { rating: 'asc' }, take: 5, select: { id: true, rating: true, totalReviews: true, user: { select: { name: true } } } }),
       ])
       return {
-        bajas_30d: low.map((r) => ({ estrellas: r.clientToPartnerRating, servicio: r.booking.service?.name ?? null, socio: r.booking.partner?.user.name ?? null, socio_id: r.booking.partner?.id ?? null, comentario: untrusted(r.clientToPartnerComment?.slice(0, 240) ?? ''), fecha: r.clientReviewedAt })),
-        socios_peor_calificados: worst.map((p) => ({ id: p.id, nombre: p.user.name, calificacion: p.rating, resenas: p.totalReviews })),
+        bajas_30d: low.map((r) => ({ estrellas: r.clientToPartnerRating, servicio: r.booking.service?.name ?? null, socio: r.booking.partner ? untrusted(r.booking.partner.user.name.slice(0, 80)) : null, socio_id: r.booking.partner?.id ?? null, comentario: untrusted(r.clientToPartnerComment?.slice(0, 240) ?? ''), fecha: r.clientReviewedAt })),
+        socios_peor_calificados: worst.map((p) => ({ id: p.id, nombre: untrusted(p.user.name.slice(0, 80)), calificacion: p.rating, resenas: p.totalReviews })),
       }
     },
   },
@@ -402,18 +423,18 @@ export const READ_TOOLS: Record<string, ReadTool> = {
         por_ciudad: byCity.map((b) => ({ ciudad: b.city, verificado: b.verified, disponible: b.isAvailable, cantidad: b._count._all })),
         sin_verificar: pending.map((p) => ({ id: p.id, ciudad: p.city, dias: Math.round((Date.now() - p.createdAt.getTime()) / (24 * H)), documentos: p._count.documents, servicios: p._count.services })),
         nuevos_7d: fresh,
-        los_que_mas_trabajan: top.map((p) => ({ id: p.id, nombre: p.user.name, servicios: p.completedServicesCount, calificacion: p.rating })),
+        los_que_mas_trabajan: top.map((p) => ({ id: p.id, nombre: untrusted(p.user.name.slice(0, 80)), servicios: p.completedServicesCount, calificacion: p.rating })),
         con_zonas: withZones,
         con_horario: withSchedule,
       }
     },
   },
   mensajeria: {
-    def: { name: 'mensajeria', description: 'Campañas de mensajes recientes (WhatsApp, correo, SMS, push) con enviados y fallidos, los errores más comunes de envío en 24 h, el estado en Meta del catálogo de plantillas de WhatsApp (aprobadas, pendientes, rechazadas con motivo, recategorizadas) y los envíos por plantilla en 24 h.', input_schema: { type: 'object', properties: {} } },
+    def: { name: 'mensajeria', description: 'Campañas de mensajes recientes y las programadas (id para messaging.pause_campaign; WhatsApp, correo, SMS, push) con enviados y fallidos, los errores más comunes de envío en 24 h, el estado en Meta del catálogo de plantillas de WhatsApp (aprobadas, pendientes, rechazadas con motivo, recategorizadas) y los envíos por plantilla en 24 h.', input_schema: { type: 'object', properties: {} } },
     run: async () => {
       const day = new Date(Date.now() - 24 * H)
       const [campaigns, errors, byStatus, catalog, perTemplate] = await Promise.all([
-        prisma.messagingCampaign.findMany({ where: { updatedAt: { gte: new Date(Date.now() - 7 * 24 * H) } }, orderBy: { updatedAt: 'desc' }, take: 10, select: { id: true, name: true, channel: true, status: true, totalRecipients: true, totalSent: true, totalFailed: true, scheduledAt: true } }),
+        prisma.messagingCampaign.findMany({ where: { OR: [{ updatedAt: { gte: new Date(Date.now() - 7 * 24 * H) } }, { status: 'SCHEDULED' }] }, orderBy: { updatedAt: 'desc' }, take: 15, select: { id: true, name: true, channel: true, status: true, totalRecipients: true, totalSent: true, totalFailed: true, scheduledAt: true } }),
         prisma.messagingDelivery.groupBy({ by: ['channel', 'errorCode'], where: { createdAt: { gte: day }, status: 'FAILED' }, _count: { _all: true } }),
         prisma.messagingDelivery.groupBy({ by: ['channel', 'status'], where: { createdAt: { gte: day } }, _count: { _all: true } }),
         catalogStatus().catch(() => []),
@@ -437,15 +458,25 @@ export const READ_TOOLS: Record<string, ReadTool> = {
     },
   },
   seguridad: {
-    def: { name: 'seguridad', description: 'Eventos de seguridad de 24 h por tipo y gravedad, IP bloqueadas y rutas más atacadas.', input_schema: { type: 'object', properties: {} } },
+    def: { name: 'seguridad', description: 'Eventos de seguridad de 24 h por tipo y gravedad, rutas e IP más activas (ipAddress para security.block_ip), IP bloqueadas activas (para security.unblock_ip) y presión de límites de uso de la última hora (claves con más intentos: acceso con código, enlaces de acceso).', input_schema: { type: 'object', properties: {} } },
     run: async () => {
-      const day = new Date(Date.now() - 24 * H)
-      const [byType, byPath, blocked] = await Promise.all([
+      const now = new Date()
+      const day = new Date(now.getTime() - 24 * H)
+      const [byType, byPath, byIp, blocked, hits] = await Promise.all([
         prisma.securityEvent.groupBy({ by: ['threatType', 'severity'], where: { createdAt: { gte: day } }, _count: { _all: true } }),
         prisma.securityEvent.groupBy({ by: ['path'], where: { createdAt: { gte: day } }, _count: { _all: true }, orderBy: { _count: { path: 'desc' } }, take: 8 }),
-        prisma.blockedIp.count({ where: { isActive: true } }),
+        prisma.securityEvent.groupBy({ by: ['ipAddress'], where: { createdAt: { gte: day } }, _count: { _all: true }, orderBy: { _count: { ipAddress: 'desc' } }, take: 10 }),
+        prisma.blockedIp.findMany({ where: { isActive: true, OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] }, orderBy: { blockedAt: 'desc' }, take: 20, select: { ipAddress: true, reason: true, blockSource: true, blockedAt: true, expiresAt: true } }),
+        prisma.rateLimitHit.groupBy({ by: ['key'], where: { windowStart: { gte: new Date(now.getTime() - H) } }, _sum: { count: true }, orderBy: { _sum: { count: 'desc' } }, take: 12 }).catch(() => []),
       ])
-      return { por_tipo: byType.map((b) => ({ tipo: b.threatType, gravedad: b.severity, n: b._count._all })), rutas: byPath.map((b) => ({ ruta: b.path, n: b._count._all })), ip_bloqueadas: blocked }
+      const blockedSet = new Set(blocked.map((b) => b.ipAddress))
+      return {
+        por_tipo: byType.map((b) => ({ tipo: b.threatType, gravedad: b.severity, n: b._count._all })),
+        rutas: byPath.map((b) => ({ ruta: b.path, n: b._count._all })),
+        ip_mas_activas: byIp.map((b) => ({ ipAddress: b.ipAddress, eventos: b._count._all, bloqueada: blockedSet.has(b.ipAddress) })),
+        ip_bloqueadas: blocked.map((b) => ({ ipAddress: b.ipAddress, motivo: untrusted(b.reason.slice(0, 120)), origen: b.blockSource, desde: b.blockedAt, vence: b.expiresAt })),
+        limites_ultima_hora: hits.map((h) => ({ clave: maskLimitKey(h.key), intentos: h._sum.count ?? 0 })),
+      }
     },
   },
   agentes_marketing: {
@@ -475,6 +506,7 @@ export const READ_TOOLS: Record<string, ReadTool> = {
     run: async () => (await prisma.featureFlag.findMany({ orderBy: { key: 'asc' }, take: 60, select: { key: true, name: true, description: true, enabled: true, updatedAt: true } })).map((f) => ({ ...f, description: f.description?.slice(0, 200) ?? null })),
   },
   ...PLATFORM_READ_TOOLS,
+  ...DETAIL_READ_TOOLS,
   hallazgos_abiertos: {
     def: { name: 'hallazgos_abiertos', description: 'Los hallazgos que Haggo ya tiene abiertos, para no repetirlos.', input_schema: { type: 'object', properties: {} } },
     run: async () => {

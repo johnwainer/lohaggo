@@ -170,7 +170,7 @@ describe('reglas de detección', () => {
 
   it('plantillas de WhatsApp rechazadas por Meta', () => {
     expect(keys({ waTemplates: { approved: 60, pending: 5, rejected: ['lh_cliente_nueva_propuesta'], recategorized: [] } })).toEqual(['sys:wa-templates-rejected'])
-    expect(keys({ waTemplates: { approved: 60, pending: 11, rejected: [], recategorized: ['x'] } })).toEqual([])
+    expect(keys({ waTemplates: { approved: 60, pending: 11, rejected: [], recategorized: ['x'] } })).toEqual(['sys:wa-templates-recategorized'])
   })
 
   it('presupuesto de IA de una cuenta: advertencia al 80 %, crítico al 100 %', () => {
@@ -227,6 +227,37 @@ describe('reglas de detección', () => {
     expect(d[0].title).toBe('1 reclamo de garantía vencido (más de 72 h sin resolver)')
     expect(d[2].detail).toMatch(/suspende/)
     expect(d[1]).toMatchObject({ entityType: 'PartnerProfile', entityId: 'p1' })
+  })
+
+  it('reembolsos fallidos, incidentes de pago y socios con pagos sin cuenta bancaria', () => {
+    expect(keys({ payments: { ...base.payments, refundsFailed: 1 }, paymentIncidents: { open: 2, high: 0 }, partnerCoverage: { noZones: 1, noSchedule: 1, payoutNoBank: 1 } })).toEqual(['money:refunds-failed', 'money:payment-incidents', 'money:payout-no-bank'])
+    expect(detect({ ...base, paymentIncidents: { open: 2, high: 1 } })[0].severity).toBe('warning')
+    expect(keys({ partnerCoverage: { noZones: 0, noSchedule: 3, payoutNoBank: 0 } })).toEqual(['users:partners-no-coverage'])
+  })
+
+  it('webhooks y mensajes automáticos que fallan', () => {
+    expect(keys({ webhooks: { total24h: 40, notOk24h: 10, failingChannels: ['WHATSAPP'] } })).toEqual(['sys:webhooks-failing'])
+    expect(keys({ webhooks: { total24h: 400, notOk24h: 10, failingChannels: ['WHATSAPP'] } })).toEqual([])
+    expect(keys({ automations: { sent24h: 10, failed24h: 5, failed7d: 9 } })).toEqual(['sys:automations-failing'])
+    expect(keys({ automations: { sent24h: 100, failed24h: 5, failed7d: 9 } })).toEqual([])
+  })
+
+  it('marketing: solicitudes sin origen y conversiones que no salen', () => {
+    const attribution = { requests7d: 10, withOrigin7d: 3, spend7d: 0, spendWithoutRequests: [], conversionsFailed7d: 0 }
+    expect(keys({ attribution })).toEqual(['mk:attribution-coverage'])
+    expect(keys({ attribution: { ...attribution, withOrigin7d: 8 }, conversions: { configured: true, sent7d: 0 } })).toEqual(['mk:conversions-silent'])
+    expect(keys({ attribution: { ...attribution, withOrigin7d: 8 }, conversions: { configured: false, sent7d: 0 } })).toEqual([])
+  })
+
+  it('costo de IA: hoy más del doble del promedio de 7 días', () => {
+    expect(keys({ aiCost: { today: 3, month: 20, avg7d: 1 } })).toEqual(['ai:cost-spike'])
+    expect(keys({ aiCost: { today: 1.5, month: 20, avg7d: 1 } })).toEqual([])
+  })
+
+  it('ciudad lista para abrir: una por ciudad, con la lista de espera', () => {
+    const d = detect({ ...base, cities: { readyToLaunch: [{ slug: 'bogota', name: 'Bogotá' }], waitlistPending: { bogota: 40 } } })
+    expect(d.map((x) => x.key)).toEqual(['cities:ready-to-launch:bogota'])
+    expect(d[0].detail).toContain('40')
   })
 
   it('novedad: lo que no estaba antes o empeoró', () => {

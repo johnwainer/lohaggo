@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const m = vi.hoisted(() => ({
   findMany: vi.fn(), updateMany: vi.fn(), emit: vi.fn(), notifCreate: vi.fn(async (a: { data: { userId: string } }) => ({ id: 'n', ...a.data })), findUnique: vi.fn(),
 }))
-vi.mock('@/lib/prisma', () => ({ prisma: { conversation: { findMany: m.findMany, updateMany: m.updateMany }, serviceRequest: { findUnique: m.findUnique }, notification: { create: m.notifCreate }, user: { findUnique: async () => null } } }))
+vi.mock('@/lib/prisma', () => ({ prisma: { conversation: { findMany: m.findMany, updateMany: m.updateMany }, serviceRequest: { findUnique: m.findUnique }, proposal: { findMany: async () => [] }, notification: { create: m.notifCreate }, user: { findUnique: async () => null } } }))
 vi.mock('@/lib/logger', () => ({ createLogger: () => ({ info() {}, warn() {}, error() {} }) }))
 vi.mock('@/lib/messaging/inbox-emitter', () => ({ emitInboxEvent: m.emit }))
 vi.mock('@/lib/messaging/whatsapp-templates', () => ({ sendNuevaSolicitudSocio: vi.fn(async () => {}), sendSolicitudEnviadaCliente: vi.fn(async () => {}) }))
@@ -31,7 +31,7 @@ describe('avisar a socios de una solicitud: con partnersOnly no se le escribe ot
   const request = {
     id: 'r1', serviceId: 's1', city: 'MEDELLIN', isUrgent: false, preferredDate: null, preferredTime: null, partnerId: null, partner: null,
     user: { id: 'client', name: 'Cliente', phone: '300' },
-    service: { name: 'Plomería', partners: [{ partner: { city: 'MEDELLIN', isActive: true, verified: true, isAvailable: true, user: { id: 'p1', name: 'Socio', phone: '301' } } }, { partner: { city: 'BOGOTA', isActive: true, verified: true, isAvailable: true, user: { id: 'p2', name: 'Otro', phone: null } } }] },
+    service: { name: 'Plomería', partners: [{ city: 'MEDELLIN', partner: { id: 'pp1', coverageZones: [], availability: [], city: 'MEDELLIN', isActive: true, verified: true, isAvailable: true, user: { id: 'p1', name: 'Socio', phone: '301' } } }, { city: 'BOGOTA', partner: { id: 'pp2', coverageZones: [], availability: [], city: 'BOGOTA', isActive: true, verified: true, isAvailable: true, user: { id: 'p2', name: 'Otro', phone: null } } }] },
   }
   it('cuenta los socios avisados y no crea la notificación del cliente', async () => {
     m.findUnique.mockResolvedValue(request)

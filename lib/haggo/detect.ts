@@ -9,7 +9,9 @@ export type Snapshot = {
   requests: { active: number; withoutProposals: number }
   partners: { available: number; verified: number; pendingVerification: number }
   payouts: { pending: number; failed: number; paymentsToConfirm: number; oldestPendingDays?: number }
-  payments: { rejected24h: number; pendingOld: number; refundsOpen: number }
+  payments: { rejected24h: number; pendingOld: number; refundsOpen: number; refundsFailed?: number }
+  /** Open PaymentIncident rows (OPEN, INVESTIGATING, ACTION_REQUIRED) and how many are HIGH or CRITICAL */
+  paymentIncidents?: { open: number; high: number }
   reviews: { low7d: number }
   search: { total24h: number; zero24h: number }
   messaging: { sent24h: number; failed24h: number }
@@ -18,13 +20,27 @@ export type Snapshot = {
   aiAgents: Array<{ id: string; name: string; messagesToday: number; handoffsToday: number; openGaps: number; actionsToday?: { executed: number; failed: number; awaiting: number } }>
   /** What the inbox agents did on the platform today (AiAgentAction) and the day's cancellations by origin (BookingEvent) */
   aiActions: { actionsToday: { executed: number; failed: number; awaiting: number }; chatCancellationsToday: number; cancellationsToday: number; awaitingApproval?: number; oldestAwaitingMinutes?: number }
-  aiCost: { today: number; month: number }
+  aiCost: { today: number; month: number; avg7d?: number }
   aiProviders: { down: Array<{ name: string; reason: string }>; answering: string | null }
   marketing: { inReview: number; failedWeek: number; scheduledToday: number; ideasPending: number; runErrors24h: number; degraded: Array<{ id: string; campaign: string; reason: string }>; editorial?: { held: number; reviewedWeek: number; notApprovedWeek: number; failedWeek: number } }
   quality: { rating: number | null; casesOpen: number; casesSla: number }
   channels: { problems: string[] }
   system: { cronsFailing: number; cronsLate: number; errorsLastHour: number; criticalIncidents: number }
   budgets: Array<{ workspace: string; pct: number }>
+  /** Parts of the snapshot that could not be read this time (their numbers are zeros, not reality) */
+  unavailable?: string[]
+  /** Webhooks of Meta and Twilio in 24 h: received, not OK, and the channels with problems */
+  webhooks?: { total24h: number; notOk24h: number; failingChannels: string[] }
+  /** External services of Salud del sistema by level */
+  externalServices?: { errors: string[]; warnings: string[] }
+  /** Automatic messages (AutomationExecution) sent and failed */
+  automations?: { sent24h: number; failed24h: number; failed7d: number }
+  /** Verified partners without zones (they cover the whole city) or weekly schedule, and partners with pending payouts but no active bank account */
+  partnerCoverage?: { noZones: number; noSchedule: number; payoutNoBank: number }
+  /** Cities not active that already meet the launch coverage, and people waiting to be told per city */
+  cities?: { readyToLaunch: Array<{ slug: string; name: string }>; waitlistPending: Record<string, number> }
+  /** Server conversions (Meta CAPI / GA4): configured, and how many went out in 7 days */
+  conversions?: { configured: boolean; sent7d: number }
   /** Partner verification documents waiting for review */
   docs?: { pending: number; oldestHours: number }
   catalog?: { servicesWithoutPartners: number; partnersVerifiedNoServices: number }
@@ -75,6 +91,12 @@ export function detect(s: Snapshot): Detection[] {
   if (s.payouts.paymentsToConfirm) add({ key: 'money:payments-to-confirm', domain: 'money', severity: 'info', title: `${plural(s.payouts.paymentsToConfirm, 'pago en efectivo', 'pagos en efectivo')} por confirmar`, detail: 'Reportados por cliente o socio.' })
   if (s.payments.rejected24h >= 3) add({ key: 'money:payments-rejected', domain: 'money', severity: 'warning', title: `${s.payments.rejected24h} pagos rechazados en 24 h`, detail: 'Puede ser un problema con MercadoPago o con los medios de pago.' })
   if (s.payments.pendingOld) add({ key: 'money:payments-pending-old', domain: 'money', severity: 'info', title: `${plural(s.payments.pendingOld, 'pago lleva', 'pagos llevan')} más de 24 h pendiente${s.payments.pendingOld === 1 ? '' : 's'}`, detail: 'Pagos sin aprobar ni rechazar.' })
+  if (s.payments.refundsFailed) add({ key: 'money:refunds-failed', domain: 'money', severity: 'warning', title: `${plural(s.payments.refundsFailed, 'reembolso falló', 'reembolsos fallaron')} al procesarse`, detail: 'El cliente espera su dinero: revisar en Reembolsos y reintentar o devolver a mano. Ver dinero.' })
+  const pi = s.paymentIncidents
+  if (pi && pi.open) add({ key: 'money:payment-incidents', domain: 'money', severity: pi.high ? 'warning' : 'info', title: `${plural(pi.open, 'incidente de pago abierto', 'incidentes de pago abiertos')}${pi.high ? ` (${pi.high} de gravedad alta)` : ''}`, detail: 'Pagos con problemas sin resolver. Ver dinero (incidentes_de_pago).' })
+  const pc = s.partnerCoverage
+  if (pc && pc.payoutNoBank) add({ key: 'money:payout-no-bank', domain: 'money', severity: 'warning', title: `${plural(pc.payoutNoBank, 'socio tiene', 'socios tienen')} pagos pendientes sin cuenta bancaria activa`, detail: 'No se les puede transferir: pedirles que registren su cuenta. Ver socio_detalle.' })
+  if (pc && pc.noSchedule >= 3) add({ key: 'users:partners-no-coverage', domain: 'users', severity: 'info', title: `${pc.noSchedule} socios verificados sin horario semanal`, detail: `Los avisos por zona y horario no los priorizan. ${pc.noZones} sin zonas marcadas (cubren toda la ciudad). Ver socios.` })
   if (s.payments.refundsOpen) add({ key: 'money:refunds-open', domain: 'money', severity: 'warning', title: `${plural(s.payments.refundsOpen, 'reembolso abierto', 'reembolsos abiertos')}`, detail: 'Solicitudes de reembolso sin cerrar.' })
   if (s.reviews.low7d >= 2) add({ key: 'quality:low-reviews', domain: 'operations', severity: 'warning', title: `${s.reviews.low7d} calificaciones de 1 o 2 estrellas en 7 días`, detail: `Calificación de 30 días: ${s.quality.rating ?? 'sin datos'}.` })
   if (s.search.zero24h >= 5 && s.search.zero24h / Math.max(1, s.search.total24h) >= 0.2) add({ key: 'demand:zero-results', domain: 'operations', severity: 'info', title: `${s.search.zero24h} de ${s.search.total24h} búsquedas sin resultados en 24 h`, detail: 'Demanda que la plataforma no está atendiendo.' })
@@ -129,6 +151,9 @@ export function detect(s: Snapshot): Detection[] {
       entityType: 'MarketingAdDraft', entityId: shift.from.adDraftId,
     })
   }
+  const at = s.attribution
+  if (at && at.requests7d >= 5 && at.withOrigin7d / at.requests7d < 0.5) add({ key: 'mk:attribution-coverage', domain: 'marketing', severity: 'info', title: `Solo ${Math.round((at.withOrigin7d / at.requests7d) * 100)} % de las solicitudes de 7 días tienen origen`, detail: `${at.withOrigin7d} de ${at.requests7d}. Sin origen no se sabe qué pauta o pieza funciona: revisar UTM, refs del mensaje prellenado y cookies (resultados_marketing).` })
+  if (s.conversions?.configured && at && at.requests7d >= 5 && s.conversions.sent7d === 0) add({ key: 'mk:conversions-silent', domain: 'marketing', severity: 'warning', title: `Las conversiones están configuradas pero no salió ninguna en 7 días (${at.requests7d} solicitudes)`, detail: 'Meta y Google optimizan a ciegas: revisar el token, el píxel y los envíos en Analítica → Origen → Conversiones.' })
   if ((s.attribution?.conversionsFailed7d ?? 0) >= 3) add({ key: 'mk:conversions-failed', domain: 'marketing', severity: 'warning', title: `${s.attribution!.conversionsFailed7d} conversiones no llegaron a Meta o Google en 7 días`, detail: 'Revisar el token y el píxel en Analítica → Origen → Conversiones.' })
   const ra = s.requestAttention
   if (ra) {
@@ -150,6 +175,11 @@ export function detect(s: Snapshot): Detection[] {
   if (s.system.errorsLastHour >= 5) add({ key: 'sys:error-spike', domain: 'system', severity: 'warning', title: `${s.system.errorsLastHour} errores nuevos en la última hora`, detail: 'Pico de errores de la aplicación.' })
   const wa = s.waTemplates
   if (wa?.rejected.length) add({ key: 'sys:wa-templates-rejected', domain: 'system', severity: 'warning', title: `${plural(wa.rejected.length, 'plantilla de WhatsApp rechazada', 'plantillas de WhatsApp rechazadas')} por Meta`, detail: `${wa.rejected.slice(0, 6).join(', ')}${wa.rejected.length > 6 ? '…' : ''}. Esos avisos no salen (o salen con la plantilla vieja): ajustar el texto y crearlas con otro nombre.` })
+  if (wa?.recategorized.length) add({ key: 'sys:wa-templates-recategorized', domain: 'system', severity: 'info', title: `${plural(wa.recategorized.length, 'plantilla de WhatsApp quedó', 'plantillas de WhatsApp quedaron')} en otra categoría`, detail: `${wa.recategorized.slice(0, 6).join(', ')}${wa.recategorized.length > 6 ? '…' : ''}. Meta las aprobó como MARKETING: salen solo en horario permitido y no a quien lo excluyó. Ver mensajeria.` })
+  const wh = s.webhooks
+  if (wh && wh.notOk24h >= 10 && wh.notOk24h / Math.max(1, wh.total24h) >= 0.2) add({ key: 'sys:webhooks-failing', domain: 'system', severity: 'warning', title: `${wh.notOk24h} de ${wh.total24h} webhooks con error o ignorados en 24 h`, detail: `Canales: ${wh.failingChannels.join(', ') || '—'}. Mensajes o estados de Meta y Twilio pueden no estar llegando. Ver salud_sistema.` })
+  const au = s.automations
+  if (au && au.failed24h >= 5 && au.failed24h / Math.max(1, au.failed24h + au.sent24h) >= 0.2) add({ key: 'sys:automations-failing', domain: 'system', severity: 'warning', title: `${au.failed24h} mensajes automáticos fallaron en 24 h`, detail: `${au.sent24h} enviados. Ver automatizaciones.` })
   if (s.system.criticalIncidents) add({ key: 'sys:critical-incidents', domain: 'system', severity: 'critical', title: `${plural(s.system.criticalIncidents, 'incidente crítico abierto', 'incidentes críticos abiertos')}`, detail: 'Ver Casos e incidentes.' })
 
   const bookingsDrop = drop(s.bookings.last7, s.bookings.prev7)
@@ -158,6 +188,9 @@ export function detect(s: Snapshot): Detection[] {
   if (s.sales.prev7 > 0 && salesDrop >= 30) add({ key: 'biz:sales-drop', domain: 'operations', severity: 'warning', title: `Ventas de los últimos 7 días bajaron ${salesDrop} %`, detail: `${Math.round(s.sales.last7)} frente a ${Math.round(s.sales.prev7)} la semana anterior.` })
   if (s.requests.active >= 3 && s.partners.available === 0) add({ key: 'ops:no-partners', domain: 'operations', severity: 'critical', title: 'No hay socios disponibles y hay solicitudes activas', detail: `${s.requests.active} solicitudes activas.` })
 
+  for (const c of s.cities?.readyToLaunch ?? []) add({ key: `cities:ready-to-launch:${c.slug}`, domain: 'config', severity: 'info', title: `${c.name} ya cumple la cobertura para abrir`, detail: `${s.cities?.waitlistPending[c.slug] ?? 0} personas esperan el aviso. Revisar apertura_ciudad y, si todo cuadra, proponer config.set_city_status.`, entityType: 'CityConfig', entityId: c.slug })
+  const cost = s.aiCost
+  if (cost.avg7d != null && cost.avg7d >= 0.5 && cost.today > 2 * cost.avg7d) add({ key: 'ai:cost-spike', domain: 'ai_agents', severity: 'warning', title: `El gasto de IA de hoy (US$${cost.today.toFixed(2)}) es más del doble del promedio de 7 días (US$${cost.avg7d.toFixed(2)})`, detail: 'Ver costos_ia por tipo y proveedor.' })
   for (const b of s.budgets) if (b.pct >= 80) add({ key: `ai:budget:${b.workspace}`, domain: 'ai_agents', severity: b.pct >= 100 ? 'critical' : 'warning', title: `${b.workspace}: ${b.pct} % del tope mensual de IA`, detail: b.pct >= 100 ? 'Los agentes traspasan a personas hasta el próximo mes o hasta subir el tope.' : 'Cerca del tope mensual.' })
   return out
 }

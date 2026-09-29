@@ -1,7 +1,10 @@
 import type { HaggoActionDef } from '@/lib/haggo/actions/types'
 
 /** Read tools that return text written by customers, partners or the public. */
-export const THIRD_PARTY_TOOLS = ['conversaciones_en_espera', 'resenas', 'agente_ia', 'incidentes_abiertos'] as const
+export const THIRD_PARTY_TOOLS = [
+  'conversaciones_en_espera', 'resenas', 'agente_ia', 'incidentes_abiertos', 'solicitud_detalle', 'busquedas', 'garantia', 'actividad_reciente', 'acciones_por_chat',
+  'conversion_clientes', 'dinero', 'origen_conversaciones', 'solicitudes_con_atencion', 'socio_detalle', 'conversacion_detalle',
+] as const
 /** Evidence the chat accepts beyond the read tools: the superadmin's own order. */
 export const SUPERADMIN_ORDER = 'orden_del_superadmin'
 

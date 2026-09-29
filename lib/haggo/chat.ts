@@ -5,7 +5,7 @@ import { createLogger } from '@/lib/logger'
 import { callAI, describeApiError, textOf, type CallResult } from '@/lib/ai/anthropic'
 import { getAiSettings } from '@/lib/ai/settings'
 import { DOMAINS, type Domain } from '@/lib/haggo/config'
-import { askedToRemember, buildWindow, cleanUserText, linksBlock, MAX_FACTS, needsSummary, rateLimited, sanitizeLinks, WINDOW, type ChatRunOutput, type ChatTurn, type Proposal } from '@/lib/haggo/chat-core'
+import { askedToRemember, buildWindow, cleanUserText, linksBlock, MAX_FACTS, needsSummary, rateLimited, sanitizeLinks, snapshotForChat, WINDOW, type ChatRunOutput, type ChatTurn, type Proposal } from '@/lib/haggo/chat-core'
 import { cleanDirectiveText, describeRule, parseRule } from '@/lib/haggo/directives'
 import { buildSystem } from '@/lib/haggo/prompt'
 import { configStatusBlock } from '@/lib/haggo/config-status'
@@ -127,7 +127,7 @@ async function chatContext() {
   const text = [
     `Ahora: ${new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota', weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}.`,
     settings?.focus ? `Tu foco actual: ${settings.focus}` : '',
-    settings?.lastSnapshot ? `Última foto de la plataforma (${settings.lastSnapshotAt?.toISOString()}):\n${JSON.stringify(settings.lastSnapshot).slice(0, 6000)}` : '',
+    settings?.lastSnapshot ? `Última foto de la plataforma (${settings.lastSnapshotAt?.toISOString()}):\n${snapshotForChat(settings.lastSnapshot)}` : '',
     `Hallazgos abiertos:\n${findings.map((f) => `- [${f.severity}] ${f.domain}: ${f.title}`).join('\n') || '- ninguno'}`,
     report ? `Último informe (${report.type}, ${report.startedAt.toISOString()}): ${report.summary ?? ''}\n${(report.report ?? '').slice(0, 2500)}` : '',
     summary ? `Resumen de la conversación anterior:\n${summary.content}` : '',

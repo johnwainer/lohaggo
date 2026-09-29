@@ -178,4 +178,31 @@ const assign: HaggoActionDef<{ conversationId: string; userId: string }> = {
   },
 }
 
-export const AI_ACTIONS = [agentStatus('pause', 'paused'), agentStatus('activate', 'active'), instructions, answerGap, reindex, assign] as unknown as HaggoActionDef[]
+const dismissGap: HaggoActionDef<{ gapId: string; reason: string }> = {
+  id: 'ai_agents.dismiss_gap',
+  domain: 'ai_agents',
+  risk: 'low',
+  label: 'Descartar una pregunta sin respuesta',
+  hint: 'Cierra un vacío de conocimiento que no hay que responder (spam, fuera del negocio, repetido o ya cubierto por otro documento). No cambia lo que dicen los agentes. El gapId sale de agente_ia.',
+  schema: { type: 'object', properties: { gapId: { type: 'string' }, reason: { type: 'string', description: 'Por qué no se responde' } }, required: ['gapId', 'reason'] },
+  sideEffects: [],
+  parse: (raw) => { const r = requireObj(raw); const e: string[] = []; if (!r) return { ok: false, errors: ['Parámetros inválidos'] }; return done(e, { gapId: parseId(r, 'gapId', e), reason: parseText(r, 'reason', e, { min: 5, max: 300 }) as string }) },
+  describe: (p) => `Descartar la pregunta sin respuesta: ${p.reason}`,
+  entity: (p) => ({ type: 'AiKnowledgeGap', id: p.gapId }),
+  preconditions: async (p) => {
+    const g = await prisma.aiKnowledgeGap.findUnique({ where: { id: p.gapId }, select: { status: true, question: true } })
+    if (!g) return { ok: false, reason: 'El vacío no existe' }
+    if (g.status !== 'open') return { ok: false, reason: 'El vacío ya no está abierto' }
+    return { ok: true, before: { question: g.question.slice(0, 300) } }
+  },
+  preview: async (p) => ({ summary: `La pregunta sale de los vacíos abiertos (${p.reason})`, diff: [{ field: 'Vacío', from: 'abierto', to: 'descartado' }] }),
+  execute: async (p) => {
+    const r = await prisma.aiKnowledgeGap.updateMany({ where: { id: p.gapId, status: 'open' }, data: { status: 'dismissed', answeredAt: new Date() } })
+    if (!r.count) throw new Error('El vacío ya no está abierto')
+    return { after: { status: 'dismissed' }, result: 'Descartado' }
+  },
+  unchanged: async (p) => (await prisma.aiKnowledgeGap.findUnique({ where: { id: p.gapId }, select: { status: true } }))?.status === 'dismissed',
+  undo: async (p) => { await prisma.aiKnowledgeGap.update({ where: { id: p.gapId }, data: { status: 'open', answeredAt: null } }) },
+}
+
+export const AI_ACTIONS = [agentStatus('pause', 'paused'), agentStatus('activate', 'active'), instructions, answerGap, reindex, assign, dismissGap] as unknown as HaggoActionDef[]

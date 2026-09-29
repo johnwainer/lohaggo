@@ -10,6 +10,8 @@ import { getDefaultWorkspaceId } from '@/lib/workspaces'
 import { ID, done, isObj, parseDate, parseId, parseText, requireObj, when, type HaggoActionDef } from '@/lib/haggo/actions/types'
 
 const DONE_POST = ['published', 'partial', 'publishing', 'archived']
+/** Free-text names as a stable entity id: lowercase, no accents, dashes («Plomería» → «plomeria») */
+export const entityKey = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60)
 const json = (v: unknown) => JSON.parse(JSON.stringify(v))
 
 const reschedule: HaggoActionDef<{ postId: string; when: Date }> = {
@@ -467,7 +469,8 @@ const requestAdPackage: HaggoActionDef<AdPackageParams> = {
     return done(e, { service: parseText(r, 'service', e, { min: 2, max: 120 }) ?? '', city: parseText(r, 'city', e, { min: 2, max: 80 }) ?? '', instruction: parseText(r, 'instruction', e, { min: 10, max: 800 }) ?? '' })
   },
   describe: (p) => `Pedir una pauta de ${p.service} en ${p.city}`,
-  entity: () => null,
+  // Same service and city = same package: pending, rejected and cooldown checks apply
+  entity: (p) => ({ type: 'AdPackageRequest', id: `${entityKey(p.service)}:${entityKey(p.city)}` }),
   preconditions: async (p) => {
     const service = await prisma.service.findFirst({ where: { name: { equals: p.service, mode: 'insensitive' } }, select: { name: true } })
     if (!service) return { ok: false, reason: `«${p.service}» no está en el catálogo` }
@@ -509,7 +512,7 @@ const proposeBudgetShift: HaggoActionDef<BudgetParams> = {
     return done(e, { fromAdSet: parseText(r, 'fromAdSet', e, { min: 2, max: 80 }) ?? '', toAdSet: parseText(r, 'toAdSet', e, { min: 2, max: 80 }) ?? '', dailyCop: daily, reason: parseText(r, 'reason', e, { min: 10, max: 600 }) ?? '' })
   },
   describe: (p) => `Mover $${p.dailyCop.toLocaleString('es-CO')}/día de ${p.fromAdSet} a ${p.toAdSet}`,
-  entity: () => null,
+  entity: (p) => ({ type: 'AdBudget', id: `${entityKey(p.fromAdSet)}->${entityKey(p.toAdSet)}` }),
   preconditions: async (p) => {
     if (p.fromAdSet.toLowerCase() === p.toAdSet.toLowerCase()) return { ok: false, reason: 'Los dos conjuntos son el mismo' }
     const since = new Date(Date.now() - 7 * 24 * 3600_000)
@@ -521,4 +524,38 @@ const proposeBudgetShift: HaggoActionDef<BudgetParams> = {
   execute: async (p) => ({ after: null, result: `Hacer en Meta Ads Manager → Conjuntos de anuncios: bajar el presupuesto diario de «${p.fromAdSet}» en $${p.dailyCop.toLocaleString('es-CO')} y subir «${p.toAdSet}» en $${p.dailyCop.toLocaleString('es-CO')}. Motivo: ${p.reason}` }),
 }
 
-export const MARKETING_ACTIONS = [reschedule, retry, approve, cancel, pause, activate, updateSchedule, requestPlan, decideIdeasAction, draftIdeaAction, reviewPostAction, requestAdPackage, proposeBudgetShift] as unknown as HaggoActionDef[]
+const PAUSABLE = ['SCHEDULED'] as const
+
+const pauseCampaign: HaggoActionDef<{ campaignId: string }> = {
+  id: 'messaging.pause_campaign',
+  domain: 'marketing',
+  risk: 'medium',
+  label: 'Pausar una campaña de mensajes programada',
+  hint: 'Detiene una campaña de mensajes (WhatsApp, correo, SMS) que está programada y todavía no empezó: vuelve a borrador (no hay estado «pausada»), no sale a su hora y queda para revisarla en Mensajería. Úsala si la campaña tiene un error, apunta al público equivocado o la plantilla fue rechazada. Deshacer la vuelve a programar (si su hora ya pasó, sale en la siguiente corrida). El campaignId sale de mensajeria.',
+  schema: { type: 'object', properties: { campaignId: { type: 'string' } }, required: ['campaignId'] },
+  sideEffects: [],
+  parse: (raw) => { const r = requireObj(raw); const e: string[] = []; if (!r) return { ok: false, errors: ['Parámetros inválidos'] }; return done(e, { campaignId: parseId(r, 'campaignId', e) }) },
+  describe: () => 'Pausar la campaña (vuelve a borrador)',
+  entity: (p) => ({ type: 'MessagingCampaign', id: p.campaignId }),
+  preconditions: async (p) => {
+    const c = await prisma.messagingCampaign.findUnique({ where: { id: p.campaignId }, select: { name: true, status: true, channel: true, scheduledAt: true, totalRecipients: true } })
+    if (!c) return { ok: false, reason: 'La campaña no existe' }
+    if (c.status === 'PROCESSING') return { ok: false, reason: 'La campaña ya se está enviando: no se puede detener desde aquí' }
+    if (!(PAUSABLE as readonly string[]).includes(c.status)) return { ok: false, reason: `La campaña está en ${c.status}: solo se pausan las programadas` }
+    return { ok: true, before: { name: c.name, status: c.status, channel: c.channel, scheduledAt: c.scheduledAt?.toISOString() ?? null, recipients: c.totalRecipients } }
+  },
+  preview: async (_p, before) => {
+    const b = before as { name: string; channel: string; scheduledAt: string | null }
+    return { summary: `«${b.name}» (${b.channel}) no sale${b.scheduledAt ? ` el ${when(b.scheduledAt)}` : ''}: queda en borrador`, diff: [{ field: 'Estado', from: 'programada', to: 'borrador' }] }
+  },
+  execute: async (p) => {
+    // Only if it is still scheduled: a run that started in between wins
+    const r = await prisma.messagingCampaign.updateMany({ where: { id: p.campaignId, status: 'SCHEDULED' }, data: { status: 'DRAFT' } })
+    if (!r.count) throw new Error('La campaña ya no está programada')
+    return { after: { status: 'DRAFT' }, result: 'Campaña en borrador: no sale hasta que alguien la vuelva a programar' }
+  },
+  unchanged: async (p) => (await prisma.messagingCampaign.findUnique({ where: { id: p.campaignId }, select: { status: true } }))?.status === 'DRAFT',
+  undo: async (p) => { await prisma.messagingCampaign.update({ where: { id: p.campaignId }, data: { status: 'SCHEDULED' } }) },
+}
+
+export const MARKETING_ACTIONS = [reschedule, retry, approve, cancel, pause, activate, updateSchedule, requestPlan, decideIdeasAction, draftIdeaAction, reviewPostAction, requestAdPackage, proposeBudgetShift, pauseCampaign] as unknown as HaggoActionDef[]

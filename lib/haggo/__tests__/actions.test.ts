@@ -16,7 +16,9 @@ import { validateProposal } from '@/lib/haggo/actions/proposal'
 import { proposeAction } from '@/lib/haggo/actions/engine'
 import { DEFAULT_CONFIG, DOMAINS, type HaggoConfig } from '@/lib/haggo/config'
 import { CHAT_TOOLS, HAGGO_INTERNAL_TOOLS } from '@/lib/haggo/chat'
-import { READ_TOOLS } from '@/lib/haggo/tools/read'
+import { READ_TOOLS, maskLimitKey } from '@/lib/haggo/tools/read'
+import { pageKind } from '@/lib/haggo/tools/detail'
+import { snapshotForChat } from '@/lib/haggo/chat-core'
 
 const bog = (iso: string) => new Date(`${iso}-05:00`)
 const cfg = (patch: Partial<HaggoConfig> = {}): HaggoConfig => ({ ...DEFAULT_CONFIG, ...patch })
@@ -161,6 +163,11 @@ const FIXTURES: Record<string, { raw: Record<string, unknown>; before: unknown }
   'money.set_commission': { raw: { enabled: true, clientRate: 5, partnerRate: 10 }, before: { enabled: false, clientRate: 5, partnerRate: 8 } },
   'config.set_city_status': { raw: { slug: 'bogota', status: 'COMING_SOON' }, before: { name: 'Bogotá', status: 'INACTIVE' } },
   'ai_agents.set_tools': { raw: { agentId: 'agent_123456', add: ['crear_solicitud'], remove: [] }, before: { name: 'Soporte', tools: ['buscar_conocimiento'] } },
+  'ai_agents.dismiss_gap': { raw: { gapId: 'gap_123456', reason: 'Spam, no es del negocio' }, before: { question: '¿Venden carros?' } },
+  'messaging.pause_campaign': { raw: { campaignId: 'cmp_123456' }, before: { name: 'Reactivación', status: 'SCHEDULED', channel: 'WHATSAPP', scheduledAt: '2026-10-02T15:00:00.000Z', recipients: 120 } },
+  'requests.set_booking_status': { raw: { requestId: 'req_123456', bookingId: 'bk_1234567', status: 'COMPLETED', reason: 'El cliente escribió que el trabajo quedó listo y pagó' }, before: { status: 'IN_PROGRESS', service: 'Plomería' } },
+  'security.block_ip': { raw: { ipAddress: '181.52.10.3', reason: '400 intentos de acceso en una hora', hours: 48 }, before: { existed: false, events24h: 400 } },
+  'security.unblock_ip': { raw: { ipAddress: '181.52.10.3', reason: 'Es la IP de la oficina de un socio' }, before: { reason: 'Ataque', blockSource: 'haggo', expiresAt: null } },
 }
 
 describe('registro de acciones', () => {
@@ -237,6 +244,48 @@ describe('registro de acciones', () => {
     expect(r.ok).toBe(false)
     if (!r.ok) expect(r.reason).toContain('comisiones están encendidas')
     db.current = null
+  })
+
+  it('interruptores: una afirmación pública no se cambia como función (va por trust.set_claim)', () => {
+    const r = getAction('config.toggle_feature')!.parse({ key: 'trust_support_247', enabled: true })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.errors.join()).toContain('trust.set_claim')
+  })
+
+  it('no vuelve disponible a un socio pausado por faltas de garantía', async () => {
+    db.current = {
+      partnerProfile: { findUnique: async () => ({ isAvailable: false, user: { name: 'Juan' } }) },
+      guaranteeClaim: { count: async () => 2 },
+    }
+    const r = await getAction('users.set_partner_availability')!.preconditions({ partnerId: 'partner_123456', isAvailable: true })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.reason).toContain('Garantía')
+    db.current = null
+  })
+
+  it('pauta y presupuesto tienen entidad: los duplicados y rechazos se detectan', () => {
+    const ad = getAction('marketing.request_ad_package')!
+    const a = ad.parse({ service: 'Plomería', city: 'Medellín', instruction: 'Plomería trae solicitudes baratas' })
+    const b = ad.parse({ service: 'plomeria', city: 'MEDELLIN', instruction: 'Otra instrucción distinta y larga' })
+    if (!a.ok || !b.ok) throw new Error('parse')
+    expect(ad.entity(a.params)).toEqual({ type: 'AdPackageRequest', id: 'plomeria:medellin' })
+    expect(ad.entity(b.params)).toEqual(ad.entity(a.params))
+    const shift = getAction('marketing.propose_budget_shift')!
+    const s = shift.parse(FIXTURES['marketing.propose_budget_shift'].raw)
+    if (!s.ok) throw new Error('parse')
+    expect(shift.entity(s.params)).toEqual({ type: 'AdBudget', id: 'hogar->reparaciones' })
+  })
+
+  it('bloquear IP: rechaza IP privadas o inválidas', () => {
+    const block = getAction('security.block_ip')!
+    expect(block.parse({ ipAddress: '192.168.1.4', reason: 'Muchos intentos raros' }).ok).toBe(false)
+    expect(block.parse({ ipAddress: 'no-es-ip', reason: 'Muchos intentos raros' }).ok).toBe(false)
+    expect(block.parse({ ipAddress: '181.52.10.3', reason: 'Muchos intentos raros', hours: 9999 }).ok).toBe(false)
+  })
+
+  it('estado de la reserva: solo confirmada, en curso o completada', () => {
+    const a = getAction('requests.set_booking_status')!
+    expect(a.parse({ requestId: 'req_123456', bookingId: 'bk_1234567', status: 'CANCELLED', reason: 'El cliente lo pidió así' }).ok).toBe(false)
   })
 
   it('riesgo máximo: solo claves reales del registro', () => {
@@ -325,7 +374,8 @@ describe('Haggo puede encontrar lo que cada acción necesita', () => {
     postId: ['marketing'], publicationId: ['marketing'], ideaId: ['marketing'], agentId: ['marketing', 'foto'], gapId: ['agente_ia'], workspaceId: ['agente_ia', 'equipo'],
     conversationId: ['conversaciones_en_espera'], userId: ['equipo'], serviceRequestId: ['solicitudes_sin_propuestas'], incidentId: ['incidentes_abiertos'],
     requestId: ['solicitudes_con_atencion', 'solicitud_detalle'], proposalId: ['solicitud_detalle'], bookingId: ['solicitud_detalle'],
-    key: ['funciones', 'configuracion_plataforma'], partnerId: ['socios', 'resenas', 'verificacion_documentos'], paymentId: ['dinero'], slug: ['configuracion_plataforma'],
+    key: ['funciones', 'configuracion_plataforma'], partnerId: ['socios', 'resenas', 'verificacion_documentos', 'socio_detalle'], paymentId: ['dinero'], slug: ['configuracion_plataforma'],
+    campaignId: ['mensajeria'],
   }
   it('todo identificador requerido tiene una herramienta de lectura que lo muestra', () => {
     for (const a of ACTIONS) {
@@ -371,5 +421,24 @@ describe('verificación de resultados (fase 4)', () => {
 describe('riesgo de las acciones', () => {
   it('toda acción que mueve dinero es de riesgo alto o máximo', () => {
     for (const a of ACTIONS) if (a.sideEffects.includes('changes_money')) expect(['high', 'max'], a.id).toContain(a.risk)
+  })
+})
+
+describe('auditoría de Haggo', () => {
+  it('límites de uso: los celulares se enmascaran, las IP quedan', () => {
+    expect(maskLimitKey('phonecode:p:573001234567')).toBe('phonecode:p:[número]')
+    expect(maskLimitKey('phonecode:ip:181.52.10.3')).toBe('phonecode:ip:181.52.10.3')
+  })
+  it('páginas de GA4 por tipo', () => {
+    expect(pageKind('/blog/goteras')).toBe('blog')
+    expect(pageKind('/servicios/plomeria')).toBe('servicio')
+    expect(pageKind('/servicios/plomeria/laureles')).toBe('servicio_por_zona')
+    expect(pageKind('/')).toBe('otra')
+  })
+  it('la foto en el chat pone primero lo importante y no corta una clave a la mitad', () => {
+    const out = snapshotForChat({ sales: { today: 1 }, big: 'x'.repeat(500), requestAttention: { critical: 2 }, at: 'hoy' }, 200)
+    expect(out.indexOf('requestAttention')).toBeLessThan(out.indexOf('sales'))
+    expect(out).toContain('sin espacio para: big')
+    expect(() => JSON.parse(out.split(' (sin espacio')[0])).not.toThrow()
   })
 })

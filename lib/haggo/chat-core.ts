@@ -69,3 +69,24 @@ export function rateLimited(sentLastMinute: number) {
 /** What the chat run stores: which tools it used, the directives it proposed (pending until confirmed). */
 export type Proposal = { id: string; text: string; rule: unknown; status: 'pending' | 'saved' | 'discarded'; directiveId?: string }
 export type ChatRunOutput = { tools: string[]; proposals: Proposal[]; recommendations: string[]; remembered: string[]; actions?: string[] }
+
+/** What the chat must see first when the snapshot is long: alerts, then the rest in its own order. */
+const SNAPSHOT_FIRST = ['at', 'unavailable', 'requestAttention', 'inbox', 'system', 'channels', 'aiProviders', 'guarantee', 'trust', 'payments', 'paymentIncidents', 'payouts', 'requests', 'partners', 'bookings', 'sales', 'aiActions', 'aiCost', 'webhooks', 'automations']
+export const CHAT_SNAPSHOT_MAX = 12_000
+
+/** The last snapshot as JSON for the chat: the important keys first, capped without cutting a key in half. */
+export function snapshotForChat(snapshot: unknown, max = CHAT_SNAPSHOT_MAX) {
+  if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return JSON.stringify(snapshot ?? null).slice(0, max)
+  const obj = snapshot as Record<string, unknown>
+  const keys = [...SNAPSHOT_FIRST.filter((k) => k in obj), ...Object.keys(obj).filter((k) => !SNAPSHOT_FIRST.includes(k))]
+  const parts: string[] = []
+  let size = 2
+  const left: string[] = []
+  for (const k of keys) {
+    const part = `${JSON.stringify(k)}:${JSON.stringify(obj[k])}`
+    if (size + part.length + 1 > max) { left.push(k); continue }
+    parts.push(part)
+    size += part.length + 1
+  }
+  return `{${parts.join(',')}}${left.length ? ` (sin espacio para: ${left.join(', ')})` : ''}`
+}

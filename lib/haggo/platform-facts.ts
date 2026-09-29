@@ -11,7 +11,7 @@ export const PLATFORM_CAPABILITIES = `Cómo funciona LoHaggo hoy:
 - Ciudades: CityConfig con estado ACTIVE, COMING_SOON o INACTIVE; solo las activas reciben solicitudes.
 - Bandeja omnicanal (WhatsApp, Messenger, Instagram, SMS, correo) con agentes de IA en piloto (responden solos) o copiloto (sugieren a una persona).
 - WhatsApp es el canal principal: un catálogo de plantillas (lib/messaging/wa-catalog.ts) que salen solas en cada evento (propuestas, reservas, pagos, garantía, documentos, avisos al equipo). Se activan el día que Meta las aprueba (registro en vivo de Twilio); mientras tanto cae a la plantilla vieja aprobada o no sale. Cada envío queda en la conversación y los botones de respuesta rápida los atiende el agente de IA.
-- Operación por chat: 22 herramientas para que clientes y socios hagan todo por WhatsApp/Messenger/Instagram (pedir un servicio, aceptar propuestas, reprogramar, cancelar, reportar y confirmar pagos, calificar, proponer como socio, editar su perfil, reclamar la garantía). Vinculación de la cuenta con un código, confirmación explícita antes de lo que compromete dinero o agenda, límites diarios por conversación, marca origin='chat' en cada registro, registro en AiAgentAction y, en copiloto, aprobación de la acción en la bandeja.
+- Operación por chat: herramientas (por grupos; las de cada agente en agente_ia) para que clientes y socios hagan todo por WhatsApp/Messenger/Instagram (pedir un servicio, aceptar propuestas, reprogramar, cancelar, reportar y confirmar pagos, calificar, proponer como socio, editar su perfil, reclamar la garantía). Vinculación de la cuenta con un código, confirmación explícita antes de lo que compromete dinero o agenda, límites diarios por conversación, marca origin='chat' en cada registro, registro en AiAgentAction y, en copiloto, aprobación de la acción en la bandeja.
 - Marketing: agentes de marketing por campaña (estrategia, plan, redacción, programación), editor de publicaciones con revisión editorial (corrector y editor), blog y redes (Facebook, Instagram), y agente de pauta que prepara anuncios para Meta Ads (se suben a mano).
 - Garantía LoHaggo (lib/guarantee/policy.ts, página /garantia): cubre «no llegó» (hasta 24 h después de la hora), trabajo incompleto o distinto (hasta 72 h después de completada) y daños (siempre una persona; LoHaggo media, no paga daños). Remedios: otro socio con prioridad (solicitud nueva urgente), cancelación sin costo, que el mismo socio corrija, y reembolso solo si pagó en línea. SLA: solución en 24 h, resuelto en 72 h. 2 faltas del socio en 90 días lo pausan solo; con 3 el equipo decide suspender. El cliente reclama por chat (reportar_problema_servicio) y el equipo resuelve en /admin/guarantee; tú solo recomiendas.
 - Afirmaciones públicas del sitio (confianza y promociones) controladas por interruptores (lib/public/claims.ts); las cifras salen de la base y solo se muestran sobre un mínimo. Nada inventado.
@@ -27,6 +27,13 @@ export type ChangelogEntry = { date: string; area: string; change: string; impac
 
 /** Newest first. At most ~15 entries: the big features only. */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
+  {
+    date: '2026-09-29',
+    area: 'Haggo',
+    change: 'Haggo ve más y actúa en más: herramientas socio_detalle, conversacion_detalle, trafico_web y automatizaciones; seguridad con IP más activas y presión de límites; dinero con reembolsos fallidos e incidentes de pago. Foto con webhooks, servicios externos, mensajes automáticos, cobertura de socios, ciudades listas para abrir, conversiones y costo de IA de 7 días (cada parte con respaldo propio: si una falla queda en unavailable). Reglas money:refunds-failed, money:payment-incidents, money:payout-no-bank, users:partners-no-coverage, sys:webhooks-failing, sys:automations-failing, sys:wa-templates-recategorized, mk:attribution-coverage, mk:conversions-silent, ai:cost-spike y cities:ready-to-launch. Acciones ai_agents.dismiss_gap, messaging.pause_campaign, requests.set_booking_status, security.block_ip y security.unblock_ip; operations.notify_partners comparte el tope con Solicitud 360; no se reactiva a un socio pausado por faltas de garantía. Un informe por turno (antes que el ciclo) y los que se cortan se reintentan; los avisos críticos de solicitudes llegan en un solo correo por ciclo.',
+    impacto: 'Menos puntos ciegos (dinero, webhooks, automatizaciones, tráfico) y menos correos repetidos; los informes ya no se pierden por tiempo.',
+    comoVerlo: 'Las herramientas nuevas, la foto (unavailable, webhooks, automations, partnerCoverage, cities, conversions, aiCost.avg7d) y las reglas nuevas.',
+  },
   {
     date: '2026-09-29',
     area: 'Supervisión de solicitudes',
@@ -72,7 +79,7 @@ export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-09-27',
     area: 'Operación por chat',
-    change: 'Los agentes de la bandeja gestionan la cuenta de clientes y socios por chat con 20 herramientas: núcleo compartido (lib/*/ops.ts) con marca de origen en solicitudes, propuestas, reservas, pagos y reseñas; BookingEvent para estados, reprogramaciones y pagos. Correcciones: fecha de aceptación, máquina de estados de la reserva, webhook de MercadoPago y Payout al confirmar el pago.',
+    change: 'Los agentes de la bandeja gestionan la cuenta de clientes y socios por chat con herramientas de plataforma: núcleo compartido (lib/*/ops.ts) con marca de origen en solicitudes, propuestas, reservas, pagos y reseñas; BookingEvent para estados, reprogramaciones y pagos. Correcciones: fecha de aceptación, máquina de estados de la reserva, webhook de MercadoPago y Payout al confirmar el pago.',
     impacto: 'Clientes y socios pueden operar sin abrir la app; cada registro dice si salió de la app o del chat.',
     comoVerlo: 'acciones_por_chat, actividad_reciente (origen) y la foto (origin.*Chat frente a *App).',
   },
@@ -120,17 +127,10 @@ export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   },
   {
     date: '2026-09-26',
-    area: 'Admin',
-    change: 'Todo el admin se ve bien en celular (barra superior, tablas y tarjetas adaptadas).',
-    impacto: 'El superadmin puede operar desde el teléfono.',
-    comoVerlo: 'No se mide en datos.',
-  },
-  {
-    date: '2026-09-26',
-    area: 'Haggo',
-    change: 'Fase 5: avisos por correo al superadmin y hallazgos en el modo TV.',
-    impacto: 'Lo grave llega al correo aunque nadie mire el admin.',
-    comoVerlo: 'Ajustes de Haggo.',
+    area: 'Admin y Haggo',
+    change: 'Todo el admin se ve bien en celular; Haggo avisa por correo al superadmin y muestra hallazgos en el modo TV.',
+    impacto: 'El superadmin opera desde el teléfono y lo grave le llega al correo aunque nadie mire el admin.',
+    comoVerlo: 'Ajustes de Haggo (avisos); no se mide en datos.',
   },
 ]
 

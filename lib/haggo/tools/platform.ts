@@ -77,8 +77,8 @@ async function recentActivity(hours: number) {
   for (const l of audit) rows.push({ at: l.createdAt, area: 'admin', que: `Acción del admin: ${l.action} sobre ${l.entityType}`, origen: 'admin', ref: `${l.entityType}:${l.entityId ?? '—'}` })
   for (const p of published) if (p.publishedAt) rows.push({ at: p.publishedAt, area: 'marketing', que: `Publicado en ${p.channel}: ${p.post.title.slice(0, 100)}`, ref: `MarketingPublication:${p.id}` })
   for (const i of incidents) {
-    if (inWindow(i.firstSeenAt, since)) rows.push({ at: i.firstSeenAt, area: 'incidentes', que: `Incidente ${i.severity}: ${i.title.slice(0, 140)}`, ref: `AdminIncident:${i.id}` })
-    if (inWindow(i.resolvedAt, since)) rows.push({ at: i.resolvedAt, area: 'incidentes', que: `Incidente resuelto: ${i.title.slice(0, 140)}`, ref: `AdminIncident:${i.id}` })
+    if (inWindow(i.firstSeenAt, since)) rows.push({ at: i.firstSeenAt, area: 'incidentes', que: `Incidente ${i.severity}: ${untrusted(i.title.slice(0, 140))}`, ref: `AdminIncident:${i.id}` })
+    if (inWindow(i.resolvedAt, since)) rows.push({ at: i.resolvedAt, area: 'incidentes', que: `Incidente resuelto: ${untrusted(i.title.slice(0, 140))}`, ref: `AdminIncident:${i.id}` })
   }
   const merged = mergeActivity(rows)
   return { horas: hours, total_eventos: rows.length, mostrados: merged.length, actividad: merged }
@@ -189,14 +189,15 @@ export const PLATFORM_READ_TOOLS: Record<string, ReadTool> = {
       ]).catch(() => null) ?? [[], [], [], []]
       const partnerIds = Array.from(new Set([...active.map((c) => c.partnerId), ...strikes.map((s) => s.partnerId)].filter((p): p is string => Boolean(p))))
       const partners = partnerIds.length ? await prisma.partnerProfile.findMany({ where: { id: { in: partnerIds } }, select: { id: true, isAvailable: true, user: { select: { name: true } } } }).catch(() => []) : []
-      const name = (id: string | null) => (id ? partners.find((p) => p.id === id)?.user.name ?? id : null)
+      // Partner names are written by the partners: data, not instructions
+      const name = (id: string | null) => { const n = id ? partners.find((p) => p.id === id)?.user.name : null; return id ? (n ? untrusted(n.slice(0, 80)) : id) : null }
       const strikeOf = new Map(strikes.map((s) => [s.partnerId, s._count._all]))
       return {
         activos: active.map((c) => {
           const h = Math.round((c.slaDueAt.getTime() - now) / H)
           return {
             ref: `GuaranteeClaim:${c.id}`, reserva: `Booking:${c.bookingId}`, tipo: isGuaranteeType(c.type) ? TYPE_LABEL[c.type] : c.type, estado: c.status,
-            horas_para_vencer: h, vencido: h < 0, origen: c.origin, socio: name(c.partnerId), faltas_socio_90d: c.partnerId ? strikeOf.get(c.partnerId) ?? 0 : 0,
+            horas_para_vencer: h, vencido: h < 0, origen: c.origin, socio: name(c.partnerId), partnerId: c.partnerId, faltas_socio_90d: c.partnerId ? strikeOf.get(c.partnerId) ?? 0 : 0,
             descripcion: untrusted(c.description.slice(0, 160)),
           }
         }),

@@ -46,8 +46,11 @@ export async function haggoSpend(cfg: Pick<HaggoConfig, 'monthlyBudgetUsd' | 'da
   return { monthUsd, todayUsd, calls: month._count._all, blocked: blocked as 'month' | 'day' | null }
 }
 
+/** How long the lock holds: a run still «running» after this died (timeout, crash) */
+export const LOCK_MINUTES = 12
+
 /** One Haggo job at a time across servers; the lock expires alone if a run dies. */
-export async function withHaggoLock<T>(fn: () => Promise<T>, minutes = 12): Promise<T | null> {
+export async function withHaggoLock<T>(fn: () => Promise<T>, minutes = LOCK_MINUTES): Promise<T | null> {
   const now = new Date()
   const got = await prisma.haggoSettings.updateMany({ where: { id: ID, OR: [{ lockedUntil: null }, { lockedUntil: { lt: now } }] }, data: { lockedUntil: new Date(now.getTime() + minutes * 60_000) } })
   if (!got.count) return null

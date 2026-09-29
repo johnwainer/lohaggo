@@ -10,7 +10,7 @@ import { detect, novelDetections, type Detection, type Snapshot } from '@/lib/ha
 import { dueJobs, type LastRuns } from '@/lib/haggo/schedule'
 import { takeSnapshot } from '@/lib/haggo/snapshot'
 import { configStatusBlock } from '@/lib/haggo/config-status'
-import { getHaggoConfig, haggoSpend, withHaggoLock } from '@/lib/haggo/store'
+import { LOCK_MINUTES, getHaggoConfig, haggoSpend, withHaggoLock } from '@/lib/haggo/store'
 import { READ_TOOL_DEFS, READ_TOOLS, runReadTool } from '@/lib/haggo/tools/read'
 import { ACTION_REASONING, PROPOSE_ACTION_TOOL } from '@/lib/haggo/actions/registry'
 import { closeExpiredVerifications, dueVerifications, expireActions, proposeAction, recordEvaluation } from '@/lib/haggo/actions/engine'
@@ -151,9 +151,26 @@ async function syncRuleFindings(runId: string, detections: Detection[]) {
   return createdCritical
 }
 
-async function lastRuns(): Promise<LastRuns> {
-  const last = (type: RunType) => prisma.haggoRun.findFirst({ where: { type }, orderBy: { startedAt: 'desc' }, select: { startedAt: true } }).then((r) => r?.startedAt ?? null)
-  const [cycle, daily, weekly] = await Promise.all([last('cycle'), last('daily'), last('weekly')])
+/** Error text of runs closed because they outlived the lock */
+export const TIMEOUT_ERROR = 'timeout: la ejecución se cortó antes de terminar'
+/** A timed-out report is retried at most this many times a day, then it waits for its next turn */
+const MAX_TIMEOUT_RETRIES = 2
+
+/** Runs still «running» after the lock expired died mid-way (serverless timeout, crash): closed as failed. */
+async function closeStuckRuns(now: Date) {
+  const r = await prisma.haggoRun.updateMany({ where: { status: 'running', startedAt: { lt: new Date(now.getTime() - LOCK_MINUTES * 60_000) } }, data: { status: 'error', error: TIMEOUT_ERROR, finishedAt: now } })
+  return r.count
+}
+
+async function lastRuns(now: Date): Promise<LastRuns> {
+  const last = (type: RunType) => prisma.haggoRun.findFirst({ where: { type, OR: [{ error: null }, { error: { not: TIMEOUT_ERROR } }] }, orderBy: { startedAt: 'desc' }, select: { startedAt: true } }).then((r) => r?.startedAt ?? null)
+  // A report that timed out does not count as done (it retries), unless it already timed out too often today
+  const report = async (type: RunType) => {
+    const timeouts = await prisma.haggoRun.findMany({ where: { type, error: TIMEOUT_ERROR, startedAt: { gte: new Date(now.getTime() - 24 * H) } }, orderBy: { startedAt: 'desc' }, take: MAX_TIMEOUT_RETRIES + 1, select: { startedAt: true } })
+    const done = await last(type)
+    return timeouts.length > MAX_TIMEOUT_RETRIES && (!done || timeouts[0].startedAt > done) ? timeouts[0].startedAt : done
+  }
+  const [cycle, daily, weekly] = await Promise.all([prisma.haggoRun.findFirst({ where: { type: 'cycle' }, orderBy: { startedAt: 'desc' }, select: { startedAt: true } }).then((r) => r?.startedAt ?? null), report('daily'), report('weekly')])
   return { cycle, daily, weekly }
 }
 
@@ -173,7 +190,11 @@ export async function runCycle(cfg: HaggoConfig, trigger: string, now = new Date
     const prev = await prisma.haggoRun.findFirst({ where: { type: 'cycle', id: { not: run.id }, detections: { not: Prisma.DbNull } }, orderBy: { startedAt: 'desc' }, select: { detections: true } })
     const novel = force ? detections : novelDetections(detections, (prev?.detections as Array<Pick<Detection, 'key' | 'severity'>> | null) ?? [])
     const newCritical = await syncRuleFindings(run.id, detections)
-    for (const d of newCritical) await notify('critical', `critical:${d.key}:${bogotaKey(now)}`, { title: d.title, lines: [d.detail, 'Haggo lo está investigando; mira su análisis en Haggo → Ahora.'] })
+    // Request-attention flags come in bursts: one email per cycle for all of them
+    const attention = newCritical.filter((d) => d.key.startsWith('ops:attention:'))
+    for (const d of newCritical.filter((x) => !attention.includes(x))) await notify('critical', `critical:${d.key}:${bogotaKey(now)}`, { title: d.title, lines: [d.detail, 'Haggo lo está investigando; mira su análisis en Haggo → Ahora.'] })
+    if (attention.length === 1) await notify('critical', `critical:${attention[0].key}:${bogotaKey(now)}`, { title: attention[0].title, lines: [attention[0].detail, 'Haggo lo está investigando; mira su análisis en Haggo → Ahora.'] })
+    else if (attention.length > 1) await notify('critical', `critical:attention:${run.id}`, { title: `${attention.length} solicitudes con puntos de atención críticos`, lines: [attention.slice(0, 10).map((d) => `• ${d.title}`).join('\n') + (attention.length > 10 ? `\n… y ${attention.length - 10} más` : ''), 'Haggo las está investigando; míralas en Haggo → Ahora.'] })
     await prisma.haggoSettings.update({ where: { id: 'platform' }, data: { lastSnapshot: json(snapshot), lastSnapshotAt: now } })
 
     let status = 'ok'
@@ -275,18 +296,22 @@ export async function checkTriggers(cfg: HaggoConfig, since: Date | null): Promi
   return null
 }
 
-/** Called every 5 minutes: runs what the schedule (or a trigger) says is due, one job set at a time. */
+/**
+ * Called every 5 minutes: runs what the schedule (or a trigger) says is due. At most one heavy job per
+ * tick so it fits the function's time: a due report goes first and the cycle waits for the next tick.
+ */
 export async function tick(now = new Date()) {
   const cfg = await getHaggoConfig()
   if (!cfg.enabled) return { skipped: 'Haggo está detenido' }
   const out = await withHaggoLock(async () => {
-    const last = await lastRuns()
+    const stuck = await closeStuckRuns(now).catch(() => 0)
+    const last = await lastRuns(now)
     const due = dueJobs(cfg, last, now)
-    const trigger = due.cycle ? 'schedule' : await checkTriggers(cfg, last.cycle ?? null)
-    const res: Record<string, unknown> = { due, trigger, expired: await expireActions().catch(() => 0), unverifiable: await closeExpiredVerifications(now).catch(() => 0) }
-    if (trigger) res.cycle = await runCycle(cfg, trigger, now)
-    if (due.daily) res.daily = await runReport(cfg, 'daily', now)
-    if (due.weekly) res.weekly = await runReport(cfg, 'weekly', now)
+    const report = due.daily ? 'daily' : due.weekly ? 'weekly' : null
+    const trigger = report ? null : due.cycle ? 'schedule' : await checkTriggers(cfg, last.cycle ?? null)
+    const res: Record<string, unknown> = { due, trigger, stuck, expired: await expireActions().catch(() => 0), unverifiable: await closeExpiredVerifications(now).catch(() => 0) }
+    if (report) res[report] = await runReport(cfg, report, now)
+    else if (trigger) res.cycle = await runCycle(cfg, trigger, now)
     // Quiet cycles are kept 30 days; reports and cycles with findings stay
     if (Math.random() < 0.02) await prisma.haggoRun.deleteMany({ where: { type: 'cycle', status: 'skipped', startedAt: { lt: new Date(now.getTime() - 30 * 24 * H) } } }).catch(() => null)
     return res

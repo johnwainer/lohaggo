@@ -178,4 +178,44 @@ const openCase: HaggoActionDef<CaseParams> = {
   },
 }
 
-export const REQUEST_ACTIONS = [messageChat, reactivate, reschedule, cancelBooking, openCase] as unknown as HaggoActionDef[]
+const SETTABLE = ['CONFIRMED', 'IN_PROGRESS', 'COMPLETED'] as const
+type Settable = (typeof SETTABLE)[number]
+const STATUS_LABEL: Record<Settable, string> = { CONFIRMED: 'confirmada', IN_PROGRESS: 'en curso', COMPLETED: 'completada' }
+type StatusParams = { requestId: string; bookingId: string; status: Settable; reason: string }
+
+const setBookingStatus: HaggoActionDef<StatusParams> = {
+  id: 'requests.set_booking_status',
+  domain: 'operations',
+  risk: 'high',
+  label: 'Cambiar el estado de la reserva de una solicitud',
+  hint: 'Pasa una reserva a confirmada, en curso o completada cuando el cliente y el socio ya lo dijeron en el chat o el historial lo prueba (lee solicitud_detalle) y la app quedó atrás: una reserva trabada en pendiente, un trabajo terminado sin marcar. Cliente y socio reciben el aviso. Para cancelar usa requests.cancel_booking.',
+  schema: { type: 'object', properties: { requestId: { type: 'string' }, bookingId: { type: 'string' }, status: { type: 'string', enum: [...SETTABLE] }, reason: { type: 'string', description: 'Qué lo prueba (mensaje del chat, historial)' } }, required: ['requestId', 'bookingId', 'status', 'reason'] },
+  sideEffects: ['notifies_customers', 'notifies_partners'],
+  parse: (raw) => {
+    const r = requireObj(raw)
+    if (!r) return { ok: false, errors: ['Parámetros inválidos'] }
+    const e: string[] = []
+    const status = (SETTABLE as readonly string[]).includes(String(r.status)) ? (r.status as Settable) : (e.push('status: CONFIRMED, IN_PROGRESS o COMPLETED'), 'CONFIRMED' as Settable)
+    return done(e, { requestId: parseRef(r, 'requestId', e), bookingId: parseRef(r, 'bookingId', e), status, reason: parseText(r, 'reason', e, { min: 10, max: 400 }) ?? '' })
+  },
+  describe: (p) => `Marcar la reserva como ${STATUS_LABEL[p.status]}: «${p.reason.slice(0, 80)}»`,
+  entity: (p) => ({ type: 'Booking', id: p.bookingId }),
+  preconditions: async (p) => {
+    const b = await prisma.booking.findUnique({ where: { id: p.bookingId }, select: { status: true, proposal: { select: { serviceRequestId: true } }, service: { select: { name: true } } } })
+    if (!b || b.proposal?.serviceRequestId !== p.requestId) return { ok: false, reason: 'Esa reserva no es de esa solicitud' }
+    if (b.status === p.status) return { ok: false, reason: `Ya está ${STATUS_LABEL[p.status]}` }
+    const check = canTransition(b.status, p.status, 'admin')
+    if (!check.ok) return { ok: false, reason: check.reason }
+    return { ok: true, before: { status: b.status, service: b.service.name } }
+  },
+  preview: async (p, before) => {
+    const b = before as { status: string; service: string }
+    return { summary: `${b.service}: reserva ${STATUS_LABEL[p.status]}; cliente y socio reciben el aviso`, diff: [{ field: 'Reserva', from: b.status, to: p.status }] }
+  },
+  execute: async (p, ctx) => {
+    const r = await adminBookingStatus(asAdmin(ctx), { requestId: p.requestId, bookingId: p.bookingId, status: p.status, reason: p.reason })
+    return { after: { status: r.status }, result: `Reserva ${STATUS_LABEL[p.status]}` }
+  },
+}
+
+export const REQUEST_ACTIONS = [messageChat, reactivate, reschedule, cancelBooking, openCase, setBookingStatus] as unknown as HaggoActionDef[]
