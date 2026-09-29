@@ -71,9 +71,14 @@ export function attentionFlags(c: CaseInput): AttentionFlag[] {
   if (r.status === 'EXPIRED' && r.proposals.length > 0 && !b) {
     add({ code: 'request:expired-with-proposals', severity: 'info', title: 'Venció con propuestas que el cliente no eligió', detail: `${r.proposals.length} ${r.proposals.length === 1 ? 'propuesta' : 'propuestas'}. Se puede reactivar 24 h.`, suggest: ['reactivate', 'message_client'] })
   }
-  if (c.basePrice && c.basePrice > 0) {
-    const high = r.proposals.filter((p) => p.price > c.basePrice! * 3)
-    if (high.length) add({ code: 'request:price-outlier', severity: 'info', title: `${high.length === 1 ? 'Una propuesta' : `${high.length} propuestas`} a más del triple del precio base`, detail: `Base ${money(c.basePrice)}; la más alta ${money(Math.max(...high.map((p) => p.price)))}.`, suggest: ['message_partner'] })
+  // A price far from the rest of the offers (or ten times the base price when there is little to compare)
+  const prices = r.proposals.map((p) => p.price).sort((a, b2) => a - b2)
+  if (prices.length) {
+    const median = prices[Math.floor(prices.length / 2)]
+    const vsOthers = prices.length >= 3 ? r.proposals.filter((p) => p.price > median * 3 || p.price < median / 3) : []
+    const vsBase = prices.length < 3 && c.basePrice && c.basePrice > 0 ? r.proposals.filter((p) => p.price > c.basePrice! * 10) : []
+    const odd = Array.from(new Set([...vsOthers, ...vsBase]))
+    if (odd.length) add({ code: 'request:price-outlier', severity: 'info', title: `${odd.length === 1 ? 'Una propuesta' : `${odd.length} propuestas`} con precio muy distinto al resto`, detail: `Mediana ${money(median)}; ${odd.map((p) => money(p.price)).join(', ')}.`, suggest: ['message_partner'] })
   }
 
   // ── Booking ──

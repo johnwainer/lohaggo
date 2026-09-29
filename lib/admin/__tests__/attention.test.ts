@@ -48,3 +48,15 @@ describe('attention flags', () => {
     expect(f.map((x) => x.severity)).toEqual(['critical', 'warning'])
   })
 })
+
+describe('price outliers', () => {
+  const props = (...ps: number[]) => ps.map((price, i) => ({ id: `p${i}`, status: 'PENDING', price, createdAt: h(1) }))
+  it('compares offers with each other, not with the base price', () => {
+    const c = (p: number[]) => codes(base({ request: { ...base().request, proposals: props(...p) } }))
+    expect(c([1_500_000, 1_800_000, 3_200_000, 1_000_000])).not.toContain('request:price-outlier')
+    expect(c([1_500_000, 200_000, 1_800_000, 3_200_000, 1_000_000])).toContain('request:price-outlier')
+    expect(c([1_500_000, 1_600_000, 1_800_000, 9_000_000])).toContain('request:price-outlier')
+    expect(c([1_500_000])).toContain('request:price-outlier')
+    expect(c([900_000])).not.toContain('request:price-outlier')
+  })
+})
