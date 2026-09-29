@@ -50,7 +50,7 @@ function sideOf(chat: LoadedChat, actor: Actor): 'CLIENT' | 'PARTNER' | null {
  * request (a request with several proposals is ambiguous for the client). Created if nobody opened it yet.
  */
 export async function resolveChatByRef(actor: Actor, ref: string) {
-  const r = ref.trim().replace(/^#/, '')
+  const r = ref.trim().replace(/^#/, '').toLowerCase()
   if (!/^[a-z0-9]{4,30}$/i.test(r)) throw new OpsError('Esa referencia no es válida.', 400)
   const where = actor.role === 'PARTNER' && actor.partnerId ? { partnerId: actor.partnerId } : { serviceRequest: { userId: actor.userId } }
   const proposals = await prisma.proposal.findMany({

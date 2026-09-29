@@ -381,23 +381,48 @@ function originFor(ctx: ToolContext): Origin {
 
 const NOT_LINKED = 'Esta conversación no está vinculada a una cuenta de LoHaggo. Pregúntale si ya tiene cuenta: si sí, usa vincular_cuenta; si no, crear_cuenta_cliente o crear_cuenta_socio.'
 const NOT_PARTNER = 'La persona vinculada no es socio (no tiene perfil de socio). Esta herramienta es solo para socios.'
-const validRef = (r: string) => /^[a-z0-9]{6}$/i.test(r.trim())
+/** WhatsApp templates show refs in capitals and with «#» (#HOPMJV); ids are lowercase cuids. */
+export const normRef = (r: string) => r.trim().replace(/^#/, '').toLowerCase()
+const validRef = (r: string) => /^[a-z0-9]{6}$/.test(normRef(r))
 
 /** The person's own entity whose id ends with the reference the model was shown. */
 async function bookingByRef(actor: Actor, ref: string) {
   if (!validRef(ref)) return null
   const rows = await bookingsFor(actor, { take: 200 })
-  return rows.find((b) => b.id.endsWith(ref.trim())) ?? null
+  return rows.find((b) => b.id.endsWith(normRef(ref))) ?? null
 }
 async function proposalByRef(actor: Actor, ref: string) {
   if (!validRef(ref)) return null
   const rows = await listProposalsForClient(actor.userId)
-  return rows.find((p) => p.id.endsWith(ref.trim())) ?? null
+  return rows.find((p) => p.id.endsWith(normRef(ref))) ?? null
 }
 async function requestByRef(partnerId: string, ref: string) {
   if (!validRef(ref)) return null
   const rows = await listOpenRequestsForPartner(partnerId)
-  return rows.find((r) => r.id.endsWith(ref.trim())) ?? null
+  return rows.find((r) => r.id.endsWith(normRef(ref))) ?? null
+}
+
+/**
+ * Why a request is not among the partner's open ones, in words the agent can pass on: most often the
+ * partner already proposed (from the app or another chat) and proposals are not edited.
+ */
+async function whyRequestUnavailable(partnerId: string, ref: string) {
+  const r = normRef(ref)
+  if (!/^[a-z0-9]{4,30}$/.test(r)) return 'Esa referencia no es válida. Consulta ver_oportunidades.'
+  const mine = await prisma.proposal.findFirst({
+    where: { partnerId, serviceRequestId: { endsWith: r } },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true, price: true, status: true, createdAt: true, serviceRequest: { select: { service: { select: { name: true } } } } },
+  })
+  if (mine) {
+    const state = mine.status === 'PENDING' ? 'pendiente de que el cliente la acepte' : mine.status === 'ACCEPTED' ? 'aceptada' : 'rechazada'
+    return `Este socio ya envió una propuesta a esa solicitud de ${mine.serviceRequest.service?.name ?? 'servicio'} (propuesta ref ${shortId(mine.id)}, ${cop(Number(mine.price))}, ${state}); solo se envía una por solicitud y no se editan. Díselo así. Si quiere aclararle algo al cliente (otro precio, fecha, materiales), ofrécele escribirle por el chat de la propuesta con enviar_mensaje_reserva usando la ref ${shortId(mine.id)}.`
+  }
+  const sr = await prisma.serviceRequest.findFirst({ where: { id: { endsWith: r } }, select: { status: true, expiresAt: true, partnerId: true } })
+  if (!sr) return 'Esa referencia no corresponde a ninguna solicitud. Consulta ver_oportunidades para ver las abiertas.'
+  if (sr.status !== 'ACTIVE' || sr.expiresAt <= new Date()) return 'Esa solicitud ya no recibe propuestas (el cliente la cerró, aceptó otra o venció). Díselo y ofrécele ver otras con ver_oportunidades.'
+  if (sr.partnerId && sr.partnerId !== partnerId) return 'Esa solicitud es directa para otro socio. Ofrécele ver otras con ver_oportunidades.'
+  return 'Esa solicitud no corresponde a los servicios activos, la ciudad o las zonas de este socio, o su perfil no está verificado. Explícaselo y ofrécele revisar sus servicios o ver otras con ver_oportunidades.'
 }
 
 /** The last image or PDF the person sent in this conversation. */
@@ -459,7 +484,7 @@ const PLANNERS: Partial<Record<PlatformToolName, Planner>> = {
     const socioRef = s(input, 'socio_ref')
     if (socioRef) {
       const list = await partnersForService(service.id, city)
-      partnerId = list.find((p) => p.partnerId.endsWith(socioRef))?.partnerId ?? null
+      partnerId = list.find((p) => p.partnerId.endsWith(normRef(socioRef)))?.partnerId ?? null
       if (!partnerId) return { error: 'Esa referencia de socio no corresponde a ninguno disponible para este servicio. Vuelve a consultar ver_socios_disponibles.' }
     }
     const budget = n(input, 'presupuesto')
@@ -601,7 +626,7 @@ const PLANNERS: Partial<Record<PlatformToolName, Planner>> = {
   enviar_propuesta: async (input, ctx, actor) => {
     if (!actor.partnerId) return { error: NOT_PARTNER }
     const r = await requestByRef(actor.partnerId, s(input, 'solicitud_ref'))
-    if (!r) return { error: 'Esa referencia no corresponde a ninguna solicitud disponible para este socio. Consulta ver_oportunidades.' }
+    if (!r) return { error: await whyRequestUnavailable(actor.partnerId, s(input, 'solicitud_ref')) }
     const price = n(input, 'precio')
     if (price <= 0) return { error: 'Falta el precio.' }
     const fecha = s(input, 'fecha')
@@ -719,7 +744,7 @@ const PLANNERS: Partial<Record<PlatformToolName, Planner>> = {
     if (ref && !validRef(ref)) return { error: 'Referencia inválida: usa los 6 caracteres de la solicitud o déjala vacía.' }
     const { serviceRequests } = await listClientRequests(actor.userId)
     const expired = serviceRequests.filter((r) => isRequestExpired(r))
-    const r = ref ? serviceRequests.find((x) => x.id.endsWith(ref.trim())) : expired[0]
+    const r = ref ? serviceRequests.find((x) => x.id.endsWith(normRef(ref))) : expired[0]
     if (!r) return { error: ref ? 'Esa referencia no corresponde a ninguna solicitud de esta persona.' : 'La persona no tiene solicitudes vencidas.' }
     if (!isRequestExpired(r)) return { error: r.status === 'ACTIVE' ? 'Esa solicitud sigue activa: no hace falta reactivarla.' : 'Solo se reactivan solicitudes vencidas; esa ya no se puede.' }
     const service = r.service?.name ?? 'servicio'
@@ -763,7 +788,7 @@ const PLANNERS: Partial<Record<PlatformToolName, Planner>> = {
 
   agregar_fotos: async (input, ctx, actor) => {
     if (actor.role !== 'CLIENT') return { error: 'Solo el cliente agrega fotos a su solicitud. Si es socio y quiere mandar fotos al cliente, usa enviar_mensaje_reserva con incluir_fotos.' }
-    const ref = s(input, 'ref').replace(/^#/, '')
+    const ref = normRef(s(input, 'ref'))
     if (!/^[a-z0-9]{4,30}$/i.test(ref)) return { error: 'Esa referencia no es válida. Consulta ver_propuestas o ver_mis_reservas.' }
     const requests = await prisma.serviceRequest.findMany({
       where: { userId: actor.userId },

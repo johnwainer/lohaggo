@@ -5,6 +5,8 @@ const db = vi.hoisted(() => ({
   service: { findMany: vi.fn() },
   conversation: { findUnique: vi.fn() },
   conversationMessage: { findFirst: vi.fn() },
+  proposal: { findFirst: vi.fn() },
+  serviceRequest: { findFirst: vi.fn() },
   aiAgentAction: { findUnique: vi.fn() },
 }))
 vi.mock('@/lib/prisma', () => ({ prisma: db }))
@@ -38,10 +40,11 @@ vi.mock('@/lib/guarantee/ops', () => guarantee)
 vi.mock('@/lib/partners/ops', () => ({ setAvailability: ops.setAvailability, addBankAccount: vi.fn(), fetchAttachmentForDocument: vi.fn(), partnerByUser: vi.fn(), partnerStatusSummary: vi.fn(), uploadDocument: vi.fn(), upsertPartnerService: vi.fn() }))
 const requests = vi.hoisted(() => ({
   listClientRequests: vi.fn(async () => ({ serviceRequests: [] as Array<Record<string, unknown>> })),
+  listOpenRequestsForPartner: vi.fn(async () => [] as Array<Record<string, unknown>>),
   reactivateServiceRequest: vi.fn(async () => ({ id: 'sr_00exp1', expiresAt: new Date('2026-10-03T15:00:00Z'), reactivations: 1, remaining: 2, restoredProposals: 1 })),
 }))
 vi.mock('@/lib/service-requests/ops', () => ({
-  cancelServiceRequest: vi.fn(), createServiceRequest: vi.fn(), listClientRequests: requests.listClientRequests, listOpenRequestsForPartner: vi.fn(), partnerAvailabilitySummary: vi.fn(), partnersForService: vi.fn(), requestSummaryForChat: vi.fn(),
+  cancelServiceRequest: vi.fn(), createServiceRequest: vi.fn(), listClientRequests: requests.listClientRequests, listOpenRequestsForPartner: requests.listOpenRequestsForPartner, partnerAvailabilitySummary: vi.fn(), partnersForService: vi.fn(), requestSummaryForChat: vi.fn(),
   reactivateServiceRequest: requests.reactivateServiceRequest,
   isRequestExpired: (r: { status: string; expiresAt: Date }) => r.status === 'EXPIRED' || (r.status === 'ACTIVE' && new Date(r.expiresAt).getTime() < Date.now()),
 }))
@@ -306,5 +309,25 @@ describe('runPlatformTool · varias propuestas abiertas a la vez', () => {
     expect(chatOps.sendChatMessage).toHaveBeenCalledTimes(3)
     for (const ref of ['93seye', '9u3xt5', 'opvh6i']) expect(actions.settleAction).toHaveBeenCalledWith(`p-${ref}`, expect.objectContaining({ status: 'executed' }))
     expect(actions.recordAction).not.toHaveBeenCalledWith(expect.objectContaining({ status: 'proposed' }))
+  })
+})
+
+describe('runPlatformTool · socio que propone por el chat', () => {
+  const partner = () => db.user.findUnique.mockResolvedValue({ id: 'u9', role: 'PARTNER', email: 'c@x.com', isActive: true, partnerProfile: { id: 'pp9' } })
+  it('la referencia en mayúsculas del aviso (#HOPMJV) encuentra la solicitud', async () => {
+    partner()
+    requests.listOpenRequestsForPartner.mockResolvedValueOnce([{ id: 'cmulot7tt00pi1g89idhopmjv', service: { name: 'Pintura' } }])
+    const out = await runPlatformTool('enviar_propuesta', { solicitud_ref: '#HOPMJV', precio: 1800000, nota: '', fecha: '', hora: '', confirmado: false }, ctx())
+    expect(out).toMatch(/pendiente de confirmación/i)
+    expect(out).toContain('Pintura')
+  })
+  it('si ya propuso, lo dice (en vez de «no está abierta») y ofrece escribirle al cliente', async () => {
+    partner()
+    requests.listOpenRequestsForPartner.mockResolvedValueOnce([])
+    db.proposal.findFirst.mockResolvedValueOnce({ id: 'cmulpddaw000bs074il852rbp', price: 1500000, status: 'PENDING', createdAt: new Date(), serviceRequest: { service: { name: 'Pintura' } } })
+    const out = await runPlatformTool('enviar_propuesta', { solicitud_ref: 'HOPMJV', precio: 1800000, nota: '', fecha: '', hora: '', confirmado: false }, ctx())
+    expect(out).toMatch(/ya envió una propuesta/)
+    expect(out).toContain('enviar_mensaje_reserva')
+    expect(db.proposal.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { partnerId: 'pp9', serviceRequestId: { endsWith: 'hopmjv' } } }))
   })
 })
