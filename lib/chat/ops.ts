@@ -126,6 +126,10 @@ export async function sendChatMessage(actor: Actor, chatId: string, input: { con
       },
     })
     await prisma.chat.update({ where: { id: chatId }, data: { updatedAt: new Date() } })
+    // The team sees who tried and what (the chat only shows the warning): Solicitud 360 and Haggo read it
+    await prisma.adminAuditLog.create({
+      data: { action: 'CHAT_CONTACT_BLOCKED', entityType: 'Chat', entityId: chatId, actorId: actor.userId, actorEmail: side === 'CLIENT' ? 'cliente' : 'socio', details: JSON.stringify({ side, reason: contact.reason ?? null, text: content.slice(0, 300), origin: origin.via }).slice(0, 1000) },
+    }).catch(() => null)
     void emitProposalBroadcast(chat.proposalId)
     await createNotification({
       userId: recipientUserId,
@@ -249,7 +253,8 @@ async function openWhatsappThread(userId: string) {
 export async function takeUnreadMessages(actor: Actor, opts: { chatId?: string; take?: number } = {}) {
   const chatWhere = actor.role === 'PARTNER' && actor.partnerId ? { partnerId: actor.partnerId } : { clientId: actor.userId }
   const rows = await prisma.chatMessage.findMany({
-    where: { read: false, senderId: { notIn: [actor.userId, 'SYSTEM'] }, chat: { ...chatWhere, ...(opts.chatId ? { id: opts.chatId } : {}) } },
+    // Messages from the other side, and notes from the LoHaggo team (system messages written from the admin)
+    where: { read: false, senderId: { not: actor.userId }, OR: [{ senderId: { not: 'SYSTEM' } }, { origin: 'admin' }], chat: { ...chatWhere, ...(opts.chatId ? { id: opts.chatId } : {}) } },
     orderBy: { createdAt: 'asc' },
     take: opts.take ?? 20,
     include: { chat: { include: chatInclude } },
@@ -261,7 +266,7 @@ export async function takeUnreadMessages(actor: Actor, opts: { chatId?: string; 
   return rows.map((r) => ({
     ref: chatRef(r.chat),
     service: r.chat.serviceRequest?.service?.name ?? '',
-    from: r.senderId === r.chat.clientId ? r.chat.client.name : r.chat.partner.user.name,
+    from: r.senderId === 'SYSTEM' ? 'Equipo de LoHaggo' : r.senderId === r.chat.clientId ? r.chat.client.name : r.chat.partner.user.name,
     content: r.content,
     imageUrl: r.imageUrl,
     at: r.createdAt,

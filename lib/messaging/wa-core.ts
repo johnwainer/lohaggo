@@ -132,6 +132,7 @@ export const WA_TEMPLATE_USAGE: Record<string, string> = {
   lh_codigo_verificacion: 'Vincular una conversación a una cuenta (código por WhatsApp)',
   lh_cliente_cuenta_creada: 'Registro del cliente (web o bandeja)',
   lh_cliente_cuenta_creada_v3: 'Registro del cliente (web o bandeja)',
+  lh_soporte_mensaje_servicio: 'Mensaje del equipo en el chat de un servicio (Solicitud 360)',
   lh_cliente_acceso_enlace_v2: 'Enlace de acceso que el cliente pide (web o chat)',
   lh_cliente_nueva_propuesta: 'Un socio envía una propuesta',
   lh_cliente_sin_propuestas: 'Solicitud sin propuestas a las 2 h',

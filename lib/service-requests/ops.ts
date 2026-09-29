@@ -336,7 +336,8 @@ export async function reactivateServiceRequest(actor: Actor, requestId: string, 
   const now = new Date()
   const sr = await prisma.serviceRequest.findUnique({ where: { id: requestId }, select: { id: true, userId: true, status: true, expiresAt: true } })
   if (!sr) throw new OpsError('Solicitud no encontrada', 404)
-  if (sr.userId !== actor.userId) throw new OpsError('No autorizado', 403)
+  // The owner, or the team from the admin
+  if (sr.userId !== actor.userId && actor.role !== 'ADMIN') throw new OpsError('No autorizado', 403)
   if (!isRequestExpired(sr, now)) throw new OpsError(sr.status === 'ACTIVE' ? 'Tu solicitud sigue activa' : 'Solo se pueden reactivar solicitudes vencidas', 400)
 
   const done = await prisma.adminAuditLog.count({ where: { action: REQUEST_REACTIVATE_ACTION, entityType: 'ServiceRequest', entityId: requestId } })

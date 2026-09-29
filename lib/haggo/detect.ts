@@ -41,6 +41,8 @@ export type Snapshot = {
     /** Weekly budget check: the package that costs at least twice as much per booking (or request) as the best one */
     budgetShift?: { from: { adDraftId: string; title: string; adSets: string[] }; to: { adDraftId: string; title: string; adSets: string[] }; metric: 'reserva' | 'solicitud'; fromCost: number | null; toCost: number } | null
   }
+  /** Service requests with attention flags (lib/admin/attention-core.ts): counts by severity and code, and the worst ones */
+  requestAttention?: { critical: number; warning: number; info: number; codes: Record<string, number>; top: Array<{ id: string; ref: string; service: string; severity: string; code: string; title: string }> }
   /** WhatsApp code login of the last 24 h: codes sent and confirmed */
   phoneLogin?: { sent24h: number; used24h: number }
   /** WhatsApp catalog templates by Meta state (names of the rejected and of the approved under another category) */
@@ -128,6 +130,17 @@ export function detect(s: Snapshot): Detection[] {
     })
   }
   if ((s.attribution?.conversionsFailed7d ?? 0) >= 3) add({ key: 'mk:conversions-failed', domain: 'marketing', severity: 'warning', title: `${s.attribution!.conversionsFailed7d} conversiones no llegaron a Meta o Google en 7 días`, detail: 'Revisar el token y el píxel en Analítica → Origen → Conversiones.' })
+  const ra = s.requestAttention
+  if (ra) {
+    for (const t of ra.top.filter((x) => x.severity === 'critical')) {
+      add({ key: `ops:attention:${t.code}:${t.id}`, domain: 'operations', severity: 'critical', title: `${t.service} #${t.ref}: ${t.title}`, detail: 'Revisar con solicitud_detalle y proponer la intervención sugerida.', entityType: 'ServiceRequest', entityId: t.id })
+    }
+    const contact = ra.codes['chat:contact-attempts'] ?? 0
+    if (contact) add({ key: 'ops:chat-contact-attempts', domain: 'operations', severity: 'warning', title: `${contact} ${contact === 1 ? 'solicitud tiene' : 'solicitudes tienen'} intentos de pasar datos de contacto en el chat`, detail: 'Posible desvío del servicio fuera de la plataforma: revisar con solicitudes_con_atencion.' })
+    const complaints = ra.codes['chat:complaint'] ?? 0
+    if (complaints) add({ key: 'ops:chat-complaints', domain: 'operations', severity: 'warning', title: `${complaints} ${complaints === 1 ? 'chat tiene' : 'chats tienen'} palabras de queja o riesgo`, detail: 'Revisar las conversaciones y proponer mediar o abrir un caso.' })
+    if (ra.warning >= 5) add({ key: 'ops:attention-backlog', domain: 'operations', severity: 'info', title: `${ra.warning} solicitudes con puntos de atención`, detail: 'Revisar solicitudes_con_atencion.' })
+  }
   if (s.phoneLogin && s.phoneLogin.sent24h >= 5 && s.phoneLogin.used24h === 0) add({ key: 'ops:phone-codes-unused', domain: 'users', severity: 'warning', title: `${s.phoneLogin.sent24h} códigos de acceso por WhatsApp en 24 h y ninguno confirmado`, detail: 'Puede que la plantilla lh_codigo_verificacion no esté llegando: revisar mensajeria (estado en Meta y envíos) y probar el acceso con código.' })
   if (s.marketing.inReview >= 5) add({ key: 'mk:review-backlog', domain: 'marketing', severity: 'info', title: `${s.marketing.inReview} publicaciones esperan revisión`, detail: 'Se acumulan borradores sin aprobar.' })
 

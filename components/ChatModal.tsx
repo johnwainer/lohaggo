@@ -226,6 +226,23 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
             messages.map((message) => {
               const isSystem = message.senderId === 'SYSTEM'
 
+              // A note from the LoHaggo team (admin): friendly, not the blocked-content warning
+              if (isSystem && message.content.startsWith('🛟 Soporte LoHaggo')) {
+                return (
+                  <div key={message.id} className="my-4 flex justify-center">
+                    <div className="max-w-[92%] rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 shadow-sm sm:max-w-[75%]">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-primary-700">Equipo de LoHaggo</p>
+                      <p className="mt-1 whitespace-pre-line text-xs leading-relaxed text-gray-800 sm:text-sm">
+                        {message.content.replace(/^🛟 Soporte LoHaggo( \([^)]*\))?: /, '')}
+                      </p>
+                      <p className="mt-1.5 text-[10px] text-gray-500 sm:text-xs">
+                        {formatDistanceToNow(new Date(message.createdAt), { addSuffix: true, locale: es })}
+                      </p>
+                    </div>
+                  </div>
+                )
+              }
+
               if (isSystem) {
                 return (
                   <div key={message.id} className="my-4 flex justify-center">

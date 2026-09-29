@@ -252,6 +252,12 @@ Aprobadas pero como MARKETING siendo transaccionales (se reemplazan por versión
 - **Variables:** {{1}} «Ana» · {{2}} «Carlos» · {{3}} «Plomería» · {{4}} «#a1b2c3»
 - **Botones:** URL «Ver mensaje» → `https://www.lohaggo.com/{{5}}` (ejemplo `dashboard?tab=bookings`)
 
+
+### B27 · lh_soporte_mensaje_servicio
+- Categoría: UTILITY · Para: cliente o socio · Cuándo: el equipo escribe en el chat de un servicio desde «Solicitud 360» (una por mensaje).
+- Texto: «🛟 Hola {{1}}, el equipo de LoHaggo te dejó un mensaje sobre tu servicio de *{{2}}* (referencia {{3}}). Léelo en la app con el botón de abajo.»
+- Botón: «Ver mensaje» → https://www.lohaggo.com/{{4}}
+
 ### C1 · lh_socio_cuenta_creada (reemplaza bienvenida_socio, que quedó MARKETING)
 - **Categoría:** UTILITY
 - **Cuándo:** un socio se registra (web /unete o chat).

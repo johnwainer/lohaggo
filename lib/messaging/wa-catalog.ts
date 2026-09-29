@@ -513,6 +513,23 @@ export const WA_CATALOG: WaCatalogEntry[] = [
     }
   },
   {
+    "code": "B27",
+    "name": "lh_soporte_mensaje_servicio",
+    "category": "UTILITY",
+    "body": "🛟 Hola {{1}}, el equipo de LoHaggo te dejó un mensaje sobre tu servicio de *{{2}}* (referencia {{3}}). Léelo en la app con el botón de abajo.",
+    "variables": {
+      "1": "Ana",
+      "2": "Plomería",
+      "3": "#a1b2c3",
+      "4": "dashboard?tab=bookings"
+    },
+    "quickReplies": [],
+    "url": {
+      "title": "Ver mensaje",
+      "url": "https://www.lohaggo.com/{{4}}"
+    }
+  },
+  {
     "code": "C1",
     "name": "lh_socio_cuenta_creada",
     "category": "UTILITY",

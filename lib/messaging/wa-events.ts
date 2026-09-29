@@ -70,6 +70,14 @@ export function waChatMessage(p: { chatId: string; recipientUserId: string; reci
   })
 }
 
+/** B27: the LoHaggo team wrote in the chat of a service (its own template: never «tu socio te escribió»). */
+export function waSupportMessage(p: { messageId: string; recipientUserId: string; recipientSide: 'CLIENT' | 'PARTNER'; service: string; ref: string }) {
+  return safe('B27', async () => {
+    const u = await prisma.user.findUnique({ where: { id: p.recipientUserId }, select: { name: true } })
+    return sendWaToUser(p.recipientUserId, WA.B27({ messageId: p.messageId, name: u?.name ?? '', side: p.recipientSide, service: p.service, ref: p.ref }))
+  })
+}
+
 /** B3: a partner sent a proposal. */
 export function waNewProposal(proposalId: string) {
   return safe('B3', async () => {

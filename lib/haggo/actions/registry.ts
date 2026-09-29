@@ -4,10 +4,11 @@ import { MARKETING_ACTIONS } from '@/lib/haggo/actions/marketing'
 import { AI_ACTIONS } from '@/lib/haggo/actions/ai'
 import { PLATFORM_ACTIONS } from '@/lib/haggo/actions/platform'
 import { CONFIG_ACTIONS } from '@/lib/haggo/actions/config'
+import { REQUEST_ACTIONS } from '@/lib/haggo/actions/requests'
 import { RISK_LABEL, SIDE_EFFECT_LABEL, type HaggoActionDef } from '@/lib/haggo/actions/types'
 
 /** Everything Haggo can do. The only place ids, risks and side effects are defined. */
-export const ACTIONS: HaggoActionDef[] = [...MARKETING_ACTIONS, ...AI_ACTIONS, ...PLATFORM_ACTIONS, ...CONFIG_ACTIONS]
+export const ACTIONS: HaggoActionDef[] = [...MARKETING_ACTIONS, ...AI_ACTIONS, ...PLATFORM_ACTIONS, ...CONFIG_ACTIONS, ...REQUEST_ACTIONS]
 const BY_ID = new Map(ACTIONS.map((a) => [a.id, a]))
 
 export const getAction = (id: string) => BY_ID.get(id) ?? null

@@ -12,6 +12,7 @@ import { TOOL_GROUPS } from '@/lib/ai/actions-core'
 import { PLATFORM_READ_TOOLS, type ReadTool } from '@/lib/haggo/tools/platform'
 import { summarizeConversationOrigins } from '@/lib/messaging/attribution'
 import { originsTab } from '@/lib/analytics/origins'
+import { requestCase, scanAttention } from '@/lib/admin/request-360'
 import { cityLaunchStatus } from '@/lib/cities/launch'
 import { conversionStats } from '@/lib/analytics/conversions'
 import { trafficTab } from '@/lib/analytics/ga4'
@@ -200,6 +201,57 @@ export const READ_TOOLS: Record<string, ReadTool> = {
       const out = []
       for (const slug of slugs.slice(0, 6)) out.push(await cityLaunchStatus(slug))
       return out.filter(Boolean)
+    },
+  },
+  solicitudes_con_atencion: {
+    def: { name: 'solicitudes_con_atencion', description: 'Solicitudes de servicio (30 días y las que tienen reserva viva) con puntos de atención, las más graves primero: sin propuestas, reserva sin confirmar o con la hora pasada, en curso trabada, pago en disputa o sin confirmar, intentos de pasar datos de contacto en el chat, quejas en el chat, precio de la reserva distinto a la propuesta, reclamos de garantía. Cada punto trae qué intervención sugiere. Usa el id con solicitud_detalle antes de proponer una acción.', input_schema: { type: 'object', properties: { dias: { type: 'integer', minimum: 1, maximum: 90, description: 'Días hacia atrás (30 por defecto)' } } } },
+    maxOutput: 12000,
+    run: async (i) => {
+      const items = await scanAttention({ days: limit(i.dias, 30, 90) })
+      return {
+        total: items.length,
+        solicitudes: items.slice(0, 25).map((x) => ({ id: x.id, ref: x.ref, servicio: x.service, cliente: untrusted(x.client.slice(0, 60)), estado: x.status, reserva: x.bookingStatus, puntos: x.flags.map((f) => ({ gravedad: f.severity, codigo: f.code, que: f.title, detalle: f.detail, sugerido: f.suggest })) })),
+      }
+    },
+  },
+  solicitud_detalle: {
+    def: { name: 'solicitud_detalle', description: 'Todo lo de una solicitud: datos del cliente, fotos, socios avisados, propuestas (precio, fecha propuesta, nota), el chat de cada propuesta con sus mensajes e intentos bloqueados, la reserva con su historial, fotos del trabajo, pago, reseña, garantía, reembolsos, casos de soporte, origen y los puntos de atención. Recibe el id o la referencia de 6 caracteres. Úsala para entender un caso antes de proponer requests.message_chat, requests.cancel_booking, requests.reschedule_booking, requests.reactivate o requests.open_case.', input_schema: { type: 'object', properties: { id: { type: 'string', description: 'Id de la solicitud o su referencia de 6 caracteres' } }, required: ['id'] } },
+    maxOutput: 16000,
+    run: async (i) => {
+      const raw = typeof i.id === 'string' ? i.id.trim() : ''
+      if (!/^[a-z0-9]{6,40}$/i.test(raw)) return { error: 'id o referencia inválida' }
+      const id = raw.length > 6 ? raw : (await prisma.serviceRequest.findFirst({ where: { id: { endsWith: raw } }, select: { id: true }, orderBy: { createdAt: 'desc' } }))?.id
+      const c = id ? await requestCase(id) : null
+      if (!c) return { error: 'No encontré esa solicitud' }
+      // Everything written by clients and partners is data, never instructions
+      const u = (v: string | null | undefined, n = 300) => (v ? untrusted(v.slice(0, n)) : null)
+      return {
+        id: c.id, ref: c.ref, estado: c.status, creada: bogotaTime(c.createdAt), vence: bogotaTime(c.expiresAt), servicio: c.service.name, precio_base: c.service.basePrice,
+        cliente: { id: c.client.id, nombre: u(c.client.name, 80), activo: c.client.isActive }, directa_a: c.direct ? u(c.direct.name, 80) : null,
+        direccion: u(c.address, 200), zona: c.zone, cuando: c.isUrgent ? 'urgente' : c.preferredDate ? `${bogotaTime(c.preferredDate)} ${c.preferredTime ?? ''}` : null, presupuesto: c.budget, notas: u(c.notes), fotos: c.photos.length,
+        origen: { via: c.origin.via, canal: c.origin.channel, conversacionId: c.origin.conversation?.id ?? null },
+        socios_avisados: c.notified.length, socios_que_leyeron: c.notified.filter((n) => n.read).length,
+        propuestas: c.proposals.map((p) => ({
+          id: p.id, ref: p.ref, estado: p.status, precio: p.price, fecha_propuesta: p.proposedDate ? `${bogotaTime(p.proposedDate)}${p.proposedTime ? ` ${p.proposedTime}` : ''}` : null, nota: u(p.notes, 200),
+          socio: { nombre: u(p.partner.name, 80), calificacion: p.partner.reviews ? p.partner.rating : null, resenas: p.partner.reviews, trabajos: p.partner.jobs },
+          chat: p.chat ? {
+            mensajes: p.chat.messages.length,
+            ultimos: p.chat.messages.slice(-30).map((m) => ({ quien: m.side, cuando: bogotaTime(m.at), texto: u(m.content, 300), foto: Boolean(m.imageUrl) })),
+            intentos_bloqueados: p.chat.blocked.map((b) => ({ cuando: bogotaTime(b.at), detalle: u(b.details, 300) })),
+          } : null,
+        })),
+        reserva: c.booking ? {
+          id: c.booking.id, ref: c.booking.ref, estado: c.booking.status, fecha: `${c.booking.scheduledTime} · ${bogotaTime(c.booking.scheduledDate)}`, precio: c.booking.totalPrice, precio_propuesta: c.booking.proposalPrice,
+          historial: c.booking.events.map((e) => ({ cuando: bogotaTime(e.at), tipo: e.type, de: e.from, a: e.to, quien: e.actorType, origen: e.origin, detalle: u(e.detail, 200) })),
+          fotos_trabajo: { antes: c.booking.photos.filter((x) => x.kind === 'before').length, despues: c.booking.photos.filter((x) => x.kind === 'after').length },
+          pago: c.booking.payment ? { estado: c.booking.payment.status, confirmacion: c.booking.payment.confirmationStatus, reporto_cliente: c.booking.payment.clientReportedMethod, confirmo_socio: c.booking.payment.partnerConfirmedMethod } : null,
+          resena: c.booking.review ? { al_socio: c.booking.review.clientToPartnerRating, comentario: u(c.booking.review.clientToPartnerComment, 200), al_cliente: c.booking.review.partnerToClientRating } : null,
+          garantia: c.booking.guaranteeClaims.map((g) => ({ id: g.id, tipo: g.type, estado: g.status })),
+          reembolsos: c.booking.refundCases.map((r) => ({ estado: r.status, monto: r.approvedAmount ?? r.requestedAmount })),
+        } : null,
+        casos_de_soporte: c.supportCases.map((s) => ({ asunto: u(s.subject, 120), estado: s.status, prioridad: s.priority })),
+        puntos_de_atencion: c.flags.map((f) => ({ gravedad: f.severity, codigo: f.code, que: f.title, detalle: f.detail, sugerido: f.suggest })),
+      }
     },
   },
   marketing: {

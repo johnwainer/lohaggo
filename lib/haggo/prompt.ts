@@ -70,6 +70,7 @@ Investiga lo nuevo con tus herramientas y mira también las áreas relacionadas 
 export const REVIEW_CHECKLIST: Array<{ area: string; tools: string[] }> = [
   { area: 'Negocio: ventas, reservas, embudo y tendencia', tools: ['tendencias_negocio'] },
   { area: 'Oferta y demanda: solicitudes sin propuestas, servicios y ciudades sin socios', tools: ['solicitudes_sin_propuestas', 'oferta_y_demanda'] },
+  { area: 'Solicitudes de punta a punta: puntos de atención (reservas trabadas, pagos, quejas e intentos de pasar contacto en el chat, precios que no cuadran) y el detalle del caso antes de proponer intervenir', tools: ['solicitudes_con_atencion', 'solicitud_detalle'] },
   { area: 'Demanda no atendida: búsquedas sin resultados', tools: ['busquedas'] },
   { area: 'Socios: verificación, disponibilidad y quién trabaja', tools: ['socios'] },
   { area: 'Clientes y adquisición: registros, origen, recompra', tools: ['personas_y_adquisicion'] },

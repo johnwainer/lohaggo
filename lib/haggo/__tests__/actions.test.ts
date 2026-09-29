@@ -136,6 +136,11 @@ const FIXTURES: Record<string, { raw: Record<string, unknown>; before: unknown }
   'marketing.decide_ideas': { raw: { agentId: 'agent_123456', ideaIds: ['idea_123456'], decision: 'reject', reason: 'Ya se habló de eso' }, before: { ideas: [{ id: 'idea_123456', angle: 'Goteras en invierno' }] } },
   'marketing.draft_idea': { raw: { agentId: 'agent_123456', ideaId: 'idea_123456' }, before: { angle: 'Goteras', mode: 'supervised', campaign: 'Consejos' } },
   'marketing.review_post': { raw: { postId: 'post_123456' }, before: { title: 'Goteras', reviewStatus: 'failed' } },
+  'requests.message_chat': { raw: { requestId: 'req_123456', proposalId: 'prop_123456', to: 'partner', text: 'Hola, te recordamos confirmar la reserva en la app.' }, before: { service: 'Plomería', client: 'Ana', partner: 'Luis' } },
+  'requests.reactivate': { raw: { requestId: 'req_123456' }, before: { service: 'Plomería', status: 'EXPIRED' } },
+  'requests.reschedule_booking': { raw: { requestId: 'req_123456', bookingId: 'bk_1234567', date: '2026-10-10', time: '10:00' }, before: { at: '2026-10-09T15:00:00.000Z' } },
+  'requests.cancel_booking': { raw: { requestId: 'req_123456', bookingId: 'bk_1234567', reason: 'El socio no llegó ni responde', reopen: true }, before: { status: 'CONFIRMED', service: 'Plomería' } },
+  'requests.open_case': { raw: { requestId: 'req_123456', subject: 'Intentos de pasar contacto', description: 'Tres intentos bloqueados en el chat de la propuesta.' }, before: null },
   'marketing.request_ad_package': { raw: { service: 'Plomería', city: 'Medellín', instruction: 'Plomería trae solicitudes a $12.000 y no tiene pauta activa' }, before: { service: 'Plomería', city: 'Medellín', workspaceId: 'ws_default_lohaggo' } },
   'marketing.propose_budget_shift': { raw: { fromAdSet: 'Hogar', toAdSet: 'Reparaciones', dailyCop: 3000, reason: 'Hogar $40.000 por solicitud frente a $15.000 de Reparaciones en 7 días' }, before: { daysWithSpend: 5 } },
   'ai_agents.pause': { raw: { agentId: 'agent_123456' }, before: { name: 'Soporte', status: 'active', open: 3 } },
@@ -319,6 +324,7 @@ describe('Haggo puede encontrar lo que cada acción necesita', () => {
   const SOURCES: Record<string, string[]> = {
     postId: ['marketing'], publicationId: ['marketing'], ideaId: ['marketing'], agentId: ['marketing', 'foto'], gapId: ['agente_ia'], workspaceId: ['agente_ia', 'equipo'],
     conversationId: ['conversaciones_en_espera'], userId: ['equipo'], serviceRequestId: ['solicitudes_sin_propuestas'], incidentId: ['incidentes_abiertos'],
+    requestId: ['solicitudes_con_atencion', 'solicitud_detalle'], proposalId: ['solicitud_detalle'], bookingId: ['solicitud_detalle'],
     key: ['funciones', 'configuracion_plataforma'], partnerId: ['socios', 'resenas', 'verificacion_documentos'], paymentId: ['dinero'], slug: ['configuracion_plataforma'],
   }
   it('todo identificador requerido tiene una herramienta de lectura que lo muestra', () => {
@@ -359,5 +365,11 @@ describe('verificación de resultados (fase 4)', () => {
     expect(parseEvaluation({ action_id: 'a1', resultado: 'genial', evidencia: 'x' }, ['a1']).ok).toBe(false)
     expect(parseEvaluation({ action_id: 'a1', resultado: 'empeoro' }, ['a1']).ok).toBe(false)
     expect(parseEvaluation({ action_id: 'a1', resultado: 'no_medible' }, ['a1']).ok).toBe(true)
+  })
+})
+
+describe('riesgo de las acciones', () => {
+  it('toda acción que mueve dinero es de riesgo alto o máximo', () => {
+    for (const a of ACTIONS) if (a.sideEffects.includes('changes_money')) expect(['high', 'max'], a.id).toContain(a.risk)
   })
 })

@@ -1,4 +1,5 @@
 import { attributionSnapshot } from '@/lib/analytics/origins'
+import { scanAttention } from '@/lib/admin/request-360'
 import { prisma } from '@/lib/prisma'
 import { platformOverview } from '@/lib/admin/overview'
 import { bogotaDayStart } from '@/lib/admin/overview-core'
@@ -119,6 +120,18 @@ export async function takeSnapshot(now = new Date()): Promise<Snapshot> {
     guarantee,
     waTemplates,
     attribution: await attributionSnapshot(now).catch(() => undefined),
+    requestAttention: await scanAttention({ days: 30, now }).then((items) => {
+      const flags = items.flatMap((x) => x.flags.map((f) => ({ ...f, id: x.id, ref: x.ref, service: x.service })))
+      const codes: Record<string, number> = {}
+      for (const x of items) for (const code of Array.from(new Set(x.flags.map((f) => f.code)))) codes[code] = (codes[code] ?? 0) + 1
+      return {
+        critical: flags.filter((f) => f.severity === 'critical').length,
+        warning: flags.filter((f) => f.severity === 'warning').length,
+        info: flags.filter((f) => f.severity === 'info').length,
+        codes,
+        top: flags.filter((f) => f.severity !== 'info').slice(0, 8).map((f) => ({ id: f.id, ref: f.ref, service: f.service, severity: f.severity, code: f.code, title: f.title })),
+      }
+    }).catch(() => undefined),
     phoneLogin: await Promise.all([
       prisma.phoneLoginCode.count({ where: { createdAt: { gte: day } } }),
       prisma.phoneLoginCode.count({ where: { createdAt: { gte: day }, usedAt: { not: null } } }),

@@ -190,7 +190,7 @@ async function openRefundCaseIfPaid(actor: Actor, origin: Origin, booking: { id:
  * already there), update + BookingEvent, then the app's side effects. Cancelling a paid booking also opens
  * the refund case.
  */
-export async function transitionBooking(actor: Actor, bookingId: string, to: BookingStatus, origin: Origin, opts: { reason?: string } = {}) {
+export async function transitionBooking(actor: Actor, bookingId: string, to: BookingStatus, origin: Origin, opts: { reason?: string; reopen?: boolean } = {}) {
   const booking = await loadBooking(bookingId)
   assertBookingAccess(actor, booking)
 
@@ -203,7 +203,8 @@ export async function transitionBooking(actor: Actor, bookingId: string, to: Boo
   await addBookingEvent({ bookingId, type: 'status', actor, origin, fromStatus: booking.status, toStatus: to, detail: opts.reason ?? null })
 
   if (to === 'CANCELLED') await openRefundCaseIfPaid(actor, origin, booking)
-  const reopened = to === 'CANCELLED' && actor.role === 'PARTNER' ? await reopenRequestAfterPartnerCancel(booking) : false
+  // The partner dropped it, or the team cancelled it to give it to other partners
+  const reopened = to === 'CANCELLED' && (actor.role === 'PARTNER' || (actor.role === 'ADMIN' && opts.reopen)) ? await reopenRequestAfterPartnerCancel(booking) : false
   // WhatsApp template first: the notifications' free-text WhatsApp is then skipped for that person
   const { waBookingStatus } = await import('@/lib/messaging/wa-events')
   await waBookingStatus({ bookingId, from: booking.status, to, actorRole: actor.role, origin, reopened })

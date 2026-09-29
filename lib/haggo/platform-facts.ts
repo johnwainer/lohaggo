@@ -18,6 +18,7 @@ export const PLATFORM_CAPABILITIES = `Cómo funciona LoHaggo hoy:
 - Pedir sin cuenta: al final del formulario el cliente confirma su celular con un código por WhatsApp (plantilla A1) y queda con sesión; si el número no tiene cuenta se crea una de cliente con correo interno (wa-…@clientes.lohaggo.com, nunca recibe correo). Una cuenta existente cuyo celular nunca se confirmó recibe el enlace en su correo. /login también entra con código, y el enlace de acceso a pedido llega por WhatsApp (B2/C2) al número de la cuenta.
 - Socios: zonas de cobertura (16 comunas de Medellín y 6 municipios, lib/geo/zones.ts) y horario semanal (Availability); cada solicitud guarda su zona y los avisos van primero a quien cubre la zona y el horario (si nadie, a toda la ciudad). Propuestas con fecha y hora: al aceptarlas la reserva queda para ese momento.
 - Reservas: el cliente y el socio reprograman desde la app; cancelar exige motivo; el cliente califica al completarse sin esperar el pago; el socio sube fotos antes y después (respaldo de la garantía); «Pedir de nuevo» crea una solicitud directa al mismo socio (app y chat, herramienta pedir_de_nuevo).
+- Supervisión de solicitudes («Solicitud 360» en /admin/service-requests/[id]): el equipo ve todo de una solicitud (fotos, socios avisados, propuestas con fecha, el chat de cada propuesta con sus imágenes e intentos bloqueados de pasar contacto, la reserva con su historial, fotos del trabajo, pago, reseña, garantía, reembolsos, casos y origen) y puntos de atención calculados (lib/admin/attention-core.ts). Puede intervenir: escribir en el chat como «Soporte LoHaggo», volver a avisar a socios, reactivar, cambiar estado, reprogramar, cancelar con motivo y reabrir a otros socios, y abrir casos. Tú propones esas intervenciones (requests.*) y una persona las aprueba.
 - Atribución de punta a punta: cada solicitud y reserva guarda su primer y último toque (anuncio de Meta con su pauta, publicación, blog, página de la web, perfil de Google, chat directo). Las pautas llevan su código (ad-…) en la UTM y en el mensaje prellenado de WhatsApp; el gasto diario se carga a mano en Marketing → Pauta. Lead (solicitud) y Purchase (reserva completada) van a Meta (API de Conversiones) y GA4 una vez cada uno. Meta de la pauta: menos de $25.000 por solicitud.
 - Analítica del admin con corte app frente a chat, pestaña Origen (de dónde vienen las solicitudes), salud del sistema, casos e incidentes, modo TV.
 - Tú (Haggo) supervisas todo, propones acciones y el superadmin aprueba; en las áreas que él ponga en autónomo actúas solo con riesgo bajo o medio permitido.`
@@ -26,6 +27,13 @@ export type ChangelogEntry = { date: string; area: string; change: string; impac
 
 /** Newest first. At most ~15 entries: the big features only. */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
+  {
+    date: '2026-09-29',
+    area: 'Supervisión de solicitudes',
+    change: '«Solicitud 360» en el admin con todo el recorrido de cada solicitud y puntos de atención (sin propuestas, reserva sin confirmar o con la hora pasada, en curso trabada, pagos en disputa o sin confirmar, intentos de pasar contacto, quejas en el chat, precio distinto a la propuesta, garantía). Intervenciones del admin (chat como Soporte, reavisar, reactivar, estado, reprogramar, cancelar y reabrir, casos) y los intentos bloqueados quedan registrados (CHAT_CONTACT_BLOCKED). Herramientas solicitudes_con_atencion y solicitud_detalle, foto requestAttention, reglas ops:attention:*, ops:chat-contact-attempts, ops:chat-complaints y acciones requests.message_chat, requests.reactivate, requests.reschedule_booking, requests.cancel_booking, requests.open_case.',
+    impacto: 'Nada de lo que pasa en una solicitud queda fuera de la vista del equipo; los casos que se traban o que se intentan sacar de la plataforma se detectan y se atienden a tiempo.',
+    comoVerlo: 'solicitudes_con_atencion, solicitud_detalle, la foto (requestAttention.*) y las reglas ops:attention:*.',
+  },
   {
     date: '2026-09-28',
     area: 'Escala y Bogotá',
@@ -123,13 +131,6 @@ export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
     change: 'Fase 5: avisos por correo al superadmin y hallazgos en el modo TV.',
     impacto: 'Lo grave llega al correo aunque nadie mire el admin.',
     comoVerlo: 'Ajustes de Haggo.',
-  },
-  {
-    date: '2026-09-25',
-    area: 'Haggo',
-    change: 'Fases 1 a 4: Haggo observa, conversa, propone acciones y actúa solo donde se le permite, verificando el resultado.',
-    impacto: 'Supervisión continua de toda la plataforma.',
-    comoVerlo: 'hallazgos_abiertos.',
   },
 ]
 
