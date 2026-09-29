@@ -1,3 +1,4 @@
+import { twilioCallbackAllowed } from '@/lib/messaging/twilio-signature'
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -14,10 +15,7 @@ const STATUS_MAP: Record<string, string> = {
 }
 
 export async function POST(request: NextRequest) {
-  const token = request.nextUrl.searchParams.get('token')
-  if (env.SECURITY_INTERNAL_TOKEN && token !== env.SECURITY_INTERNAL_TOKEN) {
-    return new NextResponse('Unauthorized', { status: 401 })
-  }
+  if (!(await twilioCallbackAllowed(request))) return new NextResponse('Unauthorized', { status: 401 })
 
   const formData = await request.formData()
   const messageSid = String(formData.get('MessageSid') || '')

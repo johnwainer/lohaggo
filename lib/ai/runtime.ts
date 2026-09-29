@@ -423,7 +423,9 @@ export const HANDOFF_LABEL: Record<HandoffReason, string> = {
 }
 
 async function pickLeastLoadedMember(workspaceId: string): Promise<string | null> {
-  const members = await prisma.workspaceMember.findMany({ where: { workspaceId, user: { isActive: true, role: 'ADMIN' } }, select: { userId: true } })
+  let members = await prisma.workspaceMember.findMany({ where: { workspaceId, user: { isActive: true, role: 'ADMIN' } }, select: { userId: true } })
+  // A handoff never ends with nobody: without members, any active admin takes it
+  if (!members.length) members = (await prisma.user.findMany({ where: { role: 'ADMIN', isActive: true }, select: { id: true } })).map((u) => ({ userId: u.id }))
   if (!members.length) return null
   const counts = await prisma.conversation.groupBy({
     by: ['assignedToId'],

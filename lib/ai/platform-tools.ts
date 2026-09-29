@@ -1,3 +1,4 @@
+import { formatCalendarDay } from '@/lib/bookings/when'
 /**
  * Platform tools: what an inbox AI agent can do on the linked person's account from a chat (ask for a
  * service, accept a proposal, report a payment, send a proposal as a partner…). Every write goes through
@@ -14,7 +15,7 @@ import type { BookingStatus, City, DocumentType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import type { CatalogEntry, ToolContext } from '@/lib/ai/tools'
 import { askConfirmationText, awaitingApprovalText, confirmationGate, cop, dryRunText, isClearYes, LIMIT_REACHED_TEXT, MISMATCH_CONFIRMATION_TEXT, sameActionCore, sameActionInput, shortId, STALE_CONFIRMATION_TEXT } from '@/lib/ai/actions-core'
-import { expireStaleProposals, leaveTrail, overDailyLimit, proposedInWindow, recordAction, settleAction } from '@/lib/ai/actions'
+import { claimAction, expireStaleProposals, leaveTrail, overDailyLimit, proposedInWindow, recordAction, settleAction } from '@/lib/ai/actions'
 import { chatOrigin, OpsError, type Actor, type Origin } from '@/lib/ops/origin'
 import { fmtDate } from '@/lib/ai/platform-data'
 import { addRequestPhotos, cancelServiceRequest, createServiceRequest, isRequestExpired, listClientRequests, listOpenRequestsForPartner, partnerAvailabilitySummary, partnersForService, reactivateServiceRequest, requestSummaryForChat } from '@/lib/service-requests/ops'
@@ -371,8 +372,9 @@ async function actorFor(ctx: ToolContext): Promise<Actor | null> {
   if (!ctx.userId) return null
   if (ctx.mode === 'playground' && ctx.userId === PLAYGROUND_USER) return { userId: PLAYGROUND_USER, role: 'CLIENT', partnerId: null, email: null }
   const u = await prisma.user.findUnique({ where: { id: ctx.userId }, select: { id: true, role: true, email: true, isActive: true, partnerProfile: { select: { id: true } } } })
-  if (!u || !u.isActive) return null
-  return { userId: u.id, role: u.role === 'ADMIN' ? 'ADMIN' : u.partnerProfile ? 'PARTNER' : 'CLIENT', partnerId: u.partnerProfile?.id ?? null, email: u.email }
+  // An admin account linked to a chat would reach every booking by reference: the chat acts as unlinked
+  if (!u || !u.isActive || u.role === 'ADMIN') return null
+  return { userId: u.id, role: u.partnerProfile ? 'PARTNER' : 'CLIENT', partnerId: u.partnerProfile?.id ?? null, email: u.email }
 }
 
 function originFor(ctx: ToolContext): Origin {
@@ -912,7 +914,7 @@ async function runRead(name: PlatformToolName, input: Record<string, unknown>, c
     if (!partner.verified || !partner.isActive) return `${status}\nMientras no esté verificado y activo no recibe solicitudes ni puede proponer.`
     const rows = await listOpenRequestsForPartner(actor.partnerId)
     if (!rows.length) return `${status}\nNo hay solicitudes abiertas que le apliquen ahora.`
-    return `${status}\nSolicitudes disponibles:\n${rows.slice(0, 8).map((r) => `- ref ${shortId(r.id)}: ${r.service?.name ?? 'servicio'} · ${r.isUrgent ? 'urgente' : fmtDate(r.preferredDate)}${r.preferredTime ? ` ${r.preferredTime}` : ''} · ${r.address}${r.budget ? ` · presupuesto ${cop(r.budget)}` : ''} · ${r._count?.proposals ?? 0} propuestas · vence ${fmtDate(r.expiresAt)}`).join('\n')}`
+    return `${status}\nSolicitudes disponibles:\n${rows.slice(0, 8).map((r) => `- ref ${shortId(r.id)}: ${r.service?.name ?? 'servicio'} · ${r.isUrgent ? 'urgente' : (r.preferredDate ? formatCalendarDay(r.preferredDate) : 'sin fecha')}${r.preferredTime ? ` ${r.preferredTime}` : ''} · ${r.address}${r.budget ? ` · presupuesto ${cop(r.budget)}` : ''} · ${r._count?.proposals ?? 0} propuestas · vence ${fmtDate(r.expiresAt)}`).join('\n')}`
   }
   return `Herramienta "${name}" no disponible.`
 }
@@ -920,6 +922,11 @@ async function runRead(name: PlatformToolName, input: Record<string, unknown>, c
 // ─── Identity (direct: runs without proposal; the code goes to the account's own phone or email) ─────
 
 async function runIdentity(name: PlatformToolName, input: Record<string, unknown>, ctx: ToolContext): Promise<string> {
+  // A copilot suggestion is a draft for a person: it never sends codes or links nor links the chat
+  if (ctx.mode === 'copilot') {
+    const what = name === 'enviar_enlace_acceso' ? 'enviar el enlace de acceso' : name === 'vincular_cuenta' ? 'enviar el código de vinculación' : 'comprobar el código y vincular la cuenta'
+    return `Sugerencia: ${what}. Lo hace la persona que atiende (en copiloto no se envía nada).`
+  }
   if (ctx.mode === 'playground' || !ctx.conversationId) {
     if (name === 'enviar_enlace_acceso') return `Enlace enviado (simulado en pruebas): en producción llega a este WhatsApp con el botón «Entrar» si escribe desde el número de su cuenta, o al correo registrado (vence en ${LOGIN_LINK_TTL_MIN} minutos). No escribas ningún enlace en el chat.`
     if (name === 'vincular_cuenta') return 'Código enviado (simulado en pruebas) al teléfono o correo de la cuenta. Pídele los 6 dígitos.'
@@ -932,7 +939,8 @@ async function runIdentity(name: PlatformToolName, input: Record<string, unknown
     // Writing from the account's own number proves the phone: the link goes to this WhatsApp (B2 / C2)
     const owner = await prisma.user.findUnique({ where: { id: conv.userId }, select: { phone: true } })
     if (owner?.phone && toE164(owner.phone) === toE164(conv.contactPhone)) {
-      const r = await sendAccessLink(conv.userId, { phoneTrusted: true })
+      // WhatsApp only when that phone was confirmed (code) or the account was born from it; else the email
+      const r = await sendAccessLink(conv.userId)
       if (r.ok) {
         await prisma.conversationEvent.create({ data: { conversationId: ctx.conversationId, type: 'login_link', actorType: 'ai', actorId: ctx.agent.id, actorName: ctx.agent.name, detail: `Enlace de acceso por ${r.via === 'whatsapp' ? 'WhatsApp' : 'correo'}` } })
         return r.via === 'whatsapp'
@@ -1021,9 +1029,13 @@ export async function runPlatformTool(name: PlatformToolName, rawInput: Record<s
     open = await proposedInWindow(ctx.conversationId, name)
     const match = open.find((p) => sameActionCore(p.input, rawInput)) ?? null
     proposed = match ?? (open.length === 1 ? open[0] : null)
-    if (match && ctx.personText && isClearYes(ctx.personText) && match.createdAt < (ctx.turnStartedAt ?? new Date())) {
+    // A clear yes confirms what the person was shown: the matching proposal, or the only open one even if
+    // the model re-sent it with reworded details (otherwise it proposes again and asks forever)
+    const yesTo = match ?? (open.length === 1 ? open[0] : null)
+    if (yesTo && ctx.personText && isClearYes(ctx.personText) && yesTo.createdAt < (ctx.turnStartedAt ?? new Date())) {
       acceptedByYes = true
-      input = { ...(match.input as Record<string, unknown>), confirmado: true }
+      proposed = yesTo
+      input = { ...(yesTo.input as Record<string, unknown>), confirmado: true }
     }
   }
 
@@ -1060,6 +1072,12 @@ export async function runPlatformTool(name: PlatformToolName, rawInput: Record<s
     return askConfirmationText(plan.summary)
   }
   if (gate === 'stale') return STALE_CONFIRMATION_TEXT
+
+  // Claim the proposal before running it: a «sí» and a «gracias» a second apart (two turns), or the same
+  // tool twice in one round, must not run it twice
+  if (proposed) {
+    if (!(await claimAction(proposed.id, 'proposed'))) return 'Eso ya quedó hecho hace un momento: no lo repitas. Confírmale a la persona el resultado.'
+  }
 
   try {
     const done = await plan.run()
@@ -1098,6 +1116,8 @@ async function mercadoPagoText(actor: Actor, ref: string) {
 export async function executeApprovedAction(actionId: string, adminId: string): Promise<{ ok: boolean; text: string }> {
   const action = await prisma.aiAgentAction.findUnique({ where: { id: actionId }, include: { conversation: { select: { id: true, channel: true, workspaceId: true, userId: true, contactName: true, contactPhone: true } } } })
   if (!action || action.status !== 'awaiting_approval') return { ok: false, text: 'La acción ya no está pendiente.' }
+  // Two admins (or two tabs) approving at once: only the first claim runs it
+  if (!(await claimAction(actionId, 'awaiting_approval'))) return { ok: false, text: 'La acción ya se está ejecutando o ya se resolvió.' }
   const name = action.tool as PlatformToolName
   const entry = PLATFORM_TOOLS[name]
   const ctx: ToolContext = {

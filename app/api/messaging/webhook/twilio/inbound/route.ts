@@ -1,5 +1,5 @@
 export const dynamic = 'force-dynamic'
-export const maxDuration = 60
+export const maxDuration = 300
 
 import { createHmac } from 'crypto'
 import { NextRequest, NextResponse, after } from 'next/server'
@@ -37,7 +37,9 @@ async function validateTwilioSignature(request: NextRequest, authToken: string):
   return expected === signature
 }
 
-const STOP_KEYWORDS = new Set(['stop', 'baja', 'cancelar', 'unsubscribe', 'salir', 'para'])
+// Only unambiguous words: «cancelar» or «para» are normal things a client writes about a booking
+const STOP_KEYWORDS = new Set(['stop', 'baja', 'unsubscribe', 'darme de baja'])
+const START_KEYWORDS = new Set(['start', 'alta', 'darme de alta', 'suscribir'])
 
 export async function POST(request: NextRequest) {
   // Token fallback for non-HMAC callers (internal testing)
@@ -87,16 +89,22 @@ export async function POST(request: NextRequest) {
   // A quick-reply button of one of our templates (its title can be «Cancelar»: never an opt-out)
   const button = isWhatsApp ? parseButtonReply((k) => formData.get(k)) : null
 
-  // STOP / opt-out detection
-  const trimmedBody = body.trim().toLowerCase()
-  if (!button && STOP_KEYWORDS.has(trimmedBody)) {
+  // Twilio retries: a message already saved is not processed twice
+  if (messageSid && (await prisma.conversationMessage.findFirst({ where: { providerMessageId: messageSid }, select: { id: true } }))) return twiml()
+
+  // STOP / START: the message is still saved (the team sees it) but the AI does not answer a STOP
+  const trimmedBody = body.trim().toLowerCase().replace(/[.!¡]+/g, '').trim()
+  const optingOut = !button && STOP_KEYWORDS.has(trimmedBody)
+  if (optingOut) {
     await prisma.messagingOptOut.upsert({
       where: { channel_destination: { channel, destination: contactPhone } },
       create: { channel, destination: contactPhone, isActive: true },
       update: { isActive: true },
     })
     logger.info('Opt-out registered', { channel, contactPhone })
-    return twiml()
+  } else if (!button && START_KEYWORDS.has(trimmedBody)) {
+    await prisma.messagingOptOut.updateMany({ where: { channel, destination: contactPhone, isActive: true }, data: { isActive: false } })
+    logger.info('Opt-in registered', { channel, contactPhone })
   }
 
   const workspaceId = await getDefaultWorkspaceId()
@@ -132,6 +140,7 @@ export async function POST(request: NextRequest) {
   })
 
   if (!conversation) {
+    // Two messages of a new contact at once: the second one finds the conversation the first created
     conversation = await prisma.conversation.create({
       data: {
         channel,
@@ -146,13 +155,17 @@ export async function POST(request: NextRequest) {
         lastMessageBody: (body || (mediaUrl ? attachmentLabel(kindFromMime(mediaType)) : '')).slice(0, 200),
         unreadCount: 1,
       },
+    }).catch(async (err) => {
+      const existing = await prisma.conversation.findUnique({ where: { channel_contactPhone: { channel, contactPhone } } })
+      if (!existing) throw err
+      return existing
     })
     logger.info('New conversation', { id: conversation.id, channel, contactPhone })
   } else {
     await prisma.conversation.update({
       where: { id: conversation.id },
       data: {
-        status: conversation.status === 'CLOSED' ? 'OPEN' : conversation.status,
+        status: conversation.status === 'CLOSED' || conversation.status === 'RESOLVED' ? 'OPEN' : conversation.status,
         lastMessageAt: new Date(),
         lastMessageBody: (body || (mediaUrl ? attachmentLabel(kindFromMime(mediaType)) : '')).slice(0, 200),
         unreadCount: { increment: 1 },
@@ -181,9 +194,11 @@ export async function POST(request: NextRequest) {
       deliveredAt: new Date(),
     },
   })
+  // The agent answers the whole burst once, from its last part (a photo album arrives as several parts)
+  let lastMessageId = inbound.id
   for (let i = 0; i < media.length - 1; i++) {
     const m = media[i + 1]
-    await prisma.conversationMessage.create({
+    const extra = await prisma.conversationMessage.create({
       data: {
         conversationId: conversation.id,
         direction: 'INBOUND',
@@ -195,7 +210,8 @@ export async function POST(request: NextRequest) {
         status: 'DELIVERED',
         deliveredAt: new Date(),
       },
-    }).catch((err) => logger.warn('Extra media not saved', { messageSid, err: err instanceof Error ? err.message : err }))
+    }).catch((err) => { logger.warn('Extra media not saved', { messageSid, err: err instanceof Error ? err.message : err }); return null })
+    if (extra) lastMessageId = extra.id
   }
 
   logger.info('Inbound saved', { conversationId: conversation.id, messageSid })
@@ -215,8 +231,9 @@ export async function POST(request: NextRequest) {
 
   // AI autopilot works after the TwiML response
   const conversationId = conversation.id
+  if (optingOut) return twiml()
   after(async () => {
-    scheduleInboundAgent(conversationId, inbound.id)
+    scheduleInboundAgent(conversationId, lastMessageId)
     await drainAgentTasks()
   })
 

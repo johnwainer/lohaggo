@@ -84,9 +84,14 @@ export async function deliverWa(recipient: WaRecipient, spec: WaSpec, now = new 
     const recipientKey = recipient.userId ?? phone
     const key = spec.dedupeKey ? `${spec.dedupeKey}:${recipientKey}`.slice(0, 190) : waDedupeKey(spec.event, spec.entity, recipientKey)
     if (await alreadySent(key, spec.dedupeWindowMs, now)) return { ok: false, skipped: 'duplicate', requested }
+    // Two crons or events at the same instant: an atomic claim so only one of them sends
+    const { hit, unhit } = await import('@/lib/rate-limit-store')
+    const lock = `walock:${key}`
+    if ((await hit(lock, 10 * 60_000, now.getTime())).count > 1) return { ok: false, skipped: 'duplicate', requested }
 
     const res = await sendTemplateCandidates(spec.candidates, phone, { allowMarketing })
     if (!res.ok) {
+      await unhit(lock, 10 * 60_000, now.getTime())
       if (!res.skipped) logger.warn('WhatsApp template failed', { event: spec.event, requested, error: res.error })
       return res
     }

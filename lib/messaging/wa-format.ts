@@ -152,7 +152,10 @@ export function templateContextLines(fields: Record<string, unknown> | null | un
   }
   const about = (m: TemplateMark) => (m.entityType && m.entityId ? ` sobre ${ENTITY_LABEL[m.entityType] ?? m.entityType} #${m.entityId.slice(-6)}` : '')
 
-  if (btn && typeof btn.id === 'string' && typeof btn.at === 'string' && fresh(btn.at)) {
+  // A pressed button steers the next turns only for a short while: days later it would push the agent back
+  // onto an old booking or payment
+  const buttonFresh = (at: string) => fresh(at) && now.getTime() - new Date(at).getTime() < BUTTON_CONTEXT_MS
+  if (btn && typeof btn.id === 'string' && typeof btn.at === 'string' && buttonFresh(btn.at)) {
     const ref = isMark(btn.template) ? btn.template : tpl
     const on = ref ? ` a la plantilla ${ref.name}${about(ref)}` : ''
     out.push(`La persona respondió con el botón “${btn.text}” (id ${btn.id})${on} ${ago(now.getTime() - new Date(btn.at).getTime())}; actúa sobre esa entidad${ref?.entityId ? ` (usa la referencia ${ref.entityId.slice(-6)} en las herramientas)` : ''}.`)
@@ -162,6 +165,8 @@ export function templateContextLines(fields: Record<string, unknown> | null | un
   }
   return out
 }
+
+export const BUTTON_CONTEXT_MS = 2 * 3600_000
 
 /** Keys the template machinery keeps in Conversation.customFields: not shown as «Datos guardados». */
 export const TEMPLATE_FIELD_KEYS = new Set(['lastTemplate', 'lastButton', 'recentTemplates'])
@@ -192,7 +197,9 @@ export const BUTTON_GUIDANCE = `Respuestas rápidas de nuestras plantillas de Wh
 export function withButtonMark(current: unknown, button: ButtonReply, repliedSid: string | null, now: Date = new Date()): Record<string, unknown> {
   const base = current && typeof current === 'object' && !Array.isArray(current) ? { ...(current as Record<string, unknown>) } : {}
   const recent = Array.isArray(base.recentTemplates) ? (base.recentTemplates as unknown[]).filter(isMark) : []
-  const template = (repliedSid ? recent.find((m) => m.sid === repliedSid) : null) ?? (isMark(base.lastTemplate) ? base.lastTemplate : null)
+  // The template the button answers: the one with that sid; the last template only when Twilio sent no sid
+  // (a partner gets many notices: guessing would point at the wrong booking)
+  const template = repliedSid ? recent.find((m) => m.sid === repliedSid) ?? null : isMark(base.lastTemplate) ? base.lastTemplate : null
   const mark: ButtonMark = { id: button.id, text: button.text, at: now.toISOString(), template: template ?? null }
   return { ...base, lastButton: mark }
 }

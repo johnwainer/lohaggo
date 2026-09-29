@@ -1,3 +1,4 @@
+import { formatCalendarDay } from '@/lib/bookings/when'
 import { prisma } from '@/lib/prisma'
 import { effectiveRates, loadPlatformConfigRow } from '@/lib/payments/commission'
 
@@ -93,7 +94,7 @@ async function clientModule(module: CrmModule, userId: string): Promise<string> 
       select: { id: true, scheduledDate: true, scheduledTime: true, status: true, totalPrice: true, service: { select: { name: true } }, partner: { select: { user: { select: { name: true } } } }, payment: { select: { status: true, confirmationStatus: true } } },
     })
     if (!rows.length) return 'Reservas: el cliente no tiene reservas registradas.'
-    return `Reservas (${rows.length} más recientes):\n${rows.map((r) => `• ${r.service.name} con ${r.partner?.user.name ?? 'socio por asignar'} · ${fmtDate(r.scheduledDate)} ${r.scheduledTime} · ${label(BOOKING, r.status)} · ${fmtMoney(r.totalPrice)} · pago: ${r.payment ? `${label(PAYMENT, r.payment.status)}, ${label(CONFIRMATION, r.payment.confirmationStatus)}` : 'sin pago registrado'} · ref ${ref(r.id)}`).join('\n')}`
+    return `Reservas (${rows.length} más recientes):\n${rows.map((r) => `• ${r.service.name} con ${r.partner?.user.name ?? 'socio por asignar'} · ${formatCalendarDay(r.scheduledDate)} ${r.scheduledTime} · ${label(BOOKING, r.status)} · ${fmtMoney(r.totalPrice)} · pago: ${r.payment ? `${label(PAYMENT, r.payment.status)}, ${label(CONFIRMATION, r.payment.confirmationStatus)}` : 'sin pago registrado'} · ref ${ref(r.id)}`).join('\n')}`
   }
   if (module === 'solicitudes') {
     const rows = await prisma.serviceRequest.findMany({
@@ -101,7 +102,7 @@ async function clientModule(module: CrmModule, userId: string): Promise<string> 
       select: { id: true, status: true, createdAt: true, expiresAt: true, preferredDate: true, isUrgent: true, city: true, service: { select: { name: true } }, _count: { select: { proposals: true } } },
     })
     if (!rows.length) return 'Solicitudes: el cliente no tiene solicitudes registradas.'
-    return `Solicitudes (${rows.length} más recientes):\n${rows.map((r) => `• ${r.service.name} en ${label(CITY, r.city)} · creada ${fmtDate(r.createdAt)} · ${r.isUrgent ? 'lo antes posible' : `preferida ${fmtDate(r.preferredDate)}`} · ${label(REQUEST, r.status)}${r.status === 'ACTIVE' ? ` hasta ${fmtDate(r.expiresAt)}` : ''} · ${r._count.proposals} propuesta(s) · ref ${ref(r.id)}`).join('\n')}`
+    return `Solicitudes (${rows.length} más recientes):\n${rows.map((r) => `• ${r.service.name} en ${label(CITY, r.city)} · creada ${fmtDate(r.createdAt)} · ${r.isUrgent ? 'lo antes posible' : `preferida ${(r.preferredDate ? formatCalendarDay(r.preferredDate) : "sin fecha")}`} · ${label(REQUEST, r.status)}${r.status === 'ACTIVE' ? ` hasta ${fmtDate(r.expiresAt)}` : ''} · ${r._count.proposals} propuesta(s) · ref ${ref(r.id)}`).join('\n')}`
   }
   if (module === 'pagos') {
     const rows = await prisma.payment.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 10, select: { id: true, status: true, confirmationStatus: true, totalAmount: true, paidAt: true, createdAt: true, booking: { select: { service: { select: { name: true } } } } } })
@@ -146,7 +147,7 @@ async function partnerModule(module: CrmModule, p: Partner): Promise<string> {
       select: { id: true, scheduledDate: true, scheduledTime: true, status: true, totalPrice: true, service: { select: { name: true } }, user: { select: { name: true } }, payment: { select: { status: true, confirmationStatus: true } } },
     })
     if (!rows.length) return 'Reservas del socio: no tiene reservas.'
-    return `Reservas del socio (${rows.length} más recientes):\n${rows.map((r) => `• ${r.service.name} para ${r.user.name.split(' ')[0]} · ${fmtDate(r.scheduledDate)} ${r.scheduledTime} · ${label(BOOKING, r.status)} · ${fmtMoney(r.totalPrice)} · pago: ${r.payment ? `${label(PAYMENT, r.payment.status)}, ${label(CONFIRMATION, r.payment.confirmationStatus)}` : 'sin pago registrado'} · ref ${ref(r.id)}`).join('\n')}`
+    return `Reservas del socio (${rows.length} más recientes):\n${rows.map((r) => `• ${r.service.name} para ${r.user.name.split(' ')[0]} · ${formatCalendarDay(r.scheduledDate)} ${r.scheduledTime} · ${label(BOOKING, r.status)} · ${fmtMoney(r.totalPrice)} · pago: ${r.payment ? `${label(PAYMENT, r.payment.status)}, ${label(CONFIRMATION, r.payment.confirmationStatus)}` : 'sin pago registrado'} · ref ${ref(r.id)}`).join('\n')}`
   }
   if (module === 'socio_propuestas') {
     const rows = await prisma.proposal.findMany({

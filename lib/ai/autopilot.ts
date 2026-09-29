@@ -153,6 +153,7 @@ export async function handleInbound(conversationId: string, messageId: string, o
     return { handled: 'pre_handoff', reason: pre.reason }
   }
 
+  const turnStartedAt = new Date()
   const memory = await AgentRuntimeService.memory(conversation, agent)
   const history = [...memory.history]
   // Everything the client wrote since our last answer is the "new message"
@@ -180,6 +181,13 @@ export async function handleInbound(conversationId: string, messageId: string, o
   // A person may have stepped in while the model was thinking: never talk over them
   const fresh = await stillOurs(conversationId, agent.id)
   if (!fresh) return { skipped: 'human_took_over' }
+  // The person wrote again meanwhile: that message's turn answers everything, unless this turn already did
+  // something on the platform (then its confirmation must go out)
+  const newer = await prisma.conversationMessage.findFirst({ where: { conversationId, direction: 'INBOUND', sentAt: { gt: message.sentAt }, id: { not: messageId } }, orderBy: { sentAt: 'desc' }, select: { id: true } })
+  if (newer) {
+    const acted = await prisma.aiAgentAction.count({ where: { conversationId, status: { in: ['executed', 'proposed', 'awaiting_approval'] }, createdAt: { gte: turnStartedAt } } })
+    if (!acted) return { skipped: 'newer_message_arrived' }
+  }
 
   if (result.text && !result.spam) {
     const sent = await sendAsAgent(fresh, agent, result.text)

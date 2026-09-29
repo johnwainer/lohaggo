@@ -57,7 +57,8 @@ export async function findLinkCandidate(input: { phone?: string | null; email?: 
   if (!or.length) return null
 
   const user = await prisma.user.findFirst({
-    where: { isActive: true, OR: or },
+    // Admin accounts are never linked to a chat (they would act on every booking)
+    where: { isActive: true, role: { in: ['CLIENT', 'PARTNER'] }, OR: or },
     select: { id: true, role: true, name: true, phone: true, email: true },
   })
   if (!user) return null
@@ -170,8 +171,12 @@ export async function confirmLink(p: { conversationId: string; contactId: string
     return { ok: false, code: 'wrong', remaining, error: `Código incorrecto. Te quedan ${remaining} ${remaining === 1 ? 'intento' : 'intentos'}.` }
   }
 
-  const user = await prisma.user.findUnique({ where: { id: row.userId }, select: { id: true, role: true, name: true, email: true, isActive: true } })
-  if (!user?.isActive) return { ok: false, code: 'expired', error: 'La cuenta ya no está activa.' }
+  const user = await prisma.user.findUnique({ where: { id: row.userId }, select: { id: true, role: true, name: true, email: true, isActive: true, phoneVerifiedAt: true } })
+  if (!user?.isActive || user.role === 'ADMIN') return { ok: false, code: 'expired', error: 'La cuenta ya no está activa.' }
+  // A code that went to the account's phone confirms that phone
+  if (!user.phoneVerifiedAt && row.sentTo && !row.sentTo.includes('@')) {
+    try { await prisma.user.update({ where: { id: user.id }, data: { phoneVerifiedAt: new Date() } }) } catch { /* the link still works */ }
+  }
 
   await prisma.contactLinkCode.update({ where: { id: row.id }, data: { usedAt: new Date() } })
   await updateContact(p.contactId, { userId: user.id })

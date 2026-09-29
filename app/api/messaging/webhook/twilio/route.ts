@@ -1,3 +1,4 @@
+import { twilioCallbackAllowed } from '@/lib/messaging/twilio-signature'
 import { NextRequest, NextResponse } from 'next/server'
 import type { MessagingDeliveryStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
@@ -13,10 +14,7 @@ function mapTwilioStatus(raw: string): MessagingDeliveryStatus {
 }
 
 export async function POST(request: NextRequest) {
-  const token = request.nextUrl.searchParams.get('token')
-  if (env.SECURITY_INTERNAL_TOKEN && token !== env.SECURITY_INTERNAL_TOKEN) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  if (!(await twilioCallbackAllowed(request))) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const formData = await request.formData()
   const messageSid = String(formData.get('MessageSid') || '')

@@ -18,8 +18,13 @@ export function toE164(raw: string | null | undefined): string | null {
 
 const PHONE_CHANNELS: MessagingChannel[] = ['WHATSAPP', 'SMS']
 
+/**
+ * The platform account a phone belongs to, only when exactly one active client or partner has it: a phone
+ * nobody verified can be a typo shared by two accounts, and admins are never linked to a chat.
+ */
 async function userByPhone(phone: string) {
-  return prisma.user.findFirst({ where: { phone }, select: { id: true, name: true, email: true } })
+  const users = await prisma.user.findMany({ where: { phone, isActive: true, role: { in: ['CLIENT', 'PARTNER'] } }, select: { id: true, name: true, email: true }, take: 2 })
+  return users.length === 1 ? users[0] : null
 }
 
 /** Names the channels invent when they don't know the person ("Instagram · …1234", "@usuario", "+57…"). */

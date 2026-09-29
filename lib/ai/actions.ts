@@ -8,7 +8,7 @@ import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { auditAdminAction } from '@/lib/admin-utils'
 import { emitInboxEvent } from '@/lib/messaging/inbox-emitter'
-import { CONFIRM_WINDOW_MS, dailyLimitFor, type ActionStatus } from '@/lib/ai/actions-core'
+import { CONFIRM_WINDOW_MS, dailyLimitFor, sameActionCore, type ActionStatus } from '@/lib/ai/actions-core'
 import { describeOrigin, type Origin } from '@/lib/ops/origin'
 
 export type ActionAgent = { id: string; name: string }
@@ -27,6 +27,12 @@ export type RecordActionInput = {
 }
 
 export async function recordAction(p: RecordActionInput) {
+  // The copilot suggests on every message: the same action already waiting is not queued (nor alerted) again
+  if (p.status === 'awaiting_approval') {
+    const waiting = await prisma.aiAgentAction.findMany({ where: { conversationId: p.conversationId, tool: p.tool, status: 'awaiting_approval' }, select: { id: true, input: true } })
+    const same = waiting.find((w) => sameActionCore(w.input, p.input))
+    if (same) return prisma.aiAgentAction.findUniqueOrThrow({ where: { id: same.id } })
+  }
   const row = await prisma.aiAgentAction.create({
     data: {
       workspaceId: p.workspaceId, conversationId: p.conversationId, agentId: p.agent.id, agentName: p.agent.name,
@@ -49,6 +55,12 @@ export async function settleAction(id: string, p: { status: ActionStatus; result
     where: { id },
     data: { status: p.status, result: p.result?.slice(0, 2000) ?? undefined, entityType: p.entityType ?? undefined, entityId: p.entityId ?? undefined, resolvedById: p.resolvedById ?? undefined, resolvedAt: new Date() },
   })
+}
+
+/** Moves an action out of `from` atomically; false when someone else (another turn, another admin) got it first. */
+export async function claimAction(id: string, from: 'proposed' | 'awaiting_approval') {
+  const r = await prisma.aiAgentAction.updateMany({ where: { id, status: from }, data: { status: 'confirmed' } })
+  return r.count === 1
 }
 
 /** The latest still-valid proposal of this tool in the conversation (the person is being asked to confirm it). */

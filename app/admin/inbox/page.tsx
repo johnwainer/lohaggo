@@ -1,4 +1,5 @@
 'use client'
+import { formatCalendarDay } from '@/lib/bookings/when'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
@@ -15,6 +16,7 @@ import {
   VoiceRecorder, isRecordingSupported, prepareImage, uploadAttachment, kindFromMime, formatBytes, formatDuration,
   type PendingAttachment,
 } from '@/lib/inbox/attachments-client'
+import { getSupabaseBrowser } from '@/lib/supabase-browser'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -246,6 +248,28 @@ function ownerLabel(conv: Conversation): { text: string; tone: 'ai' | 'human' | 
   return { text: 'Libre', tone: 'free' }
 }
 
+function compareMessages(a: Message, b: Message) {
+  return a.sentAt.localeCompare(b.sentAt) || a.id.localeCompare(b.id)
+}
+
+/** Merges message lists by id (later lists win) in chronological order. */
+function mergeMessages(...lists: Message[][]): Message[] {
+  const byId = new Map<string, Message>()
+  for (const list of lists) for (const m of list) byId.set(m.id, m)
+  return Array.from(byId.values()).sort(compareMessages)
+}
+
+type Draft = { text: string; attachment: PendingAttachment | null; suggestionId: string | null; internal: boolean; visibility: 'public' | 'private' }
+
+function isMobileViewport() {
+  return typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches
+}
+
+async function readError(res: Response, fallback: string) {
+  const data = await res.json().catch(() => ({}))
+  return (data && typeof data.error === 'string' && data.error) || `${fallback} (HTTP ${res.status})`
+}
+
 function groupedMessages(messages: Message[]) {
   const groups: { date: string; msgs: Message[] }[] = []
   for (const msg of messages) {
@@ -321,14 +345,36 @@ export default function InboxPage() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const scrollBoxRef = useRef<HTMLDivElement>(null)
+  const nearBottomRef = useRef(true)
+  const forceScrollRef = useRef(false)
+  const lastMsgKeyRef = useRef<string | null>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const sseRef = useRef<EventSource | null>(null)
+  const sseRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const refreshDetailRef = useRef(false)
+  const [realtimeOk, setRealtimeOk] = useState(false)
+  const [listError, setListError] = useState<string | null>(null)
+  const [openingId, setOpeningId] = useState<string | null>(null)
+  const [detailError, setDetailError] = useState<{ id: string; message: string } | null>(null)
+  /** The conversation the user last asked to see; responses for any other one are dropped */
+  const currentIdRef = useRef<string | null>(null)
+  const detailSeqRef = useRef(0)
+  const detailAbortRef = useRef<AbortController | null>(null)
+  const explicitLoadRef = useRef<string | null>(null)
+  const listSeqRef = useRef(0)
+  const selectedRef = useRef<Conversation | null>(null)
+  const draftsRef = useRef(new Map<string, Draft>())
+  const composerIdRef = useRef<string | null>(null)
+
+  useEffect(() => { selectedRef.current = selected }, [selected])
 
   // ── Fetch conversation list ──────────────────────────────────────────────
 
   const loadConversations = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
+    const seq = ++listSeqRef.current
     try {
       const params = new URLSearchParams()
       if (filterStatus) params.set('status', filterStatus)
@@ -341,7 +387,9 @@ export default function InboxPage() {
       if (search) params.set('search', search)
       params.set('sort', sortBy)
       const res = await fetch(`/api/admin/inbox/conversations?${params}`)
+      if (!res.ok) throw new Error(await readError(res, 'No se pudieron cargar las conversaciones'))
       const data = await res.json()
+      if (seq !== listSeqRef.current) return
       if (Array.isArray(data.workspaces)) setWorkspaces(data.workspaces)
       setConversations(data.conversations || [])
       setAgents(data.agents || [])
@@ -350,10 +398,17 @@ export default function InboxPage() {
       setTotalCount(data.total || 0)
       if (Array.isArray(data.connections)) setConnections(data.connections)
       if (Array.isArray(data.tags)) setKnownTags(data.tags)
-    } catch { /* silent */ } finally {
-      setLoading(false)
+      setListError(null)
+    } catch (err) {
+      if (seq !== listSeqRef.current) return
+      setListError(err instanceof Error && err.message !== 'Failed to fetch' ? err.message : 'Sin conexión: no se pudieron cargar las conversaciones')
+    } finally {
+      if (seq === listSeqRef.current) setLoading(false)
     }
   }, [filterStatus, filterChannel, filterAgent, filterWorkspace, filterConnection, filterTag, filterUnread, search, sortBy])
+
+  const loadConversationsRef = useRef(loadConversations)
+  useEffect(() => { loadConversationsRef.current = loadConversations }, [loadConversations])
 
   // Debounce typing before hitting the API
   useEffect(() => {
@@ -372,50 +427,98 @@ export default function InboxPage() {
   // Deep link from an origin badge: /admin/inbox?c=<conversationId> opens that conversation on load
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get('c')
-    if (id) loadConversationDetail(id)
+    if (id) openConversation(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // ── SSE real-time connection (falls back to polling) ─────────────────────
+  // ── Live updates: SSE (same instance) + Supabase Realtime (any instance) + polling safety net ──
+
+  const scheduleRefresh = useCallback((conversationId?: string) => {
+    if (conversationId && conversationId === currentIdRef.current) refreshDetailRef.current = true
+    if (refreshTimerRef.current) return
+    // Coalesces bursts (the same event can arrive by SSE and by Realtime)
+    refreshTimerRef.current = setTimeout(() => {
+      refreshTimerRef.current = null
+      loadConversationsRef.current(true)
+      const id = currentIdRef.current
+      if (refreshDetailRef.current && id) loadDetailRef.current(id, true)
+      refreshDetailRef.current = false
+    }, 300)
+  }, [])
+
+  const handleInboxEvent = useCallback((event: { type?: string; conversationId?: string } | null) => {
+    if (event?.type === 'new-message' || event?.type === 'status-update') scheduleRefresh(event.conversationId)
+  }, [scheduleRefresh])
 
   useEffect(() => {
+    let closed = false
     function connectSSE() {
+      if (closed) return
       const es = new EventSource('/api/admin/inbox/stream')
       sseRef.current = es
-
       es.onmessage = (e) => {
-        try {
-          const event = JSON.parse(e.data)
-          if (event.type === 'new-message' || event.type === 'status-update') {
-            loadConversations(true)
-            if (selected?.id === event.conversationId) {
-              loadConversationDetail(event.conversationId, true)
-            }
-          }
-        } catch { /* ignore */ }
+        try { handleInboxEvent(JSON.parse(e.data)) } catch { /* ignore */ }
       }
-
       es.onerror = () => {
         es.close()
-        sseRef.current = null
-        // Reconnect after 5s
-        setTimeout(connectSSE, 5000)
+        if (sseRef.current === es) sseRef.current = null
+        if (closed) return
+        if (sseRetryRef.current) clearTimeout(sseRetryRef.current)
+        sseRetryRef.current = setTimeout(connectSSE, 5000)
       }
     }
-
     connectSSE()
-
-    // Polling fallback (30s — SSE handles real-time, this is a safety net)
-    pollRef.current = setInterval(() => {
-      loadConversations(true)
-      if (selected) loadConversationDetail(selected.id, true)
-    }, 30000)
-
     return () => {
+      closed = true
+      if (sseRetryRef.current) clearTimeout(sseRetryRef.current)
+      sseRetryRef.current = null
       sseRef.current?.close()
-      if (pollRef.current) clearInterval(pollRef.current)
+      sseRef.current = null
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current)
+      refreshTimerRef.current = null
     }
-  }, [loadConversations, selected?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [handleInboxEvent])
+
+  const workspaceKey = workspaces.map((w) => w.id).sort().join(',')
+  useEffect(() => {
+    const supabase = getSupabaseBrowser()
+    if (!supabase || !workspaceKey) { setRealtimeOk(false); return }
+    const joined = new Set<string>()
+    let disposed = false
+    const channels = workspaceKey.split(',').map((id) => {
+      const name = `inbox:${id}`
+      return supabase
+        .channel(name, { config: { broadcast: { self: false } } })
+        .on('broadcast', { event: 'inbox' }, ({ payload }) => handleInboxEvent(payload as { type?: string; conversationId?: string }))
+        .subscribe((status) => {
+          if (disposed) return
+          if (status === 'SUBSCRIBED') joined.add(name)
+          else joined.delete(name)
+          setRealtimeOk(joined.size > 0)
+        })
+    })
+    return () => {
+      disposed = true
+      setRealtimeOk(false)
+      channels.forEach((ch) => { try { supabase.removeChannel(ch) } catch { /* silent */ } })
+    }
+  }, [workspaceKey, handleInboxEvent])
+
+  // Polling safety net: every 30 s with Realtime, every 10 s without it; only while the tab is visible
+  useEffect(() => {
+    function tick() {
+      if (document.visibilityState !== 'visible') return
+      loadConversationsRef.current(true)
+      if (currentIdRef.current) loadDetailRef.current(currentIdRef.current, true)
+    }
+    const t = setInterval(tick, realtimeOk ? 30_000 : 10_000)
+    const onVisible = () => { if (document.visibilityState === 'visible') tick() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      clearInterval(t)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [realtimeOk])
 
   // ── Canned responses ─────────────────────────────────────────────────────
 
@@ -438,52 +541,181 @@ export default function InboxPage() {
 
   // ── Load conversation detail ─────────────────────────────────────────────
 
+  /** silent = background refresh: keeps loaded pages, does not mark as read, never replaces another conversation */
   async function loadConversationDetail(id: string, silent = false) {
-    if (!silent) setSelected(null)
-    try {
-      const res = await fetch(`/api/admin/inbox/conversations/${id}`)
-      const data = await res.json()
-      setSelected(data.conversation)
-      setHasMore(data.hasMore ?? false)
+    // Background refreshes wait for an explicit open in flight (they would supersede it)
+    if (silent && (currentIdRef.current !== id || explicitLoadRef.current === id)) return
+    if (!silent) {
+      detailAbortRef.current?.abort()
+      currentIdRef.current = id
+      explicitLoadRef.current = id
+      setSelected(null)
+      setHasMore(false)
+      setDetailError(null)
+      setOpeningId(id)
       setConversations((prev) => prev.map((c) => (c.id === id ? { ...c, unreadCount: 0 } : c)))
-    } catch {
-      if (!silent) setError('Error cargando conversación')
+    }
+    const seq = ++detailSeqRef.current
+    const controller = new AbortController()
+    if (!silent) detailAbortRef.current = controller
+    try {
+      const res = await fetch(`/api/admin/inbox/conversations/${id}${silent ? '?markRead=0' : ''}`, { signal: controller.signal })
+      if (!res.ok) throw new Error(await readError(res, 'Error cargando conversación'))
+      const data = await res.json()
+      // A newer request (or another conversation) superseded this one
+      if (currentIdRef.current !== id || seq !== detailSeqRef.current) return
+      const fresh: Conversation = data.conversation
+      const prev = selectedRef.current
+      if (silent && prev?.id === id) {
+        const freshMsgs = fresh.messages || []
+        const oldestFresh = freshMsgs[0]
+        const olderKept = (prev.messages || []).filter((m) => !oldestFresh || compareMessages(m, oldestFresh) < 0)
+        const merged = mergeMessages(olderKept, freshMsgs)
+        // Keep the "load older" state when older pages were already loaded
+        if (!olderKept.length) setHasMore(data.hasMore ?? false)
+        setSelected((p) => (p && p.id === id ? { ...fresh, messages: merged } : p))
+      } else {
+        setSelected(fresh)
+        setHasMore(data.hasMore ?? false)
+      }
+      setDetailError(null)
+      setOpeningId((o) => (o === id ? null : o))
+    } catch (err) {
+      if (controller.signal.aborted || currentIdRef.current !== id || seq !== detailSeqRef.current) return
+      if (silent) return
+      setOpeningId((o) => (o === id ? null : o))
+      setDetailError({ id, message: err instanceof Error && err.message !== 'Failed to fetch' ? err.message : 'Sin conexión: no se pudo cargar la conversación' })
+    } finally {
+      if (!silent && explicitLoadRef.current === id && detailAbortRef.current === controller) explicitLoadRef.current = null
     }
   }
+
+  const loadDetailRef = useRef(loadConversationDetail)
+  useEffect(() => { loadDetailRef.current = loadConversationDetail })
 
   async function loadMoreMessages() {
     if (!selected || !hasMore || loadingMore) return
     const oldest = selected.messages?.[0]
     if (!oldest) return
+    const id = selected.id
     setLoadingMore(true)
     try {
-      const res = await fetch(`/api/admin/inbox/conversations/${selected.id}?before=${encodeURIComponent(oldest.sentAt)}&limit=60`)
+      const res = await fetch(`/api/admin/inbox/conversations/${id}?before=${encodeURIComponent(oldest.sentAt)}&beforeId=${encodeURIComponent(oldest.id)}&limit=60`)
+      if (!res.ok) throw new Error(await readError(res, 'No se pudieron cargar mensajes anteriores'))
       const data = await res.json()
+      if (currentIdRef.current !== id) return
       const older: Message[] = data.conversation?.messages || []
-      setSelected((prev) => prev ? { ...prev, messages: [...older, ...(prev.messages || [])] } : prev)
+      // Keep the reading position when older messages are prepended
+      const box = scrollBoxRef.current
+      const fromBottom = box ? box.scrollHeight - box.scrollTop : 0
+      setSelected((prev) => prev && prev.id === id ? { ...prev, messages: mergeMessages(older, prev.messages || []) } : prev)
       setHasMore(data.hasMore ?? false)
+      requestAnimationFrame(() => { if (box) box.scrollTop = box.scrollHeight - fromBottom })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudieron cargar mensajes anteriores')
     } finally {
       setLoadingMore(false)
     }
   }
 
-  function selectConversation(conv: Conversation) {
-    setUsedSuggestionId(null)
-    setReplyVisibility('public')
+  // ── Composer: one draft per conversation ─────────────────────────────────
+
+  /** Saves the composer of the conversation being left and restores (or clears) the one of the next. */
+  function switchComposer(nextId: string | null) {
+    const cur = composerIdRef.current
+    if (cur === nextId) return
+    if (recorderRef.current) { recorderRef.current.cancel(); recorderRef.current = null; setRecording(false) }
+    if (cur) {
+      if (messageText.trim() || attachment || isInternalNote || usedSuggestionId) {
+        draftsRef.current.set(cur, { text: messageText, attachment, suggestionId: usedSuggestionId, internal: isInternalNote, visibility: replyVisibility })
+      } else draftsRef.current.delete(cur)
+    }
+    const d = nextId ? draftsRef.current.get(nextId) : undefined
+    setMessageText(d?.text ?? '')
+    setAttachment(d?.attachment ?? null)
+    setUsedSuggestionId(d?.suggestionId ?? null)
+    setIsInternalNote(d?.internal ?? false)
+    setReplyVisibility(d?.visibility ?? 'public')
+    composerIdRef.current = nextId
+    if (inputRef.current) inputRef.current.style.height = 'auto'
     setShowMsgSearch(false)
     setMsgSearch('')
-    setIsInternalNote(false)
     setShowTemplatePicker(false)
     setSelectedTemplate(null)
-    setMobileView('chat')
-    loadConversationDetail(conv.id)
+    setTemplateVars({})
+    setShowCannedPicker(false)
+    setShowEmojiPicker(false)
+    setShowTagPicker(false)
   }
 
-  // ── Auto-scroll ──────────────────────────────────────────────────────────
+  /** The only way to open a conversation (list, contact panel, deep link). */
+  function openConversation(id: string) {
+    switchComposer(id)
+    setMobileView('chat')
+    if (isMobileViewport() && !(window.history.state as { inboxChat?: boolean } | null)?.inboxChat) {
+      window.history.pushState({ ...(window.history.state || {}), inboxChat: true }, '')
+    }
+    loadConversationDetail(id)
+  }
 
+  function selectConversation(conv: Conversation) {
+    openConversation(conv.id)
+  }
+
+  /** Mobile: back to the list, dropping the selection so background refreshes stop touching it. */
+  function closeConversation() {
+    switchComposer(null)
+    detailAbortRef.current?.abort()
+    currentIdRef.current = null
+    explicitLoadRef.current = null
+    setSelected(null)
+    setOpeningId(null)
+    setDetailError(null)
+    setShowContact(false)
+    setMobileView('list')
+    const url = new URL(window.location.href)
+    if (url.searchParams.has('c')) {
+      url.searchParams.delete('c')
+      window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`)
+    }
+  }
+
+  function goBack() {
+    if ((window.history.state as { inboxChat?: boolean } | null)?.inboxChat) window.history.back()
+    else closeConversation()
+  }
+
+  const closeConversationRef = useRef(closeConversation)
+  useEffect(() => { closeConversationRef.current = closeConversation })
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [selected?.messages?.length])
+    function onPop(e: PopStateEvent) {
+      if (!(e.state as { inboxChat?: boolean } | null)?.inboxChat && currentIdRef.current && isMobileViewport()) closeConversationRef.current()
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
+
+  // ── Auto-scroll: only when a new last message arrives and the user is near the bottom ──
+
+  const lastMessageId = selected?.messages?.[selected.messages.length - 1]?.id ?? ''
+  useEffect(() => {
+    const key = selected ? `${selected.id}:${lastMessageId}` : null
+    const prevKey = lastMsgKeyRef.current
+    if (key === prevKey) return
+    lastMsgKeyRef.current = key
+    if (!key || !selected) return
+    const switched = !prevKey || prevKey.slice(0, prevKey.indexOf(':')) !== selected.id
+    if (switched || forceScrollRef.current || nearBottomRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: switched ? 'auto' : 'smooth' })
+      nearBottomRef.current = true
+    }
+    forceScrollRef.current = false
+  }, [selected, lastMessageId])
+
+  function onMessagesScroll() {
+    const el = scrollBoxRef.current
+    if (el) nearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120
+  }
 
   // ── Keyboard shortcut: Ctrl+F for in-conversation search ─────────────────
 
@@ -563,57 +795,74 @@ export default function InboxPage() {
   async function sendMessage() {
     if (!selected || sending || uploading) return
     if (!messageText.trim() && !attachment) return
+    // Everything is captured now: the user may switch conversations while this is in flight
+    const convId = selected.id
+    const channel = selected.channel
+    const text = messageText.trim()
+    const internal = isInternal
+    const visibility = replyVisibility
+    const suggestionId = usedSuggestionId
+    const pending = attachment
     setSending(true)
     setError(null)
     try {
-      let uploaded = attachment?.uploaded
-      if (attachment && !uploaded) {
+      let uploaded = pending?.uploaded
+      if (pending && !uploaded) {
         setUploading(true)
         try {
-          uploaded = await uploadAttachment(selected.id, attachment.file)
-          setAttachment((prev) => (prev ? { ...prev, uploaded } : prev))
+          uploaded = await uploadAttachment(convId, pending.file)
+          const done = uploaded
+          if (composerIdRef.current === convId) setAttachment((prev) => (prev && prev.file === pending.file ? { ...prev, uploaded: done } : prev))
+          else {
+            const d = draftsRef.current.get(convId)
+            if (d?.attachment?.file === pending.file) draftsRef.current.set(convId, { ...d, attachment: { ...d.attachment, uploaded: done } })
+          }
         } finally {
           setUploading(false)
         }
       }
-      const res = await fetch(`/api/admin/inbox/conversations/${selected.id}/messages`, {
+      const res = await fetch(`/api/admin/inbox/conversations/${convId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: messageText.trim(),
-          isInternal,
-          ...(isCommentChannel(selected.channel) && !isInternal ? { visibility: replyVisibility } : {}),
-          ...(usedSuggestionId && !isInternal ? { suggestionId: usedSuggestionId } : {}),
+          message: text,
+          isInternal: internal,
+          ...(isCommentChannel(channel) && !internal ? { visibility } : {}),
+          ...(suggestionId && !internal ? { suggestionId } : {}),
           ...(uploaded ? { attachment: { url: uploaded.url, mediaType: uploaded.mediaType, mediaName: uploaded.mediaName } } : {}),
         }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok || !data.message) throw new Error(data.error || `Error enviando (HTTP ${res.status})`)
-      setMessageText('')
-      clearAttachment()
-      if (!isInternal) {
-        setUsedSuggestionId(null)
-        // Replying ends the countdown and any pending suggestion
-        setSelected((prev) => prev?.copilot ? { ...prev, copilot: { ...prev.copilot, suggestion: null, timer: null } } : prev)
+      if (composerIdRef.current === convId) {
+        setMessageText('')
+        clearAttachment()
+        if (!internal) setUsedSuggestionId(null)
+        setIsInternalNote(false)
+        if (isCommentChannel(channel) && !internal) setReplyVisibility('public')
+        if (inputRef.current) inputRef.current.style.height = 'auto'
+      } else {
+        const d = draftsRef.current.get(convId)
+        if (d && d.text.trim() === text) {
+          if (d.attachment?.previewUrl) URL.revokeObjectURL(d.attachment.previewUrl)
+          draftsRef.current.delete(convId)
+        }
       }
-      setIsInternalNote(false)
-      // The private reply is single-use: refresh whether it is still available
-      if (isCommentChannel(selected.channel) && !isInternal) {
-        setReplyVisibility('public')
-        loadConversationDetail(selected.id, true)
-      }
+      forceScrollRef.current = true
       const added: Message[] = Array.isArray(data.messages) && data.messages.length ? data.messages : [data.message]
       setSelected((prev) => {
-        if (!prev) return prev
-        const ids = new Set(added.map((m) => m.id))
-        // The echo webhook may already have pushed some of these rows via SSE refresh
-        const merged = [...(prev.messages || []).filter((m) => !ids.has(m.id)), ...added]
-        return { ...prev, messages: merged, lastMessageBody: data.message.body, lastMessageAt: data.message.sentAt }
+        if (!prev || prev.id !== convId) return prev
+        // The echo webhook may already have pushed some of these rows via a live refresh
+        const next = { ...prev, messages: mergeMessages(prev.messages || [], added), lastMessageBody: data.message.body, lastMessageAt: data.message.sentAt }
+        // Replying ends the countdown and any pending suggestion
+        return !internal && next.copilot ? { ...next, copilot: { ...next.copilot, suggestion: null, timer: null } } : next
       })
+      // The private reply is single-use: refresh whether it is still available
+      if (isCommentChannel(channel) && !internal) loadConversationDetail(convId, true)
       setConversations((prev) =>
         prev.map((c) =>
-          c.id === selected.id
-            ? { ...c, lastMessageBody: data.message.body, lastMessageAt: data.message.sentAt, status: isInternalNote ? c.status : 'IN_PROGRESS' }
+          c.id === convId
+            ? { ...c, lastMessageBody: data.message.body, lastMessageAt: data.message.sentAt, status: internal ? c.status : 'IN_PROGRESS' }
             : c
         )
       )
@@ -621,16 +870,17 @@ export default function InboxPage() {
       setError(err instanceof Error ? err.message : 'Error enviando')
     } finally {
       setSending(false)
-      inputRef.current?.focus()
+      if (composerIdRef.current === convId) inputRef.current?.focus()
     }
   }
 
   async function sendTemplate() {
     if (!selected || !selectedTemplate || sending) return
+    const convId = selected.id
     setSending(true)
     setError(null)
     try {
-      const res = await fetch(`/api/admin/inbox/conversations/${selected.id}/messages`, {
+      const res = await fetch(`/api/admin/inbox/conversations/${convId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -640,13 +890,16 @@ export default function InboxPage() {
           waVariables: templateVars,
         }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Error enviando')
-      setShowTemplatePicker(false)
-      setSelectedTemplate(null)
-      setTemplateVars({})
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.message) throw new Error(data.error || `Error enviando (HTTP ${res.status})`)
+      if (composerIdRef.current === convId) {
+        setShowTemplatePicker(false)
+        setSelectedTemplate(null)
+        setTemplateVars({})
+      }
+      forceScrollRef.current = true
       setSelected((prev) =>
-        prev ? { ...prev, messages: [...(prev.messages || []), data.message] } : prev
+        prev && prev.id === convId ? { ...prev, messages: mergeMessages(prev.messages || [], [data.message]) } : prev
       )
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error enviando')
@@ -665,31 +918,38 @@ export default function InboxPage() {
     setSelected((prev) => prev ? { ...prev, threadOwner: null } : prev)
   }
 
-  async function updateStatus(status: ConvStatus) {
+  /** Optimistic PATCH on the open conversation: applies `patch` now and reverts it if the server refuses. */
+  async function patchConversation(body: Record<string, unknown>, patch: Partial<Conversation>, failMessage: string) {
     if (!selected) return
-    const res = await fetch(`/api/admin/inbox/conversations/${selected.id}`, {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
-    })
-    const data = await res.json()
-    if (res.ok) {
-      setSelected((prev) => prev ? { ...prev, status: data.conversation.status } : prev)
-      setConversations((prev) => prev.map((c) => c.id === selected.id ? { ...c, status } : c))
+    const id = selected.id
+    const before: Partial<Conversation> = {}
+    for (const k of Object.keys(patch) as (keyof Conversation)[]) (before as Record<string, unknown>)[k] = selected[k]
+    const listBefore = conversations.find((c) => c.id === id)
+    const listRevert: Partial<Conversation> = {}
+    if (listBefore) for (const k of Object.keys(patch) as (keyof Conversation)[]) (listRevert as Record<string, unknown>)[k] = listBefore[k]
+    setSelected((prev) => (prev && prev.id === id ? { ...prev, ...patch } : prev))
+    setConversations((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)))
+    try {
+      const res = await fetch(`/api/admin/inbox/conversations/${id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      })
+      if (!res.ok) throw new Error(await readError(res, failMessage))
+      return true
+    } catch (err) {
+      setSelected((prev) => (prev && prev.id === id ? { ...prev, ...before } : prev))
+      setConversations((prev) => prev.map((c) => (c.id === id ? { ...c, ...listRevert } : c)))
+      setError(err instanceof Error && err.message !== 'Failed to fetch' ? err.message : `${failMessage}: sin conexión`)
+      return false
     }
   }
 
+  async function updateStatus(status: ConvStatus) {
+    await patchConversation({ status }, { status }, 'No se pudo cambiar el estado')
+  }
+
   async function assignAgent(agentId: string) {
-    if (!selected) return
-    const res = await fetch(`/api/admin/inbox/conversations/${selected.id}`, {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ assignedToId: agentId || null }),
-    })
-    const data = await res.json()
-    if (res.ok) {
-      const agent = agents.find((a) => a.id === agentId) || null
-      setSelected((prev) => prev ? { ...prev, assignedToId: agentId || null, assignedTo: agent } : prev)
-      setConversations((prev) => prev.map((c) => c.id === selected.id ? { ...c, assignedToId: agentId || null, assignedTo: agent } : c))
-    }
+    const agent = agents.find((a) => a.id === agentId) || null
+    await patchConversation({ assignedToId: agentId || null }, { assignedToId: agentId || null, assignedTo: agent, aiHandled: false }, 'No se pudo asignar la conversación')
   }
 
   // ── AI agent control ─────────────────────────────────────────────────────
@@ -707,12 +967,20 @@ export default function InboxPage() {
 
   async function toggleTask(task: ConvTask) {
     if (!selected) return
-    const res = await fetch(`/api/admin/inbox/tasks/${task.id}`, {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ done: !task.doneAt }),
-    })
-    if (res.ok) {
+    const id = selected.id
+    const optimistic = { ...task, doneAt: task.doneAt ? null : new Date().toISOString() }
+    const put = (t: ConvTask) => setSelected((prev) => prev && prev.id === id ? { ...prev, tasks: (prev.tasks || []).map((x) => x.id === task.id ? t : x) } : prev)
+    put(optimistic)
+    try {
+      const res = await fetch(`/api/admin/inbox/tasks/${task.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ done: !task.doneAt }),
+      })
+      if (!res.ok) throw new Error(await readError(res, 'No se pudo actualizar la tarea'))
       const { task: updated } = await res.json()
-      setSelected((prev) => prev ? { ...prev, tasks: (prev.tasks || []).map((t) => t.id === task.id ? updated : t) } : prev)
+      put(updated)
+    } catch (err) {
+      put(task)
+      setError(err instanceof Error && err.message !== 'Failed to fetch' ? err.message : 'No se pudo actualizar la tarea: sin conexión')
     }
   }
 
@@ -836,14 +1104,7 @@ export default function InboxPage() {
     if (!selected) return
     const current = selected.tags || []
     const tags = current.includes(tag) ? current.filter((t) => t !== tag) : [...current, tag]
-    const res = await fetch(`/api/admin/inbox/conversations/${selected.id}`, {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tags }),
-    })
-    if (res.ok) {
-      setSelected((prev) => prev ? { ...prev, tags } : prev)
-      setConversations((prev) => prev.map((c) => c.id === selected.id ? { ...c, tags } : c))
-    }
+    await patchConversation({ tags }, { tags }, 'No se pudo cambiar la etiqueta')
   }
 
   // ── Profile modal ────────────────────────────────────────────────────────
@@ -923,6 +1184,14 @@ export default function InboxPage() {
       el.setSelectionRange(start + emoji.length, start + emoji.length)
     })
   }
+
+  const errorBanner = error ? (
+    <div role="alert" className="mx-3 md:mx-5 mb-2 flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+      <AlertCircle className="h-4 w-4 shrink-0" />
+      <span className="flex-1 min-w-0 break-words">{error}</span>
+      <button onClick={() => setError(null)} aria-label="Cerrar"><X className="h-4 w-4" /></button>
+    </div>
+  ) : null
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
@@ -1103,7 +1372,15 @@ export default function InboxPage() {
           {loading && conversations.length === 0 && (
             <div className="flex items-center justify-center h-32 text-sm text-gray-400">Cargando…</div>
           )}
-          {!loading && conversations.length === 0 && (
+          {!selected && error && <div className="md:hidden pt-2">{errorBanner}</div>}
+          {listError && (
+            <div className="m-3 flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+              <span className="flex-1 min-w-0 break-words">{listError}</span>
+              <button onClick={() => loadConversations()} className="shrink-0 font-semibold underline">Reintentar</button>
+            </div>
+          )}
+          {!loading && !listError && conversations.length === 0 && (
             <div className="flex flex-col items-center justify-center h-32 text-sm text-gray-400 gap-2">
               <MessageSquare className="h-8 w-8 opacity-30" />
               Sin conversaciones
@@ -1192,6 +1469,7 @@ export default function InboxPage() {
       <div className={`relative flex flex-col flex-1 min-w-0 ${mobileView === 'list' ? 'hidden md:flex' : 'flex'}`}>
         {selected?.contact && showContact && (
           <ContactPanel
+            key={selected.contact.id}
             contact={selected.contact}
             currentConversationId={selected.id}
             onClose={() => setShowContact(false)}
@@ -1199,7 +1477,7 @@ export default function InboxPage() {
               setSelected((prev) => prev ? { ...prev, contact, contactName: contact.name ?? prev.contactName, user: contact.user ? { ...contact.user, image: prev.user?.image ?? null } : null } : prev)
               setConversations((prev) => prev.map((c) => c.contactId === contact.id ? { ...c, contactName: contact.name ?? c.contactName } : c))
             }}
-            onOpenConversation={(id) => { setShowContact(false); loadConversationDetail(id); loadConversations(true) }}
+            onOpenConversation={(id) => { setShowContact(false); openConversation(id); loadConversations(true) }}
             onOpenProfile={openProfile}
           />
         )}
@@ -1209,16 +1487,33 @@ export default function InboxPage() {
             {/* Back button for mobile loading state */}
             <div className="md:hidden flex items-center gap-2 px-3 py-3 border-b bg-white">
               <button
-                onClick={() => setMobileView('list')}
+                onClick={goBack}
                 className="shrink-0 rounded-lg p-1.5 hover:bg-gray-100 text-gray-500"
+                aria-label="Volver a conversaciones"
               >
                 <ArrowLeft className="h-5 w-5" />
               </button>
               <span className="text-sm text-gray-500">Volver</span>
             </div>
-            <div className="flex flex-col items-center justify-center flex-1 text-gray-400 gap-3">
-              <MessageSquare className="h-16 w-16 opacity-20" />
-              <p className="text-sm">Cargando conversación…</p>
+            {errorBanner}
+            <div className="flex flex-col items-center justify-center flex-1 text-gray-400 gap-3 px-6 text-center">
+              {detailError && detailError.id === currentIdRef.current ? (
+                <>
+                  <AlertCircle className="h-12 w-12 text-rose-300" />
+                  <p className="text-sm text-rose-700 break-words max-w-sm">{detailError.message}</p>
+                  <button
+                    onClick={() => loadConversationDetail(detailError.id)}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700"
+                  >
+                    <RefreshCw className="h-4 w-4" /> Reintentar
+                  </button>
+                </>
+              ) : (
+                <>
+                  <MessageSquare className="h-16 w-16 opacity-20" />
+                  <p className="text-sm">{openingId ? 'Cargando conversación…' : 'Selecciona una conversación'}</p>
+                </>
+              )}
             </div>
           </div>
         ) : (
@@ -1228,7 +1523,7 @@ export default function InboxPage() {
               <div className="flex items-center gap-2 md:gap-3">
                 {/* Back button — mobile only */}
                 <button
-                  onClick={() => setMobileView('list')}
+                  onClick={goBack}
                   className="md:hidden shrink-0 rounded-lg p-2 bg-gray-100 active:bg-gray-200 text-gray-700"
                   aria-label="Volver a conversaciones"
                 >
@@ -1368,7 +1663,10 @@ export default function InboxPage() {
                     Etiqueta
                   </button>
                   {showTagPicker && (
-                    <div className="absolute top-7 left-0 z-20 bg-white border rounded-xl shadow-lg p-2 flex flex-wrap gap-1.5 w-56 max-w-[80vw]">
+                    <button aria-label="Cerrar etiquetas" onClick={() => setShowTagPicker(false)} className="sm:hidden fixed inset-0 z-30 bg-black/20" />
+                  )}
+                  {showTagPicker && (
+                    <div className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 p-3 sm:p-2 sm:absolute sm:inset-x-auto sm:bottom-auto sm:top-7 sm:left-0 sm:z-20 bg-white border rounded-xl shadow-lg flex flex-wrap gap-1.5 sm:w-56 sm:max-w-[80vw]">
                       {PRESET_TAGS.map((tag) => (
                         <button
                           key={tag}
@@ -1517,7 +1815,7 @@ export default function InboxPage() {
             )}
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-3 md:px-5 py-4 space-y-4">
+            <div ref={scrollBoxRef} onScroll={onMessagesScroll} className="flex-1 overflow-y-auto px-3 md:px-5 py-4 space-y-4">
               {/* Load more */}
               {hasMore && (
                 <div className="flex justify-center">
@@ -1542,7 +1840,7 @@ export default function InboxPage() {
                   <div className="space-y-2">
                     {group.msgs.map((msg) => msg.event ? (
                       <div key={msg.id} className="flex justify-center">
-                        <span className={`rounded-full px-3 py-1 text-[11px] ${msg.event.actorType === 'ai' ? 'bg-violet-50 text-violet-700' : 'bg-gray-100 text-gray-500'}`}>
+                        <span className={`max-w-full break-words text-center rounded-2xl sm:rounded-full px-3 py-1 text-[11px] ${msg.event.actorType === 'ai' ? 'bg-violet-50 text-violet-700' : 'bg-gray-100 text-gray-500'}`}>
                           {eventText(msg.event)} · {formatTime(msg.sentAt)}
                         </span>
                       </div>
@@ -1662,13 +1960,7 @@ export default function InboxPage() {
             </div>
 
             {/* Error banner */}
-            {error && (
-              <div className="mx-3 md:mx-5 mb-2 flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                <AlertCircle className="h-4 w-4 shrink-0" />
-                <span className="flex-1">{error}</span>
-                <button onClick={() => setError(null)}><X className="h-4 w-4" /></button>
-              </div>
-            )}
+            {errorBanner}
 
             {/* Canned responses picker */}
             {showCannedPicker && (
@@ -2012,7 +2304,10 @@ export default function InboxPage() {
                         😊
                       </button>
                       {showEmojiPicker && (
-                        <div className="absolute bottom-10 left-0 z-30 w-64 max-w-[85vw] rounded-2xl border bg-white shadow-xl p-2 overflow-hidden">
+                        <button aria-label="Cerrar emojis" onClick={() => setShowEmojiPicker(false)} className="sm:hidden fixed inset-0 z-30 bg-black/20" />
+                      )}
+                      {showEmojiPicker && (
+                        <div className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 sm:absolute sm:inset-x-auto sm:bottom-10 sm:left-0 sm:z-30 sm:w-64 sm:max-w-[85vw] rounded-2xl border bg-white shadow-xl p-2 overflow-hidden">
                           <div className="flex flex-wrap max-h-52 overflow-y-auto overflow-x-hidden">
                             {[
                               '😊','😄','😂','🤣','😍','🥰','😘','🤩',
@@ -2233,7 +2528,7 @@ export default function InboxPage() {
                         <Calendar className="h-3.5 w-3.5 text-gray-400 shrink-0" />
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-gray-700 truncate">{b.service.name}</p>
-                          <p className="text-xs text-gray-400">{new Date(b.scheduledDate).toLocaleDateString('es-CO')} {b.scheduledTime}</p>
+                          <p className="text-xs text-gray-400">{formatCalendarDay(b.scheduledDate)} {b.scheduledTime}</p>
                         </div>
                         <div className="text-right shrink-0">
                           <p className="text-xs font-semibold text-gray-700">${b.totalPrice.toLocaleString('es-CO')}</p>

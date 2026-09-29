@@ -15,7 +15,13 @@ export async function GET(request: NextRequest, context: RouteContext) {
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id } = await context.params
 
-  const before = request.nextUrl.searchParams.get('before') // cursor: sentAt ISO string
+  // Paging cursor: (sentAt, id) of the oldest loaded message, so rows sharing a timestamp are not skipped
+  const before = request.nextUrl.searchParams.get('before')
+  const beforeId = request.nextUrl.searchParams.get('beforeId')
+  const beforeDate = before ? new Date(before) : null
+  if (beforeDate && Number.isNaN(beforeDate.getTime())) return NextResponse.json({ error: 'Cursor inválido' }, { status: 400 })
+  // Background refreshes pass markRead=0: only an explicit open resets the unread counter
+  const markRead = request.nextUrl.searchParams.get('markRead') !== '0'
   const limit = Math.min(Number(request.nextUrl.searchParams.get('limit') || 60), 100)
 
   const conversation = await prisma.conversation.findUnique({
@@ -29,9 +35,11 @@ export async function GET(request: NextRequest, context: RouteContext) {
       events: { orderBy: { createdAt: 'asc' }, take: 200 },
       tasks: { orderBy: [{ doneAt: 'asc' }, { createdAt: 'desc' }], take: 50 },
       messages: {
-        orderBy: { sentAt: 'desc' },
+        orderBy: [{ sentAt: 'desc' }, { id: 'desc' }],
         take: limit,
-        ...(before ? { where: { sentAt: { lt: new Date(before) } } } : {}),
+        ...(beforeDate
+          ? { where: beforeId ? { OR: [{ sentAt: { lt: beforeDate } }, { sentAt: beforeDate, id: { lt: beforeId } }] } : { sentAt: { lt: beforeDate } } }
+          : {}),
         include: { sentBy: { select: { id: true, name: true } } },
       },
     },
@@ -45,8 +53,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
   const messages = [...conversation.messages].reverse()
   const hasMore = conversation.messages.length === limit
 
-  // Mark as read only on initial load (no before cursor)
-  if (!before) {
+  // Mark as read only on an explicit open (no cursor, not a background refresh)
+  if (!before && markRead) {
     await prisma.conversation.update({ where: { id }, data: { unreadCount: 0 } })
   }
 

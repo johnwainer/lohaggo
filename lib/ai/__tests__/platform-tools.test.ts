@@ -12,6 +12,7 @@ const db = vi.hoisted(() => ({
 vi.mock('@/lib/prisma', () => ({ prisma: db }))
 
 const actions = vi.hoisted(() => ({
+  claimAction: vi.fn(async () => true),
   recordAction: vi.fn(async (p: unknown) => ({ id: 'a1', ...(p as object) })),
   settleAction: vi.fn(async () => ({})),
   latestProposed: vi.fn(async () => null as null | { id: string; createdAt: Date }),
@@ -329,5 +330,30 @@ describe('runPlatformTool · socio que propone por el chat', () => {
     expect(out).toMatch(/ya envió una propuesta/)
     expect(out).toContain('enviar_mensaje_reserva')
     expect(db.proposal.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { partnerId: 'pp9', serviceRequestId: { endsWith: 'hopmjv' } } }))
+  })
+})
+
+describe('runPlatformTool · el sí no se pierde ni se repite', () => {
+  it('un «sí» a la única propuesta abierta ejecuta lo propuesto aunque el modelo reformule los datos', async () => {
+    actions.proposedInWindow.mockResolvedValue([{ id: 'p1', createdAt: new Date(Date.now() - 60_000), input: { propuesta_ref: '00xyz1', fecha: '', hora: '', confirmado: false } }] as never)
+    const out = await runPlatformTool('aceptar_propuesta', { propuesta_ref: '00xyz1', fecha: '2026-10-10', hora: '10:00', confirmado: false }, ctx({ personText: 'sí, dale', turnStartedAt: new Date() }))
+    expect(ops.acceptProposal).toHaveBeenCalledTimes(1)
+    expect(actions.claimAction).toHaveBeenCalledWith('p1', 'proposed')
+    expect(actions.recordAction).not.toHaveBeenCalledWith(expect.objectContaining({ status: 'proposed' }))
+    expect(out).toMatch(/Propuesta aceptada/)
+  })
+
+  it('si otro turno ya reclamó la propuesta, no se ejecuta otra vez', async () => {
+    actions.proposedInWindow.mockResolvedValue([{ id: 'p1', createdAt: new Date(Date.now() - 60_000), input: { propuesta_ref: '00xyz1', fecha: '', hora: '', confirmado: false } }] as never)
+    actions.claimAction.mockResolvedValueOnce(false)
+    const out = await runPlatformTool('aceptar_propuesta', { propuesta_ref: '00xyz1', fecha: '', hora: '', confirmado: false }, ctx({ personText: 'si', turnStartedAt: new Date() }))
+    expect(ops.acceptProposal).not.toHaveBeenCalled()
+    expect(out).toMatch(/ya quedó hecho/)
+  })
+
+  it('en copiloto las herramientas de identidad no envían nada', async () => {
+    const out = await runPlatformTool('enviar_enlace_acceso', { dato: '' }, ctx({ mode: 'copilot' }))
+    expect(login.sendLoginLinkFromChat).not.toHaveBeenCalled()
+    expect(out).toMatch(/Sugerencia/)
   })
 })
