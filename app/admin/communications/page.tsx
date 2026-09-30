@@ -78,6 +78,7 @@ type RecipientSummary = {
   eligible: number
   ineligible: number
   segmentCount: number
+  segmentTotal?: number
   manualIncludedCount: number
   excludedCount: number
   partnerFilterMode?: 'ALL' | 'CATEGORY' | 'SERVICE'
@@ -1496,7 +1497,7 @@ export default function AdminCommunicationsPage() {
                   </div>
                   {campaignRecipientPreview.summary && (
                     <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-xs">
-                      <div className="rounded border bg-white px-2 py-1">Total: <b>{campaignRecipientPreview.summary.total}</b></div>
+                      <div className="rounded border bg-white px-2 py-1">Total: <b>{Math.max(campaignRecipientPreview.summary.segmentTotal ?? 0, campaignRecipientPreview.summary.total)}</b>{(campaignRecipientPreview.summary.segmentTotal ?? 0) > campaignRecipientPreview.summary.total ? ` (vista previa de ${campaignRecipientPreview.summary.total})` : ''}</div>
                       <div className="rounded border bg-white px-2 py-1">Elegibles: <b>{campaignRecipientPreview.summary.eligible}</b></div>
                       <div className="rounded border bg-white px-2 py-1">Sin destino: <b>{campaignRecipientPreview.summary.ineligible}</b></div>
                       <div className="rounded border bg-white px-2 py-1">Segmento: <b>{campaignRecipientPreview.summary.segmentCount}</b></div>
@@ -2150,7 +2151,7 @@ export default function AdminCommunicationsPage() {
                       </label>
                       {selectionMode === 'SEGMENT' ? (
                         <span className="rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1.5 text-xs text-emerald-800">
-                          {loadingRecipients ? 'Calculando…' : <>Clientes en el segmento: <b>{recipientSummary?.total ?? 0}</b> · con destino: <b>{recipientSummary?.eligible ?? 0}</b></>}
+                          {loadingRecipients ? 'Calculando…' : <>Clientes en el segmento: <b>{Math.max(recipientSummary?.segmentTotal ?? 0, recipientSummary?.total ?? 0)}</b> · con destino: <b>{recipientSummary?.eligible ?? 0}</b>{(recipientSummary?.segmentTotal ?? 0) > (recipientSummary?.total ?? 0) ? <span className="text-gray-500"> (vista previa de {recipientSummary?.total} de {recipientSummary?.segmentTotal}; el envío llega a todos)</span> : null}</>}
                         </span>
                       ) : (
                         <button
@@ -2601,7 +2602,7 @@ export default function AdminCommunicationsPage() {
                   {/* Stats summary */}
                   {recipientSummary && (
                     <div className="flex flex-wrap gap-2 text-xs">
-                      {selectionMode === 'SEGMENT' && <span className="rounded border bg-gray-50 px-2 py-1">Total segmento: <b>{recipientSummary.total}</b></span>}
+                      {selectionMode === 'SEGMENT' && <span className="rounded border bg-gray-50 px-2 py-1">Total segmento: <b>{Math.max(recipientSummary.segmentTotal ?? 0, recipientSummary.total)}</b>{(recipientSummary.segmentTotal ?? 0) > recipientSummary.total ? ` · vista previa de ${recipientSummary.total}` : ''}</span>}
                       {selectionMode === 'SEGMENT' && <span className="rounded border bg-gray-50 px-2 py-1">Elegibles: <b>{recipientSummary.eligible}</b></span>}
                       {selectionMode === 'SEGMENT' && <span className="rounded border bg-gray-50 px-2 py-1">Sin destino: <b>{recipientSummary.ineligible}</b></span>}
                       {selectionMode === 'SEGMENT' && recipientIncludeIds.length > 0 && <span className="rounded border bg-emerald-50 text-emerald-800 px-2 py-1">Agregados: <b>{recipientIncludeIds.length}</b></span>}

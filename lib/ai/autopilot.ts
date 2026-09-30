@@ -139,6 +139,8 @@ export async function handleInbound(conversationId: string, messageId: string, o
   const accountTz = ws?.timezone || 'America/Bogota'
   const pre = AgentRuntimeService.preHandoff(agent, { text: message.body, turns: conversation.aiTurns, now: new Date(), accountTz })
 
+  // Outside hours the message waits: answerAfterHours() replies when the agent's hours open
+  if (pre.action === 'silent' || pre.action === 'notice') await markAfterHours(conversation, messageId)
   if (pre.action === 'silent') return { skipped: 'outside_hours_silent' }
   if (pre.action === 'notice') {
     const recentNotice = await prisma.conversationMessage.findFirst({
@@ -205,6 +207,49 @@ export async function handleInbound(conversationId: string, messageId: string, o
     })
   }
   return { handled: 'reply', handoff: result.handoff, model: result.model }
+}
+
+const AFTER_HOURS_KEY = 'afterHours'
+/** Answers left for opening time are dropped after this long (the person likely moved on or a person replied) */
+const AFTER_HOURS_MAX_MS = 72 * 3600_000
+
+async function markAfterHours(conversation: Conversation, messageId: string) {
+  const fields = conversation.customFields && typeof conversation.customFields === 'object' ? { ...(conversation.customFields as Record<string, unknown>) } : {}
+  fields[AFTER_HOURS_KEY] = { messageId, at: new Date().toISOString() }
+  await prisma.conversation.update({ where: { id: conversation.id }, data: { customFields: fields as object } }).catch(() => null)
+}
+
+/**
+ * Messages that arrived outside an agent's hours («silent» or «notice»): once the hours open, the agent
+ * answers the latest one (it reads everything the person wrote). Runs from the copilot cron every minute.
+ */
+export async function answerAfterHours(limit = 20) {
+  const convs = await prisma.conversation.findMany({
+    where: { aiHandled: true, aiAgentId: { not: null }, assignedToId: null, status: { in: ['OPEN', 'IN_PROGRESS'] }, lastMessageAt: { gt: new Date(Date.now() - AFTER_HOURS_MAX_MS) } },
+    select: { id: true, aiAgentId: true, workspaceId: true, customFields: true },
+    orderBy: { lastMessageAt: 'asc' },
+    take: 300,
+  })
+  let answered = 0
+  for (const c of convs) {
+    if (answered >= limit) break
+    const fields = c.customFields && typeof c.customFields === 'object' ? (c.customFields as Record<string, unknown>) : {}
+    const mark = fields[AFTER_HOURS_KEY] as { messageId?: string; at?: string } | undefined
+    if (!mark?.messageId) continue
+    const agent = await prisma.aiAgent.findUnique({ where: { id: c.aiAgentId! } })
+    if (!agent || agent.status !== 'active') continue
+    const ws = await prisma.workspace.findUnique({ where: { id: c.workspaceId }, select: { timezone: true } })
+    if (!isWithinHours(agent, new Date(), ws?.timezone || 'America/Bogota')) continue
+    const { [AFTER_HOURS_KEY]: _done, ...rest } = fields
+    await prisma.conversation.update({ where: { id: c.id }, data: { customFields: rest as object } })
+    const latest = await prisma.conversationMessage.findFirst({ where: { conversationId: c.id, direction: 'INBOUND' }, orderBy: { sentAt: 'desc' }, select: { id: true } })
+    // Someone already answered after it arrived: nothing is left to reply
+    const replied = await prisma.conversationMessage.findFirst({ where: { conversationId: c.id, direction: 'OUTBOUND', isInternal: false, sentAt: { gt: new Date(mark.at ?? 0) }, senderType: { not: 'AUTOMATION' } }, select: { id: true } })
+    if (!latest || replied) continue
+    await handleInbound(c.id, latest.id, { debounceMs: 0, maxAgeMs: AFTER_HOURS_MAX_MS }).catch((err) => logger.warn('After-hours answer failed', { conversationId: c.id, err: err instanceof Error ? err.message : err }))
+    answered++
+  }
+  return { answered }
 }
 
 // ─── Background task registry (webhooks answer 200 first, then the agent works) ──

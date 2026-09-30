@@ -21,6 +21,8 @@ function spec(event: string, candidates: Array<[string, Record<string, string | 
 const DAY = 24 * 3600_000
 const client = (n: string | null | undefined) => firstName(n, 'CLIENT')
 const partner = (n: string | null | undefined) => firstName(n, 'PARTNER')
+/** A cancellation reason as a template variable: one line, short, never empty */
+const waReason = (r: string | null | undefined) => (r ?? '').replace(/\s+/g, ' ').trim().slice(0, 120) || 'no indicado'
 const admin = (n: string | null | undefined) => firstName(n, 'ADMIN')
 
 export const PAYMENT_METHOD_TEXT: Record<string, string> = { CASH: 'efectivo', DIRECT_TRANSFER: 'transferencia', MERCADOPAGO: 'pago en línea' }
@@ -145,6 +147,9 @@ export const WA = {
   C13: (p: { proposalId: string; partnerName: string; service: string }) => spec('C13', [['lh_socio_propuesta_no_elegida_v3', { 1: partner(p.partnerName), 2: waRef(p.proposalId), 3: p.service }], ['lh_socio_propuesta_no_elegida', { 1: partner(p.partnerName), 2: p.service }]], E('Proposal', p.proposalId)),
   C14: (b: BookingData) => spec('C14', [['lh_socio_confirmar_reserva', { 1: partner(b.partnerName), 2: b.service, 3: waWhen(b.when) }]], E('Booking', b.id), { dedupeKey: `C14:Booking:${b.id}:${b.when.toISOString()}` }),
   C15: (b: BookingData) => spec('C15', [['lh_socio_reserva_reprogramada', { 1: partner(b.partnerName), 2: b.service, 3: waWhen(b.when) }]], E('Booking', b.id), { dedupeKey: `C15:Booking:${b.id}:${b.when.toISOString()}` }),
+  /** The LoHaggo team cancelled: its own wording (never «el cliente canceló»), with the reason both sides see */
+  B28: (b: BookingData & { reason: string }) => spec('B28', [['lh_cliente_reserva_cancelada_equipo', { 1: client(b.clientName), 2: b.service, 3: waDay(b.when), 4: waReason(b.reason), 5: 'dashboard?tab=requests' }], ['reserva_cancelada', { 1: client(b.clientName), 2: b.service }]], E('Booking', b.id)),
+  C32: (b: BookingData & { reason: string }) => spec('C32', [['lh_socio_reserva_cancelada_equipo', { 1: partner(b.partnerName), 2: b.service, 3: waDay(b.when), 4: waReason(b.reason) }]], E('Booking', b.id)),
   C16: (b: BookingData) => spec('C16', [['lh_socio_reserva_cancelada', { 1: partner(b.partnerName), 2: b.service, 3: waDay(b.when) }]], E('Booking', b.id)),
   C17: (b: BookingData) => spec('C17', [['lh_socio_recordatorio_manana', { 1: partner(b.partnerName), 2: waTime(b.when), 3: b.service, 4: waZone(b.address, b.city), 5: 'partner?tab=bookings' }]], E('Booking', b.id), { dedupeKey: `C17:Booking:${b.id}:${b.when.toISOString()}` }),
   C18: (b: BookingData) => spec('C18', [['lh_socio_servicio_pronto', { 1: partner(b.partnerName), 2: b.service, 3: waTime(b.when) }]], E('Booking', b.id), { dedupeKey: `C18:Booking:${b.id}:${b.when.toISOString()}` }),

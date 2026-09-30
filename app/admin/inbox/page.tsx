@@ -480,13 +480,19 @@ export default function InboxPage() {
   }, [handleInboxEvent])
 
   const workspaceKey = workspaces.map((w) => w.id).sort().join(',')
+  // Channel names come from the server (derived with a secret): they can't be guessed from a workspace id
+  const [realtimeChannels, setRealtimeChannels] = useState<string[]>([])
+  useEffect(() => {
+    if (!workspaceKey) return
+    fetch('/api/admin/inbox/realtime').then((r) => (r.ok ? r.json() : { channels: [] })).then((d) => setRealtimeChannels(Array.isArray(d.channels) ? d.channels : [])).catch(() => setRealtimeChannels([]))
+  }, [workspaceKey])
+  const channelKey = realtimeChannels.join(',')
   useEffect(() => {
     const supabase = getSupabaseBrowser()
-    if (!supabase || !workspaceKey) { setRealtimeOk(false); return }
+    if (!supabase || !channelKey) { setRealtimeOk(false); return }
     const joined = new Set<string>()
     let disposed = false
-    const channels = workspaceKey.split(',').map((id) => {
-      const name = `inbox:${id}`
+    const channels = channelKey.split(',').map((name) => {
       return supabase
         .channel(name, { config: { broadcast: { self: false } } })
         .on('broadcast', { event: 'inbox' }, ({ payload }) => handleInboxEvent(payload as { type?: string; conversationId?: string }))
@@ -502,7 +508,7 @@ export default function InboxPage() {
       setRealtimeOk(false)
       channels.forEach((ch) => { try { supabase.removeChannel(ch) } catch { /* silent */ } })
     }
-  }, [workspaceKey, handleInboxEvent])
+  }, [channelKey, handleInboxEvent])
 
   // Polling safety net: every 30 s with Realtime, every 10 s without it; only while the tab is visible
   useEffect(() => {

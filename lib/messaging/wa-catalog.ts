@@ -530,6 +530,38 @@ export const WA_CATALOG: WaCatalogEntry[] = [
     }
   },
   {
+    "code": "B28",
+    "name": "lh_cliente_reserva_cancelada_equipo",
+    "category": "UTILITY",
+    "body": "❌ Hola {{1}}, el equipo de LoHaggo canceló tu reserva de *{{2}}* del {{3}}. Motivo: {{4}}. Si aún necesitas el servicio, puedes pedirlo de nuevo con el botón de abajo.",
+    "variables": {
+      "1": "Ana",
+      "2": "Plomería",
+      "3": "viernes 3 de octubre",
+      "4": "el socio no pudo asistir",
+      "5": "dashboard?tab=requests"
+    },
+    "quickReplies": [],
+    "url": {
+      "title": "Ver mis solicitudes",
+      "url": "https://www.lohaggo.com/{{5}}"
+    }
+  },
+  {
+    "code": "C32",
+    "name": "lh_socio_reserva_cancelada_equipo",
+    "category": "UTILITY",
+    "body": "❌ Hola {{1}}, el equipo de LoHaggo canceló el servicio de *{{2}}* del {{3}}. Motivo: {{4}}. No tienes que ir; si tienes dudas, escríbenos por aquí.",
+    "variables": {
+      "1": "Carlos",
+      "2": "Plomería",
+      "3": "viernes 3 de octubre",
+      "4": "el cliente pidió cancelar"
+    },
+    "quickReplies": [],
+    "url": null
+  },
+  {
     "code": "C1",
     "name": "lh_socio_cuenta_creada",
     "category": "UTILITY",

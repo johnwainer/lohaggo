@@ -4,6 +4,7 @@ import { createLogger } from '@/lib/logger'
 import { getMetaAppConfig } from '@/lib/messaging/provider-config'
 import type { MetaChannel } from '@/lib/messaging/meta-graph'
 import { logWebhookEvent, processMetaWebhookPayload, verifyMetaSignature, type MetaWebhookPayload } from '@/lib/messaging/meta-inbound'
+import { settlePendingWebhook, storePendingWebhook } from '@/lib/messaging/meta-reprocess'
 
 const logger = createLogger('meta-webhook')
 
@@ -52,12 +53,16 @@ export async function handleMetaWebhookEvent(request: NextRequest, channel: Meta
     return new NextResponse('Invalid JSON', { status: 400 })
   }
 
+  // Kept until processed: if processing fails or the function is cut off, the meta-pending cron retries it
+  const pending = await storePendingWebhook(channel, payload)
   after(async () => {
     try {
       await processMetaWebhookPayload(channel, payload)
+      await settlePendingWebhook(pending?.id)
     } catch (err) {
       logger.error('Unhandled error processing webhook', { channel, err: err instanceof Error ? err.message : err })
-      await logWebhookEvent({ channel, status: 'ERROR', detail: err instanceof Error ? err.message : 'error', payload })
+      if (pending) await settlePendingWebhook(pending.id, err instanceof Error ? err.message : 'error')
+      else await logWebhookEvent({ channel, status: 'ERROR', detail: err instanceof Error ? err.message : 'error', payload })
     }
   })
 

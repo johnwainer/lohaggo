@@ -1,10 +1,10 @@
 export const dynamic = 'force-dynamic'
-export const maxDuration = 60
+export const maxDuration = 300
 
 import { NextRequest, NextResponse } from 'next/server'
 import { cronRoute } from '@/lib/system/cron'
 import { createLogger } from '@/lib/logger'
-import { drainAgentTasks } from '@/lib/ai/autopilot'
+import { answerAfterHours, drainAgentTasks } from '@/lib/ai/autopilot'
 import { runCopilotTakeovers } from '@/lib/ai/copilot'
 
 const logger = createLogger('cron-copilot')
@@ -18,9 +18,10 @@ async function handle(request: NextRequest) {
   }
   try {
     const result = await runCopilotTakeovers()
+    const afterHours = await answerAfterHours(5).catch(() => ({ answered: 0 }))
     await drainAgentTasks()
-    if (result.tookOver || result.alerted) logger.info('Copilot run', result)
-    return NextResponse.json({ ok: true, ...result })
+    if (result.tookOver || result.alerted || afterHours.answered) logger.info('Copilot run', { ...result, afterHours })
+    return NextResponse.json({ ok: true, ...result, afterHours })
   } catch (err) {
     logger.error('Copilot run error', { message: err instanceof Error ? err.message : 'error' })
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })

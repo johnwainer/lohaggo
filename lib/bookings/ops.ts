@@ -211,7 +211,7 @@ export async function transitionBooking(actor: Actor, bookingId: string, to: Boo
   const reopened = to === 'CANCELLED' && (actor.role === 'PARTNER' || (actor.role === 'ADMIN' && opts.reopen)) ? await reopenRequestAfterPartnerCancel(booking) : false
   // WhatsApp template first: the notifications' free-text WhatsApp is then skipped for that person
   const { waBookingStatus } = await import('@/lib/messaging/wa-events')
-  await waBookingStatus({ bookingId, from: booking.status, to, actorRole: actor.role, origin, reopened })
+  await waBookingStatus({ bookingId, from: booking.status, to, actorRole: actor.role, origin, reopened, reason: opts.reason ?? null })
   await afterStatusChange(actor, booking, to)
   if (to === 'COMPLETED') schedulePurchaseConversion(bookingId)
 

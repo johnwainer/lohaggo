@@ -126,6 +126,8 @@ export async function GET(request: NextRequest) {
       eligible: eligibleCount,
       ineligible: ineligibleCount,
       segmentCount: recipients.segmentCount,
+      // Everyone in the segment (the preview lists at most 2500; sending goes through all of them)
+      segmentTotal: recipients.segmentTotal ?? withEligibility.length,
       manualIncludedCount: recipients.manualIncludedCount,
       excludedCount: recipients.excludeUserIds.length,
       partnerFilterMode: recipients.partnerFilterMode,

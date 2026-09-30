@@ -607,3 +607,13 @@ Prioridad de creación (si hay que escalonar), por impacto en el flujo:
 2. B14 terminado y pago, C20 pago reportado, C21 pago por confirmar, B16 pago confirmado, B18 calificar, B11/C17 recordatorio mañana, B12/C18 servicio pronto.
 3. Garantía (B20, B21, C24, C25, D3, D4), alta de socios (C1, C3, C4, C6, C7, C8), equipo (D1, D2, D5, D6).
 4. El resto.
+
+
+### B28 · lh_cliente_reserva_cancelada_equipo
+- Categoría: UTILITY · Para: cliente · Cuándo: el equipo cancela la reserva (admin o Haggo aprobado) sin reabrirla.
+- Texto: «❌ Hola {{1}}, el equipo de LoHaggo canceló tu reserva de *{{2}}* del {{3}}. Motivo: {{4}}. Si aún necesitas el servicio, puedes pedirlo de nuevo con el botón de abajo.»
+- Botón: «Ver mis solicitudes» → https://www.lohaggo.com/{{5}}
+
+### C32 · lh_socio_reserva_cancelada_equipo
+- Categoría: UTILITY · Para: socio · Cuándo: el equipo cancela la reserva.
+- Texto: «❌ Hola {{1}}, el equipo de LoHaggo canceló el servicio de *{{2}}* del {{3}}. Motivo: {{4}}. No tienes que ir; si tienes dudas, escríbenos por aquí.»

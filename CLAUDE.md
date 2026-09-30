@@ -40,6 +40,12 @@
 - ✅ Toda herramienta con confirmación debe funcionar sin ese historial: lo pendiente se inyecta en el prompt (`pendingActionsText`) y el servidor ejecuta lo propuesto ante un sí claro (`isClearYes` + `sameActionCore` en `runPlatformTool`).
 - ✅ Al crear o cambiar una herramienta con `confirm: true`, probar el flujo completo en varios turnos (proponer → «sí» → ejecutada), no solo la primera llamada.
 
+#### Reglas duras aprendidas (revisión completa del 2026-09-29)
+- ❌ **NUNCA** mostrar `scheduledDate`, `preferredDate` o `proposedDate` con `new Date(x).toLocaleDateString()` sin `timeZone: 'UTC'`. Se guardan como el día de Bogotá a las 00:00 UTC y en Colombia salen un día antes.
+- ✅ Fechas de servicio: guardar con `dateOnlyUtc` y la hora aparte en `*Time` (09:00 si no hay); mostrar con `formatCalendarDay` / `formatBookingWhen` / `bookingWhen` de `lib/bookings/when.ts` (aceptan también filas viejas con fecha y hora completas).
+- ❌ **NUNCA** vincular un chat (WhatsApp, Messenger, Instagram) a una cuenta ADMIN ni a un teléfono que tengan varias cuentas. Un chat de admin llegaba a cualquier reserva por su referencia de 6 letras. `actorFor` trata a un admin como no vinculado y `userByPhone` exige una sola cuenta activa de cliente o socio.
+- ❌ **NUNCA** devolver al navegador un `include` con `user: true`: trae el hash de la contraseña. Seleccionar solo los campos que se muestran (`{ id, name, email, phone }`) y enmascarar cuentas bancarias con `maskAccountNumber`.
+
 ### 4. Dirección de diseño y producto
 
 **Look & feel: estilo Rappi.** Decidido tras research de competidores directos (TaskRabbit, Thumbtack, Angi, IguanaFix, Habitissimo — ninguno usa mapa principal en home services).
