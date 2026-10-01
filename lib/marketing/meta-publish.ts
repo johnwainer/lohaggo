@@ -141,10 +141,10 @@ const valueOf = (row?: InsightRow) => {
 }
 
 /** Meta renames insight metrics over time; the first set that the API accepts wins. */
-async function firstInsights(c: Ctx, id: string, sets: string[], edge = 'insights') {
+async function firstInsights(c: Ctx, id: string, sets: string[], edge = 'insights', period?: 'lifetime') {
   for (const metric of sets) {
     try {
-      const d = await graphFetch<{ data?: InsightRow[] }>(`${id}/${edge}`, opts(c, { query: { metric } }))
+      const d = await graphFetch<{ data?: InsightRow[] }>(`${id}/${edge}`, opts(c, { query: period ? { metric, period } : { metric } }))
       return new Map((d.data || []).map((r) => [r.name, r]))
     } catch (err) {
       if (!(err instanceof MetaGraphError) || err.code !== 100) throw err
@@ -169,11 +169,12 @@ export async function facebookMetrics(c: Ctx, externalId: string, isVideo: boole
   m.shares = post.shares?.count ?? 0
   m.comments = post.comments?.summary?.total_count ?? 0
   m.likes = post.reactions?.summary?.total_count ?? 0
+  // Lifetime: without it Meta answers post_total_media_view_unique per day for the last two days (reach read as 0)
   const ins = await firstInsights(c, externalId, [
     'post_total_media_view_unique,post_media_view,post_clicks',
     'post_impressions_unique,post_impressions,post_clicks',
     'post_clicks',
-  ]).catch(() => new Map<string, InsightRow>())
+  ], 'insights', 'lifetime').catch(() => new Map<string, InsightRow>())
   m.reach = valueOf(ins.get('post_total_media_view_unique') || ins.get('post_impressions_unique'))
   m.impressions = valueOf(ins.get('post_media_view') || ins.get('post_impressions'))
   m.clicks = valueOf(ins.get('post_clicks'))

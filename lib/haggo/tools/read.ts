@@ -1,4 +1,6 @@
 import { formatBookingWhen, formatCalendarDay } from '@/lib/bookings/when'
+import { formatCapabilities, formatSummary } from '@/lib/marketing/format-capabilities'
+import type { MetaChannel } from '@/lib/messaging/meta-graph'
 import { prisma } from '@/lib/prisma'
 import { catalogStatus } from '@/lib/messaging/wa-registry'
 import { templateSendsSince } from '@/lib/messaging/wa-send'
@@ -267,11 +269,11 @@ export const READ_TOOLS: Record<string, ReadTool> = {
     },
   },
   marketing: {
-    def: { name: 'marketing', description: 'Publicaciones programadas de los próximos días (id, título, canales, hora, agente), ideas de los agentes por decidir y por redactar (ideaId), esperando revisión, retenidas por la revisión editorial (corrector y editor: veredicto, puntaje y qué pide), fallidas de 7 días con su error, y los agentes de marketing (modo, degradación, gasto). Cada publicación trae su estado de revisión editorial. También las pautas para Meta Ads que creó el agente de pauta (se suben a mano). Usa el id de la publicación (postId) o de la publicación fallida para proponer acciones.', input_schema: { type: 'object', properties: { dias: { type: 'integer', minimum: 1, maximum: 30, description: 'Días hacia adelante para las programadas (7 por defecto)' } } } },
+    def: { name: 'marketing', description: 'Publicaciones programadas de los próximos días (id, título, canales, hora, agente), ideas de los agentes por decidir y por redactar (ideaId), esperando revisión, retenidas por la revisión editorial (corrector y editor: veredicto, puntaje y qué pide), fallidas de 7 días con su error, y los agentes de marketing (modo, degradación, gasto). Cada publicación trae su estado de revisión editorial. También las pautas para Meta Ads que creó el agente de pauta (se suben a mano) y, por cuenta de Facebook e Instagram, qué formatos puede publicar (foto, carrusel, reel, reel de prueba, historia), si tiene permiso de estadísticas y el cupo de Instagram de 24 h (100). Usa el id de la publicación (postId) o de la publicación fallida para proponer acciones.', input_schema: { type: 'object', properties: { dias: { type: 'integer', minimum: 1, maximum: 30, description: 'Días hacia adelante para las programadas (7 por defecto)' } } } },
     run: async (i) => {
       const since = new Date(Date.now() - 7 * 24 * H)
       const until = new Date(Date.now() + limit(i.dias, 7, 30) * 24 * H)
-      const [scheduled, review, failed, agents, ideas, held, paid] = await Promise.all([
+      const [scheduled, review, failed, agents, ideas, held, paid, accounts] = await Promise.all([
         prisma.marketingPublication.findMany({ where: { status: 'scheduled', scheduledAt: { lte: until } }, orderBy: { scheduledAt: 'asc' }, take: 60, select: { id: true, channel: true, scheduledAt: true, post: { select: { id: true, title: true, status: true, agentId: true, reviewStatus: true, reviewScore: true, campaign: { select: { name: true } } } } } }),
         prisma.marketingPost.findMany({ where: { status: 'review' }, orderBy: { updatedAt: 'asc' }, take: 10, select: { id: true, title: true, origin: true, updatedAt: true, reviewStatus: true, reviewScore: true } }),
         prisma.marketingPublication.findMany({ where: { status: 'failed', updatedAt: { gte: since } }, orderBy: { updatedAt: 'desc' }, take: 10, select: { id: true, channel: true, lastError: true, post: { select: { id: true, title: true } } } }),
@@ -283,6 +285,7 @@ export const READ_TOOLS: Record<string, ReadTool> = {
           select: { id: true, title: true, agentId: true, reviewStatus: true, reviewScore: true, reviewRounds: true, reviewedAt: true, reviews: { where: { reviewer: 'editor' }, orderBy: { createdAt: 'desc' }, take: 1, select: { summary: true, instructions: true, error: true } } },
         }).catch(() => []),
         prisma.marketingAdDraft.findMany({ where: { status: { in: ['ready', 'used', 'failed'] }, createdAt: { gte: since } }, orderBy: { createdAt: 'desc' }, take: 10, select: { id: true, title: true, status: true, costUsd: true, createdAt: true, usedAt: true } }).catch(() => []),
+        prisma.channelConnection.findMany({ where: { channel: { in: ['MESSENGER', 'INSTAGRAM'] } }, select: { channel: true, name: true, status: true, enabled: true, capabilities: true, commentSettings: true } }),
       ])
       // One entry per post: its channels and the earliest pending time
       const byPost = new Map<string, { postId: string; titulo: string; estado: string; campana: string | null; de_agente: boolean; revision: string | null; canales: string[]; hora: string; hora_iso: string }>()
@@ -302,6 +305,12 @@ export const READ_TOOLS: Record<string, ReadTool> = {
         retenidas_por_editor: held.map((p) => ({ postId: p.id, titulo: p.title, de_agente: Boolean(p.agentId), estado_revision: p.reviewStatus, puntaje: p.reviewScore, reescrituras: p.reviewRounds, revisada: p.reviewedAt ? bogotaTime(p.reviewedAt) : null, resumen_editor: untrusted((p.reviews[0]?.summary ?? p.reviews[0]?.error ?? '').slice(0, 300)), pide: untrusted(((p.reviews[0]?.instructions as Array<{ change?: string }> | null) ?? []).slice(0, 3).map((x) => x.change ?? '').join(' · ').slice(0, 400)) })),
         fallidas_7d: failed.map((f) => ({ publicationId: f.id, postId: f.post.id, canal: f.channel, publicacion: f.post.title, error: f.lastError?.slice(0, 200) ?? null })),
         pautas_7d: paid.map((p) => ({ id: p.id, titulo: p.title, estado: p.status === 'used' ? 'subida a Meta' : p.status === 'ready' ? 'lista, sin subir' : 'falló', creada: bogotaTime(p.createdAt), costo_usd: Math.round(p.costUsd * 1000) / 1000 })),
+        cuentas_meta: accounts.map((a) => {
+          const channel = a.channel as MetaChannel
+          const granted = (a.commentSettings as { grantedScopes?: string[] | null } | null)?.grantedScopes ?? null
+          const quota = (a.capabilities as { quota?: { used: number; total: number } | null } | null)?.quota ?? null
+          return { cuenta: a.name, red: channel === 'INSTAGRAM' ? 'Instagram' : 'Facebook', activa: a.enabled && a.status === 'ACTIVE', formatos: formatSummary(channel, formatCapabilities(channel, granted)), cupo_24h: quota ? `${quota.used}/${quota.total}` : null }
+        }),
         agentes: agents.map((a) => ({ id: a.id, campana: a.campaign.name, objetivo: a.campaign.objective, estado: a.status, modo: a.mode, degradado: a.degradedReason, presupuesto_mensual_usd: a.monthlyBudgetUsd })),
       }
     },

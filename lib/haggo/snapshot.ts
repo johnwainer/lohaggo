@@ -1,4 +1,6 @@
 import { attributionSnapshot } from '@/lib/analytics/origins'
+import { FORMAT_SCOPES, formatCapabilities } from '@/lib/marketing/format-capabilities'
+import type { MetaChannel } from '@/lib/messaging/meta-graph'
 import { getConversionSettings } from '@/lib/analytics/conversions'
 import { scanAttention } from '@/lib/admin/request-360'
 import { prisma } from '@/lib/prisma'
@@ -70,11 +72,25 @@ export async function takeSnapshot(now = new Date()): Promise<Snapshot> {
     safe('webhooks', systemOverview(now), null),
   ])
   // What the inbox agents did today on the platform, and the day's cancellations by origin
-  const [actionRows, chatCancellationsToday, cancellationsToday] = await Promise.all([
+  const [actionRows, chatCancellationsToday, cancellationsToday, metaConns] = await Promise.all([
     safe('aiActions', prisma.aiAgentAction.groupBy({ by: ['agentId', 'status'], where: { createdAt: { gte: today } }, _count: { _all: true } }), [] as Array<{ agentId: string; status: string; _count: { _all: number } }>),
     safe('aiActions.chatCancellations', prisma.bookingEvent.count({ where: { type: 'status', toStatus: 'CANCELLED', origin: 'chat', createdAt: { gte: today } } }), 0),
     safe('aiActions.cancellations', prisma.bookingEvent.count({ where: { type: 'status', toStatus: 'CANCELLED', createdAt: { gte: today } } }), 0),
+    safe('marketing.metaAccounts', prisma.channelConnection.findMany({ where: { channel: { in: ['MESSENGER', 'INSTAGRAM'] }, enabled: true }, select: { id: true, channel: true, name: true, capabilities: true, commentSettings: true } }), []),
   ])
+  // Facebook / Instagram accounts: publishing and statistics permissions, Instagram's 24 h quota
+  const metaAccounts = metaConns.map((c) => {
+    const channel = c.channel as MetaChannel
+    const granted = (c.commentSettings as { grantedScopes?: string[] | null } | null)?.grantedScopes ?? null
+    const caps = formatCapabilities(channel, granted)
+    const quota = (c.capabilities as { quota?: { used: number; total: number } | null } | null)?.quota ?? null
+    return {
+      id: c.id, name: c.name, channel,
+      missingPublish: granted ? FORMAT_SCOPES[channel].publish.filter((x) => !granted.includes(x)) : [],
+      noInsights: caps.some((f) => f.canMeasure === false),
+      quotaUsed: quota?.used ?? null, quotaTotal: quota?.total ?? null,
+    }
+  })
   const AWAITING = ['proposed', 'awaiting_approval', 'confirmed']
   const actionsOf = (rows: typeof actionRows) => ({
     executed: sum(rows.filter((r) => r.status === 'executed').map((r) => r._count._all)),
@@ -150,6 +166,7 @@ export async function takeSnapshot(now = new Date()): Promise<Snapshot> {
       inReview: o?.marketing.inReview ?? 0, failedWeek: o?.marketing.failedWeek ?? 0, runErrors24h, scheduledToday: o?.marketing.scheduledToday ?? 0, ideasPending: o?.marketing.ideasPending ?? 0,
       degraded: (o?.marketing.agents ?? []).filter((a) => a.degraded).map((a) => ({ id: a.id, campaign: a.campaign, reason: a.degraded! })),
       editorial: { held: editorial[0], reviewedWeek: editorial[1], notApprovedWeek: editorial[2], failedWeek: editorial[3] },
+      metaAccounts,
     },
     quality: { rating: o?.quality.rating ?? null, casesOpen: o?.quality.casesOpen ?? 0, casesSla: o?.quality.casesSla ?? 0 },
     channels: { problems: (o?.channels.problems ?? []).map((c) => c.name) },

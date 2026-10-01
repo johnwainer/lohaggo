@@ -22,7 +22,7 @@ export type Snapshot = {
   aiActions: { actionsToday: { executed: number; failed: number; awaiting: number }; chatCancellationsToday: number; cancellationsToday: number; awaitingApproval?: number; oldestAwaitingMinutes?: number }
   aiCost: { today: number; month: number; avg7d?: number }
   aiProviders: { down: Array<{ name: string; reason: string }>; answering: string | null }
-  marketing: { inReview: number; failedWeek: number; scheduledToday: number; ideasPending: number; runErrors24h: number; degraded: Array<{ id: string; campaign: string; reason: string }>; editorial?: { held: number; reviewedWeek: number; notApprovedWeek: number; failedWeek: number } }
+  marketing: { inReview: number; failedWeek: number; scheduledToday: number; ideasPending: number; runErrors24h: number; degraded: Array<{ id: string; campaign: string; reason: string }>; editorial?: { held: number; reviewedWeek: number; notApprovedWeek: number; failedWeek: number }; metaAccounts?: Array<{ id: string; name: string; channel: 'MESSENGER' | 'INSTAGRAM'; missingPublish: string[]; noInsights: boolean; quotaUsed: number | null; quotaTotal: number | null }> }
   quality: { rating: number | null; casesOpen: number; casesSla: number }
   channels: { problems: string[] }
   system: { cronsFailing: number; cronsLate: number; errorsLastHour: number; criticalIncidents: number }
@@ -167,6 +167,15 @@ export function detect(s: Snapshot): Detection[] {
     if (ra.warning >= 5) add({ key: 'ops:attention-backlog', domain: 'operations', severity: 'info', title: `${ra.warning} solicitudes con puntos de atención`, detail: 'Revisar solicitudes_con_atencion.' })
   }
   if (s.phoneLogin && s.phoneLogin.sent24h >= 5 && s.phoneLogin.used24h === 0) add({ key: 'ops:phone-codes-unused', domain: 'users', severity: 'warning', title: `${s.phoneLogin.sent24h} códigos de acceso por WhatsApp en 24 h y ninguno confirmado`, detail: 'Puede que la plantilla lh_codigo_verificacion no esté llegando: revisar mensajeria (estado en Meta y envíos) y probar el acceso con código.' })
+  const accounts = s.marketing.metaAccounts ?? []
+  for (const a of accounts.filter((x) => x.missingPublish.length)) {
+    add({ key: `mk:publish-scopes:${a.id}`, domain: 'marketing', severity: 'warning', title: `${a.channel === 'INSTAGRAM' ? 'Instagram' : 'Facebook'} «${a.name}» no puede publicar: faltan permisos`, detail: `Faltan ${a.missingPublish.join(', ')}. Las publicaciones a esa cuenta fallarán: reconectarla en Admin → Canales.`, entityType: 'ChannelConnection', entityId: a.id })
+  }
+  for (const a of accounts.filter((x) => x.quotaTotal && x.quotaUsed != null && x.quotaUsed >= x.quotaTotal * 0.8)) {
+    add({ key: `mk:ig-quota:${a.id}`, domain: 'marketing', severity: 'warning', title: `Instagram «${a.name}» usó ${a.quotaUsed} de ${a.quotaTotal} publicaciones por API en 24 h`, detail: 'Al llegar al tope Meta rechaza las siguientes (historias y reels cuentan): reprogramar lo que no sea urgente.', entityType: 'ChannelConnection', entityId: a.id })
+  }
+  const blind = accounts.filter((x) => x.noInsights && !x.missingPublish.length)
+  if (blind.length) add({ key: 'mk:no-insights', domain: 'marketing', severity: 'info', title: `${plural(blind.length, 'cuenta de Meta no tiene', 'cuentas de Meta no tienen')} permiso de estadísticas`, detail: `${blind.map((a) => a.name).join(', ')}: el alcance y las métricas de historias no se pueden leer. Agregar read_insights / instagram_manage_insights en la app de Meta y reconectar con estadísticas.` })
   if (s.marketing.inReview >= 5) add({ key: 'mk:review-backlog', domain: 'marketing', severity: 'info', title: `${s.marketing.inReview} publicaciones esperan revisión`, detail: 'Se acumulan borradores sin aprobar.' })
 
   if (s.channels.problems.length) add({ key: `sys:channels:${[...s.channels.problems].sort().join(',')}`, domain: 'system', severity: 'critical', title: `Canales con problemas: ${s.channels.problems.join(', ')}`, detail: 'Hay que reconectarlos.' })

@@ -17,6 +17,8 @@ type Capabilities = {
   checkedAt: string
   comments?: { required: string[]; missing: string[] | null; feedSubscribed: boolean | null; detail?: string }
   publish?: { required: string[]; missing: string[] | null }
+  formats?: Array<{ key: string; label: string; note: string; ready: boolean; canPublish: boolean | null; canMeasure: boolean | null; missing: string[] }>
+  quota?: { used: number; total: number } | null
   tokenHealth?: { valid: boolean; checkedAt: string; kind: string; pageTokenExpiresAt: string | null; userTokenExpiresAt: string | null; renewedAt?: string | null; error: string | null }
 } | null
 
@@ -176,6 +178,47 @@ function CommentsBox({ conn, busy, onPatch, reconnectHref }: { conn: Connection;
   )
 }
 
+const INSIGHTS_SCOPE: Record<MetaChannel, string> = { MESSENGER: 'read_insights', INSTAGRAM: 'instagram_manage_insights' }
+const hasInsights = (conn: Connection) => Boolean(conn.commentSettings?.grantedScopes?.includes(INSIGHTS_SCOPE[conn.channel]))
+
+/** What the account can publish and measure per format (reels, stories…) and Instagram's 24 h quota. */
+function FormatsBox({ conn, reconnectHref }: { conn: Connection; reconnectHref: string }) {
+  const formats = conn.capabilities?.formats
+  const quota = conn.capabilities?.quota
+  const noStats = Boolean(formats?.length) && formats!.some((f) => f.canMeasure === false)
+  return (
+    <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-3 space-y-1.5 text-[11px]">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-semibold text-gray-700">Formatos de publicación</span>
+        {quota && <span className={quota.used >= quota.total * 0.8 ? 'text-amber-700 font-semibold' : 'text-gray-500'}>{quota.used}/{quota.total} en 24 h</span>}
+      </div>
+      {!formats?.length ? (
+        <p className="text-gray-500">Pulsa «Diagnosticar» para ver qué formatos puede publicar esta cuenta.</p>
+      ) : (
+        <ul className="space-y-1">
+          {formats.map((f) => (
+            <li key={f.key} className="flex items-start justify-between gap-2">
+              <span className="min-w-0">
+                <span className="font-medium text-gray-800">{f.label}</span>
+                <span className="text-gray-500"> · {f.note}</span>
+              </span>
+              <span className={`shrink-0 ${f.canPublish === false ? 'text-red-600' : !f.ready ? 'text-gray-400' : 'text-green-700'}`}>
+                {f.canPublish === null ? '—' : f.canPublish === false ? 'Falta permiso' : f.ready ? 'Lista' : 'Próximamente'}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {noStats && (
+        <p className="text-amber-800">
+          Sin permiso de estadísticas (<span className="font-mono">{INSIGHTS_SCOPE[conn.channel]}</span>): el alcance y las métricas de historias no se pueden leer.
+          {conn.canManage && <> Agrégalo en los casos de uso de la app de Meta y <a href={`${reconnectHref}${reconnectHref.includes('insights=1') ? '' : '&insights=1'}`} className="font-semibold underline">reconecta con estadísticas</a>.</>}
+        </p>
+      )}
+    </div>
+  )
+}
+
 /** Token state from the daily check, manual check, and the switch to a permanent system-user token. */
 function TokenBox({ conn, busy, onCheck, onSystemToken }: { conn: Connection; busy: boolean; onCheck: () => void; onSystemToken: (token: string) => void }) {
   const h = conn.capabilities?.tokenHealth
@@ -237,6 +280,7 @@ export default function ChannelsPage() {
   const [selectedWs, setSelectedWs] = useState<string>('')
   const [withComments, setWithComments] = useState(false)
   const [withMentions, setWithMentions] = useState(false)
+  const [withInsights, setWithInsights] = useState(false)
   const [events, setEvents] = useState<WebhookEventRow[]>([])
 
   const [form, setForm] = useState({ appId: '', appSecret: '', verifyToken: '', graphVersion: 'v26.0', configId: '' })
@@ -460,9 +504,10 @@ export default function ChannelsPage() {
   const manageableWs = workspaces.filter((w) => w.canManage)
   const canConnect = configured && Boolean(selectedWs)
   const connectHref = (channel: 'messenger' | 'instagram') =>
-    `/api/admin/channels/oauth/start?channel=${channel}&workspaceId=${encodeURIComponent(selectedWs)}${withComments ? '&comments=1' : ''}${withComments && withMentions && channel === 'instagram' ? '&mentions=1' : ''}`
+    `/api/admin/channels/oauth/start?channel=${channel}&workspaceId=${encodeURIComponent(selectedWs)}${withComments ? '&comments=1' : ''}${withComments && withMentions && channel === 'instagram' ? '&mentions=1' : ''}${withInsights ? '&insights=1' : ''}`
+  // A reconnect keeps the statistics permission when the account already has it
   const reconnectHref = (conn: Connection) =>
-    `/api/admin/channels/oauth/start?channel=${conn.channel.toLowerCase()}&workspaceId=${encodeURIComponent(conn.workspaceId)}&comments=1${conn.commentSettings?.mentions ? '&mentions=1' : ''}`
+    `/api/admin/channels/oauth/start?channel=${conn.channel.toLowerCase()}&workspaceId=${encodeURIComponent(conn.workspaceId)}&comments=1${conn.commentSettings?.mentions ? '&mentions=1' : ''}${hasInsights(conn) ? '&insights=1' : ''}`
   const grouped = workspaces
     .map((w) => ({ workspace: w, items: connections.filter((c) => c.workspaceId === w.id) }))
     .filter((g) => g.items.length > 0)
@@ -640,6 +685,9 @@ export default function ChannelsPage() {
                 <input type="checkbox" checked={withMentions} onChange={(e) => setWithMentions(e.target.checked)} /> y menciones (IG)
               </label>
             )}
+            <label className="inline-flex items-center gap-1.5 text-xs text-gray-600" title="Pide read_insights (Facebook) o instagram_manage_insights (Instagram). Agrégalos antes a los casos de uso de la app de Meta, o Meta rechazará la conexión.">
+              <input type="checkbox" checked={withInsights} onChange={(e) => setWithInsights(e.target.checked)} /> Con estadísticas
+            </label>
             <a
               href={canConnect ? connectHref('messenger') : undefined}
               aria-disabled={!canConnect}
@@ -727,6 +775,7 @@ export default function ChannelsPage() {
                     <p className="text-xs text-red-600 bg-red-50 rounded-lg px-2.5 py-1.5 break-words">{conn.lastError}</p>
                   )}
                   <CommentsBox conn={conn} busy={busy} onPatch={(patch) => patchComments(conn, patch)} reconnectHref={reconnectHref(conn)} />
+                  <FormatsBox conn={conn} reconnectHref={reconnectHref(conn)} />
                   <TokenBox conn={conn} busy={busy} onCheck={() => tokenAction(conn, { action: 'check' })} onSystemToken={(token) => tokenAction(conn, { action: 'system_user', token })} />
                   {caps && !caps.send && caps.sendDetail && !conn.lastError && (
                     <p className="text-xs text-red-600 bg-red-50 rounded-lg px-2.5 py-1.5 break-words">Envío: {caps.sendDetail}</p>

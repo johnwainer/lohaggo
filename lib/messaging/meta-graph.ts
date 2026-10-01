@@ -114,16 +114,26 @@ export const MENTION_SCOPE = 'instagram_manage_mentions'
 /** Comments on paid ads: Meta may ask it to show ad media and their comments. Only asked when the person opts in (it needs App Review). */
 export const ADS_READ_SCOPE = 'ads_read'
 
-/** Publishing posts from the marketing module (always asked: it is how the business uses its pages). */
+/** Publishing posts, reels and stories from the marketing module (always asked: it is how the business uses its pages). */
 export const PUBLISH_SCOPES: Record<MetaChannel, string[]> = {
   MESSENGER: ['pages_manage_posts', 'pages_read_engagement'],
-  INSTAGRAM: ['instagram_content_publish'],
+  INSTAGRAM: ['instagram_content_publish', 'pages_read_engagement'],
 }
 
-export type OAuthOptions = { comments?: boolean; mentions?: boolean; ads?: boolean }
+/**
+ * Statistics of posts, reels and stories (story insights only exist for 24 h). Only asked on opt-in:
+ * the app must list them in its use cases first, or Meta rejects the whole login.
+ */
+export const INSIGHTS_SCOPES: Record<MetaChannel, string[]> = {
+  MESSENGER: ['read_insights'],
+  INSTAGRAM: ['instagram_manage_insights'],
+}
+
+export type OAuthOptions = { comments?: boolean; mentions?: boolean; ads?: boolean; insights?: boolean }
 
 export function scopesFor(channel: MetaChannel, options: OAuthOptions = {}) {
   const scopes = [...META_SCOPES[channel], ...PUBLISH_SCOPES[channel]]
+  if (options.insights) scopes.push(...INSIGHTS_SCOPES[channel])
   if (options.comments) scopes.push(...COMMENT_SCOPES[channel])
   if (options.comments && options.ads) scopes.push(ADS_READ_SCOPE)
   if (options.comments && options.mentions && channel === 'INSTAGRAM') scopes.push(MENTION_SCOPE)

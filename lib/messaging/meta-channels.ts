@@ -21,6 +21,8 @@ import {
   type OAuthOptions,
 } from '@/lib/messaging/meta-graph'
 import { commentSettingsOf, missingScopes, requiredCommentScopes, type CommentSettings } from '@/lib/ai/comments-core'
+import { formatCapabilities, type FormatCapability } from '@/lib/marketing/format-capabilities'
+import { instagramQuota } from '@/lib/marketing/meta-publish'
 
 const logger = createLogger('meta-channels')
 
@@ -52,6 +54,10 @@ export type ConnectionCapabilities = {
   comments?: { required: string[]; missing: string[] | null; feedSubscribed: boolean | null; detail?: string }
   /** Publishing from the marketing module */
   publish?: { required: string[]; missing: string[] | null }
+  /** Per format: whether the token can publish and measure it (lib/marketing/format-capabilities.ts) */
+  formats?: FormatCapability[]
+  /** Instagram: API posts in the last 24 h (stories and reels count; 100 max) */
+  quota?: { used: number; total: number } | null
 }
 
 export function isMetaChannel(channel: string): channel is MetaChannel {
@@ -313,12 +319,13 @@ export async function runCapabilityDiagnostics(connectionId: string): Promise<Co
     return caps
   }
 
-  const [send, receive, granted] = await Promise.all([
+  const [send, receive, granted, quota] = await Promise.all([
     probeSendCapability(app, creds.pageAccessToken),
     isPageSubscribed(app, meta.pageId || conn.externalId, creds.pageAccessToken)
       .then((r) => ({ ok: r.subscribed, fields: r.fields, detail: r.subscribed ? `Campos: ${r.fields.join(', ') || '—'}` : 'La app no está suscrita a la página' }))
       .catch((err) => ({ ok: false, fields: [] as string[], detail: err instanceof Error ? err.message : 'error' })),
     fetchGrantedScopes(app, creds.pageAccessToken).catch((err) => ({ scopes: null, valid: true, error: err instanceof Error ? err.message : 'error' })),
+    conn.channel === 'INSTAGRAM' ? instagramQuota({ app, token: creds.pageAccessToken }, conn.externalId) : Promise.resolve(null),
   ])
 
   // Comments: which permissions the token has against the ones comments need
@@ -342,6 +349,8 @@ export async function runCapabilityDiagnostics(connectionId: string): Promise<Co
     checkedAt: new Date().toISOString(),
     comments,
     publish: { required: PUBLISH_SCOPES[conn.channel], missing: missingScopes(PUBLISH_SCOPES[conn.channel], grantedScopes) },
+    formats: formatCapabilities(conn.channel, grantedScopes),
+    quota,
   }
 
   const tokenInvalid = !send.ok && /\(#190\)/.test(send.detail)

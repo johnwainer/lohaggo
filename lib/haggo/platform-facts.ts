@@ -28,6 +28,13 @@ export type ChangelogEntry = { date: string; area: string; change: string; impac
 /** Newest first. At most ~15 entries: the big features only. */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-10-01',
+    area: 'Marketing',
+    change: 'Formatos de Meta por cuenta: Admin → Canales muestra qué puede publicar cada cuenta (Instagram: foto, carrusel, reel, reel de prueba, historia; Facebook: publicación, reel, historia), si tiene permiso de estadísticas y el cupo de Instagram de 24 h (100). La herramienta marketing trae cuentas_meta y hay reglas mk:publish-scopes, mk:ig-quota y mk:no-insights. El alcance de Facebook se lee de por vida (antes salía en 0). Historias, reels de Facebook y reels de prueba aún no tienen código: vienen en las siguientes fases.',
+    impacto: 'Se sabe de antemano si una cuenta puede publicar y medir cada formato, y el alcance de Facebook deja de salir en 0.',
+    comoVerlo: 'marketing → cuentas_meta, y las reglas mk:publish-scopes, mk:ig-quota y mk:no-insights.',
+  },
+  {
     date: '2026-09-29',
     area: 'Haggo',
     change: 'Haggo ve más y actúa en más: herramientas socio_detalle, conversacion_detalle, trafico_web y automatizaciones; seguridad con IP más activas y presión de límites; dinero con reembolsos fallidos e incidentes de pago. Foto con webhooks, servicios externos, mensajes automáticos, cobertura de socios, ciudades listas para abrir, conversiones y costo de IA de 7 días (cada parte con respaldo propio: si una falla queda en unavailable). Reglas money:refunds-failed, money:payment-incidents, money:payout-no-bank, users:partners-no-coverage, sys:webhooks-failing, sys:automations-failing, sys:wa-templates-recategorized, mk:attribution-coverage, mk:conversions-silent, ai:cost-spike y cities:ready-to-launch. Acciones ai_agents.dismiss_gap, messaging.pause_campaign, requests.set_booking_status, security.block_ip y security.unblock_ip; operations.notify_partners comparte el tope con Solicitud 360; no se reactiva a un socio pausado por faltas de garantía. Un informe por turno (antes que el ciclo) y los que se cortan se reintentan; los avisos críticos de solicitudes llegan en un solo correo por ciclo.',
@@ -124,13 +131,6 @@ export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
     change: 'Calendario con arrastrar y soltar por canal e idea; el plan revisa semana a semana hasta el fin de la campaña.',
     impacto: 'Reprogramar publicaciones es más fácil; planes más largos.',
     comoVerlo: 'marketing (programadas).',
-  },
-  {
-    date: '2026-09-26',
-    area: 'Admin y Haggo',
-    change: 'Todo el admin se ve bien en celular; Haggo avisa por correo al superadmin y muestra hallazgos en el modo TV.',
-    impacto: 'El superadmin opera desde el teléfono y lo grave le llega al correo aunque nadie mire el admin.',
-    comoVerlo: 'Ajustes de Haggo (avisos); no se mide en datos.',
   },
 ]
 
