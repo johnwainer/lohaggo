@@ -600,7 +600,7 @@ const setFormatAction: HaggoActionDef<{ postId: string; channel: 'FACEBOOK' | 'I
     type: 'object',
     properties: {
       postId: { type: 'string' }, channel: { type: 'string', enum: ['FACEBOOK', 'INSTAGRAM'] },
-      format: { type: 'string', enum: ['feed', 'carousel', 'reel', 'trial_reel', 'story', 'post'] },
+      format: { type: 'string', enum: ['feed', 'carousel', 'reel', 'story', 'post'] },
       text: { type: 'string', description: 'Titular en pantalla (historias y reels)' }, cta: { type: 'string', description: 'Llamada a la acción en pantalla' },
     },
     required: ['postId', 'channel', 'format'],
@@ -611,7 +611,8 @@ const setFormatAction: HaggoActionDef<{ postId: string; channel: 'FACEBOOK' | 'I
     if (!r) return { ok: false, errors: ['Parámetros inválidos'] }
     const channel = r.channel === 'FACEBOOK' || r.channel === 'INSTAGRAM' ? r.channel : null
     if (!channel) e.push('channel: FACEBOOK o INSTAGRAM')
-    const allowed = channel === 'FACEBOOK' ? ['post', 'reel', 'story'] : ['feed', 'carousel', 'reel', 'trial_reel', 'story']
+    // Trial reels: Meta refuses them to this app (permission), so they are not offered
+    const allowed = channel === 'FACEBOOK' ? ['post', 'reel', 'story'] : ['feed', 'carousel', 'reel', 'story']
     const format = typeof r.format === 'string' && allowed.includes(r.format) ? r.format : ''
     if (!format) e.push(`format: uno de ${allowed.join(', ')}`)
     const vertical = format === 'story' || format === 'reel' || format === 'trial_reel'

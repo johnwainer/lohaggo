@@ -8,7 +8,6 @@ const IG_CHOICES = [
   { value: 'feed', label: 'Foto (una imagen)' },
   { value: 'carousel', label: 'Carrusel (2 a 10 archivos)' },
   { value: 'reel', label: 'Reel (video)' },
-  { value: 'trial_reel', label: 'Reel de prueba (solo quienes no te siguen)' },
   { value: 'story', label: 'Historia (24 h, sin texto)' },
 ]
 const FB_CHOICES = [

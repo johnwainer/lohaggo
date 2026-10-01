@@ -151,7 +151,9 @@ describe('publicador: errores, reintentos y estado', () => {
   it('clasifica los errores de Meta', () => {
     expect(classifyGraphError({ code: 190, subcode: 460, message: 'x' })).toMatchObject({ retryable: false, tokenProblem: true })
     expect(classifyGraphError({ code: 190, subcode: 460, message: 'x' }).reason).toContain('contraseña')
-    expect(classifyGraphError({ code: 200, message: 'Permissions error' })).toMatchObject({ retryable: false, tokenProblem: true })
+    // A permission refused for one action (e.g. trial reels) is not a broken account
+    expect(classifyGraphError({ code: 200, message: 'Permissions error' })).toMatchObject({ retryable: false, tokenProblem: false })
+    expect(classifyGraphError({ code: 10, message: 'Application does not have permission for this action' }).reason).toMatch(/este formato u opción/)
     expect(classifyGraphError({ code: 4, message: 'rate' })).toMatchObject({ retryable: true })
     expect(classifyGraphError({ code: 9007, message: 'not ready' })).toMatchObject({ retryable: true })
     expect(classifyGraphError({ status: 503, message: 'down' })).toMatchObject({ retryable: true })

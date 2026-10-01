@@ -35,7 +35,7 @@ describe('formatCapabilities', () => {
   it('summary names what lacks code and permissions', () => {
     const s = formatSummary('INSTAGRAM', formatCapabilities('INSTAGRAM', IG_PUBLISH))
     expect(s).toContain('Historia')
-    expect(s).not.toContain('falta código')
+    expect(s).toContain('Reel de prueba (no disponible)')
     expect(s).toContain('sin permiso de estadísticas')
     expect(s).toContain('instagram_manage_insights')
   })

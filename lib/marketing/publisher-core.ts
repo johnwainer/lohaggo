@@ -39,8 +39,10 @@ export function classifyGraphError(e: GraphFailure): FailureKind {
   if (code === 190 || (sub && TOKEN_SUBCODES[sub])) {
     return { retryable: false, tokenProblem: true, reason: `${(sub && TOKEN_SUBCODES[sub]) || 'El token de la cuenta no es válido'}: reconéctala en Admin → Canales` }
   }
+  // A permission refused for one action (a format or option the app cannot use, like trial reels) is not
+  // a broken account: the account keeps publishing everything else, so it is not marked as failing
   if (code === 10 || code === 200 || (code !== null && code >= 200 && code < 300)) {
-    return { retryable: false, tokenProblem: true, reason: `Falta un permiso para publicar (${e.message}): reconecta la cuenta` }
+    return { retryable: false, tokenProblem: false, reason: `Meta no permite esta acción con los permisos de la app (${e.message}). Si las demás publicaciones de la cuenta salen bien, es este formato u opción: cámbialo o revisa los permisos en Admin → Canales` }
   }
   // Rate limits, transient, "media not ready yet" and "could not read the media" (the file was still being generated)
   const mediaFetch = [9004].includes(code ?? -1) || [2207027, 2207052, 2207003].includes(sub ?? -1) || /only photo or video can be accepted|media could not be fetched|failed to download/i.test(e.message)

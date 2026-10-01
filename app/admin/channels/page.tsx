@@ -203,7 +203,7 @@ function FormatsBox({ conn, reconnectHref }: { conn: Connection; reconnectHref: 
                 <span className="text-gray-500"> · {f.note}</span>
               </span>
               <span className={`shrink-0 ${f.canPublish === false ? 'text-red-600' : !f.ready ? 'text-gray-400' : 'text-green-700'}`}>
-                {f.canPublish === null ? '—' : f.canPublish === false ? 'Falta permiso' : f.ready ? 'Lista' : 'Próximamente'}
+                {f.canPublish === null ? '—' : f.canPublish === false ? 'Falta permiso' : f.ready ? 'Lista' : 'No disponible'}
               </span>
             </li>
           ))}

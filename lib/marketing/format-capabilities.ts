@@ -13,7 +13,8 @@ export const META_FORMATS: Record<MetaChannel, FormatSpec[]> = {
     { key: 'feed', label: 'Foto', note: 'JPEG, 4:5 a 1.91:1', ready: true },
     { key: 'carousel', label: 'Carrusel', note: '2 a 10 fotos o videos', ready: true },
     { key: 'reel', label: 'Reel', note: '3 s a 15 min, 9:16', ready: true },
-    { key: 'trial_reel', label: 'Reel de prueba', note: 'Solo lo ven quienes no siguen la cuenta', ready: true },
+    // Tried on 2026-10-01: Meta answered «Application does not have permission for this action»
+    { key: 'trial_reel', label: 'Reel de prueba', note: 'Meta no lo permite por API a esta app', ready: false },
     { key: 'story', label: 'Historia', note: 'Foto o video hasta 60 s; sin texto ni enlaces', ready: true },
   ],
   MESSENGER: [
@@ -57,7 +58,7 @@ export function formatCapabilities(channel: MetaChannel, granted: string[] | nul
 export function formatSummary(channel: MetaChannel, caps: FormatCapability[]) {
   const name = channel === 'INSTAGRAM' ? 'Instagram' : 'Facebook'
   if (caps.every((c) => c.canPublish === null)) return `${name}: no se pudieron leer los permisos del token`
-  const publish = caps.filter((c) => c.canPublish).map((c) => `${c.label}${c.ready ? '' : ' (falta código)'}`)
+  const publish = caps.filter((c) => c.canPublish).map((c) => `${c.label}${c.ready ? '' : ' (no disponible)'}`)
   const missing = Array.from(new Set(caps.flatMap((c) => c.missing)))
   const measure = caps.some((c) => c.canMeasure) ? 'con estadísticas' : 'sin permiso de estadísticas'
   return `${name}: publica ${publish.join(', ') || 'nada'}; ${measure}${missing.length ? `; faltan ${missing.join(', ')}` : ''}`
