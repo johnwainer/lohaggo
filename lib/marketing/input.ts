@@ -2,12 +2,14 @@
  * Whitelists and bounds what the screens can write. Returns only the provided fields (PATCH-friendly). Pure.
  */
 import { slugify } from '@/lib/marketing/seo'
+import { FB_FORMATS, IG_FORMATS, sanitizePublishOptions } from '@/lib/marketing/publish-options'
+
+export { IG_FORMATS, FB_FORMATS }
 
 export const CHANNELS = ['WEB', 'FACEBOOK', 'INSTAGRAM'] as const
 export const POST_EDITABLE_STATUS = ['draft', 'review', 'approved', 'archived'] as const
 export const CAMPAIGN_STATUS = ['draft', 'active', 'paused', 'done'] as const
 export const CAMPAIGN_OBJECTIVES = ['reach', 'traffic', 'leads', 'engagement', 'sales', 'brand'] as const
-export const IG_FORMATS = ['feed', 'reel', 'carousel'] as const
 
 const text = (v: unknown, max: number) => (typeof v === 'string' ? v.slice(0, max) : undefined)
 const trimmed = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : undefined)
@@ -72,6 +74,9 @@ export function sanitizeVariantInput(b: Record<string, unknown>): VariantPatch {
   if (Array.isArray(b.mediaIds)) out.mediaIds = Array.from(new Set(b.mediaIds.filter((x): x is string => typeof x === 'string'))).slice(0, 10)
   if (typeof b.aiGenerated === 'boolean') out.aiGenerated = b.aiGenerated
   if (channel === 'INSTAGRAM' && b.format !== undefined) out.format = oneOf(b.format, IG_FORMATS) ?? null
+  // Facebook: null = a regular post (text, link, photos or video)
+  if (channel === 'FACEBOOK' && b.format !== undefined) out.format = b.format === 'post' ? null : oneOf(b.format, FB_FORMATS) ?? null
+  if (channel !== 'WEB' && b.publishOptions !== undefined) out.publishOptions = sanitizePublishOptions(b.publishOptions)
   if (channel === 'WEB') {
     if (b.slug !== undefined) out.slug = b.slug ? slugify(String(b.slug)) || null : null
     if (b.seoTitle !== undefined) out.seoTitle = trimmed(b.seoTitle, 120) || null

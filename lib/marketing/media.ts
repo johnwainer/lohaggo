@@ -19,11 +19,15 @@ function withTransform(url: string, transform: string, ext?: string) {
   return `${m[1]}${transform}/${rest}`
 }
 
-export function deliveryUrl(channel: MarketingChannel, url: string, media: MediaInfo) {
+export function deliveryUrl(channel: MarketingChannel, url: string, media: MediaInfo, format?: string | null) {
   if (!isCloudinaryUrl(url)) return url
   if (media.kind === 'video') {
     // Networks want H.264 + AAC in an MP4 container
     return channel === 'WEB' ? url : withTransform(url, 'vc_h264,ac_aac,q_auto', 'mp4')
+  }
+  // Stories (and a reel cover) fill a 9:16 screen: fit the whole image and fill the rest with its own color
+  if (channel !== 'WEB' && (format === 'story' || format === 'reel' || format === 'trial_reel')) {
+    return withTransform(url, 'c_pad,w_1080,h_1920,b_auto,f_jpg,q_90', 'jpg')
   }
   if (channel === 'INSTAGRAM') {
     const L = LIMITS.INSTAGRAM

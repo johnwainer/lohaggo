@@ -17,7 +17,7 @@ describe('formatCapabilities', () => {
   it('Facebook with everything: publishes and measures', () => {
     const caps = formatCapabilities('MESSENGER', [...FB_PUBLISH, 'read_insights'])
     expect(caps.every((c) => c.canPublish && c.canMeasure && c.missing.length === 0)).toBe(true)
-    expect(caps.find((c) => c.key === 'reel')?.ready).toBe(false)
+    expect(caps.find((c) => c.key === 'reel')?.ready).toBe(true)
   })
 
   it('missing a publish scope blocks publishing', () => {
@@ -34,7 +34,8 @@ describe('formatCapabilities', () => {
 
   it('summary names what lacks code and permissions', () => {
     const s = formatSummary('INSTAGRAM', formatCapabilities('INSTAGRAM', IG_PUBLISH))
-    expect(s).toContain('Historia (falta código)')
+    expect(s).toContain('Historia')
+    expect(s).not.toContain('falta código')
     expect(s).toContain('sin permiso de estadísticas')
     expect(s).toContain('instagram_manage_insights')
   })

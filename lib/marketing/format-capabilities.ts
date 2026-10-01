@@ -13,13 +13,13 @@ export const META_FORMATS: Record<MetaChannel, FormatSpec[]> = {
     { key: 'feed', label: 'Foto', note: 'JPEG, 4:5 a 1.91:1', ready: true },
     { key: 'carousel', label: 'Carrusel', note: '2 a 10 fotos o videos', ready: true },
     { key: 'reel', label: 'Reel', note: '3 s a 15 min, 9:16', ready: true },
-    { key: 'trial_reel', label: 'Reel de prueba', note: 'Solo lo ven quienes no siguen la cuenta', ready: false },
-    { key: 'story', label: 'Historia', note: 'Foto o video hasta 60 s; sin texto ni enlaces', ready: false },
+    { key: 'trial_reel', label: 'Reel de prueba', note: 'Solo lo ven quienes no siguen la cuenta', ready: true },
+    { key: 'story', label: 'Historia', note: 'Foto o video hasta 60 s; sin texto ni enlaces', ready: true },
   ],
   MESSENGER: [
     { key: 'post', label: 'Publicación', note: 'Texto, enlace, fotos o video', ready: true },
-    { key: 'reel', label: 'Reel', note: '3 a 90 s, 9:16; 30 al día', ready: false },
-    { key: 'story', label: 'Historia', note: 'Foto o video hasta 60 s', ready: false },
+    { key: 'reel', label: 'Reel', note: '3 a 90 s, 9:16; 30 al día', ready: true },
+    { key: 'story', label: 'Historia', note: 'Foto o video hasta 60 s', ready: true },
   ],
 }
 

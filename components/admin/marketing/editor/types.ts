@@ -1,4 +1,5 @@
 import type { MkChannel } from '@/components/admin/marketing/shared'
+import type { PublishOptions } from '@/lib/marketing/publish-options'
 
 export type Issue = { code: string; message: string; field?: string }
 export type Validation = { ok: boolean; errors: Issue[]; warnings: Issue[]; stats: { chars: number; hashtags: number; mentions: number; words: number } }
@@ -10,6 +11,7 @@ export type Variant = {
   channel: MkChannel
   body: string
   format: string | null
+  publishOptions: PublishOptions | null
   linkUrl: string | null
   mediaIds: string[]
   slug: string | null

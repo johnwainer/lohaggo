@@ -1,12 +1,13 @@
 import { graphFetch, MetaGraphError } from '@/lib/messaging/meta-graph'
 import type { MetaAppConfig } from '@/lib/messaging/provider-config'
+import type { PublishOptions } from '@/lib/marketing/publish-options'
 
 /**
  * Publishing and insights on Facebook Pages and Instagram (Content Publishing API). Every call goes
  * through graphFetch, so errors arrive as MetaGraphError with code/subcode for classifyGraphError.
  */
 
-export type PublishMedia = { url: string; kind: 'image' | 'video' }
+export type PublishMedia = { url: string; kind: 'image' | 'video'; alt?: string | null }
 export type PublishResult = { status: 'published'; externalId: string; permalink: string | null } | { status: 'processing'; containerId: string }
 
 type Ctx = { app: MetaAppConfig; token: string }
@@ -20,7 +21,10 @@ async function fbPermalink(c: Ctx, id: string) {
 
 // ─── Facebook Page ───────────────────────────────────────────────────────────
 
-export async function publishToFacebook(c: Ctx, pageId: string, p: { message: string; link?: string | null; media: PublishMedia[] }): Promise<PublishResult> {
+/** Facebook: a regular post (text, link, photos, video), a reel or a story. Reels finish in the worker. */
+export async function publishToFacebook(c: Ctx, pageId: string, p: { message: string; link?: string | null; media: PublishMedia[]; format?: 'post' | 'reel' | 'story'; options?: PublishOptions; aiGenerated?: boolean }): Promise<PublishResult> {
+  if (p.format === 'reel') return startFacebookReel(c, pageId, p)
+  if (p.format === 'story') return publishFacebookStory(c, pageId, p)
   const videos = p.media.filter((m) => m.kind === 'video')
   const images = p.media.filter((m) => m.kind === 'image')
 
@@ -47,6 +51,86 @@ export async function publishToFacebook(c: Ctx, pageId: string, p: { message: st
   return { status: 'published', externalId: res.id, permalink: await fbPermalink(c, res.id) }
 }
 
+/** Marks a Facebook reel's video id in containerId so the worker knows how to finish it. */
+export const FB_REEL_PREFIX = 'fb-reel:'
+
+/**
+ * Hosted file → Meta (rupload). Meta fetches the URL itself; the host must let facebookexternalhit in
+ * (Cloudinary does).
+ */
+async function ruploadHosted(c: Ctx, uploadUrl: string, fileUrl: string) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 120_000)
+  try {
+    const res = await fetch(uploadUrl, { method: 'POST', headers: { Authorization: `OAuth ${c.token}`, file_url: fileUrl }, signal: controller.signal, cache: 'no-store' })
+    const data = (await res.json().catch(() => ({}))) as { success?: boolean; debug_info?: { message?: string; retriable?: boolean }; error?: { message?: string; code?: number } }
+    if (!res.ok || data.success === false || data.error) {
+      throw new MetaGraphError(`Meta no pudo subir el video: ${data.debug_info?.message || data.error?.message || res.status}`, { status: data.debug_info?.retriable === false ? 400 : res.status || 503, code: data.error?.code })
+    }
+  } catch (err) {
+    if (err instanceof MetaGraphError) throw err
+    throw new MetaGraphError(err instanceof Error ? err.message : 'Error de red al subir el video', { status: 0 })
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+async function startVideoSession(c: Ctx, pageId: string, edge: 'video_reels' | 'video_stories') {
+  const s = await graphFetch<{ video_id: string; upload_url: string }>(`${pageId}/${edge}`, opts(c, { method: 'POST', body: { upload_phase: 'start' } }))
+  if (!s.video_id || !s.upload_url) throw new MetaGraphError('Meta no abrió la sesión de subida del video', { status: 503 })
+  return s
+}
+
+/** Reel: start → upload → finish with PUBLISHED. Meta publishes after processing; the worker follows it. */
+async function startFacebookReel(c: Ctx, pageId: string, p: { message: string; media: PublishMedia[]; options?: PublishOptions }): Promise<PublishResult> {
+  const video = p.media.find((m) => m.kind === 'video')
+  if (!video) throw new MetaGraphError('Un reel necesita un video', { status: 400 })
+  const session = await startVideoSession(c, pageId, 'video_reels')
+  await ruploadHosted(c, session.upload_url, video.url)
+  await graphFetch(`${pageId}/video_reels`, opts(c, {
+    method: 'POST',
+    body: {
+      video_id: session.video_id, upload_phase: 'finish', video_state: 'PUBLISHED', description: p.message,
+      ...(p.options?.locationId ? { place: p.options.locationId } : {}),
+    },
+    timeoutMs: 60000,
+  }))
+  return { status: 'processing', containerId: `${FB_REEL_PREFIX}${session.video_id}` }
+}
+
+/** Worker: a Facebook reel uploaded earlier → published, still processing, or failed. */
+export async function finishFacebookReel(c: Ctx, videoId: string): Promise<PublishResult | { status: 'error'; detail: string }> {
+  type Phase = { status?: string; error?: { message?: string } }
+  const d = await graphFetch<{ status?: { video_status?: string; processing_phase?: Phase; publishing_phase?: Phase & { publish_status?: string } }; permalink_url?: string }>(videoId, opts(c, { query: { fields: 'status,permalink_url' } }))
+  const st = d.status || {}
+  const failed = st.processing_phase?.error?.message || st.publishing_phase?.error?.message || (st.video_status === 'error' ? 'Meta no pudo procesar el video' : null)
+  if (failed) return { status: 'error', detail: `Facebook rechazó el reel: ${failed}` }
+  if (st.publishing_phase?.publish_status === 'published' || st.publishing_phase?.status === 'complete') {
+    const url = d.permalink_url ? (d.permalink_url.startsWith('/') ? `https://www.facebook.com${d.permalink_url}` : d.permalink_url) : null
+    return { status: 'published', externalId: videoId, permalink: url }
+  }
+  return { status: 'processing', containerId: `${FB_REEL_PREFIX}${videoId}` }
+}
+
+/** Story: a photo uploaded unpublished then shared as story, or a video through its upload session. */
+async function publishFacebookStory(c: Ctx, pageId: string, p: { media: PublishMedia[]; aiGenerated?: boolean }): Promise<PublishResult> {
+  const item = p.media[0]
+  if (!item) throw new MetaGraphError('Una historia necesita una foto o un video', { status: 400 })
+  let postId: string
+  if (item.kind === 'video') {
+    const session = await startVideoSession(c, pageId, 'video_stories')
+    await ruploadHosted(c, session.upload_url, item.url)
+    const r = await graphFetch<{ post_id?: string | number }>(`${pageId}/video_stories`, opts(c, { method: 'POST', body: { video_id: session.video_id, upload_phase: 'finish', ...(p.aiGenerated ? { is_ai_generated: true } : {}) }, timeoutMs: 60000 }))
+    postId = String(r.post_id ?? session.video_id)
+  } else {
+    const photo = await graphFetch<{ id: string }>(`${pageId}/photos`, opts(c, { method: 'POST', body: { url: item.url, published: false }, timeoutMs: 60000 }))
+    const r = await graphFetch<{ post_id?: string | number }>(`${pageId}/photo_stories`, opts(c, { method: 'POST', body: { photo_id: photo.id } }))
+    postId = String(r.post_id ?? photo.id)
+  }
+  const stories = await recentFacebookStories(c, pageId).catch(() => [])
+  return { status: 'published', externalId: postId, permalink: stories.find((x) => x.id === postId)?.permalink ?? null }
+}
+
 // ─── Instagram ───────────────────────────────────────────────────────────────
 
 async function igPermalink(c: Ctx, mediaId: string) {
@@ -64,27 +148,50 @@ export async function containerStatus(c: Ctx, containerId: string) {
   return { code: d.status_code || 'IN_PROGRESS', detail: d.status || null }
 }
 
+type IgFormatArg = 'feed' | 'reel' | 'carousel' | 'trial_reel' | 'story'
+
+/** Extra fields Meta accepts per container type (alt text, collaborators, location, cover, trial, AI label). */
+export function igContainerExtras(format: IgFormatArg, o: PublishOptions = {}, aiGenerated = false) {
+  const x: Record<string, unknown> = {}
+  if (format !== 'story' && o.collaborators?.length) x.collaborators = o.collaborators
+  if (format !== 'story' && o.locationId) x.location_id = o.locationId
+  if (format === 'reel' || format === 'trial_reel') {
+    if (o.coverUrl) x.cover_url = o.coverUrl
+    else if (o.thumbOffsetMs != null) x.thumb_offset = o.thumbOffsetMs
+  }
+  if (format === 'reel') x.share_to_feed = o.shareToFeed ?? true
+  if (format === 'trial_reel') x.trial_params = { graduation_strategy: o.trialGraduation ?? 'MANUAL' }
+  if (o.aiLabel ?? aiGenerated) x.is_ai_generated = true
+  return x
+}
+
 /**
  * Creates the container(s). Images are usually ready at once and are published in the same call;
- * videos (reels, carousels with video) stay "processing" and the worker publishes them later.
+ * videos (reels, stories and carousels with video) stay "processing" and the worker publishes them later.
  */
-export async function publishToInstagram(c: Ctx, igId: string, p: { caption: string; format: 'feed' | 'reel' | 'carousel'; media: PublishMedia[] }): Promise<PublishResult> {
+export async function publishToInstagram(c: Ctx, igId: string, p: { caption: string; format: IgFormatArg; media: PublishMedia[]; options?: PublishOptions; aiGenerated?: boolean }): Promise<PublishResult> {
+  const extras = igContainerExtras(p.format, p.options, p.aiGenerated)
   let containerId: string
   if (p.format === 'carousel') {
     const children: string[] = []
     for (const m of p.media) {
-      const body = m.kind === 'video' ? { media_type: 'VIDEO', video_url: m.url, is_carousel_item: true } : { image_url: m.url, is_carousel_item: true }
+      const body = m.kind === 'video' ? { media_type: 'VIDEO', video_url: m.url, is_carousel_item: true } : { image_url: m.url, is_carousel_item: true, ...(m.alt ? { alt_text: m.alt } : {}) }
       children.push((await graphFetch<{ id: string }>(`${igId}/media`, opts(c, { method: 'POST', body, timeoutMs: 60000 }))).id)
     }
-    containerId = (await graphFetch<{ id: string }>(`${igId}/media`, opts(c, { method: 'POST', body: { media_type: 'CAROUSEL', children: children.join(','), caption: p.caption } }))).id
-  } else if (p.format === 'reel') {
+    containerId = (await graphFetch<{ id: string }>(`${igId}/media`, opts(c, { method: 'POST', body: { media_type: 'CAROUSEL', children: children.join(','), caption: p.caption, ...extras } }))).id
+  } else if (p.format === 'reel' || p.format === 'trial_reel') {
     const video = p.media.find((m) => m.kind === 'video')
     if (!video) throw new MetaGraphError('Un reel necesita un video', { status: 400 })
-    containerId = (await graphFetch<{ id: string }>(`${igId}/media`, opts(c, { method: 'POST', body: { media_type: 'REELS', video_url: video.url, caption: p.caption, share_to_feed: true }, timeoutMs: 60000 }))).id
+    containerId = (await graphFetch<{ id: string }>(`${igId}/media`, opts(c, { method: 'POST', body: { media_type: 'REELS', video_url: video.url, caption: p.caption, ...extras }, timeoutMs: 60000 }))).id
+  } else if (p.format === 'story') {
+    const item = p.media[0]
+    if (!item) throw new MetaGraphError('Una historia necesita una foto o un video', { status: 400 })
+    const media = item.kind === 'video' ? { video_url: item.url } : { image_url: item.url }
+    containerId = (await graphFetch<{ id: string }>(`${igId}/media`, opts(c, { method: 'POST', body: { media_type: 'STORIES', ...media, ...extras }, timeoutMs: 60000 }))).id
   } else {
     const image = p.media.find((m) => m.kind === 'image')
     if (!image) throw new MetaGraphError('La publicación necesita una imagen', { status: 400 })
-    containerId = (await graphFetch<{ id: string }>(`${igId}/media`, opts(c, { method: 'POST', body: { image_url: image.url, caption: p.caption }, timeoutMs: 60000 }))).id
+    containerId = (await graphFetch<{ id: string }>(`${igId}/media`, opts(c, { method: 'POST', body: { image_url: image.url, caption: p.caption, ...(image.alt ? { alt_text: image.alt } : {}), ...extras }, timeoutMs: 60000 }))).id
   }
   const hasVideo = p.media.some((m) => m.kind === 'video')
   if (hasVideo) return { status: 'processing', containerId }
@@ -124,6 +231,23 @@ export async function recentFacebookPosts(c: Ctx, pageId: string) {
 export async function recentInstagramMedia(c: Ctx, igId: string) {
   const d = await graphFetch<{ data?: Array<{ id: string; caption?: string; timestamp: string; permalink?: string }> }>(`${igId}/media`, opts(c, { query: { fields: 'id,caption,timestamp,permalink', limit: 15 } }))
   return (d.data || []).map((p) => ({ id: p.id, message: p.caption ?? null, createdAt: new Date(p.timestamp), permalink: p.permalink ?? null }))
+}
+
+/** Stories visible now (Instagram lists only the last 24 h): for the retry check, stories carry no caption. */
+export async function recentInstagramStories(c: Ctx, igId: string) {
+  const d = await graphFetch<{ data?: Array<{ id: string; timestamp: string; permalink?: string }> }>(`${igId}/stories`, opts(c, { query: { fields: 'id,timestamp,permalink', limit: 25 } }))
+  return (d.data || []).map((p) => ({ id: p.id, message: null as string | null, createdAt: new Date(p.timestamp), permalink: p.permalink ?? null }))
+}
+
+export async function recentFacebookStories(c: Ctx, pageId: string) {
+  const d = await graphFetch<{ data?: Array<{ post_id: string; creation_time: string | number; url?: string }> }>(`${pageId}/stories`, opts(c, { query: { limit: 25 } }))
+  return (d.data || []).map((p) => ({ id: String(p.post_id), message: null as string | null, createdAt: new Date(Number(p.creation_time) * 1000), permalink: p.url ?? null }))
+}
+
+export async function recentFacebookReels(c: Ctx, pageId: string) {
+  const d = await graphFetch<{ data?: Array<{ id: string; description?: string; updated_time: string | number }> }>(`${pageId}/video_reels`, opts(c, { query: { fields: 'id,description,updated_time', limit: 15 } }))
+  const at = (v: string | number) => new Date(typeof v === 'number' || /^\d+$/.test(String(v)) ? Number(v) * 1000 : String(v))
+  return (d.data || []).map((p) => ({ id: p.id, message: p.description ?? null, createdAt: at(p.updated_time), permalink: null as string | null }))
 }
 
 // ─── Insights ────────────────────────────────────────────────────────────────
@@ -182,21 +306,40 @@ export async function facebookMetrics(c: Ctx, externalId: string, isVideo: boole
   return m
 }
 
-export async function instagramMetrics(c: Ctx, mediaId: string): Promise<Metrics> {
+/** Instagram: post, reel (watch time) or story (replies, taps; only readable for 24 h). */
+export async function instagramMetrics(c: Ctx, mediaId: string, kind: 'post' | 'reel' | 'story' = 'post'): Promise<Metrics> {
   const m = empty()
-  const ins = await firstInsights(c, mediaId, [
-    'reach,likes,comments,shares,saved,views',
-    'reach,likes,comments,shares,saved,impressions',
-    'reach,likes,comments,saved',
-  ])
+  const sets = kind === 'story'
+    ? ['reach,views,replies,shares,navigation,follows,profile_visits,total_interactions', 'reach,views,replies,navigation', 'reach,replies']
+    : kind === 'reel'
+      ? ['reach,likes,comments,shares,saved,views,ig_reels_avg_watch_time,ig_reels_video_view_total_time', 'reach,likes,comments,shares,saved,views']
+      : ['reach,likes,comments,shares,saved,views', 'reach,likes,comments,shares,saved,impressions', 'reach,likes,comments,saved']
+  const ins = await firstInsights(c, mediaId, sets)
   m.reach = valueOf(ins.get('reach'))
   m.likes = valueOf(ins.get('likes'))
-  m.comments = valueOf(ins.get('comments'))
+  // A story's replies are its conversations
+  m.comments = valueOf(ins.get('comments') || ins.get('replies'))
   m.shares = valueOf(ins.get('shares'))
   m.saves = valueOf(ins.get('saved'))
   m.impressions = valueOf(ins.get('views') || ins.get('impressions'))
   m.videoViews = valueOf(ins.get('views'))
-  m.raw = { insights: Object.fromEntries(ins) }
+  m.clicks = valueOf(ins.get('profile_visits'))
+  m.raw = { kind, insights: Object.fromEntries(ins) }
+  return m
+}
+
+/** Facebook reel: plays, reach and average watch time (video_insights of the reel's video). */
+export async function facebookReelMetrics(c: Ctx, videoId: string): Promise<Metrics> {
+  const m = empty()
+  const ins = await firstInsights(c, videoId, [
+    'blue_reels_play_count,post_impressions_unique,post_video_avg_time_watched,post_video_social_actions',
+    'blue_reels_play_count,post_impressions_unique',
+    'total_video_views,total_video_impressions_unique',
+  ], 'video_insights')
+  m.videoViews = valueOf(ins.get('blue_reels_play_count') || ins.get('total_video_views'))
+  m.impressions = m.videoViews
+  m.reach = valueOf(ins.get('post_impressions_unique') || ins.get('total_video_impressions_unique'))
+  m.raw = { kind: 'reel', insights: Object.fromEntries(ins) }
   return m
 }
 

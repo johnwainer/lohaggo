@@ -234,7 +234,7 @@ describe('entradas', () => {
     expect(sanitizeVariantInput({ channel: 'WEB', slug: 'Cómo Limpiar', tags: ['Hogar', 'hogar', ''] })).toMatchObject({ slug: 'como-limpiar', tags: ['hogar'] })
     expect(sanitizeVariantInput({ channel: 'FACEBOOK', slug: 'x', seoTitle: 'y' })).toEqual({ channel: 'FACEBOOK' })
     expect(() => sanitizeVariantInput({ channel: 'FACEBOOK', linkUrl: 'javascript:alert(1)' })).toThrow()
-    expect(sanitizeVariantInput({ channel: 'INSTAGRAM', format: 'story' })).toEqual({ channel: 'INSTAGRAM', format: null })
+    expect(sanitizeVariantInput({ channel: 'INSTAGRAM', format: 'live' })).toEqual({ channel: 'INSTAGRAM', format: null })
     expect(() => sanitizeVariantInput({ channel: 'TIKTOK' })).toThrow()
   })
   it('media subida: solo de nuestra cuenta y de la carpeta de la publicación', () => {

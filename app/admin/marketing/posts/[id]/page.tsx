@@ -16,7 +16,7 @@ import type { Media, Post, ReviewRow, Validation, Variant } from '@/components/a
 
 type Detail = { post: Post; campaigns: Array<{ id: string; name: string; color: string }>; accounts: Account[]; permissions: { edit: boolean; publish: boolean }; idea?: AgentIdea | null; agent?: { id: string; mode: string; status: string } | null; reviews?: ReviewRow[] }
 
-const VARIANT_FIELDS: Array<keyof Variant> = ['body', 'format', 'linkUrl', 'mediaIds', 'slug', 'seoTitle', 'seoDescription', 'excerpt', 'coverUrl', 'category', 'tags', 'canonicalUrl', 'noindex', 'aiGenerated']
+const VARIANT_FIELDS: Array<keyof Variant> = ['body', 'format', 'publishOptions', 'linkUrl', 'mediaIds', 'slug', 'seoTitle', 'seoDescription', 'excerpt', 'coverUrl', 'category', 'tags', 'canonicalUrl', 'noindex', 'aiGenerated']
 const LOCKED = ['publishing']
 
 function mediaInfo(post: Post, v: Variant) {
@@ -71,7 +71,7 @@ export default function PostEditorPage({ params }: { params: Promise<{ id: strin
     if (!post) return out
     for (const v of Object.values(drafts)) {
       if (!v) continue
-      out[v.channel] = validateVariant(v.channel, { body: v.body, format: v.format, linkUrl: v.linkUrl, media: mediaInfo(post, v), title, slug: v.slug, seoTitle: v.seoTitle, seoDescription: v.seoDescription, coverUrl: v.coverUrl })
+      out[v.channel] = validateVariant(v.channel, { body: v.body, format: v.format, options: v.publishOptions, linkUrl: v.linkUrl, media: mediaInfo(post, v), title, slug: v.slug, seoTitle: v.seoTitle, seoDescription: v.seoDescription, coverUrl: v.coverUrl })
     }
     return out
   }, [drafts, post, title])

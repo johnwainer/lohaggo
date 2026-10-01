@@ -1,4 +1,5 @@
-import type { Prisma } from '@prisma/client'
+import { Prisma } from '@prisma/client'
+import { readPublishOptions } from '@/lib/marketing/publish-options'
 import { prisma } from '@/lib/prisma'
 import { validateVariant, type MarketingChannel, type MediaInfo } from '@/lib/marketing/channel-rules'
 import { latestSnapshots } from '@/lib/marketing/metrics'
@@ -36,7 +37,7 @@ export async function loadPostDetail(id: string) {
         ...v,
         webViews: views.find((x) => x.variantId === v.id)?._sum.views ?? 0,
         validation: validateVariant(v.channel as MarketingChannel, {
-          body: v.body, format: v.format, linkUrl: v.linkUrl, media, title: post.title, slug: v.slug, seoTitle: v.seoTitle, seoDescription: v.seoDescription, coverUrl: v.coverUrl,
+          body: v.body, format: v.format, options: readPublishOptions(v.publishOptions), linkUrl: v.linkUrl, media, title: post.title, slug: v.slug, seoTitle: v.seoTitle, seoDescription: v.seoDescription, coverUrl: v.coverUrl,
         }),
       }
     }),
@@ -51,6 +52,8 @@ export async function loadPostDetail(id: string) {
 export async function saveVariants(postId: string, patches: VariantPatch[]) {
   for (const patch of patches) {
     const { channel, ...data } = patch
+    // Json column: clearing the options is a database NULL, not a JSON null
+    if (data.publishOptions === null) data.publishOptions = Prisma.DbNull
     const existing = await prisma.marketingPostVariant.findUnique({ where: { postId_channel: { postId, channel } } })
     if (channel === 'WEB' && typeof data.slug === 'string') {
       const taken = async (slug: string) => Boolean(await prisma.marketingPostVariant.findFirst({ where: { slug, NOT: { postId } }, select: { id: true } }))

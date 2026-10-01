@@ -30,9 +30,9 @@ export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-10-01',
     area: 'Marketing',
-    change: 'Formatos de Meta por cuenta: Admin → Canales muestra qué puede publicar cada cuenta (Instagram: foto, carrusel, reel, reel de prueba, historia; Facebook: publicación, reel, historia), si tiene permiso de estadísticas y el cupo de Instagram de 24 h (100). La herramienta marketing trae cuentas_meta y hay reglas mk:publish-scopes, mk:ig-quota y mk:no-insights. El alcance de Facebook se lee de por vida (antes salía en 0). Historias, reels de Facebook y reels de prueba aún no tienen código: vienen en las siguientes fases.',
-    impacto: 'Se sabe de antemano si una cuenta puede publicar y medir cada formato, y el alcance de Facebook deja de salir en 0.',
-    comoVerlo: 'marketing → cuentas_meta, y las reglas mk:publish-scopes, mk:ig-quota y mk:no-insights.',
+    change: 'Reels e historias en Meta. Instagram publica foto, carrusel, reel, reel de prueba (solo para quienes no siguen la cuenta) e historia; Facebook publica publicación, reel (3 a 90 s, 30 al día) e historia. Opciones por pieza (publishOptions): portada del reel, colaboradores, ubicación, mostrar en la cuadrícula, cómo se gradúa el reel de prueba, etiqueta «Hecho con IA» (automática con imágenes de IA) y el texto escrito en la historia, que pasa por la revisión editorial. Las historias vencen a las 24 h (expiresAt) y sus métricas se capturan cada hora hasta entonces (respuestas, toques, visitas al perfil); los reels traen tiempo de visualización. Admin → Canales muestra qué formatos publica y mide cada cuenta y el cupo de Instagram (100 en 24 h); la herramienta marketing trae cuentas_meta y el formato de cada publicación programada o fallida; reglas mk:publish-scopes, mk:ig-quota y mk:no-insights. El alcance de Facebook se lee de por vida (antes salía en 0). El agente de marketing todavía no propone reels ni historias.',
+    impacto: 'El equipo puede publicar historias y reels desde Publicaciones, y se sabe de antemano qué puede publicar y medir cada cuenta.',
+    comoVerlo: 'marketing → programadas (canales con formato) y cuentas_meta; la caja «Formatos de publicación» en Admin → Canales.',
   },
   {
     date: '2026-09-29',

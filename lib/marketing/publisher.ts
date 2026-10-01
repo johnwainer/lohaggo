@@ -22,14 +22,20 @@ import {
   type PublicationStatus,
 } from '@/lib/marketing/publisher-core'
 import {
+  FB_REEL_PREFIX,
+  finishFacebookReel,
   finishInstagramContainer,
   publishToFacebook,
   publishToInstagram,
   recentFacebookPosts,
+  recentFacebookReels,
+  recentFacebookStories,
   recentInstagramMedia,
+  recentInstagramStories,
   warmMedia,
   type PublishResult,
 } from '@/lib/marketing/meta-publish'
+import { STORY_TTL_MS, isStory, readPublishOptions, resolveFormat } from '@/lib/marketing/publish-options'
 
 const logger = createLogger('marketing-publisher')
 
@@ -60,7 +66,7 @@ export function validatePostForChannel(post: FullPost, channel: MarketingChannel
   const variant = post.variants.find((v) => v.channel === channel)
   if (!variant) return { variant: null, validation: null }
   const validation = validateVariant(channel, {
-    body: variant.body, format: variant.format, linkUrl: variant.linkUrl, media: mediaFor(post, variant).map(infoOf),
+    body: variant.body, format: variant.format, options: readPublishOptions(variant.publishOptions), linkUrl: variant.linkUrl, media: mediaFor(post, variant).map(infoOf),
     title: post.title, slug: variant.slug, seoTitle: variant.seoTitle, seoDescription: variant.seoDescription, coverUrl: variant.coverUrl,
   })
   return { variant, validation }
@@ -265,29 +271,54 @@ export async function runPublication(pub: MarketingPublication) {
     const ctx = { app: await requireMetaApp(), token }
     const pageId = getConnectionMeta(conn).pageId || conn.externalId
 
+    const social = pub.channel as 'FACEBOOK' | 'INSTAGRAM'
+    const files = mediaFor(post, variant)
+    const format = resolveFormat(social, variant.format, files.map(infoOf))
+    const story = isStory(format)
+
     // A previous attempt may have published before dying: adopt that post instead of duplicating it
     if (pub.attempts > 1) {
-      const recent = pub.channel === 'FACEBOOK' ? await recentFacebookPosts(ctx, pageId).catch(() => []) : await recentInstagramMedia(ctx, conn.externalId).catch(() => [])
-      // scheduledAt was moved to the retry time: the first attempt ran after the publication was created
-      const existing = findAlreadyPublished(recent, variant.body, pub.createdAt)
-      if (existing) return finish(pub, { status: 'published', externalId: existing.id, permalink: existing.permalink, publishedAt: existing.createdAt })
+      const existing = await findPreviousAttempt(pub, { ctx, pageId, igId: conn.externalId, format, body: variant.body })
+      if (existing) return finish(pub, { status: 'published', externalId: existing.id, permalink: existing.permalink, publishedAt: existing.createdAt, ...(story ? { expiresAt: new Date(existing.createdAt.getTime() + STORY_TTL_MS) } : {}) })
     }
 
-    const media = mediaFor(post, variant).map((m) => ({ url: deliveryUrl(pub.channel as MarketingChannel, m.url, infoOf(m)), kind: infoOf(m).kind }))
+    const media = files.map((m) => ({ url: deliveryUrl(social, m.url, infoOf(m), format), kind: infoOf(m).kind, alt: m.alt }))
     // The network's version of each file must exist before Meta fetches it
     await Promise.all(media.map((m) => warmMedia(m.url, m.kind)))
+    const options = readPublishOptions(variant.publishOptions)
+    const aiGenerated = files.some((m) => m.source === 'ai')
     let result: PublishResult
-    if (pub.channel === 'FACEBOOK') {
-      result = await publishToFacebook(ctx, pageId, { message: variant.body, link: variant.linkUrl, media })
+    if (social === 'FACEBOOK') {
+      result = await publishToFacebook(ctx, pageId, { message: variant.body, link: variant.linkUrl, media, format: format as 'post' | 'reel' | 'story', options, aiGenerated })
     } else {
-      const format = instagramFormat(variant.format, mediaFor(post, variant).map(infoOf))
-      result = await publishToInstagram(ctx, conn.externalId, { caption: variant.body, format, media })
+      result = await publishToInstagram(ctx, conn.externalId, { caption: story ? '' : variant.body, format: format as 'feed' | 'carousel' | 'reel' | 'trial_reel' | 'story', media, options, aiGenerated })
     }
     if (result.status === 'processing') return finish(pub, { status: 'processing', containerId: result.containerId })
-    return finish(pub, { status: 'published', externalId: result.externalId, permalink: result.permalink, publishedAt: new Date(), lastError: null })
+    const now = new Date()
+    return finish(pub, { status: 'published', externalId: result.externalId, permalink: result.permalink, publishedAt: now, lastError: null, ...(story ? { expiresAt: new Date(now.getTime() + STORY_TTL_MS) } : {}) })
   } catch (err) {
     await fail(pub, err)
   }
+}
+
+/**
+ * What an earlier attempt of this publication may have left on the account. Posts and reels are matched
+ * by their text; stories carry no text, so a story created after the publication that no other
+ * publication of ours already owns is taken as this one.
+ */
+async function findPreviousAttempt(pub: MarketingPublication, p: { ctx: { app: Awaited<ReturnType<typeof requireMetaApp>>; token: string }; pageId: string; igId: string; format: string; body: string }) {
+  if (isStory(p.format)) {
+    const stories = pub.channel === 'FACEBOOK' ? await recentFacebookStories(p.ctx, p.pageId).catch(() => []) : await recentInstagramStories(p.ctx, p.igId).catch(() => [])
+    const candidates = stories.filter((x) => x.createdAt.getTime() >= pub.createdAt.getTime() - 60_000).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+    if (!candidates.length) return null
+    const owned = new Set((await prisma.marketingPublication.findMany({ where: { externalId: { in: candidates.map((x) => x.id) }, NOT: { id: pub.id } }, select: { externalId: true } })).map((x) => x.externalId))
+    return candidates.find((x) => !owned.has(x.id)) ?? null
+  }
+  const recent = pub.channel === 'FACEBOOK'
+    ? p.format === 'reel' ? await recentFacebookReels(p.ctx, p.pageId).catch(() => []) : await recentFacebookPosts(p.ctx, p.pageId).catch(() => [])
+    : await recentInstagramMedia(p.ctx, p.igId).catch(() => [])
+  // scheduledAt was moved to the retry time: the first attempt ran after the publication was created
+  return findAlreadyPublished(recent, p.body, pub.createdAt)
 }
 
 /**
@@ -307,7 +338,7 @@ async function claimProcessing(pub: MarketingPublication) {
   return r.count ? { ...pub, claimToken: token } : null
 }
 
-/** Instagram containers still being processed by Meta (videos): publish them when ready. */
+/** Videos still being processed by Meta (Instagram containers, Facebook reels): publish them when ready. */
 async function runProcessing(limit: number) {
   const items = await prisma.marketingPublication.findMany({
     where: { status: 'processing', containerId: { not: null } },
@@ -315,6 +346,8 @@ async function runProcessing(limit: number) {
     orderBy: { claimedAt: 'asc' },
     take: limit,
   })
+  const variants = await prisma.marketingPostVariant.findMany({ where: { id: { in: items.map((i) => i.variantId) } }, select: { id: true, format: true } })
+  const formatOf = new Map(variants.map((v) => [v.id, v.format]))
   let done = 0
   for (const candidate of items) {
     const claimed = await claimProcessing(candidate)
@@ -323,14 +356,18 @@ async function runProcessing(limit: number) {
     try {
       if (!pub.connection || !pub.containerId) { await finish(pub, { status: 'failed', lastError: 'La cuenta ya no está conectada' }); continue }
       if (pub.claimedAt && Date.now() - pub.claimedAt.getTime() > CONTAINER_TIMEOUT_MS) {
-        await finish(pub, { status: 'failed', lastError: 'Instagram no terminó de procesar el video en 30 minutos' })
+        await finish(pub, { status: 'failed', lastError: `${pub.channel === 'FACEBOOK' ? 'Facebook' : 'Instagram'} no terminó de procesar el video en 30 minutos` })
         continue
       }
       const token = getConnectionCredentials(pub.connection)?.pageAccessToken
       if (!token) { await finish(pub, { status: 'failed', lastError: 'Token no disponible: reconecta la cuenta' }); continue }
-      const r = await finishInstagramContainer({ app: await requireMetaApp(), token }, pub.connection.externalId, pub.containerId)
+      const ctx = { app: await requireMetaApp(), token }
+      const r = pub.containerId.startsWith(FB_REEL_PREFIX)
+        ? await finishFacebookReel(ctx, pub.containerId.slice(FB_REEL_PREFIX.length))
+        : await finishInstagramContainer(ctx, pub.connection.externalId, pub.containerId)
       if (r.status === 'published') {
-        await finish(pub, { status: 'published', externalId: r.externalId, permalink: r.permalink, publishedAt: new Date(), lastError: null })
+        const now = new Date()
+        await finish(pub, { status: 'published', externalId: r.externalId, permalink: r.permalink, publishedAt: now, lastError: null, ...(isStory(formatOf.get(pub.variantId)) ? { expiresAt: new Date(now.getTime() + STORY_TTL_MS) } : {}) })
         done++
       } else if (r.status === 'error') {
         await finish(pub, { status: 'failed', lastError: r.detail })

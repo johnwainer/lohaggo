@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
 import { MetaGraphError } from '@/lib/messaging/meta-graph'
 import { getConnectionCredentials, requireMetaApp } from '@/lib/messaging/meta-channels'
-import { facebookMetrics, instagramMetrics } from '@/lib/marketing/meta-publish'
+import { facebookMetrics, facebookReelMetrics, instagramMetrics } from '@/lib/marketing/meta-publish'
 import { metricsDue } from '@/lib/marketing/publisher-core'
 import { bogotaDay } from '@/lib/analytics/core'
 
@@ -28,6 +28,8 @@ export async function collectMetrics(limit = 60) {
       status: 'published', channel: { in: ['FACEBOOK', 'INSTAGRAM'] }, externalId: { not: null },
       publishedAt: { gte: new Date(now.getTime() - b.maxAge), lte: new Date(now.getTime() - b.minAge) },
       OR: [{ metricsAt: null }, { metricsAt: { lte: new Date(now.getTime() - b.every + 5 * 60_000) } }],
+      // An expired story has no statistics left (Meta keeps them 24 h): its last capture is final
+      AND: [{ OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] }],
     },
     include: { connection: true, post: { select: { media: { select: { kind: true } } } } },
     orderBy: [{ metricsAt: { sort: 'asc', nulls: 'first' } }],
@@ -39,6 +41,7 @@ export async function collectMetrics(limit = 60) {
     .sort((a, b) => (a.metricsAt?.getTime() ?? 0) - (b.metricsAt?.getTime() ?? 0))
     .slice(0, limit)
   const app = due.length ? await requireMetaApp() : null
+  const formats = new Map((await prisma.marketingPostVariant.findMany({ where: { id: { in: due.map((p) => p.variantId) } }, select: { id: true, format: true } })).map((v) => [v.id, v.format]))
   let captured = 0
   for (const pub of due) {
     try {
@@ -46,7 +49,12 @@ export async function collectMetrics(limit = 60) {
       if (!token || !app || !pub.externalId) continue
       const ctx = { app, token }
       const isVideo = pub.post.media.some((m) => m.kind === 'video')
-      const m = pub.channel === 'FACEBOOK' ? await facebookMetrics(ctx, pub.externalId, isVideo && !pub.externalId.includes('_')) : await instagramMetrics(ctx, pub.externalId)
+      const format = formats.get(pub.variantId) ?? null
+      // Facebook does not give statistics of a Page story by API: nothing to ask
+      if (pub.channel === 'FACEBOOK' && format === 'story') continue
+      const m = pub.channel === 'FACEBOOK'
+        ? format === 'reel' ? await facebookReelMetrics(ctx, pub.externalId) : await facebookMetrics(ctx, pub.externalId, isVideo && !pub.externalId.includes('_'))
+        : await instagramMetrics(ctx, pub.externalId, format === 'story' ? 'story' : format === 'reel' || format === 'trial_reel' ? 'reel' : 'post')
       await prisma.marketingMetricSnapshot.create({
         data: {
           publicationId: pub.id, reach: m.reach, impressions: m.impressions, likes: m.likes, comments: m.comments, shares: m.shares,

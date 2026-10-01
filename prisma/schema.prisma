@@ -2250,6 +2250,8 @@ model MarketingPostVariant {
   channel        MarketingChannel
   body           String           @default("")
   format         String?
+  // Opciones de publicación por canal para los formatos de Meta (portada del reel, colaboradores, ubicación, reel de prueba, compartir en el feed, etiqueta de IA, texto de la historia)
+  publishOptions Json?
   linkUrl        String?
   mediaIds       String[]         @default([])
   slug           String?          @unique
@@ -2314,6 +2316,8 @@ model MarketingPublication {
   containerId    String?
   publishedAt    DateTime?
   metricsAt      DateTime?
+  // Cuándo deja de verse una historia publicada (publishedAt + 24 h); sirve para capturar sus métricas antes de que caduque
+  expiresAt      DateTime?
   createdAt      DateTime                  @default(now())
   updatedAt      DateTime                  @updatedAt
   post           MarketingPost             @relation(fields: [postId], references: [id], onDelete: Cascade)
@@ -2323,6 +2327,7 @@ model MarketingPublication {
   @@index([status, scheduledAt])
   @@index([postId])
   @@index([externalId])
+  @@index([expiresAt])
 }
 
 model MarketingMetricSnapshot {

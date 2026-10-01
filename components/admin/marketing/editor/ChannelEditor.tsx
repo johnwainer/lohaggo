@@ -7,6 +7,7 @@ import { renderMarkdown, slugify, SITE_URL } from '@/lib/marketing/seo'
 import { ogImageUrl, videoPosterUrl } from '@/lib/marketing/media'
 import { CHANNEL_NAME, input } from '@/components/admin/marketing/shared'
 import type { Media, Post, Validation, Variant } from '@/components/admin/marketing/editor/types'
+import FormatOptions from '@/components/admin/marketing/editor/FormatOptions'
 
 const Counter = ({ value, max, label }: { value: number; max: number; label: string }) => (
   <span className={value > max ? 'font-semibold text-red-600' : value > max * 0.9 ? 'text-amber-700' : 'text-gray-500'}>{value}/{max} {label}</span>
@@ -26,8 +27,28 @@ function Thumb({ m, className = '' }: { m: Media; className?: string }) {
   return <img src={m.kind === 'video' ? videoPosterUrl(m.url) || '' : m.url} alt={m.alt || ''} className={`object-cover ${className}`} />
 }
 
-function SocialPreview({ channel, body, media, accountName, link }: { channel: 'FACEBOOK' | 'INSTAGRAM'; body: string; media: Media[]; accountName: string; link: string | null }) {
+function SocialPreview({ channel, body, media, accountName, link, format, storyText }: { channel: 'FACEBOOK' | 'INSTAGRAM'; body: string; media: Media[]; accountName: string; link: string | null; format: string | null; storyText: string | null }) {
   const [more, setMore] = useState(false)
+  const vertical = format === 'story' || format === 'reel' || format === 'trial_reel' || (channel === 'INSTAGRAM' && !format && media.length === 1 && media[0].kind === 'video')
+  if (vertical) {
+    const story = format === 'story'
+    return (
+      <div className="mx-auto w-full max-w-[260px]">
+        <div className="relative aspect-[9/16] overflow-hidden rounded-2xl bg-gray-900 text-white shadow-sm">
+          {media[0] && <Thumb m={media[0]} className="absolute inset-0 h-full w-full !object-contain" />}
+          <div className="absolute inset-x-0 top-0 flex items-center gap-2 bg-gradient-to-b from-black/60 to-transparent px-3 py-2 text-[12px]">
+            <span className="h-6 w-6 shrink-0 rounded-full bg-gradient-to-br from-primary-500 to-secondary-500" />
+            <span className="min-w-0 truncate font-semibold">{accountName}</span>
+            <span className="ml-auto shrink-0 rounded-full bg-white/20 px-2 text-[10px]">{story ? 'Historia' : format === 'trial_reel' ? 'Reel de prueba' : 'Reel'}</span>
+          </div>
+          {story && storyText && <p className="absolute inset-x-3 bottom-14 rounded-xl bg-black/50 px-2 py-1.5 text-center text-[12px] font-semibold">{storyText}</p>}
+          {!story && body && <p className="absolute inset-x-0 bottom-0 line-clamp-3 bg-gradient-to-t from-black/70 to-transparent px-3 pb-3 pt-6 text-[12px]">{body}</p>}
+          {!media[0] && <p className="absolute inset-0 grid place-items-center px-6 text-center text-[12px] text-white/70">{story ? 'Agrega una foto o un video vertical' : 'Agrega un video vertical'}</p>}
+        </div>
+        <p className="mt-1 text-center text-[11px] text-gray-400">Vista previa aproximada{story ? ' · el texto de la historia va dentro de la imagen' : ''}</p>
+      </div>
+    )
+  }
   const cut = channel === 'INSTAGRAM' ? 125 : 480
   const text = !more && body.length > cut ? `${body.slice(0, cut)}… ` : body
   return (
@@ -236,18 +257,8 @@ export default function ChannelEditor({ post, variant, validation, editable, acc
             </span>
             <textarea className={input} rows={12} disabled={!editable} value={variant.body} onChange={(e) => onChange({ body: e.target.value })} placeholder={ch === 'INSTAGRAM' ? 'La primera línea es la que se ve antes de «más»: que enganche.' : '¿Qué quieres contar?'} />
           </label>
-          {ch === 'INSTAGRAM' && (
-            <label className="block space-y-1">
-              <span className="text-xs font-medium text-gray-700">Formato</span>
-              <select className={input} disabled={!editable} value={variant.format || ''} onChange={(e) => onChange({ format: e.target.value || null })}>
-                <option value="">Automático según los archivos</option>
-                <option value="feed">Publicación (una imagen)</option>
-                <option value="carousel">Carrusel (2 a 10 archivos)</option>
-                <option value="reel">Reel (video)</option>
-              </select>
-            </label>
-          )}
-          {ch === 'FACEBOOK' && (
+          <FormatOptions channel={ch} format={variant.format} options={variant.publishOptions} editable={editable} onChange={onChange} />
+          {ch === 'FACEBOOK' && variant.format !== 'story' && variant.format !== 'reel' && (
             <label className="block space-y-1">
               <span className="text-xs font-medium text-gray-700">Enlace (opcional)</span>
               <input className={input} disabled={!editable} value={variant.linkUrl || ''} onChange={(e) => onChange({ linkUrl: e.target.value || null })} placeholder="https://www.lohaggo.com/blog/…" />
@@ -257,7 +268,7 @@ export default function ChannelEditor({ post, variant, validation, editable, acc
           {mediaPicker}
           <Issues v={validation} />
         </div>
-        <SocialPreview channel={ch} body={variant.body} media={media} accountName={accountName} link={variant.linkUrl} />
+        <SocialPreview channel={ch} body={variant.body} media={media} accountName={accountName} link={variant.linkUrl} format={variant.format} storyText={variant.publishOptions?.storyText ?? null} />
       </div>
     </div>
   )

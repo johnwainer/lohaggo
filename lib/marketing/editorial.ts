@@ -67,6 +67,11 @@ async function writeTexts(post: ReviewPost, before: Record<string, string>, afte
     if (media) { await prisma.marketingMedia.updateMany({ where: { id: media[1], postId: post.id }, data: { alt: after[key] } }); continue }
     const [channel, field] = key.split('.')
     const variant = post.variants.find((v) => v.channel === channel)
+    if (variant && field === 'storyText') {
+      const opts = (variant.publishOptions as Record<string, unknown> | null) ?? {}
+      await prisma.marketingPostVariant.update({ where: { id: variant.id }, data: { publishOptions: { ...opts, storyText: after[key].slice(0, 300) } } })
+      continue
+    }
     if (!variant || !['body', 'seoTitle', 'seoDescription', 'excerpt'].includes(field)) continue
     await prisma.marketingPostVariant.update({ where: { id: variant.id }, data: { [field]: after[key] } })
   }

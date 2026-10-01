@@ -12,7 +12,7 @@ export type ReviewText = { key: string; channel: MarketingChannel | null; label:
 
 type PostTexts = {
   title: string
-  variants: Array<{ channel: string; body: string; seoTitle?: string | null; seoDescription?: string | null; excerpt?: string | null; linkUrl?: string | null }>
+  variants: Array<{ channel: string; body: string; seoTitle?: string | null; seoDescription?: string | null; excerpt?: string | null; linkUrl?: string | null; publishOptions?: unknown }>
   media: Array<{ id: string; alt: string | null }>
 }
 
@@ -32,6 +32,9 @@ export function collectTexts(post: PostTexts): ReviewText[] {
       if (v.seoDescription) out.push({ key: 'WEB.seoDescription', channel: ch, label: 'Descripción SEO', text: v.seoDescription })
       if (v.excerpt) out.push({ key: 'WEB.excerpt', channel: ch, label: 'Resumen', text: v.excerpt })
     }
+    // Stories show no caption: what the reader sees is the text written on the image or video
+    const storyText = (v.publishOptions as { storyText?: unknown } | null | undefined)?.storyText
+    if (typeof storyText === 'string') out.push({ key: `${ch}.storyText`, channel: ch, label: `Texto escrito en la historia de ${name}`, text: storyText })
   }
   for (const m of [...post.media].sort((a, b) => a.id.localeCompare(b.id))) if (m.alt) out.push({ key: `media.${m.id}.alt`, channel: null, label: 'Texto alternativo de imagen', text: m.alt })
   return out.filter((t) => t.text.trim())
