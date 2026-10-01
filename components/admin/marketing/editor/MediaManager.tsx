@@ -129,6 +129,18 @@ export default function MediaManager({ post, editable, onChange, channel, format
         )}
       </div>
       {error && <p className="text-xs text-red-600">{error}</p>}
+      {editable && (format === 'reel' || format === 'trial_reel') && !post.media.some((m) => m.kind === 'video') && post.media.some((m) => m.kind === 'image') && post.media.length < 10 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl bg-violet-50 px-3 py-2 text-xs text-violet-900">
+          <span className="min-w-0 flex-1">Un reel necesita un video. Sube uno o anima la primera foto (8 s, zoom lento, con el texto en pantalla).</span>
+          <button
+            onClick={() => { const photo = post.media.find((m) => m.kind === 'image'); if (photo) mutate(api(`/api/admin/marketing/posts/${post.id}/media`, { method: 'POST', json: { action: 'animate', mediaId: photo.id } }), photo.id) }}
+            disabled={busy !== null}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-violet-700 px-3 py-1.5 font-semibold text-white hover:bg-violet-800 disabled:opacity-50"
+          >
+            {busy ? <Loader2 size={13} className="animate-spin" /> : <Play size={13} />} Animar la foto
+          </button>
+        </div>
+      )}
       {uploads.map((u) => (
         <div key={u.name} className="rounded-xl bg-gray-50 px-3 py-2 text-xs">
           <div className="flex justify-between gap-2"><span className="min-w-0 truncate">{u.name}</span><span className={u.error ? 'text-red-600' : 'text-gray-500'}>{u.error || `${u.progress}%`}</span></div>

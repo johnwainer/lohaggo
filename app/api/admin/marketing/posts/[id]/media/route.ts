@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { cloudinaryService } from '@/lib/cloudinary'
 import { marketingAuth, mkCan } from '@/lib/marketing/permissions'
-import { loadPostDetail, mediaFolder, reopenReviewIfNeeded } from '@/lib/marketing/service'
+import { loadPostDetail, mediaFolder, reopenReviewIfNeeded, saveVariants } from '@/lib/marketing/service'
 import { validateUploadedMedia } from '@/lib/marketing/input'
-import { ImageError, setMediaBranding } from '@/lib/marketing/images'
+import { ImageError, addStillVideo, setMediaBranding } from '@/lib/marketing/images'
 import { markStaleIfChanged } from '@/lib/marketing/editorial'
 
 type Ctx = { params: Promise<{ id: string }> }
@@ -26,6 +26,27 @@ export async function POST(request: NextRequest, context: Ctx) {
   const r = await editable(id)
   if ('error' in r) return r.error
   const body = await request.json().catch(() => ({}))
+  // «Animar la foto»: a reel from one of the post's photos (8 s, slow zoom, made by Cloudinary on delivery)
+  if (body.action === 'animate') {
+    const photo = typeof body.mediaId === 'string' ? await prisma.marketingMedia.findFirst({ where: { id: body.mediaId, postId: id, kind: 'image' } }) : null
+    if (!photo) return NextResponse.json({ error: 'Foto no encontrada' }, { status: 404 })
+    try {
+      const video = await addStillVideo(id, photo)
+      // Each version keeps its own files: reels the new video, the rest the photos
+      const [variants, images] = await Promise.all([
+        prisma.marketingPostVariant.findMany({ where: { postId: id, channel: { not: 'WEB' } }, select: { channel: true, format: true, mediaIds: true } }),
+        prisma.marketingMedia.findMany({ where: { postId: id, kind: 'image' }, orderBy: { position: 'asc' }, select: { id: true } }),
+      ])
+      await saveVariants(id, variants.map((v) => ({
+        channel: v.channel,
+        mediaIds: v.format === 'reel' || v.format === 'trial_reel' ? [video.id] : v.mediaIds.length ? v.mediaIds : v.format === 'story' ? images.slice(0, 1).map((m) => m.id) : images.map((m) => m.id),
+      })))
+    } catch (err) {
+      return NextResponse.json({ error: err instanceof ImageError ? err.message : 'No se pudo animar la foto' }, { status: 400 })
+    }
+    await markStaleIfChanged(id)
+    return NextResponse.json({ post: await loadPostDetail(id) })
+  }
   try {
     const cloud = cloudinaryService.cloudName()
     if (!cloud) return NextResponse.json({ error: 'Cloudinary no está configurado' }, { status: 500 })

@@ -234,8 +234,9 @@ export function instagramFormat(format: string | null | undefined, media: MediaI
 
 /** Reels and stories fill a 9:16 screen: anything else gets bars (images are padded to 9:16 automatically). */
 function verticalWarning(media: MediaInfo[], warn: (code: string, message: string, field?: string) => void) {
-  const m = media.find((x) => x.width && x.height)
+  // Photos are fitted to 9:16 on delivery; a video keeps its shape and is cropped to fill
+  const m = media.find((x) => x.kind === 'video' && x.width && x.height)
   if (!m) return
   const r = m.width! / m.height!
-  if (Math.abs(r - 9 / 16) > 0.06) warn('vertical', `La proporción ${m.width}×${m.height} no es vertical 9:16: se verá con bordes.${m.kind === 'image' ? ' La imagen se ajustará a 9:16.' : ''}`, 'media')
+  if (Math.abs(r - 9 / 16) > 0.06) warn('vertical', `El video es de ${m.width}×${m.height}, no vertical 9:16: se recortará para llenar la pantalla y puede perder los bordes.`, 'media')
 }
