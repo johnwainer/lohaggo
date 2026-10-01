@@ -947,6 +947,18 @@ async function refreshDegradation(agent: Agent, now: Date) {
   return { reason, level, wsBlocked: ws.state === 'blocked' }
 }
 
+/**
+ * Re-checks the degradation of the workspace's active agents now (not at their next cycle): after an
+ * account is diagnosed back to working, an agent forced to copilot by it returns to its mode at once.
+ */
+export async function refreshWorkspaceAgents(workspaceId: string, now = new Date()) {
+  const ids = await prisma.marketingAgent.findMany({ where: { workspaceId, status: 'active' }, select: { id: true } })
+  for (const { id } of ids) {
+    const agent = await loadAgent(id).catch(() => null)
+    if (agent) await refreshDegradation(agent, now).catch((err) => logger.warn('Degradation refresh failed', { agentId: id, err: err instanceof Error ? err.message : err }))
+  }
+}
+
 /** Outcome notices for the agent's posts that finished publishing. */
 async function outcomeNotices(agent: Agent) {
   const done = await prisma.marketingPost.findMany({ where: { agentId: agent.id, status: { in: ['published', 'partial', 'failed'] }, agentNoticeSentAt: null }, select: { id: true, title: true, status: true, publications: { where: { status: 'failed' }, select: { lastError: true }, take: 1 } }, take: 20 })

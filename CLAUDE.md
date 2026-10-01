@@ -46,6 +46,11 @@
 - ❌ **NUNCA** vincular un chat (WhatsApp, Messenger, Instagram) a una cuenta ADMIN ni a un teléfono que tengan varias cuentas. Un chat de admin llegaba a cualquier reserva por su referencia de 6 letras. `actorFor` trata a un admin como no vinculado y `userByPhone` exige una sola cuenta activa de cliente o socio.
 - ❌ **NUNCA** devolver al navegador un `include` con `user: true`: trae el hash de la contraseña. Seleccionar solo los campos que se muestran (`{ id, name, email, phone }`) y enmascarar cuentas bancarias con `maskAccountNumber`.
 
+#### Reglas duras aprendidas (incidente del 2026-10-01 — un reel de prueba dejó la cuenta de Instagram «con error»)
+- ❌ **NUNCA** tratar un error de permiso de Meta (código 10 o 200–299) en una acción concreta como token roto: no se marca la cuenta en ERROR ni se degrada el agente. Meta negó los reels de prueba («Application does not have permission for this action») y eso pasó la cuenta a ERROR y el agente a copiloto, aunque todo lo demás publicaba bien.
+- ✅ Solo el código 190 y los subcódigos de token (458–467, 492) marcan la cuenta como rota (`classifyGraphError` en `lib/marketing/publisher-core.ts`).
+- ✅ Antes de ofrecer un formato u opción nueva de Meta, probarla con «Probar con Meta» (`lib/marketing/preflight.ts`), que no publica nada.
+
 ### 4. Dirección de diseño y producto
 
 **Look & feel: estilo Rappi.** Decidido tras research de competidores directos (TaskRabbit, Thumbtack, Angi, IguanaFix, Habitissimo — ninguno usa mapa principal en home services).

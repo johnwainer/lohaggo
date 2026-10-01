@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/admin-utils'
 import { runCapabilityDiagnostics } from '@/lib/messaging/meta-channels'
 import { canView, getWorkspaceAccess } from '@/lib/workspaces'
+import { refreshWorkspaceAgents } from '@/lib/marketing/agent'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -21,6 +22,8 @@ export async function POST(_request: NextRequest, context: RouteContext) {
   try {
     const capabilities = await runCapabilityDiagnostics(id)
     if (!capabilities) return NextResponse.json({ error: 'Conexión no encontrada' }, { status: 404 })
+    // An agent forced to copilot by this account returns to its mode now, not at its next cycle
+    await refreshWorkspaceAgents(conn.workspaceId).catch(() => null)
     return NextResponse.json({ ok: true, capabilities })
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Error en el diagnóstico' }, { status: 500 })
