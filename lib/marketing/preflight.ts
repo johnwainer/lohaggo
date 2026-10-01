@@ -9,7 +9,7 @@ import { createLogger } from '@/lib/logger'
 import { describeGraphError, getConnectionCredentials, getConnectionMeta, requireMetaApp } from '@/lib/messaging/meta-channels'
 import { deliveryUrl } from '@/lib/marketing/media'
 import { readPublishOptions, resolveFormat } from '@/lib/marketing/publish-options'
-import { containerStatus, createInstagramContainer, facebookVideoState, uploadFacebookPhotoOnly, uploadFacebookVideoOnly, warmMedia } from '@/lib/marketing/meta-publish'
+import { containerStatus, createInstagramContainer, deleteFacebookObject, facebookVideoState, uploadFacebookPhotoOnly, uploadFacebookVideoOnly, warmMedia } from '@/lib/marketing/meta-publish'
 import { CONNECTION_CHANNEL, infoOf, mediaFor, postInclude, validatePostForChannel } from '@/lib/marketing/publisher'
 import type { MarketingChannel } from '@/lib/marketing/channel-rules'
 
@@ -78,10 +78,13 @@ export async function preflightPost(postId: string, opts: { channels?: Marketing
         const video = media.find((m) => m.kind === 'video')
         if (format === 'reel' || (format === 'story' && video)) {
           const videoId = await uploadFacebookVideoOnly(ctx, pageId, format === 'reel' ? 'video_reels' : 'video_stories', video!.url)
-          const s = await waitFor(() => facebookVideoState(ctx, videoId), maxWait)
-          results.push({ ...base, status: s.code === 'FINISHED' ? 'ok' : s.code === 'IN_PROGRESS' ? 'pending' : 'failed', detail: s.code === 'FINISHED' ? 'Facebook procesó el video (no se publicó)' : s.code === 'IN_PROGRESS' ? 'Facebook sigue procesando el video; sin errores hasta ahora' : `Facebook lo rechazó: ${s.detail}` })
+          const s = await waitFor(() => facebookVideoState(ctx, videoId), Math.min(maxWait, 30_000))
+          results.push({ ...base, status: s.code === 'FINISHED' ? 'ok' : s.code === 'IN_PROGRESS' ? 'pending' : 'failed', detail: s.code === 'FINISHED' ? 'Facebook recibió el video completo y sin errores (no se publicó; lo procesa al publicar)' : s.code === 'IN_PROGRESS' ? 'Facebook sigue recibiendo el video; sin errores hasta ahora' : `Facebook lo rechazó: ${s.detail}` })
+          // The test upload is not left in the Page's videos
+          await deleteFacebookObject(ctx, videoId)
         } else if (format === 'story') {
-          await uploadFacebookPhotoOnly(ctx, pageId, media[0].url)
+          const photoId = await uploadFacebookPhotoOnly(ctx, pageId, media[0].url)
+          await deleteFacebookObject(ctx, photoId)
           results.push({ ...base, status: 'ok', detail: 'Facebook aceptó la foto de la historia (no se publicó)' })
         } else {
           results.push({ ...base, status: 'skipped', detail: 'Las publicaciones normales de Facebook se validan al publicar' })

@@ -117,8 +117,14 @@ export async function facebookVideoState(c: Ctx, videoId: string) {
   const st = d.status || {}
   const error = st.uploading_phase?.error?.message || st.processing_phase?.error?.message || (st.video_status === 'error' ? 'Meta no pudo procesar el video' : null)
   if (error) return { code: 'ERROR' as const, detail: error }
-  if (st.video_status === 'ready' || st.processing_phase?.status === 'complete') return { code: 'FINISHED' as const, detail: null }
+  // Reels and video stories are processed only after the publishing step: a complete upload is as far as a test goes
+  if (st.video_status === 'ready' || st.processing_phase?.status === 'complete' || st.uploading_phase?.status === 'complete') return { code: 'FINISHED' as const, detail: null }
   return { code: 'IN_PROGRESS' as const, detail: st.video_status ?? null }
+}
+
+/** Removes a file uploaded only to test it (never published). Best effort. */
+export async function deleteFacebookObject(c: Ctx, id: string) {
+  await graphFetch(id, opts(c, { method: 'DELETE' })).catch(() => null)
 }
 
 /** Worker: a Facebook reel uploaded earlier → published, still processing, or failed. */
