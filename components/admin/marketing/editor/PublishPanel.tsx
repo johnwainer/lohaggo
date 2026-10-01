@@ -2,9 +2,44 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { AlertCircle, CalendarClock, ExternalLink, Loader2, Send, XCircle } from 'lucide-react'
-import { CHANNEL_NAME, MkChannelIcon, PUB_STATUS, fmtDateTime, fromLocalInput, num, toLocalInput, type Account, type MkChannel } from '@/components/admin/marketing/shared'
-import type { Post, Validation } from '@/components/admin/marketing/editor/types'
+import { AlertCircle, CalendarClock, ExternalLink, FlaskConical, Loader2, Send, XCircle } from 'lucide-react'
+import { CHANNEL_NAME, MkChannelIcon, PUB_STATUS, api, fmtDateTime, fromLocalInput, num, toLocalInput, type Account, type MkChannel } from '@/components/admin/marketing/shared'
+import type { Post, PreflightRow, Validation } from '@/components/admin/marketing/editor/types'
+import { FORMAT_LABELS } from '@/lib/marketing/publish-options'
+
+/** «Probar con Meta»: Meta checks each Facebook / Instagram version without publishing (reels and stories above all). */
+function PreflightBox({ post }: { post: Post }) {
+  const [rows, setRows] = useState<PreflightRow[] | null>(post.agentMeta?.preflight ?? null)
+  const [running, setRunning] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  if (!post.variants.some((v) => v.channel !== 'WEB')) return null
+  const run = async () => {
+    setRunning(true)
+    setError(null)
+    try {
+      const d = await api<{ results: PreflightRow[] }>(`/api/admin/marketing/posts/${post.id}/preflight`, { method: 'POST' })
+      setRows(d.results)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo probar')
+    } finally {
+      setRunning(false)
+    }
+  }
+  const tone = { ok: 'text-emerald-700', pending: 'text-amber-700', failed: 'text-red-700', skipped: 'text-gray-500' } as const
+  const label = { ok: 'Aceptada', pending: 'Procesando', failed: 'Rechazada', skipped: 'Sin prueba' } as const
+  return (
+    <div className="space-y-1.5 rounded-xl border border-gray-100 bg-gray-50/60 px-3 py-2 text-xs">
+      <button onClick={run} disabled={running} className="inline-flex items-center gap-1.5 font-semibold text-gray-800 hover:underline disabled:opacity-50">
+        {running ? <Loader2 size={13} className="animate-spin" /> : <FlaskConical size={13} />} {running ? 'Probando con Meta (hasta 2 min)…' : 'Probar con Meta (sin publicar)'}
+      </button>
+      {error && <p className="text-red-700">{error}</p>}
+      {rows?.map((r, i) => (
+        <p key={i} className="break-words"><span className="font-medium text-gray-800">{CHANNEL_NAME[r.channel]} · {r.account} · {FORMAT_LABELS[r.format] ?? r.format}:</span> <span className={tone[r.status]}>{label[r.status]}</span> <span className="text-gray-500">— {r.detail}</span></p>
+      ))}
+      {rows && <p className="text-[11px] text-gray-400">Probado {fmtDateTime(rows[0]?.checkedAt ?? new Date().toISOString())}. Nada de esto se publicó.</p>}
+    </div>
+  )
+}
 
 type Target = { channel: MkChannel; connectionId: string | null }
 const key = (t: Target) => `${t.channel}:${t.connectionId || 'web'}`
@@ -102,6 +137,7 @@ export default function PublishPanel({ post, accounts, validations, canPublish, 
             </button>
           </div>
           <p className="text-[11px] text-gray-500">Hora de Bogotá. Antes de salir se valida otra vez cada canal; si una red falla por algo pasajero se reintenta sola hasta 3 veces.</p>
+          <PreflightBox post={post} />
         </div>
       ) : (
         <p className="text-xs text-gray-500">No tienes permiso para publicar. Déjala «En revisión» para que alguien con permiso la apruebe y la publique.</p>

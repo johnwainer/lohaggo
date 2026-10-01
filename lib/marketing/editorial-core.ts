@@ -34,7 +34,9 @@ export function collectTexts(post: PostTexts): ReviewText[] {
     }
     // Stories show no caption: what the reader sees is the text written on the image or video
     const storyText = (v.publishOptions as { storyText?: unknown } | null | undefined)?.storyText
-    if (typeof storyText === 'string') out.push({ key: `${ch}.storyText`, channel: ch, label: `Texto escrito en la historia de ${name}`, text: storyText })
+    if (typeof storyText === 'string') out.push({ key: `${ch}.storyText`, channel: ch, label: `Texto en pantalla de ${name} (titular)`, text: storyText })
+    const storyCta = (v.publishOptions as { storyCta?: unknown } | null | undefined)?.storyCta
+    if (typeof storyCta === 'string') out.push({ key: `${ch}.storyCta`, channel: ch, label: `Texto en pantalla de ${name} (llamada a la acción)`, text: storyCta })
   }
   for (const m of [...post.media].sort((a, b) => a.id.localeCompare(b.id))) if (m.alt) out.push({ key: `media.${m.id}.alt`, channel: null, label: 'Texto alternativo de imagen', text: m.alt })
   return out.filter((t) => t.text.trim())

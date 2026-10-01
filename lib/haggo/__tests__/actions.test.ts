@@ -129,6 +129,8 @@ describe('ciclo de vida', () => {
 const FIXTURES: Record<string, { raw: Record<string, unknown>; before: unknown }> = {
   'marketing.reschedule_post': { raw: { postId: 'post_123456', when: '2026-10-02T10:00:00-05:00' }, before: { title: 'Plomería', scheduledAt: '2026-10-01T15:00:00.000Z' } },
   'marketing.retry_publication': { raw: { publicationId: 'pub_123456' }, before: { title: 'X', channel: 'INSTAGRAM', lastError: 'timeout' } },
+  'marketing.preflight_post': { raw: { postId: 'post_123456' }, before: { title: 'Plomería' } },
+  'marketing.set_format': { raw: { postId: 'post_123456', channel: 'INSTAGRAM', format: 'story', text: '¿Fuga en casa?', cta: 'Escríbenos' }, before: { title: 'Plomería', format: 'feed', publishOptions: null } },
   'marketing.approve_post': { raw: { postId: 'post_123456' }, before: { title: 'X', status: 'review', fromAgent: true } },
   'marketing.cancel_post': { raw: { postId: 'post_123456' }, before: { title: 'X', scheduledAt: '2026-10-02T15:00:00.000Z', agentId: 'agent_123456' } },
   'marketing.pause_agent': { raw: { agentId: 'agent_123456' }, before: { campaign: 'Plomería', status: 'active', queued: ['post_1'] } },

@@ -98,6 +98,29 @@ async function startFacebookReel(c: Ctx, pageId: string, p: { message: string; m
   return { status: 'processing', containerId: `${FB_REEL_PREFIX}${session.video_id}` }
 }
 
+/** Preflight: upload a reel or video story's file without publishing it; Meta's processing tells if it is accepted. */
+export async function uploadFacebookVideoOnly(c: Ctx, pageId: string, edge: 'video_reels' | 'video_stories', fileUrl: string) {
+  const session = await startVideoSession(c, pageId, edge)
+  await ruploadHosted(c, session.upload_url, fileUrl)
+  return session.video_id
+}
+
+/** Preflight: a photo uploaded unpublished (what a photo story starts with). */
+export async function uploadFacebookPhotoOnly(c: Ctx, pageId: string, url: string) {
+  return (await graphFetch<{ id: string }>(`${pageId}/photos`, opts(c, { method: 'POST', body: { url, published: false }, timeoutMs: 60000 }))).id
+}
+
+/** Processing state of an uploaded Facebook video: ready, still processing, or Meta's error. */
+export async function facebookVideoState(c: Ctx, videoId: string) {
+  type Phase = { status?: string; error?: { message?: string } }
+  const d = await graphFetch<{ status?: { video_status?: string; uploading_phase?: Phase; processing_phase?: Phase } }>(videoId, opts(c, { query: { fields: 'status' } }))
+  const st = d.status || {}
+  const error = st.uploading_phase?.error?.message || st.processing_phase?.error?.message || (st.video_status === 'error' ? 'Meta no pudo procesar el video' : null)
+  if (error) return { code: 'ERROR' as const, detail: error }
+  if (st.video_status === 'ready' || st.processing_phase?.status === 'complete') return { code: 'FINISHED' as const, detail: null }
+  return { code: 'IN_PROGRESS' as const, detail: st.video_status ?? null }
+}
+
 /** Worker: a Facebook reel uploaded earlier → published, still processing, or failed. */
 export async function finishFacebookReel(c: Ctx, videoId: string): Promise<PublishResult | { status: 'error'; detail: string }> {
   type Phase = { status?: string; error?: { message?: string } }
@@ -169,7 +192,10 @@ export function igContainerExtras(format: IgFormatArg, o: PublishOptions = {}, a
  * Creates the container(s). Images are usually ready at once and are published in the same call;
  * videos (reels, stories and carousels with video) stay "processing" and the worker publishes them later.
  */
-export async function publishToInstagram(c: Ctx, igId: string, p: { caption: string; format: IgFormatArg; media: PublishMedia[]; options?: PublishOptions; aiGenerated?: boolean }): Promise<PublishResult> {
+type IgPayload = { caption: string; format: IgFormatArg; media: PublishMedia[]; options?: PublishOptions; aiGenerated?: boolean }
+
+/** The container Meta checks and processes; nothing is visible until media_publish. Expires in 24 h. */
+export async function createInstagramContainer(c: Ctx, igId: string, p: IgPayload): Promise<string> {
   const extras = igContainerExtras(p.format, p.options, p.aiGenerated)
   let containerId: string
   if (p.format === 'carousel') {
@@ -193,6 +219,11 @@ export async function publishToInstagram(c: Ctx, igId: string, p: { caption: str
     if (!image) throw new MetaGraphError('La publicación necesita una imagen', { status: 400 })
     containerId = (await graphFetch<{ id: string }>(`${igId}/media`, opts(c, { method: 'POST', body: { image_url: image.url, caption: p.caption, ...(image.alt ? { alt_text: image.alt } : {}), ...extras }, timeoutMs: 60000 }))).id
   }
+  return containerId
+}
+
+export async function publishToInstagram(c: Ctx, igId: string, p: IgPayload): Promise<PublishResult> {
+  const containerId = await createInstagramContainer(c, igId, p)
   const hasVideo = p.media.some((m) => m.kind === 'video')
   if (hasVideo) return { status: 'processing', containerId }
   // Images: a short wait covers the usual case; otherwise the worker finishes it

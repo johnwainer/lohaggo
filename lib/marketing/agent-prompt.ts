@@ -109,11 +109,21 @@ export function campaignBlock(f: PromptFacts & { campaignName: string; campaignD
     `Ciudades: ${(c.offer.cities.length ? c.offer.cities : f.catalog.cities).join(', ') || MISSING}`,
     `Catálogo de servicios${c.offer.allServices ? '' : ' a promocionar'} (nombre · categoría · precio base en COP):\n${bullet(f.catalog.services.map((s) => `${s.name}${s.category ? ` · ${s.category}` : ''}${s.basePrice ? ` · desde $${Math.round(s.basePrice).toLocaleString('es-CO')}` : ''}`))}`,
     `Límites técnicos: Instagram máx. ${LIMITS.INSTAGRAM.caption} caracteres y ${LIMITS.INSTAGRAM.hashtags} hashtags, los enlaces no son clicables; carrusel de ${LIMITS.INSTAGRAM.carouselMin} a ${LIMITS.INSTAGRAM.carouselMax} imágenes. Facebook: como mucho ${LIMITS.FACEBOOK.recommendedHashtags} hashtags. Blog: título SEO ≤ ${LIMITS.WEB.seoTitleMax} caracteres, meta descripción de ${LIMITS.WEB.seoDescriptionMin} a ${LIMITS.WEB.seoDescriptionMax}, al menos ${LIMITS.WEB.minWords} palabras, subtítulos "## ", Markdown sin repetir el título como encabezado.`,
-    `Formatos que la plataforma puede producir sola: ${channels.map((ch) => `${channelName[ch]}: ${AGENT_FORMATS[ch].join(', ')}`).join('; ')} (no hay video: nada de reels).`,
+    `Formatos que la plataforma puede producir sola: ${channels.map((ch) => `${channelName[ch]}: ${AGENT_FORMATS[ch].join(', ')}`).join('; ')}.`,
+    FORMAT_GUIDE,
     f.strategy ? `Estrategia aprobada:\n${strategyText(f.strategy)}` : 'Aún no hay estrategia aprobada.',
   ]
   return lines.filter(Boolean).join('\n\n')
 }
+
+/** How reels and stories are made here, so the model plans and writes for what the platform can produce. */
+export const FORMAT_GUIDE = [
+  'Reels y historias (Instagram «reel» y «story»; Facebook «reel» e «historia»):',
+  '- Reel: video vertical de 8 a 30 s. La plataforma pone un clip de banco de video del servicio o, si no hay, anima la foto (zoom lento). No hay voz ni música: el mensaje va en el «texto en pantalla» (titular corto + llamada a la acción). Sirve para llegar a gente que no sigue la cuenta; el texto del reel (caption) es como el de una publicación.',
+  '- Historia: dura 24 h, no muestra caption ni enlaces. Todo el mensaje es el texto en pantalla, escrito sobre la foto. Sirve para recordatorios, promociones vigentes, preguntas y llevar a conversación («Escríbenos por DM», «Responde esta historia»).',
+  '- Texto en pantalla: titular de máximo 60 caracteres que se entienda en 2 segundos, sin hashtags, emojis ni enlaces; llamada a la acción de máximo 25 caracteres.',
+  '- No prometas lo que no se ve: el clip es genérico del servicio, no un trabajo real de un socio.',
+].join('\n')
 
 export function strategyText(s: Strategy) {
   return [
@@ -260,7 +270,17 @@ export const DRAFT_TOOL: Anthropic.Tool = {
         },
         required: ['body', 'seoTitle', 'seoDescription', 'slug', 'excerpt', 'tags', 'category'],
       },
-      instagram: { type: 'object', properties: { caption: { type: 'string' }, format: { type: 'string', enum: ['feed', 'carousel'] } }, required: ['caption', 'format'] },
+      instagram: { type: 'object', properties: { caption: { type: 'string', description: 'En historias se deja vacío (no se muestra)' }, format: { type: 'string', enum: ['feed', 'carousel', 'reel', 'story'] } }, required: ['caption', 'format'] },
+      screen: {
+        type: 'object',
+        description: 'Texto en pantalla: obligatorio si algún canal es reel, historia o story',
+        properties: {
+          text: { type: 'string', description: 'Titular, máximo 60 caracteres, sin hashtags, emojis ni enlaces' },
+          cta: { type: 'string', description: 'Llamada a la acción, máximo 25 caracteres' },
+          videoQuery: { type: 'string', description: 'Para el clip del reel: 2 a 4 palabras en inglés de lo que se ve (p. ej. «painting wall roller»)' },
+        },
+        required: ['text', 'cta'],
+      },
       facebook: { type: 'object', properties: { text: { type: 'string' }, link: { type: ['string', 'null'], description: 'Enlace de la lista permitida, o null' } }, required: ['text', 'link'] },
     },
     required: ['title', 'brief', 'service', 'cta', 'confidence', 'risks', 'hypothesis', 'image'],
@@ -322,6 +342,9 @@ export function draftTask(p: { idea: { pillar: string; service: string | null; a
     'Redacta esta pieza con la herramienta redactar_pieza, una versión por canal pedido.',
     `Pilar: ${i.pillar}\nServicio: ${i.service || 'general'}\nÁngulo: ${i.angle}\nHipótesis: ${i.hypothesis || '—'}\nPor qué: ${i.rationale || '—'}\nCanales y formato: ${i.channels.map((c) => `${channelName[c]} (${i.formats[c] || AGENT_FORMATS[c][0]})`).join(', ')}`,
     'Blog: artículo útil y original con intención de búsqueda clara; enlaza a lohaggo.com donde ayude. Instagram: primera línea que enganche, llamada a la acción, 5 a 12 hashtags con los de marca, "enlace en la bio". Facebook: conversacional, con uno de los enlaces permitidos si encaja.',
+    Object.values(i.formats).some((f) => f === 'reel' || f === 'story' || f === 'historia')
+      ? 'Esta pieza lleva reel o historia: entrega «screen» con el titular y la llamada a la acción en pantalla (y videoQuery si hay reel). En una historia el texto de Instagram o Facebook no se muestra: déjalo vacío.'
+      : '',
     p.utmNote,
     p.instruction ? `<datos tipo="indicación del equipo para esta versión">${p.instruction}</datos>` : '',
     p.previous ? `<datos tipo="versión anterior">\n${p.previous.slice(0, 4000)}\n</datos>` : '',

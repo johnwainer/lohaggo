@@ -29,8 +29,12 @@ export type PublishOptions = {
   trialGraduation?: 'MANUAL' | 'SS_PERFORMANCE'
   /** Label «Hecho con IA»; when unset it follows the media (AI-generated images are always labelled) */
   aiLabel?: boolean
-  /** Stories show no caption: the text written on the image or video, kept for the review and Haggo */
+  /** Text on screen (stories and reels): the headline, kept for the review and Haggo */
   storyText?: string
+  /** Text on screen: the call to action under the headline («Escríbenos por DM») */
+  storyCta?: string
+  /** Write storyText / storyCta on the image or video (Cloudinary draws them; an edit changes the picture too) */
+  renderText?: boolean
 }
 
 const USERNAME_RE = /^[A-Za-z0-9._]{1,30}$/
@@ -66,6 +70,8 @@ export function sanitizePublishOptions(raw: unknown): PublishOptions | null {
   if (b.trialGraduation === 'MANUAL' || b.trialGraduation === 'SS_PERFORMANCE') out.trialGraduation = b.trialGraduation
   if (typeof b.aiLabel === 'boolean') out.aiLabel = b.aiLabel
   if (typeof b.storyText === 'string' && b.storyText.trim()) out.storyText = b.storyText.trim().slice(0, 300)
+  if (typeof b.storyCta === 'string' && b.storyCta.trim()) out.storyCta = b.storyCta.trim().slice(0, 60)
+  if (typeof b.renderText === 'boolean') out.renderText = b.renderText
   return Object.keys(out).length ? out : null
 }
 

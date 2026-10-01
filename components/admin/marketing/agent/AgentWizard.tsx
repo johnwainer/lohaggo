@@ -12,7 +12,7 @@ type CampaignForm = { name: string; objective: string; description: string; star
 const STEPS = ['Objetivo y medición', 'Negocio y oferta', 'Audiencia', 'Voz y límites', 'Canales y horarios', 'Autonomía'] as const
 const CHANNELS: MkChannel[] = ['INSTAGRAM', 'FACEBOOK', 'WEB']
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
-const FORMAT_LABEL: Record<string, string> = { feed: 'Imagen', carousel: 'Carrusel', foto: 'Foto', texto: 'Solo texto', enlace: 'Enlace', guía: 'Guía', lista: 'Lista', comparativa: 'Comparativa', preguntas: 'Preguntas frecuentes', caso: 'Caso real' }
+const FORMAT_LABEL: Record<string, string> = { feed: 'Imagen', carousel: 'Carrusel', reel: 'Reel', story: 'Historia', historia: 'Historia', foto: 'Foto', texto: 'Solo texto', enlace: 'Enlace', guía: 'Guía', lista: 'Lista', comparativa: 'Comparativa', preguntas: 'Preguntas frecuentes', caso: 'Caso real' }
 const SEGMENT_PRESETS = ['Cliente final (hogares)', 'Empresas y conjuntos', 'Socios a reclutar (profesionales)']
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
@@ -332,7 +332,7 @@ export default function AgentWizard({ workspace, existing, onClose, onSaved }: {
                       <>
                         <div className="flex flex-wrap gap-2">
                           {AGENT_FORMATS[ch].map((f) => <Toggle key={f} on={plan.formats.includes(f)} onClick={() => setChannel(ch, { formats: plan.formats.includes(f) ? plan.formats.filter((x) => x !== f) : [...plan.formats, f] })}>{FORMAT_LABEL[f] ?? f}</Toggle>)}
-                          {ch === 'INSTAGRAM' && <span className="self-center text-xs text-gray-400">Reels: solo si subes un video tú.</span>}
+                          {ch !== 'WEB' && <span className="self-center text-xs text-gray-400">Reels: clip vertical de Pexels o la foto animada. Historias: la foto con el texto encima.</span>}
                         </div>
                         {ch !== 'WEB' && (
                           chAccounts.length === 0 ? <p className="text-xs text-amber-700">No hay cuentas de {CHANNEL_NAME[ch]} conectadas en este workspace.</p> : (

@@ -27,7 +27,7 @@ function Thumb({ m, className = '' }: { m: Media; className?: string }) {
   return <img src={m.kind === 'video' ? videoPosterUrl(m.url) || '' : m.url} alt={m.alt || ''} className={`object-cover ${className}`} />
 }
 
-function SocialPreview({ channel, body, media, accountName, link, format, storyText }: { channel: 'FACEBOOK' | 'INSTAGRAM'; body: string; media: Media[]; accountName: string; link: string | null; format: string | null; storyText: string | null }) {
+function SocialPreview({ channel, body, media, accountName, link, format, screen }: { channel: 'FACEBOOK' | 'INSTAGRAM'; body: string; media: Media[]; accountName: string; link: string | null; format: string | null; screen: { text: string; cta: string } | null }) {
   const [more, setMore] = useState(false)
   const vertical = format === 'story' || format === 'reel' || format === 'trial_reel' || (channel === 'INSTAGRAM' && !format && media.length === 1 && media[0].kind === 'video')
   if (vertical) {
@@ -41,11 +41,16 @@ function SocialPreview({ channel, body, media, accountName, link, format, storyT
             <span className="min-w-0 truncate font-semibold">{accountName}</span>
             <span className="ml-auto shrink-0 rounded-full bg-white/20 px-2 text-[10px]">{story ? 'Historia' : format === 'trial_reel' ? 'Reel de prueba' : 'Reel'}</span>
           </div>
-          {story && storyText && <p className="absolute inset-x-3 bottom-14 rounded-xl bg-black/50 px-2 py-1.5 text-center text-[12px] font-semibold">{storyText}</p>}
+          {screen && (screen.text || screen.cta) && (
+            <div className="absolute inset-x-4 bottom-[19%] space-y-2 text-center font-bold">
+              {screen.text && <p className="bg-[#1d4ed8] px-2 py-1.5 text-[13px] leading-snug">{screen.text}</p>}
+              {screen.cta && <p className="bg-[#ea580c] px-2 py-1 text-[11px]">{screen.cta}</p>}
+            </div>
+          )}
           {!story && body && <p className="absolute inset-x-0 bottom-0 line-clamp-3 bg-gradient-to-t from-black/70 to-transparent px-3 pb-3 pt-6 text-[12px]">{body}</p>}
           {!media[0] && <p className="absolute inset-0 grid place-items-center px-6 text-center text-[12px] text-white/70">{story ? 'Agrega una foto o un video vertical' : 'Agrega un video vertical'}</p>}
         </div>
-        <p className="mt-1 text-center text-[11px] text-gray-400">Vista previa aproximada{story ? ' · el texto de la historia va dentro de la imagen' : ''}</p>
+        <p className="mt-1 text-center text-[11px] text-gray-400">Vista previa aproximada{story ? ' · las historias no muestran el texto de arriba' : ''}</p>
       </div>
     )
   }
@@ -268,7 +273,7 @@ export default function ChannelEditor({ post, variant, validation, editable, acc
           {mediaPicker}
           <Issues v={validation} />
         </div>
-        <SocialPreview channel={ch} body={variant.body} media={media} accountName={accountName} link={variant.linkUrl} format={variant.format} storyText={variant.publishOptions?.storyText ?? null} />
+        <SocialPreview channel={ch} body={variant.body} media={media} accountName={accountName} link={variant.linkUrl} format={variant.format} screen={variant.publishOptions?.renderText ? { text: variant.publishOptions?.storyText ?? '', cta: variant.publishOptions?.storyCta ?? '' } : null} />
       </div>
     </div>
   )

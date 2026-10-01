@@ -4,6 +4,10 @@ import { AGENT_CHANNELS, sanitizeAgentConfig, type AgentConfig } from '@/lib/mar
 import { activateAgent, activationError, approvePost, fitsAgentSchedule, reschedulePost, retryPublication, returnToReview } from '@/lib/marketing/ops'
 import type { MarketingChannel } from '@prisma/client'
 import { reviewNow } from '@/lib/marketing/editorial-ops'
+import { markStaleIfChanged } from '@/lib/marketing/editorial'
+import { preflightPost } from '@/lib/marketing/preflight'
+import { saveVariants } from '@/lib/marketing/service'
+import { FORMAT_LABELS } from '@/lib/marketing/publish-options'
 import { adBlock, createAdDraft } from '@/lib/marketing/ads'
 import { sanitizeAdInput } from '@/lib/marketing/ads-core'
 import { getDefaultWorkspaceId } from '@/lib/workspaces'
@@ -558,4 +562,93 @@ const pauseCampaign: HaggoActionDef<{ campaignId: string }> = {
   undo: async (p) => { await prisma.messagingCampaign.update({ where: { id: p.campaignId }, data: { status: 'SCHEDULED' } }) },
 }
 
-export const MARKETING_ACTIONS = [reschedule, retry, approve, cancel, pause, activate, updateSchedule, requestPlan, decideIdeasAction, draftIdeaAction, reviewPostAction, requestAdPackage, proposeBudgetShift, pauseCampaign] as unknown as HaggoActionDef[]
+const preflightAction: HaggoActionDef<{ postId: string }> = {
+  id: 'marketing.preflight_post',
+  domain: 'marketing',
+  risk: 'low',
+  label: 'Probar una publicación con Meta (sin publicar)',
+  hint: 'Meta revisa cada versión de Facebook e Instagram sin publicarla (crea el contenedor de Instagram o sube el video de Facebook sin el paso de publicar). Úsala antes de que salga un reel o una historia, o cuando una publicación falló por el archivo. Tarda hasta 2 minutos.',
+  schema: { type: 'object', properties: { postId: { type: 'string' } }, required: ['postId'] },
+  sideEffects: [],
+  parse: (raw) => { const r = requireObj(raw); const e: string[] = []; if (!r) return { ok: false, errors: ['Parámetros inválidos'] }; return done(e, { postId: parseId(r, 'postId', e) }) },
+  describe: () => 'Probar la publicación con Meta sin publicarla',
+  entity: (p) => ({ type: 'MarketingPost', id: p.postId }),
+  preconditions: async (p) => {
+    const post = await prisma.marketingPost.findUnique({ where: { id: p.postId }, select: { title: true, variants: { select: { channel: true } } } })
+    if (!post) return { ok: false, reason: 'La publicación no existe' }
+    if (!post.variants.some((v) => v.channel !== 'WEB')) return { ok: false, reason: 'No tiene versión de Facebook ni de Instagram' }
+    return { ok: true, before: { title: post.title } }
+  },
+  preview: async (_p, before) => ({ summary: `Meta revisa «${(before as { title: string }).title}» sin publicarla`, diff: [] }),
+  execute: async (p) => {
+    const results = await preflightPost(p.postId, { maxWaitMs: 90_000 })
+    return { after: { results }, result: results.length ? results.map((r) => `${r.channel === 'INSTAGRAM' ? 'Instagram' : 'Facebook'} ${r.account} (${FORMAT_LABELS[r.format] ?? r.format}): ${r.status === 'ok' ? 'aceptada' : r.status === 'pending' ? 'procesando sin errores' : r.status === 'failed' ? `rechazada: ${r.detail}` : 'sin prueba'}`).join(' · ') : 'No había nada que probar' }
+  },
+}
+
+/**
+ * Format of one network's version: Instagram foto, carrusel, historia or reel (if the post has a
+ * video); Facebook publicación, historia or reel. Stories and reels carry the text on screen.
+ */
+const setFormatAction: HaggoActionDef<{ postId: string; channel: 'FACEBOOK' | 'INSTAGRAM'; format: string; text?: string; cta?: string }> = {
+  id: 'marketing.set_format',
+  domain: 'marketing',
+  risk: 'medium',
+  label: 'Cambiar el formato de una publicación (historia, reel, foto, carrusel)',
+  hint: 'Cambia el formato de la versión de Instagram o Facebook de una publicación que no ha salido: p. ej. convertir una foto en historia para recordar una promoción, o volver a foto. Historias y reels necesitan el texto en pantalla (text ≤ 60 caracteres, cta ≤ 25). Un reel necesita que la publicación ya tenga un video. Vuelve a pasar por la revisión editorial.',
+  schema: {
+    type: 'object',
+    properties: {
+      postId: { type: 'string' }, channel: { type: 'string', enum: ['FACEBOOK', 'INSTAGRAM'] },
+      format: { type: 'string', enum: ['feed', 'carousel', 'reel', 'trial_reel', 'story', 'post'] },
+      text: { type: 'string', description: 'Titular en pantalla (historias y reels)' }, cta: { type: 'string', description: 'Llamada a la acción en pantalla' },
+    },
+    required: ['postId', 'channel', 'format'],
+  },
+  sideEffects: [],
+  parse: (raw) => {
+    const r = requireObj(raw); const e: string[] = []
+    if (!r) return { ok: false, errors: ['Parámetros inválidos'] }
+    const channel = r.channel === 'FACEBOOK' || r.channel === 'INSTAGRAM' ? r.channel : null
+    if (!channel) e.push('channel: FACEBOOK o INSTAGRAM')
+    const allowed = channel === 'FACEBOOK' ? ['post', 'reel', 'story'] : ['feed', 'carousel', 'reel', 'trial_reel', 'story']
+    const format = typeof r.format === 'string' && allowed.includes(r.format) ? r.format : ''
+    if (!format) e.push(`format: uno de ${allowed.join(', ')}`)
+    const vertical = format === 'story' || format === 'reel' || format === 'trial_reel'
+    const text = parseText(r, 'text', e, { max: 90, optional: !vertical })
+    const cta = parseText(r, 'cta', e, { max: 40, optional: true })
+    return done(e, { postId: parseId(r, 'postId', e), channel: channel!, format, text, cta })
+  },
+  describe: (p) => `Pasar la versión de ${p.channel === 'INSTAGRAM' ? 'Instagram' : 'Facebook'} a ${FORMAT_LABELS[p.format] ?? p.format}`,
+  entity: (p) => ({ type: 'MarketingPost', id: p.postId }),
+  preconditions: async (p) => {
+    const post = await prisma.marketingPost.findUnique({ where: { id: p.postId }, select: { title: true, status: true, variants: { where: { channel: p.channel }, select: { format: true, publishOptions: true } }, media: { select: { kind: true } } } })
+    if (!post) return { ok: false, reason: 'La publicación no existe' }
+    if (DONE_POST.includes(post.status)) return { ok: false, reason: 'Ya salió o está archivada' }
+    if (!post.variants.length) return { ok: false, reason: `No tiene versión de ${p.channel === 'INSTAGRAM' ? 'Instagram' : 'Facebook'}` }
+    if ((p.format === 'reel' || p.format === 'trial_reel') && !post.media.some((m) => m.kind === 'video')) return { ok: false, reason: 'Para un reel la publicación necesita un video' }
+    if (p.format !== 'reel' && p.format !== 'trial_reel' && !post.media.some((m) => m.kind === 'image')) return { ok: false, reason: 'Ese formato necesita una foto' }
+    return { ok: true, before: { title: post.title, format: post.variants[0].format, publishOptions: post.variants[0].publishOptions } }
+  },
+  preview: async (p, before) => {
+    const b = before as { title: string; format: string | null }
+    return { summary: `«${b.title}»: ${p.channel === 'INSTAGRAM' ? 'Instagram' : 'Facebook'} pasa a ${FORMAT_LABELS[p.format] ?? p.format}${p.text ? ` con «${p.text}» en pantalla` : ''}`, diff: [{ field: 'Formato', from: FORMAT_LABELS[b.format ?? ''] ?? 'automático', to: FORMAT_LABELS[p.format] ?? p.format }] }
+  },
+  execute: async (p) => {
+    const vertical = p.format === 'story' || p.format === 'reel' || p.format === 'trial_reel'
+    const media = await prisma.marketingMedia.findMany({ where: { postId: p.postId }, orderBy: { position: 'asc' }, select: { id: true, kind: true } })
+    const images = media.filter((m) => m.kind === 'image').map((m) => m.id)
+    const video = media.find((m) => m.kind === 'video')?.id
+    await saveVariants(p.postId, [{
+      channel: p.channel,
+      format: p.format === 'post' ? null : p.format,
+      publishOptions: vertical ? { storyText: p.text, ...(p.cta ? { storyCta: p.cta } : {}), renderText: true } : null,
+      mediaIds: p.format === 'reel' || p.format === 'trial_reel' ? [video!] : p.format === 'story' ? images.slice(0, 1) : images,
+      ...(p.format === 'story' ? { body: '' } : {}),
+    }])
+    await markStaleIfChanged(p.postId)
+    return { after: { format: p.format }, result: `Formato cambiado; la revisión editorial vuelve a revisar la pieza antes de que salga` }
+  },
+}
+
+export const MARKETING_ACTIONS = [reschedule, retry, approve, cancel, pause, activate, updateSchedule, requestPlan, decideIdeasAction, draftIdeaAction, reviewPostAction, requestAdPackage, proposeBudgetShift, pauseCampaign, preflightAction, setFormatAction] as unknown as HaggoActionDef[]

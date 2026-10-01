@@ -1,4 +1,6 @@
 import type Anthropic from '@anthropic-ai/sdk'
+import { preflightPost } from '@/lib/marketing/preflight'
+import { readPublishOptions } from '@/lib/marketing/publish-options'
 import type { MarketingAgent, MarketingCampaign, Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
@@ -12,7 +14,7 @@ import { SITE_URL, slugify } from '@/lib/marketing/seo'
 import { sanitizeVariantInput, type VariantPatch } from '@/lib/marketing/input'
 import { PublishValidationError, cancelScheduled, refreshPostStatus, schedulePost, validatePostForChannel, type Target } from '@/lib/marketing/publisher'
 import { saveVariants, workspaceAccounts } from '@/lib/marketing/service'
-import { generateImages, getBrandKit, getImageSettings, importImage, providerReady, searchPexels } from '@/lib/marketing/images'
+import { addStillVideo, generateImages, getBrandKit, getImageSettings, importImage, importVideo, providerReady, searchPexels, searchPexelsVideos } from '@/lib/marketing/images'
 import { servicePrompt } from '@/lib/marketing/images-core'
 import { AGENT_CHANNELS, normalizeDomain, readAgentConfig, type AgentConfig, type AgentMode, type AgentSettings } from '@/lib/marketing/agent-input'
 import {
@@ -47,6 +49,7 @@ import {
   type Recommendation,
   type Strategy,
   type UtmParams,
+  variantFormat,
 } from '@/lib/marketing/agent-core'
 import {
   DRAFT_TOOL,
@@ -403,7 +406,7 @@ function ensureHashtags(text: string, tags: string[]) {
 }
 
 /** The model's text into the post's channel variants, with UTM on our own links, bounded like any edit. */
-async function writeDraft(postId: string, draft: PostDraft, channels: MarketingChannel[], utm: Omit<UtmParams, 'channel'>, config: AgentConfig) {
+async function writeDraft(postId: string, draft: PostDraft, channels: MarketingChannel[], utm: Omit<UtmParams, 'channel'>, config: AgentConfig, formats: Partial<Record<MarketingChannel, string>> = {}) {
   const own = ownDomains()
   const u = (channel: MarketingChannel) => ({ ...utm, channel })
   const patches: VariantPatch[] = []
@@ -416,8 +419,13 @@ async function writeDraft(postId: string, draft: PostDraft, channels: MarketingC
       excerpt: draft.web.excerpt, tags: draft.web.tags, category: draft.web.category, aiGenerated: true,
     }))
   }
+  // Reels and stories: the text on screen is drawn on the image or video (and reviewed like any text)
+  const screen = draft.screen ? { storyText: draft.screen.text, ...(draft.screen.cta ? { storyCta: draft.screen.cta } : {}), renderText: true } : null
+  const optionsFor = (format: string | null) => (format === 'reel' || format === 'story' ? screen : null)
   if (channels.includes('INSTAGRAM') && draft.instagram) {
-    patches.push(safe({ channel: 'INSTAGRAM', body: ensureHashtags(applyUtmToText(draft.instagram.caption, u('INSTAGRAM'), own), config.voice.brandHashtags), format: draft.instagram.format, aiGenerated: true }))
+    const format = draft.instagram.format
+    const body = format === 'story' ? '' : ensureHashtags(applyUtmToText(draft.instagram.caption, u('INSTAGRAM'), own), config.voice.brandHashtags)
+    patches.push(safe({ channel: 'INSTAGRAM', body, format, publishOptions: optionsFor(format), aiGenerated: true }))
   }
   if (channels.includes('FACEBOOK') && draft.facebook) {
     // Every piece leads to a request: the service's page (with UTM) and a WhatsApp short link tagged with the post
@@ -425,7 +433,10 @@ async function writeDraft(postId: string, draft: PostDraft, channels: MarketingC
     const link = draft.facebook.link || (service?.slug ? `${SITE_URL}/servicios/${service.slug}` : null)
     const text = applyUtmToText(draft.facebook.text, u('FACEBOOK'), own)
     const wa = `${SITE_URL}/w/post-${postId}`
-    patches.push(safe({ channel: 'FACEBOOK', body: text.includes('/w/post-') ? text : `${text.trimEnd()}\n\n📲 Pídelo por WhatsApp: ${wa}`, linkUrl: link ? withUtm(link, u('FACEBOOK'), own) : null, aiGenerated: true }))
+    const format = variantFormat('FACEBOOK', formats.FACEBOOK)
+    // A story shows no text or link; a reel shows its text but not the link card
+    const body = format === 'story' ? '' : text.includes('/w/post-') ? text : `${text.trimEnd()}\n\n📲 Pídelo por WhatsApp: ${wa}`
+    patches.push(safe({ channel: 'FACEBOOK', body, format: format ?? 'post', publishOptions: optionsFor(format), linkUrl: link && !format ? withUtm(link, u('FACEBOOK'), own) : null, aiGenerated: true }))
   }
   await prisma.marketingPost.update({ where: { id: postId }, data: { title: draft.title.slice(0, 200), brief: draft.brief || null } })
   await saveVariants(postId, patches)
@@ -483,6 +494,53 @@ async function attachImages(agent: Agent, config: AgentConfig, postId: string, d
   }
 }
 
+/**
+ * Reels need a video: a vertical Pexels clip of the service, or the post's first photo animated. Then
+ * each channel gets its own file: reels the video, the rest the photos (a story, the first photo).
+ * Never throws: without a video the reel fails validation and goes to a person.
+ */
+async function attachVideoAndAssign(agent: Agent, postId: string, draft: PostDraft, service: string | null): Promise<{ source: string | null; error: string | null }> {
+  const variants = await prisma.marketingPostVariant.findMany({ where: { postId }, select: { channel: true, format: true } })
+  const media = await prisma.marketingMedia.findMany({ where: { postId }, orderBy: { position: 'asc' } })
+  const images = media.filter((m) => m.kind === 'image')
+  let video = media.find((m) => m.kind === 'video') ?? null
+  let source: string | null = video ? 'existing' : null
+  let error: string | null = null
+  if (!video && variants.some((v) => v.format === 'reel')) {
+    const queries = Array.from(new Set([draft.screen?.videoQuery, service, draft.image.query].filter((q): q is string => Boolean(q?.trim()))))
+    for (const q of queries) {
+      try {
+        const found = await searchPexelsVideos(q)
+        if (!found.length) continue
+        // Vary the clip between pieces of the same service
+        const pick = found[postId.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % Math.min(found.length, 5)]
+        video = await importVideo({ workspaceId: agent.workspaceId, postId, candidate: pick, alt: draft.image.alt || draft.title })
+        source = 'pexels-video'
+        break
+      } catch (err) {
+        error = err instanceof Error ? err.message : 'No se pudo traer el clip'
+        logger.warn('Pexels video failed', { agentId: agent.id, postId, err: error })
+      }
+    }
+    if (!video && images[0]) {
+      try {
+        video = await addStillVideo(postId, images[0])
+        source = 'foto animada'
+        error = null
+      } catch (err) {
+        error = err instanceof Error ? err.message : 'No se pudo animar la foto'
+      }
+    }
+  }
+  const imageIds = images.map((m) => m.id)
+  const patches: VariantPatch[] = variants.filter((v) => v.channel !== 'WEB').map((v) => ({
+    channel: v.channel as MarketingChannel,
+    mediaIds: v.format === 'reel' ? (video ? [video.id] : []) : v.format === 'story' ? imageIds.slice(0, 1) : imageIds,
+  }))
+  if (patches.length) await saveVariants(postId, patches)
+  return { source, error }
+}
+
 function guardContext(config: AgentConfig, prices: number[], accounts: Array<{ name: string }>, confidence: number | null, threshold: number) {
   return {
     now: new Date(),
@@ -513,7 +571,9 @@ async function checkPost(agent: Agent, config: AgentConfig, prices: number[], po
     }
   }
   const accounts = (await workspaceAccounts(agent.workspaceId)).filter((a) => a.channel === 'INSTAGRAM')
-  const guard = checkGuardrails(post.variants.map((v) => ({ channel: v.channel as MarketingChannel, text: v.body, linkUrl: v.linkUrl })), guardContext(config, prices, accounts, confidence, agent.confidenceThreshold))
+  // The text on screen of reels and stories goes through the same guardrails as the captions
+  const screenOf = (v: (typeof post.variants)[number]) => { const o = readPublishOptions(v.publishOptions); return [o.storyText, o.storyCta].filter(Boolean).join('\n') }
+  const guard = checkGuardrails(post.variants.map((v) => ({ channel: v.channel as MarketingChannel, text: [v.body, screenOf(v)].filter(Boolean).join('\n\n'), linkUrl: v.linkUrl })), guardContext(config, prices, accounts, confidence, agent.confidenceThreshold))
   const blocks = guard.issues.filter((i) => i.severity === 'block').map((i) => `${i.channel ? `${i.channel}: ` : ''}${i.message}`)
   return { post, ok: !validation.length && guard.ok, needsReview: guard.needsReview, validation, fixable: [...fixable, ...blocks], issues: guard.issues }
 }
@@ -547,8 +607,8 @@ export async function draftIdea(agent: Agent, ideaId: string, opts: { instructio
 
     // A new version asked to apply the editor's last review starts from its asks
     const editorAsks = opts.editorNotes?.length ? opts.editorNotes : null
-    let parsed = parseDraft(await ask(null, previous, editorAsks), channels)
-    if (!parsed.ok) parsed = parseDraft(await ask(parsed.errors, previous, editorAsks), channels)
+    let parsed = parseDraft(await ask(null, previous, editorAsks), channels, ideaInfo.formats)
+    if (!parsed.ok) parsed = parseDraft(await ask(parsed.errors, previous, editorAsks), channels, ideaInfo.formats)
     if (!parsed.ok) throw new AgentError(`La pieza no vino completa: ${parsed.errors.join(' · ')}`)
     let draft = parsed.value
 
@@ -557,18 +617,19 @@ export async function draftIdea(agent: Agent, ideaId: string, opts: { instructio
       data: { workspaceId: agent.workspaceId, campaignId: agent.campaignId, title: draft.title.slice(0, 200), brief: draft.brief || null, origin: 'agent', agentId: agent.id, ideaId: idea.id, pillar: idea.pillar, status: 'draft' },
     })
     const utm = { campaignSlug: slugify(agent.campaign.name, 40) || 'campana', postId: post.id }
-    await writeDraft(post.id, draft, channels, utm, config)
+    await writeDraft(post.id, draft, channels, utm, config, ideaInfo.formats)
     const service = draft.service && ctx.catalog.services.some((s) => s.name === draft.service) ? draft.service : idea.service
     const image = await attachImages(agent, config, post.id, draft, service, channels, meter)
+    const video = await attachVideoAndAssign(agent, post.id, draft, service)
 
     let check = await checkPost(agent, config, ctx.catalog.prices, post.id, draft.confidence)
     let corrected = false
     if (check.fixable.length) {
       const current = check.post.variants.map((v) => `${v.channel}:\n${v.body}`).join('\n\n')
-      const again = parseDraft(await ask(check.fixable, current), channels)
+      const again = parseDraft(await ask(check.fixable, current), channels, ideaInfo.formats)
       if (again.ok) {
         draft = again.value
-        await writeDraft(post.id, draft, channels, utm, config)
+        await writeDraft(post.id, draft, channels, utm, config, ideaInfo.formats)
         check = await checkPost(agent, config, ctx.catalog.prices, post.id, draft.confidence)
         corrected = true
       }
@@ -584,10 +645,10 @@ export async function draftIdea(agent: Agent, ideaId: string, opts: { instructio
       let pass = await agentReviewPass(agent, post.id, editorial, base, { round })
       while (pass.status !== 'failed' && nextReviewStep(pass.status, round, editorial.maxRounds) === 'rewrite') {
         const saved = await prisma.marketingPostVariant.findMany({ where: { postId: post.id }, select: { channel: true, body: true } })
-        const again = parseDraft(await ask(null, saved.map((v) => `${v.channel}:\n${v.body}`).join('\n\n'), instructionsForAgent(pass.instructions)), channels)
+        const again = parseDraft(await ask(null, saved.map((v) => `${v.channel}:\n${v.body}`).join('\n\n'), instructionsForAgent(pass.instructions)), channels, ideaInfo.formats)
         if (!again.ok) break
         draft = again.value
-        await writeDraft(post.id, draft, channels, utm, config)
+        await writeDraft(post.id, draft, channels, utm, config, ideaInfo.formats)
         check = await checkPost(agent, config, ctx.catalog.prices, post.id, draft.confidence)
         round++
         if (!check.ok) break
@@ -605,7 +666,7 @@ export async function draftIdea(agent: Agent, ideaId: string, opts: { instructio
     const t = nextAgentState(from, 'drafted', mode, { valid: check.ok, needsReview: check.needsReview || heldByEditor, trial })!
     const meta = {
       confidence: draft.confidence, risks: draft.risks, hypothesis: draft.hypothesis || idea.hypothesis, cta: draft.cta, rationale: idea.rationale, explore: idea.explore, service,
-      imageSource: image.source, imageError: image.error, guardrails: check.issues, validation: check.validation, corrected, mode, instruction: opts.instruction ?? null,
+      imageSource: image.source, imageError: image.error, videoSource: video.source, videoError: video.error, guardrails: check.issues, validation: check.validation, corrected, mode, instruction: opts.instruction ?? null,
       review: review ? { status: review.status, score: review.score, rounds: review.rounds, summary: review.summary.slice(0, 600) } : null,
     }
     await prisma.marketingPost.update({
@@ -624,7 +685,7 @@ export async function draftIdea(agent: Agent, ideaId: string, opts: { instructio
 
     const where = t.state === 'review' ? 'esperando aprobación' : t.state === 'draft' ? 'en borrador (necesita a una persona)' : 'programada'
     const reviewNote = review ? ` · revisión: ${review.status === 'approved' ? `aprobada${review.score != null ? ` ${review.score}/10` : ''}` : review.status === 'failed' ? 'no se pudo hacer' : review.status === 'rejected' ? 'rechazada' : 'pide cambios'}${review.rounds ? ` tras ${review.rounds} reescritura(s)` : ''}` : ''
-    return { summary: `«${draft.title}» ${where}${corrected ? ' tras una corrección' : ''}${reviewNote}${image.error ? ` · imagen: ${image.error}` : ''}`, value: post.id, output: { postId: post.id, state: t.state, issues: check.issues, validation: check.validation, review } }
+    return { summary: `«${draft.title}» ${where}${corrected ? ' tras una corrección' : ''}${reviewNote}${image.error ? ` · imagen: ${image.error}` : ''}${video.source ? ` · video: ${video.source}` : video.error ? ` · video: ${video.error}` : ''}`, value: post.id, output: { postId: post.id, state: t.state, issues: check.issues, validation: check.validation, review } }
   })
 }
 
@@ -1017,6 +1078,11 @@ export async function runAgentCycle(agentId: string, deadline = Date.now() + 240
       Object.assign(agent, await loadAgent(agent.id))
     }
 
+    if (timeLeft() > 100_000) {
+      const r = await preflightAgentPieces(agent, timeLeft)
+      if (r) report.push(`probar con Meta: ${r}`)
+    }
+
     if (timeLeft() > 90_000 && (!agent.lastLearnedAt || now.getTime() - agent.lastLearnedAt.getTime() > LEARN_EVERY_MS)) {
       const r = await learn(agent, now)
       report.push(`aprender: ${r.ok ? r.summary : r.error}`)
@@ -1028,6 +1094,43 @@ export async function runAgentCycle(agentId: string, deadline = Date.now() + 240
   } finally {
     await prisma.marketingAgent.update({ where: { id: agentId }, data: { lockedUntil: null, lastRunAt: new Date() } }).catch(() => null)
   }
+}
+
+/**
+ * Reels and stories the agent wrote are tested with Meta before their time (container / upload without
+ * publishing). A rejection takes the piece off the schedule and tells the team why; the publisher
+ * would only find it out at publishing time.
+ */
+async function preflightAgentPieces(agent: Agent, timeLeft: () => number) {
+  const since = new Date(Date.now() - 3 * 24 * H)
+  const posts = await prisma.marketingPost.findMany({
+    where: { agentId: agent.id, createdAt: { gte: since }, status: { in: ['review', 'approved', 'scheduled'] }, variants: { some: { format: { in: ['reel', 'story'] } } } },
+    select: { id: true, title: true, status: true, agentMeta: true },
+    orderBy: { createdAt: 'asc' },
+    take: 3,
+  })
+  const todo = posts.filter((p) => !(p.agentMeta as { preflight?: unknown } | null)?.preflight)
+  const done: string[] = []
+  for (const p of todo) {
+    if (timeLeft() < 100_000) break
+    const results = await preflightPost(p.id, { maxWaitMs: 45_000 }).catch((err: unknown) => {
+      logger.warn('Agent preflight failed', { postId: p.id, err: err instanceof Error ? err.message : err })
+      return null
+    })
+    if (!results) continue
+    const failed = results.filter((r) => r.status === 'failed')
+    done.push(`«${p.title}» ${failed.length ? 'rechazada' : 'aceptada'}`)
+    if (!failed.length) continue
+    // Meta would refuse it at publishing time: off the schedule, to a person
+    await cancelScheduled(p.id)
+    await prisma.marketingPost.update({ where: { id: p.id }, data: { status: 'draft', approvedAt: null } })
+    await notify(noticeTarget(agent), {
+      type: 'failed', title: `Meta rechazó «${p.title}» en la prueba previa`,
+      body: failed.map((f) => `${f.channel === 'INSTAGRAM' ? 'Instagram' : 'Facebook'} (${f.format}): ${f.detail}`).join(' · ').slice(0, 900),
+      url: postUrl(p.id), postId: p.id, dedupeKey: `preflight:${p.id}`,
+    })
+  }
+  return done.join(', ')
 }
 
 /** Cron: active agents, least recently run first, within the function's time. */

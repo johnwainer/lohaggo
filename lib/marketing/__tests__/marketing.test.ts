@@ -141,7 +141,9 @@ describe('media por red', () => {
   it('Open Graph 1200×630 y póster de video', () => {
     expect(ogImageUrl(url)).toContain('c_fill,g_auto,w_1200,h_630')
     expect(videoPosterUrl('https://res.cloudinary.com/demo/video/upload/v1/clip.mp4')).toBe('https://res.cloudinary.com/demo/video/upload/so_1,w_600,c_limit/v1/clip.jpg')
-    expect(videoPosterUrl(url)).toBeNull()
+    // A photo used as a reel («foto animada»): its poster is the photo itself, vertical
+    expect(videoPosterUrl(url)).toContain('c_fill,g_auto,w_400,h_711')
+    expect(videoPosterUrl('https://otra.com/clip.mp4')).toBeNull()
   })
 })
 

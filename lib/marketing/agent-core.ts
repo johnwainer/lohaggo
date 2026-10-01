@@ -704,7 +704,18 @@ export type PostDraft = {
   web: { body: string; seoTitle: string; seoDescription: string; slug: string; excerpt: string; tags: string[]; category: string } | null
   instagram: { caption: string; format: string } | null
   facebook: { text: string; link: string | null } | null
+  /** Text on screen of reels and stories */
+  screen: { text: string; cta: string; videoQuery: string } | null
 }
+
+/** Agent format names → the format each network publishes (Facebook «foto», «texto», «enlace» are regular posts). */
+export function variantFormat(channel: MarketingChannel, agentFormat: string | null | undefined): string | null {
+  if (channel === 'INSTAGRAM') return agentFormat === 'reel' || agentFormat === 'story' || agentFormat === 'carousel' || agentFormat === 'feed' ? agentFormat : null
+  if (channel === 'FACEBOOK') return agentFormat === 'reel' ? 'reel' : agentFormat === 'historia' ? 'story' : null
+  return null
+}
+
+const isVertical = (f: string | null | undefined) => f === 'reel' || f === 'story' || f === 'historia'
 export type Recommendation =
   | { type: 'pillar_weight'; pillar: string; weight: number; reason: string }
   | { type: 'frequency'; channel: MarketingChannel; perWeek: number; reason: string }
@@ -803,7 +814,7 @@ export function parseIdeas(input: unknown, ctx: { pillars: string[]; channels: M
   return { ok: true, value: { ideas, dropped } }
 }
 
-export function parseDraft(input: unknown, channels: MarketingChannel[]): Parsed<PostDraft> {
+export function parseDraft(input: unknown, channels: MarketingChannel[], formats: Partial<Record<MarketingChannel, string>> = {}): Parsed<PostDraft> {
   if (!isObj(input)) return { ok: false, errors: ['La respuesta no es un objeto'] }
   const errors: string[] = []
   const title = s(input.title, 200)
@@ -812,11 +823,18 @@ export function parseDraft(input: unknown, channels: MarketingChannel[]): Parsed
   const ig = isObj(input.instagram) ? input.instagram : null
   const fb = isObj(input.facebook) ? input.facebook : null
   const web = w ? { body: s(w.body, 60_000), seoTitle: s(w.seoTitle, 120), seoDescription: s(w.seoDescription, 320), slug: s(w.slug, 90), excerpt: s(w.excerpt, 500), tags: strs(w.tags, 8, 40), category: s(w.category, 60) } : null
-  const instagram = ig ? { caption: s(ig.caption, 2300), format: AGENT_FORMATS.INSTAGRAM.includes(s(ig.format, 20)) ? s(ig.format, 20) : 'feed' } : null
-  const facebook = fb ? { text: s(fb.text, 5000), link: s(fb.link, 500) || null } : null
+  // A reel or story was decided in the plan (it needs its own media): the plan's format wins
+  const planned = formats.INSTAGRAM === 'reel' || formats.INSTAGRAM === 'story' ? formats.INSTAGRAM : null
+  const igFormat = planned ?? (AGENT_FORMATS.INSTAGRAM.includes(s(ig?.format, 20)) && !isVertical(s(ig?.format, 20)) ? s(ig?.format, 20) : 'feed')
+  const instagram = ig || igFormat === 'story' ? { caption: igFormat === 'story' ? '' : s(ig?.caption, 2300), format: igFormat } : null
+  const fbStory = formats.FACEBOOK === 'historia'
+  const facebook = fb || fbStory ? { text: fbStory ? '' : s(fb?.text, 5000), link: fbStory ? null : s(fb?.link, 500) || null } : null
+  const sc = isObj(input.screen) ? input.screen : null
+  const screen = sc && s(sc.text, 90) ? { text: s(sc.text, 90), cta: s(sc.cta, 40), videoQuery: s(sc.videoQuery, 80) } : null
   if (channels.includes('WEB') && !web?.body) errors.push('Falta el artículo del blog')
-  if (channels.includes('INSTAGRAM') && !instagram?.caption) errors.push('Falta el texto de Instagram')
-  if (channels.includes('FACEBOOK') && !facebook?.text) errors.push('Falta el texto de Facebook')
+  if (channels.includes('INSTAGRAM') && igFormat !== 'story' && !instagram?.caption) errors.push('Falta el texto de Instagram')
+  if (channels.includes('FACEBOOK') && !fbStory && !facebook?.text) errors.push('Falta el texto de Facebook')
+  if (channels.some((c) => isVertical(formats[c]) || (c === 'INSTAGRAM' && isVertical(igFormat))) && !screen) errors.push('Falta el texto en pantalla (screen) del reel o la historia')
   const confidence = num01(input.confidence)
   if (confidence === null) errors.push('Falta la confianza (0 a 1)')
   const img = isObj(input.image) ? input.image : {}
@@ -830,6 +848,7 @@ export function parseDraft(input: unknown, channels: MarketingChannel[]): Parsed
       web: channels.includes('WEB') ? web : null,
       instagram: channels.includes('INSTAGRAM') ? instagram : null,
       facebook: channels.includes('FACEBOOK') ? facebook : null,
+      screen,
     },
   }
 }

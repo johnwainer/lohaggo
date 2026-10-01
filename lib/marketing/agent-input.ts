@@ -31,8 +31,8 @@ export const AGENT_CHANNELS: MarketingChannel[] = ['INSTAGRAM', 'FACEBOOK', 'WEB
 
 /** Formats the agent can produce without a person: it has photos, not video (reels need an uploaded video). */
 export const AGENT_FORMATS: Record<MarketingChannel, readonly string[]> = {
-  INSTAGRAM: ['feed', 'carousel'],
-  FACEBOOK: ['foto', 'texto', 'enlace'],
+  INSTAGRAM: ['feed', 'carousel', 'reel', 'story'],
+  FACEBOOK: ['foto', 'texto', 'enlace', 'reel', 'historia'],
   WEB: ['guía', 'lista', 'comparativa', 'preguntas', 'caso'],
 }
 
@@ -128,8 +128,8 @@ export function defaultAgentConfig(objective = 'reach'): AgentConfig {
     audience: { segments: [{ name: 'Cliente final', pains: '', motivations: '' }], objections: [], awareness: 'problem', formal: false },
     voice: { adjectives: [], bannedWords: [], bannedTopics: ['política', 'religión', 'competencia por su nombre'], emojis: { INSTAGRAM: 'moderate', FACEBOOK: 'few', WEB: 'none' }, brandHashtags: ['#LoHaggo'], cta: '', examples: [] },
     channels: {
-      INSTAGRAM: { enabled: true, perWeek: 4, formats: ['feed', 'carousel'], accountIds: [] },
-      FACEBOOK: { enabled: true, perWeek: 3, formats: ['foto', 'enlace'], accountIds: [] },
+      INSTAGRAM: { enabled: true, perWeek: 4, formats: ['feed', 'carousel', 'reel', 'story'], accountIds: [] },
+      FACEBOOK: { enabled: true, perWeek: 3, formats: ['foto', 'enlace', 'reel', 'historia'], accountIds: [] },
       WEB: { enabled: true, perWeek: 1, formats: ['guía', 'lista'], accountIds: [] },
     },
     schedule: { smart: true, days: [1, 2, 3, 4, 5, 6], windows: [{ from: 8, to: 21 }], quietFrom: 21, quietTo: 7, minGapHours: 3, maxPerDay: 1, repeatDays: 21, draftLeadHours: 72 },

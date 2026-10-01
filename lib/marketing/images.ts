@@ -5,7 +5,7 @@ import { cloudinaryService } from '@/lib/cloudinary'
 import { logFixedCostCall } from '@/lib/ai/calls'
 import { checkWorkspaceBudget } from '@/lib/ai/limits'
 import { getAiSettings } from '@/lib/ai/settings'
-import { isCloudinaryUrl } from '@/lib/marketing/media'
+import { isCloudinaryUrl, STILL_VIDEO_SEC } from '@/lib/marketing/media'
 import { mediaFolder } from '@/lib/marketing/service'
 import {
   IMAGE_PROVIDERS,
@@ -307,6 +307,78 @@ export async function importImage(params: {
       postId: params.postId, url: branded || file.url, originalUrl: file.url, branded: Boolean(branded), publicId: file.publicId, kind: 'image', mime: file.mime,
       bytes: file.bytes, width: file.width, height: file.height, alt: c.alt?.slice(0, 200) || null, position: count,
       source: c.source, credit: c.credit?.slice(0, 200) || null, creditUrl: c.creditUrl?.startsWith('https://') ? c.creditUrl.slice(0, 500) : null,
+    },
+  })
+}
+
+// ─── Video for reels ─────────────────────────────────────────────────────────
+
+type PexelsVideo = {
+  id: number
+  width: number
+  height: number
+  duration: number
+  url: string
+  user?: { name?: string; url?: string }
+  video_files?: Array<{ quality?: string | null; file_type?: string; width?: number | null; height?: number | null; link: string }>
+}
+
+export type VideoCandidate = { id: number; link: string; width: number; height: number; durationSec: number; credit: string | null; creditUrl: string | null; pageUrl: string }
+
+/** The MP4 of a Pexels video that fits a vertical reel: portrait, 960 to 1920 px tall, closest to 1920. */
+export function pickVideoFile(v: PexelsVideo): VideoCandidate | null {
+  const files = (v.video_files || []).filter((f) => f.file_type === 'video/mp4' && f.width && f.height && f.height > f.width && f.height >= 960 && f.height <= 2160)
+  const best = files.sort((a, b) => Math.abs(a.height! - 1920) - Math.abs(b.height! - 1920))[0]
+  if (!best) return null
+  return { id: v.id, link: best.link, width: best.width!, height: best.height!, durationSec: v.duration, credit: v.user?.name ? `${v.user.name} en Pexels` : 'Pexels', creditUrl: v.user?.url ?? null, pageUrl: v.url }
+}
+
+/** Vertical stock clips for a reel (5 to 40 s), best first. */
+export async function searchPexelsVideos(query: string, keyOverride?: string): Promise<VideoCandidate[]> {
+  const key = keyOverride || (await getImageSettings()).keys.pexels
+  if (!key) throw new ImageError('Falta la clave de Pexels (Publicaciones → Marca e imágenes)')
+  const url = new URL('https://api.pexels.com/videos/search')
+  url.searchParams.set('query', query.slice(0, 200))
+  url.searchParams.set('orientation', 'portrait')
+  url.searchParams.set('size', 'medium')
+  url.searchParams.set('per_page', '15')
+  url.searchParams.set('locale', 'es-ES')
+  const res = await fetch(url, { headers: { Authorization: key }, cache: 'no-store' })
+  if (res.status === 401 || res.status === 403) throw new ImageError('Pexels rechazó la clave')
+  if (res.status === 429) throw new ImageError('Se alcanzó el límite de búsquedas de Pexels por ahora')
+  if (!res.ok) throw new ImageError(`Pexels respondió ${res.status}`)
+  const data = (await res.json()) as { videos?: PexelsVideo[] }
+  return (data.videos || []).filter((v) => v.duration >= 5 && v.duration <= 40).map(pickVideoFile).filter((v): v is VideoCandidate => Boolean(v))
+}
+
+/** A Pexels clip copied to Cloudinary (the post must not depend on a third-party URL). */
+export async function importVideo(params: { workspaceId: string; postId: string; candidate: VideoCandidate; alt?: string | null }) {
+  const count = await prisma.marketingMedia.count({ where: { postId: params.postId } })
+  if (count >= 10) throw new ImageError('Máximo 10 archivos por publicación')
+  const c = params.candidate
+  const up = await cloudinaryService.uploadRemote(c.link, mediaFolder(params.workspaceId, params.postId), 'video')
+  return prisma.marketingMedia.create({
+    data: {
+      postId: params.postId, url: up.secure_url, originalUrl: up.secure_url, publicId: up.public_id, kind: 'video', mime: 'video/mp4',
+      bytes: up.bytes ?? null, width: up.width ?? c.width, height: up.height ?? c.height, durationSec: c.durationSec, alt: params.alt?.slice(0, 200) || null,
+      position: count, source: 'pexels', credit: c.credit?.slice(0, 200) || null, creditUrl: c.creditUrl?.startsWith('https://') ? c.creditUrl.slice(0, 500) : null,
+    },
+  })
+}
+
+/**
+ * A reel made from one of the post's photos: a «video» whose file is the photo (without the logo
+ * layer); Cloudinary animates it on delivery (slow zoom, 9:16, text on screen).
+ */
+export async function addStillVideo(postId: string, image: { url: string; originalUrl: string | null; alt: string | null; source: string; credit: string | null; creditUrl: string | null }) {
+  const count = await prisma.marketingMedia.count({ where: { postId } })
+  if (count >= 10) throw new ImageError('Máximo 10 archivos por publicación')
+  const url = image.originalUrl || image.url
+  if (!isCloudinaryUrl(url) || !url.includes('/image/upload/')) throw new ImageError('La foto debe estar en Cloudinary para animarla')
+  return prisma.marketingMedia.create({
+    data: {
+      postId, url, originalUrl: url, kind: 'video', mime: 'video/mp4', width: 1080, height: 1920, durationSec: STILL_VIDEO_SEC,
+      alt: image.alt, position: count, source: image.source, credit: image.credit, creditUrl: image.creditUrl,
     },
   })
 }

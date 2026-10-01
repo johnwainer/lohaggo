@@ -50,17 +50,17 @@ export class PublishValidationError extends Error {
   }
 }
 
-const postInclude = { variants: true, media: { orderBy: { position: 'asc' as const } } } satisfies Prisma.MarketingPostInclude
-type FullPost = Prisma.MarketingPostGetPayload<{ include: typeof postInclude }>
+export const postInclude = { variants: true, media: { orderBy: { position: 'asc' as const } } } satisfies Prisma.MarketingPostInclude
+export type FullPost = Prisma.MarketingPostGetPayload<{ include: typeof postInclude }>
 
-function mediaFor(post: FullPost, variant: FullPost['variants'][number]) {
+export function mediaFor(post: FullPost, variant: FullPost['variants'][number]) {
   const all = post.media
   if (!variant.mediaIds.length) return all
   const byId = new Map(all.map((m) => [m.id, m]))
   return variant.mediaIds.map((id) => byId.get(id)).filter((m): m is FullPost['media'][number] => Boolean(m))
 }
 
-const infoOf = (m: FullPost['media'][number]): MediaInfo => ({ kind: m.kind === 'video' ? 'video' : 'image', mime: m.mime, bytes: m.bytes, width: m.width, height: m.height, durationSec: m.durationSec })
+export const infoOf = (m: FullPost['media'][number]): MediaInfo => ({ kind: m.kind === 'video' ? 'video' : 'image', mime: m.mime, bytes: m.bytes, width: m.width, height: m.height, durationSec: m.durationSec })
 
 export function validatePostForChannel(post: FullPost, channel: MarketingChannel) {
   const variant = post.variants.find((v) => v.channel === channel)
@@ -282,10 +282,10 @@ export async function runPublication(pub: MarketingPublication) {
       if (existing) return finish(pub, { status: 'published', externalId: existing.id, permalink: existing.permalink, publishedAt: existing.createdAt, ...(story ? { expiresAt: new Date(existing.createdAt.getTime() + STORY_TTL_MS) } : {}) })
     }
 
-    const media = files.map((m) => ({ url: deliveryUrl(social, m.url, infoOf(m), format), kind: infoOf(m).kind, alt: m.alt }))
+    const options = readPublishOptions(variant.publishOptions)
+    const media = files.map((m) => ({ url: deliveryUrl(social, m.url, infoOf(m), format, options), kind: infoOf(m).kind, alt: m.alt }))
     // The network's version of each file must exist before Meta fetches it
     await Promise.all(media.map((m) => warmMedia(m.url, m.kind)))
-    const options = readPublishOptions(variant.publishOptions)
     const aiGenerated = files.some((m) => m.source === 'ai')
     let result: PublishResult
     if (social === 'FACEBOOK') {

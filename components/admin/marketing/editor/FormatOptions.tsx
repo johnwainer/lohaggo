@@ -44,12 +44,20 @@ export default function FormatOptions({ channel, format, options, editable, onCh
         </select>
       </label>
 
-      {story && (
-        <label className="block space-y-1">
-          <span className="text-xs font-medium text-gray-700">Texto escrito en la historia</span>
-          <textarea className={input} rows={2} maxLength={300} disabled={!editable} value={o.storyText || ''} onChange={(e) => set({ storyText: e.target.value || undefined })} placeholder="Lo que dice la imagen, p. ej. «Pintura de apartamentos · Escríbenos por DM»" />
-          <span className="block text-[11px] text-gray-500">Las historias no muestran el texto de arriba ni enlaces: el mensaje y el llamado a la acción van en la imagen o el video. Este texto pasa por la revisión editorial.</span>
-        </label>
+      {(story || reel) && (
+        <div className="space-y-2 rounded-xl border border-gray-100 bg-gray-50/60 px-3 py-2 text-xs">
+          <p className="font-medium text-gray-700">Texto en pantalla</p>
+          <label className="block space-y-1">
+            <span className="text-gray-700">Titular (máx. 60 caracteres)</span>
+            <input className={input} maxLength={90} disabled={!editable} value={o.storyText || ''} onChange={(e) => set({ storyText: e.target.value || undefined })} placeholder="¿Humedad en las paredes?" />
+          </label>
+          <label className="block space-y-1">
+            <span className="text-gray-700">Llamada a la acción (máx. 25)</span>
+            <input className={input} maxLength={40} disabled={!editable} value={o.storyCta || ''} onChange={(e) => set({ storyCta: e.target.value || undefined })} placeholder="Escríbenos por DM" />
+          </label>
+          <label className="flex items-center gap-2"><input type="checkbox" disabled={!editable} checked={o.renderText === true} onChange={(e) => set({ renderText: e.target.checked ? true : undefined })} /> Escribirlo sobre la imagen o el video</label>
+          <span className="block text-[11px] text-gray-500">{story ? 'Las historias no muestran el texto de arriba ni enlaces: el mensaje va en pantalla. ' : ''}Si lo desmarcas, la imagen o el video ya deben traer el texto. Pasa por la revisión editorial.</span>
+        </div>
       )}
 
       {(reel || (ig && !story)) && (

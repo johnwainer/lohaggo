@@ -304,7 +304,7 @@ describe('salida del modelo', () => {
   })
   it('ideas: descarta pilar desconocido, fecha fuera del horizonte y servicio fuera del catálogo', () => {
     const ctx = { pillars: ['Consejos', 'Casos', 'Oferta'], channels: ['INSTAGRAM', 'WEB'] as Array<'INSTAGRAM' | 'WEB'>, services: ['Plomería'], fromDay: '2026-09-25', toDay: '2026-10-08', max: 10 }
-    const idea = { pillar: 'consejos', service: 'plomeria', angle: 'Fugas', hypothesis: 'h', channels: ['INSTAGRAM', 'FACEBOOK'], formats: { INSTAGRAM: 'reel' }, targetDate: '2026-09-30', rationale: 'r', explore: false, confidence: 0.8 }
+    const idea = { pillar: 'consejos', service: 'plomeria', angle: 'Fugas', hypothesis: 'h', channels: ['INSTAGRAM', 'FACEBOOK'], formats: { INSTAGRAM: 'live' }, targetDate: '2026-09-30', rationale: 'r', explore: false, confidence: 0.8 }
     const r = parseIdeas({ ideas: [idea, { ...idea, pillar: 'Nuevo' }, { ...idea, targetDate: '2026-12-01' }, { ...idea, service: 'Astrología' }] }, ctx)
     expect(r.ok).toBe(true)
     if (!r.ok) return
@@ -348,11 +348,11 @@ describe('recomendaciones aplicadas dentro de los límites', () => {
     const c = defaultAgentConfig()
     const r = applyRecommendations(c, strategy, [
       { type: 'frequency', channel: 'INSTAGRAM', perWeek: 10, reason: '' },
-      { type: 'format', channel: 'INSTAGRAM', format: 'reel', direction: 'more', reason: '' },
+      { type: 'format', channel: 'INSTAGRAM', format: 'live', direction: 'more', reason: '' },
       { type: 'avoid', topic: 'descuentos agresivos', reason: '' },
     ])
     expect(r.config.channels.INSTAGRAM.perWeek).toBe(c.channels.INSTAGRAM.perWeek + 1)
-    expect(r.config.channels.INSTAGRAM.formats).not.toContain('reel')
+    expect(r.config.channels.INSTAGRAM.formats).not.toContain('live')
     expect(r.config.voice.bannedTopics).toEqual(c.voice.bannedTopics)
     expect(r.strategy.avoid).toEqual(['descuentos agresivos'])
   })
@@ -361,7 +361,7 @@ describe('recomendaciones aplicadas dentro de los límites', () => {
 describe('configuración del agente', () => {
   it('acota y limpia lo que envía el asistente', () => {
     const c = sanitizeAgentConfig({
-      channels: { INSTAGRAM: { enabled: true, perWeek: 99, formats: ['reel', 'feed', 'x'] } },
+      channels: { INSTAGRAM: { enabled: true, perWeek: 99, formats: ['live', 'feed', 'x'] } },
       offer: { allowedDomains: ['https://www.Wa.me/abc', 'no es dominio'], promos: [{ text: 'LLUVIA20', endsAt: '2026-10-31' }, { text: '' }], links: [{ label: 'x', url: 'http://inseguro.com' }] },
       voice: { brandHashtags: ['LoHaggo', '#Hogar Feliz'] },
       schedule: { windows: [{ from: 20, to: 10 }], days: [9, 2, 2] },

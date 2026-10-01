@@ -69,8 +69,12 @@ export type Post = {
   agentMeta?: {
     confidence?: number; risks?: string[]; hypothesis?: string | null; rationale?: string | null; service?: string | null
     guardrails?: Array<{ message: string; severity: string }>; validation?: string[]; slots?: Array<{ channel: MkChannel; reason: string }>; scheduleProblems?: string[]
+    preflight?: PreflightRow[]
   } | null
 }
+
+/** Meta's answer to «Probar con Meta» for one version and account (lib/marketing/preflight.ts). */
+export type PreflightRow = { channel: 'FACEBOOK' | 'INSTAGRAM'; account: string; format: string; status: 'ok' | 'pending' | 'failed' | 'skipped'; detail: string; checkedAt: string }
 
 /** One reviewer's pass (MarketingReview) as the editor shows it. */
 export type ReviewRow = {
