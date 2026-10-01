@@ -333,7 +333,7 @@ export function pickVideoFile(v: PexelsVideo): VideoCandidate | null {
   return { id: v.id, link: best.link, width: best.width!, height: best.height!, durationSec: v.duration, credit: v.user?.name ? `${v.user.name} en Pexels` : 'Pexels', creditUrl: v.user?.url ?? null, pageUrl: v.url }
 }
 
-/** Vertical stock clips for a reel (5 to 40 s), best first. */
+/** Vertical stock clips for a reel (7 to 40 s: shorter ones end before the text is read), best first. */
 export async function searchPexelsVideos(query: string, keyOverride?: string): Promise<VideoCandidate[]> {
   const key = keyOverride || (await getImageSettings()).keys.pexels
   if (!key) throw new ImageError('Falta la clave de Pexels (Publicaciones → Marca e imágenes)')
@@ -348,7 +348,7 @@ export async function searchPexelsVideos(query: string, keyOverride?: string): P
   if (res.status === 429) throw new ImageError('Se alcanzó el límite de búsquedas de Pexels por ahora')
   if (!res.ok) throw new ImageError(`Pexels respondió ${res.status}`)
   const data = (await res.json()) as { videos?: PexelsVideo[] }
-  return (data.videos || []).filter((v) => v.duration >= 5 && v.duration <= 40).map(pickVideoFile).filter((v): v is VideoCandidate => Boolean(v))
+  return (data.videos || []).filter((v) => v.duration >= 7 && v.duration <= 40).map(pickVideoFile).filter((v): v is VideoCandidate => Boolean(v))
 }
 
 /** A Pexels clip copied to Cloudinary (the post must not depend on a third-party URL). */
