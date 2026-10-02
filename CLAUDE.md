@@ -50,6 +50,8 @@
 - ❌ **NUNCA** tratar un error de permiso de Meta (código 10 o 200–299) en una acción concreta como token roto: no se marca la cuenta en ERROR ni se degrada el agente. Meta negó los reels de prueba («Application does not have permission for this action») y eso pasó la cuenta a ERROR y el agente a copiloto, aunque todo lo demás publicaba bien.
 - ✅ Solo el código 190 y los subcódigos de token (458–467, 492) marcan la cuenta como rota (`classifyGraphError` en `lib/marketing/publisher-core.ts`).
 - ✅ Antes de ofrecer un formato u opción nueva de Meta, probarla con «Probar con Meta» (`lib/marketing/preflight.ts`), que no publica nada.
+- ❌ Un aviso guardado (degradación del agente, estado de cuenta) **NUNCA** debe quedarse pegado hasta el próximo cron: por ese mensaje se desconectaron y reconectaron las 3 cuentas y 38 publicaciones y el agente quedaron apuntando a ids borrados. Diagnosticar recalcula la degradación al instante.
+- ✅ Al conectar o diagnosticar una cuenta de Meta corre `adoptOrphans` (`lib/marketing/reconnect.ts`): publicaciones sin cuenta vuelven a la suya y el agente deja ids que ya no existen (`healAccountIds`).
 
 ### 4. Dirección de diseño y producto
 
