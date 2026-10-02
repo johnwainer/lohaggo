@@ -1,3 +1,4 @@
+import type { ChannelLineView } from '@/components/admin/marketing/shared'
 import type { AgentConfig, AgentSettings } from '@/lib/marketing/agent-input'
 import type { GuardrailIssue, LearningStats, Recommendation, Strategy } from '@/lib/marketing/agent-core'
 import type { MkChannel } from '@/components/admin/marketing/shared'
@@ -72,6 +73,8 @@ export type AgentPost = {
   variants: Array<{ channel: MkChannel; body: string; format: string | null; seoTitle: string | null }>
   media: Array<{ url: string; kind: string }>
   publications: Array<{ channel: MkChannel; status: string; scheduledAt: string; publishedAt: string | null; permalink: string | null; connection: { name: string } | null }>
+  /** Each network's version: format, account, when, state */
+  lines: ChannelLineView[]
 }
 
 export type Run = { id: string; type: string; status: string; summary: string | null; error: string | null; costUsd: number; tokensIn: number; tokensOut: number; model: string | null; startedAt: string; finishedAt: string | null }

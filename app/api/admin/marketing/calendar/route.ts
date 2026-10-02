@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { channelLines } from '@/lib/marketing/format-display'
 import { auditAdminAction } from '@/lib/admin-utils'
 import { prisma } from '@/lib/prisma'
 import { marketingAuth, mkCan, mkWorkspacesWith } from '@/lib/marketing/permissions'
@@ -37,13 +38,16 @@ export async function GET(request: NextRequest) {
     select: {
       id: true, title: true, status: true, scheduledAt: true, publishedAt: true, origin: true, agentMeta: true, reviewStatus: true, reviewScore: true,
       campaign: { select: { id: true, name: true, color: true } },
-      variants: { select: { channel: true } },
-      media: { select: { url: true, kind: true }, orderBy: { position: 'asc' }, take: 1 },
-      publications: { where: { status: { not: 'cancelled' } }, select: { id: true, channel: true, status: true, scheduledAt: true, publishedAt: true, connection: { select: { name: true } } } },
+      variants: { select: { channel: true, format: true, mediaIds: true, linkUrl: true } },
+      media: { select: { id: true, url: true, kind: true }, orderBy: { position: 'asc' } },
+      publications: { where: { status: { not: 'cancelled' } }, select: { id: true, channel: true, status: true, scheduledAt: true, publishedAt: true, createdAt: true, lastError: true, connection: { select: { name: true } } } },
     },
     take: 500,
   })
-  const items = posts.flatMap(({ agentMeta, publications, ...p }) => {
+  const items = posts.flatMap(({ agentMeta, publications, variants: vs, media: allMedia, ...raw }) => {
+    // Format of each network's version (Reel, Historia, Carrusel…), shown on the card
+    const formats = Object.fromEntries(channelLines(vs, allMedia, []).map((l) => [l.channel, l.format]))
+    const p = { ...raw, variants: vs.map((v) => ({ channel: v.channel })), media: allMedia.slice(0, 1).map((m) => ({ url: m.url, kind: m.kind })), formats }
     // Why the agent chose this time, per channel (shown on the card)
     const slots = ((agentMeta as { slots?: Array<{ channel: string; reason: string }> } | null)?.slots ?? []).map((s) => ({ channel: s.channel, reason: s.reason }))
     if (!publications.length) {
@@ -66,7 +70,7 @@ export async function GET(request: NextRequest) {
       status: { in: ['proposed', 'accepted'] }, targetDate: { gte: from, lte: to },
       agent: { ...(scope ? { workspaceId: { in: scope } } : {}), ...(campaignId ? { campaignId } : {}) },
     },
-    select: { id: true, angle: true, pillar: true, channels: true, targetDate: true, status: true, agentId: true, agent: { select: { campaign: { select: { color: true, name: true } } } } },
+    select: { id: true, angle: true, pillar: true, channels: true, formats: true, targetDate: true, status: true, agentId: true, agent: { select: { campaign: { select: { color: true, name: true } } } } },
     take: 200,
   })
   return NextResponse.json({ items, ideas })

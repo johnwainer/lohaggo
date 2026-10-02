@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { channelLines } from '@/lib/marketing/format-display'
 import { prisma } from '@/lib/prisma'
 import { campaignStats } from '@/lib/marketing/stats'
 import { mkCan, type MarketingAccess, type MarketingPermission } from '@/lib/marketing/permissions'
@@ -57,10 +58,14 @@ export async function agentSummary(agent: Agent) {
 
 const postSelect = {
   id: true, title: true, status: true, pillar: true, scheduledAt: true, publishedAt: true, optOutDeadline: true, agentMeta: true, rejectedReason: true, ideaId: true, updatedAt: true, reviewStatus: true, reviewScore: true,
-  variants: { select: { channel: true, body: true, format: true, seoTitle: true } },
-  media: { select: { url: true, kind: true }, orderBy: { position: 'asc' as const }, take: 3 },
-  publications: { where: { status: { not: 'cancelled' } }, select: { channel: true, status: true, scheduledAt: true, publishedAt: true, permalink: true, connection: { select: { name: true } } } },
+  variants: { select: { channel: true, body: true, format: true, seoTitle: true, mediaIds: true, linkUrl: true } },
+  media: { select: { id: true, url: true, kind: true }, orderBy: { position: 'asc' as const } },
+  publications: { where: { status: { not: 'cancelled' } }, select: { channel: true, status: true, scheduledAt: true, publishedAt: true, createdAt: true, lastError: true, permalink: true, connection: { select: { name: true } } } },
 }
+
+type ViewPost = { variants: Array<{ channel: string; format: string | null; mediaIds: string[]; linkUrl: string | null }>; media: Array<{ id: string; url: string; kind: string }>; publications: Array<{ channel: string; status: string; scheduledAt: Date; publishedAt: Date | null; createdAt: Date; lastError: string | null; connection: { name: string } | null }> }
+/** Each network's version with its format, account, date and state (and the first 3 files for the card). */
+const withLines = <T extends ViewPost>(posts: T[]) => posts.map((p) => ({ ...p, media: p.media.slice(0, 3), lines: channelLines(p.variants, p.media, p.publications) }))
 
 /** Everything the agent's screen shows. */
 export async function agentDetail(agent: Agent, access: MarketingAccess) {
@@ -83,7 +88,7 @@ export async function agentDetail(agent: Agent, access: MarketingAccess) {
       autonomyConfirmedAt: agent.autonomyConfirmedAt,
       campaign: { ...summary.campaign, description: agent.campaign.description },
     },
-    ideas, toApprove, upcoming, recent, runs, learnings,
+    ideas, toApprove: withLines(toApprove), upcoming: withLines(upcoming), recent: withLines(recent), runs, learnings,
     permissions: { edit: mkCan(access, agent.workspaceId, 'marketing.edit'), publish: mkCan(access, agent.workspaceId, 'marketing.publish') },
   }
 }

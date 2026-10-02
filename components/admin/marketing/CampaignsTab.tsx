@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Bot, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react'
-import { CAMPAIGN_STATUS, MkChannelIcon, OBJECTIVES, api, fmtDate, input, num } from '@/components/admin/marketing/shared'
+import { CAMPAIGN_STATUS, FormatPill, MkChannelIcon, OBJECTIVES, api, fmtDate, fmtWhen, input, num } from '@/components/admin/marketing/shared'
 import { NewPostModal } from '@/components/admin/marketing/PostsTab'
 
 export type Campaign = {
@@ -25,7 +25,7 @@ type Totals = { reach: number; impressions: number; likes: number; comments: num
 type CampaignStats = {
   totals: Totals & { engagementRate: number | null; publications: number; posts: number }
   byChannel: Array<Totals & { channel: string; publications: number; engagementRate: number | null }>
-  posts: Array<{ postId: string; title: string; channels: string[]; totals: Totals; engagementRate: number | null; inboxConversations: number; publishedAt: string | null }>
+  posts: Array<{ postId: string; title: string; channels: string[]; formats?: Record<string, string>; totals: Totals; engagementRate: number | null; inboxConversations: number; publishedAt: string | null }>
 }
 
 const COLORS = ['#7C3AED', '#F97316', '#0EA5E9', '#10B981', '#E11D48', '#EAB308', '#64748B']
@@ -118,8 +118,10 @@ function CampaignDetail({ campaign, onClose }: { campaign: Campaign; onClose: ()
               <h3 className="font-semibold text-gray-900">Publicaciones</h3>
               {stats.posts.length === 0 ? <p className="text-sm text-gray-500">Aún no se ha publicado nada de esta campaña.</p> : stats.posts.map((p) => (
                 <Link key={p.postId} href={`/admin/marketing/posts/${p.postId}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-gray-100 px-3 py-2 hover:bg-gray-50 sm:flex-nowrap">
-                  <span className="flex gap-1">{p.channels.map((c) => <MkChannelIcon key={c} channel={c} size={16} />)}</span>
-                  <span className="min-w-0 flex-1 truncate text-sm text-gray-900">{p.title}</span>
+                  <span className="min-w-0 flex-1 space-y-0.5">
+                    <span className="block truncate text-sm text-gray-900">{p.title}</span>
+                    <span className="flex flex-wrap gap-1.5">{p.channels.map((c) => <span key={c} className="inline-flex items-center gap-0.5"><MkChannelIcon channel={c} size={12} /><FormatPill size="xs" label={p.formats?.[c] ?? c} /></span>)}{p.publishedAt && <span className="text-[11px] text-gray-400">{fmtWhen(p.publishedAt)}</span>}</span>
+                  </span>
                   <span className="text-xs text-gray-500">{num(p.totals.reach)} alcance · {num(p.totals.webViews)} visitas · {p.inboxConversations} en bandeja</span>
                 </Link>
               ))}

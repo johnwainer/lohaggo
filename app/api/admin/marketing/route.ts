@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { channelLines, postSortDate } from '@/lib/marketing/format-display'
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { listAccessibleWorkspaces, getWorkspaceAccess } from '@/lib/workspaces'
@@ -39,9 +40,9 @@ export async function GET(request: NextRequest) {
       select: {
         id: true, workspaceId: true, title: true, status: true, scheduledAt: true, publishedAt: true, updatedAt: true, origin: true, reviewStatus: true, reviewScore: true,
         campaign: { select: { id: true, name: true, color: true } },
-        variants: { select: { channel: true } },
-        media: { select: { url: true, kind: true }, orderBy: { position: 'asc' }, take: 1 },
-        publications: { where: { status: { not: 'cancelled' } }, select: { channel: true, status: true, lastError: true, connection: { select: { name: true } } } },
+        variants: { select: { channel: true, format: true, mediaIds: true, linkUrl: true } },
+        media: { select: { id: true, url: true, kind: true }, orderBy: { position: 'asc' } },
+        publications: { where: { status: { not: 'cancelled' } }, select: { channel: true, status: true, lastError: true, scheduledAt: true, publishedAt: true, createdAt: true, connection: { select: { name: true } } } },
       },
     }),
     prisma.marketingCampaign.findMany({ where: wsWhere, orderBy: [{ status: 'asc' }, { createdAt: 'desc' }], include: { _count: { select: { posts: true } } } }),
@@ -55,7 +56,11 @@ export async function GET(request: NextRequest) {
       permissions: (Object.keys(MARKETING_PERMISSION_LABELS) as Array<keyof typeof MARKETING_PERMISSION_LABELS>).filter((p) => mkCan(auth.access, w.id, p)),
       canManagePermissions: canManageMarketingPermissions(auth.access, w.id),
     })),
-    posts,
+    // Each network's version with its format, account, date and state; ordered by that date in the list
+    posts: posts.map(({ variants, media, publications, ...p }) => {
+      const lines = channelLines(variants, media, publications)
+      return { ...p, variants: variants.map((v) => ({ channel: v.channel })), media: media.slice(0, 1).map((m) => ({ url: m.url, kind: m.kind })), publications: publications.map((x) => ({ channel: x.channel, status: x.status, lastError: x.lastError, connection: x.connection })), lines, sortAt: postSortDate(lines, p.updatedAt) }
+    }),
     campaigns,
     accounts: accounts.filter((a) => scope === null || scope.includes(a.workspaceId)),
   })

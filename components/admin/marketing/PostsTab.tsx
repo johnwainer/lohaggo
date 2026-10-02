@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Loader2, Plus, Search, X } from 'lucide-react'
-import { CHANNEL_NAME, MK_CHANNELS, MkChannelIcon, PUB_STATUS, POST_STATUS, ReviewChip, StatusChip, api, fmtDateTime, input, type MkChannel } from '@/components/admin/marketing/shared'
+import { CHANNEL_NAME, ChannelLines, MK_CHANNELS, MkChannelIcon, POST_STATUS, ReviewChip, StatusChip, api, fmtWhen, input, type ChannelLineView, type MkChannel } from '@/components/admin/marketing/shared'
 import { videoPosterUrl } from '@/lib/marketing/media'
 import type { Campaign } from '@/components/admin/marketing/CampaignsTab'
 
@@ -23,6 +23,44 @@ export type PostRow = {
   variants: Array<{ channel: MkChannel }>
   media: Array<{ url: string; kind: string }>
   publications: Array<{ channel: MkChannel; status: string; lastError: string | null; connection: { name: string } | null }>
+  /** Each network's version: format, account, when, state (lib/marketing/format-display.ts) */
+  lines: ChannelLineView[]
+  /** Next send if pending, else the last one that went out */
+  sortAt: string
+}
+
+/** Formats to filter by (a line matches when its format starts with it: «Fotos (3)» is «Fotos»). */
+const FORMAT_FILTERS = ['Reel', 'Historia', 'Carrusel', 'Foto', 'Fotos', 'Video', 'Enlace', 'Texto', 'Artículo']
+
+const SECTIONS: Array<{ key: string; title: string; statuses: string[]; order: 'asc' | 'desc'; by: 'sortAt' | 'updatedAt' }> = [
+  { key: 'next', title: 'Próximas', statuses: ['scheduled', 'approved', 'publishing'], order: 'asc', by: 'sortAt' },
+  { key: 'work', title: 'Por revisar y borradores', statuses: ['review', 'draft'], order: 'desc', by: 'updatedAt' },
+  { key: 'done', title: 'Publicadas', statuses: ['published', 'partial', 'failed'], order: 'desc', by: 'sortAt' },
+  { key: 'archived', title: 'Archivadas', statuses: ['archived'], order: 'desc', by: 'updatedAt' },
+]
+
+function PostCard({ p }: { p: PostRow }) {
+  const m = p.media[0]
+  const thumb = m ? (m.kind === 'video' ? videoPosterUrl(m.url) : m.url) : null
+  const vertical = p.lines.some((l) => /^(Reel|Historia)/.test(l.format))
+  return (
+    <Link href={`/admin/marketing/posts/${p.id}`} className="group flex gap-3 rounded-2xl border border-gray-200 bg-white p-3 hover:border-primary-200 hover:shadow-sm transition">
+      <div className={`${vertical ? 'h-24 w-[54px]' : 'h-20 w-20'} shrink-0 overflow-hidden rounded-xl bg-gray-100`}>
+        {thumb ? <img src={thumb} alt="" className="h-full w-full object-cover" /> : <div className="h-full w-full bg-gradient-to-br from-primary-50 to-secondary-50" />}
+      </div>
+      <div className="min-w-0 flex-1 space-y-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <StatusChip status={p.status} />
+          <ReviewChip status={p.reviewStatus} score={p.reviewScore} />
+          {p.origin === 'agent' && <span className="inline-flex rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-semibold text-primary-700">🤖 Agente</span>}
+          {p.campaign && <span className="inline-flex min-w-0 max-w-full items-center gap-1 truncate text-[11px] text-gray-500"><span className="h-2 w-2 rounded-full shrink-0" style={{ background: p.campaign.color }} />{p.campaign.name}</span>}
+        </div>
+        <p className="font-semibold leading-snug text-gray-900 line-clamp-2 break-words group-hover:text-primary-700">{p.title}</p>
+        <ChannelLines lines={p.lines} />
+        {!p.lines.some((l) => l.at) && <p className="text-[11px] text-gray-400">Editada {fmtWhen(p.updatedAt)}</p>}
+      </div>
+    </Link>
+  )
 }
 
 type Filters = { status: string; campaignId: string; channel: string; q: string }
@@ -113,6 +151,9 @@ export default function PostsTab({ posts, campaigns, filters, setFilters, worksp
   const [creating, setCreating] = useState(false)
   const [q, setQ] = useState(filters.q)
   const anyEditable = canCreate || workspaces.some((w) => w.permissions.includes('marketing.edit'))
+  const [format, setFormat] = useState('')
+  const matches = (label: string) => (format === 'Foto' ? label === 'Foto' : label.startsWith(format))
+  const shown = format ? posts.filter((p) => p.lines.some((l) => matches(l.format))) : posts
 
   return (
     <div className="space-y-4">
@@ -121,7 +162,7 @@ export default function PostsTab({ posts, campaigns, filters, setFilters, worksp
           <Search size={15} className="absolute left-3 top-2.5 text-gray-400" />
           <input className={`${input} pl-9`} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por título" />
         </form>
-        <div className="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto">
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
         <select className="w-full min-w-0 truncate rounded-xl border border-gray-200 bg-white px-2 py-2 text-sm sm:w-auto sm:px-3" value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
           <option value="">Todos los estados</option>
           {Object.entries(POST_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
@@ -129,6 +170,10 @@ export default function PostsTab({ posts, campaigns, filters, setFilters, worksp
         <select className="w-full min-w-0 truncate rounded-xl border border-gray-200 bg-white px-2 py-2 text-sm sm:w-auto sm:px-3" value={filters.channel} onChange={(e) => setFilters({ ...filters, channel: e.target.value })}>
           <option value="">Todos los canales</option>
           {MK_CHANNELS.map((c) => <option key={c} value={c}>{CHANNEL_NAME[c]}</option>)}
+        </select>
+        <select className="w-full min-w-0 truncate rounded-xl border border-gray-200 bg-white px-2 py-2 text-sm sm:w-auto sm:px-3" value={format} onChange={(e) => setFormat(e.target.value)} aria-label="Formato">
+          <option value="">Todos los formatos</option>
+          {FORMAT_FILTERS.map((f) => <option key={f} value={f}>{f}</option>)}
         </select>
         <select className="w-full min-w-0 truncate rounded-xl border border-gray-200 bg-white px-2 py-2 text-sm sm:w-auto sm:px-3" value={filters.campaignId} onChange={(e) => setFilters({ ...filters, campaignId: e.target.value })}>
           <option value="">Todas las campañas</option>
@@ -144,44 +189,25 @@ export default function PostsTab({ posts, campaigns, filters, setFilters, worksp
         {loading && <Loader2 size={16} className="animate-spin text-gray-400" />}
       </div>
 
-      {posts.length === 0 ? (
+      {shown.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-gray-200 bg-white p-10 text-center">
-          <p className="font-medium text-gray-700">No hay publicaciones {filters.status || filters.q || filters.channel || filters.campaignId ? 'con estos filtros' : 'todavía'}</p>
+          <p className="font-medium text-gray-700">No hay publicaciones {filters.status || filters.q || filters.channel || filters.campaignId || format ? 'con estos filtros' : 'todavía'}</p>
           <p className="text-sm text-gray-500 mt-1">Crea una, escribe el texto (el asistente de IA te ayuda) y publícala o prográmala en los canales que quieras.</p>
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {posts.map((p) => {
-            const m = p.media[0]
-            const thumb = m ? (m.kind === 'video' ? videoPosterUrl(m.url) : m.url) : null
-            const pubs = p.publications
+        <div className="space-y-6">
+          {SECTIONS.map((sec) => {
+            const list = shown
+              .filter((p) => sec.statuses.includes(p.status))
+              .sort((a, b) => (sec.order === 'asc' ? 1 : -1) * (new Date(a[sec.by]).getTime() - new Date(b[sec.by]).getTime()))
+            if (!list.length) return null
             return (
-              <Link key={p.id} href={`/admin/marketing/posts/${p.id}`} className="group flex gap-3 rounded-2xl border border-gray-200 bg-white p-3 hover:border-primary-200 hover:shadow-sm transition">
-                <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-gray-100">
-                  {thumb ? <img src={thumb} alt="" className="h-full w-full object-cover" /> : <div className="h-full w-full bg-gradient-to-br from-primary-50 to-secondary-50" />}
+              <section key={sec.key} className="space-y-2">
+                <h3 className="text-sm font-semibold text-gray-700">{sec.title} <span className="font-normal text-gray-400">({list.length})</span></h3>
+                <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
+                  {list.map((p) => <PostCard key={p.id} p={p} />)}
                 </div>
-                <div className="min-w-0 flex-1 space-y-1.5">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <StatusChip status={p.status} />
-                    <ReviewChip status={p.reviewStatus} score={p.reviewScore} />
-                    {p.origin === 'agent' && <span className="inline-flex rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-semibold text-primary-700">🤖 Agente</span>}
-                    {p.campaign && <span className="inline-flex min-w-0 max-w-full items-center gap-1 truncate text-[11px] text-gray-500"><span className="h-2 w-2 rounded-full shrink-0" style={{ background: p.campaign.color }} />{p.campaign.name}</span>}
-                  </div>
-                  <p className="font-semibold text-gray-900 truncate group-hover:text-primary-700">{p.title}</p>
-                  <div className="flex items-center gap-1.5">
-                    {(pubs.length ? pubs.map((x) => x.channel) : p.variants.map((v) => v.channel)).filter((c, i, a) => a.indexOf(c) === i).map((c) => {
-                      // A channel published on a later attempt shows as published, not as the old failure
-                      const pub = pubs.find((x) => x.channel === c && x.status === 'published') ?? pubs.find((x) => x.channel === c)
-                      return (
-                        <span key={c} title={pub ? `${CHANNEL_NAME[c]}${pub.connection ? ` · ${pub.connection.name}` : ''}: ${PUB_STATUS[pub.status]?.label || pub.status}${pub.lastError ? ` — ${pub.lastError}` : ''}` : CHANNEL_NAME[c]} className={`relative ${pub?.status === 'failed' ? 'ring-2 ring-red-400 rounded-full' : ''}`}>
-                          <MkChannelIcon channel={c} size={18} />
-                        </span>
-                      )
-                    })}
-                    <span className="ml-auto min-w-0 truncate text-[11px] text-gray-400">{p.publishedAt ? `Publicada ${fmtDateTime(p.publishedAt)}` : p.scheduledAt ? `${p.status === 'scheduled' ? 'Sale' : 'Para'} ${fmtDateTime(p.scheduledAt)}` : `Editada ${fmtDateTime(p.updatedAt)}`}</span>
-                  </div>
-                </div>
-              </Link>
+              </section>
             )
           })}
         </div>

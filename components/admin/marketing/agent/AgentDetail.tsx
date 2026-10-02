@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { AlertTriangle, ArrowLeft, Bot, Check, CheckCircle2, Clock, Lightbulb, Loader2, Pause, Pencil, Play, RefreshCw, Settings, Sparkles, X, XCircle } from 'lucide-react'
-import { CHANNEL_NAME, MkChannelIcon, OBJECTIVES, ReviewChip, StatusChip, api, fmtDate, fmtDateTime, input, num } from '@/components/admin/marketing/shared'
+import { CHANNEL_NAME, ChannelLines, FormatPill, MkChannelIcon, OBJECTIVES, ReviewChip, StatusChip, api, fmtDate, fmtDateTime, input, num } from '@/components/admin/marketing/shared'
+import { agentFormatLabel } from '@/lib/marketing/format-display'
 import { DIMENSIONS, DIMENSION_LABEL } from '@/lib/marketing/agent-core'
 import { AGENT_STATUS, MODE_INFO, RUN_TYPE, type AgentDetailData, type AgentPost, type Idea } from '@/components/admin/marketing/agent/types'
 
@@ -37,12 +38,13 @@ function PostCard({ post, children }: { post: AgentPost; children?: React.ReactN
             {meta.confidence != null && <span className={`text-[11px] ${meta.confidence < 0.7 ? 'text-amber-700' : 'text-gray-500'}`}>Confianza {Math.round(meta.confidence * 100)} %</span>}
           </div>
           <Link href={`/admin/marketing/posts/${post.id}`} className="block break-words font-semibold text-gray-900 hover:text-primary-700">{post.title}</Link>
+          <ChannelLines lines={post.lines ?? []} />
           {(meta.hypothesis || meta.rationale) && <p className="text-xs text-gray-500">{meta.rationale || meta.hypothesis}</p>}
         </div>
       </div>
       <div className="flex flex-wrap gap-1">
         {post.variants.map((x) => (
-          <button key={x.channel} onClick={() => setChannel(x.channel)} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs ${channel === x.channel ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'}`}><MkChannelIcon channel={x.channel} size={12} /> {CHANNEL_NAME[x.channel]}</button>
+          <button key={x.channel} onClick={() => setChannel(x.channel)} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs ${channel === x.channel ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'}`}><MkChannelIcon channel={x.channel} size={12} /> {CHANNEL_NAME[x.channel]}{post.lines?.find((l) => l.channel === x.channel) ? ` · ${post.lines.find((l) => l.channel === x.channel)!.format}` : ''}</button>
         ))}
       </div>
       {v && <p className="max-h-40 overflow-y-auto whitespace-pre-wrap rounded-xl bg-gray-50 p-3 text-sm text-gray-700">{v.channel === 'WEB' && v.seoTitle ? `${v.seoTitle}\n\n` : ''}{v.body.slice(0, 1500)}{v.body.length > 1500 ? '…' : ''}</p>}
@@ -120,7 +122,7 @@ export default function AgentDetail({ agentId, onBack, onEdit }: { agentId: stri
         {i.rationale && <p className="text-xs text-gray-600">{i.rationale}</p>}
         {i.rejectedReason && <p className="text-xs text-red-600">Rechazada: {i.rejectedReason}</p>}
       </div>
-      <span className="flex gap-1">{i.channels.map((c) => <MkChannelIcon key={c} channel={c} size={14} />)}</span>
+      <span className="flex flex-wrap gap-1.5">{i.channels.map((c) => <span key={c} className="inline-flex items-center gap-1"><MkChannelIcon channel={c} size={14} /><FormatPill label={agentFormatLabel(c, i.formats?.[c])} /></span>)}</span>
       {i.status === 'accepted' && can.edit && (
         <button type="button" onClick={(e) => { e.preventDefault(); act('draft', { ideaId: i.id }, `draft:${i.id}`) }} disabled={Boolean(busy)} className="shrink-0 rounded-full border border-primary-200 px-2.5 py-1 text-xs text-primary-700 hover:bg-primary-50">
           {busy === `draft:${i.id}` ? <Loader2 size={12} className="animate-spin" /> : 'Redactar ya'}
@@ -201,7 +203,7 @@ export default function AgentDetail({ agentId, onBack, onEdit }: { agentId: stri
               <h3 className="font-semibold text-gray-900">Lo último publicado</h3>
               {d.recent.map((p) => (
                 <Link key={p.id} href={`/admin/marketing/posts/${p.id}`} className="flex items-center gap-3 rounded-xl border border-gray-100 px-3 py-2 hover:bg-gray-50">
-                  <StatusChip status={p.status} /><span className="min-w-0 flex-1 truncate text-sm text-gray-900">{p.title}</span><span className="shrink-0 text-xs text-gray-500">{fmtDateTime(p.publishedAt)}</span>
+                  <StatusChip status={p.status} /><span className="min-w-0 flex-1 space-y-0.5"><span className="block truncate text-sm text-gray-900">{p.title}</span><ChannelLines lines={p.lines ?? []} compact /></span>
                 </Link>
               ))}
             </div>
@@ -230,7 +232,7 @@ export default function AgentDetail({ agentId, onBack, onEdit }: { agentId: stri
                   ))}
                 </div>
                 {a.strategy.keyMessages.length > 0 && <div><p className="text-sm font-semibold text-gray-900">Mensajes clave</p>{a.strategy.keyMessages.map((m) => <p key={m.segment} className="text-sm text-gray-700"><strong>{m.segment}:</strong> {m.message}</p>)}</div>}
-                {a.strategy.formatMix.length > 0 && <div><p className="text-sm font-semibold text-gray-900">Formatos</p>{a.strategy.formatMix.map((m) => <p key={m.channel} className="text-sm text-gray-700">{CHANNEL_NAME[m.channel]}: {m.formats.map((f) => `${f.format} ${f.share} %`).join(', ')}</p>)}</div>}
+                {a.strategy.formatMix.length > 0 && <div><p className="text-sm font-semibold text-gray-900">Formatos</p>{a.strategy.formatMix.map((m) => <p key={m.channel} className="text-sm text-gray-700">{CHANNEL_NAME[m.channel]}: {m.formats.map((f) => `${agentFormatLabel(m.channel, f.format)} ${f.share} %`).join(', ')}</p>)}</div>}
                 <div><p className="text-sm font-semibold text-gray-900">KPI</p><p className="text-sm text-gray-700">{a.strategy.kpi.name}: {a.strategy.kpi.target}. {a.strategy.kpi.measurement}</p></div>
                 {a.strategy.hypotheses.length > 0 && <div><p className="text-sm font-semibold text-gray-900">Hipótesis a probar</p><ul className="list-disc pl-5 text-sm text-gray-700">{a.strategy.hypotheses.map((h) => <li key={h}>{h}</li>)}</ul></div>}
                 {a.strategy.risks.length > 0 && <div><p className="text-sm font-semibold text-gray-900">Riesgos</p><ul className="list-disc pl-5 text-sm text-gray-700">{a.strategy.risks.map((h) => <li key={h}>{h}</li>)}</ul></div>}

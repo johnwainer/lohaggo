@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight, Loader2, Plus } from 'lucide-react'
-import { MkChannelIcon, POST_STATUS, api, type MkChannel } from '@/components/admin/marketing/shared'
+import { FormatPill, MkChannelIcon, POST_STATUS, api, type MkChannel } from '@/components/admin/marketing/shared'
+import { agentFormatLabel } from '@/lib/marketing/format-display'
 import { NewPostModal } from '@/components/admin/marketing/PostsTab'
 import type { Campaign } from '@/components/admin/marketing/CampaignsTab'
 import { formatScore, reviewBadge } from '@/lib/marketing/editorial-rubric'
@@ -22,8 +23,10 @@ type Item = {
   reviewStatus?: string | null
   reviewScore?: number | null
   slots?: Array<{ channel: MkChannel; reason: string }>
+  /** Format of each network's version: Reel, Historia, Carrusel (3)… */
+  formats?: Partial<Record<MkChannel, string>>
 }
-type IdeaItem = { id: string; angle: string; pillar: string; channels: MkChannel[]; targetDate: string; status: string; agentId: string; agent: { campaign: { color: string; name: string } } }
+type IdeaItem = { id: string; angle: string; pillar: string; channels: MkChannel[]; formats?: Partial<Record<MkChannel, string>> | null; targetDate: string; status: string; agentId: string; agent: { campaign: { color: string; name: string } } }
 type Ws = { id: string; name: string; permissions: string[] }
 
 const TZ = 'America/Bogota'
@@ -154,7 +157,6 @@ export default function CalendarTab({ workspaceId, campaigns, workspace, canEdit
       >
         <span className="flex items-center gap-1">
           <span className="text-gray-500 tabular-nums">{timeOf(new Date(it.at))}</span>
-          <span className="flex -space-x-1">{channels.map((c) => <MkChannelIcon key={c} channel={c} size={12} />)}</span>
           {(it.publications.length ? it.publications.every((p) => p.status === 'published') : it.status === 'published') && <span className="text-emerald-600" title="Publicada">✓</span>}
           {(it.publications.some((p) => p.status === 'failed') || (!it.publications.length && it.status === 'failed')) && <span className="text-red-600" title="Falló">!</span>}
           {it.origin === 'agent' && <span title="Creada por el agente">🤖</span>}
@@ -162,6 +164,12 @@ export default function CalendarTab({ workspaceId, campaigns, workspace, canEdit
           {it.reviewStatus === 'approved' && it.reviewScore != null && !['published', 'partial'].includes(it.status) && <span className="text-emerald-700 tabular-nums" title="Revisada por el editor">{formatScore(it.reviewScore)}</span>}
         </span>
         <span className="block truncate font-medium text-gray-800">{it.title}</span>
+        {/* Each network with its format, so the day shows what goes out as reel, story or post */}
+        <span className="mt-0.5 flex flex-wrap gap-x-1.5 gap-y-0.5">
+          {channels.map((c) => (
+            <span key={c} className="inline-flex items-center gap-0.5"><MkChannelIcon channel={c} size={11} /><FormatPill size="xs" label={(it.formats?.[c] ?? '').replace(/ \(\d+\)$/, '') || '—'} /></span>
+          ))}
+        </span>
       </Link>
     )
   }
@@ -209,7 +217,7 @@ export default function CalendarTab({ workspaceId, campaigns, workspace, canEdit
                     {list.map((it) => <Card key={it.key} it={it} />)}
                     {dayIdeas.map((idea) => (
                       <span key={idea.id} className="block rounded-lg border border-dashed px-1.5 py-1 text-[11px] text-gray-500" style={{ borderColor: idea.agent.campaign.color }}>
-                        <span className="flex items-center gap-1">🤖 <span className="flex -space-x-1">{idea.channels.map((c) => <MkChannelIcon key={c} channel={c} size={11} />)}</span>{idea.status === 'proposed' && <span className="text-amber-600">idea</span>}</span>
+                        <span className="flex flex-wrap items-center gap-1">🤖 {idea.channels.map((c) => <span key={c} className="inline-flex items-center gap-0.5"><MkChannelIcon channel={c} size={11} /><FormatPill size="xs" label={agentFormatLabel(c, idea.formats?.[c])} /></span>)}{idea.status === 'proposed' && <span className="text-amber-600">idea</span>}</span>
                         <span className="block truncate">{idea.angle}</span>
                       </span>
                     ))}
@@ -252,7 +260,7 @@ export default function CalendarTab({ workspaceId, campaigns, workspace, canEdit
                       className={`block rounded-lg border border-dashed px-1.5 py-1 text-[11px] text-gray-500 ${canEdit ? 'cursor-grab' : ''}`}
                       style={{ borderColor: idea.agent.campaign.color }}
                     >
-                      <span className="flex items-center gap-1">🤖 <span className="flex -space-x-1">{idea.channels.map((c) => <MkChannelIcon key={c} channel={c} size={11} />)}</span>{idea.status === 'proposed' && <span className="text-amber-600">idea</span>}</span>
+                      <span className="flex flex-wrap items-center gap-1">🤖 {idea.channels.map((c) => <span key={c} className="inline-flex items-center gap-0.5"><MkChannelIcon channel={c} size={11} /><FormatPill size="xs" label={agentFormatLabel(c, idea.formats?.[c])} /></span>)}{idea.status === 'proposed' && <span className="text-amber-600">idea</span>}</span>
                       <span className="block truncate">{idea.angle}</span>
                     </span>
                   ))}

@@ -4,14 +4,14 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ExternalLink, Loader2 } from 'lucide-react'
 import { Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { CHANNEL_NAME, MK_CHANNELS, MkChannelIcon, api, fmtDate, num, type MkChannel } from '@/components/admin/marketing/shared'
+import { CHANNEL_NAME, FormatPill, MK_CHANNELS, MkChannelIcon, api, fmtDate, fmtWhen, num, type MkChannel } from '@/components/admin/marketing/shared'
 import type { Campaign } from '@/components/admin/marketing/CampaignsTab'
 
 type Totals = { reach: number; impressions: number; likes: number; comments: number; shares: number; saves: number; clicks: number; videoViews: number; webViews: number }
 type Stats = {
   totals: Totals & { engagementRate: number | null; publications: number; posts: number }
   byChannel: Array<Totals & { channel: MkChannel; publications: number; engagementRate: number | null }>
-  posts: Array<{ postId: string; title: string; campaign: string | null; channels: MkChannel[]; totals: Totals; engagementRate: number | null; inboxConversations: number; publishedAt: string | null; links: Array<{ channel: MkChannel; account: string | null; permalink: string | null }> }>
+  posts: Array<{ postId: string; title: string; campaign: string | null; channels: MkChannel[]; formats?: Partial<Record<MkChannel, string>>; totals: Totals; engagementRate: number | null; inboxConversations: number; publishedAt: string | null; links: Array<{ channel: MkChannel; account: string | null; permalink: string | null }> }>
   campaigns: Array<{ campaignId: string; name: string; color: string; posts: number; totals: Totals; engagementRate: number | null }>
   series: Array<{ day: string; webViews: number; published: number }>
 }
@@ -157,9 +157,10 @@ export default function StatsTab({ workspaceId, campaigns }: { workspaceId: stri
                     <tr key={p.postId} className="border-t border-gray-100">
                       <td className="py-2 max-w-[260px]">
                         <Link href={`/admin/marketing/posts/${p.postId}`} className="font-medium text-gray-900 hover:text-primary-700 truncate block">{p.title}</Link>
+                        <span className="mt-0.5 flex flex-wrap gap-1.5">{p.channels.map((c) => <span key={c} className="inline-flex items-center gap-0.5"><MkChannelIcon channel={c} size={12} /><FormatPill size="xs" label={p.formats?.[c] ?? CHANNEL_NAME[c]} /></span>)}</span>
                         {p.campaign && <span className="text-[11px] text-gray-500">{p.campaign}</span>}
                       </td>
-                      <td className="py-2 text-xs text-gray-500">{fmtDate(p.publishedAt)}</td>
+                      <td className="py-2 text-xs text-gray-500 whitespace-nowrap">{fmtWhen(p.publishedAt)}</td>
                       <td className="py-2 text-right">{num(p.totals.reach)}</td>
                       <td className="py-2 text-right">{num(interactions(p.totals))}</td>
                       <td className="py-2 text-right">{num(p.totals.clicks)}</td>

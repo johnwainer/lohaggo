@@ -96,3 +96,46 @@ export function ReviewChip({ status, score, compact = false }: { status: string 
   if (!b) return null
   return <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${b.cls}`} title="Revisión editorial">{compact && status === 'approved' ? `✓ ${score != null ? `${formatScore(score)}/10` : ''}` : b.label}</span>
 }
+
+/** «vie 3 oct, 12:00» in Bogotá time: lists read better with the weekday. */
+export const fmtWhen = (d: string | Date | null | undefined) =>
+  d ? new Intl.DateTimeFormat('es-CO', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'America/Bogota' }).format(new Date(d)).replace(/\./g, '') : '—'
+
+const FORMAT_CLS: Array<[RegExp, string]> = [
+  [/^Reel/, 'bg-fuchsia-100 text-fuchsia-800'],
+  [/^Historia/, 'bg-orange-100 text-orange-800'],
+  [/^Carrusel/, 'bg-sky-100 text-sky-800'],
+  [/^Video/, 'bg-indigo-100 text-indigo-800'],
+  [/^Artículo/, 'bg-gray-800 text-white'],
+]
+
+/** The format of one network's version (Reel, Historia, Carrusel (3), Foto…) as a small pill. */
+export function FormatPill({ label, size = 'sm' }: { label: string; size?: 'xs' | 'sm' }) {
+  const cls = FORMAT_CLS.find(([re]) => re.test(label))?.[1] ?? 'bg-gray-100 text-gray-700'
+  return <span className={`inline-flex shrink-0 items-center rounded-full font-semibold ${size === 'xs' ? 'px-1.5 text-[10px]' : 'px-2 py-0.5 text-[11px]'} ${cls}`}>{label}</span>
+}
+
+export type ChannelLineView = { channel: MkChannel; format: string; account: string | null; status: string | null; at: string | null; error: string | null }
+
+const LINE_STATUS: Record<string, string> = { scheduled: 'Sale', publishing: 'Publicando', processing: 'Meta procesa el video', published: 'Publicada', failed: 'Falló' }
+
+/** One row per network and account: icon, format, account, when and state. */
+export function ChannelLines({ lines, compact = false }: { lines: ChannelLineView[]; compact?: boolean }) {
+  if (!lines.length) return null
+  return (
+    <div className="space-y-1">
+      {lines.map((l, i) => {
+        const tone = l.status === 'failed' ? 'text-red-600' : l.status === 'published' ? 'text-emerald-700' : l.status === 'scheduled' ? 'text-violet-700' : 'text-gray-500'
+        const when = l.status ? `${LINE_STATUS[l.status] ?? PUB_STATUS[l.status]?.label ?? l.status}${l.at && l.status !== 'publishing' && l.status !== 'processing' ? ` ${fmtWhen(l.at)}` : ''}` : 'Sin programar'
+        return (
+          <div key={i} className="flex min-w-0 items-center gap-1.5 text-[11px]" title={l.error ?? undefined}>
+            <MkChannelIcon channel={l.channel} size={compact ? 13 : 15} />
+            <FormatPill label={l.format} size={compact ? 'xs' : 'sm'} />
+            {!compact && l.account && <span className="min-w-0 truncate text-gray-500">{l.account}</span>}
+            <span className={`ml-auto shrink-0 tabular-nums ${tone}`}>{when}</span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}

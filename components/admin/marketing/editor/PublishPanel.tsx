@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { AlertCircle, CalendarClock, ExternalLink, FlaskConical, Loader2, Send, XCircle } from 'lucide-react'
-import { CHANNEL_NAME, MkChannelIcon, PUB_STATUS, api, fmtDateTime, fromLocalInput, num, toLocalInput, type Account, type MkChannel } from '@/components/admin/marketing/shared'
+import { CHANNEL_NAME, FormatPill, MkChannelIcon, PUB_STATUS, api, fmtDateTime, fmtWhen, fromLocalInput, num, toLocalInput, type Account, type MkChannel } from '@/components/admin/marketing/shared'
+import { formatLabel } from '@/lib/marketing/format-display'
 import type { Post, PreflightRow, Validation } from '@/components/admin/marketing/editor/types'
 import { FORMAT_LABELS } from '@/lib/marketing/publish-options'
 
@@ -75,6 +76,13 @@ export default function PublishPanel({ post, accounts, validations, canPublish, 
   const uniqueBlocking = Array.from(new Set(blocking))
   const scheduled = post.publications.filter((p) => p.status === 'scheduled')
   const webLive = post.variants.find((v) => v.channel === 'WEB')?.webPublishedAt
+  // The format each send goes out as (the variant's current format)
+  const formatOfChannel = (ch: MkChannel) => {
+    const v = post.variants.find((x) => x.channel === ch)
+    if (!v) return CHANNEL_NAME[ch]
+    const files = v.mediaIds.length ? v.mediaIds.map((id) => post.media.find((m) => m.id === id)).filter((m): m is NonNullable<typeof m> => Boolean(m)) : post.media
+    return formatLabel(ch, v.format, files, v.linkUrl)
+  }
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-4 space-y-4">
@@ -91,7 +99,7 @@ export default function PublishPanel({ post, accounts, validations, canPublish, 
                 <input type="checkbox" className="mt-0.5" disabled={!canPublish || !!o.problem} checked={selected.includes(k)} onChange={() => setSelected((s) => (s.includes(k) ? s.filter((x) => x !== k) : [...s, k]))} />
                 <MkChannelIcon channel={o.channel} size={16} />
                 <span className="flex-1 min-w-0">
-                  <span className="block truncate text-gray-900">{o.label}</span>
+                  <span className="flex min-w-0 items-center gap-1.5"><span className="truncate text-gray-900">{o.label}</span><FormatPill label={formatOfChannel(o.channel)} size="xs" /></span>
                   {o.problem && <span className="block text-[11px] text-amber-800">{o.problem}</span>}
                   {done && !o.problem && <span className="block text-[11px] text-emerald-700">Ya publicada aquí: marcarla la publica otra vez</span>}
                 </span>
@@ -156,11 +164,12 @@ export default function PublishPanel({ post, accounts, validations, canPublish, 
             <div key={p.id} className={`rounded-xl bg-gray-50 px-3 py-2 text-xs space-y-1 ${superseded ? 'opacity-50' : ''}`}>
               <div className="flex items-center gap-2">
                 <MkChannelIcon channel={p.channel} size={14} />
+                <FormatPill label={formatOfChannel(p.channel)} size="xs" />
                 <span className="min-w-0 flex-1 truncate text-gray-800">{p.connection?.name || CHANNEL_NAME[p.channel]}</span>
                 <span className={superseded ? 'text-gray-500' : PUB_STATUS[p.status]?.cls || 'text-gray-500'}>{superseded ? 'Reemplazado por un envío posterior' : PUB_STATUS[p.status]?.label || p.status}</span>
               </div>
               <p className="text-gray-500">
-                {p.status === 'published' ? fmtDateTime(p.publishedAt) : `Para ${fmtDateTime(p.scheduledAt)}`}{p.attempts > 1 ? ` · intento ${p.attempts}` : ''}
+                {p.status === 'published' ? fmtWhen(p.publishedAt) : `Para ${fmtWhen(p.scheduledAt)}`}{p.attempts > 1 ? ` · intento ${p.attempts}` : ''}
                 {p.permalink?.startsWith('https://') && <> · <a href={p.permalink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-primary-700 hover:underline">Ver <ExternalLink size={10} /></a></>}
               </p>
               {p.lastError && p.status !== 'published' && <p className={`break-words ${superseded ? 'text-gray-500' : 'text-red-600'}`}>{p.lastError}</p>}

@@ -1,4 +1,5 @@
 import type { Prisma } from '@prisma/client'
+import { channelLines } from '@/lib/marketing/format-display'
 import { prisma } from '@/lib/prisma'
 import { emptyTotals, engagementRate, latestSnapshots, type MetricTotals } from '@/lib/marketing/metrics'
 
@@ -66,11 +67,21 @@ async function aggregate(pubs: PubRow[], range: { from?: string; to?: string } =
   for (const p of pubs) if (p.publishedAt) publishedByDay.set(p.publishedAt.toISOString().slice(0, 10), (publishedByDay.get(p.publishedAt.toISOString().slice(0, 10)) ?? 0) + 1)
   const days = Array.from(new Set(Array.from(viewsByDay.keys()).concat(Array.from(publishedByDay.keys())))).sort()
 
+  // Format of each network's version (Reel, Historia, Carrusel…), for the tables
+  const postIds = Array.from(byPost.keys())
+  const [fmtVariants, fmtMedia] = postIds.length
+    ? await Promise.all([
+      prisma.marketingPostVariant.findMany({ where: { postId: { in: postIds } }, select: { postId: true, channel: true, format: true, mediaIds: true, linkUrl: true } }),
+      prisma.marketingMedia.findMany({ where: { postId: { in: postIds } }, select: { id: true, postId: true, kind: true }, orderBy: { position: 'asc' } }),
+    ])
+    : [[], []]
+  const formatsOf = (postId: string) => Object.fromEntries(channelLines(fmtVariants.filter((v) => v.postId === postId), fmtMedia.filter((m) => m.postId === postId), []).map((l) => [l.channel, l.format]))
+
   return {
     totals: { ...totals, engagementRate: engagementRate(totals), publications: pubs.length, posts: byPost.size },
     byChannel: Object.entries(byChannel).map(([channel, t]) => ({ channel, ...t, engagementRate: engagementRate(t) })),
     posts: Array.from(byPost.values())
-      .map((r) => ({ ...r, channels: Array.from(r.channels), engagementRate: engagementRate(r.totals) }))
+      .map((r) => ({ ...r, channels: Array.from(r.channels), formats: formatsOf(r.postId), engagementRate: engagementRate(r.totals) }))
       .sort((a, b) => (b.totals.reach + b.totals.webViews) - (a.totals.reach + a.totals.webViews)),
     campaigns: Array.from(byCampaign.values()).map((c) => ({ ...c, posts: c.posts.size, engagementRate: engagementRate(c.totals) })),
     series: days.map((day) => ({ day, webViews: viewsByDay.get(day) ?? 0, published: publishedByDay.get(day) ?? 0 })),
