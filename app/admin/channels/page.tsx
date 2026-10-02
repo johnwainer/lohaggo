@@ -486,7 +486,7 @@ export default function ChannelsPage() {
   }
 
   async function disconnect(conn: Connection) {
-    if (!window.confirm(`¿Desconectar "${conn.name}"? Las conversaciones existentes se conservan, pero dejarás de recibir y enviar mensajes por esta cuenta.`)) return
+    if (!window.confirm(`¿Desconectar "${conn.name}"?\n\nSi solo quieres renovar permisos o quitar un aviso, usa «Reconectar» o «Diagnosticar»: no hace falta desconectar.\n\nAl desconectar dejas de recibir y enviar mensajes por esta cuenta y sus publicaciones programadas no saldrán hasta que la conectes de nuevo.`)) return
     setBusyId(conn.id)
     try {
       const res = await fetch(`/api/admin/channels/${conn.id}`, { method: 'DELETE' })

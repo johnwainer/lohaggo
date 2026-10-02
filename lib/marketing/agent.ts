@@ -1,4 +1,5 @@
 import type Anthropic from '@anthropic-ai/sdk'
+import { healAccountIds } from '@/lib/marketing/reconnect'
 import { preflightPost } from '@/lib/marketing/preflight'
 import { readPublishOptions } from '@/lib/marketing/publish-options'
 import type { MarketingAgent, MarketingCampaign, Prisma } from '@prisma/client'
@@ -746,7 +747,8 @@ export async function schedulePiece(agent: Agent, postId: string, mode: AgentMod
     if (channel === 'WEB') targets = [{ channel, connectionId: null }]
     else {
       const healthy = accounts.filter((a) => a.channel === channel && a.ok)
-      const chosen = plan.accountIds.length ? healthy.filter((a) => plan.accountIds.includes(a.id)) : healthy
+      const ids = healAccountIds(plan.accountIds, accounts.filter((a) => a.channel === channel).map((a) => a.id)).ids
+      const chosen = ids.length ? healthy.filter((a) => ids.includes(a.id)) : healthy
       targets = chosen.map((a) => ({ channel, connectionId: a.id }))
     }
     if (!targets.length) { problems.push(`${channel}: no hay una cuenta que pueda publicar`); continue }
@@ -926,8 +928,12 @@ export async function applyLearning(agent: Agent, learningId: string, userId: st
 async function refreshDegradation(agent: Agent, now: Date) {
   const config = configOf(agent)
   const [spent, ws, accounts] = await Promise.all([agentSpend(agent.id, now), checkWorkspaceBudget(agent.workspaceId), workspaceAccounts(agent.workspaceId)])
-  const chosen = accounts.filter((a) => config.channels[a.channel].enabled && (!config.channels[a.channel].accountIds.length || config.channels[a.channel].accountIds.includes(a.id)))
-  const reason = degradation({ agentBudget: { spentUsd: spent, capUsd: agent.monthlyBudgetUsd }, workspaceBlocked: ws.state === 'blocked', brokenAccounts: chosen.filter((a) => !a.ok).map((a) => a.name) })
+  const idsFor = (ch: 'FACEBOOK' | 'INSTAGRAM') => healAccountIds(config.channels[ch].accountIds, accounts.filter((a) => a.channel === ch).map((a) => a.id))
+  const chosen = accounts.filter((a) => config.channels[a.channel].enabled && (!idsFor(a.channel).ids.length || idsFor(a.channel).ids.includes(a.id)))
+  // A chosen account that was disconnected (and cannot be matched to the only one left) must not fail silently
+  const lost = (['FACEBOOK', 'INSTAGRAM'] as const).filter((ch) => config.channels[ch].enabled && idsFor(ch).stale && !idsFor(ch).healed).map((ch) => (ch === 'INSTAGRAM' ? 'Instagram' : 'Facebook'))
+  const broken = [...chosen.filter((a) => !a.ok).map((a) => a.name), ...lost.map((n) => `cuenta de ${n} desconectada (elígela de nuevo en el agente)`)]
+  const reason = degradation({ agentBudget: { spentUsd: spent, capUsd: agent.monthlyBudgetUsd }, workspaceBlocked: ws.state === 'blocked', brokenAccounts: broken })
   const level = budgetLevel(spent, agent.monthlyBudgetUsd)
   const target = noticeTarget(agent)
   if (level !== 'ok') {

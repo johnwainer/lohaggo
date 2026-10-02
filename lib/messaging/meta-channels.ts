@@ -23,6 +23,7 @@ import {
 import { commentSettingsOf, missingScopes, requiredCommentScopes, type CommentSettings } from '@/lib/ai/comments-core'
 import { formatCapabilities, type FormatCapability } from '@/lib/marketing/format-capabilities'
 import { instagramQuota } from '@/lib/marketing/meta-publish'
+import { adoptOrphans } from '@/lib/marketing/reconnect'
 
 const logger = createLogger('meta-channels')
 
@@ -291,6 +292,8 @@ export async function completeOAuthSelection(params: { sessionId: string; adminI
         },
       })
       runCapabilityDiagnostics(conn.id).catch(() => null)
+      // A reconnected account takes back its publications and the agents that had chosen it
+      await adoptOrphans(conn).catch((err) => logger.warn('Adopting publications failed', { connectionId: conn.id, err: err instanceof Error ? err.message : err }))
       results.push({ id: candidate.id, name: candidate.name, connectionId: conn.id })
     } catch (err) {
       results.push({ id: candidate.id, name: candidate.name, error: err instanceof Error ? err.message : 'error' })
