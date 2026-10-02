@@ -118,7 +118,8 @@ export async function schedulePost(postId: string, targets: Target[], when: Date
   if (issues.length) throw new PublishValidationError(issues)
 
   const replaced: Prisma.MarketingPublicationWhereInput = opts.keepOtherTargets
-    ? { postId, status: 'scheduled', OR: rows.map((r) => ({ channel: r.channel, connectionId: r.connectionId })) }
+    // Same channel left without account by a disconnect: replaced too (it could only fail)
+    ? { postId, status: 'scheduled', OR: rows.flatMap((r) => [{ channel: r.channel, connectionId: r.connectionId }, ...(r.channel === 'WEB' ? [] : [{ channel: r.channel, connectionId: null }])]) }
     : { postId, status: 'scheduled' }
   const earliestOther = opts.keepOtherTargets
     ? await prisma.marketingPublication.findFirst({ where: { postId, status: 'scheduled', NOT: { OR: rows.map((r) => ({ channel: r.channel, connectionId: r.connectionId })) } }, orderBy: { scheduledAt: 'asc' }, select: { scheduledAt: true } })

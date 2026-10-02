@@ -44,7 +44,8 @@ export async function POST(request: NextRequest, context: Ctx) {
     else if (mode === 'schedule') {
       const when = typeof body.when === 'string' ? new Date(body.when) : null
       if (!when || Number.isNaN(when.getTime()) || !canSchedule(when, new Date())) return NextResponse.json({ error: 'Elige una fecha y hora futuras' }, { status: 400 })
-      await schedulePost(id, targets, when)
+      // keepOthers: only these accounts move; what is pending on the post's other accounts stays as it is
+      await schedulePost(id, targets, when, { keepOtherTargets: body.keepOthers === true })
     } else if (mode === 'now') {
       // The panel confirms re-publishing on accounts where it already went out (sent as when: 'republish')
       const republish = body.republish === true || body.when === 'republish'
