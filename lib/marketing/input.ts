@@ -98,6 +98,9 @@ export function validateUploadedMedia(b: Record<string, unknown>, cloudName: str
   const m = u.match(/^https:\/\/res\.cloudinary\.com\/([^/]+)\/(image|video)\/upload\//)
   if (!m || m[1] !== cloudName) throw new Error('El archivo no está en la cuenta de Cloudinary de la plataforma')
   if (!publicId.startsWith(`${folder}/`)) throw new Error('El archivo no pertenece a esta publicación')
+  // The URL must be exactly that file (not another file of the account under a valid public id)
+  const escaped = publicId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  if (!/^[\w/-]+$/.test(publicId) || !new RegExp(`^https://res\\.cloudinary\\.com/${cloudName}/${m[2]}/upload/(v\\d+/)?${escaped}\\.[a-z0-9]+$`).test(u)) throw new Error('El archivo no coincide con lo que se subió')
   const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null)
   const mime = typeof b.mime === 'string' ? b.mime.toLowerCase().slice(0, 80) : null
   return {

@@ -121,7 +121,7 @@ export function editorSystem(p: { brand: string; settings: Pick<EditorialSetting
     STRICT_TEXT[p.settings.strictness],
     `Veredicto: "aprobada" solo si la pieza puede salir tal cual (la plataforma exige además un puntaje ponderado de al menos ${p.settings.minScore}); "cambios" si el redactor puede arreglarla con tus instrucciones; "rechazada" si el enfoque no sirve o incumple algo grave (inventa datos de fondo, tema prohibido, riesgo legal).`,
     'La ortografía ya la revisó el corrector: no la puntúes ni pidas cambios de ortografía salvo errores que cambien el sentido.',
-    'Qué puede cambiar el redactor: solo los textos (título, texto de cada red, artículo, SEO, hashtags, llamada a la acción). Las imágenes las pone la plataforma desde un banco de fotos o con IA, siempre sin texto ni letras dentro (regla de la marca); el redactor no puede diseñar láminas, cambiar fotos ni poner texto en una imagen, y tampoco decide cuántas imágenes lleva un carrusel. Los textos alternativos de las imágenes son solo referencia: no bajes el puntaje de ningún criterio por las fotos y nunca pidas cambios de imágenes; si una foto no encaja con el texto, dilo en una frase del resumen para la persona que aprueba. Cada instrucción tuya debe poder cumplirse reescribiendo texto.',
+    'Qué puede cambiar el redactor: solo los textos (título, texto de cada red, artículo, SEO, hashtags, llamada a la acción). Las imágenes las pone la plataforma desde un banco de fotos o con IA, siempre sin texto ni letras dentro (regla de la marca); el redactor no puede diseñar láminas ni cambiar fotos, y tampoco decide cuántas imágenes lleva un carrusel. La excepción son los reels e historias: su «texto en pantalla» (titular y llamada a la acción) lo dibuja la plataforma sobre la foto o el video y sí lo puede reescribir el redactor. Los textos alternativos de las imágenes son solo referencia: no bajes el puntaje de ningún criterio por las fotos y nunca pidas cambios de imágenes; si una foto no encaja con el texto, dilo en una frase del resumen para la persona que aprueba. Cada instrucción tuya debe poder cumplirse reescribiendo texto.',
     p.settings.styleGuide ? `Guía de estilo del equipo:\n<datos tipo="guía de estilo">\n${p.settings.styleGuide}\n</datos>` : '',
     DATA_RULE,
     'Responde solo con la herramienta entregar_revision. Puntúa todos los criterios de la rúbrica.',
@@ -129,9 +129,15 @@ export function editorSystem(p: { brand: string; settings: Pick<EditorialSetting
   ].filter(Boolean).join('\n\n')
 }
 
-export function editorTask(p: { texts: ReviewText[]; channels: string[]; round: number; previous: Instruction[] | null; brief: string | null }) {
+export function editorTask(p: { texts: ReviewText[]; channels: string[]; round: number; previous: Instruction[] | null; brief: string | null; formats?: Record<string, string | null> }) {
+  const f = p.formats ?? {}
+  const label = (c: string) => (f[c] === 'story' ? 'historia' : f[c] === 'reel' || f[c] === 'trial_reel' ? 'reel' : f[c] === 'carousel' ? 'carrusel' : null)
+  const vertical = p.channels.filter((c) => f[c] === 'story' || f[c] === 'reel' || f[c] === 'trial_reel')
   return [
-    `Revisa esta pieza (canales: ${p.channels.join(', ')}) con la herramienta entregar_revision.`,
+    `Revisa esta pieza (canales: ${p.channels.map((c) => (label(c) ? `${c} como ${label(c)}` : c)).join(', ')}) con la herramienta entregar_revision.`,
+    vertical.length
+      ? `Formatos verticales: ${vertical.map((c) => `${c} ${label(c)}`).join(', ')}. En una historia el texto de la red NO se muestra: juzga solo el texto en pantalla (titular de máximo 60 caracteres que se entienda en 2 segundos y llamada a la acción de máximo 25, sin hashtags, emojis ni enlaces); no pidas hashtags ni enlace para una historia. En un reel el texto de la red es como el de una publicación y además revisas el texto en pantalla con las mismas reglas.`
+      : '',
     p.brief ? `<datos tipo="idea de la pieza">${p.brief}</datos>` : '',
     p.round > 0 && p.previous?.length ? `Es la versión ${p.round + 1}: en la ronda anterior pediste esto; verifica si se resolvió y no repitas lo que ya está bien:\n${p.previous.map((i) => `- ${i.change}`).join('\n')}` : '',
     textsBlock(p.texts),

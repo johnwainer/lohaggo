@@ -19,9 +19,21 @@ export type CopilotRequest = {
   tone?: string
   /** The post's campaign: its objective and description frame every text */
   campaign?: { name: string; objective: string; description: string | null } | null
+  /** Format of the version being written (story: only the text on screen is shown) */
+  format?: string | null
 }
 
-export type BrandContext = { brand: string; services: string[]; cities: string[]; siteUrl: string }
+/** treatment: how the brand addresses the reader (the editorial review checks it) */
+export type BrandContext = { brand: string; services: string[]; cities: string[]; siteUrl: string; treatment?: 'tú' | 'usted' }
+
+/** A story shows no caption: the copilot writes its on-screen headline and call to action, one per line. */
+export const STORY_COPY = 'Es una HISTORIA: el texto de la red no se muestra. Escribe solo el texto en pantalla en dos líneas: la primera, un titular de máximo 60 caracteres que se entienda en 2 segundos; la segunda, una llamada a la acción de máximo 25 caracteres (p. ej. «Escríbenos por DM»). Sin hashtags, emojis ni enlaces, sin etiquetas como «Titular:».'
+
+/** «titular\nllamada» → the two on-screen texts. */
+export function parseStoryCopy(text: string) {
+  const lines = text.split('\n').map((l) => l.replace(/^(titular|llamada( a la acción)?)\s*:\s*/i, '').trim()).filter(Boolean)
+  return { storyText: (lines[0] ?? '').slice(0, 90), storyCta: (lines[1] ?? '').slice(0, 40) }
+}
 
 const CHANNEL_STYLE: Record<MarketingChannel, string> = {
   WEB: `Artículo de blog en Markdown para el sitio web: tono editorial, claro y útil; subtítulos con "## ", párrafos cortos, listas cuando ayuden, sin emojis ni hashtags. Entre 500 y 900 palabras salvo que se pida otra cosa. No repitas el título como encabezado: empieza con un párrafo de introducción. Termina con una llamada a la acción suave hacia LoHaggo.`,
@@ -36,7 +48,7 @@ export function systemPrompt(ctx: BrandContext, tone?: string) {
     `Eres el redactor de marketing de ${ctx.brand}, una plataforma colombiana que conecta clientes con profesionales verificados de servicios para el hogar (${ctx.siteUrl}).`,
     ctx.services.length ? `Servicios que ofrece: ${ctx.services.slice(0, 40).join(', ')}.` : '',
     ctx.cities.length ? `Ciudades: ${ctx.cities.slice(0, 20).join(', ')}.` : '',
-    `Escribe en español de Colombia, tratando al lector de tú.${tone?.trim() ? ` Tono pedido: ${tone.trim()}.` : ''}`,
+    `Escribe en español de Colombia, tratando al lector de ${ctx.treatment ?? 'tú'}.${tone?.trim() ? ` Tono pedido: ${tone.trim()}.` : ''}`,
     'No inventes precios, descuentos, cifras, testimonios ni promociones que no estén en el pedido. Si hace falta un dato que no tienes, escribe un marcador entre corchetes, por ejemplo [precio].',
     'Entrega solo el contenido pedido, sin explicaciones, sin comillas alrededor y sin prefacios como "Aquí tienes".',
   ].filter(Boolean).join('\n')
@@ -46,7 +58,7 @@ export function systemPrompt(ctx: BrandContext, tone?: string) {
 const OBJECTIVE_LABEL: Record<string, string> = { reach: 'alcance', traffic: 'tráfico al sitio web', leads: 'conseguir clientes potenciales', engagement: 'interacción', sales: 'solicitudes de servicio', brand: 'marca' }
 
 export function userPrompt(r: CopilotRequest) {
-  const style = CHANNEL_STYLE[r.channel]
+  const style = r.format === 'story' && (r.action === 'draft' || r.action === 'adapt' || r.action === 'improve') ? STORY_COPY : `${CHANNEL_STYLE[r.channel]}${r.format === 'reel' ? ' Es un reel: el texto acompaña un video vertical corto; la primera línea debe enganchar.' : ''}`
   const extra = r.instruction?.trim() ? `\nIndicación adicional: ${r.instruction.trim()}` : ''
   const campaign = r.campaign
     ? `\nCampaña: ${r.campaign.name} (objetivo: ${OBJECTIVE_LABEL[r.campaign.objective] || r.campaign.objective}).${r.campaign.description?.trim() ? ` ${r.campaign.description.trim().slice(0, 1000)}` : ''}`
@@ -62,7 +74,7 @@ export function userPrompt(r: CopilotRequest) {
     case 'hashtags':
       return `Sugiere entre 8 y 15 hashtags para esta publicación de ${CHANNEL_NAME[r.channel]} (mezcla generales, de nicho y locales de Colombia). Responde solo con los hashtags separados por espacios.\n\nPublicación:\n${r.text || r.brief || ''}`
     case 'ideas':
-      return `Propón 6 ideas de contenido para ${CHANNEL_NAME[r.channel]}${r.brief?.trim() ? ` sobre: ${r.brief.trim()}` : ''}. Responde solo con JSON: {"ideas":[{"title":"...","angle":"una frase con el enfoque","format":"${r.channel === 'INSTAGRAM' ? 'feed | reel | carousel' : r.channel === 'WEB' ? 'guía | lista | comparativa | caso' : 'texto | foto | video | enlace'}"}]}`
+      return `Propón 6 ideas de contenido para ${CHANNEL_NAME[r.channel]}${r.brief?.trim() ? ` sobre: ${r.brief.trim()}` : ''}. Responde solo con JSON: {"ideas":[{"title":"...","angle":"una frase con el enfoque","format":"${r.channel === 'INSTAGRAM' ? 'foto | carrusel | reel | historia' : r.channel === 'WEB' ? 'guía | lista | comparativa | caso' : 'texto | foto | enlace | reel | historia'}"}]}`
     case 'images':
       return `Propón imágenes para esta publicación de ${CHANNEL_NAME[r.channel]}. Responde solo con JSON: {"queries":["3 a 5 búsquedas cortas EN INGLÉS para un banco de fotos (2 a 4 palabras cada una, concretas y visuales, p. ej. \"plumber fixing sink\")"],"prompt":"en español, una descripción visual de 1 a 3 frases para generar la imagen con IA: escena, sujeto, encuadre, luz y ambiente; sin textos ni logos en la imagen","alt":"texto alternativo en español, una frase que describa la imagen"}${title}\n\nPublicación:\n${(r.text || r.brief || '').slice(0, 4000)}`
     case 'seo':

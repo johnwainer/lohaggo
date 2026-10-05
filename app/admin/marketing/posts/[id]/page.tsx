@@ -297,6 +297,8 @@ export default function PostEditorPage({ params }: { params: Promise<{ id: strin
             <CopilotPanel
               post={{ ...post, title, variants: post.variants.map((v) => drafts[v.channel] ?? v) }}
               channel={current.channel}
+              format={current.format}
+              onApplyScreen={(sc) => patchVariant(current.channel, { publishOptions: { ...(current.publishOptions ?? {}), storyText: sc.storyText || undefined, storyCta: sc.storyCta || undefined, renderText: true }, aiGenerated: true })}
               currentText={current.body}
               brief={brief}
               setBrief={(v) => { setBrief(v); touchPost() }}

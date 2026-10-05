@@ -34,7 +34,9 @@ export async function workspaceUsage(workspaceId: string, period = periodOf(new 
     _count: { _all: true },
   })
   const emb = await prisma.aiCall.aggregate({ where: { workspaceId, period, provider: 'voyage' }, _sum: { costUsd: true } })
-  return { costUsd: (agg._sum.costUsd ?? 0) + (emb._sum.costUsd ?? 0), calls: agg._count._all }
+  // AI images spend money too (any provider): they count toward the monthly cost cap, not the call cap
+  const img = await prisma.aiCall.aggregate({ where: { workspaceId, period, kind: 'image_generation' }, _sum: { costUsd: true } })
+  return { costUsd: (agg._sum.costUsd ?? 0) + (emb._sum.costUsd ?? 0) + (img._sum.costUsd ?? 0), calls: agg._count._all }
 }
 
 /**

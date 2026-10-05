@@ -61,6 +61,11 @@ export async function PATCH(request: NextRequest, context: Ctx) {
     if (data.status === 'approved' && !mkCan(auth.access, existing.workspaceId, 'marketing.publish')) return forbidden('Solo quien puede publicar aprueba')
     if (data.status === 'approved') Object.assign(data, { approvedById: auth.admin.id, approvedAt: new Date() })
     const variants = Array.isArray(body.variants) ? body.variants.map((v: Record<string, unknown>) => sanitizeVariantInput(v)) : []
+    // A live blog article changes on the site at once: only who can publish may edit it
+    if (!mkCan(auth.access, existing.workspaceId, 'marketing.publish') && (variants.some((v: { channel: string }) => v.channel === 'WEB') || typeof data.title === 'string')) {
+      const live = await prisma.marketingPostVariant.findFirst({ where: { postId: id, channel: 'WEB', webPublishedAt: { not: null } }, select: { id: true } })
+      if (live) return forbidden('El artículo ya está publicado en el blog: solo quien puede publicar lo edita')
+    }
     if (Array.isArray(body.removeChannels)) {
       const remove = body.removeChannels.filter((c: unknown) => c === 'WEB' || c === 'FACEBOOK' || c === 'INSTAGRAM')
       if (remove.length) await prisma.marketingPostVariant.deleteMany({ where: { postId: id, channel: { in: remove }, webPublishedAt: null } })

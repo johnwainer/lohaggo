@@ -13,5 +13,7 @@ export async function POST(request: NextRequest) {
   if (!post || !mkCan(auth.access, post.workspaceId, 'marketing.edit')) return NextResponse.json({ error: 'No encontrada' }, { status: 404 })
   if (!cloudinaryService.isEnabled()) return NextResponse.json({ error: 'Cloudinary no está configurado' }, { status: 500 })
   const kind = body.kind === 'video' ? 'video' : 'image'
+  // A signature is only handed out while the post can still take files (10 at most)
+  if ((await prisma.marketingMedia.count({ where: { postId: post.id } })) >= 10) return NextResponse.json({ error: 'Máximo 10 archivos por publicación' }, { status: 400 })
   return NextResponse.json(cloudinaryService.signDirectUpload(mediaFolder(post.workspaceId, post.id), kind))
 }

@@ -46,7 +46,7 @@ export async function PATCH(request: NextRequest, context: Ctx) {
     if (!output) return NextResponse.json({ error: 'Esta pauta no tiene contenido' }, { status: 409 })
     ids = parseMetaAdIds(b.metaAdIds)
     const taken = ids.length
-      ? await prisma.marketingAdDraft.findFirst({ where: { id: { not: r.draft.id }, OR: ids.map((id) => ({ output: { path: ['metaAdIds'], array_contains: [id] } })) }, select: { title: true } })
+      ? await prisma.marketingAdDraft.findFirst({ where: { id: { not: r.draft.id }, workspaceId: r.draft.workspaceId, OR: ids.map((id) => ({ output: { path: ['metaAdIds'], array_contains: [id] } })) }, select: { title: true } })
       : null
     if (taken) return NextResponse.json({ error: `Uno de esos IDs ya está en la pauta «${taken.title}»` }, { status: 409 })
     data.output = { ...output, metaAdIds: ids }

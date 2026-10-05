@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
     action: b.action, channel: b.channel,
     brief: str(b.brief, 3000), text: str(b.text, 20000), instruction: str(b.instruction, 500), title: str(b.title, 200), tone: str(b.tone, 100),
     sourceChannel: CH.includes(b.sourceChannel) ? b.sourceChannel : undefined,
+    format: typeof b.format === 'string' ? b.format.slice(0, 20) : null,
   }
   if (typeof b.postId === 'string') {
     const post = await prisma.marketingPost.findFirst({ where: { id: b.postId, workspaceId }, select: { campaign: { select: { name: true, objective: true, description: true } } } })

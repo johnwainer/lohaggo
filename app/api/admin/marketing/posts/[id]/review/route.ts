@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { overLimit } from '@/lib/rate-limit-store'
 import { prisma } from '@/lib/prisma'
 import { auditAdminAction } from '@/lib/admin-utils'
 import { marketingAuth, mkCan, forbidden } from '@/lib/marketing/permissions'
@@ -8,7 +9,7 @@ import { reviewsOf } from '@/lib/marketing/editorial'
 import { EditorialError, overrideReview, proofreadNow, reviewNow } from '@/lib/marketing/editorial-ops'
 
 export const dynamic = 'force-dynamic'
-export const maxDuration = 180
+export const maxDuration = 300
 /** A person may ask a paid review of the same post at most this often. */
 const COOLDOWN_MS = 30_000
 
@@ -46,8 +47,13 @@ export async function POST(request: NextRequest, context: Ctx) {
       message = 'Aprobada por ti para estos textos exactos'
       await auditAdminAction({ actorId: auth.admin.id, actorEmail: auth.admin.email, action: 'MARKETING_REVIEW_OVERRIDE', entityType: 'MarketingPost', entityId: id, details: `${post.title} (revisión: ${r.previous ?? 'ninguna'})`.slice(0, 500), request })
     } else {
+      // A review cut by the time limit left «pending»: after 15 min it counts as failed and can run again
+      if (post.reviewStatus === 'pending') await prisma.marketingPost.updateMany({ where: { id, reviewStatus: 'pending', updatedAt: { lt: new Date(Date.now() - 15 * 60_000) } }, data: { reviewStatus: 'failed' } })
+      const current = await prisma.marketingPost.findUnique({ where: { id }, select: { reviewStatus: true } })
       const lastManual = await prisma.marketingReview.findFirst({ where: { postId: id, trigger: 'manual' }, orderBy: { createdAt: 'desc' }, select: { createdAt: true } })
-      if (post.reviewStatus === 'pending' || (lastManual && Date.now() - lastManual.createdAt.getTime() < COOLDOWN_MS)) return NextResponse.json({ error: 'Ya se está revisando o se acaba de revisar; espera unos segundos' }, { status: 429 })
+      if (current?.reviewStatus === 'pending' || (lastManual && Date.now() - lastManual.createdAt.getTime() < COOLDOWN_MS)) return NextResponse.json({ error: 'Ya se está revisando o se acaba de revisar; espera unos segundos' }, { status: 429 })
+      // One paid pass at a time per post (two clicks or two tabs would run and overwrite each other)
+      if ((await overLimit(`review:${id}`, 3 * 60_000, 1)).blocked) return NextResponse.json({ error: 'Ya se está revisando; espera unos segundos' }, { status: 429 })
       // Agent posts: one paid action at a time per agent (the review counts in its budget)
       const run = async () => (action === 'review' ? reviewNow(id, auth.admin.id) : proofreadNow(id, auth.admin.id))
       const pass = post.agentId ? await withAgentLock(post.agentId, run) : await run()

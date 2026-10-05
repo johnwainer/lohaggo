@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { getEditorialSettings } from '@/lib/marketing/editorial'
 import { callClaude, describeApiError, textOf } from '@/lib/ai/anthropic'
 import { getAiSettings, hasTextProvider } from '@/lib/ai/settings'
 import { checkWorkspaceBudget } from '@/lib/ai/limits'
@@ -28,7 +29,9 @@ export async function runCopywriting(workspaceId: string, req: CopilotRequest) {
   const budget = await checkWorkspaceBudget(workspaceId)
   if (budget.state === 'blocked') throw new CopywritingError(`Tope mensual de IA alcanzado (${budget.pct}%)`)
 
-  const ctx = await brandContext(workspaceId)
+  // The workspace's editorial treatment (the review checks it): «usted» when set, «tú» otherwise
+  const treatment = (await getEditorialSettings(workspaceId)).treatment === 'usted' ? 'usted' as const : 'tú' as const
+  const ctx = { ...(await brandContext(workspaceId)), treatment }
   let result
   try {
     result = await callClaude(

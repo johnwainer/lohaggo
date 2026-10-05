@@ -1,5 +1,6 @@
 'use client'
 
+import { parseStoryCopy } from '@/lib/marketing/copilot-core'
 import { useState } from 'react'
 import { Hash, Lightbulb, Loader2, RefreshCw, Sparkles, Wand2 } from 'lucide-react'
 import { CHANNEL_NAME, api, input, type MkChannel } from '@/components/admin/marketing/shared'
@@ -17,9 +18,12 @@ const QUICK = ['Más corto', 'Más cercano', 'Más formal', 'Con llamada a la ac
  * Writing assistant beside the editor. Drafts, adapts between channels, improves, suggests hashtags,
  * ideas and SEO data. Nothing is applied until the person clicks "Usar".
  */
-export default function CopilotPanel({ post, channel, currentText, brief, setBrief, onApplyText, onAppendText, onApplySeo, onUseIdea }: {
+export default function CopilotPanel({ post, channel, format, currentText, brief, setBrief, onApplyText, onAppendText, onApplySeo, onUseIdea, onApplyScreen }: {
   post: Post
   channel: MkChannel
+  /** Format of the version being written: a story gets its on-screen text instead of a caption */
+  format?: string | null
+  onApplyScreen?: (screen: { storyText: string; storyCta: string }) => void
   currentText: string
   brief: string
   setBrief: (v: string) => void
@@ -41,7 +45,7 @@ export default function CopilotPanel({ post, channel, currentText, brief, setBri
     try {
       const d = await api<{ text?: string; hashtags?: string[]; ideas?: Array<{ title: string; angle?: string; format?: string }>; seo?: Extract<Result, { kind: 'seo' }>['seo'] }>('/api/admin/marketing/copilot', {
         method: 'POST',
-        json: { workspaceId: post.workspaceId, postId: post.id, action, channel, brief, title: post.title, tone, ...extra },
+        json: { workspaceId: post.workspaceId, postId: post.id, action, channel, format: format ?? null, brief, title: post.title, tone, ...extra },
       })
       if (d.text) setResult({ kind: 'text', text: d.text, action })
       else if (d.hashtags) setResult({ kind: 'hashtags', hashtags: d.hashtags })
@@ -94,7 +98,7 @@ export default function CopilotPanel({ post, channel, currentText, brief, setBri
             <>
               <p className="whitespace-pre-wrap break-words text-sm text-gray-800 max-h-80 overflow-y-auto">{result.text}</p>
               <div className="flex flex-wrap gap-2">
-                <button onClick={() => { onApplyText(result.text); setResult(null) }} className="rounded-lg bg-violet-600 px-3 py-1 text-xs font-semibold text-white hover:bg-violet-700">{currentText.trim() ? 'Reemplazar texto' : 'Usar'}</button>
+                <button onClick={() => { if (format === 'story' && onApplyScreen) onApplyScreen(parseStoryCopy(result.text)); else onApplyText(result.text); setResult(null) }} className="rounded-lg bg-violet-600 px-3 py-1 text-xs font-semibold text-white hover:bg-violet-700">{format === 'story' ? 'Usar como texto en pantalla' : currentText.trim() ? 'Reemplazar texto' : 'Usar'}</button>
                 {currentText.trim() && <button onClick={() => { onAppendText(result.text); setResult(null) }} className="rounded-lg border border-violet-200 px-3 py-1 text-xs text-violet-800">Añadir al final</button>}
                 <button onClick={() => setResult(null)} className="ml-auto text-xs text-gray-500">Descartar</button>
               </div>

@@ -60,16 +60,20 @@ export const hashOf = (post: Pick<ReviewPost, 'title' | 'variants' | 'media'>) =
 
 /** Writes the proofread texts back where each one lives. */
 async function writeTexts(post: ReviewPost, before: Record<string, string>, after: Record<string, string>) {
+  // Compare-and-set: a field a person edited while the proofreader worked keeps the person's text
+  const fresh = (await loadReviewPost(post.id)) ?? post
+  const now = Object.fromEntries(collectTexts(fresh).map((t) => [t.key, t.text]))
   for (const key of Object.keys(after)) {
     if (after[key] === before[key]) continue
+    if ((now[key] ?? '') !== (before[key] ?? '')) continue
     if (key === 'title') { await prisma.marketingPost.update({ where: { id: post.id }, data: { title: after[key].slice(0, 200) } }); continue }
     const media = /^media\.(.+)\.alt$/.exec(key)
     if (media) { await prisma.marketingMedia.updateMany({ where: { id: media[1], postId: post.id }, data: { alt: after[key] } }); continue }
     const [channel, field] = key.split('.')
-    const variant = post.variants.find((v) => v.channel === channel)
+    const variant = fresh.variants.find((v) => v.channel === channel)
     if (variant && (field === 'storyText' || field === 'storyCta')) {
       const opts = (variant.publishOptions as Record<string, unknown> | null) ?? {}
-      await prisma.marketingPostVariant.update({ where: { id: variant.id }, data: { publishOptions: { ...opts, [field]: after[key].slice(0, field === 'storyCta' ? 60 : 300) } as Prisma.InputJsonValue } })
+      await prisma.marketingPostVariant.update({ where: { id: variant.id }, data: { publishOptions: { ...opts, [field]: after[key].slice(0, field === 'storyCta' ? 40 : 90) } as Prisma.InputJsonValue } })
       continue
     }
     if (!variant || !['body', 'seoTitle', 'seoDescription', 'excerpt'].includes(field)) continue
@@ -180,7 +184,7 @@ async function edit(post: ReviewPost, s: EditorialSettings, env: ReviewEnv, roun
     const why = await env.canSpend()
     if (why) throw new ReviewError(why)
     const system = editorSystem({ brand: env.brand, settings: s, criteria, treatment: env.treatment, context: env.context })
-    const task = editorTask({ texts, channels, round, previous, brief: post.brief })
+    const task = editorTask({ texts, channels, round, previous, brief: post.brief, formats: Object.fromEntries(post.variants.map((v) => [v.channel, v.format])) })
     const call = (t: string) => callReviewer(env, { model: s.editorModel || defaultModel, kind: 'marketing_review_editor', system, task: t, tool: EDITOR_TOOL, maxTokens: 3500 }, m)
     let parsed = parseEditor(await call(task), criteria)
     if (!parsed.ok) parsed = parseEditor(await call(`${task}\n\nTu respuesta anterior no sirvió; corrige esto: ${parsed.errors.join(' · ')}`), criteria)
@@ -231,9 +235,12 @@ export async function reviewPass(postId: string, s: EditorialSettings, env: Revi
 export async function saveReviewState(postId: string, status: ReviewStatus, p: { score?: number | null; rounds?: number }) {
   const post = await loadReviewPost(postId)
   if (!post) return
+  // The fingerprint of what the editor actually read: text edited during the review is not covered by it
+  const seen = await prisma.marketingReview.findFirst({ where: { postId, reviewer: 'editor', contentHash: { not: null } }, orderBy: { createdAt: 'desc' }, select: { contentHash: true, createdAt: true } })
+  const reviewedHash = seen?.contentHash && Date.now() - seen.createdAt.getTime() < 30 * 60_000 ? seen.contentHash : hashOf(post)
   await prisma.marketingPost.update({
     where: { id: postId },
-    data: { reviewStatus: status, reviewHash: hashOf(post), reviewedAt: new Date(), ...(p.score !== undefined ? { reviewScore: p.score } : {}), ...(p.rounds !== undefined ? { reviewRounds: p.rounds } : {}) },
+    data: { reviewStatus: status, reviewHash: reviewedHash, reviewedAt: new Date(), ...(p.score !== undefined ? { reviewScore: p.score } : {}), ...(p.rounds !== undefined ? { reviewRounds: p.rounds } : {}) },
   })
 }
 

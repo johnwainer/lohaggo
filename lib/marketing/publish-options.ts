@@ -12,6 +12,10 @@ export const FORMAT_LABELS: Record<string, string> = {
   feed: 'Foto', carousel: 'Carrusel', reel: 'Reel', trial_reel: 'Reel de prueba', story: 'Historia', post: 'Publicación',
 }
 
+/** Text on screen: hard limits (60 / 25 read best in two seconds) */
+export const SCREEN_TEXT_MAX = 90
+export const SCREEN_CTA_MAX = 40
+
 /** Stories stay visible (and their statistics readable) 24 h. */
 export const STORY_TTL_MS = 24 * 60 * 60 * 1000
 
@@ -69,8 +73,15 @@ export function sanitizePublishOptions(raw: unknown): PublishOptions | null {
   if (typeof b.shareToFeed === 'boolean') out.shareToFeed = b.shareToFeed
   if (b.trialGraduation === 'MANUAL' || b.trialGraduation === 'SS_PERFORMANCE') out.trialGraduation = b.trialGraduation
   if (typeof b.aiLabel === 'boolean') out.aiLabel = b.aiLabel
-  if (typeof b.storyText === 'string' && b.storyText.trim()) out.storyText = b.storyText.trim().slice(0, 300)
-  if (typeof b.storyCta === 'string' && b.storyCta.trim()) out.storyCta = b.storyCta.trim().slice(0, 60)
+  // What is drawn on screen is exactly what was saved and reviewed: over the limit it is refused, never cut
+  if (typeof b.storyText === 'string' && b.storyText.trim()) {
+    if (b.storyText.trim().length > SCREEN_TEXT_MAX) throw new Error(`El titular en pantalla admite hasta ${SCREEN_TEXT_MAX} caracteres (mejor 60)`)
+    out.storyText = b.storyText.trim()
+  }
+  if (typeof b.storyCta === 'string' && b.storyCta.trim()) {
+    if (b.storyCta.trim().length > SCREEN_CTA_MAX) throw new Error(`La llamada a la acción en pantalla admite hasta ${SCREEN_CTA_MAX} caracteres (mejor 25)`)
+    out.storyCta = b.storyCta.trim()
+  }
   if (typeof b.renderText === 'boolean') out.renderText = b.renderText
   return Object.keys(out).length ? out : null
 }
@@ -80,7 +91,15 @@ export function readPublishOptions(raw: unknown): PublishOptions {
   try {
     return sanitizePublishOptions(raw) ?? {}
   } catch {
-    return {}
+    // Saved before a limit existed: the other options must not be lost, the long texts are cut
+    try {
+      const o = raw && typeof raw === 'object' ? { ...(raw as Record<string, unknown>) } : {}
+      if (typeof o.storyText === 'string') o.storyText = o.storyText.slice(0, SCREEN_TEXT_MAX)
+      if (typeof o.storyCta === 'string') o.storyCta = o.storyCta.slice(0, SCREEN_CTA_MAX)
+      return sanitizePublishOptions(o) ?? {}
+    } catch {
+      return {}
+    }
   }
 }
 
