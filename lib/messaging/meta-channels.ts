@@ -292,7 +292,9 @@ export async function completeOAuthSelection(params: { sessionId: string; adminI
         },
       })
       runCapabilityDiagnostics(conn.id).catch(() => null)
-      // A reconnected account takes back its publications and the agents that had chosen it
+      // Fresh token state (an old «token broken» must not survive a reconnect), then the account takes back
+      // its publications and the agents that had chosen it
+      await import('@/lib/marketing/token-health').then((m) => m.checkConnectionToken(conn)).catch(() => null)
       await adoptOrphans(conn).catch((err) => logger.warn('Adopting publications failed', { connectionId: conn.id, err: err instanceof Error ? err.message : err }))
       results.push({ id: candidate.id, name: candidate.name, connectionId: conn.id })
     } catch (err) {

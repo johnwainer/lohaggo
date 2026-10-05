@@ -22,8 +22,8 @@ async function fbPermalink(c: Ctx, id: string) {
 // ─── Facebook Page ───────────────────────────────────────────────────────────
 
 /** Facebook: a regular post (text, link, photos, video), a reel or a story. Reels finish in the worker. */
-export async function publishToFacebook(c: Ctx, pageId: string, p: { message: string; link?: string | null; media: PublishMedia[]; format?: 'post' | 'reel' | 'story'; options?: PublishOptions; aiGenerated?: boolean }): Promise<PublishResult> {
-  if (p.format === 'reel') return startFacebookReel(c, pageId, p)
+export async function publishToFacebook(c: Ctx, pageId: string, p: { message: string; link?: string | null; media: PublishMedia[]; format?: 'post' | 'reel' | 'story'; options?: PublishOptions; aiGenerated?: boolean }, onCreated?: (containerId: string) => Promise<void>): Promise<PublishResult> {
+  if (p.format === 'reel') return startFacebookReel(c, pageId, p, onCreated)
   if (p.format === 'story') return publishFacebookStory(c, pageId, p)
   const videos = p.media.filter((m) => m.kind === 'video')
   const images = p.media.filter((m) => m.kind === 'image')
@@ -82,10 +82,11 @@ async function startVideoSession(c: Ctx, pageId: string, edge: 'video_reels' | '
 }
 
 /** Reel: start → upload → finish with PUBLISHED. Meta publishes after processing; the worker follows it. */
-async function startFacebookReel(c: Ctx, pageId: string, p: { message: string; media: PublishMedia[]; options?: PublishOptions }): Promise<PublishResult> {
+async function startFacebookReel(c: Ctx, pageId: string, p: { message: string; media: PublishMedia[]; options?: PublishOptions }, onCreated?: (containerId: string) => Promise<void>): Promise<PublishResult> {
   const video = p.media.find((m) => m.kind === 'video')
   if (!video) throw new MetaGraphError('Un reel necesita un video', { status: 400 })
   const session = await startVideoSession(c, pageId, 'video_reels')
+  await onCreated?.(`${FB_REEL_PREFIX}${session.video_id}`)
   await ruploadHosted(c, session.upload_url, video.url)
   await graphFetch(`${pageId}/video_reels`, opts(c, {
     method: 'POST',
@@ -99,8 +100,9 @@ async function startFacebookReel(c: Ctx, pageId: string, p: { message: string; m
 }
 
 /** Preflight: upload a reel or video story's file without publishing it; Meta's processing tells if it is accepted. */
-export async function uploadFacebookVideoOnly(c: Ctx, pageId: string, edge: 'video_reels' | 'video_stories', fileUrl: string) {
+export async function uploadFacebookVideoOnly(c: Ctx, pageId: string, edge: 'video_reels' | 'video_stories', fileUrl: string, onSession?: (videoId: string) => void) {
   const session = await startVideoSession(c, pageId, edge)
+  onSession?.(session.video_id)
   await ruploadHosted(c, session.upload_url, fileUrl)
   return session.video_id
 }
@@ -228,8 +230,10 @@ export async function createInstagramContainer(c: Ctx, igId: string, p: IgPayloa
   return containerId
 }
 
-export async function publishToInstagram(c: Ctx, igId: string, p: IgPayload): Promise<PublishResult> {
+export async function publishToInstagram(c: Ctx, igId: string, p: IgPayload, onCreated?: (containerId: string) => Promise<void>): Promise<PublishResult> {
   const containerId = await createInstagramContainer(c, igId, p)
+  // Saved before publishing: a retry then knows this attempt reached Meta and reuses it instead of posting again
+  await onCreated?.(containerId)
   const hasVideo = p.media.some((m) => m.kind === 'video')
   if (hasVideo) return { status: 'processing', containerId }
   // Images: a short wait covers the usual case; otherwise the worker finishes it
@@ -246,6 +250,8 @@ export async function publishToInstagram(c: Ctx, igId: string, p: IgPayload): Pr
 export async function finishInstagramContainer(c: Ctx, igId: string, containerId: string): Promise<PublishResult | { status: 'error'; detail: string }> {
   const s = await containerStatus(c, containerId)
   if (s.code === 'FINISHED') return igPublishContainer(c, igId, containerId)
+  // Already published (an earlier attempt got that far): the caller looks for the post itself
+  if (s.code === 'PUBLISHED') return { status: 'error', detail: 'El contenedor ya se publicó' }
   if (s.code === 'ERROR' || s.code === 'EXPIRED') return { status: 'error', detail: `Instagram no pudo procesar el archivo: ${s.detail || s.code}` }
   return { status: 'processing', containerId }
 }
@@ -309,6 +315,8 @@ async function firstInsights(c: Ctx, id: string, sets: string[], edge = 'insight
       return new Map((d.data || []).map((r) => [r.name, r]))
     } catch (err) {
       if (!(err instanceof MetaGraphError) || err.code !== 100) throw err
+      // The object is gone (deleted on the network): not a metric name problem, stop here
+      if (err.subcode === 33 || /does not exist|Unsupported get request|cannot be loaded/i.test(err.message)) throw err
     }
   }
   return new Map<string, InsightRow>()
@@ -352,6 +360,8 @@ export async function instagramMetrics(c: Ctx, mediaId: string, kind: 'post' | '
       ? ['reach,likes,comments,shares,saved,views,ig_reels_avg_watch_time,ig_reels_video_view_total_time', 'reach,likes,comments,shares,saved,views']
       : ['reach,likes,comments,shares,saved,views', 'reach,likes,comments,shares,saved,impressions', 'reach,likes,comments,saved']
   const ins = await firstInsights(c, mediaId, sets)
+  // Nothing readable: no snapshot (a row of zeros would replace the last real numbers)
+  if (!ins.size) throw new MetaGraphError('Meta no devolvió métricas de esta publicación', { status: 502 })
   m.reach = valueOf(ins.get('reach'))
   m.likes = valueOf(ins.get('likes'))
   // A story's replies are its conversations
@@ -373,6 +383,7 @@ export async function facebookReelMetrics(c: Ctx, videoId: string): Promise<Metr
     'blue_reels_play_count,post_impressions_unique',
     'total_video_views,total_video_impressions_unique',
   ], 'video_insights')
+  if (!ins.size) throw new MetaGraphError('Meta no devolvió métricas de este reel', { status: 502 })
   m.videoViews = valueOf(ins.get('blue_reels_play_count') || ins.get('total_video_views'))
   m.impressions = m.videoViews
   m.reach = valueOf(ins.get('post_impressions_unique') || ins.get('total_video_impressions_unique'))

@@ -60,7 +60,9 @@ export async function GET(request: NextRequest) {
       byDay.set(k, [...(byDay.get(k) ?? []), x])
     }
     return Array.from(byDay.entries()).map(([day, pubs]) => {
-      const at = pubs.map((x) => x.publishedAt ?? x.scheduledAt).sort((a, b) => a.getTime() - b.getTime())[0]
+      // The card's time is what a drag moves: the queued sends when there are any (a published one keeps its hour)
+      const queued = pubs.filter((x) => x.status === 'scheduled')
+      const at = (queued.length ? queued.map((x) => x.scheduledAt) : pubs.map((x) => x.publishedAt ?? x.scheduledAt)).sort((a, b) => a.getTime() - b.getTime())[0]
       return { ...p, key: `${p.id}:${day}`, at, publications: pubs, slots: slots.filter((s) => pubs.some((x) => x.channel === s.channel)) }
     }).filter((x) => x.at >= from && x.at <= to)
   })

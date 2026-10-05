@@ -50,6 +50,8 @@ export async function preflightPost(postId: string, opts: { channels?: Marketing
   const results: PreflightResult[] = []
   const app = await requireMetaApp()
   const at = () => new Date().toISOString()
+  // Every account is tested at the same time: one after another would outlast the request's limit
+  const tasks: Array<() => Promise<void>> = []
   for (const variant of post.variants) {
     const channel = variant.channel as MarketingChannel
     if (channel === 'WEB' || (opts.channels && !opts.channels.includes(channel))) continue
@@ -58,11 +60,11 @@ export async function preflightPost(postId: string, opts: { channels?: Marketing
     const format = resolveFormat(social, variant.format, files.map(infoOf))
     const conns = await prisma.channelConnection.findMany({ where: { workspaceId: post.workspaceId, channel: CONNECTION_CHANNEL[social], enabled: true } })
     const { validation } = validatePostForChannel(post, channel)
-    for (const conn of conns) {
+    for (const conn of conns) tasks.push(async () => {
       const base = { channel: social, account: conn.name, format, checkedAt: at() }
-      if (validation && !validation.ok) { results.push({ ...base, status: 'failed', detail: validation.errors.map((e) => e.message).join(' · ') }); continue }
+      if (validation && !validation.ok) { results.push({ ...base, status: 'failed', detail: validation.errors.map((e) => e.message).join(' · ') }); return }
       const token = getConnectionCredentials(conn)?.pageAccessToken
-      if (!token) { results.push({ ...base, status: 'failed', detail: 'Token no disponible: reconecta la cuenta' }); continue }
+      if (!token) { results.push({ ...base, status: 'failed', detail: 'Token no disponible: reconecta la cuenta' }); return }
       const ctx = { app, token }
       const options = readPublishOptions(variant.publishOptions)
       const media = files.map((m) => ({ url: deliveryUrl(social, m.url, infoOf(m), format, options), kind: infoOf(m).kind, alt: m.alt }))
@@ -72,16 +74,20 @@ export async function preflightPost(postId: string, opts: { channels?: Marketing
           const containerId = await createInstagramContainer(ctx, conn.externalId, { caption: format === 'story' ? '' : variant.body, format: format as 'feed' | 'carousel' | 'reel' | 'trial_reel' | 'story', media, options, aiGenerated: files.some((m) => m.source === 'ai') })
           const s = await waitFor(() => containerStatus(ctx, containerId), maxWait)
           results.push({ ...base, status: s.code === 'FINISHED' ? 'ok' : s.code === 'IN_PROGRESS' ? 'pending' : 'failed', detail: s.code === 'FINISHED' ? 'Instagram aceptó el archivo (no se publicó)' : s.code === 'IN_PROGRESS' ? 'Instagram sigue procesando el video; sin errores hasta ahora' : `Instagram lo rechazó: ${s.detail || s.code}` })
-          continue
+          return
         }
         const pageId = getConnectionMeta(conn).pageId || conn.externalId
         const video = media.find((m) => m.kind === 'video')
         if (format === 'reel' || (format === 'story' && video)) {
-          const videoId = await uploadFacebookVideoOnly(ctx, pageId, format === 'reel' ? 'video_reels' : 'video_stories', video!.url)
-          const s = await waitFor(() => facebookVideoState(ctx, videoId), Math.min(maxWait, 30_000))
-          results.push({ ...base, status: s.code === 'FINISHED' ? 'ok' : s.code === 'IN_PROGRESS' ? 'pending' : 'failed', detail: s.code === 'FINISHED' ? 'Facebook recibió el video completo y sin errores (no se publicó; lo procesa al publicar)' : s.code === 'IN_PROGRESS' ? 'Facebook sigue recibiendo el video; sin errores hasta ahora' : `Facebook lo rechazó: ${s.detail}` })
-          // The test upload is not left in the Page's videos
-          await deleteFacebookObject(ctx, videoId)
+          let videoId: string | null = null
+          try {
+            videoId = await uploadFacebookVideoOnly(ctx, pageId, format === 'reel' ? 'video_reels' : 'video_stories', video!.url, (id) => { videoId = id })
+            const s = await waitFor(() => facebookVideoState(ctx, videoId!), Math.min(maxWait, 30_000))
+            results.push({ ...base, status: s.code === 'FINISHED' ? 'ok' : s.code === 'IN_PROGRESS' ? 'pending' : 'failed', detail: s.code === 'FINISHED' ? 'Facebook recibió el video completo y sin errores (no se publicó; lo procesa al publicar)' : s.code === 'IN_PROGRESS' ? 'Facebook sigue recibiendo el video; sin errores hasta ahora' : `Facebook lo rechazó: ${s.detail}` })
+          } finally {
+            // The test upload is never left in the Page's videos (also when the upload itself failed)
+            if (videoId) await deleteFacebookObject(ctx, videoId)
+          }
         } else if (format === 'story') {
           const photoId = await uploadFacebookPhotoOnly(ctx, pageId, media[0].url)
           await deleteFacebookObject(ctx, photoId)
@@ -93,9 +99,12 @@ export async function preflightPost(postId: string, opts: { channels?: Marketing
         logger.warn('Preflight failed', { postId, channel, conn: conn.id, err: describeGraphError(err) })
         results.push({ ...base, status: 'failed', detail: describeGraphError(err) })
       }
-    }
+    })
   }
-  const meta = (post.agentMeta as Record<string, unknown> | null) ?? {}
-  await prisma.marketingPost.update({ where: { id: postId }, data: { agentMeta: { ...meta, preflight: results } } })
+  await Promise.all(tasks.map((t) => t()))
+  // Read again before writing: minutes passed, and a person may have held or moved the piece meanwhile
+  const fresh = await prisma.marketingPost.findUnique({ where: { id: postId }, select: { agentMeta: true } })
+  const meta = (fresh?.agentMeta as Record<string, unknown> | null) ?? {}
+  await prisma.marketingPost.update({ where: { id: postId }, data: { agentMeta: { ...meta, preflight: results, preflightAt: new Date().toISOString() } } })
   return results
 }

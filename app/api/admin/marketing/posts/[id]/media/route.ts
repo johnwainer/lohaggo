@@ -105,7 +105,9 @@ export async function DELETE(request: NextRequest, context: Ctx) {
   for (const v of variants) await prisma.marketingPostVariant.update({ where: { id: v.id }, data: { mediaIds: v.mediaIds.filter((x) => x !== media.id) } })
   // The Cloudinary file is only removed if nothing ever went out or is queued with it
   const used = await prisma.marketingPublication.count({ where: { postId: id, status: { not: 'cancelled' } } })
-  if (!used && media.publicId && media.kind === 'image') await cloudinaryService.delete(media.publicId).catch(() => null)
+  // …and no other file of the post uses it (an animated reel is the same photo)
+  const shared = await prisma.marketingMedia.count({ where: { postId: id, OR: [{ url: media.url }, { originalUrl: media.originalUrl ?? media.url }, ...(media.publicId ? [{ publicId: media.publicId }] : [])] } })
+  if (!used && !shared && media.publicId && media.kind === 'image') await cloudinaryService.delete(media.publicId).catch(() => null)
   await markStaleIfChanged(id)
   return NextResponse.json({ post: await loadPostDetail(id) })
 }

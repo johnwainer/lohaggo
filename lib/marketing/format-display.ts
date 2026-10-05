@@ -28,7 +28,7 @@ export function formatLabel(channel: LineChannel, format: string | null | undefi
 export function agentFormatLabel(channel: LineChannel, format: string | null | undefined) {
   const f = format ?? ''
   if (channel === 'WEB') return f ? `Artículo (${f})` : 'Artículo'
-  const map: Record<string, string> = { feed: 'Foto', carousel: 'Carrusel', reel: 'Reel', story: 'Historia', historia: 'Historia', foto: 'Foto', texto: 'Texto', enlace: 'Enlace' }
+  const map: Record<string, string> = { feed: 'Foto', carousel: 'Carrusel', reel: 'Reel', trial_reel: 'Reel de prueba', story: 'Historia', historia: 'Historia', foto: 'Foto', texto: 'Texto', enlace: 'Enlace', post: 'Publicación' }
   return map[f] ?? (f || 'Publicación')
 }
 

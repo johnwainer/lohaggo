@@ -1,4 +1,5 @@
 import type { Prisma } from '@prisma/client'
+import { resolveFormat } from '@/lib/marketing/publish-options'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
 import { MetaGraphError } from '@/lib/messaging/meta-graph'
@@ -10,6 +11,8 @@ import { bogotaDay } from '@/lib/analytics/core'
 const logger = createLogger('marketing-metrics')
 
 const H = 3600_000
+/** Deleted on the network: its last snapshot stays, nothing more is asked */
+const GONE = 'La publicación ya no existe en la red'
 /** The refresh bands of metricsDue: age range and how often (5 min of slack, like metricsDue). */
 const METRIC_BANDS = [
   { minAge: 0, maxAge: 48 * H, every: H },
@@ -29,7 +32,7 @@ export async function collectMetrics(limit = 60) {
       publishedAt: { gte: new Date(now.getTime() - b.maxAge), lte: new Date(now.getTime() - b.minAge) },
       OR: [{ metricsAt: null }, { metricsAt: { lte: new Date(now.getTime() - b.every + 5 * 60_000) } }],
       // An expired story has no statistics left (Meta keeps them 24 h): its last capture is final
-      AND: [{ OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] }],
+      AND: [{ OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] }, { OR: [{ lastError: null }, { NOT: { lastError: GONE } }] }],
     },
     include: { connection: true, post: { select: { media: { select: { kind: true } } } } },
     orderBy: [{ metricsAt: { sort: 'asc', nulls: 'first' } }],
@@ -49,7 +52,8 @@ export async function collectMetrics(limit = 60) {
       if (!token || !app || !pub.externalId) continue
       const ctx = { app, token }
       const isVideo = pub.post.media.some((m) => m.kind === 'video')
-      const format = formats.get(pub.variantId) ?? null
+      // The format it went out as (an Instagram video with no format chosen is a reel)
+      const format = resolveFormat(pub.channel as 'FACEBOOK' | 'INSTAGRAM', formats.get(pub.variantId) ?? null, pub.post.media.map((m) => ({ kind: m.kind === 'video' ? 'video' as const : 'image' as const })))
       // Facebook does not give statistics of a Page story by API: nothing to ask
       if (pub.channel === 'FACEBOOK' && format === 'story') continue
       const m = pub.channel === 'FACEBOOK'
@@ -66,7 +70,7 @@ export async function collectMetrics(limit = 60) {
       // Deleted on the network (code 100 / 803): stop asking
       const gone = err instanceof MetaGraphError && (err.code === 100 || err.code === 803)
       logger.warn('Metrics failed', { publicationId: pub.id, gone, err: err instanceof Error ? err.message : err })
-      if (gone) await prisma.marketingPublication.update({ where: { id: pub.id }, data: { lastError: 'La publicación ya no existe en la red' } }).catch(() => null)
+      if (gone) await prisma.marketingPublication.update({ where: { id: pub.id }, data: { lastError: GONE } }).catch(() => null)
     }
     await prisma.marketingPublication.update({ where: { id: pub.id }, data: { metricsAt: now } }).catch(() => null)
   }

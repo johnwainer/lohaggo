@@ -125,10 +125,17 @@ export async function schedulePost(postId: string, targets: Target[], when: Date
     ? await prisma.marketingPublication.findFirst({ where: { postId, status: 'scheduled', NOT: { OR: rows.map((r) => ({ channel: r.channel, connectionId: r.connectionId })) } }, orderBy: { scheduledAt: 'asc' }, select: { scheduledAt: true } })
     : null
   const postWhen = earliestOther && earliestOther.scheduledAt < when ? earliestOther.scheduledAt : when
+  // A send waiting to retry may already be on the network: the new row keeps its attempts and start, so
+  // the next run still checks for it before posting again
+  const retrying = await prisma.marketingPublication.findMany({ where: { ...replaced, attempts: { gt: 0 } }, select: { channel: true, connectionId: true, attempts: true, createdAt: true } })
+  const carried = new Map(retrying.map((r) => [targetKey(r), r]))
   await prisma.$transaction([
     prisma.marketingPublication.updateMany({ where: replaced, data: { status: 'cancelled', lastError: 'Reprogramada' } }),
     prisma.marketingPublication.createMany({
-      data: rows.map((r) => ({ postId, variantId: r.variantId, channel: r.channel, connectionId: r.connectionId, scheduledAt: when, idempotencyKey: `${postId}:${r.channel}:${r.connectionId || 'web'}:${randomUUID()}` })),
+      data: rows.map((r) => {
+        const prev = carried.get(targetKey(r))
+        return { postId, variantId: r.variantId, channel: r.channel, connectionId: r.connectionId, scheduledAt: when, idempotencyKey: `${postId}:${r.channel}:${r.connectionId || 'web'}:${randomUUID()}`, ...(prev ? { attempts: prev.attempts, createdAt: prev.createdAt } : {}) }
+      }),
     }),
     prisma.marketingPost.update({ where: { id: postId }, data: { scheduledAt: postWhen } }),
   ])
@@ -277,11 +284,29 @@ export async function runPublication(pub: MarketingPublication) {
     const format = resolveFormat(social, variant.format, files.map(infoOf))
     const story = isStory(format)
 
-    // A previous attempt may have published before dying: adopt that post instead of duplicating it
+    // A previous attempt may have reached Meta before dying: reuse or adopt it instead of posting twice
     if (pub.attempts > 1) {
-      const existing = await findPreviousAttempt(pub, { ctx, pageId, igId: conn.externalId, format, body: variant.body })
-      if (existing) return finish(pub, { status: 'published', externalId: existing.id, permalink: existing.permalink, publishedAt: existing.createdAt, ...(story ? { expiresAt: new Date(existing.createdAt.getTime() + STORY_TTL_MS) } : {}) })
+      if (pub.containerId) {
+        const fbReel = pub.containerId.startsWith(FB_REEL_PREFIX)
+        const r = fbReel
+          ? await finishFacebookReel(ctx, pub.containerId.slice(FB_REEL_PREFIX.length)).catch(() => null)
+          : await finishInstagramContainer(ctx, conn.externalId, pub.containerId).catch(() => null)
+        if (r?.status === 'published') {
+          const at = new Date()
+          return finish(pub, { status: 'published', externalId: r.externalId, permalink: r.permalink, publishedAt: at, lastError: null, ...(story ? { expiresAt: new Date(at.getTime() + STORY_TTL_MS) } : {}) })
+        }
+        // Still being processed by Meta: the worker follows it (no new upload)
+        if (r?.status === 'processing') return finish(pub, { status: 'processing', containerId: r.containerId })
+        // A container already published by the first attempt answers as an error: look for the post itself
+        const existing = await findPreviousAttempt(pub, { ctx, pageId, igId: conn.externalId, format, body: variant.body })
+        if (existing) return finish(pub, { status: 'published', externalId: existing.id, permalink: existing.permalink, publishedAt: existing.createdAt, ...(story ? { expiresAt: new Date(existing.createdAt.getTime() + STORY_TTL_MS) } : {}) })
+      } else if (!story) {
+        // No container saved: only a text match can tell (a story without container never reached Meta)
+        const existing = await findPreviousAttempt(pub, { ctx, pageId, igId: conn.externalId, format, body: variant.body })
+        if (existing) return finish(pub, { status: 'published', externalId: existing.id, permalink: existing.permalink, publishedAt: existing.createdAt })
+      }
     }
+    const saveContainer = async (containerId: string) => { await prisma.marketingPublication.updateMany({ where: { id: pub.id, claimToken: pub.claimToken }, data: { containerId } }) }
 
     const options = readPublishOptions(variant.publishOptions)
     const media = files.map((m) => ({ url: deliveryUrl(social, m.url, infoOf(m), format, options), kind: infoOf(m).kind, alt: m.alt }))
@@ -290,9 +315,9 @@ export async function runPublication(pub: MarketingPublication) {
     const aiGenerated = files.some((m) => m.source === 'ai')
     let result: PublishResult
     if (social === 'FACEBOOK') {
-      result = await publishToFacebook(ctx, pageId, { message: variant.body, link: variant.linkUrl, media, format: format as 'post' | 'reel' | 'story', options, aiGenerated })
+      result = await publishToFacebook(ctx, pageId, { message: variant.body, link: variant.linkUrl, media, format: format as 'post' | 'reel' | 'story', options, aiGenerated }, saveContainer)
     } else {
-      result = await publishToInstagram(ctx, conn.externalId, { caption: story ? '' : variant.body, format: format as 'feed' | 'carousel' | 'reel' | 'trial_reel' | 'story', media, options, aiGenerated })
+      result = await publishToInstagram(ctx, conn.externalId, { caption: story ? '' : variant.body, format: format as 'feed' | 'carousel' | 'reel' | 'trial_reel' | 'story', media, options, aiGenerated }, saveContainer)
     }
     if (result.status === 'processing') return finish(pub, { status: 'processing', containerId: result.containerId })
     const now = new Date()
@@ -354,16 +379,17 @@ async function runProcessing(limit: number) {
     const claimed = await claimProcessing(candidate)
     if (!claimed) continue
     const pub = { ...candidate, claimToken: claimed.claimToken }
+    const release = () => prisma.marketingPublication.updateMany({ where: { id: pub.id, claimToken: pub.claimToken }, data: { claimToken: null } })
+    const fbReel = Boolean(pub.containerId?.startsWith(FB_REEL_PREFIX))
+    // A Facebook reel was sent with «publish when ready»: Meta may publish it after any timeout of ours
+    const timeoutMs = fbReel ? 3 * 3600_000 : CONTAINER_TIMEOUT_MS
     try {
       if (!pub.connection || !pub.containerId) { await finish(pub, { status: 'failed', lastError: 'La cuenta ya no está conectada' }); continue }
-      if (pub.claimedAt && Date.now() - pub.claimedAt.getTime() > CONTAINER_TIMEOUT_MS) {
-        await finish(pub, { status: 'failed', lastError: `${pub.channel === 'FACEBOOK' ? 'Facebook' : 'Instagram'} no terminó de procesar el video en 30 minutos` })
-        continue
-      }
       const token = getConnectionCredentials(pub.connection)?.pageAccessToken
       if (!token) { await finish(pub, { status: 'failed', lastError: 'Token no disponible: reconecta la cuenta' }); continue }
       const ctx = { app: await requireMetaApp(), token }
-      const r = pub.containerId.startsWith(FB_REEL_PREFIX)
+      // The state first, the timeout after: a video that finished late is published, not failed
+      const r = fbReel
         ? await finishFacebookReel(ctx, pub.containerId.slice(FB_REEL_PREFIX.length))
         : await finishInstagramContainer(ctx, pub.connection.externalId, pub.containerId)
       if (r.status === 'published') {
@@ -372,11 +398,16 @@ async function runProcessing(limit: number) {
         done++
       } else if (r.status === 'error') {
         await finish(pub, { status: 'failed', lastError: r.detail })
+      } else if (pub.claimedAt && Date.now() - pub.claimedAt.getTime() > timeoutMs) {
+        await finish(pub, { status: 'failed', lastError: fbReel ? 'Facebook lleva 3 horas procesando el reel. Revisa la página antes de reintentar: puede haberse publicado solo' : 'Instagram no terminó de procesar el video en 30 minutos' })
       } else {
         // Still processing: release the claim for the next run
-        await prisma.marketingPublication.updateMany({ where: { id: pub.id, claimToken: pub.claimToken }, data: { claimToken: null } })
+        await release()
       }
     } catch (err) {
+      // A transient error while checking is not a failed send: re-queuing would upload the video again
+      const kind = err instanceof MetaGraphError ? classifyGraphError({ code: err.code, subcode: err.subcode, status: err.status, message: err.message }) : { retryable: true }
+      if (kind.retryable) { await release(); continue }
       await fail(pub, err)
     }
   }
@@ -387,15 +418,25 @@ async function runProcessing(limit: number) {
  * The worker (cron, every minute): frees claims of workers that died, takes what is due, runs it with
  * limited concurrency, then advances Instagram videos that were processing.
  */
-export async function runDuePublications(limit = 20) {
+export async function runDuePublications(limit = 20, budgetMs = 240_000) {
   const now = new Date()
+  const started = Date.now()
   // Worker died mid-publication: back to the queue (the idempotency check avoids a duplicate)
   const stale = { status: 'publishing', claimedAt: { lt: new Date(now.getTime() - STALE_CLAIM_MS) } }
   await prisma.marketingPublication.updateMany({ where: { ...stale, attempts: { gte: MAX_ATTEMPTS } }, data: { status: 'failed', claimToken: null, lastError: 'Se interrumpió el envío varias veces' } })
   await prisma.marketingPublication.updateMany({ where: stale, data: { status: 'scheduled', claimToken: null, lastError: 'Se interrumpió el envío; se reintenta' } })
-  const due = await prisma.marketingPublication.findMany({ where: { status: 'scheduled', scheduledAt: { lte: now } }, orderBy: { scheduledAt: 'asc' }, take: limit, select: { id: true } })
-  const claimed = await claim(due.map((d) => d.id))
-  for (let i = 0; i < claimed.length; i += 5) await Promise.all(claimed.slice(i, i + 5).map((p) => runPublication(p)))
+  // Videos Meta is processing first: they are quick checks and their wait counts against a timeout
   const processed = await runProcessing(limit)
-  return { ran: claimed.length, containersPublished: processed }
+  // Then the due sends in batches of 5, each batch taken only with enough time left to run it
+  // (a send claimed and cut by the function's limit would use up one of its attempts for nothing)
+  let ran = 0
+  while (ran < limit && Date.now() - started < budgetMs - 150_000) {
+    const due = await prisma.marketingPublication.findMany({ where: { status: 'scheduled', scheduledAt: { lte: new Date() } }, orderBy: { scheduledAt: 'asc' }, take: 5, select: { id: true } })
+    if (!due.length) break
+    const claimed = await claim(due.map((d) => d.id))
+    if (!claimed.length) break
+    await Promise.all(claimed.map((p) => runPublication(p)))
+    ran += claimed.length
+  }
+  return { ran, containersPublished: processed }
 }

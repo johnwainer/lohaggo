@@ -4,6 +4,7 @@
  * connected again (or diagnosed), this ties everything back: Facebook posts by the Page id in their
  * external id, Instagram ones to the workspace's only Instagram account. Idempotent.
  */
+import { graphFetch } from '@/lib/messaging/meta-graph'
 import type { ChannelConnection, Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
@@ -21,6 +22,20 @@ export function healAccountIds(chosen: string[], existing: string[]) {
   return existing.length === 1 ? { ids: existing, stale: true, healed: true } : { ids: chosen, stale: true, healed: false }
 }
 
+/** Asks Meta who owns the latest orphaned Instagram post: it must be this account. */
+async function sameInstagramAccount(conn: Pick<ChannelConnection, 'id' | 'workspaceId' | 'externalId'>) {
+  const sample = await prisma.marketingPublication.findFirst({ where: { channel: 'INSTAGRAM', connectionId: null, externalId: { not: null }, status: 'published', post: { workspaceId: conn.workspaceId } }, orderBy: { publishedAt: 'desc' }, select: { externalId: true } })
+  if (!sample?.externalId) return false
+  // Loaded here: meta-channels imports this module when an account connects
+  const { getConnectionCredentials, requireMetaApp } = await import('@/lib/messaging/meta-channels')
+  const full = await prisma.channelConnection.findUnique({ where: { id: conn.id } })
+  const token = full ? getConnectionCredentials(full)?.pageAccessToken : null
+  if (!token) return false
+  const app = await requireMetaApp()
+  const d = await graphFetch<{ owner?: { id?: string }; username?: string }>(sample.externalId, { version: app.graphVersion, token, query: { fields: 'owner,username' } }).catch(() => null)
+  return Boolean(d && (d.owner?.id === conn.externalId))
+}
+
 export async function adoptOrphans(conn: Pick<ChannelConnection, 'id' | 'workspaceId' | 'channel' | 'externalId' | 'meta'>, now = new Date()) {
   const pageId = ((conn.meta as { pageId?: string } | null)?.pageId) || conn.externalId
   let relinked = 0
@@ -30,7 +45,8 @@ export async function adoptOrphans(conn: Pick<ChannelConnection, 'id' | 'workspa
     relinked += r.count
   } else if (conn.channel === 'INSTAGRAM') {
     const igAccounts = await prisma.channelConnection.count({ where: { workspaceId: conn.workspaceId, channel: 'INSTAGRAM' } })
-    if (igAccounts === 1) {
+    // Only when Meta confirms a published orphan belongs to this account (a different account must not inherit them)
+    if (igAccounts === 1 && (await sameInstagramAccount(conn))) {
       const r = await prisma.marketingPublication.updateMany({ where: { channel: 'INSTAGRAM', connectionId: null, post: { workspaceId: conn.workspaceId } }, data: { connectionId: conn.id } })
       relinked += r.count
     }
