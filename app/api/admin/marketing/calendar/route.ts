@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     select: {
       id: true, title: true, status: true, scheduledAt: true, publishedAt: true, origin: true, agentMeta: true, reviewStatus: true, reviewScore: true,
       campaign: { select: { id: true, name: true, color: true } },
-      variants: { select: { channel: true, format: true, mediaIds: true, linkUrl: true } },
+      variants: { select: { channel: true, format: true, mediaIds: true, linkUrl: true, publishOptions: true } },
       media: { select: { id: true, url: true, kind: true }, orderBy: { position: 'asc' } },
       publications: { where: { status: { not: 'cancelled' } }, select: { id: true, channel: true, status: true, scheduledAt: true, publishedAt: true, createdAt: true, lastError: true, connection: { select: { name: true } } } },
     },

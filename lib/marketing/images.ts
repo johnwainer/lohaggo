@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { overLimit } from '@/lib/rate-limit-store'
 import { createLogger } from '@/lib/logger'
 import { decryptConfig, encryptConfig } from '@/lib/secure-config'
 import { cloudinaryService } from '@/lib/cloudinary'
@@ -234,6 +235,8 @@ export async function generateImages(params: { workspaceId: string; postId: stri
   // Independent of the monthly cap (which may be unset): a hard daily limit per workspace
   const today = await prisma.aiCall.count({ where: { workspaceId: params.workspaceId, kind: 'image_generation', createdAt: { gte: new Date(Date.now() - 24 * 3600_000) } } })
   if (today >= DAILY_GENERATIONS) throw new ImageError(`Límite diario de generación alcanzado (${DAILY_GENERATIONS} pedidos en 24 h). Usa fotos de Pexels o inténtalo mañana.`)
+  // The count above only sees finished requests: a reservation per day closes the gap for parallel ones
+  if ((await overLimit(`img:${params.workspaceId}:${new Date().toISOString().slice(0, 10)}`, 24 * 3600_000, DAILY_GENERATIONS)).blocked) throw new ImageError(`Límite diario de generación alcanzado (${DAILY_GENERATIONS} pedidos). Inténtalo mañana.`)
   const chain = imageChain(s)
   const ref = params.referenceUrl && chain.some((c) => IMAGE_PROVIDERS[c.provider].supportsReference) ? await fetchReference(params.referenceUrl) : null
   const started = Date.now()

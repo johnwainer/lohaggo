@@ -49,6 +49,10 @@ export type AgentMeta = {
   rationale?: string | null
   service?: string | null
   imageError?: string | null
+  videoSource?: string | null
+  videoError?: string | null
+  preflight?: Array<{ channel: MkChannel; account: string; format: string; status: string; detail: string }>
+  review?: { status: string; score: number | null; rounds: number; summary: string } | null
   guardrails?: GuardrailIssue[]
   validation?: string[]
   slots?: Array<{ channel: MkChannel; at: string; reason: string; kind: string }>

@@ -2299,35 +2299,38 @@ model MarketingMedia {
 }
 
 model MarketingPublication {
-  id             String                    @id @default(cuid())
-  postId         String
-  variantId      String
-  channel        MarketingChannel
-  connectionId   String?
-  status         String                    @default("scheduled")
-  scheduledAt    DateTime
-  claimedAt      DateTime?
-  claimToken     String?
-  attempts       Int                       @default(0)
-  lastError      String?
-  idempotencyKey String                    @unique
-  externalId     String?
-  permalink      String?
-  containerId    String?
-  publishedAt    DateTime?
-  metricsAt      DateTime?
+  id                String                    @id @default(cuid())
+  postId            String
+  variantId         String
+  channel           MarketingChannel
+  connectionId      String?
+  // Cuenta de Meta a la que apunta el envío (id de la Página de Facebook o de la cuenta de Instagram); se conserva aunque se borre la ChannelConnection para que al reconectar se reasocie por él
+  accountExternalId String?
+  status            String                    @default("scheduled")
+  scheduledAt       DateTime
+  claimedAt         DateTime?
+  claimToken        String?
+  attempts          Int                       @default(0)
+  lastError         String?
+  idempotencyKey    String                    @unique
+  externalId        String?
+  permalink         String?
+  containerId       String?
+  publishedAt       DateTime?
+  metricsAt         DateTime?
   // Cuándo deja de verse una historia publicada (publishedAt + 24 h); sirve para capturar sus métricas antes de que caduque
-  expiresAt      DateTime?
-  createdAt      DateTime                  @default(now())
-  updatedAt      DateTime                  @updatedAt
-  post           MarketingPost             @relation(fields: [postId], references: [id], onDelete: Cascade)
-  connection     ChannelConnection?        @relation(fields: [connectionId], references: [id], onDelete: SetNull)
-  snapshots      MarketingMetricSnapshot[]
+  expiresAt         DateTime?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  post              MarketingPost             @relation(fields: [postId], references: [id], onDelete: Cascade)
+  connection        ChannelConnection?        @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  snapshots         MarketingMetricSnapshot[]
 
   @@index([status, scheduledAt])
   @@index([postId])
   @@index([externalId])
   @@index([expiresAt])
+  @@index([accountExternalId])
 }
 
 model MarketingMetricSnapshot {

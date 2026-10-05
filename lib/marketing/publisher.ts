@@ -35,7 +35,7 @@ import {
   warmMedia,
   type PublishResult,
 } from '@/lib/marketing/meta-publish'
-import { STORY_TTL_MS, isStory, readPublishOptions, resolveFormat } from '@/lib/marketing/publish-options'
+import { STORY_TTL_MS, isStory, readPublishOptions, resolveFormat, variantFiles } from '@/lib/marketing/publish-options'
 
 const logger = createLogger('marketing-publisher')
 
@@ -54,10 +54,7 @@ export const postInclude = { variants: true, media: { orderBy: { position: 'asc'
 export type FullPost = Prisma.MarketingPostGetPayload<{ include: typeof postInclude }>
 
 export function mediaFor(post: FullPost, variant: FullPost['variants'][number]) {
-  const all = post.media
-  if (!variant.mediaIds.length) return all
-  const byId = new Map(all.map((m) => [m.id, m]))
-  return variant.mediaIds.map((id) => byId.get(id)).filter((m): m is FullPost['media'][number] => Boolean(m))
+  return variantFiles(variant, post.media)
 }
 
 export const infoOf = (m: FullPost['media'][number]): MediaInfo => ({ kind: m.kind === 'video' ? 'video' : 'image', mime: m.mime, bytes: m.bytes, width: m.width, height: m.height, durationSec: m.durationSec, source: m.source })
@@ -91,7 +88,7 @@ export async function schedulePost(postId: string, targets: Target[], when: Date
 
   const connections = await prisma.channelConnection.findMany({ where: { id: { in: targets.map((t) => t.connectionId).filter((x): x is string => Boolean(x)) } } })
   const issues: Array<{ channel: string; account?: string; message: string }> = []
-  const rows: Array<{ channel: MarketingChannel; connectionId: string | null; variantId: string }> = []
+  const rows: Array<{ channel: MarketingChannel; connectionId: string | null; variantId: string; accountExternalId: string | null }> = []
   const seen = new Set<string>()
   for (const t of targets) {
     const key = `${t.channel}:${t.connectionId || 'web'}`
@@ -110,7 +107,10 @@ export async function schedulePost(postId: string, targets: Target[], when: Date
       const clash = await prisma.marketingPostVariant.findFirst({ where: { slug: variant.slug, id: { not: variant.id } }, select: { id: true } })
       if (clash) issues.push({ channel: 'WEB', message: `La URL /blog/${variant.slug} ya la usa otro artículo` })
     }
-    rows.push({ channel: t.channel, connectionId: t.channel === 'WEB' ? null : t.connectionId, variantId: variant.id })
+    // The Meta account itself (Page id / Instagram id) survives a disconnect: a reconnect re-attaches by it
+    const target = t.channel === 'WEB' ? null : connections.find((c) => c.id === t.connectionId)
+    const accountExternalId = target ? (t.channel === 'FACEBOOK' ? getConnectionMeta(target).pageId || target.externalId : target.externalId) : null
+    rows.push({ channel: t.channel, connectionId: t.channel === 'WEB' ? null : t.connectionId, variantId: variant.id, accountExternalId })
   }
   // Every way into the queue passes here: a mandatory editorial review must cover exactly these texts
   const held = await editorialGate(post)
@@ -134,7 +134,7 @@ export async function schedulePost(postId: string, targets: Target[], when: Date
     prisma.marketingPublication.createMany({
       data: rows.map((r) => {
         const prev = carried.get(targetKey(r))
-        return { postId, variantId: r.variantId, channel: r.channel, connectionId: r.connectionId, scheduledAt: when, idempotencyKey: `${postId}:${r.channel}:${r.connectionId || 'web'}:${randomUUID()}`, ...(prev ? { attempts: prev.attempts, createdAt: prev.createdAt } : {}) }
+        return { postId, variantId: r.variantId, channel: r.channel, connectionId: r.connectionId, accountExternalId: r.accountExternalId, scheduledAt: when, idempotencyKey: `${postId}:${r.channel}:${r.connectionId || 'web'}:${randomUUID()}`, ...(prev ? { attempts: prev.attempts, createdAt: prev.createdAt } : {}) }
       }),
     }),
     prisma.marketingPost.update({ where: { id: postId }, data: { scheduledAt: postWhen } }),

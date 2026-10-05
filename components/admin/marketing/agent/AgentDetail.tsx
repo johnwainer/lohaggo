@@ -1,5 +1,6 @@
 'use client'
 
+import { videoPosterUrl } from '@/lib/marketing/media'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { AlertTriangle, ArrowLeft, Bot, Check, CheckCircle2, Clock, Lightbulb, Loader2, Pause, Pencil, Play, RefreshCw, Settings, Sparkles, X, XCircle } from 'lucide-react'
@@ -29,7 +30,7 @@ function PostCard({ post, children }: { post: AgentPost; children?: React.ReactN
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-4 space-y-3">
       <div className="flex items-start gap-3">
-        {post.media[0] && <img src={post.media[0].url.replace('/image/upload/', '/image/upload/c_fill,w_160,h_200,f_auto/')} alt="" className="h-20 w-16 shrink-0 rounded-xl object-cover bg-gray-100" />}
+        {post.media[0] && <img src={post.media[0].kind === 'video' ? videoPosterUrl(post.media[0].url) || '' : post.media[0].url.replace('/image/upload/', '/image/upload/c_fill,w_160,h_200,f_auto/')} alt="" className="h-20 w-16 shrink-0 rounded-xl object-cover bg-gray-100" />}
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <StatusChip status={post.status} />
@@ -52,6 +53,11 @@ function PostCard({ post, children }: { post: AgentPost; children?: React.ReactN
       {issues.length > 0 && <div className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900 space-y-0.5">{issues.slice(0, 5).map((i, n) => <p key={n} className="flex gap-1"><AlertTriangle size={12} className="mt-0.5 shrink-0" />{i}</p>)}</div>}
       {meta.risks?.length ? <p className="text-xs text-gray-500">Riesgos que vio el agente: {meta.risks.join('; ')}</p> : null}
       {meta.imageError && <p className="text-xs text-amber-700">Imagen: {meta.imageError}</p>}
+      {meta.videoError && <p className="text-xs text-amber-700">Video: {meta.videoError}</p>}
+      {meta.preflight?.some((r) => r.status === 'failed') && (
+        <p className="text-xs text-red-700">Meta la rechazó en la prueba previa: {meta.preflight.filter((r) => r.status === 'failed').map((r) => `${CHANNEL_NAME[r.channel]} ${r.account}: ${r.detail}`).join(' · ')}</p>
+      )}
+      {meta.review && meta.review.status !== 'approved' && meta.review.summary && <p className="text-xs text-gray-600">Editor: {meta.review.summary}</p>}
       {children}
     </div>
   )

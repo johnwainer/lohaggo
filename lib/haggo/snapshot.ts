@@ -27,6 +27,18 @@ const AUTOMATION_SENT = ['SENT']
  * Every source has its own fallback: a failing query leaves zeros and its name in `unavailable`, never
  * kills the cycle.
  */
+/**
+ * The request-attention scan reads 30 days of requests with their proposals and chats: the heaviest part
+ * of the snapshot. Reused for 10 minutes in a warm instance (a cycle runs every 5).
+ */
+let attentionCache: { at: number; items: Awaited<ReturnType<typeof scanAttention>> } | null = null
+async function cachedAttention(now: Date) {
+  if (attentionCache && now.getTime() - attentionCache.at < 10 * 60_000) return attentionCache.items
+  const items = await scanAttention({ days: 30, now })
+  attentionCache = { at: now.getTime(), items }
+  return items
+}
+
 export async function takeSnapshot(now = new Date()): Promise<Snapshot> {
   const today = bogotaDayStart(now)
   const day = new Date(now.getTime() - 24 * H)
@@ -128,7 +140,7 @@ export async function takeSnapshot(now = new Date()): Promise<Snapshot> {
   ])
   const [attribution, requestAttention, phoneLogin] = await Promise.all([
     safe('attribution', attributionSnapshot(now), undefined),
-    safe('requestAttention', scanAttention({ days: 30, now }).then((items) => {
+    safe('requestAttention', cachedAttention(now).then((items) => {
       const flags = items.flatMap((x) => x.flags.map((f) => ({ ...f, id: x.id, ref: x.ref, service: x.service })))
       const codes: Record<string, number> = {}
       for (const x of items) for (const code of Array.from(new Set(x.flags.map((f) => f.code)))) codes[code] = (codes[code] ?? 0) + 1

@@ -1,5 +1,6 @@
 'use client'
 
+import { variantFiles } from '@/lib/marketing/publish-options'
 import { useEffect, useRef, useState } from 'react'
 import { AlertCircle, AlertTriangle, Bold, Eye, Heading2, Italic, Link2, List, Pencil } from 'lucide-react'
 import { LIMITS } from '@/lib/marketing/channel-rules'
@@ -119,7 +120,7 @@ export default function ChannelEditor({ post, variant, validation, editable, acc
 }) {
   const bodyRef = useRef<HTMLTextAreaElement>(null)
   const [preview, setPreview] = useState(false)
-  const media = variant.mediaIds.length ? variant.mediaIds.map((id) => post.media.find((m) => m.id === id)).filter((m): m is Media => Boolean(m)) : post.media
+  const media = variantFiles(variant, post.media)
   const s = validation?.stats
   const ch = variant.channel
   const slugTouched = useRef(Boolean(variant.slug))

@@ -3,7 +3,7 @@
  * plain words (Reel, Historia, Carrusel, Foto…), the account, when it goes out or went out, and its
  * state. Pure: computed on the server from the variant, its media and its publications.
  */
-import { resolveFormat } from '@/lib/marketing/publish-options'
+import { resolveFormat, variantFiles } from '@/lib/marketing/publish-options'
 
 export type LineChannel = 'WEB' | 'FACEBOOK' | 'INSTAGRAM'
 
@@ -42,7 +42,7 @@ export type ChannelLine = {
   error: string | null
 }
 
-type VariantIn = { channel: string; format: string | null; mediaIds: string[]; linkUrl?: string | null }
+type VariantIn = { channel: string; format: string | null; mediaIds: string[]; linkUrl?: string | null; publishOptions?: unknown }
 type MediaIn = { id: string; kind: string }
 type PubIn = { channel: string; status: string; scheduledAt: Date | string; publishedAt: Date | string | null; lastError?: string | null; createdAt?: Date | string; connection: { name: string } | null }
 
@@ -58,7 +58,7 @@ export function channelLines(variants: VariantIn[], media: MediaIn[], publicatio
   const sorted = [...variants].sort((a, b) => ORDER.indexOf(a.channel as LineChannel) - ORDER.indexOf(b.channel as LineChannel))
   for (const v of sorted) {
     const channel = v.channel as LineChannel
-    const files = v.mediaIds.length ? v.mediaIds.map((id) => media.find((m) => m.id === id)).filter((m): m is MediaIn => Boolean(m)) : media
+    const files = variantFiles(v, media)
     const format = formatLabel(channel, v.format, files, v.linkUrl)
     const pubs = publications.filter((p) => p.channel === channel)
     if (!pubs.length) { lines.push({ channel, format, account: null, status: null, at: null, error: null }); continue }

@@ -12,7 +12,7 @@ export type ReviewText = { key: string; channel: MarketingChannel | null; label:
 
 type PostTexts = {
   title: string
-  variants: Array<{ channel: string; body: string; seoTitle?: string | null; seoDescription?: string | null; excerpt?: string | null; linkUrl?: string | null; publishOptions?: unknown }>
+  variants: Array<{ channel: string; body: string; seoTitle?: string | null; seoDescription?: string | null; excerpt?: string | null; linkUrl?: string | null; publishOptions?: unknown; format?: string | null; mediaIds?: string[] }>
   media: Array<{ id: string; alt: string | null }>
 }
 
@@ -42,11 +42,35 @@ export function collectTexts(post: PostTexts): ReviewText[] {
   return out.filter((t) => t.text.trim())
 }
 
-/** What the review saw: every text and every link. Any later edit changes it. */
-export function contentHash(post: PostTexts) {
+/** First version (texts and links only): reviews saved before 2026-10-05 still match with it. */
+export function contentHashV1(post: PostTexts) {
   const texts = collectTexts(post).map((t) => [t.key, t.text])
   const links = [...post.variants].sort((a, b) => a.channel.localeCompare(b.channel)).map((v) => [v.channel, v.linkUrl ?? ''])
   return createHash('sha256').update(JSON.stringify({ texts, links })).digest('hex')
+}
+
+/**
+ * What the review saw: every text and link, and how each network shows it (format, text drawn on
+ * screen or not, which files). Turning a photo into a story after approval needs a new review.
+ */
+export function contentHash(post: PostTexts) {
+  const texts = collectTexts(post).map((t) => [t.key, t.text])
+  const variants = [...post.variants].sort((a, b) => a.channel.localeCompare(b.channel)).map((v) => {
+    const o = (v.publishOptions ?? {}) as { renderText?: unknown }
+    return [v.channel, v.linkUrl ?? '', v.format ?? '', o.renderText === true ? 1 : 0, [...(v.mediaIds ?? [])].sort().join(',')]
+  })
+  return `v2:${createHash('sha256').update(JSON.stringify({ texts, variants })).digest('hex')}`
+}
+
+/** The stored review fingerprint still describes this post (in whichever version it was saved). */
+export function reviewMatches(stored: string | null | undefined, post: PostTexts) {
+  if (!stored) return false
+  return stored.startsWith('v2:') ? stored === contentHash(post) : stored === contentHashV1(post)
+}
+
+/** The fingerprint to compare a stored review with: the stored one when it still matches, else the current one. */
+export function currentHashFor(stored: string | null | undefined, post: PostTexts) {
+  return reviewMatches(stored, post) ? stored! : contentHash(post)
 }
 
 // ─── Protected tokens and corrections ───────────────────────────────────────

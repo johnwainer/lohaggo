@@ -43,6 +43,13 @@ export default function FormatOptions({ channel, format, options, editable, onCh
         </select>
       </label>
 
+      {!ig && !story && !reel && (
+        <label className="flex items-center gap-2 text-xs text-gray-700">
+          <input type="checkbox" disabled={!editable} checked={o.noMedia === true} onChange={(e) => set({ noMedia: e.target.checked ? true : undefined })} />
+          Publicar sin imagen (solo texto o enlace: Facebook muestra la tarjeta del enlace)
+        </label>
+      )}
+
       {(story || reel) && (
         <div className="space-y-2 rounded-xl border border-gray-100 bg-gray-50/60 px-3 py-2 text-xs">
           <p className="font-medium text-gray-700">Texto en pantalla</p>

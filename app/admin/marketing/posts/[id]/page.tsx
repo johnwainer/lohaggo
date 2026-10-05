@@ -1,5 +1,6 @@
 'use client'
 
+import { variantFiles } from '@/lib/marketing/publish-options'
 import { use, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -14,13 +15,13 @@ import AgentPanel, { type AgentIdea } from '@/components/admin/marketing/editor/
 import ReviewPanel from '@/components/admin/marketing/editor/ReviewPanel'
 import type { Media, Post, ReviewRow, Validation, Variant } from '@/components/admin/marketing/editor/types'
 
-type Detail = { post: Post; campaigns: Array<{ id: string; name: string; color: string }>; accounts: Account[]; permissions: { edit: boolean; publish: boolean }; idea?: AgentIdea | null; agent?: { id: string; mode: string; status: string } | null; reviews?: ReviewRow[] }
+type Detail = { post: Post; campaigns: Array<{ id: string; name: string; color: string }>; accounts: Account[]; permissions: { edit: boolean; publish: boolean }; idea?: AgentIdea | null; agent?: { id: string; mode: string; status: string } | null; reviews?: ReviewRow[]; guardrails?: Array<{ channel: string | null; message: string; severity: string }> }
 
 const VARIANT_FIELDS: Array<keyof Variant> = ['body', 'format', 'publishOptions', 'linkUrl', 'mediaIds', 'slug', 'seoTitle', 'seoDescription', 'excerpt', 'coverUrl', 'category', 'tags', 'canonicalUrl', 'noindex', 'aiGenerated']
 const LOCKED = ['publishing']
 
 function mediaInfo(post: Post, v: Variant) {
-  const list = v.mediaIds.length ? v.mediaIds.map((id) => post.media.find((m) => m.id === id)).filter((m): m is Media => Boolean(m)) : post.media
+  const list = variantFiles(v, post.media)
   return list.map((m) => ({ kind: m.kind, mime: m.mime, bytes: m.bytes, width: m.width, height: m.height, durationSec: m.durationSec }))
 }
 
@@ -308,7 +309,7 @@ export default function PostEditorPage({ params }: { params: Promise<{ id: strin
               onUseIdea={(idea) => { setTitle(idea.title); setBrief(idea.angle ? `${idea.title}. ${idea.angle}` : idea.title); touchPost() }}
             />
           )}
-          <PublishPanel post={post} accounts={detail.accounts} validations={validations} canPublish={detail.permissions.publish} busy={publishing} issues={issues} onPublish={publish} />
+          <PublishPanel post={post} accounts={detail.accounts} validations={validations} canPublish={detail.permissions.publish} busy={publishing} issues={issues} onPublish={publish} guardrails={detail.guardrails ?? []} />
         </div>
       </div>
     </div>

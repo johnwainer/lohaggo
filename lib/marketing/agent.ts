@@ -1,4 +1,5 @@
 import type Anthropic from '@anthropic-ai/sdk'
+import { currentHashFor } from '@/lib/marketing/editorial-core'
 import { healAccountIds } from '@/lib/marketing/reconnect'
 import { preflightPost } from '@/lib/marketing/preflight'
 import { readPublishOptions } from '@/lib/marketing/publish-options'
@@ -297,7 +298,7 @@ export async function ensureAgentReview(agent: Agent, postId: string, userId: st
   const s = await getEditorialSettings(agent.workspaceId)
   const post = await loadReviewPost(postId)
   if (!post) return { ok: false, message: 'Publicación no encontrada' }
-  const hash = hashOf(post)
+  const hash = currentHashFor(post.reviewHash, post)
   const reason = gateReason(s, post, hash)
   if (!reason) return { ok: true }
   if ((post.reviewStatus === 'changes' || post.reviewStatus === 'rejected') && post.reviewHash === hash) return { ok: false, message: `${reason}. Edítala o usa «Aprobar de todos modos».` }
@@ -447,7 +448,9 @@ async function writeDraft(postId: string, draft: PostDraft, channels: MarketingC
     const format = keptFb ? keptFb.format : variantFormat('FACEBOOK', formats.FACEBOOK)
     // A story shows no text or link; a reel shows its text but not the link card
     const body = format === 'story' ? '' : text.includes('/w/post-') ? text : `${text.trimEnd()}\n\n📲 Pídelo por WhatsApp: ${wa}`
-    patches.push(safe({ channel: 'FACEBOOK', body, format: format ?? 'post', publishOptions: optionsFor(format), linkUrl: link && !format && formats.FACEBOOK !== 'texto' ? withUtm(link, u('FACEBOOK'), own) : null, aiGenerated: true }))
+    // «texto» and «enlace» go out without photos (the link shows its card); «foto» with them
+    const fbOptions = format ? optionsFor(format) : formats.FACEBOOK === 'texto' || formats.FACEBOOK === 'enlace' ? { noMedia: true } : null
+    patches.push(safe({ channel: 'FACEBOOK', body, format: format ?? 'post', publishOptions: fbOptions, linkUrl: link && !format && formats.FACEBOOK !== 'texto' ? withUtm(link, u('FACEBOOK'), own) : null, aiGenerated: true }))
   }
   await prisma.marketingPost.update({ where: { id: postId }, data: { title: draft.title.slice(0, 200), brief: draft.brief || null } })
   await saveVariants(postId, patches)

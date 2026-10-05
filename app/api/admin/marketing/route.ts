@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
       select: {
         id: true, workspaceId: true, title: true, status: true, scheduledAt: true, publishedAt: true, updatedAt: true, origin: true, reviewStatus: true, reviewScore: true,
         campaign: { select: { id: true, name: true, color: true } },
-        variants: { select: { channel: true, format: true, mediaIds: true, linkUrl: true } },
+        variants: { select: { channel: true, format: true, mediaIds: true, linkUrl: true, publishOptions: true } },
         media: { select: { id: true, url: true, kind: true }, orderBy: { position: 'asc' } },
         publications: { where: { status: { not: 'cancelled' } }, select: { channel: true, status: true, lastError: true, scheduledAt: true, publishedAt: true, createdAt: true, connection: { select: { name: true } } } },
       },

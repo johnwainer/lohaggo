@@ -24,7 +24,7 @@ export function healAccountIds(chosen: string[], existing: string[]) {
 
 /** Asks Meta who owns the latest orphaned Instagram post: it must be this account. */
 async function sameInstagramAccount(conn: Pick<ChannelConnection, 'id' | 'workspaceId' | 'externalId'>) {
-  const sample = await prisma.marketingPublication.findFirst({ where: { channel: 'INSTAGRAM', connectionId: null, externalId: { not: null }, status: 'published', post: { workspaceId: conn.workspaceId } }, orderBy: { publishedAt: 'desc' }, select: { externalId: true } })
+  const sample = await prisma.marketingPublication.findFirst({ where: { channel: 'INSTAGRAM', connectionId: null, accountExternalId: null, externalId: { not: null }, status: 'published', post: { workspaceId: conn.workspaceId } }, orderBy: { publishedAt: 'desc' }, select: { externalId: true } })
   if (!sample?.externalId) return false
   // Loaded here: meta-channels imports this module when an account connects
   const { getConnectionCredentials, requireMetaApp } = await import('@/lib/messaging/meta-channels')
@@ -39,15 +39,19 @@ async function sameInstagramAccount(conn: Pick<ChannelConnection, 'id' | 'worksp
 export async function adoptOrphans(conn: Pick<ChannelConnection, 'id' | 'workspaceId' | 'channel' | 'externalId' | 'meta'>, now = new Date()) {
   const pageId = ((conn.meta as { pageId?: string } | null)?.pageId) || conn.externalId
   let relinked = 0
+  // Every send keeps the Meta account it targets: re-attached by it (published, queued or failed alike)
+  const account = conn.channel === 'MESSENGER' ? pageId : conn.externalId
+  const byAccount = await prisma.marketingPublication.updateMany({ where: { channel: conn.channel === 'MESSENGER' ? 'FACEBOOK' : 'INSTAGRAM', connectionId: null, accountExternalId: account, post: { workspaceId: conn.workspaceId } }, data: { connectionId: conn.id } })
+  relinked += byAccount.count
+  // Older sends (before the account was stored): Facebook feed posts by the Page in their id, Instagram by asking Meta
   if (conn.channel === 'MESSENGER') {
-    // Feed posts carry «<pageId>_<postId>»; reels and stories only their own id (left as they are)
-    const r = await prisma.marketingPublication.updateMany({ where: { channel: 'FACEBOOK', connectionId: null, externalId: { startsWith: `${pageId}_` }, post: { workspaceId: conn.workspaceId } }, data: { connectionId: conn.id } })
+    const r = await prisma.marketingPublication.updateMany({ where: { channel: 'FACEBOOK', connectionId: null, accountExternalId: null, externalId: { startsWith: `${pageId}_` }, post: { workspaceId: conn.workspaceId } }, data: { connectionId: conn.id, accountExternalId: pageId } })
     relinked += r.count
   } else if (conn.channel === 'INSTAGRAM') {
     const igAccounts = await prisma.channelConnection.count({ where: { workspaceId: conn.workspaceId, channel: 'INSTAGRAM' } })
     // Only when Meta confirms a published orphan belongs to this account (a different account must not inherit them)
     if (igAccounts === 1 && (await sameInstagramAccount(conn))) {
-      const r = await prisma.marketingPublication.updateMany({ where: { channel: 'INSTAGRAM', connectionId: null, post: { workspaceId: conn.workspaceId } }, data: { connectionId: conn.id } })
+      const r = await prisma.marketingPublication.updateMany({ where: { channel: 'INSTAGRAM', connectionId: null, accountExternalId: null, post: { workspaceId: conn.workspaceId } }, data: { connectionId: conn.id, accountExternalId: conn.externalId } })
       relinked += r.count
     }
   }

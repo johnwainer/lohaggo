@@ -39,6 +39,8 @@ export type PublishOptions = {
   storyCta?: string
   /** Write storyText / storyCta on the image or video (Cloudinary draws them; an edit changes the picture too) */
   renderText?: boolean
+  /** Facebook text or link post: goes out without the post's photos (the link shows its card) */
+  noMedia?: boolean
 }
 
 const USERNAME_RE = /^[A-Za-z0-9._]{1,30}$/
@@ -83,6 +85,7 @@ export function sanitizePublishOptions(raw: unknown): PublishOptions | null {
     out.storyCta = b.storyCta.trim()
   }
   if (typeof b.renderText === 'boolean') out.renderText = b.renderText
+  if (b.noMedia === true) out.noMedia = true
   return Object.keys(out).length ? out : null
 }
 
@@ -112,4 +115,11 @@ export function resolveFormat(channel: 'FACEBOOK' | 'INSTAGRAM', format: string 
 }
 
 export const isStory = (format: string | null | undefined) => format === 'story'
+
+/** The files a version goes out with: none («sin imagen»), the ones it picked, or all of the post's. */
+export function variantFiles<T extends { id: string }>(v: { mediaIds: string[]; publishOptions?: unknown }, media: T[]): T[] {
+  if (readPublishOptions(v.publishOptions).noMedia) return []
+  if (!v.mediaIds.length) return media
+  return v.mediaIds.map((id) => media.find((m) => m.id === id)).filter((m): m is T => Boolean(m))
+}
 export const isReel = (format: string | null | undefined) => format === 'reel' || format === 'trial_reel'

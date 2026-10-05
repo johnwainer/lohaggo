@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { humanGuardrails } from '@/lib/marketing/human-guard'
 import { prisma } from '@/lib/prisma'
 import { auditAdminAction } from '@/lib/admin-utils'
 import { marketingAuth, mkCan, forbidden } from '@/lib/marketing/permissions'
@@ -34,8 +35,10 @@ export async function GET(_request: NextRequest, context: Ctx) {
     post.agentId ? prisma.marketingAgent.findUnique({ where: { id: post.agentId }, select: { id: true, mode: true, status: true } }) : null,
     reviewsOf(id).catch(() => []),
   ])
+  // A person's post: the agent's guardrails as warnings (prices, promotions, links, banned words)
+  const guardrails = await humanGuardrails(post, accounts).catch(() => [])
   return NextResponse.json({
-    post, campaigns, accounts, idea, agent, reviews,
+    post, campaigns, accounts, idea, agent, reviews, guardrails,
     permissions: { edit: mkCan(auth.access, post.workspaceId, 'marketing.edit'), publish: mkCan(auth.access, post.workspaceId, 'marketing.publish') },
   })
 }

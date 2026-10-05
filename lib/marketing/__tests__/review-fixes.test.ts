@@ -46,3 +46,34 @@ describe('post status', () => {
     expect(aggregatePostStatus('scheduled', ['failed', 'scheduled'])).toBe('scheduled')
   })
 })
+
+describe('review fingerprint v2', () => {
+  it('reviews saved before still match; a format change after approval needs a new review', async () => {
+    const { contentHash, contentHashV1, reviewMatches, currentHashFor } = await import('@/lib/marketing/editorial-core')
+    const post = { title: 'T', variants: [{ channel: 'INSTAGRAM', body: 'Hola', linkUrl: null, format: 'feed', mediaIds: ['a'], publishOptions: null }], media: [] }
+    const old = contentHashV1(post)
+    expect(reviewMatches(old, post)).toBe(true)
+    expect(currentHashFor(old, post)).toBe(old)
+    const v2 = contentHash(post)
+    expect(v2.startsWith('v2:')).toBe(true)
+    const asStory = { ...post, variants: [{ ...post.variants[0], format: 'story' }] }
+    expect(reviewMatches(v2, asStory)).toBe(false)
+    // The old fingerprint only covers texts: still valid after a format change (reviewed before formats counted)
+    expect(reviewMatches(old, asStory)).toBe(true)
+  })
+})
+
+describe('Facebook post without photos', () => {
+  it('«sin imagen» sends no files; otherwise the picked ones or all', async () => {
+    const { variantFiles } = await import('@/lib/marketing/publish-options')
+    const media = [{ id: 'a' }, { id: 'b' }]
+    expect(variantFiles({ mediaIds: [], publishOptions: { noMedia: true } }, media)).toEqual([])
+    expect(variantFiles({ mediaIds: ['b'], publishOptions: null }, media)).toEqual([{ id: 'b' }])
+    expect(variantFiles({ mediaIds: [], publishOptions: null }, media)).toEqual(media)
+  })
+  it('the label says what it carries', async () => {
+    const { channelLines } = await import('@/lib/marketing/format-display')
+    const lines = channelLines([{ channel: 'FACEBOOK', format: null, mediaIds: [], linkUrl: 'https://lohaggo.com', publishOptions: { noMedia: true } }], [{ id: 'a', kind: 'image' }], [])
+    expect(lines[0].format).toBe('Enlace')
+  })
+})

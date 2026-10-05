@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client'
-import { readPublishOptions } from '@/lib/marketing/publish-options'
+import { readPublishOptions, variantFiles } from '@/lib/marketing/publish-options'
 import { prisma } from '@/lib/prisma'
 import { validateVariant, type MarketingChannel, type MediaInfo } from '@/lib/marketing/channel-rules'
 import { latestSnapshots } from '@/lib/marketing/metrics'
@@ -32,7 +32,7 @@ export async function loadPostDetail(id: string) {
   return {
     ...post,
     variants: post.variants.map((v) => {
-      const media = (v.mediaIds.length ? v.mediaIds.map((i) => byId.get(i)).filter((m): m is (typeof post.media)[number] => Boolean(m)) : post.media).map(info)
+      const media = variantFiles(v, post.media).map(info)
       return {
         ...v,
         webViews: views.find((x) => x.variantId === v.id)?._sum.views ?? 0,

@@ -3,6 +3,7 @@
  * as the agent's review (its budget and activity); posts written by people use the workspace's cap.
  * No permission checks or audit here: the routes do both.
  */
+import { currentHashFor, reviewMatches } from '@/lib/marketing/editorial-core'
 import { prisma } from '@/lib/prisma'
 import { checkWorkspaceBudget } from '@/lib/ai/limits'
 import { getAiSettings, hasTextProvider } from '@/lib/ai/settings'
@@ -83,7 +84,7 @@ export async function proofreadNow(postId: string, userId: string | null) {
   if (!before) throw new EditorialError('Publicación no encontrada')
   if (['publishing', 'published', 'archived'].includes(before.status)) throw new EditorialError('Ya salió o está archivada: no se corrige')
   const s = await getEditorialSettings(before.workspaceId)
-  const wasCurrent = PASSING.includes(before.reviewStatus as ReviewStatus) && before.reviewHash === hashOf(before)
+  const wasCurrent = PASSING.includes(before.reviewStatus as ReviewStatus) && reviewMatches(before.reviewHash, before)
   const pass = await runPass(postId, s, 'manual', userId, { spellingOnly: true })
   if (pass.status === 'failed') throw new EditorialError(pass.error || 'No se pudo revisar la ortografía')
   if (pass.corrections) {
@@ -106,7 +107,7 @@ export async function ensureReviewed(postId: string, userId: string | null): Pro
     if (agent) return ensureAgentReview(agent, postId, userId)
   }
   const s = await getEditorialSettings(post.workspaceId)
-  const hash = hashOf(post)
+  const hash = currentHashFor(post.reviewHash, post)
   const reason = gateReason(s, post, hash)
   if (!reason) return { ok: true }
   if ((post.reviewStatus === 'changes' || post.reviewStatus === 'rejected') && post.reviewHash === hash) return { ok: false, message: `${reason}. Edítala o usa «Aprobar de todos modos».` }

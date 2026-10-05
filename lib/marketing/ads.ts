@@ -81,6 +81,21 @@ export async function adBlock(workspaceId: string) {
 export async function createAdDraft(workspaceId: string, input: AdInput, userId: string | null) {
   const why = await adBlock(workspaceId)
   if (why) throw new AdError(why)
+  // The service and the city go into the model's instructions: only names of the catalog, never free text
+  if (input.service || input.city) {
+    const catalog = await catalogFor(defaultAgentConfig())
+    const norm = (x: string) => x.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+    if (input.service) {
+      const svc = catalog.services.find((x) => norm(x.name) === norm(input.service!))
+      if (!svc) throw new AdError(`«${input.service}» no es un servicio del catálogo`)
+      input = { ...input, service: svc.name }
+    }
+    if (input.city) {
+      const city = catalog.cities.find((x) => norm(x) === norm(input.city!))
+      if (!city) throw new AdError(`«${input.city}» no es una ciudad donde opera la plataforma`)
+      input = { ...input, city }
+    }
+  }
   // Count and create under a per-workspace lock: parallel requests cannot all pass the daily cap
   const draft = await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT 1 AS locked FROM (SELECT pg_advisory_xact_lock(hashtext(${`ad-drafts:${workspaceId}`}))) AS l`

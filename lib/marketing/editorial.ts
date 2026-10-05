@@ -15,6 +15,8 @@ import {
   applyCorrections,
   collectTexts,
   contentHash,
+  currentHashFor,
+  reviewMatches,
   editorOutcome,
   gateReason,
   parseEditor,
@@ -251,7 +253,7 @@ export async function saveReviewState(postId: string, status: ReviewStatus, p: {
 export async function markStaleIfChanged(postId: string) {
   const post = await loadReviewPost(postId).catch(() => null)
   if (!post?.reviewHash || post.reviewStatus === 'stale' || post.reviewStatus === 'pending') return false
-  if (hashOf(post) === post.reviewHash) return false
+  if (reviewMatches(post.reviewHash, post)) return false
   await prisma.marketingPost.update({ where: { id: postId }, data: { reviewStatus: 'stale' } })
   return true
 }
@@ -261,7 +263,7 @@ export async function markStaleIfChanged(postId: string) {
 /** Why this post may not be scheduled or published now (null = it may). */
 export async function editorialGate(post: Pick<ReviewPost, 'workspaceId' | 'origin' | 'reviewStatus' | 'reviewHash' | 'title' | 'variants'> & { media: Array<{ id: string; alt: string | null }> }) {
   const s = await getEditorialSettings(post.workspaceId)
-  return gateReason(s, post, hashOf(post))
+  return gateReason(s, post, currentHashFor(post.reviewHash, post))
 }
 
 /**

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { AlertCircle, CalendarClock, ExternalLink, FlaskConical, Loader2, Send, XCircle } from 'lucide-react'
 import { CHANNEL_NAME, FormatPill, MkChannelIcon, PUB_STATUS, api, fmtDateTime, fmtWhen, fromLocalInput, num, toLocalInput, type Account, type MkChannel } from '@/components/admin/marketing/shared'
 import { formatLabel } from '@/lib/marketing/format-display'
+import { variantFiles } from '@/lib/marketing/publish-options'
 import type { Post, PreflightRow, Validation } from '@/components/admin/marketing/editor/types'
 import { FORMAT_LABELS } from '@/lib/marketing/publish-options'
 
@@ -45,7 +46,9 @@ function PreflightBox({ post }: { post: Post }) {
 type Target = { channel: MkChannel; connectionId: string | null }
 const key = (t: Target) => `${t.channel}:${t.connectionId || 'web'}`
 
-export default function PublishPanel({ post, accounts, validations, canPublish, busy, issues, onPublish }: {
+export default function PublishPanel({ post, accounts, validations, canPublish, busy, issues, onPublish, guardrails = [] }: {
+  /** The agent's guardrails read on a person's post: warnings, nothing is blocked */
+  guardrails?: Array<{ channel: string | null; message: string; severity: string }>
   post: Post
   accounts: Account[]
   validations: Partial<Record<MkChannel, Validation>>
@@ -80,7 +83,7 @@ export default function PublishPanel({ post, accounts, validations, canPublish, 
   const formatOfChannel = (ch: MkChannel) => {
     const v = post.variants.find((x) => x.channel === ch)
     if (!v) return CHANNEL_NAME[ch]
-    const files = v.mediaIds.length ? v.mediaIds.map((id) => post.media.find((m) => m.id === id)).filter((m): m is NonNullable<typeof m> => Boolean(m)) : post.media
+    const files = variantFiles(v, post.media)
     return formatLabel(ch, v.format, files, v.linkUrl)
   }
 
@@ -112,6 +115,12 @@ export default function PublishPanel({ post, accounts, validations, canPublish, 
       {uniqueBlocking.length > 0 && (
         <div className="rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700 space-y-0.5">
           {uniqueBlocking.map((b) => <p key={b} className="flex gap-1"><AlertCircle size={12} className="mt-0.5 shrink-0" /> {b}</p>)}
+        </div>
+      )}
+      {guardrails.length > 0 && (
+        <div className="space-y-0.5 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          <p className="font-semibold">Revisa antes de publicar</p>
+          {guardrails.map((g, i) => <p key={i} className="flex gap-1"><AlertCircle size={12} className="mt-0.5 shrink-0" /> {g.channel ? `${CHANNEL_NAME[g.channel as MkChannel] ?? g.channel}: ` : ''}{g.message}</p>)}
         </div>
       )}
       {issues && issues.length > 0 && (

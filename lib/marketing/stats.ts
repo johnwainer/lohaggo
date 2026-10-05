@@ -71,7 +71,7 @@ async function aggregate(pubs: PubRow[], range: { from?: string; to?: string } =
   const postIds = Array.from(byPost.keys())
   const [fmtVariants, fmtMedia] = postIds.length
     ? await Promise.all([
-      prisma.marketingPostVariant.findMany({ where: { postId: { in: postIds } }, select: { postId: true, channel: true, format: true, mediaIds: true, linkUrl: true } }),
+      prisma.marketingPostVariant.findMany({ where: { postId: { in: postIds } }, select: { postId: true, channel: true, format: true, mediaIds: true, linkUrl: true, publishOptions: true } }),
       prisma.marketingMedia.findMany({ where: { postId: { in: postIds } }, select: { id: true, postId: true, kind: true }, orderBy: { position: 'asc' } }),
     ])
     : [[], []]
