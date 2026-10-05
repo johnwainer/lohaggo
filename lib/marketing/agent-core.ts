@@ -708,6 +708,12 @@ export type PostDraft = {
   screen: { text: string; cta: string; videoQuery: string } | null
 }
 
+/** How many AI images fit in the per-piece cap (up to the ones wanted; 0 = none fits, use Pexels). */
+export function aiImageCount(wanted: number, capUsd: number, costPerImageUsd: number) {
+  if (!(costPerImageUsd > 0)) return wanted
+  return Math.max(0, Math.min(wanted, Math.floor((capUsd + 1e-9) / costPerImageUsd)))
+}
+
 /** Agent format names → the format each network publishes (Facebook «foto», «texto», «enlace» are regular posts). */
 export function variantFormat(channel: MarketingChannel, agentFormat: string | null | undefined): string | null {
   if (channel === 'INSTAGRAM') return agentFormat === 'reel' || agentFormat === 'story' || agentFormat === 'carousel' || agentFormat === 'feed' ? agentFormat : null

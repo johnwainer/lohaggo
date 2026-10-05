@@ -133,7 +133,7 @@ export function defaultAgentConfig(objective = 'reach'): AgentConfig {
       WEB: { enabled: true, perWeek: 1, formats: ['guía', 'lista'], accountIds: [] },
     },
     schedule: { smart: true, days: [1, 2, 3, 4, 5, 6], windows: [{ from: 8, to: 21 }], quietFrom: 21, quietTo: 7, minGapHours: 3, maxPerDay: 1, repeatDays: 21, draftLeadHours: 72 },
-    images: { source: 'pexels', logo: true },
+    images: { source: 'ai', logo: true },
     notify: { email: true },
   }
 }

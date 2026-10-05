@@ -27,7 +27,8 @@ export default function ImageSuggestDialog({ post, channel, format, text, brief,
   onClose: () => void
   onImported: (p: Post) => void
 }) {
-  const [tab, setTab] = useState<'pexels' | 'ai'>(summary.pexels ? 'pexels' : 'ai')
+  // AI first when a provider is ready; Pexels when it is not
+  const [tab, setTab] = useState<'pexels' | 'ai'>(summary.providerReady || !summary.pexels ? 'ai' : 'pexels')
   const [orientation, setOrientation] = useState<Orientation>(defaultOrientation(channel, format))
   const [brand, setBrand] = useState(Boolean(kit?.logoPublicId && kit.autoApply))
   const [services, setServices] = useState<string[]>([])

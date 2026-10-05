@@ -429,10 +429,10 @@ export default function AgentWizard({ workspace, existing, onClose, onSaved }: {
                 <Field label="Exploración (%)" hint="Piezas que prueban algo nuevo para aprender."><input type="number" min={0} max={60} className={input} value={Math.round(settings.exploreRatio * 100)} onChange={(e) => setSettings({ ...settings, exploreRatio: Number(e.target.value) / 100 })} /></Field>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Imágenes">
+                <Field label="Imágenes" hint="Con IA, el agente genera todas las que caben en el tope por pieza; los reels usan esa foto animada.">
                   <select className={input} value={config.images.source} onChange={(e) => set('images', { ...config.images, source: e.target.value as AgentConfig['images']['source'] })}>
-                    <option value="pexels">Fotos de Pexels del servicio</option>
-                    <option value="ai">Generadas con IA (si está configurada; si no, Pexels)</option>
+                    <option value="ai">Generadas con IA (Pexels solo si la IA falla o no está configurada)</option>
+                    <option value="pexels">Solo fotos de Pexels del servicio</option>
                     <option value="manual">Las subo yo</option>
                   </select>
                 </Field>

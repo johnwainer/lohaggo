@@ -92,3 +92,14 @@ describe('stock clips', () => {
     expect(pickVideoFile({ ...v, video_files: [v.video_files[3]] })).toBeNull()
   })
 })
+
+describe('AI images within the per-piece cap', () => {
+  it('generates as many as fit instead of falling back to Pexels', async () => {
+    const { aiImageCount } = await import('@/lib/marketing/agent-core')
+    expect(aiImageCount(3, 0.1, 0.04)).toBe(2)
+    expect(aiImageCount(1, 0.1, 0.04)).toBe(1)
+    expect(aiImageCount(3, 0.12, 0.04)).toBe(3)
+    expect(aiImageCount(3, 0.03, 0.04)).toBe(0)
+    expect(aiImageCount(3, 0.1, 0)).toBe(3)
+  })
+})

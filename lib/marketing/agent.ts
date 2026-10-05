@@ -51,6 +51,7 @@ import {
   type Strategy,
   type UtmParams,
   variantFormat,
+  aiImageCount,
 } from '@/lib/marketing/agent-core'
 import {
   DRAFT_TOOL,
@@ -453,20 +454,32 @@ async function attachImages(agent: Agent, config: AgentConfig, postId: string, d
   if (await prisma.marketingMedia.count({ where: { postId } })) return { source: 'existing', error: null }
   const carousel = channels.includes('INSTAGRAM') && draft.instagram?.format === 'carousel'
   const n = carousel ? 3 : 1
-  const orientation = channels.includes('INSTAGRAM') ? 'portrait' as const : 'landscape' as const
+  // Instagram, reels and stories want vertical photos; a Facebook-only regular post, horizontal
+  const vertical = (await prisma.marketingPostVariant.findMany({ where: { postId, format: { in: ['reel', 'story'] } }, select: { id: true } })).length > 0
+  const orientation = channels.includes('INSTAGRAM') || vertical ? 'portrait' as const : 'landscape' as const
   const brand = config.images.logo && Boolean((await getBrandKit(agent.workspaceId))?.logoPublicId)
   const alt = draft.image.alt || draft.title
+  // Why the AI images were not used (shown on the piece): Pexels is only the fallback
+  let aiNote: string | null = null
   try {
     if (config.images.source === 'ai') {
       const s = await getImageSettings()
-      if (providerReady(s).ready && s.costPerImageUsd * n <= config.budget.maxImageUsdPerPost) {
+      const ready = providerReady(s)
+      // Within the per-piece cap, as many AI images as fit (a carousel of 2 is still a carousel; 1 makes it a photo)
+      const count = aiImageCount(n, config.budget.maxImageUsdPerPost, s.costPerImageUsd)
+      if (!ready.ready) aiNote = `IA no disponible (${ready.reason}); se usaron fotos de Pexels`
+      else if (count < 1) aiNote = `Una imagen con IA cuesta $${s.costPerImageUsd} y el tope por pieza es $${config.budget.maxImageUsdPerPost}; se usaron fotos de Pexels`
+      else {
         try {
-          const imgs = await generateImages({ workspaceId: agent.workspaceId, postId, prompt: draft.image.prompt || servicePrompt(service || draft.title), orientation, n })
-          meter.addFixed(s.costPerImageUsd * n)
+          const imgs = await generateImages({ workspaceId: agent.workspaceId, postId, prompt: draft.image.prompt || servicePrompt(service || draft.title), orientation, n: count })
+          meter.addFixed(s.costPerImageUsd * imgs.length)
           for (const img of imgs) await importImage({ workspaceId: agent.workspaceId, postId, brand, candidate: { source: 'ai', url: img.fullUrl, publicId: img.publicId, width: img.width, height: img.height, bytes: img.bytes, alt, credit: img.credit } })
-          return { source: 'ai', error: null }
+          if (carousel && imgs.length < 2) await saveVariants(postId, [{ channel: 'INSTAGRAM', format: 'feed' }])
+          if (imgs.length) return { source: 'ai', error: count < n ? `Tope de imágenes por pieza: ${imgs.length} de ${n} con IA` : null }
+          aiNote = 'La IA no devolvió imágenes; se usaron fotos de Pexels'
         } catch (err) {
           logger.warn('AI image failed, using Pexels', { agentId: agent.id, err: err instanceof Error ? err.message : err })
+          aiNote = `La IA falló (${(err instanceof Error ? err.message : 'error').slice(0, 160)}); se usaron fotos de Pexels`
         }
       }
     }
@@ -489,7 +502,7 @@ async function attachImages(agent: Agent, config: AgentConfig, postId: string, d
     }
     // Fewer photos than a carousel needs: a single-image post instead of a validation error
     if (carousel && picked.length < 2) await saveVariants(postId, [{ channel: 'INSTAGRAM', format: 'feed' }])
-    return { source: 'pexels', error: null }
+    return { source: 'pexels', error: aiNote }
   } catch (err) {
     return { source: null, error: err instanceof Error ? err.message : 'No se pudo poner la imagen' }
   }
@@ -507,6 +520,16 @@ async function attachVideoAndAssign(agent: Agent, postId: string, draft: PostDra
   let video = media.find((m) => m.kind === 'video') ?? null
   let source: string | null = video ? 'existing' : null
   let error: string | null = null
+  // Photos made with AI: the reel is that photo animated (stock clips only when there is no AI photo)
+  const aiPhoto = images.find((m) => m.source === 'ai')
+  if (!video && aiPhoto && variants.some((v) => v.format === 'reel')) {
+    try {
+      video = await addStillVideo(postId, aiPhoto)
+      source = 'foto con IA animada'
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'No se pudo animar la foto'
+    }
+  }
   if (!video && variants.some((v) => v.format === 'reel')) {
     const queries = Array.from(new Set([draft.screen?.videoQuery, service, draft.image.query].filter((q): q is string => Boolean(q?.trim()))))
     for (const q of queries) {

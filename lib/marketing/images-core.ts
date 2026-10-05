@@ -18,7 +18,9 @@ export type Orientation = (typeof ORIENTATIONS)[number]
 
 /** What each network shows best: Instagram 4:5 vertical, Facebook and the blog horizontal. */
 export function defaultOrientation(channel: MarketingChannel, format?: string | null): Orientation {
-  if (channel === 'INSTAGRAM') return format === 'feed' || format === 'carousel' || format === 'reel' || !format ? 'portrait' : 'square'
+  // Reels and stories fill a vertical screen on both networks
+  if (format === 'reel' || format === 'trial_reel' || format === 'story') return 'portrait'
+  if (channel === 'INSTAGRAM') return format === 'feed' || format === 'carousel' || !format ? 'portrait' : 'square'
   return 'landscape'
 }
 
