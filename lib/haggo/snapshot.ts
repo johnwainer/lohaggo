@@ -32,11 +32,17 @@ export async function takeSnapshot(now = new Date()): Promise<Snapshot> {
   const day = new Date(now.getTime() - 24 * H)
   const week = new Date(now.getTime() - 7 * 24 * H)
   const unavailable: string[] = []
-  const safe = <T,>(name: string, p: PromiseLike<T>, fallback: T): Promise<T> =>
-    Promise.resolve(p).catch(() => {
-      unavailable.push(name)
-      return fallback
-    })
+  // Each source has its fallback and a time limit: one query that hangs must not hold the whole cycle
+  const safe = <T,>(name: string, p: PromiseLike<T>, fallback: T, ms = 20_000): Promise<T> => {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const limit = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('timeout')), ms) })
+    return Promise.race([Promise.resolve(p), limit])
+      .catch(() => {
+        unavailable.push(name)
+        return fallback
+      })
+      .finally(() => clearTimeout(timer))
+  }
 
   const [
     rejected24h, pendingOld, refundsOpen, refundsFailed, low7d, total24h, zero24h, sent24h, failed24h, events24h, high24h, blockedIps, runErrors24h, pendingVerification,
@@ -78,7 +84,7 @@ export async function takeSnapshot(now = new Date()): Promise<Snapshot> {
     safe('aiActions.cancellations', prisma.bookingEvent.count({ where: { type: 'status', toStatus: 'CANCELLED', createdAt: { gte: today } } }), 0),
     safe('marketing.metaAccounts', prisma.channelConnection.findMany({ where: { channel: { in: ['MESSENGER', 'INSTAGRAM'] }, enabled: true }, select: { id: true, channel: true, name: true, capabilities: true, commentSettings: true } }), []),
     // Pieces Meta refused in the preflight (reels and stories are tested before their time)
-    safe('marketing.preflight', prisma.marketingPost.findMany({ where: { updatedAt: { gte: new Date(now.getTime() - 3 * 24 * H) }, status: { in: ['draft', 'review', 'approved', 'scheduled'] } }, select: { id: true, title: true, agentMeta: true }, take: 200 }), []),
+    safe('marketing.preflight', prisma.marketingPost.findMany({ where: { updatedAt: { gte: new Date(now.getTime() - 14 * 24 * H) }, status: { in: ['draft', 'review', 'approved', 'scheduled'] } }, orderBy: { updatedAt: 'desc' }, select: { id: true, title: true, agentMeta: true }, take: 200 }), []),
   ])
   const preflightFailed = preflightRows.flatMap((p) => {
     const rows = ((p.agentMeta as { preflight?: Array<{ status: string; channel: string; format: string; detail: string }> } | null)?.preflight ?? []).filter((r) => r.status === 'failed')
@@ -89,7 +95,10 @@ export async function takeSnapshot(now = new Date()): Promise<Snapshot> {
     const channel = c.channel as MetaChannel
     const granted = (c.commentSettings as { grantedScopes?: string[] | null } | null)?.grantedScopes ?? null
     const caps = formatCapabilities(channel, granted)
-    const quota = (c.capabilities as { quota?: { used: number; total: number } | null } | null)?.quota ?? null
+    // The quota is read when the account is diagnosed: older than 2 h it says nothing about the last 24 h
+    const capsRaw = c.capabilities as { quota?: { used: number; total: number } | null; checkedAt?: string } | null
+    const fresh = capsRaw?.checkedAt && now.getTime() - new Date(capsRaw.checkedAt).getTime() < 2 * H
+    const quota = fresh ? capsRaw?.quota ?? null : null
     return {
       id: c.id, name: c.name, channel,
       missingPublish: granted ? FORMAT_SCOPES[channel].publish.filter((x) => !granted.includes(x)) : [],

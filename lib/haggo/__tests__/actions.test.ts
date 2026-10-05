@@ -130,6 +130,7 @@ const FIXTURES: Record<string, { raw: Record<string, unknown>; before: unknown }
   'marketing.reschedule_post': { raw: { postId: 'post_123456', when: '2026-10-02T10:00:00-05:00' }, before: { title: 'Plomería', scheduledAt: '2026-10-01T15:00:00.000Z' } },
   'marketing.retry_publication': { raw: { publicationId: 'pub_123456' }, before: { title: 'X', channel: 'INSTAGRAM', lastError: 'timeout' } },
   'marketing.preflight_post': { raw: { postId: 'post_123456' }, before: { title: 'Plomería' } },
+  'marketing.diagnose_account': { raw: { connectionId: 'conn_123456' }, before: { name: '@lohaggo_', status: 'ACTIVE' } },
   'marketing.set_format': { raw: { postId: 'post_123456', channel: 'INSTAGRAM', format: 'story', text: '¿Fuga en casa?', cta: 'Escríbenos' }, before: { title: 'Plomería', format: 'feed', publishOptions: null } },
   'marketing.approve_post': { raw: { postId: 'post_123456' }, before: { title: 'X', status: 'review', fromAgent: true } },
   'marketing.cancel_post': { raw: { postId: 'post_123456' }, before: { title: 'X', scheduledAt: '2026-10-02T15:00:00.000Z', agentId: 'agent_123456' } },
@@ -373,7 +374,7 @@ describe('el chat no ejecuta', () => {
 describe('Haggo puede encontrar lo que cada acción necesita', () => {
   // Where each identifier comes from: a read tool that returns it (or the snapshot for inbox agents)
   const SOURCES: Record<string, string[]> = {
-    postId: ['marketing'], publicationId: ['marketing'], ideaId: ['marketing'], agentId: ['marketing', 'foto'], gapId: ['agente_ia'], workspaceId: ['agente_ia', 'equipo'],
+    postId: ['marketing'], publicationId: ['marketing'], connectionId: ['marketing'], ideaId: ['marketing'], agentId: ['marketing', 'foto'], gapId: ['agente_ia'], workspaceId: ['agente_ia', 'equipo'],
     conversationId: ['conversaciones_en_espera'], userId: ['equipo'], serviceRequestId: ['solicitudes_sin_propuestas'], incidentId: ['incidentes_abiertos'],
     requestId: ['solicitudes_con_atencion', 'solicitud_detalle'], proposalId: ['solicitud_detalle'], bookingId: ['solicitud_detalle'],
     key: ['funciones', 'configuracion_plataforma'], partnerId: ['socios', 'resenas', 'verificacion_documentos', 'socio_detalle'], paymentId: ['dinero'], slug: ['configuracion_plataforma'],

@@ -7,7 +7,7 @@ import { reviewNow } from '@/lib/marketing/editorial-ops'
 import { markStaleIfChanged } from '@/lib/marketing/editorial'
 import { preflightPost } from '@/lib/marketing/preflight'
 import { saveVariants } from '@/lib/marketing/service'
-import { FORMAT_LABELS } from '@/lib/marketing/publish-options'
+import { FORMAT_LABELS, readPublishOptions, sanitizePublishOptions } from '@/lib/marketing/publish-options'
 import { adBlock, createAdDraft } from '@/lib/marketing/ads'
 import { sanitizeAdInput } from '@/lib/marketing/ads-core'
 import { getDefaultWorkspaceId } from '@/lib/workspaces'
@@ -74,9 +74,15 @@ const retry: HaggoActionDef<{ publicationId: string }> = {
   describe: () => 'Reintentar la publicación fallida',
   entity: (p) => ({ type: 'MarketingPublication', id: p.publicationId }),
   preconditions: async (p) => {
-    const pub = await prisma.marketingPublication.findUnique({ where: { id: p.publicationId }, select: { status: true, lastError: true, channel: true, post: { select: { title: true } } } })
+    const pub = await prisma.marketingPublication.findUnique({ where: { id: p.publicationId }, select: { status: true, lastError: true, channel: true, scheduledAt: true, postId: true, variantId: true, post: { select: { title: true } } } })
     if (!pub) return { ok: false, reason: 'La publicación no existe' }
     if (pub.status !== 'failed') return { ok: false, reason: 'Solo se reintenta una publicación fallida' }
+    // Errors that a retry cannot fix: permissions, token, a format Meta refuses, invalid content
+    if (/permiso|permission|token|no permite|no es válid|reconecta|rechazó|necesita|admite|debe durar|no está conectada/i.test(pub.lastError ?? '')) return { ok: false, reason: `El error no es pasajero («${(pub.lastError ?? '').slice(0, 120)}»): hay que corregir la pieza o la cuenta antes` }
+    const variant = await prisma.marketingPostVariant.findUnique({ where: { id: pub.variantId }, select: { format: true } })
+    if (variant?.format === 'story' && Date.now() - pub.scheduledAt.getTime() > 12 * 3600_000) return { ok: false, reason: 'Una historia de hace más de 12 h ya perdió su momento: mejor una nueva' }
+    const retries = await prisma.haggoAction.count({ where: { tool: 'marketing.retry_publication', entityId: p.publicationId, status: 'executed' } })
+    if (retries >= 2) return { ok: false, reason: 'Ya se reintentó 2 veces: revisarla a mano' }
     return { ok: true, before: { title: pub.post.title, channel: pub.channel, lastError: pub.lastError } }
   },
   preview: async (_p, before) => {
@@ -581,7 +587,7 @@ const preflightAction: HaggoActionDef<{ postId: string }> = {
   },
   preview: async (_p, before) => ({ summary: `Meta revisa «${(before as { title: string }).title}» sin publicarla`, diff: [] }),
   execute: async (p) => {
-    const results = await preflightPost(p.postId, { maxWaitMs: 90_000 })
+    const results = await preflightPost(p.postId, { maxWaitMs: 40_000 })
     return { after: { results }, result: results.length ? results.map((r) => `${r.channel === 'INSTAGRAM' ? 'Instagram' : 'Facebook'} ${r.account} (${FORMAT_LABELS[r.format] ?? r.format}): ${r.status === 'ok' ? 'aceptada' : r.status === 'pending' ? 'procesando sin errores' : r.status === 'failed' ? `rechazada: ${r.detail}` : 'sin prueba'}`).join(' · ') : 'No había nada que probar' }
   },
 }
@@ -605,7 +611,7 @@ const setFormatAction: HaggoActionDef<{ postId: string; channel: 'FACEBOOK' | 'I
     },
     required: ['postId', 'channel', 'format'],
   },
-  sideEffects: [],
+  sideEffects: ['customer_facing', 'publishes'],
   parse: (raw) => {
     const r = requireObj(raw); const e: string[] = []
     if (!r) return { ok: false, errors: ['Parámetros inválidos'] }
@@ -616,20 +622,20 @@ const setFormatAction: HaggoActionDef<{ postId: string; channel: 'FACEBOOK' | 'I
     const format = typeof r.format === 'string' && allowed.includes(r.format) ? r.format : ''
     if (!format) e.push(`format: uno de ${allowed.join(', ')}`)
     const vertical = format === 'story' || format === 'reel' || format === 'trial_reel'
-    const text = parseText(r, 'text', e, { max: 90, optional: !vertical })
-    const cta = parseText(r, 'cta', e, { max: 40, optional: true })
+    const text = parseText(r, 'text', e, { max: 60, optional: !vertical })
+    const cta = parseText(r, 'cta', e, { max: 25, optional: true })
     return done(e, { postId: parseId(r, 'postId', e), channel: channel!, format, text, cta })
   },
   describe: (p) => `Pasar la versión de ${p.channel === 'INSTAGRAM' ? 'Instagram' : 'Facebook'} a ${FORMAT_LABELS[p.format] ?? p.format}`,
   entity: (p) => ({ type: 'MarketingPost', id: p.postId }),
   preconditions: async (p) => {
-    const post = await prisma.marketingPost.findUnique({ where: { id: p.postId }, select: { title: true, status: true, variants: { where: { channel: p.channel }, select: { format: true, publishOptions: true } }, media: { select: { kind: true } } } })
+    const post = await prisma.marketingPost.findUnique({ where: { id: p.postId }, select: { title: true, status: true, variants: { where: { channel: p.channel }, select: { format: true, publishOptions: true, body: true, mediaIds: true } }, media: { select: { kind: true } } } })
     if (!post) return { ok: false, reason: 'La publicación no existe' }
     if (DONE_POST.includes(post.status)) return { ok: false, reason: 'Ya salió o está archivada' }
     if (!post.variants.length) return { ok: false, reason: `No tiene versión de ${p.channel === 'INSTAGRAM' ? 'Instagram' : 'Facebook'}` }
     if ((p.format === 'reel' || p.format === 'trial_reel') && !post.media.some((m) => m.kind === 'video')) return { ok: false, reason: 'Para un reel la publicación necesita un video' }
     if (p.format !== 'reel' && p.format !== 'trial_reel' && !post.media.some((m) => m.kind === 'image')) return { ok: false, reason: 'Ese formato necesita una foto' }
-    return { ok: true, before: { title: post.title, format: post.variants[0].format, publishOptions: post.variants[0].publishOptions } }
+    return { ok: true, before: { title: post.title, format: post.variants[0].format, publishOptions: post.variants[0].publishOptions, body: post.variants[0].body, mediaIds: post.variants[0].mediaIds } }
   },
   preview: async (p, before) => {
     const b = before as { title: string; format: string | null }
@@ -640,16 +646,61 @@ const setFormatAction: HaggoActionDef<{ postId: string; channel: 'FACEBOOK' | 'I
     const media = await prisma.marketingMedia.findMany({ where: { postId: p.postId }, orderBy: { position: 'asc' }, select: { id: true, kind: true } })
     const images = media.filter((m) => m.kind === 'image').map((m) => m.id)
     const video = media.find((m) => m.kind === 'video')?.id
+    // The other options (AI label, collaborators, location, cover…) are kept; only the on-screen text changes
+    const current = await prisma.marketingPostVariant.findFirst({ where: { postId: p.postId, channel: p.channel }, select: { publishOptions: true } })
+    const kept = readPublishOptions(current?.publishOptions)
+    const options = sanitizePublishOptions(vertical ? { ...kept, storyText: p.text, ...(p.cta ? { storyCta: p.cta } : {}), renderText: true } : { ...kept, storyText: undefined, storyCta: undefined, renderText: undefined })
+    // The caption is kept (a story does not show it, but going back to a photo needs it)
     await saveVariants(p.postId, [{
       channel: p.channel,
       format: p.format === 'post' ? null : p.format,
-      publishOptions: vertical ? { storyText: p.text, ...(p.cta ? { storyCta: p.cta } : {}), renderText: true } : null,
+      publishOptions: options,
       mediaIds: p.format === 'reel' || p.format === 'trial_reel' ? [video!] : p.format === 'story' ? images.slice(0, 1) : images,
-      ...(p.format === 'story' ? { body: '' } : {}),
     }])
     await markStaleIfChanged(p.postId)
-    return { after: { format: p.format }, result: `Formato cambiado; la revisión editorial vuelve a revisar la pieza antes de que salga` }
+    return { after: { format: p.format === 'post' ? null : p.format }, result: `Formato cambiado; la revisión editorial vuelve a revisar la pieza antes de que salga` }
+  },
+  unchanged: async (p, after) => (await prisma.marketingPostVariant.findFirst({ where: { postId: p.postId, channel: p.channel }, select: { format: true } }))?.format === (after as { format: string | null }).format,
+  undo: async (p, before) => {
+    const b = before as { format: string | null; publishOptions: unknown; body: string; mediaIds: string[] }
+    await saveVariants(p.postId, [{ channel: p.channel, format: b.format, publishOptions: (b.publishOptions as never) ?? null, body: b.body, mediaIds: b.mediaIds }])
+    await markStaleIfChanged(p.postId)
   },
 }
 
-export const MARKETING_ACTIONS = [reschedule, retry, approve, cancel, pause, activate, updateSchedule, requestPlan, decideIdeasAction, draftIdeaAction, reviewPostAction, requestAdPackage, proposeBudgetShift, pauseCampaign, preflightAction, setFormatAction] as unknown as HaggoActionDef[]
+/** Re-checks an account with Meta (token, permissions, formats, quota) and re-attaches what a disconnect left loose. */
+const diagnoseAccountAction: HaggoActionDef<{ connectionId: string }> = {
+  id: 'marketing.diagnose_account',
+  domain: 'marketing',
+  risk: 'low',
+  label: 'Diagnosticar una cuenta de Facebook o Instagram',
+  hint: 'Lo mismo que «Diagnosticar» en Admin → Canales: comprueba el token, los permisos, los formatos y el cupo de Instagram, saca de copiloto al agente si la cuenta ya funciona y vuelve a ligar publicaciones sueltas. Úsala ante «Cuenta sin permiso para publicar», mk:publish-scopes o mk:ig-quota viejo.',
+  schema: { type: 'object', properties: { connectionId: { type: 'string' } }, required: ['connectionId'] },
+  sideEffects: [],
+  parse: (raw) => { const r = requireObj(raw); const e: string[] = []; if (!r) return { ok: false, errors: ['Parámetros inválidos'] }; return done(e, { connectionId: parseId(r, 'connectionId', e) }) },
+  describe: () => 'Diagnosticar la cuenta con Meta',
+  entity: (p) => ({ type: 'ChannelConnection', id: p.connectionId }),
+  preconditions: async (p) => {
+    const c = await prisma.channelConnection.findUnique({ where: { id: p.connectionId }, select: { name: true, channel: true, status: true } })
+    if (!c || (c.channel !== 'MESSENGER' && c.channel !== 'INSTAGRAM')) return { ok: false, reason: 'La cuenta no existe' }
+    return { ok: true, before: { name: c.name, status: c.status } }
+  },
+  preview: async (_p, before) => ({ summary: `Se revisa «${(before as { name: string }).name}» con Meta`, diff: [] }),
+  execute: async (p) => {
+    const { runCapabilityDiagnostics } = await import('@/lib/messaging/meta-channels')
+    const { checkConnectionToken } = await import('@/lib/marketing/token-health')
+    const { adoptOrphans } = await import('@/lib/marketing/reconnect')
+    const { refreshWorkspaceAgents } = await import('@/lib/marketing/agent')
+    const caps = await runCapabilityDiagnostics(p.connectionId)
+    const conn = await prisma.channelConnection.findUniqueOrThrow({ where: { id: p.connectionId } })
+    const health = await checkConnectionToken(conn).catch(() => null)
+    const adopted = await adoptOrphans(conn).catch(() => null)
+    await refreshWorkspaceAgents(conn.workspaceId).catch(() => null)
+    return {
+      after: { status: conn.status, send: caps?.send ?? null, receive: caps?.receive ?? null, token: health?.valid ?? null },
+      result: `Envío ${caps?.send ? 'ok' : 'con problemas'}, recepción ${caps?.receive ? 'ok' : 'con problemas'}, token ${health?.valid === false ? `no válido (${health.error})` : 'válido'}${caps?.quota ? `, cupo IG ${caps.quota.used}/${caps.quota.total}` : ''}${adopted?.relinked ? `, ${adopted.relinked} publicaciones vueltas a ligar` : ''}`,
+    }
+  },
+}
+
+export const MARKETING_ACTIONS = [reschedule, retry, approve, cancel, pause, activate, updateSchedule, requestPlan, decideIdeasAction, draftIdeaAction, reviewPostAction, requestAdPackage, proposeBudgetShift, pauseCampaign, preflightAction, setFormatAction, diagnoseAccountAction] as unknown as HaggoActionDef[]

@@ -122,8 +122,9 @@ export function detect(s: Snapshot): Detection[] {
   if (act && act.awaitingApproval && (act.oldestAwaitingMinutes ?? 0) > 30) add({ key: 'ai:actions-awaiting', domain: 'inbox', severity: 'warning', title: `${plural(act.awaitingApproval, 'acción de un agente espera', 'acciones de agentes esperan')} aprobación hace ${act.oldestAwaitingMinutes} min`, detail: 'En copiloto el cliente o socio queda esperando hasta que alguien del equipo apruebe en la bandeja. Ver acciones_por_chat.' })
   if (act && act.chatCancellationsToday >= 3 && act.chatCancellationsToday / Math.max(1, act.cancellationsToday) > 0.3) add({ key: 'ai:chat-cancellations', domain: 'ai_agents', severity: 'warning', title: `${act.chatCancellationsToday} de ${act.cancellationsToday} cancelaciones de hoy salieron del chat`, detail: `Más del 30 % de las cancelaciones del día las hicieron los agentes desde la conversación. Revisar en acciones_por_chat si los clientes lo pidieron o si el agente cancela de más.` })
   if (s.aiProviders.down.length) {
+    // Stable key (not the list of names): one more provider failing must not open a new finding and email
     add({
-      key: `ai:providers-down:${s.aiProviders.down.map((d) => d.name).sort().join(',')}`,
+      key: s.aiProviders.answering ? 'ai:providers-down' : 'ai:providers-all-down',
       domain: 'system',
       severity: s.aiProviders.answering ? 'warning' : 'critical',
       title: s.aiProviders.answering ? `${s.aiProviders.down.map((d) => `${d.name} ${d.reason}`).join(', ')}: responde ${s.aiProviders.answering}` : 'Ningún proveedor de IA disponible: los agentes traspasan a personas',
@@ -181,7 +182,8 @@ export function detect(s: Snapshot): Detection[] {
   if (blind.length) add({ key: 'mk:no-insights', domain: 'marketing', severity: 'info', title: `${plural(blind.length, 'cuenta de Meta no tiene', 'cuentas de Meta no tienen')} permiso de estadísticas`, detail: `${blind.map((a) => a.name).join(', ')}: el alcance y las métricas de historias no se pueden leer. Agregar read_insights / instagram_manage_insights en la app de Meta y reconectar con estadísticas.` })
   if (s.marketing.inReview >= 5) add({ key: 'mk:review-backlog', domain: 'marketing', severity: 'info', title: `${s.marketing.inReview} publicaciones esperan revisión`, detail: 'Se acumulan borradores sin aprobar.' })
 
-  if (s.channels.problems.length) add({ key: `sys:channels:${[...s.channels.problems].sort().join(',')}`, domain: 'system', severity: 'critical', title: `Canales con problemas: ${s.channels.problems.join(', ')}`, detail: 'Hay que reconectarlos.' })
+  // One finding per channel: a second channel failing does not reopen the first one's
+  for (const name of s.channels.problems) add({ key: `sys:channel:${name}`, domain: 'system', severity: 'critical', title: `Canal con problemas: ${name}`, detail: 'Diagnosticarlo (marketing.diagnose_account si es de Meta) y, si sigue, reconectarlo.' })
   if (s.system.cronsFailing) add({ key: 'sys:crons-failing', domain: 'system', severity: 'critical', title: `${plural(s.system.cronsFailing, 'tarea automática falla', 'tareas automáticas fallan')}`, detail: `${s.system.cronsLate} atrasadas.` })
   else if (s.system.cronsLate) add({ key: 'sys:crons-late', domain: 'system', severity: 'warning', title: `${plural(s.system.cronsLate, 'tarea automática atrasada', 'tareas automáticas atrasadas')}`, detail: 'Revisar Salud del sistema.' })
   if (s.system.errorsLastHour >= 5) add({ key: 'sys:error-spike', domain: 'system', severity: 'warning', title: `${s.system.errorsLastHour} errores nuevos en la última hora`, detail: 'Pico de errores de la aplicación.' })

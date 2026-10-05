@@ -73,6 +73,16 @@ export async function saveVariants(postId: string, patches: VariantPatch[]) {
         await prisma.webRedirect.deleteMany({ where: { fromPath: to } })
       }
     }
+    // What Meta checked in «Probar con Meta» no longer holds once the format, files or options change
+    if (existing && ('format' in data || 'mediaIds' in data || 'publishOptions' in data)) {
+      const post = await prisma.marketingPost.findUnique({ where: { id: postId }, select: { agentMeta: true } })
+      const meta = post?.agentMeta as Record<string, unknown> | null
+      if (meta?.preflight) {
+        const { preflight: _old, preflightAt: _at, ...rest } = meta
+        void _old; void _at
+        await prisma.marketingPost.update({ where: { id: postId }, data: { agentMeta: rest as Prisma.InputJsonValue } })
+      }
+    }
     if (existing) await prisma.marketingPostVariant.update({ where: { id: existing.id }, data: data as Prisma.MarketingPostVariantUpdateInput })
     else await prisma.marketingPostVariant.create({ data: { ...(data as object), postId, channel } as Prisma.MarketingPostVariantUncheckedCreateInput })
   }

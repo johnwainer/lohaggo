@@ -116,7 +116,9 @@ export async function proposeAction(raw: unknown, ctx: ProposeContext): Promise<
         runId: ctx.runId ?? null, messageId: ctx.messageId ?? null, origin: ctx.origin, tool: def.id, params: json(parsed.params), domain: def.domain, risk: def.risk, status,
         reason: p.why, expectedImpact: p.what, evidence: json({ items: p.evidence, lowTrust: p.lowTrust, forReview: p.forReview, risks: p.risks, policy: decision.reasons, againBecause: p.againBecause }),
         hypothesis: json(p.hypothesis), alternatives: json(p.alternatives), confidence: p.confidence, preview: json(preview), before: json(pre.before),
-        entityType: entity?.type ?? null, entityId: entity?.id ?? null, planId: p.plan?.id ?? null, planOrder: p.plan?.order ?? null,
+        entityType: entity?.type ?? null, entityId: entity?.id ?? null,
+        // A plan belongs to the run that proposed it (the model's «plan-1» must not join other runs' steps)
+        planId: p.plan?.id ? `${ctx.runId ?? ctx.messageId ?? 'chat'}:${p.plan.id}`.slice(0, 120) : null, planOrder: p.plan?.order ?? null,
         idempotencyKey: paramsHash(def.id, entity, parsed.params), expiresAt: status === 'proposed' ? new Date(Date.now() + cfg.proposalTtlHours * H) : null,
         ...(autonomous ? { decidedById: AUTONOMOUS_ID, decidedByEmail: AUTONOMOUS_ACTOR, decidedAt: new Date() } : {}),
       },
@@ -176,7 +178,9 @@ export async function approveAction(id: string, admin: Admin, opts: { confirm?: 
 async function runApproved(row: HaggoAction, def: HaggoActionDef, admin: Admin, opts: { recheck: boolean }) {
   const id = row.id
   const fail = async (message: string) => {
-    await transition(id, 'approved', 'fail', { error: message.slice(0, 1000) }).catch(() => transition(id, 'executing', 'fail', { error: message.slice(0, 1000) }))
+    // From «approved» (before running) or «executing» (it threw while running): never left «executing»
+    const data = { error: message.slice(0, 1000) }
+    if (!(await transition(id, 'approved', 'fail', data).catch(() => false))) await transition(id, 'executing', 'fail', data).catch(() => false)
     await audit(admin, 'HAGGO_ACTION_FAILED', row, message)
     return prisma.haggoAction.findUnique({ where: { id } })
   }
@@ -187,9 +191,13 @@ async function runApproved(row: HaggoAction, def: HaggoActionDef, admin: Admin, 
   if (opts.recheck) {
     const { decision } = await policyFor(def, def.entity(parsed.params), 'chat', 0)
     if (decision.verdict === 'blocked') return fail(`La política la bloquea ahora: ${decision.reasons.join('; ')}`)
+    // The approver saw the preview of the state at proposal time: a different state now is not what was approved
+    if (row.before != null && JSON.stringify(json(pre.before)) !== JSON.stringify(row.before)) {
+      return fail('El estado cambió desde la propuesta (alguien lo editó o pasó algo nuevo): Haggo debe proponerlo otra vez con lo actual')
+    }
   }
 
-  await transition(id, 'approved', 'start')
+  if (!(await transition(id, 'approved', 'start'))) return prisma.haggoAction.findUnique({ where: { id } })
   try {
     const out = await def.execute(parsed.params, { actionId: id, approverId: admin.id, approverEmail: admin.email }, pre.before)
     await transition(id, 'executing', 'succeed', { before: json(pre.before), after: json(out.after), result: json({ message: out.result }), executedAt: new Date() })
@@ -234,8 +242,12 @@ export async function undoAction(id: string, admin: Admin) {
 
 /** Approves the pending steps of a plan in order; stops at the first one that fails. */
 export async function approvePlan(planId: string, admin: Admin) {
-  const steps = await prisma.haggoAction.findMany({ where: { planId, status: 'proposed' }, orderBy: [{ planOrder: 'asc' }, { createdAt: 'asc' }] })
+  const all = await prisma.haggoAction.findMany({ where: { planId }, orderBy: [{ planOrder: 'asc' }, { createdAt: 'asc' }] })
+  const steps = all.filter((s) => s.status === 'proposed')
   if (!steps.length) throw new ActionError('No hay pasos pendientes en ese plan', 404)
+  // A step before the pending ones that was rejected, expired or failed breaks the plan: its later steps assumed it
+  const broken = all.find((s) => s.status !== 'proposed' && s.status !== 'executed' && (s.planOrder ?? 0) < (steps[0].planOrder ?? 0))
+  if (broken) throw new ActionError(`Un paso anterior del plan quedó «${broken.status}»: aprueba los pasos uno por uno`, 409)
   const results = []
   for (const s of steps) {
     const r = await approveAction(s.id, admin)
@@ -255,9 +267,16 @@ export async function dueVerifications(now = new Date()) {
   }))
 }
 
+/** Actions cut by the function's time limit while approved or executing: closed as failed (they block repeats). */
+export async function closeStuckActions(now = new Date()) {
+  const cutoff = new Date(now.getTime() - 10 * 60_000)
+  const r = await prisma.haggoAction.updateMany({ where: { status: { in: ['approved', 'executing'] }, updatedAt: { lt: cutoff } }, data: { status: 'failed', error: 'Se cortó por el límite de tiempo antes de terminar' } })
+  return r.count
+}
+
 /** Measured too late (or never): closed as «sin verificar» so nothing stays pending forever. */
 export async function closeExpiredVerifications(now = new Date()) {
-  const rows = await prisma.haggoAction.findMany({ where: { status: 'executed', verifiedAt: null }, take: 100 })
+  const rows = await prisma.haggoAction.findMany({ where: { status: 'executed', verifiedAt: null }, orderBy: { executedAt: 'asc' }, take: 100 })
   const ids = rows.filter((r) => verificationExpired(r, now)).map((r) => r.id)
   if (ids.length) await prisma.haggoAction.updateMany({ where: { id: { in: ids } }, data: { verdict: 'sin_verificar', verifiedAt: now } })
   return ids.length

@@ -165,7 +165,7 @@ describe('reglas de detección', () => {
   })
 
   it('sistema: tareas que fallan (sin repetir «atrasadas»), pico de errores, canales, incidentes', () => {
-    expect(keys({ system: { cronsFailing: 1, cronsLate: 2, errorsLastHour: 6, criticalIncidents: 1 }, channels: { problems: ['Instagram'] } })).toEqual(['sys:channels:Instagram', 'sys:crons-failing', 'sys:error-spike', 'sys:critical-incidents'])
+    expect(keys({ system: { cronsFailing: 1, cronsLate: 2, errorsLastHour: 6, criticalIncidents: 1 }, channels: { problems: ['Instagram'] } })).toEqual(['sys:channel:Instagram', 'sys:crons-failing', 'sys:error-spike', 'sys:critical-incidents'])
   })
 
   it('plantillas de WhatsApp rechazadas por Meta', () => {

@@ -287,6 +287,12 @@ const blockIp: HaggoActionDef<BlockParams> = {
     const b = await prisma.blockedIp.findUnique({ where: { ipAddress: p.ipAddress }, select: { isActive: true, expiresAt: true } })
     if (b?.isActive && (!b.expiresAt || b.expiresAt > new Date())) return { ok: false, reason: 'Esa IP ya está bloqueada' }
     const events = await prisma.securityEvent.count({ where: { ipAddress: p.ipAddress, createdAt: { gte: new Date(Date.now() - 24 * 3600_000) } } })
+    // Evidence on our side, not only the model's word (an IP can be shared by many customers)
+    if (events < 5) return { ok: false, reason: `La IP tiene ${events} eventos de seguridad en 24 h: hacen falta al menos 5 para bloquearla desde Haggo` }
+    // Our own infrastructure and the people running the admin are never blocked
+    const admins = await prisma.adminAuditLog.count({ where: { ipAddress: p.ipAddress, createdAt: { gte: new Date(Date.now() - 30 * 24 * 3600_000) } } }).catch(() => 0)
+    if (admins) return { ok: false, reason: 'Esa IP la usa alguien del equipo en el admin: no se bloquea' }
+    if (!p.hours) return { ok: false, reason: 'Desde Haggo el bloqueo siempre vence: indica hours (24 a 72 recomendado)' }
     return { ok: true, before: { existed: Boolean(b), events24h: events } }
   },
   preview: async (p, before) => ({ summary: `La IP ${p.ipAddress} deja de entrar al sitio${p.hours ? ` durante ${p.hours} h` : ' hasta que alguien la desbloquee'} (${(before as { events24h: number }).events24h} eventos de seguridad en 24 h)`, diff: [{ field: 'IP bloqueada', from: 'no', to: p.hours ? `sí, ${p.hours} h` : 'sí, sin vencimiento' }] }),

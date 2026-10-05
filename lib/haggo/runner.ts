@@ -13,7 +13,7 @@ import { configStatusBlock } from '@/lib/haggo/config-status'
 import { LOCK_MINUTES, getHaggoConfig, haggoSpend, withHaggoLock } from '@/lib/haggo/store'
 import { READ_TOOL_DEFS, READ_TOOLS, runReadTool } from '@/lib/haggo/tools/read'
 import { ACTION_REASONING, PROPOSE_ACTION_TOOL } from '@/lib/haggo/actions/registry'
-import { closeExpiredVerifications, dueVerifications, expireActions, proposeAction, recordEvaluation } from '@/lib/haggo/actions/engine'
+import { closeExpiredVerifications, closeStuckActions, dueVerifications, expireActions, proposeAction, recordEvaluation } from '@/lib/haggo/actions/engine'
 import { EVALUATE_TOOL, parseEvaluation } from '@/lib/haggo/actions/verify'
 import { NOTICE_KIND, notify, notifyApprovals } from '@/lib/haggo/notify'
 import { bogotaKey } from '@/lib/admin/overview-core'
@@ -57,7 +57,8 @@ async function context(withActions = true) {
   const system = buildSystem({ directives, memory })
   // Live configuration last: it changes more often than the rest, so the cached prefix stays intact
   const config = { type: 'text' as const, text: await configStatusBlock() }
-  return withActions ? [...system, { type: 'text' as const, text: ACTION_REASONING }, config] : [...system, config]
+  // The action catalog is long and stable: cached with the rest (it was billed in full every round)
+  return withActions ? [...system, { type: 'text' as const, text: ACTION_REASONING, cache_control: { type: 'ephemeral' as const } }, config] : [...system, config]
 }
 
 /**
@@ -65,6 +66,9 @@ async function context(withActions = true) {
  * the final tool gets one reminder; results never come from free text.
  */
 type Proposing = { origin: 'cycle' | 'report'; runId: string; counter: { n: number }; ids: string[]; verify?: string[]; verified?: string[] }
+
+/** Most one cycle or report may spend (USD), whatever the daily budget left */
+const RUN_COST_CEILING_USD = 1.5
 
 async function think(p: { kind: AiCallKind; model: string; system: Anthropic.TextBlockParam[]; task: string; finalTool: Anthropic.Tool; maxTokens: number; effort: Effort; rounds?: number; proposing?: Proposing }, meter: Meter) {
   const maxRounds = p.rounds ?? MAX_ROUNDS
@@ -124,14 +128,24 @@ async function think(p: { kind: AiCallKind; model: string; system: Anthropic.Tex
     }
     messages.push({ role: 'assistant', content: r.message.content })
     const blocks: Anthropic.ContentBlockParam[] = uses.map((u, i) => ({ type: 'tool_result', tool_use_id: u.id, content: results[i].output, ...(results[i].isError ? { is_error: true } : {}) }))
-    if (round >= maxRounds - 2) blocks.push({ type: 'text', text: `No hay más consultas: entrega el resultado ahora con ${p.finalTool.name}.` })
+    // A spending ceiling per run (the daily budget is only checked at the start): over it, answer now
+    const overBudget = meter.cost >= RUN_COST_CEILING_USD
+    if (round >= maxRounds - 2 || overBudget) blocks.push({ type: 'text', text: `No hay más consultas${overBudget ? ' (se alcanzó el gasto máximo de esta ejecución)' : ''}: entrega el resultado ahora con ${p.finalTool.name}.` })
     messages.push({ role: 'user', content: blocks })
+    if (overBudget && round < maxRounds - 2) {
+      // One last round to answer with what it has
+      const r2 = await callAI({ model: p.model, system: p.system, messages, tools: [p.finalTool], maxTokens: p.maxTokens, effort: p.effort, timeoutMs: CALL_TIMEOUT_MS }, { kind: p.kind }).catch((err) => { throw new HaggoError(describeApiError(err)) })
+      meter.add(r2)
+      const last = r2.message.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use' && b.name === p.finalTool.name)
+      if (last) return last.input
+      throw new HaggoError('Se alcanzó el gasto máximo de la ejecución sin un resultado')
+    }
   }
   throw new HaggoError('El análisis no terminó en el número de vueltas permitido')
 }
 
 /** Rule findings follow their detection: created or refreshed while it lasts, resolved when it goes away. */
-async function syncRuleFindings(runId: string, detections: Detection[]) {
+async function syncRuleFindings(runId: string, detections: Detection[], opts: { resolveMissing: boolean } = { resolveMissing: true }) {
   const keys = detections.map((d) => `rule:${d.key}`)
   const createdCritical: Detection[] = []
   for (const d of detections) {
@@ -147,7 +161,8 @@ async function syncRuleFindings(runId: string, detections: Detection[]) {
     if (d.severity === 'critical') createdCritical.push(d)
     await prisma.haggoFinding.create({ data: { runId, fingerprint, domain: d.domain, severity: d.severity, title: d.title, body: d.detail, entityType: d.entityType ?? null, entityId: d.entityId ?? null } })
   }
-  await prisma.haggoFinding.updateMany({ where: { fingerprint: { startsWith: 'rule:', notIn: keys }, status: { in: ['new', 'seen'] } }, data: { status: 'resolved' } })
+  // A source that failed this cycle hides its problems: nothing is resolved until every source answered
+  if (opts.resolveMissing) await prisma.haggoFinding.updateMany({ where: { fingerprint: { startsWith: 'rule:', notIn: keys }, status: { in: ['new', 'seen'] } }, data: { status: 'resolved' } })
   return createdCritical
 }
 
@@ -187,9 +202,11 @@ export async function runCycle(cfg: HaggoConfig, trigger: string, now = new Date
   try {
     const snapshot = await takeSnapshot(now)
     const detections = detect(snapshot)
-    const prev = await prisma.haggoRun.findFirst({ where: { type: 'cycle', id: { not: run.id }, detections: { not: Prisma.DbNull } }, orderBy: { startedAt: 'desc' }, select: { detections: true } })
-    const novel = force ? detections : novelDetections(detections, (prev?.detections as Array<Pick<Detection, 'key' | 'severity'>> | null) ?? [])
-    const newCritical = await syncRuleFindings(run.id, detections)
+    // The last two cycles: a problem hidden for one cycle by a failing source is not «new» when it comes back
+    const prevRuns = await prisma.haggoRun.findMany({ where: { type: 'cycle', id: { not: run.id }, detections: { not: Prisma.DbNull } }, orderBy: { startedAt: 'desc' }, take: 2, select: { detections: true } })
+    const prevDetections = prevRuns.flatMap((r) => (r.detections as Array<Pick<Detection, 'key' | 'severity'>> | null) ?? [])
+    const novel = force ? detections : novelDetections(detections, prevDetections)
+    const newCritical = await syncRuleFindings(run.id, detections, { resolveMissing: !snapshot.unavailable?.length })
     // Request-attention flags come in bursts: one email per cycle for all of them
     const attention = newCritical.filter((d) => d.key.startsWith('ops:attention:'))
     for (const d of newCritical.filter((x) => !attention.includes(x))) await notify('critical', `critical:${d.key}:${bogotaKey(now)}`, { title: d.title, lines: [d.detail, 'Haggo lo está investigando; mira su análisis en Haggo → Ahora.'] })
@@ -309,7 +326,7 @@ export async function tick(now = new Date()) {
     const due = dueJobs(cfg, last, now)
     const report = due.daily ? 'daily' : due.weekly ? 'weekly' : null
     const trigger = report ? null : due.cycle ? 'schedule' : await checkTriggers(cfg, last.cycle ?? null)
-    const res: Record<string, unknown> = { due, trigger, stuck, expired: await expireActions().catch(() => 0), unverifiable: await closeExpiredVerifications(now).catch(() => 0) }
+    const res: Record<string, unknown> = { due, trigger, stuck, stuckActions: await closeStuckActions(now).catch(() => 0), expired: await expireActions().catch(() => 0), unverifiable: await closeExpiredVerifications(now).catch(() => 0) }
     if (report) res[report] = await runReport(cfg, report, now)
     else if (trigger) res.cycle = await runCycle(cfg, trigger, now)
     // Quiet cycles are kept 30 days; reports and cycles with findings stay

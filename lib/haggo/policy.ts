@@ -89,6 +89,10 @@ export function decide(i: PolicyInput): Decision {
   else if (action.risk === 'high') lower('propose', 'Riesgo alto: siempre requiere aprobación')
   else if (action.risk === 'medium' && !config.mediumAllowed[action.domain]) lower('propose', 'Riesgo medio sin permiso para actuar solo en esta área')
 
+  // Money and what cannot be undone never run alone, whatever the area's mode
+  if (action.sideEffects.includes('changes_money')) lower('propose', 'Mueve dinero: siempre requiere aprobación')
+  if (action.sideEffects.includes('irreversible')) lower('propose', 'No se puede deshacer: siempre requiere aprobación')
+
   const approval = matching.find((d) => d.rule!.effect === 'require_approval')
   if (approval) lower('propose', `La directiva «${approval.text}» pide aprobación`)
   if (i.quietNow) lower('propose', 'Horas sin actuar solo')

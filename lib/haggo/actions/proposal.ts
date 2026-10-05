@@ -4,6 +4,8 @@ import type { HaggoActionDef } from '@/lib/haggo/actions/types'
 export const THIRD_PARTY_TOOLS = [
   'conversaciones_en_espera', 'resenas', 'agente_ia', 'incidentes_abiertos', 'solicitud_detalle', 'busquedas', 'garantia', 'actividad_reciente', 'acciones_por_chat',
   'conversion_clientes', 'dinero', 'origen_conversaciones', 'solicitudes_con_atencion', 'socio_detalle', 'conversacion_detalle',
+  // Text from the public internet: request paths and keys, UTM labels, page titles, external error messages
+  'seguridad', 'resultados_marketing', 'trafico_web', 'salud_sistema', 'automatizaciones',
 ] as const
 /** Evidence the chat accepts beyond the read tools: the superadmin's own order. */
 export const SUPERADMIN_ORDER = 'orden_del_superadmin'
