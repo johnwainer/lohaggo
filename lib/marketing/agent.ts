@@ -453,7 +453,7 @@ async function attachImages(agent: Agent, config: AgentConfig, postId: string, d
   if (config.images.source === 'manual') return { source: null, error: null }
   if (await prisma.marketingMedia.count({ where: { postId } })) return { source: 'existing', error: null }
   const carousel = channels.includes('INSTAGRAM') && draft.instagram?.format === 'carousel'
-  const n = carousel ? 3 : 1
+  const n = carousel ? config.images.carouselSize ?? 2 : 1
   // Instagram, reels and stories want vertical photos; a Facebook-only regular post, horizontal
   const vertical = (await prisma.marketingPostVariant.findMany({ where: { postId, format: { in: ['reel', 'story'] } }, select: { id: true } })).length > 0
   const orientation = channels.includes('INSTAGRAM') || vertical ? 'portrait' as const : 'landscape' as const

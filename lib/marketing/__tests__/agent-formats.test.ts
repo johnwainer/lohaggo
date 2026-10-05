@@ -103,3 +103,17 @@ describe('AI images within the per-piece cap', () => {
     expect(aiImageCount(3, 0.1, 0)).toBe(3)
   })
 })
+
+describe('carousel size', () => {
+  it('defaults to 2 and stays between 2 and 10', async () => {
+    const { defaultAgentConfig, sanitizeAgentConfig } = await import('@/lib/marketing/agent-input')
+    const base = defaultAgentConfig()
+    expect(base.images.carouselSize).toBe(2)
+    expect(base.images.source).toBe('ai')
+    expect(sanitizeAgentConfig({ images: { carouselSize: 4 } }, base).images.carouselSize).toBe(4)
+    expect(sanitizeAgentConfig({ images: { carouselSize: 30 } }, base).images.carouselSize).toBe(10)
+    // Configs saved before the setting existed read as 2
+    const old = { ...base, images: { source: 'ai' as const, logo: true } } as unknown as typeof base
+    expect(sanitizeAgentConfig({}, old).images.carouselSize).toBe(2)
+  })
+})

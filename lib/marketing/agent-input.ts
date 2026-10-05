@@ -98,7 +98,8 @@ export type AgentConfig = {
     repeatDays: number
     draftLeadHours: number
   }
-  images: { source: (typeof IMAGE_SOURCES)[number]; logo: boolean }
+  /** carouselSize: images in each carousel the agent makes (2 to 10) */
+  images: { source: (typeof IMAGE_SOURCES)[number]; logo: boolean; carouselSize: number }
   notify: { email: boolean }
 }
 
@@ -133,7 +134,7 @@ export function defaultAgentConfig(objective = 'reach'): AgentConfig {
       WEB: { enabled: true, perWeek: 1, formats: ['guía', 'lista'], accountIds: [] },
     },
     schedule: { smart: true, days: [1, 2, 3, 4, 5, 6], windows: [{ from: 8, to: 21 }], quietFrom: 21, quietTo: 7, minGapHours: 3, maxPerDay: 1, repeatDays: 21, draftLeadHours: 72 },
-    images: { source: 'ai', logo: true },
+    images: { source: 'ai', logo: true, carouselSize: 2 },
     notify: { email: true },
   }
 }
@@ -260,7 +261,7 @@ export function sanitizeAgentConfig(raw: unknown, prev: AgentConfig = defaultAge
       repeatDays: int(schedule.repeatDays, 0, 120, prev.schedule.repeatDays),
       draftLeadHours: int(schedule.draftLeadHours, 12, 168, prev.schedule.draftLeadHours),
     },
-    images: { source: oneOf(images.source, IMAGE_SOURCES, prev.images.source), logo: bool(images.logo, prev.images.logo) },
+    images: { source: oneOf(images.source, IMAGE_SOURCES, prev.images.source), logo: bool(images.logo, prev.images.logo), carouselSize: int(images.carouselSize, 2, 10, prev.images.carouselSize ?? 2) },
     notify: { email: bool(notify.email, prev.notify.email) },
   }
   for (const c of AGENT_CHANNELS) if (config.channels[c].enabled && !config.channels[c].formats.length) config.channels[c].formats = [AGENT_FORMATS[c][0]]

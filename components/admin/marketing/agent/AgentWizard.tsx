@@ -436,7 +436,10 @@ export default function AgentWizard({ workspace, existing, onClose, onSaved }: {
                     <option value="manual">Las subo yo</option>
                   </select>
                 </Field>
-                <label className="flex items-end gap-2 pb-2 text-sm text-gray-700"><input type="checkbox" checked={config.images.logo} onChange={(e) => set('images', { ...config.images, logo: e.target.checked })} /> Poner siempre el logo (del kit de marca)</label>
+                <Field label="Imágenes por carrusel" hint="Cada imagen con IA cuenta para el tope de gasto en imágenes por pieza.">
+                  <input type="number" min={2} max={10} className={input} value={config.images.carouselSize ?? 2} onChange={(e) => set('images', { ...config.images, carouselSize: Math.min(10, Math.max(2, Number(e.target.value) || 2)) })} />
+                </Field>
+                <label className="flex items-end gap-2 pb-2 text-sm text-gray-700 sm:col-span-2"><input type="checkbox" checked={config.images.logo} onChange={(e) => set('images', { ...config.images, logo: e.target.checked })} /> Poner siempre el logo (del kit de marca)</label>
               </div>
               <label className="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" checked={config.notify.email} onChange={(e) => set('notify', { email: e.target.checked })} /> Avisar también por correo a quienes pueden publicar en el workspace</label>
               {needsConfirm && (
