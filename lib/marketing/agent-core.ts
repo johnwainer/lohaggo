@@ -700,7 +700,7 @@ export type IdeaDraft = {
 }
 export type PostDraft = {
   title: string; brief: string; service: string | null; cta: string; confidence: number; risks: string[]; hypothesis: string
-  image: { query: string; alt: string; prompt: string }
+  image: { query: string; alt: string; prompt: string; slides?: string[] }
   web: { body: string; seoTitle: string; seoDescription: string; slug: string; excerpt: string; tags: string[]; category: string } | null
   instagram: { caption: string; format: string } | null
   facebook: { text: string; link: string | null } | null
@@ -791,7 +791,7 @@ export function parseStrategy(input: unknown): Parsed<Strategy> {
  * Ideas the model proposed, keeping only valid ones: known pillar, enabled channels, allowed formats,
  * target day inside the horizon. Null service = general content; an unknown service is dropped.
  */
-export function parseIdeas(input: unknown, ctx: { pillars: string[]; channels: MarketingChannel[]; services: string[]; fromDay: string; toDay: string; max: number }): Parsed<{ ideas: IdeaDraft[]; dropped: string[] }> {
+export function parseIdeas(input: unknown, ctx: { pillars: string[]; channels: MarketingChannel[]; services: string[]; fromDay: string; toDay: string; max: number; formats?: Partial<Record<MarketingChannel, string[]>> }): Parsed<{ ideas: IdeaDraft[]; dropped: string[] }> {
   if (!isObj(input) || !Array.isArray(input.ideas)) return { ok: false, errors: ['La respuesta no trae la lista de ideas'] }
   const dropped: string[] = []
   const ideas: IdeaDraft[] = []
@@ -810,7 +810,10 @@ export function parseIdeas(input: unknown, ctx: { pillars: string[]; channels: M
     const f = isObj(raw.formats) ? raw.formats : {}
     for (const c of channels) {
       const v = s(f[c], 30)
-      formats[c] = AGENT_FORMATS[c].includes(v) ? v : AGENT_FORMATS[c][0]
+      // Only the formats the team enabled for the channel (all the platform supports when none is set)
+      const allowed = ctx.formats?.[c]?.filter((x) => AGENT_FORMATS[c].includes(x)) ?? []
+      const options = allowed.length ? allowed : [...AGENT_FORMATS[c]]
+      formats[c] = options.includes(v) ? v : options[0]
     }
     const hint = raw.slotHint === 'morning' || raw.slotHint === 'midday' || raw.slotHint === 'evening' ? raw.slotHint : null
     ideas.push({ pillar: pillar!, service, angle, hypothesis: s(raw.hypothesis, 300), channels, formats, targetDate: day, slotHint: hint, rationale: s(raw.rationale, 300), explore: raw.explore === true, confidence: num01(raw.confidence) ?? 0.5 })
@@ -837,6 +840,10 @@ export function parseDraft(input: unknown, channels: MarketingChannel[], formats
   const facebook = fb || fbStory ? { text: fbStory ? '' : s(fb?.text, 5000), link: fbStory ? null : s(fb?.link, 500) || null } : null
   const sc = isObj(input.screen) ? input.screen : null
   const screen = sc && s(sc.text, 90) ? { text: s(sc.text, 90), cta: s(sc.cta, 40), videoQuery: s(sc.videoQuery, 80) } : null
+  // On-screen text must read in two seconds: over the limits the model is asked again
+  if (screen && screen.text.length > 70) errors.push(`El titular en pantalla tiene ${screen.text.length} caracteres; máximo 60`)
+  if (screen && screen.cta.length > 30) errors.push(`La llamada a la acción en pantalla tiene ${screen.cta.length} caracteres; máximo 25`)
+  const slides = isObj(input.image) ? strs((input.image as Record<string, unknown>).slides, 10, 800) : []
   if (channels.includes('WEB') && !web?.body) errors.push('Falta el artículo del blog')
   if (channels.includes('INSTAGRAM') && igFormat !== 'story' && !instagram?.caption) errors.push('Falta el texto de Instagram')
   if (channels.includes('FACEBOOK') && !fbStory && !facebook?.text) errors.push('Falta el texto de Facebook')
@@ -850,7 +857,7 @@ export function parseDraft(input: unknown, channels: MarketingChannel[], formats
     value: {
       title, brief: s(input.brief, 1000), service: s(input.service, 80) || null, cta: s(input.cta, 200), confidence: confidence!,
       risks: strs(input.risks, 6, 300), hypothesis: s(input.hypothesis, 300),
-      image: { query: s(img.query, 80), alt: s(img.alt, 200), prompt: s(img.prompt, 800) },
+      image: { query: s(img.query, 80), alt: s(img.alt, 200), prompt: s(img.prompt, 800), slides },
       web: channels.includes('WEB') ? web : null,
       instagram: channels.includes('INSTAGRAM') ? instagram : null,
       facebook: channels.includes('FACEBOOK') ? facebook : null,

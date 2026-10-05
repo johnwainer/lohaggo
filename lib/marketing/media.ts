@@ -45,7 +45,8 @@ export function deliveryUrl(channel: MarketingChannel, url: string, media: Media
     const L = LIMITS.INSTAGRAM
     const ratio = media.width && media.height ? media.width / media.height : null
     // Out-of-range aspect ratios are padded (never cropped: the person's image stays whole)
-    const pad = ratio && ratio < L.imageMinRatio ? ',c_pad,ar_4:5,b_white' : ratio && ratio > L.imageMaxRatio ? ',c_pad,ar_191:100,b_white' : ''
+    // AI images come 2:3: cropped to 4:5 around the subject (no white bars); other images are padded whole
+    const pad = ratio && ratio < L.imageMinRatio ? (media.source === 'ai' ? ',c_fill,g_auto,ar_4:5' : ',c_pad,ar_4:5,b_white') : ratio && ratio > L.imageMaxRatio ? ',c_pad,ar_191:100,b_white' : ''
     return withTransform(url, `c_limit,w_${L.imageMaxWidth}${pad},f_jpg,q_90`, 'jpg')
   }
   if (channel === 'FACEBOOK') return withTransform(url, 'c_limit,w_2048,q_auto:good')

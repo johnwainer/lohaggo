@@ -14,6 +14,8 @@ export type MediaInfo = {
   width?: number | null
   height?: number | null
   durationSec?: number | null
+  /** 'ai' | 'pexels' | 'upload'…: AI images can be cropped to fit; a person's photo is never cropped */
+  source?: string | null
 }
 
 export type VariantInput = {

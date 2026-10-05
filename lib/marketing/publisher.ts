@@ -60,7 +60,7 @@ export function mediaFor(post: FullPost, variant: FullPost['variants'][number]) 
   return variant.mediaIds.map((id) => byId.get(id)).filter((m): m is FullPost['media'][number] => Boolean(m))
 }
 
-export const infoOf = (m: FullPost['media'][number]): MediaInfo => ({ kind: m.kind === 'video' ? 'video' : 'image', mime: m.mime, bytes: m.bytes, width: m.width, height: m.height, durationSec: m.durationSec })
+export const infoOf = (m: FullPost['media'][number]): MediaInfo => ({ kind: m.kind === 'video' ? 'video' : 'image', mime: m.mime, bytes: m.bytes, width: m.width, height: m.height, durationSec: m.durationSec, source: m.source })
 
 export function validatePostForChannel(post: FullPost, channel: MarketingChannel) {
   const variant = post.variants.find((v) => v.channel === channel)

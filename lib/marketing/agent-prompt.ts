@@ -109,8 +109,8 @@ export function campaignBlock(f: PromptFacts & { campaignName: string; campaignD
     `Ciudades: ${(c.offer.cities.length ? c.offer.cities : f.catalog.cities).join(', ') || MISSING}`,
     `Catálogo de servicios${c.offer.allServices ? '' : ' a promocionar'} (nombre · categoría · precio base en COP):\n${bullet(f.catalog.services.map((s) => `${s.name}${s.category ? ` · ${s.category}` : ''}${s.basePrice ? ` · desde $${Math.round(s.basePrice).toLocaleString('es-CO')}` : ''}`))}`,
     `Límites técnicos: Instagram máx. ${LIMITS.INSTAGRAM.caption} caracteres y ${LIMITS.INSTAGRAM.hashtags} hashtags, los enlaces no son clicables; carrusel de ${LIMITS.INSTAGRAM.carouselMin} a ${LIMITS.INSTAGRAM.carouselMax} imágenes. Facebook: como mucho ${LIMITS.FACEBOOK.recommendedHashtags} hashtags. Blog: título SEO ≤ ${LIMITS.WEB.seoTitleMax} caracteres, meta descripción de ${LIMITS.WEB.seoDescriptionMin} a ${LIMITS.WEB.seoDescriptionMax}, al menos ${LIMITS.WEB.minWords} palabras, subtítulos "## ", Markdown sin repetir el título como encabezado.`,
-    `Carruseles: ${c.images.carouselSize ?? 2} imágenes cada uno (escribe el texto para ese número de imágenes).`,
-    `Formatos que la plataforma puede producir sola: ${channels.map((ch) => `${channelName[ch]}: ${AGENT_FORMATS[ch].join(', ')}`).join('; ')}.`,
+    `Carruseles: ${c.images.carouselSize ?? 2} imágenes cada uno. En image.slides describe una escena distinta por imagen (sin textos): el texto del carrusel va en el caption, no sobre las fotos.`,
+    `Formatos que puedes usar (los que el equipo activó): ${channels.map((ch) => `${channelName[ch]}: ${(c.channels[ch].formats.length ? c.channels[ch].formats : AGENT_FORMATS[ch]).join(', ')}`).join('; ')}.`,
     FORMAT_GUIDE,
     f.strategy ? `Estrategia aprobada:\n${strategyText(f.strategy)}` : 'Aún no hay estrategia aprobada.',
   ]
@@ -120,7 +120,7 @@ export function campaignBlock(f: PromptFacts & { campaignName: string; campaignD
 /** How reels and stories are made here, so the model plans and writes for what the platform can produce. */
 export const FORMAT_GUIDE = [
   'Reels y historias (Instagram «reel» y «story»; Facebook «reel» e «historia»):',
-  '- Reel: video vertical de 8 a 30 s. La plataforma pone un clip de banco de video del servicio o, si no hay, anima la foto (zoom lento). No hay voz ni música: el mensaje va en el «texto en pantalla» (titular corto + llamada a la acción). Sirve para llegar a gente que no sigue la cuenta; el texto del reel (caption) es como el de una publicación.',
+  '- Reel: video vertical de 8 a 30 s. La plataforma anima la foto de la pieza (zoom lento) o, si no hay foto hecha con IA, usa un clip de banco de video del servicio (videoQuery). No hay voz ni música: el mensaje va en el «texto en pantalla» (titular corto + llamada a la acción). Sirve para llegar a gente que no sigue la cuenta; el texto del reel (caption) es como el de una publicación.',
   '- Historia: dura 24 h, no muestra caption ni enlaces. Todo el mensaje es el texto en pantalla, escrito sobre la foto. Sirve para recordatorios, promociones vigentes, preguntas y llevar a conversación («Escríbenos por DM», «Responde esta historia»).',
   '- Texto en pantalla: titular de máximo 60 caracteres que se entienda en 2 segundos, sin hashtags, emojis ni enlaces; llamada a la acción de máximo 25 caracteres.',
   '- No prometas lo que no se ve: el clip es genérico del servicio, no un trabajo real de un socio.',
@@ -259,6 +259,7 @@ export const DRAFT_TOOL: Anthropic.Tool = {
           query: { type: 'string', description: 'Búsqueda de 2 a 4 palabras para el banco de fotos, en español' },
           alt: { type: 'string', description: 'Texto alternativo de la imagen' },
           prompt: { type: 'string', description: 'Descripción visual para generarla con IA, sin textos ni logos' },
+          slides: { type: 'array', items: { type: 'string' }, description: 'Solo carruseles: una descripción visual distinta por imagen (sin textos ni logos)' },
         },
         required: ['query', 'alt', 'prompt'],
       },

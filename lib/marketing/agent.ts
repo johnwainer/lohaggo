@@ -367,7 +367,7 @@ export async function planIdeas(agent: Agent, now = new Date()) {
       kind: 'marketing_agent_plan', system: ctx.system, tool: PLAN_TOOL, maxTokens: 7000, effort: 'medium',
       task: planTask({ gaps, order, exploreCount: Math.round(maxIdeas * agent.exploreRatio), fromDay, toDay, maxIdeas }),
     }, meter)
-    const parsed = parseIdeas(input, { pillars: strategy.pillars.map((p) => p.name), channels: enabledChannels(config), services: ctx.catalog.services.map((s) => s.name), fromDay, toDay, max: maxIdeas })
+    const parsed = parseIdeas(input, { pillars: strategy.pillars.map((p) => p.name), channels: enabledChannels(config), services: ctx.catalog.services.map((s) => s.name), fromDay, toDay, max: maxIdeas, formats: { INSTAGRAM: config.channels.INSTAGRAM.formats, FACEBOOK: config.channels.FACEBOOK.formats, WEB: config.channels.WEB.formats } })
     if (!parsed.ok) throw new AgentError(parsed.errors.join(' · '))
 
     let proposed = 0
@@ -424,8 +424,16 @@ async function writeDraft(postId: string, draft: PostDraft, channels: MarketingC
   // Reels and stories: the text on screen is drawn on the image or video (and reviewed like any text)
   const screen = draft.screen ? { storyText: draft.screen.text, ...(draft.screen.cta ? { storyCta: draft.screen.cta } : {}), renderText: true } : null
   const optionsFor = (format: string | null) => (format === 'reel' || format === 'story' ? screen : null)
+  // A version already saved keeps its format (a person's change, or a carousel turned into a photo for lack of images)
+  const [saved, images] = await Promise.all([
+    prisma.marketingPostVariant.findMany({ where: { postId }, select: { channel: true, format: true } }),
+    prisma.marketingMedia.count({ where: { postId, kind: 'image' } }),
+  ])
+  const savedFormat = (ch: MarketingChannel) => saved.find((v) => v.channel === ch)
   if (channels.includes('INSTAGRAM') && draft.instagram) {
-    const format = draft.instagram.format
+    const kept = savedFormat('INSTAGRAM')
+    let format = kept ? kept.format ?? draft.instagram.format : draft.instagram.format
+    if (format === 'carousel' && kept && images < 2) format = 'feed'
     const body = format === 'story' ? '' : ensureHashtags(applyUtmToText(draft.instagram.caption, u('INSTAGRAM'), own), config.voice.brandHashtags)
     patches.push(safe({ channel: 'INSTAGRAM', body, format, publishOptions: optionsFor(format), aiGenerated: true }))
   }
@@ -435,10 +443,11 @@ async function writeDraft(postId: string, draft: PostDraft, channels: MarketingC
     const link = draft.facebook.link || (service?.slug ? `${SITE_URL}/servicios/${service.slug}` : null)
     const text = applyUtmToText(draft.facebook.text, u('FACEBOOK'), own)
     const wa = `${SITE_URL}/w/post-${postId}`
-    const format = variantFormat('FACEBOOK', formats.FACEBOOK)
+    const keptFb = savedFormat('FACEBOOK')
+    const format = keptFb ? keptFb.format : variantFormat('FACEBOOK', formats.FACEBOOK)
     // A story shows no text or link; a reel shows its text but not the link card
     const body = format === 'story' ? '' : text.includes('/w/post-') ? text : `${text.trimEnd()}\n\n📲 Pídelo por WhatsApp: ${wa}`
-    patches.push(safe({ channel: 'FACEBOOK', body, format: format ?? 'post', publishOptions: optionsFor(format), linkUrl: link && !format ? withUtm(link, u('FACEBOOK'), own) : null, aiGenerated: true }))
+    patches.push(safe({ channel: 'FACEBOOK', body, format: format ?? 'post', publishOptions: optionsFor(format), linkUrl: link && !format && formats.FACEBOOK !== 'texto' ? withUtm(link, u('FACEBOOK'), own) : null, aiGenerated: true }))
   }
   await prisma.marketingPost.update({ where: { id: postId }, data: { title: draft.title.slice(0, 200), brief: draft.brief || null } })
   await saveVariants(postId, patches)
@@ -471,8 +480,14 @@ async function attachImages(agent: Agent, config: AgentConfig, postId: string, d
       else if (count < 1) aiNote = `Una imagen con IA cuesta $${s.costPerImageUsd} y el tope por pieza es $${config.budget.maxImageUsdPerPost}; se usaron fotos de Pexels`
       else {
         try {
-          const imgs = await generateImages({ workspaceId: agent.workspaceId, postId, prompt: draft.image.prompt || servicePrompt(service || draft.title), orientation, n: count })
-          meter.addFixed(s.costPerImageUsd * imgs.length)
+          const base = draft.image.prompt || servicePrompt(service || draft.title)
+          // A carousel with one scene per image when the model described them; otherwise n images of the same scene
+          const slides = carousel ? (draft.image.slides ?? []).slice(0, count) : []
+          const imgs = slides.length >= 2
+            ? (await Promise.all(slides.map((sl) => generateImages({ workspaceId: agent.workspaceId, postId, prompt: `${sl}. ${base}`.slice(0, 1500), orientation, n: 1 })))).flat()
+            : await generateImages({ workspaceId: agent.workspaceId, postId, prompt: base, orientation, n: count })
+          // The provider charges every generated image, also those whose upload failed
+          meter.addFixed(s.costPerImageUsd * Math.max(imgs.length, slides.length >= 2 ? slides.length : count))
           for (const img of imgs) await importImage({ workspaceId: agent.workspaceId, postId, brand, candidate: { source: 'ai', url: img.fullUrl, publicId: img.publicId, width: img.width, height: img.height, bytes: img.bytes, alt, credit: img.credit } })
           if (carousel && imgs.length < 2) await saveVariants(postId, [{ channel: 'INSTAGRAM', format: 'feed' }])
           if (imgs.length) return { source: 'ai', error: count < n ? `Tope de imágenes por pieza: ${imgs.length} de ${n} con IA` : null }
@@ -513,8 +528,8 @@ async function attachImages(agent: Agent, config: AgentConfig, postId: string, d
  * each channel gets its own file: reels the video, the rest the photos (a story, the first photo).
  * Never throws: without a video the reel fails validation and goes to a person.
  */
-async function attachVideoAndAssign(agent: Agent, postId: string, draft: PostDraft, service: string | null): Promise<{ source: string | null; error: string | null }> {
-  const variants = await prisma.marketingPostVariant.findMany({ where: { postId }, select: { channel: true, format: true } })
+async function attachVideoAndAssign(agent: Agent, postId: string, draft: PostDraft, service: string | null, imageSource: AgentConfig['images']['source']): Promise<{ source: string | null; error: string | null }> {
+  const variants = await prisma.marketingPostVariant.findMany({ where: { postId }, select: { channel: true, format: true, mediaIds: true } })
   const media = await prisma.marketingMedia.findMany({ where: { postId }, orderBy: { position: 'asc' } })
   const images = media.filter((m) => m.kind === 'image')
   let video = media.find((m) => m.kind === 'video') ?? null
@@ -530,7 +545,8 @@ async function attachVideoAndAssign(agent: Agent, postId: string, draft: PostDra
       error = err instanceof Error ? err.message : 'No se pudo animar la foto'
     }
   }
-  if (!video && variants.some((v) => v.format === 'reel')) {
+  // «Las subo yo»: no stock clips; the person adds the video
+  if (!video && imageSource !== 'manual' && variants.some((v) => v.format === 'reel')) {
     const queries = Array.from(new Set([draft.screen?.videoQuery, service, draft.image.query].filter((q): q is string => Boolean(q?.trim()))))
     for (const q of queries) {
       try {
@@ -557,12 +573,22 @@ async function attachVideoAndAssign(agent: Agent, postId: string, draft: PostDra
     }
   }
   const imageIds = images.map((m) => m.id)
-  const patches: VariantPatch[] = variants.filter((v) => v.channel !== 'WEB').map((v) => ({
-    channel: v.channel as MarketingChannel,
-    mediaIds: v.format === 'reel' ? (video ? [video.id] : []) : v.format === 'story' ? imageIds.slice(0, 1) : imageIds,
-  }))
+  // Only versions without their own files yet: a new version keeps what a person chose
+  const mediaIdsSet = new Set(media.map((m) => m.id))
+  const patches: VariantPatch[] = variants
+    .filter((v) => v.channel !== 'WEB' && !(v.mediaIds.length && v.mediaIds.every((id) => mediaIdsSet.has(id)) && (v.format !== 'reel' || v.mediaIds.some((id) => media.find((m) => m.id === id)?.kind === 'video'))))
+    .map((v) => ({
+      channel: v.channel as MarketingChannel,
+      mediaIds: v.format === 'reel' ? (video ? [video.id] : []) : v.format === 'story' ? imageIds.slice(0, 1) : imageIds,
+    }))
   if (patches.length) await saveVariants(postId, patches)
   return { source, error }
+}
+
+/** What the guardrails read of a version: its text and the text drawn on screen (reels and stories). */
+function guardText(v: { body: string; publishOptions: unknown }) {
+  const o = readPublishOptions(v.publishOptions)
+  return [v.body, o.storyText, o.storyCta].filter(Boolean).join('\n\n')
 }
 
 function guardContext(config: AgentConfig, prices: number[], accounts: Array<{ name: string }>, confidence: number | null, threshold: number) {
@@ -596,8 +622,7 @@ async function checkPost(agent: Agent, config: AgentConfig, prices: number[], po
   }
   const accounts = (await workspaceAccounts(agent.workspaceId)).filter((a) => a.channel === 'INSTAGRAM')
   // The text on screen of reels and stories goes through the same guardrails as the captions
-  const screenOf = (v: (typeof post.variants)[number]) => { const o = readPublishOptions(v.publishOptions); return [o.storyText, o.storyCta].filter(Boolean).join('\n') }
-  const guard = checkGuardrails(post.variants.map((v) => ({ channel: v.channel as MarketingChannel, text: [v.body, screenOf(v)].filter(Boolean).join('\n\n'), linkUrl: v.linkUrl })), guardContext(config, prices, accounts, confidence, agent.confidenceThreshold))
+  const guard = checkGuardrails(post.variants.map((v) => ({ channel: v.channel as MarketingChannel, text: guardText(v), linkUrl: v.linkUrl })), guardContext(config, prices, accounts, confidence, agent.confidenceThreshold))
   const blocks = guard.issues.filter((i) => i.severity === 'block').map((i) => `${i.channel ? `${i.channel}: ` : ''}${i.message}`)
   return { post, ok: !validation.length && guard.ok, needsReview: guard.needsReview, validation, fixable: [...fixable, ...blocks], issues: guard.issues }
 }
@@ -608,7 +633,16 @@ const postStatusFor = (state: AgentState) => (state === 'scheduled' ? 'approved'
  * Writes one accepted idea as a post (or a new version of an agent post), attaches images, validates,
  * gives the model one chance to fix what failed, and moves it on by the autonomy rules.
  */
-export async function draftIdea(agent: Agent, ideaId: string, opts: { instruction?: string | null; postId?: string | null; editorNotes?: string[] | null } = {}) {
+/** One version as the model reads it back: each channel's text and, for reels and stories, the text on screen. */
+function versionText(variants: Array<{ channel: string; body: string; publishOptions?: unknown }>) {
+  return variants.map((v) => {
+    const o = readPublishOptions(v.publishOptions)
+    const screen = o.storyText ? `\n[Texto en pantalla: «${o.storyText}»${o.storyCta ? ` · llamada a la acción: «${o.storyCta}»` : ''}]` : ''
+    return `${v.channel}:\n${v.body}${screen}`
+  }).join('\n\n')
+}
+
+export async function draftIdea(agent: Agent, ideaId: string, opts: { instruction?: string | null; postId?: string | null; editorNotes?: string[] | null; deadline?: number } = {}) {
   return withRun(agent, 'draft', { ideaId, postId: opts.postId ?? null, instruction: opts.instruction ?? null, editorNotes: opts.editorNotes ?? null }, async (meter) => {
     const idea = await prisma.marketingIdea.findFirst({ where: { id: ideaId, agentId: agent.id } })
     if (!idea) throw new AgentError('Idea no encontrada')
@@ -622,7 +656,9 @@ export async function draftIdea(agent: Agent, ideaId: string, opts: { instructio
       : (idea.channels as MarketingChannel[]).filter((c) => config.channels[c]?.enabled)
     if (!channels.length) throw new AgentError('La idea no tiene canales activos en el agente')
     const ideaInfo = { pillar: idea.pillar, service: idea.service, angle: idea.angle, hypothesis: idea.hypothesis, channels, formats: (idea.formats as Partial<Record<MarketingChannel, string>> | null) ?? {}, rationale: idea.rationale }
-    const previous = existing ? existing.variants.map((v) => `${v.channel}:\n${v.body}`).join('\n\n') : null
+    const previous = existing ? versionText(existing.variants) : null
+    // Time left in the cron: the optional rewrites are skipped when it runs short (a cut run duplicates work)
+    const shortOnTime = () => opts.deadline != null && opts.deadline - Date.now() < 90_000
     const utmNote = 'Los enlaces a lohaggo.com escríbelos sin parámetros: la plataforma les añade el seguimiento de la campaña (UTM).'
     const ask = async (corrections: string[] | null, prev: string | null, editor: string[] | null = null) => callTool(agent, ai.defaultModel, {
       kind: 'marketing_agent_draft', system: ctx.system, tool: DRAFT_TOOL, maxTokens: channels.includes('WEB') ? 9000 : 4000, effort: 'medium',
@@ -637,19 +673,22 @@ export async function draftIdea(agent: Agent, ideaId: string, opts: { instructio
     let draft = parsed.value
 
     if (existing && ['approved', 'scheduled'].includes(existing.status)) await cancelScheduled(existing.id)
-    const post = existing ?? await prisma.marketingPost.create({
+    // A run cut before the end left a half-made draft of this idea: reuse it (and its images) instead of a second post
+    const half = !existing && idea.postId ? await prisma.marketingPost.findFirst({ where: { id: idea.postId, agentId: agent.id, status: 'draft' } }) : null
+    const post = existing ?? half ?? await prisma.marketingPost.create({
       data: { workspaceId: agent.workspaceId, campaignId: agent.campaignId, title: draft.title.slice(0, 200), brief: draft.brief || null, origin: 'agent', agentId: agent.id, ideaId: idea.id, pillar: idea.pillar, status: 'draft' },
     })
+    if (!existing && !half) await prisma.marketingIdea.update({ where: { id: idea.id }, data: { postId: post.id } })
     const utm = { campaignSlug: slugify(agent.campaign.name, 40) || 'campana', postId: post.id }
     await writeDraft(post.id, draft, channels, utm, config, ideaInfo.formats)
     const service = draft.service && ctx.catalog.services.some((s) => s.name === draft.service) ? draft.service : idea.service
     const image = await attachImages(agent, config, post.id, draft, service, channels, meter)
-    const video = await attachVideoAndAssign(agent, post.id, draft, service)
+    const video = await attachVideoAndAssign(agent, post.id, draft, service, config.images.source)
 
     let check = await checkPost(agent, config, ctx.catalog.prices, post.id, draft.confidence)
     let corrected = false
-    if (check.fixable.length) {
-      const current = check.post.variants.map((v) => `${v.channel}:\n${v.body}`).join('\n\n')
+    if (check.fixable.length && !shortOnTime()) {
+      const current = versionText(check.post.variants)
       const again = parseDraft(await ask(check.fixable, current), channels, ideaInfo.formats)
       if (again.ok) {
         draft = again.value
@@ -667,9 +706,9 @@ export async function draftIdea(agent: Agent, ideaId: string, opts: { instructio
       const base = { ...(await reviewContextFor(agent, editorial, ctx.system[1].text)), trigger: 'agent' as const }
       let round = 0
       let pass = await agentReviewPass(agent, post.id, editorial, base, { round })
-      while (pass.status !== 'failed' && nextReviewStep(pass.status, round, editorial.maxRounds) === 'rewrite') {
-        const saved = await prisma.marketingPostVariant.findMany({ where: { postId: post.id }, select: { channel: true, body: true } })
-        const again = parseDraft(await ask(null, saved.map((v) => `${v.channel}:\n${v.body}`).join('\n\n'), instructionsForAgent(pass.instructions)), channels, ideaInfo.formats)
+      while (pass.status !== 'failed' && !shortOnTime() && nextReviewStep(pass.status, round, editorial.maxRounds) === 'rewrite') {
+        const saved = await prisma.marketingPostVariant.findMany({ where: { postId: post.id }, select: { channel: true, body: true, publishOptions: true } })
+        const again = parseDraft(await ask(null, versionText(saved), instructionsForAgent(pass.instructions)), channels, ideaInfo.formats)
         if (!again.ok) break
         draft = again.value
         await writeDraft(post.id, draft, channels, utm, config, ideaInfo.formats)
@@ -698,7 +737,7 @@ export async function draftIdea(agent: Agent, ideaId: string, opts: { instructio
       data: {
         status: postStatusFor(t.state), agentMeta: json(meta), rejectedReason: null,
         ...(t.state === 'scheduled' ? { approvedAt: new Date(), approvedById: null } : {}),
-        features: json(postFeatures({ pillar: idea.pillar, service, explore: idea.explore, cta: draft.cta, imageSource: image.source, at: null, variants: check.post.variants.map((v) => ({ channel: v.channel as MarketingChannel, body: v.body, format: v.format })) })),
+        features: json(postFeatures({ pillar: idea.pillar, service, explore: idea.explore, cta: draft.cta, imageSource: image.source, at: null, variants: check.post.variants.map((v) => ({ channel: v.channel as MarketingChannel, body: v.body, format: ideaInfo.formats[v.channel as MarketingChannel] ?? v.format })) })),
       },
     })
     await runActions(agent, t.actions, { postId: post.id, ideaId: idea.id, title: draft.title, mode, problems: [...check.validation, ...check.issues.map((i) => i.message)], isNew: !existing })
@@ -748,7 +787,7 @@ export async function schedulePiece(agent: Agent, postId: string, mode: AgentMod
   }
   const accounts = await workspaceAccounts(agent.workspaceId)
   const catalog = await catalogFor(config)
-  const guard = checkGuardrails(post.variants.map((v) => ({ channel: v.channel as MarketingChannel, text: v.body, linkUrl: v.linkUrl })), guardContext(config, catalog.prices, accounts.filter((a) => a.channel === 'INSTAGRAM'), null, agent.confidenceThreshold))
+  const guard = checkGuardrails(post.variants.map((v) => ({ channel: v.channel as MarketingChannel, text: guardText(v), linkUrl: v.linkUrl })), guardContext(config, catalog.prices, accounts.filter((a) => a.channel === 'INSTAGRAM'), null, agent.confidenceThreshold))
   if (!guard.ok) {
     const problems = guard.issues.filter((i) => i.severity === 'block').map((i) => i.message)
     await prisma.marketingPost.update({ where: { id: postId }, data: { status: 'draft', agentMeta: json({ ...meta, guardrails: guard.issues }) } })
@@ -910,7 +949,8 @@ export async function learn(agent: Agent, now = new Date()) {
     const parsed = parseRetrospective(input)
     if (!parsed.ok) throw new AgentError(parsed.errors.join(' · '))
     const strategy = strategyOf(agent)
-    const auto = agent.mode === 'autopilot' && !agent.degradedReason && strategy
+    // Applied alone only when the agent really acts alone now (not in its trial or per-channel copilot)
+    const auto = modeFor(agent, enabledChannels(configOf(agent))) === 'autopilot' && !agent.degradedReason && strategy
     const applied = auto ? applyRecommendations(config, strategy!, parsed.value.recommendations) : null
     if (applied) await prisma.marketingAgent.update({ where: { id: agent.id }, data: { config: json(applied.config), strategy: json(applied.strategy) } })
     const learning = await prisma.marketingAgentLearning.create({
@@ -1025,9 +1065,11 @@ export async function runAgentCycle(agentId: string, deadline = Date.now() + 240
 
     // Approved but not queued: a person approved it (copilot timing), or the agent did and scheduling
     // failed (it keeps its mode, unless the agent is now in copilot: then a person must approve it)
-    const approved = await prisma.marketingPost.findMany({ where: { agentId: agent.id, status: 'approved', publications: { none: { status: 'scheduled' } } }, select: { id: true, title: true, agentMeta: true, approvedById: true, variants: { select: { channel: true } } }, take: 10 })
+    const approved = await prisma.marketingPost.findMany({ where: { agentId: agent.id, status: 'approved', publications: { none: { status: 'scheduled' } } }, select: { id: true, title: true, agentMeta: true, approvedById: true, approvedAt: true, variants: { select: { channel: true } } }, take: 10 })
     for (const p of approved) {
       if ((p.agentMeta as { hold?: boolean } | null)?.hold) continue
+      // Approved minutes ago: the approval itself is scheduling it (two schedulers would queue it twice)
+      if (p.approvedAt && now.getTime() - p.approvedAt.getTime() < 3 * 60_000) continue
       let mode: AgentMode = 'copilot'
       if (!p.approvedById) {
         mode = modeFor(agent, p.variants.map((v) => v.channel as MarketingChannel))
@@ -1050,6 +1092,9 @@ export async function runAgentCycle(agentId: string, deadline = Date.now() + 240
 
     // Queued pieces the mandatory review does not cover (queued before it existed, a failed review, or
     // edited since): reviewed before their time; if the editor does not approve, back to a person
+    // A review or a run cut by the cron's time limit must not stay «in progress» forever
+    await prisma.marketingPost.updateMany({ where: { agentId: agent.id, reviewStatus: 'pending', updatedAt: { lt: new Date(now.getTime() - 15 * 60_000) } }, data: { reviewStatus: 'failed' } })
+    await prisma.marketingAgentRun.updateMany({ where: { agentId: agent.id, status: 'running', startedAt: { lt: new Date(now.getTime() - 10 * 60_000) } }, data: { status: 'error', error: 'Se cortó por el límite de tiempo antes de terminar', finishedAt: now } })
     const editorial = await getEditorialSettings(agent.workspaceId)
     if (editorial.required && reviewApplies(editorial, 'agent')) {
       const pending = await prisma.marketingPost.findMany({
@@ -1113,9 +1158,20 @@ export async function runAgentCycle(agentId: string, deadline = Date.now() + 240
     })
     for (const idea of due) {
       if (timeLeft() < 120_000) break
-      const r = await draftIdea(agent, idea.id)
+      const r = await draftIdea(agent, idea.id, { deadline: Date.now() + timeLeft() })
       report.push(`redactar: ${r.ok ? r.summary : r.error}`)
-      if (!r.ok) break
+      if (!r.ok) {
+        // One idea that keeps failing must not hold back the rest: dropped after 3 failures (or at once if it cannot work)
+        const failures = await prisma.marketingAgentRun.count({ where: { agentId: agent.id, type: 'draft', status: 'error', input: { path: ['ideaId'], equals: idea.id } } })
+        const hopeless = /no tiene canales activos|no está aceptada|Idea no encontrada/.test(r.error)
+        if (hopeless || failures >= 3) {
+          await prisma.marketingIdea.update({ where: { id: idea.id }, data: { status: 'discarded', rejectedReason: `No se pudo redactar: ${r.error}`.slice(0, 500) } }).catch(() => null)
+          report.push(`idea descartada tras ${failures} intento(s)`)
+        }
+        // Budget or AI unavailable: the same for every idea, stop here
+        if (/Presupuesto|Tope mensual|Límite diario|no está configurada/.test(r.error)) break
+        continue
+      }
       Object.assign(agent, await loadAgent(agent.id))
     }
 
@@ -1148,9 +1204,10 @@ async function preflightAgentPieces(agent: Agent, timeLeft: () => number) {
     where: { agentId: agent.id, createdAt: { gte: since }, status: { in: ['review', 'approved', 'scheduled'] }, variants: { some: { format: { in: ['reel', 'story'] } } } },
     select: { id: true, title: true, status: true, agentMeta: true },
     orderBy: { createdAt: 'asc' },
-    take: 3,
+    take: 50,
   })
-  const todo = posts.filter((p) => !(p.agentMeta as { preflight?: unknown } | null)?.preflight)
+  // The untested ones (the tested ones must not use up the places)
+  const todo = posts.filter((p) => !(p.agentMeta as { preflight?: unknown } | null)?.preflight).slice(0, 3)
   const done: string[] = []
   for (const p of todo) {
     if (timeLeft() < 100_000) break
