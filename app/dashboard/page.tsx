@@ -1984,7 +1984,7 @@ export default function DashboardPage() {
                           if (request.status === 'ACTIVE' && !isExpired) {
                             return pendingProposals > 0 ? (
                               <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                                <span className="font-bold">Te toca a ti:</span> tienes {pendingProposals} {pendingProposals === 1 ? 'propuesta' : 'propuestas'}, elige una antes del {formatExpiry(request.expiresAt)}.
+                                <span className="font-bold">Te toca a ti:</span> tienes {pendingProposals} {pendingProposals === 1 ? 'propuesta' : 'propuestas'}, elige una antes del {formatExpiry(request.expiresAt).replace(/\.$/, "")}.
                               </p>
                             ) : (
                               <p className="mb-3 rounded-xl bg-gray-50 px-3 py-2 text-xs text-gray-700">
