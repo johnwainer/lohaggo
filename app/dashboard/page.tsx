@@ -777,7 +777,7 @@ export default function DashboardPage() {
           chip: 'Solicitud activa',
           chipClass: 'bg-emerald-100 text-emerald-900 border-emerald-200',
           detail: pending > 0
-            ? `${pending} ${pending === 1 ? 'propuesta' : 'propuestas'} para elegir · vence ${formatExpiry(r.expiresAt).replace(/\.$/, '')}`
+            ? `${pending} ${pending === 1 ? 'propuesta' : 'propuestas'} para elegir · vence ${formatExpiry(r.expiresAt)}`
             : 'Esperando propuestas de socios',
           actor: pending > 0 ? 'you' : 'them',
           onOpen: () => { setRequestStatusFilter('ALL'); setRequestSearchTerm(''); setActiveTab('requests'); goToElement(pending > 0 ? `proposals-${r.id}` : `request-${r.id}`) },
