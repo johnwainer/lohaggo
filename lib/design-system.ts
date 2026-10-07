@@ -68,12 +68,12 @@ export const DESIGN_SYSTEM = {
       interactive: 'cursor-pointer hover:shadow-md hover:border-gray-300',
     },
     button: {
-      primary: 'bg-primary-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-700 transition-colors duration-200 disabled:bg-gray-300 disabled:cursor-not-allowed',
-      secondary: 'bg-secondary-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-secondary-600 transition-colors duration-200 disabled:bg-gray-300 disabled:cursor-not-allowed',
-      success: 'bg-emerald-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-emerald-700 transition-colors duration-200',
-      outline: 'bg-white text-gray-700 px-4 py-2 rounded-lg font-medium border border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors duration-200',
-      ghost: 'text-gray-600 px-4 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors duration-200',
-      danger: 'bg-gray-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-700 transition-colors duration-200',
+      primary: 'bg-primary-600 text-white px-4 py-2 rounded-full font-medium hover:bg-primary-700 transition-colors duration-200 disabled:bg-gray-300 disabled:cursor-not-allowed',
+      secondary: 'bg-secondary-500 text-white px-4 py-2 rounded-full font-medium hover:bg-secondary-600 transition-colors duration-200 disabled:bg-gray-300 disabled:cursor-not-allowed',
+      success: 'bg-emerald-700 text-white px-4 py-2 rounded-full font-medium hover:bg-emerald-700 transition-colors duration-200',
+      outline: 'bg-white text-gray-700 px-4 py-2 rounded-full font-medium border border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors duration-200',
+      ghost: 'text-gray-600 px-4 py-2 rounded-full font-medium hover:bg-gray-100 transition-colors duration-200',
+      danger: 'bg-gray-600 text-white px-4 py-2 rounded-full font-medium hover:bg-gray-700 transition-colors duration-200',
       icon: 'p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200',
       small: 'px-3 py-1.5 text-sm',
       large: 'px-6 py-3 text-base',
@@ -119,12 +119,12 @@ export const DESIGN_SYSTEM = {
 
   statusColors: {
     PENDING: {
-      bg: 'bg-secondary-100',
-      text: 'text-secondary-800',
-      border: 'border-secondary-200',
-      full: 'bg-secondary-100 text-secondary-800 border-secondary-200',
-      icon: 'text-secondary-600',
-      cardBorder: 'border-secondary-500',
+      bg: 'bg-amber-100',
+      text: 'text-amber-900',
+      border: 'border-amber-200',
+      full: 'bg-amber-100 text-amber-900 border-amber-200',
+      icon: 'text-amber-600',
+      cardBorder: 'border-amber-400',
     },
     CONFIRMED: {
       bg: 'bg-primary-100',
@@ -135,12 +135,12 @@ export const DESIGN_SYSTEM = {
       cardBorder: 'border-primary-500',
     },
     IN_PROGRESS: {
-      bg: 'bg-gray-100',
-      text: 'text-gray-800',
-      border: 'border-gray-300',
-      full: 'bg-gray-100 text-gray-800 border-gray-300',
-      icon: 'text-gray-600',
-      cardBorder: 'border-gray-500',
+      bg: 'bg-sky-100',
+      text: 'text-sky-900',
+      border: 'border-sky-200',
+      full: 'bg-sky-100 text-sky-900 border-sky-200',
+      icon: 'text-sky-600',
+      cardBorder: 'border-sky-500',
     },
     COMPLETED: {
       bg: 'bg-emerald-100',
@@ -228,7 +228,7 @@ export const DESIGN_SYSTEM = {
 }
 
 export const getStatusClasses = (status: string): string => {
-  return DESIGN_SYSTEM.statusColors[status as keyof typeof DESIGN_SYSTEM.statusColors]?.full || DESIGN_SYSTEM.statusColors.PENDING.full
+  return DESIGN_SYSTEM.statusColors[status as keyof typeof DESIGN_SYSTEM.statusColors]?.full || DESIGN_SYSTEM.statusColors.CANCELLED.full
 }
 
 export const getStatusLabel = (status: string): string => {

@@ -9,6 +9,7 @@ import PlatformTrustBanner from './PlatformTrustBanner'
 import { useProposalRealtime } from '@/hooks/useChatRealtime'
 import { channelLabel } from '@/lib/ops/origin'
 import { PHOTO_ONLY_TEXT } from '@/lib/chat/constants'
+import { useDialog } from '@/components/ui/use-dialog'
 
 interface ChatMessage {
   id: string
@@ -35,9 +36,14 @@ interface ChatModalProps {
   partnerName: string
   serviceName: string
   onClose: () => void
+  /** Optional line under the service name, e.g. «Reserva · mié 8 oct 08:00 · #ABC123». */
+  contextLine?: string
+  /** Name of the other person in the chat; takes precedence over `partnerName` as the title. */
+  counterpartName?: string
 }
 
-export default function ChatModal({ proposalId, partnerName, serviceName, onClose }: ChatModalProps) {
+export default function ChatModal({ proposalId, partnerName, serviceName, onClose, contextLine, counterpartName }: ChatModalProps) {
+  const title = counterpartName || partnerName
   const { data: session } = useSession()
   const [chat, setChat] = useState<Chat | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -49,6 +55,20 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
   const [viewerUrl, setViewerUrl] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const { dialogProps, titleId } = useDialog(true, onClose)
+  const inputId = `${titleId}-input`
+
+  // While the photo viewer is open, Escape closes only the viewer (runs before the dialog's listener).
+  useEffect(() => {
+    if (!viewerUrl) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      e.stopPropagation()
+      setViewerUrl(null)
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [viewerUrl])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -190,27 +210,36 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
   }
 
   return (
-    <div className="fixed inset-0 z-[90] bg-black/50 p-0 sm:flex sm:items-center sm:justify-center sm:p-4">
-      <div className="mt-[8vh] flex h-[92dvh] w-full flex-col rounded-t-2xl bg-white shadow-2xl sm:mt-0 sm:h-[700px] sm:max-w-2xl sm:rounded-2xl">
-        <div className="flex items-center justify-between bg-gradient-to-r from-primary-500 to-secondary-500 px-4 py-3 text-white sm:rounded-t-2xl">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20">
+    <div className="fixed inset-0 z-[100] bg-black/50 p-0 sm:flex sm:items-center sm:justify-center sm:p-4">
+      <div className="absolute inset-0 hidden sm:block" aria-hidden="true" onClick={onClose} />
+      <div
+        {...dialogProps}
+        className="relative flex h-[100dvh] w-full flex-col bg-white shadow-2xl focus:outline-none sm:h-[700px] sm:max-h-[90dvh] sm:max-w-2xl sm:rounded-3xl"
+      >
+        <div className="flex items-center justify-between gap-2 bg-gradient-to-r from-primary-500 to-secondary-500 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] text-white sm:rounded-t-3xl sm:pt-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/20" aria-hidden="true">
               <MessageCircle size={20} className="md:w-6 md:h-6" />
             </div>
-            <div>
-              <h2 className="text-base font-bold sm:text-lg">{partnerName}</h2>
-              <p className="text-xs text-white/80 sm:text-sm">{serviceName}</p>
+            <div className="min-w-0">
+              <h2 id={titleId} className="truncate text-base font-bold sm:text-lg">{title}</h2>
+              <p className="truncate text-xs text-white/90 sm:text-sm">{serviceName}</p>
+              {contextLine && (
+                <p className="truncate text-xs text-white/90">{contextLine}</p>
+              )}
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="rounded-full p-2 text-white transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            aria-label="Cerrar chat"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
           >
-            <X size={20} />
+            <X size={22} aria-hidden="true" />
           </button>
         </div>
 
-        <div className="flex-1 space-y-4 overflow-y-auto bg-gray-50 p-4 pb-3 sm:p-6">
+        <div className="flex-1 space-y-4 overflow-y-auto overscroll-contain bg-gray-50 p-4 pb-3 sm:p-6">
           <PlatformTrustBanner
             variant="warning"
             context="chat"
@@ -218,17 +247,19 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
           />
 
           {loading ? (
-            <div className="flex items-center justify-center h-full">
-              <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
+            <div className="flex items-center justify-center h-full" role="status">
+              <Loader2 className="w-8 h-8 animate-spin text-primary-600" aria-hidden="true" />
+              <span className="sr-only">Cargando mensajes…</span>
             </div>
           ) : messages.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center text-center">
-              <MessageCircle size={48} className="text-gray-300 mb-4" />
-              <p className="text-gray-500 font-medium">No hay mensajes aún</p>
-              <p className="text-gray-400 text-sm mt-2">Envía el primer mensaje para iniciar la conversación</p>
+              <MessageCircle size={48} className="text-gray-300 mb-4" aria-hidden="true" />
+              <p className="text-gray-700 font-medium">No hay mensajes aún</p>
+              <p className="text-gray-600 text-sm mt-2">Envía el primer mensaje para iniciar la conversación</p>
             </div>
-          ) : (
-            messages.map((message) => {
+          ) : null}
+          <div role="log" aria-live="polite" aria-relevant="additions" aria-label="Mensajes" className="space-y-4">
+            {!loading && messages.map((message) => {
               const isSystem = message.senderId === 'SYSTEM'
 
               // A note from the LoHaggo team (admin): friendly, not the blocked-content warning
@@ -240,7 +271,7 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
                       <p className="mt-1 whitespace-pre-line text-xs leading-relaxed text-gray-800 sm:text-sm">
                         {message.content.replace(/^🛟 Soporte LoHaggo( \([^)]*\))?: /, '')}
                       </p>
-                      <p className="mt-1.5 text-[10px] text-gray-500 sm:text-xs">
+                      <p className="mt-1.5 text-[11px] text-gray-600 sm:text-xs">
                         {formatDistanceToNow(new Date(message.createdAt), { addSuffix: true, locale: es })}
                       </p>
                     </div>
@@ -253,14 +284,14 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
                   <div key={message.id} className="my-4 flex justify-center">
                     <div className="max-w-[92%] rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 shadow-sm sm:max-w-[75%]">
                       <div className="flex items-start gap-2">
-                        <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-amber-400 text-sm">
+                        <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-amber-400 text-sm" aria-hidden="true">
                           ⚠️
                         </div>
                         <div className="flex-1">
                           <p className="whitespace-pre-line text-xs font-medium leading-relaxed text-gray-800 sm:text-sm">
                             {message.content}
                           </p>
-                          <p className="mt-1.5 text-[10px] text-gray-500 sm:text-xs">
+                          <p className="mt-1.5 text-[11px] text-gray-600 sm:text-xs">
                             {formatDistanceToNow(new Date(message.createdAt), {
                               addSuffix: true,
                               locale: es
@@ -289,7 +320,7 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
                       <button
                         type="button"
                         onClick={() => setViewerUrl(message.imageUrl ?? null)}
-                        className="relative block aspect-[4/3] w-full min-w-[220px] bg-gray-100"
+                        className="relative block aspect-[4/3] w-full min-w-[220px] bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500"
                         aria-label="Ver foto completa"
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -308,7 +339,7 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
                       )}
                       <p
                         className={`text-xs mt-1 ${
-                          isOwnMessage(message.senderId) ? 'text-white/70' : 'text-gray-500'
+                          isOwnMessage(message.senderId) ? 'text-white/90' : 'text-gray-600'
                         }`}
                       >
                         {formatDistanceToNow(new Date(message.createdAt), {
@@ -321,20 +352,20 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
                   </div>
                 </div>
               )
-            })
-          )}
+            })}
+          </div>
           <div ref={messagesEndRef} />
         </div>
 
         {chat && chat.isActive === false ? (
-          <div className="border-t border-gray-200 bg-gray-50 px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+4.75rem)] sm:rounded-b-2xl sm:px-6 sm:py-5 sm:pb-5">
+          <div className="border-t border-gray-200 bg-gray-50 px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:rounded-b-3xl sm:px-6 sm:py-5 sm:pb-5">
             <div className="flex items-start gap-3 rounded-xl bg-white p-3 ring-1 ring-gray-200">
-              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500">
+              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600" aria-hidden="true">
                 <Lock className="h-4 w-4" />
               </div>
               <div className="flex-1">
                 <p className="text-sm font-semibold text-gray-900">Conversación cerrada</p>
-                <p className="mt-0.5 text-xs text-gray-500">
+                <p className="mt-0.5 text-xs text-gray-600">
                   {chat.statusLabel ?? 'Conversación inactiva'}. Ya no se pueden enviar mensajes en este chat.
                 </p>
               </div>
@@ -343,13 +374,15 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
         ) : (
           <form
             onSubmit={sendMessage}
-            className="border-t border-gray-200 bg-white px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+4.75rem)] sm:rounded-b-2xl sm:px-6 sm:py-4 sm:pb-4"
+            className="border-t border-gray-200 bg-white px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:rounded-b-3xl sm:px-6 sm:py-4 sm:pb-4"
           >
             {sendError && (
-              <p role="alert" className="mb-2 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700 ring-1 ring-red-200">{sendError}</p>
+              <p id={`${inputId}-error`} role="alert" className="mb-2 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700 ring-1 ring-red-200">{sendError}</p>
             )}
             <div className="flex gap-2 md:gap-3">
+              <label htmlFor={inputId} className="sr-only">Escribe un mensaje</label>
               <input
+                id={inputId}
                 ref={inputRef}
                 type="text"
                 value={newMessage}
@@ -357,35 +390,38 @@ export default function ChatModal({ proposalId, partnerName, serviceName, onClos
                 placeholder="Escribe un mensaje..."
                 disabled={loading || sending}
                 autoFocus
-                className="flex-1 rounded-xl border-2 border-gray-200 px-4 py-3 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500 disabled:cursor-not-allowed disabled:bg-gray-100 md:text-base"
+                aria-describedby={sendError ? `${inputId}-error` : undefined}
+                className="min-h-[44px] min-w-0 flex-1 rounded-full border-2 border-gray-200 px-4 py-3 text-base focus:border-primary-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:cursor-not-allowed disabled:bg-gray-100"
               />
               <button
                 type="submit"
                 disabled={!newMessage.trim() || loading || sending}
-                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary-500 to-secondary-500 px-4 py-3 font-bold text-white transition-all hover:from-primary-600 hover:to-secondary-600 disabled:cursor-not-allowed disabled:opacity-50 md:px-6"
+                aria-label="Enviar mensaje"
+                className="flex min-h-[44px] min-w-[44px] items-center justify-center gap-2 rounded-full bg-gradient-to-r from-primary-500 to-secondary-500 px-4 py-3 font-bold text-white transition-all hover:from-primary-600 hover:to-secondary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:px-6"
               >
                 {sending ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
                 ) : (
                   <>
-                    <Send size={18} className="md:w-5 md:h-5" />
-                    <span className="hidden md:inline">Enviar</span>
+                    <Send size={18} className="md:w-5 md:h-5" aria-hidden="true" />
+                    <span className="hidden md:inline" aria-hidden="true">Enviar</span>
                   </>
                 )}
               </button>
             </div>
           </form>
         )}
+        {viewerUrl && (
+          // Rendered inside the chat dialog so its focus trap keeps the viewer reachable.
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/90 p-4" onClick={() => setViewerUrl(null)} role="dialog" aria-modal="true" aria-label="Foto">
+            <button type="button" autoFocus onClick={() => setViewerUrl(null)} className="absolute right-4 top-[calc(env(safe-area-inset-top)+1rem)] flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white" aria-label="Cerrar foto">
+              <X size={22} aria-hidden="true" />
+            </button>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={viewerUrl} alt="Foto del chat" className="max-h-full max-w-full rounded-2xl object-contain" />
+          </div>
+        )}
       </div>
-      {viewerUrl && (
-        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/90 p-4" onClick={() => setViewerUrl(null)} role="dialog" aria-label="Foto">
-          <button type="button" onClick={() => setViewerUrl(null)} className="absolute right-4 top-[calc(env(safe-area-inset-top)+1rem)] flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-white" aria-label="Cerrar foto">
-            <X size={22} />
-          </button>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={viewerUrl} alt="Foto del chat" className="max-h-full max-w-full rounded-2xl object-contain" />
-        </div>
-      )}
     </div>
   )
 }

@@ -2,11 +2,13 @@
 
 import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
+import { useDialog } from '@/components/ui/use-dialog'
 
 interface Photo {
   id: string
   url: string
   order: number
+  alt?: string
 }
 
 interface ImageGalleryModalProps {
@@ -21,28 +23,22 @@ export default function ImageGalleryModal({ photos, initialIndex, onClose }: Ima
   const gestureStartX = useRef<number | null>(null)
   const gestureDeltaX = useRef(0)
   const isGestureActive = useRef(false)
+  const { dialogProps } = useDialog(true, onClose)
 
   useEffect(() => {
     // Reset zoom when changing images
     setZoom(1)
   }, [currentIndex])
 
+  // Escape, scroll lock and focus are handled by useDialog; arrows move between photos.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
       if (e.key === 'ArrowLeft') goToPrevious()
       if (e.key === 'ArrowRight') goToNext()
     }
-
-    // Prevent body scroll when modal is open
-    document.body.style.overflow = 'hidden'
     window.addEventListener('keydown', handleKeyDown)
-
-    return () => {
-      document.body.style.overflow = 'unset'
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [currentIndex])
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [photos.length])
 
   const goToNext = () => {
     setCurrentIndex((prev) => (prev + 1) % photos.length)
@@ -95,44 +91,54 @@ export default function ImageGalleryModal({ photos, initialIndex, onClose }: Ima
     return null
   }
 
+  const total = sortedPhotos.length
+  const current = sortedPhotos[currentIndex]
+  const btn = 'inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/60 text-white transition hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white'
+
   return (
     <div
-      className="fixed inset-0 bg-black bg-opacity-95 z-[9999] flex items-center justify-center p-4"
+      {...dialogProps}
+      aria-labelledby={undefined}
+      aria-label="Galería de fotos"
+      className="fixed inset-0 bg-black/95 z-[9999] flex items-center justify-center p-4 focus:outline-none"
       onClick={onClose}
     >
       {/* Close button */}
       <button
+        type="button"
         onClick={onClose}
-        className="absolute top-4 right-4 text-white hover:text-gray-300 transition z-10 bg-black bg-opacity-50 rounded-full p-2 hover:bg-opacity-70"
-        aria-label="Cerrar"
+        className={`absolute right-4 top-[calc(env(safe-area-inset-top)+1rem)] z-10 ${btn}`}
+        aria-label="Cerrar galería"
       >
-        <X size={32} />
+        <X size={26} aria-hidden="true" />
       </button>
 
       {/* Zoom controls */}
-      <div className="absolute top-4 left-4 flex gap-2 z-10">
+      <div className="absolute left-4 top-[calc(env(safe-area-inset-top)+1rem)] z-10 flex items-center gap-2">
         <button
+          type="button"
           onClick={(e) => {
             e.stopPropagation()
             handleZoomOut()
           }}
-          className="text-white hover:text-gray-300 transition bg-black bg-opacity-50 rounded-full p-2 hover:bg-opacity-70"
+          className={btn}
           aria-label="Alejar"
         >
-          <ZoomOut size={24} />
+          <ZoomOut size={22} aria-hidden="true" />
         </button>
         <button
+          type="button"
           onClick={(e) => {
             e.stopPropagation()
             handleZoomIn()
           }}
-          className="text-white hover:text-gray-300 transition bg-black bg-opacity-50 rounded-full p-2 hover:bg-opacity-70"
+          className={btn}
           aria-label="Acercar"
         >
-          <ZoomIn size={24} />
+          <ZoomIn size={22} aria-hidden="true" />
         </button>
-        <span className="text-white bg-black bg-opacity-50 rounded-full px-3 py-2 text-sm">
-          {Math.round(zoom * 100)}%
+        <span className="text-white bg-black/60 rounded-full px-3 py-2 text-sm" aria-live="polite">
+          <span className="sr-only">Zoom </span>{Math.round(zoom * 100)}%
         </span>
       </div>
 
@@ -150,8 +156,8 @@ export default function ImageGalleryModal({ photos, initialIndex, onClose }: Ima
         style={{ touchAction: zoom === 1 ? 'pan-y' : 'none' }}
       >
         <img
-          src={sortedPhotos[currentIndex]?.url}
-          alt={`Foto ${currentIndex + 1}`}
+          src={current?.url}
+          alt={current?.alt || `Foto ${currentIndex + 1} de ${total}`}
           className="max-w-full max-h-full object-contain transition-transform duration-200 select-none"
           draggable={false}
           style={{ transform: `scale(${zoom})` }}
@@ -162,33 +168,35 @@ export default function ImageGalleryModal({ photos, initialIndex, onClose }: Ima
         />
 
         {/* Navigation buttons */}
-        {photos.length > 1 && (
+        {total > 1 && (
           <>
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation()
                 goToPrevious()
               }}
-              className="absolute left-4 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white p-3 rounded-full transition"
-              aria-label="Imagen anterior"
+              className={`absolute left-4 top-1/2 -translate-y-1/2 !h-12 !w-12 ${btn}`}
+              aria-label="Foto anterior"
             >
-              <ChevronLeft size={32} />
+              <ChevronLeft size={30} aria-hidden="true" />
             </button>
 
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation()
                 goToNext()
               }}
-              className="absolute right-4 top-1/2 -translate-y-1/2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white p-3 rounded-full transition"
-              aria-label="Imagen siguiente"
+              className={`absolute right-4 top-1/2 -translate-y-1/2 !h-12 !w-12 ${btn}`}
+              aria-label="Foto siguiente"
             >
-              <ChevronRight size={32} />
+              <ChevronRight size={30} aria-hidden="true" />
             </button>
 
             {/* Image counter */}
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black bg-opacity-70 text-white px-4 py-2 rounded-full text-sm font-medium">
-              {currentIndex + 1} / {photos.length}
+            <div className="absolute bottom-[calc(env(safe-area-inset-bottom)+1rem)] left-1/2 -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-full text-sm font-medium" aria-live="polite">
+              <span className="sr-only">Foto </span>{currentIndex + 1}<span aria-hidden="true"> / </span><span className="sr-only"> de </span>{total}
             </div>
           </>
         )}

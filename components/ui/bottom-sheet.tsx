@@ -4,6 +4,7 @@ import * as React from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useDialog } from '@/components/ui/use-dialog'
 
 export interface BottomSheetProps {
   open: boolean
@@ -15,6 +16,8 @@ export interface BottomSheetProps {
   showCloseButton?: boolean
   dismissible?: boolean
   className?: string
+  /** Accessible name when there is no visible title */
+  ariaLabel?: string
 }
 
 export function BottomSheet({
@@ -27,48 +30,20 @@ export function BottomSheet({
   showCloseButton = true,
   dismissible = true,
   className,
+  ariaLabel,
 }: BottomSheetProps) {
   const [mounted, setMounted] = React.useState(false)
-  const sheetRef = React.useRef<HTMLDivElement>(null)
+  const { dialogProps, titleId } = useDialog(open, onClose, { dismissible })
 
   React.useEffect(() => {
     setMounted(true)
   }, [])
 
-  React.useEffect(() => {
-    if (!open) return
-    const previous = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = previous
-    }
-  }, [open])
-
-  React.useEffect(() => {
-    if (!open || !dismissible) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [open, dismissible, onClose])
-
-  React.useEffect(() => {
-    if (!open) return
-    const id = window.requestAnimationFrame(() => {
-      sheetRef.current?.focus()
-    })
-    return () => window.cancelAnimationFrame(id)
-  }, [open])
-
   if (!mounted || !open) return null
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-end justify-center"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={title ? 'bottom-sheet-title' : undefined}
+      className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center sm:p-4"
     >
       <button
         type="button"
@@ -78,10 +53,11 @@ export function BottomSheet({
         className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm animate-fade-in cursor-default"
       />
       <div
-        ref={sheetRef}
-        tabIndex={-1}
+        {...dialogProps}
+        aria-labelledby={title ? titleId : undefined}
+        aria-label={title ? undefined : ariaLabel}
         className={cn(
-          'relative w-full max-w-2xl bg-white rounded-t-3xl shadow-sheet outline-none',
+          'relative w-full max-w-2xl bg-white rounded-t-3xl sm:rounded-3xl shadow-sheet outline-none',
           'animate-sheet-in flex flex-col',
           'max-h-[90vh] pb-[env(safe-area-inset-bottom)]',
           className,
@@ -96,14 +72,14 @@ export function BottomSheet({
             <div className="min-w-0 flex-1">
               {title && (
                 <h2
-                  id="bottom-sheet-title"
+                  id={titleId}
                   className="text-lg font-semibold text-slate-900 leading-tight"
                 >
                   {title}
                 </h2>
               )}
               {description && (
-                <p className="mt-1 text-sm text-slate-500">{description}</p>
+                <p className="mt-1 text-sm text-slate-600">{description}</p>
               )}
             </div>
             {showCloseButton && dismissible && (
@@ -111,7 +87,7 @@ export function BottomSheet({
                 type="button"
                 onClick={onClose}
                 aria-label="Cerrar"
-                className="-mr-2 -mt-1 inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 active:bg-slate-200 transition-colors"
+                className="-mr-2 -mt-1 inline-flex h-11 w-11 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 active:bg-slate-200 transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>

@@ -39,7 +39,7 @@ export default function BookingPhotos({ bookingId }: { bookingId: string }) {
       {photos && (
         <div className="rounded-2xl border border-gray-100 bg-white p-3">
           <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-gray-900">
-            <Camera size={16} className="text-primary-600" /> Fotos del trabajo
+            <Camera size={16} className="text-primary-600" aria-hidden="true" /> Fotos del trabajo
           </p>
           <PhotoGroups photos={photos} />
         </div>
@@ -58,10 +58,10 @@ export function PhotoGroups({ photos }: { photos: BookingPhotoItem[] }) {
     <div className="space-y-2">
       {groups.map((g) => (
         <div key={g.kind}>
-          <p className="mb-1 text-xs font-medium text-gray-500">{g.label}</p>
+          <p className="mb-1 text-xs font-medium text-gray-600">{g.label}</p>
           <div className="flex gap-2 overflow-x-auto pb-1">
-            {g.items.map((p) => (
-              <a key={p.id} href={p.url} target="_blank" rel="noopener noreferrer" className="shrink-0">
+            {g.items.map((p, i) => (
+              <a key={p.id} href={p.url} target="_blank" rel="noopener noreferrer" aria-label={`Ver foto ${g.label.toLowerCase()} ${i + 1} de ${g.items.length} (se abre en otra pestaña)`} className="shrink-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={p.url} alt={`Foto ${g.label.toLowerCase()}`} loading="lazy" className="h-16 w-16 rounded-xl object-cover" />
               </a>

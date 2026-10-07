@@ -87,20 +87,21 @@ export default function WorkPhotosEditor({ bookingId, status, only, onUploaded }
   const canAfter = ['IN_PROGRESS', 'COMPLETED'].includes(status) && only !== 'before'
   const full = photos.length >= MAX_PHOTOS
 
+  // No `capture`: phones then offer both the camera and the gallery.
   const button = (kind: 'before' | 'after', label: string) => (
     <label
-      className={`flex min-h-[44px] flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-full px-4 text-sm font-semibold transition ${
-        kind === 'after' ? 'bg-primary-600 text-white hover:bg-primary-700' : 'border border-gray-200 bg-white text-gray-800 hover:bg-gray-50'
+      className={`flex min-h-[44px] flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-full px-4 text-sm font-semibold transition focus-within:ring-2 focus-within:ring-primary-500 focus-within:ring-offset-2 ${
+        kind === 'after' ? 'bg-primary-600 text-white hover:bg-primary-700' : 'border border-gray-300 bg-white text-gray-800 hover:bg-gray-50'
       } ${uploading || full ? 'pointer-events-none opacity-60' : ''}`}
     >
-      {uploading === kind ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
-      {uploading === kind ? 'Subiendo…' : label}
+      {uploading === kind ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Camera size={16} aria-hidden="true" />}
+      <span aria-hidden="true">{uploading === kind ? 'Subiendo…' : label}</span>
       <input
         type="file"
         accept="image/*"
-        capture="environment"
         multiple
-        className="hidden"
+        aria-label={uploading === kind ? 'Subiendo fotos…' : `Subir fotos de ${label.toLowerCase()}`}
+        className="sr-only"
         disabled={!!uploading || full}
         onChange={(e) => { void upload(kind, e.target.files); e.target.value = '' }}
       />
@@ -113,16 +114,16 @@ export default function WorkPhotosEditor({ bookingId, status, only, onUploaded }
     <div className="rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
       <div className="mb-2 flex items-center justify-between gap-2">
         <p className="flex items-center gap-1.5 text-sm font-semibold text-gray-900">
-          <Camera size={16} className="text-primary-600" /> Fotos del trabajo
+          <Camera size={16} className="text-primary-600" aria-hidden="true" /> Fotos del trabajo
         </p>
-        <span className="text-xs text-gray-400">{photos.length}/{MAX_PHOTOS}</span>
+        <span className="text-xs text-gray-600" aria-label={`${photos.length} de ${MAX_PHOTOS} fotos`}>{photos.length}/{MAX_PHOTOS}</span>
       </div>
       {photos.length > 0 && <div className="mb-3"><PhotoGroups photos={photos} /></div>}
       <div className="flex gap-2">
         {canBefore && button('before', 'Antes')}
         {canAfter && button('after', 'Después')}
       </div>
-      {error && <p className="mt-2 text-xs font-medium text-red-600" role="alert">{error}</p>}
+      {error && <p className="mt-2 text-xs font-medium text-red-700" role="alert">{error}</p>}
     </div>
   )
 }
