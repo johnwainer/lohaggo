@@ -32,7 +32,7 @@ export async function GET() {
           bookings: {
             orderBy: { createdAt: 'desc' },
             take: 1,
-            select: { status: true, updatedAt: true },
+            select: { id: true, status: true, updatedAt: true, scheduledDate: true, scheduledTime: true },
           },
         },
       },
@@ -73,6 +73,9 @@ export async function GET() {
         unreadCount: chat._count.messages,
         updatedAt: chat.updatedAt,
         bookingStatus,
+        booking: chat.proposal.bookings[0]
+          ? { id: chat.proposal.bookings[0].id, status: chat.proposal.bookings[0].status, scheduledDate: chat.proposal.bookings[0].scheduledDate, scheduledTime: chat.proposal.bookings[0].scheduledTime }
+          : null,
         isActive: state.isActive,
         statusLabel: state.statusLabel,
       }

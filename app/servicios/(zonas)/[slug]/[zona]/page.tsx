@@ -143,7 +143,7 @@ export default async function ServiceZonePage({ params }: Props) {
   ]
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-gray-50 pb-16">
+    <div className="min-h-screen overflow-x-hidden bg-gray-50 pb-16">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(jsonLd) }} />
 
       <section className="bg-gradient-to-br from-primary-600 to-primary-800 px-4 pb-8 pt-6 text-white">
@@ -243,6 +243,6 @@ export default async function ServiceZonePage({ params }: Props) {
           </div>
         </div>
       </div>
-    </main>
+    </div>
   )
 }

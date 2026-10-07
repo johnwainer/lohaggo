@@ -1,10 +1,11 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { CreditCard, Plus, Trash2, Check, AlertCircle } from 'lucide-react'
+import { CreditCard, Plus, Trash2, Check, AlertCircle, Info } from 'lucide-react'
 import Link from 'next/link'
 import AccountTopHeader from '@/components/shared/AccountTopHeader'
 import AccountPanel from '@/components/shared/AccountPanel'
+import ConfirmModal from '@/components/ConfirmModal'
 interface PaymentMethod { id: string; lastFourDigits: string; cardBrand: string; cardholderName: string; expirationMonth: number; expirationYear: number; isDefault: boolean; isActive: boolean; createdAt: string }
 export default function PaymentMethodsPage() {
   const { status } = useSession()
@@ -12,9 +13,7 @@ export default function PaymentMethodsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-  const [bookingsCount, setBookingsCount] = useState(0)
-  const [requestsCount, setRequestsCount] = useState(0)
-  const [favoritesCount, setFavoritesCount] = useState(0)
+  const [deleting, setDeleting] = useState<PaymentMethod | null>(null)
   const fetchMethods = async (options?: { preserveSuccess?: boolean }) => {
     const { preserveSuccess = false } = options ?? {}
     setLoading(true)
@@ -36,37 +35,9 @@ export default function PaymentMethodsPage() {
       setLoading(false)
     }
   }
-  const fetchCounts = async () => {
-    try {
-      const [bookingsRes, requestsRes, favoritesRes] = await Promise.all([
-        fetch('/api/bookings'),
-        fetch('/api/service-requests'),
-        fetch('/api/favorites')
-      ])
-
-      if (bookingsRes.ok) {
-        const bookingsData = await bookingsRes.json()
-        setBookingsCount(Array.isArray(bookingsData) ? bookingsData.length : 0)
-      }
-
-      if (requestsRes.ok) {
-        const requestsData = await requestsRes.json()
-        const requests = Array.isArray(requestsData) ? requestsData : Array.isArray(requestsData?.serviceRequests) ? requestsData.serviceRequests : []
-        setRequestsCount(requests.length)
-      }
-
-      if (favoritesRes.ok) {
-        const favorites = await favoritesRes.json()
-        setFavoritesCount(Array.isArray(favorites) ? favorites.length : 0)
-      }
-    } catch (err: any) {
-      console.error('Error fetching counts:', err)
-    }
-  }
   useEffect(() => {
     if (status === 'authenticated') {
       fetchMethods()
-      fetchCounts()
     }
   }, [status])
   useEffect(() => {
@@ -86,7 +57,6 @@ export default function PaymentMethodsPage() {
     }
   }
   const handleDelete = async (method: PaymentMethod) => {
-    if (!confirm('¿Eliminar este método de pago?')) return
     try {
       const res = await fetch(`/api/payment-methods/${method.id}`, { method: 'DELETE' })
       if (!res.ok) {
@@ -100,32 +70,96 @@ export default function PaymentMethodsPage() {
       setError(err.message || 'Error al eliminar método')
     }
   }
-  if (status === 'loading' || loading) return <div className="panel-page min-h-screen flex items-center justify-center bg-gray-50"><div className="h-12 w-12 rounded-full border-4 border-primary-500 border-t-transparent animate-spin" /></div>
+  if (status === 'loading' || loading) return <div className="panel-page min-h-screen flex items-center justify-center bg-gray-50"><div role="status" aria-label="Cargando métodos de pago" className="h-12 w-12 rounded-full border-4 border-primary-500 border-t-transparent animate-spin" /></div>
   const formatExpiry = (month: number, year: number) => `${String(month).padStart(2, '0')}/${String(year).slice(-2)}`
   return (
     <div className="account-shell">
       <AccountTopHeader
         role="CLIENT"
-        title="Métodos de Pago"
+        title="Métodos de pago"
         subtitle="Administra tus tarjetas guardadas"
-        counts={{
-          bookings: bookingsCount,
-          requests: requestsCount,
-          favorites: favoritesCount
-        }}
         action={
-          <Link href="/dashboard/payment-methods/add" className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-2 text-sm text-white font-semibold hover:bg-primary-700 transition-colors whitespace-nowrap">
-            <Plus className="w-4 h-4" />
+          <Link href="/dashboard/payment-methods/add" className="inline-flex min-h-[44px] items-center gap-2 rounded-full bg-primary-600 px-4 py-2 text-sm text-white font-semibold hover:bg-primary-700 transition-colors whitespace-nowrap">
+            <Plus className="w-4 h-4" aria-hidden="true" />
             <span className="hidden sm:inline">Agregar método</span>
             <span className="sm:hidden">Agregar</span>
           </Link>
         }
       />
-      <main className="account-main space-y-5">
-        {error && <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800"><AlertCircle className="w-5 h-5 mt-0.5" /><div><p className="font-semibold">Hubo un problema</p><p className="text-sm">{error}</p></div></div>}
-        {success && <div className="flex items-start gap-3 rounded-lg border border-green-200 bg-green-50 p-4 text-green-800"><Check className="w-5 h-5 mt-0.5" /><p className="font-semibold">{success}</p></div>}
-        {paymentMethods.length === 0 ? <AccountPanel className="border-dashed border-2 border-gray-200 text-center"><CreditCard className="mx-auto h-12 w-12 text-gray-300" /><p className="text-lg font-semibold text-gray-900 mt-2">Aún no tienes métodos de pago guardados</p><p className="text-sm text-gray-600">Agrega una tarjeta para pagar tus servicios de forma segura.</p><Link href="/dashboard/payment-methods/add" className="mt-3 inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-white font-semibold hover:bg-primary-700 transition-colors"><Plus className="w-4 h-4" />Agregar método de pago</Link></AccountPanel> : <div className="grid gap-4 md:grid-cols-2">{paymentMethods.map(method => (<div key={method.id} className="surface-card p-6 space-y-4"><div className="flex items-center justify-between"><div className="flex items-center gap-3"><div className="rounded-xl bg-primary-500/10 p-3 text-primary-600"><CreditCard className="w-6 h-6" /></div><div><p className="text-xs uppercase text-gray-500">{method.cardBrand}</p><p className="text-xl font-semibold tracking-widest">**** **** **** {method.lastFourDigits}</p><p className="text-sm text-gray-600">{method.cardholderName}</p></div></div>{method.isDefault && <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700"><Check className="w-4 h-4" />Predeterminado</span>}</div><div className="flex justify-between text-sm text-gray-600"><span>Vence {formatExpiry(method.expirationMonth, method.expirationYear)}</span><span>{method.isActive ? 'Activa' : 'Inactiva'}</span></div><div className="flex justify-between text-xs text-gray-500">Creada {new Date(method.createdAt).toLocaleDateString('es-CO')}</div><div className="flex flex-wrap gap-3">{!method.isDefault && <button onClick={() => handleSetDefault(method.id)} className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"><Check className="w-4 h-4" />Predeterminar</button>}<button onClick={() => handleDelete(method)} className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors"><Trash2 className="w-4 h-4" />Eliminar</button></div></div>))}</div>}
-      </main>
+      <div className="account-main space-y-5">
+        <div className="flex items-start gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sky-950">
+          <Info className="mt-0.5 h-5 w-5 shrink-0 text-sky-700" aria-hidden="true" />
+          <p className="text-sm">
+            <span className="font-semibold">Por ahora pagas con Mercado Pago, efectivo o transferencia al terminar el servicio.</span>{' '}
+            Las tarjetas guardadas aún no se usan para cobrar.
+          </p>
+        </div>
+        {error && (
+          <div role="alert" className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-800">
+            <AlertCircle className="w-5 h-5 mt-0.5 shrink-0" aria-hidden="true" />
+            <div><p className="font-semibold">Hubo un problema</p><p className="text-sm">{error}</p></div>
+          </div>
+        )}
+        {success && (
+          <div role="status" className="flex items-start gap-3 rounded-2xl border border-green-200 bg-green-50 p-4 text-green-800">
+            <Check className="w-5 h-5 mt-0.5 shrink-0" aria-hidden="true" />
+            <p className="font-semibold">{success}</p>
+          </div>
+        )}
+        {paymentMethods.length === 0 ? (
+          <AccountPanel className="border-dashed border-2 border-gray-200 text-center">
+            <CreditCard className="mx-auto h-12 w-12 text-gray-400" aria-hidden="true" />
+            <p className="text-lg font-semibold text-gray-900 mt-2">No tienes tarjetas guardadas</p>
+            <p className="text-sm text-gray-600">Puedes guardar una tarjeta para cuando habilitemos el cobro con tarjeta guardada.</p>
+            <Link href="/dashboard/payment-methods/add" className="mt-3 inline-flex min-h-[44px] items-center gap-2 rounded-full bg-primary-600 px-5 py-2 text-white font-semibold hover:bg-primary-700 transition-colors">
+              <Plus className="w-4 h-4" aria-hidden="true" />Agregar tarjeta
+            </Link>
+          </AccountPanel>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2">
+            {paymentMethods.map(method => (
+              <div key={method.id} className="surface-card p-6 space-y-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="rounded-xl bg-primary-500/10 p-3 text-primary-600" aria-hidden="true"><CreditCard className="w-6 h-6" /></div>
+                    <div className="min-w-0">
+                      <p className="text-xs uppercase text-gray-600">{method.cardBrand}</p>
+                      <p className="text-xl font-semibold tracking-widest" aria-label={`Tarjeta terminada en ${method.lastFourDigits}`}>**** {method.lastFourDigits}</p>
+                      <p className="text-sm text-gray-600 truncate">{method.cardholderName}</p>
+                    </div>
+                  </div>
+                  {method.isDefault && <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800"><Check className="w-4 h-4" aria-hidden="true" />Predeterminada</span>}
+                </div>
+                <div className="flex justify-between text-sm text-gray-600">
+                  <span>Vence {formatExpiry(method.expirationMonth, method.expirationYear)}</span>
+                  <span>{method.isActive ? 'Activa' : 'Inactiva'}</span>
+                </div>
+                <p className="text-xs text-gray-600">Guardada el {new Date(method.createdAt).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}</p>
+                <div className="flex flex-wrap gap-3">
+                  {!method.isDefault && (
+                    <button type="button" onClick={() => handleSetDefault(method.id)} className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
+                      <Check className="w-4 h-4" aria-hidden="true" />Predeterminar
+                    </button>
+                  )}
+                  <button type="button" onClick={() => setDeleting(method)} aria-label={`Eliminar tarjeta terminada en ${method.lastFourDigits}`} className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-red-200 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 transition-colors">
+                    <Trash2 className="w-4 h-4" aria-hidden="true" />Eliminar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      <ConfirmModal
+        isOpen={!!deleting}
+        onClose={() => setDeleting(null)}
+        onConfirm={() => { if (deleting) void handleDelete(deleting) }}
+        title="Eliminar tarjeta"
+        message={deleting ? `¿Eliminar la tarjeta terminada en ${deleting.lastFourDigits}?` : ''}
+        confirmText="Sí, eliminar"
+        cancelText="No, mantener"
+        type="danger"
+      />
     </div>
   )
 }

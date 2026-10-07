@@ -24,10 +24,14 @@ import OriginBadge from '@/components/shared/OriginBadge'
 import OfflinePaymentActions from '@/components/payments/OfflinePaymentActions'
 import ServiceIcon from '@/components/ServiceIcon'
 import ClientDashboardNav from '@/components/ClientDashboardNav'
-import { getBookingVisualState, type BookingVisualState } from '@/lib/booking-status'
+import { BOOKING_FILTER_ORDER, bookingStatusColor, getBookingVisualLabel, getBookingVisualState, getNextStep, isPaymentSettled, type BookingVisualState } from '@/lib/booking-status'
+import { useDialog } from '@/components/ui/use-dialog'
+import { BottomSheet } from '@/components/ui/bottom-sheet'
+import Link from 'next/link'
 import { CancelBookingSheet, RescheduleBookingSheet } from '@/components/bookings/BookingSheets'
 import BookingPhotos from '@/components/bookings/BookingPhotos'
 import { useNotificationUnreadCount } from '@/hooks/useNotificationUnreadCount'
+import { useClientNavCounts } from '@/hooks/useClientNavCounts'
 import { formatBookingWhen, formatCalendarDay } from '@/lib/bookings/when'
 
 const ChatModal = dynamic(() => import('@/components/ChatModal'), {
@@ -56,9 +60,18 @@ interface Booking {
     }
   }
   partner?: {
+    id?: string
     user: {
       name: string
     }
+    bankAccounts?: Array<{
+      bankName: string
+      accountType: string
+      accountNumber: string
+      accountHolderName: string
+      holderDocumentNumber: string
+      isDefault?: boolean
+    }>
   }
   review?: {
     id: string
@@ -69,6 +82,8 @@ interface Booking {
     id: string
     status: string
     totalAmount: number
+    confirmationStatus?: string | null
+    clientReportedMethod?: string | null
   }
 }
 
@@ -126,23 +141,21 @@ interface ServiceRequest {
   }>
 }
 
-const statusColors: Record<string, string> = {
-  PENDING: 'bg-secondary-100 text-secondary-800 border-secondary-200',
-  CONFIRMED: 'bg-primary-100 text-primary-800 border-primary-200',
-  IN_PROGRESS: 'bg-gray-100 text-gray-800 border-gray-300',
-  COMPLETED: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-  CANCELLED: 'bg-gray-100 text-gray-700 border-gray-200',
+const TAB_TITLES = {
+  overview: { title: 'Resumen', chip: 'Resumen', subtitle: 'Vista general de tu actividad' },
+  bookings: { title: 'Mis reservas', chip: 'Reservas', subtitle: 'Gestiona tus reservas de servicios' },
+  requests: { title: 'Mis solicitudes', chip: 'Solicitudes', subtitle: 'Solicitudes y propuestas recibidas' },
+  favorites: { title: 'Mis favoritos', chip: 'Favoritos', subtitle: 'Tus profesionales y servicios favoritos' },
+} as const
+
+const PROPOSAL_STATUS: Record<string, { label: string; className: string }> = {
+  PENDING: { label: 'Pendiente', className: 'bg-amber-100 text-amber-900 border-amber-200' },
+  ACCEPTED: { label: 'Aceptada', className: 'bg-primary-100 text-primary-800 border-primary-200' },
+  REJECTED: { label: 'No elegida', className: 'bg-gray-100 text-gray-700 border-gray-200' },
 }
 
-const statusLabels: Record<string, string> = {
-  PENDING: 'Pendiente',
-  CONFIRMED: 'Confirmada',
-  IN_PROGRESS: 'En progreso',
-  COMPLETED: 'Completada',
-  CANCELLED: 'Cancelada',
-  PAID: 'Pagada',
-  RATED: 'Calificada',
-}
+const formatExpiry = (iso: string) =>
+  new Date(iso).toLocaleString('es-CO', { timeZone: 'America/Bogota', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 
 const requestStatusColors: Record<string, string> = {
   ACTIVE: 'bg-emerald-100 text-emerald-800 border-emerald-200',
@@ -163,6 +176,7 @@ export default function DashboardPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const unreadNotifications = useNotificationUnreadCount(status === 'authenticated')
+  const navCounts = useClientNavCounts()
   const [bookings, setBookings] = useState<Booking[]>([])
   const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([])
   // Proposals that arrived while the panel was open: highlighted, and announced in the page
@@ -244,6 +258,7 @@ export default function DashboardPage() {
     proposalId: string
     partnerName: string
     serviceName: string
+    contextLine?: string
   }>({
     isOpen: false,
     proposalId: '',
@@ -527,10 +542,15 @@ export default function DashboardPage() {
   }
 
   const acceptProposal = async (proposalId: string, partnerName: string, price: number) => {
+    const fee = clientCommissionRate > 0 ? Math.round(price * (clientCommissionRate / 100)) : 0
+    const total = price + fee
+    const breakdown = fee > 0
+      ? `\nServicio ${formatCurrency(price)} + tarifa ${clientCommissionRate}% ${formatCurrency(fee)}`
+      : '\nSin comisión de servicio'
     setConfirmModal({
       isOpen: true,
-      title: 'Aceptar Propuesta',
-      message: `¿Estás seguro de aceptar la propuesta de ${partnerName} por ${formatCurrency(price)}?\n\nAl aceptar:\n• Se creará una reserva automáticamente\n• Se rechazarán las demás propuestas\n• El socio será notificado`,
+      title: 'Aceptar propuesta',
+      message: `¿Aceptas la propuesta de ${partnerName}?\n\nTotal a pagar: ${formatCurrency(total)}${breakdown}\n\nAl aceptar:\n• Se creará una reserva automáticamente\n• Se rechazarán las demás propuestas\n• Le avisamos al socio`,
       type: 'info',
       onConfirm: async () => {
         try {
@@ -633,6 +653,19 @@ export default function DashboardPage() {
 
   const cancelBooking = (id: string, serviceName: string) => setCancelSheet({ id, serviceName })
 
+  // «Ya pagué» on the card opens the same cash/transfer report that lives under it
+  const openOfflinePayment = (bookingId: string) => {
+    const block = document.getElementById(`offline-pay-${bookingId}`)
+    if (!block) return
+    block.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    const buttons = Array.from(block.querySelectorAll<HTMLButtonElement>('button:not([disabled])'))
+    const target = buttons.find((b) => /ya pagu|confirmar pago|reportar pago/i.test(b.textContent || '')) || buttons[0]
+    if (target) {
+      target.focus({ preventScroll: true })
+      target.click()
+    }
+  }
+
   const openPaymentModal = async (bookingId: string, serviceName: string, amount: number) => {
     setLoadingBreakdown(true)
     setPaymentBreakdown(null)
@@ -714,8 +747,8 @@ export default function DashboardPage() {
   }
 
   const totalSpent = bookings
-    .filter(b => b.status === 'COMPLETED')
-    .reduce((sum, b) => sum + b.totalPrice, 0)
+    .filter(b => b.status === 'COMPLETED' && isPaymentSettled(b.payment))
+    .reduce((sum, b) => sum + (b.payment?.totalAmount || b.totalPrice), 0)
 
   const pendingCount = bookings.filter(b => b.status === 'PENDING').length
   const confirmedCount = bookings.filter(b => b.status === 'CONFIRMED').length
@@ -737,11 +770,13 @@ export default function DashboardPage() {
       const rank: Record<BookingVisualState, number> = {
         COMPLETED: 1,
         PAID: 2,
-        PENDING: 3,
-        CONFIRMED: 4,
-        IN_PROGRESS: 5,
-        RATED: 6,
-        CANCELLED: 7,
+        PAYMENT_REPORTED: 3,
+        PENDING: 4,
+        CONFIRMED: 5,
+        IN_PROGRESS: 6,
+        RATED: 7,
+        REFUNDED: 8,
+        CANCELLED: 9,
       }
       const aState = getBookingVisualState('CLIENT', a)
       const bState = getBookingVisualState('CLIENT', b)
@@ -823,31 +858,27 @@ export default function DashboardPage() {
     const hasEducation = documents.some(d => EDUCATION_TYPES.includes(d.type) && d.status === 'APPROVED')
     const hasBackground = documents.some(d => d.type === 'ANTECEDENTES' && d.status === 'APPROVED')
 
+    if (!hasIdentity && !hasEducation && !hasBackground) return null
+    const badgeClass = 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold'
     return (
-      <div className="flex items-center gap-1.5 ml-2">
+      <div className="flex flex-wrap items-center gap-1.5">
         {hasIdentity && (
-          <div className="group relative inline-block">
-            <CreditCard size={16} className="text-primary-600" />
-            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap pointer-events-none z-50">
-              Identidad verificada
-            </span>
-          </div>
+          <span role="img" aria-label="Identidad verificada" title="Identidad verificada" className={`${badgeClass} bg-primary-50 text-primary-800`}>
+            <CreditCard size={14} aria-hidden="true" />
+            <span aria-hidden="true">Identidad</span>
+          </span>
         )}
         {hasEducation && (
-          <div className="group relative inline-block">
-            <GraduationCap size={16} className="text-secondary-600" />
-            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap pointer-events-none z-50">
-              Educación verificada
-            </span>
-          </div>
+          <span role="img" aria-label="Educación verificada" title="Educación verificada" className={`${badgeClass} bg-secondary-50 text-secondary-900`}>
+            <GraduationCap size={14} aria-hidden="true" />
+            <span aria-hidden="true">Estudios</span>
+          </span>
         )}
         {hasBackground && (
-          <div className="group relative inline-block">
-            <Shield size={16} className="text-emerald-600" />
-            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap pointer-events-none z-50">
-              Antecedentes verificados
-            </span>
-          </div>
+          <span role="img" aria-label="Antecedentes verificados" title="Antecedentes verificados" className={`${badgeClass} bg-emerald-50 text-emerald-800`}>
+            <Shield size={14} aria-hidden="true" />
+            <span aria-hidden="true">Antecedentes</span>
+          </span>
         )}
       </div>
     )
@@ -922,10 +953,15 @@ export default function DashboardPage() {
         confirmText={confirmModal.type === 'danger' ? 'Sí, cancelar' : 'Sí, aceptar'}
       />
 
-      {paymentModal.isOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl shadow-cardHover max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-slate-900 mb-4">Pagar servicio</h3>
+      <CenterDialog
+        open={paymentModal.isOpen}
+        onClose={() => {
+          if (processingPayment) return
+          setPaymentModal({ isOpen: false, bookingId: '', serviceName: '', amount: 0 })
+          setPaymentBreakdown(null)
+        }}
+        title="Pagar servicio"
+      >
             <p className="text-slate-600 mb-4">Servicio: <span className="font-semibold text-slate-900">{paymentModal.serviceName}</span></p>
 
             {loadingBreakdown ? (
@@ -951,7 +987,7 @@ export default function DashboardPage() {
                     </span>
                   </div>
                 ) : (
-                  <p className="text-xs text-emerald-600 pb-3 border-b border-slate-200">Sin comisión de servicio</p>
+                  <p className="text-xs text-emerald-800 pb-3 border-b border-slate-200">Sin comisión de servicio</p>
                 )}
 
                 <div className="flex justify-between items-center pt-2">
@@ -971,19 +1007,21 @@ export default function DashboardPage() {
 
             <div className="flex gap-3">
               <button
+                type="button"
                 onClick={() => {
                   setPaymentModal({ isOpen: false, bookingId: '', serviceName: '', amount: 0 })
                   setPaymentBreakdown(null)
                 }}
                 disabled={processingPayment}
-                className="flex-1 px-4 py-3 border border-slate-200 text-slate-700 rounded-full hover:bg-slate-50 transition-colors font-medium disabled:opacity-50"
+                className="flex-1 min-h-[44px] px-4 py-3 border border-slate-200 text-slate-700 rounded-full hover:bg-slate-50 transition-colors font-medium disabled:opacity-50"
               >
                 Cancelar
               </button>
               <button
+                type="button"
                 onClick={processPayment}
                 disabled={processingPayment || loadingBreakdown}
-                className="flex-1 bg-primary-600 text-white px-4 py-3 rounded-full hover:bg-primary-700 transition-colors font-semibold disabled:opacity-50 flex items-center justify-center gap-2 shadow-card"
+                className="flex-1 min-h-[44px] bg-primary-600 text-white px-4 py-3 rounded-full hover:bg-primary-700 transition-colors font-semibold disabled:opacity-50 flex items-center justify-center gap-2 shadow-card"
               >
                 {processingPayment ? (
                   <>
@@ -998,9 +1036,7 @@ export default function DashboardPage() {
                 )}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+      </CenterDialog>
 
       {arrival && (
         <div className="fixed inset-x-3 bottom-20 z-[90] mx-auto max-w-md sm:bottom-6" role="status" aria-live="polite">
@@ -1010,46 +1046,52 @@ export default function DashboardPage() {
               <p className="text-sm font-semibold">{arrival.count > 1 ? `${arrival.count} propuestas nuevas` : 'Nueva propuesta'}</p>
               <p className="truncate text-xs text-gray-300">{arrival.count > 1 ? `Para tus solicitudes` : `${arrival.partner} · ${arrival.service}`}</p>
             </div>
-            <button onClick={openArrival} className="shrink-0 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-gray-900">Ver</button>
-            <button onClick={() => setArrival(null)} className="-mr-1 shrink-0 p-1 text-gray-400 hover:text-white" aria-label="Cerrar">✕</button>
+            <button type="button" onClick={openArrival} aria-label={arrival.count > 1 ? 'Ver las propuestas nuevas' : `Ver la propuesta de ${arrival.partner}`} className="inline-flex min-h-[44px] shrink-0 items-center rounded-full bg-white px-4 text-sm font-bold text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900">Ver</button>
+            <button type="button" onClick={() => setArrival(null)} className="-mr-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-gray-300 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white" aria-label="Cerrar aviso de propuesta nueva"><X size={18} aria-hidden="true" /></button>
           </div>
         </div>
       )}
 
       <div>
         <header className="account-header">
-          <div className="hidden sm:block max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-                <div className="min-w-0 flex-1">
-                  <h1 className="panel-title truncate">
-                    {activeTab === 'overview' && 'Resumen General'}
-                    {activeTab === 'bookings' && 'Mis Reservas'}
-                    {activeTab === 'requests' && 'Mis Solicitudes'}
-                    {activeTab === 'favorites' && 'Mis Favoritos'}
-                  </h1>
-                  <p className="panel-subtitle truncate hidden sm:block">
-                    {activeTab === 'overview' && 'Vista general de tu actividad'}
-                    {activeTab === 'bookings' && 'Gestiona tus reservas de servicios'}
-                    {activeTab === 'requests' && 'Solicitudes y propuestas recibidas'}
-                    {activeTab === 'favorites' && 'Tus profesionales favoritos'}
-                  </p>
-                </div>
-              </div>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+            <h1 className="panel-title truncate">{TAB_TITLES[activeTab].title}</h1>
+            <p className="panel-subtitle truncate hidden sm:block">{TAB_TITLES[activeTab].subtitle}</p>
+          </div>
+
+          <div className="md:hidden border-t border-gray-100 bg-white">
+            <div role="tablist" aria-label="Secciones de tu panel" className="flex gap-2 overflow-x-auto scrollbar-hide px-4 py-2">
+              {(['overview', 'bookings', 'requests', 'favorites'] as const).map((tab) => {
+                const selected = activeTab === tab
+                const badge = tab === 'bookings' ? navCounts.bookings : tab === 'requests' ? navCounts.action : 0
+                return (
+                  <button
+                    key={tab}
+                    type="button"
+                    role="tab"
+                    aria-selected={selected}
+                    onClick={() => setActiveTab(tab)}
+                    data-testid={`dashboard-chip-${tab}`}
+                    className={`inline-flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-1 ${
+                      selected ? 'bg-primary-600 text-white shadow-card' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    }`}
+                  >
+                    {TAB_TITLES[tab].chip}
+                    <CountBadge count={badge || 0} tone={selected ? 'glass' : 'primary'} label={tab === 'bookings' ? 'reservas en curso' : 'solicitudes activas'} />
+                  </button>
+                )
+              })}
             </div>
           </div>
 
           <ClientDashboardNav
-            bookingsCount={bookings.length}
-            requestsCount={serviceRequests.length}
-            favoritesCount={favoritePartners.length}
             notificationsCount={unreadNotifications}
             activeTab={activeTab}
             onTabChange={(tab) => setActiveTab(tab)}
           />
         </header>
 
-        <main className="account-main">
+        <div className="account-main">
           {activeTab === 'overview' && (
             <div className="space-y-4 sm:space-y-6">
               <div>
@@ -1060,15 +1102,15 @@ export default function DashboardPage() {
               </div>
 
               {(() => {
-                // Completed services whose payment the client has not reported yet
-                const toReport = bookings.filter((b) => b.status === 'COMPLETED' && b.payment?.status !== 'APPROVED' && (b.payment as { confirmationStatus?: string } | undefined)?.confirmationStatus !== 'CLIENT_REPORTED')
+                // Completed services where the payment step is the client's (same rule as the card's «Te toca a ti»)
+                const toReport = bookings.filter((b) => getBookingVisualState('CLIENT', b) === 'COMPLETED' && getNextStep('CLIENT', b).actor === 'you')
                 if (!toReport.length) return null
                 return (
-                  <button onClick={() => setActiveTab('bookings')} className="flex w-full items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left shadow-card">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700"><DollarSign size={20} /></span>
+                  <button type="button" onClick={() => { setFilter('COMPLETED'); setActiveTab('bookings') }} className="flex w-full items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left shadow-card">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700" aria-hidden="true"><DollarSign size={20} /></span>
                     <span className="min-w-0 flex-1">
-                      <span className="block font-semibold text-amber-950">Pendiente: reporta tu pago</span>
-                      <span className="block truncate text-sm text-amber-900">{toReport.length === 1 ? toReport[0].service.name : `${toReport.length} servicios completados`} · cuéntanos cómo le pagaste al socio</span>
+                      <span className="block font-semibold text-amber-950">Te toca a ti: paga y repórtalo</span>
+                      <span className="block truncate text-sm text-amber-900">{toReport.length === 1 ? `${toReport[0].service.name} · ${getNextStep('CLIENT', toReport[0]).text}` : `${toReport.length} servicios terminados por pagar`}</span>
                     </span>
                     <ChevronRight size={18} className="shrink-0 text-amber-700" />
                   </button>
@@ -1120,39 +1162,39 @@ export default function DashboardPage() {
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3 sm:p-4">
                           <div className="flex items-center gap-2 mb-2">
-                            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                            <span aria-hidden="true" className={`inline-flex h-7 w-7 items-center justify-center rounded-full border ${bookingStatusColor('PENDING').full}`}>
                               <Clock className="w-3.5 h-3.5" />
                             </span>
                           </div>
                           <p className="text-2xl sm:text-3xl font-bold text-slate-900 leading-none">{pendingCount}</p>
-                          <p className="text-xs text-slate-500 mt-1">Pendientes</p>
+                          <p className="text-xs text-slate-600 mt-1">{getBookingVisualLabel('PENDING', 'CLIENT')}s</p>
                         </div>
                         <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3 sm:p-4">
                           <div className="flex items-center gap-2 mb-2">
-                            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary-100 text-primary-700">
+                            <span aria-hidden="true" className={`inline-flex h-7 w-7 items-center justify-center rounded-full border ${bookingStatusColor('CONFIRMED').full}`}>
                               <CheckCircle className="w-3.5 h-3.5" />
                             </span>
                           </div>
                           <p className="text-2xl sm:text-3xl font-bold text-slate-900 leading-none">{confirmedCount}</p>
-                          <p className="text-xs text-slate-500 mt-1">Confirmadas</p>
+                          <p className="text-xs text-slate-600 mt-1">{getBookingVisualLabel('CONFIRMED', 'CLIENT')}s</p>
                         </div>
                         <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3 sm:p-4">
                           <div className="flex items-center gap-2 mb-2">
-                            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-secondary-100 text-secondary-700">
+                            <span aria-hidden="true" className={`inline-flex h-7 w-7 items-center justify-center rounded-full border ${bookingStatusColor('IN_PROGRESS').full}`}>
                               <Activity className="w-3.5 h-3.5" />
                             </span>
                           </div>
                           <p className="text-2xl sm:text-3xl font-bold text-slate-900 leading-none">{bookings.filter(b => b.status === 'IN_PROGRESS').length}</p>
-                          <p className="text-xs text-slate-500 mt-1">En progreso</p>
+                          <p className="text-xs text-slate-600 mt-1">{getBookingVisualLabel('IN_PROGRESS', 'CLIENT')}</p>
                         </div>
                         <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3 sm:p-4">
                           <div className="flex items-center gap-2 mb-2">
-                            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                            <span aria-hidden="true" className={`inline-flex h-7 w-7 items-center justify-center rounded-full border ${bookingStatusColor('COMPLETED').full}`}>
                               <Star className="w-3.5 h-3.5" />
                             </span>
                           </div>
                           <p className="text-2xl sm:text-3xl font-bold text-slate-900 leading-none">{bookings.filter(b => b.status === 'COMPLETED').length}</p>
-                          <p className="text-xs text-slate-500 mt-1">Completadas</p>
+                          <p className="text-xs text-slate-600 mt-1">Completadas</p>
                         </div>
                       </div>
                     </div>
@@ -1187,7 +1229,7 @@ export default function DashboardPage() {
                       ) : (
                         <div className="space-y-2">
                           {bookings.slice(0, 4).map((booking) => (
-                            <div key={booking.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer">
+                            <div key={booking.id} className="flex items-center gap-3 p-3 rounded-xl">
                               <ServiceIcon slug={booking.service.slug} emoji={booking.service.icon} size="lg" animate />
                               <div className="flex-1 min-w-0">
                                 <p className="font-semibold text-slate-900 text-sm truncate">{booking.service.name}</p>
@@ -1196,19 +1238,19 @@ export default function DashboardPage() {
                                     <Calendar className="w-3 h-3" />
                                     {formatCalendarDay(booking.scheduledDate, { day: 'numeric', month: 'short' })}
                                   </span>
-                                  <span className="text-xs text-slate-400">·</span>
+                                  <span className="text-xs text-slate-500" aria-hidden="true">·</span>
                                   <span className="text-xs text-slate-500">{booking.scheduledTime}</span>
                                 </div>
                               </div>
                               <div className="flex flex-col items-end gap-1.5">
-                                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${
-                                  booking.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' :
-                                  booking.status === 'CONFIRMED' ? 'bg-primary-100 text-primary-700' :
-                                  booking.status === 'IN_PROGRESS' ? 'bg-secondary-100 text-secondary-700' :
-                                  'bg-slate-100 text-slate-700'
-                                }`}>
-                                  {statusLabels[booking.status]}
-                                </span>
+                                {(() => {
+                                  const state = getBookingVisualState('CLIENT', booking)
+                                  return (
+                                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border whitespace-nowrap ${bookingStatusColor(state).full}`}>
+                                      {getBookingVisualLabel(state, 'CLIENT')}
+                                    </span>
+                                  )
+                                })()}
                                 <p className="text-sm font-bold text-slate-900">{formatCurrency(booking.totalPrice)}</p>
                               </div>
                             </div>
@@ -1328,22 +1370,25 @@ export default function DashboardPage() {
 
           {activeTab === 'bookings' && (
             <div className="space-y-4 sm:space-y-6">
-              <div className="sticky top-14 sm:top-16 z-20 bg-white rounded-2xl shadow-card border border-slate-100 p-3 sm:p-4">
+              <div className="sticky top-20 z-20 bg-white rounded-2xl shadow-card border border-slate-100 p-3 sm:p-4">
                 <div className="hidden sm:flex sm:flex-row gap-3">
                   <div className="flex-1 relative">
                     <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
                     <input
-                      type="text"
+                      type="search"
+                      aria-label="Buscar reservas por servicio o dirección"
                       placeholder="Buscar por servicio o dirección..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="w-full pl-12 pr-4 py-3 border border-slate-200 rounded-full focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 transition-all bg-slate-50 focus:bg-white text-sm"
                     />
                   </div>
-                  <div className="flex gap-2 flex-wrap items-center">
+                  <div className="flex gap-2 flex-wrap items-center" role="group" aria-label="Filtrar reservas por estado">
                     <button
+                      type="button"
+                      aria-pressed={filter === ''}
                       onClick={() => setFilter('')}
-                      className={`px-4 py-2.5 rounded-full text-sm font-semibold transition-colors ${
+                      className={`min-h-[44px] px-4 py-2.5 rounded-full text-sm font-semibold transition-colors ${
                         filter === ''
                           ? 'bg-primary-600 text-white shadow-card'
                           : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -1351,17 +1396,19 @@ export default function DashboardPage() {
                     >
                       Todas ({bookings.length})
                     </button>
-                    {(['PENDING', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'PAID', 'RATED', 'CANCELLED'] as const).map((key) => (
+                    {BOOKING_FILTER_ORDER.map((key) => (
                       <button
                         key={key}
+                        type="button"
+                        aria-pressed={filter === key}
                         onClick={() => setFilter(key)}
-                        className={`px-4 py-2.5 rounded-full text-sm font-semibold transition-colors ${
+                        className={`min-h-[44px] px-4 py-2.5 rounded-full text-sm font-semibold transition-colors ${
                           filter === key
                             ? 'bg-primary-600 text-white shadow-card'
                             : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                         }`}
                       >
-                        {statusLabels[key]} ({bookingFilterCounts[key] || 0})
+                        {getBookingVisualLabel(key, 'CLIENT')} ({bookingFilterCounts[key] || 0})
                       </button>
                     ))}
                   </div>
@@ -1371,7 +1418,8 @@ export default function DashboardPage() {
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <input
-                      type="text"
+                      type="search"
+                      aria-label="Buscar reservas por servicio o dirección"
                       placeholder="Buscar servicio o dirección..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
@@ -1380,12 +1428,13 @@ export default function DashboardPage() {
                   </div>
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-xs font-semibold text-slate-600">
-                      {filteredBookings.length} resultados {filter ? `· ${statusLabels[filter]}` : '· Todas'}
+                      {filteredBookings.length} resultados {filter ? `· ${getBookingVisualLabel(filter as BookingVisualState, 'CLIENT')}` : '· Todas'}
                     </p>
                     <button
                       type="button"
                       onClick={() => setMobileStatusSheetOpen(true)}
-                      className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700"
+                      aria-haspopup="dialog"
+                      className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700"
                     >
                       <Filter className="h-4 w-4" />
                       Estados
@@ -1394,60 +1443,39 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {mobileStatusSheetOpen && (
-                <div className="fixed inset-0 z-40 sm:hidden">
+              <BottomSheet open={mobileStatusSheetOpen} onClose={() => setMobileStatusSheetOpen(false)} title="Filtrar por estado">
+                <div className="grid grid-cols-2 gap-2 pb-2" role="group" aria-label="Estados de la reserva">
                   <button
                     type="button"
-                    aria-label="Cerrar filtros"
-                    onClick={() => setMobileStatusSheetOpen(false)}
-                    className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
-                  />
-                  <div className="absolute bottom-0 left-0 right-0 rounded-t-3xl bg-white p-4 shadow-sheet pb-[env(safe-area-inset-bottom)]">
-                    <div className="flex justify-center pt-1 pb-2" aria-hidden="true">
-                      <span className="h-1.5 w-12 rounded-full bg-slate-200" />
-                    </div>
-                    <div className="mb-3 flex items-center justify-between">
-                      <h4 className="text-sm font-semibold text-slate-900">Filtrar por estado</h4>
-                      <button
-                        type="button"
-                        onClick={() => setMobileStatusSheetOpen(false)}
-                        className="rounded-lg px-2 py-1 text-xs font-semibold text-slate-600"
-                      >
-                        Cerrar
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 pb-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFilter('')
-                          setMobileStatusSheetOpen(false)
-                        }}
-                        className={`rounded-full px-3 py-2 text-xs font-semibold transition-colors ${
-                          filter === '' ? 'bg-primary-600 text-white' : 'bg-slate-100 text-slate-700'
-                        }`}
-                      >
-                        Todas ({bookings.length})
-                      </button>
-                      {(['PENDING', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'PAID', 'RATED', 'CANCELLED'] as const).map((key) => (
-                        <button
-                          key={key}
-                          type="button"
-                          onClick={() => {
-                            setFilter(key)
-                            setMobileStatusSheetOpen(false)
-                          }}
-                          className={`rounded-full px-3 py-2 text-xs font-semibold transition-colors ${
-                            filter === key ? 'bg-primary-600 text-white' : 'bg-slate-100 text-slate-700'
-                          }`}
-                        >
-                          {statusLabels[key]} ({bookingFilterCounts[key] || 0})
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                    aria-pressed={filter === ''}
+                    onClick={() => {
+                      setFilter('')
+                      setMobileStatusSheetOpen(false)
+                    }}
+                    className={`min-h-[44px] rounded-full px-3 py-2 text-sm font-semibold transition-colors ${
+                      filter === '' ? 'bg-primary-600 text-white' : 'bg-slate-100 text-slate-700'
+                    }`}
+                  >
+                    Todas ({bookings.length})
+                  </button>
+                  {BOOKING_FILTER_ORDER.map((key) => (
+                    <button
+                      key={key}
+                      type="button"
+                      aria-pressed={filter === key}
+                      onClick={() => {
+                        setFilter(key)
+                        setMobileStatusSheetOpen(false)
+                      }}
+                      className={`min-h-[44px] rounded-full px-3 py-2 text-sm font-semibold transition-colors ${
+                        filter === key ? 'bg-primary-600 text-white' : 'bg-slate-100 text-slate-700'
+                      }`}
+                    >
+                      {getBookingVisualLabel(key, 'CLIENT')} ({bookingFilterCounts[key] || 0})
+                    </button>
+                  ))}
                 </div>
-              )}
+              </BottomSheet>
 
               {filteredBookings.length === 0 ? (
                 <div className="bg-white rounded-2xl shadow-card p-10 sm:p-14 text-center border border-slate-100">
@@ -1471,11 +1499,12 @@ export default function DashboardPage() {
                     const isRated = Boolean(booking.review?.clientToPartnerRating)
                     // Rating does not wait for the partner to confirm the payment
                     const canRate = booking.status === 'COMPLETED' && !isRated
+                    const nextStep = getNextStep('CLIENT', booking)
+                    const confirmation = booking.payment?.confirmationStatus || 'NONE'
                     const priorityBadges: string[] = []
-                    if (visualState === 'COMPLETED' || booking.payment?.status === 'PENDING') {
-                      priorityBadges.push('PAGO PENDIENTE')
-                    }
+                    if (visualState === 'COMPLETED' && nextStep.actor === 'you') priorityBadges.push('PAGO PENDIENTE')
                     if (canRate) priorityBadges.push('SIN CALIFICAR')
+                    const bookingWhenText = formatBookingWhen({ scheduledDate: new Date(booking.scheduledDate), scheduledTime: booking.scheduledTime })
                     const rateAction = {
                       label: 'Calificar servicio',
                       onClick: () =>
@@ -1484,13 +1513,16 @@ export default function DashboardPage() {
                           bookingId: booking.id,
                           serviceName: booking.service.name,
                           partnerName: booking.partner?.user.name || 'el socio',
-                          scheduledAt: `${formatBookingWhen({ scheduledDate: new Date(booking.scheduledDate), scheduledTime: booking.scheduledTime })}`,
+                          scheduledAt: bookingWhenText,
                         }),
                       icon: <Star size={18} />,
                       variant: 'primary' as const,
                       disabled: session?.user?.isActive === false,
                     }
                     const payFirst = visualState === 'COMPLETED' && paymentConfig?.mercadoPagoEnabled
+                    // Without Mercado Pago the client pays in cash or by transfer and reports it below the card
+                    const reportFirst = visualState === 'COMPLETED' && !paymentConfig?.mercadoPagoEnabled
+                      && (confirmation === 'NONE' || confirmation === 'REJECTED_BY_PARTNER' || confirmation === 'PARTNER_REPORTED')
 
                     const primaryAction =
                       payFirst
@@ -1498,6 +1530,14 @@ export default function DashboardPage() {
                             label: 'Pagar ahora',
                             onClick: () => openPaymentModal(booking.id, booking.service.name, booking.totalPrice),
                             icon: <DollarSign size={18} />,
+                            variant: 'primary' as const,
+                            disabled: session?.user?.isActive === false,
+                          }
+                        : reportFirst
+                        ? {
+                            label: confirmation === 'PARTNER_REPORTED' ? 'Confirmar pago' : confirmation === 'REJECTED_BY_PARTNER' ? 'Reportar pago de nuevo' : 'Ya pagué',
+                            onClick: () => openOfflinePayment(booking.id),
+                            icon: <CheckCircle size={18} />,
                             variant: 'primary' as const,
                             disabled: session?.user?.isActive === false,
                           }
@@ -1512,6 +1552,7 @@ export default function DashboardPage() {
                       variant?: 'primary' | 'secondary' | 'ghost'
                       disabled?: boolean
                       badge?: number
+                      badgeLabel?: string
                     }> = []
 
                     if (booking.proposalId && booking.status !== 'CANCELLED') {
@@ -1523,15 +1564,17 @@ export default function DashboardPage() {
                             proposalId: booking.proposalId!,
                             partnerName: booking.partner?.user.name || 'Socio',
                             serviceName: booking.service.name,
+                            contextLine: `Reserva · ${bookingWhenText} · #${booking.id.slice(-6)}`,
                           }),
                         icon: <MessageCircle size={16} />,
                         variant: 'secondary',
                         disabled: session?.user?.isActive === false,
                         badge: unreadCounts[booking.proposalId] || 0,
+                        badgeLabel: 'mensajes sin leer',
                       })
                     }
 
-                    if (payFirst && canRate) secondaryActions.push({ ...rateAction, variant: 'secondary' })
+                    if ((payFirst || reportFirst) && canRate) secondaryActions.push({ ...rateAction, variant: 'secondary' })
 
                     if (booking.status === 'PENDING' || booking.status === 'CONFIRMED') {
                       secondaryActions.push({
@@ -1574,6 +1617,8 @@ export default function DashboardPage() {
                           counterpartName={booking.partner?.user.name || 'Socio'}
                           counterpartLabel="Socio"
                           visualState={visualState}
+                          nextStep={nextStep}
+                          priceLabel="Total a pagar"
                           totalPrice={formatCurrency(booking.totalPrice)}
                           scheduledDate={booking.scheduledDate}
                           scheduledTime={booking.scheduledTime}
@@ -1582,20 +1627,22 @@ export default function DashboardPage() {
                           priorityBadges={priorityBadges}
                           primaryAction={primaryAction}
                           secondaryActions={secondaryActions}
-                          metadataInline={`${formatBookingWhen({ scheduledDate: new Date(booking.scheduledDate), scheduledTime: booking.scheduledTime })} · ${booking.address}`}
+                          metadataInline={`${bookingWhenText} · ${booking.address}`}
                           origin={booking.origin}
                           originChannel={booking.originChannel}
                         />
                         {(booking.status === 'IN_PROGRESS' || booking.status === 'COMPLETED') && <BookingPhotos bookingId={booking.id} />}
                         {booking.status === 'COMPLETED' && (
-                          <OfflinePaymentActions
-                            bookingId={booking.id}
-                            role="CLIENT"
-                            bookingStatus={booking.status}
-                            payment={booking.payment as any}
-                            partnerBankAccount={(booking.partner as any)?.bankAccounts?.find((b: any) => b.isDefault) || (booking.partner as any)?.bankAccounts?.[0] || null}
-                            onChange={fetchBookings}
-                          />
+                          <div id={`offline-pay-${booking.id}`} className="scroll-mt-40">
+                            <OfflinePaymentActions
+                              bookingId={booking.id}
+                              role="CLIENT"
+                              bookingStatus={booking.status}
+                              payment={booking.payment as any}
+                              partnerBankAccount={booking.partner?.bankAccounts?.find((b) => b.isDefault) || booking.partner?.bankAccounts?.[0] || null}
+                              onChange={() => fetchBookings(true)}
+                            />
+                          </div>
                         )}
                       </div>
                     )
@@ -1609,10 +1656,12 @@ export default function DashboardPage() {
             <div className="space-y-4 sm:space-y-6">
               <div className="bg-white rounded-2xl shadow-card border border-slate-100 p-3 sm:p-4">
                 <div className="flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between mb-3">
-                  <div className="inline-flex rounded-full bg-slate-100 p-1 w-fit">
+                  <div className="inline-flex rounded-full bg-slate-100 p-1 w-fit" role="group" aria-label="Tipo de favorito">
                     <button
+                      type="button"
+                      aria-pressed={favoritesView === 'partners'}
                       onClick={() => setFavoritesView('partners')}
-                      className={`px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold transition-colors ${
+                      className={`min-h-[44px] px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold transition-colors ${
                         favoritesView === 'partners'
                           ? 'bg-white text-primary-700 shadow-card'
                           : 'text-slate-600'
@@ -1621,8 +1670,10 @@ export default function DashboardPage() {
                       Socios ({favoritePartners.length})
                     </button>
                     <button
+                      type="button"
+                      aria-pressed={favoritesView === 'services'}
                       onClick={() => setFavoritesView('services')}
-                      className={`px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold transition-colors ${
+                      className={`min-h-[44px] px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold transition-colors ${
                         favoritesView === 'services'
                           ? 'bg-white text-primary-700 shadow-card'
                           : 'text-slate-600'
@@ -1632,11 +1683,12 @@ export default function DashboardPage() {
                     </button>
                   </div>
                   <div className="flex items-center gap-2">
-                    <label className="text-xs text-slate-500">Ordenar</label>
+                    <label htmlFor="favorites-sort" className="text-xs text-slate-600">Ordenar</label>
                     <select
+                      id="favorites-sort"
                       value={favoritesSort}
                       onChange={(e) => setFavoritesSort(e.target.value as 'recent' | 'rating' | 'name')}
-                      className="text-xs sm:text-sm border border-slate-200 rounded-full px-3 py-1.5 bg-white"
+                      className="min-h-[44px] text-xs sm:text-sm border border-slate-200 rounded-full px-3 py-1.5 bg-white"
                     >
                       <option value="recent">Recientes</option>
                       <option value="rating">Mejor valorados</option>
@@ -1647,7 +1699,8 @@ export default function DashboardPage() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                   <input
-                    type="text"
+                    type="search"
+                    aria-label={favoritesView === 'partners' ? 'Buscar socio o servicio' : 'Buscar servicio o categoría'}
                     value={favoritesSearch}
                     onChange={(e) => setFavoritesSearch(e.target.value)}
                     placeholder={favoritesView === 'partners' ? 'Buscar socio o servicio...' : 'Buscar servicio o categoría...'}
@@ -1684,12 +1737,12 @@ export default function DashboardPage() {
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2 mb-1">
                                 <p className="font-semibold text-sm sm:text-base text-slate-900 truncate">{partner.user.name}</p>
-                                {partner.verified && <ShieldCheck size={14} className="text-emerald-600 shrink-0" />}
+                                {partner.verified && <ShieldCheck size={14} className="text-emerald-700 shrink-0" role="img" aria-label="Socio verificado" />}
                               </div>
                               <div className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-600 mb-2">
-                                <Star size={14} className="text-amber-500 fill-amber-500" />
-                                <span>{partner.rating.toFixed(1)}</span>
-                                <span className="text-slate-400">({partner.totalReviews})</span>
+                                <Star size={14} className="text-amber-500 fill-amber-500" aria-hidden="true" />
+                                <span>{(partner.rating ?? 0).toFixed(1)}</span>
+                                <span className="text-gray-600">({partner.totalReviews ?? 0} {partner.totalReviews === 1 ? 'reseña' : 'reseñas'})</span>
                               </div>
                               <p className="text-xs text-slate-500 truncate">
                                 {(partner.services || []).slice(0, 2).map((ps: any) => ps.service.name).join(' · ') || 'Sin servicios visibles'}
@@ -1698,14 +1751,17 @@ export default function DashboardPage() {
                           </div>
                           <div className="mt-3 grid grid-cols-2 gap-2">
                             <button
+                              type="button"
                               onClick={() => handleFavoritePartnerRequest(partner)}
-                              className="w-full bg-primary-600 text-white px-3 py-2.5 rounded-full hover:bg-primary-700 transition-colors text-sm font-semibold disabled:opacity-50"
+                              className="min-h-[44px] w-full bg-primary-600 text-white px-3 py-2.5 rounded-full hover:bg-primary-700 transition-colors text-sm font-semibold disabled:opacity-50"
                             >
                               Solicitar
                             </button>
                             <button
+                              type="button"
                               onClick={() => removeFavorite(partner.id)}
-                              className="w-full bg-white border border-slate-200 text-slate-700 px-3 py-2.5 rounded-full hover:bg-slate-50 transition-colors text-sm font-medium"
+                              aria-label={`Quitar a ${partner.user.name} de favoritos`}
+                              className="min-h-[44px] w-full bg-white border border-slate-200 text-slate-700 px-3 py-2.5 rounded-full hover:bg-slate-50 transition-colors text-sm font-medium"
                             >
                               Quitar
                             </button>
@@ -1747,19 +1803,22 @@ export default function DashboardPage() {
                               </div>
                             </div>
                             <button
+                              type="button"
                               onClick={() => removeFavoriteService(service.id)}
-                              className="shrink-0 p-2 rounded-full bg-accent-50 text-accent-600 hover:bg-accent-100 transition-colors"
+                              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent-50 text-accent-700 hover:bg-accent-100 transition-colors"
                               title="Quitar de favoritos"
+                              aria-label={`Quitar ${service.name} de favoritos`}
                             >
-                              <Heart size={16} fill="currentColor" />
+                              <Heart size={18} fill="currentColor" aria-hidden="true" />
                             </button>
                           </div>
                           <p className="text-xs text-slate-500 mb-3">
                             {favorite.partners?.length || 0} {(favorite.partners?.length || 0) === 1 ? 'socio disponible' : 'socios disponibles'}
                           </p>
                           <button
+                            type="button"
                             onClick={() => router.push(`/servicios/${service.slug}`)}
-                            className="w-full bg-primary-600 text-white px-3 py-2.5 rounded-full hover:bg-primary-700 transition-colors text-sm font-semibold"
+                            className="min-h-[44px] w-full bg-primary-600 text-white px-3 py-2.5 rounded-full hover:bg-primary-700 transition-colors text-sm font-semibold"
                           >
                             Ver servicio
                           </button>
@@ -1778,14 +1837,15 @@ export default function DashboardPage() {
                 <div className="relative mb-3">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                   <input
-                    type="text"
+                    type="search"
+                    aria-label="Buscar solicitudes por servicio o dirección"
                     placeholder="Buscar por servicio o dirección..."
                     value={requestSearchTerm}
                     onChange={(e) => setRequestSearchTerm(e.target.value)}
                     className="w-full pl-10 pr-4 py-2.5 text-sm sm:text-base border border-slate-200 rounded-full focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 transition-all bg-slate-50 focus:bg-white"
                   />
                 </div>
-                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide" role="group" aria-label="Filtrar solicitudes por estado">
                   {[
                     { value: 'ALL', label: 'Todas', count: serviceRequests.length },
                     { value: 'ACTIVE', label: 'Activas', count: requestStatusCounts.ACTIVE || 0 },
@@ -1797,15 +1857,17 @@ export default function DashboardPage() {
                     return (
                       <button
                         key={option.value}
+                        type="button"
+                        aria-pressed={isActive}
                         onClick={() => setRequestStatusFilter(option.value)}
-                        className={`shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs sm:text-sm font-semibold transition-colors ${
+                        className={`min-h-[44px] shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs sm:text-sm font-semibold transition-colors ${
                           isActive
                             ? 'bg-primary-600 text-white shadow-card'
                             : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                         }`}
                       >
                         <span>{option.label}</span>
-                        <CountBadge count={option.count} showZero tone={isActive ? 'glass' : 'light'} className={isActive ? '' : 'text-slate-600'} />
+                        <CountBadge count={option.count} showZero tone={isActive ? 'glass' : 'light'} label="solicitudes" className={isActive ? '' : 'text-gray-600'} />
                       </button>
                     )
                   })}
@@ -1817,8 +1879,31 @@ export default function DashboardPage() {
                   <div className="bg-primary-100 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
                     <AlertCircle className="text-primary-600 w-9 h-9" />
                   </div>
-                  <p className="text-slate-900 text-lg font-bold mb-1">No hay solicitudes para este filtro</p>
-                  <p className="text-slate-500 text-sm">Prueba con otro estado o crea una nueva solicitud.</p>
+                  {serviceRequests.length === 0 ? (
+                    <>
+                      <p className="text-slate-900 text-lg font-bold mb-1">Aún no tienes solicitudes</p>
+                      <p className="text-gray-600 text-sm">Cuéntanos qué necesitas y los socios te envían propuestas.</p>
+                      <Link
+                        href="/"
+                        className="mt-5 inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full bg-primary-600 px-6 py-2.5 text-sm font-semibold text-white shadow-card hover:bg-primary-700"
+                      >
+                        <Plus size={16} aria-hidden="true" />
+                        Solicitar un servicio
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-slate-900 text-lg font-bold mb-1">No hay solicitudes con este filtro</p>
+                      <p className="text-gray-600 text-sm">Prueba con otro estado u otra búsqueda.</p>
+                      <button
+                        type="button"
+                        onClick={() => { setRequestStatusFilter('ALL'); setRequestSearchTerm('') }}
+                        className="mt-5 inline-flex min-h-[44px] items-center justify-center rounded-full border border-primary-200 bg-white px-6 py-2.5 text-sm font-semibold text-primary-700 hover:bg-primary-50"
+                      >
+                        Ver todas
+                      </button>
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-3 sm:gap-4">
@@ -1878,12 +1963,13 @@ export default function DashboardPage() {
                             )}
                           </div>
                           <div className="flex items-center gap-2">
-                            <p className="text-xs text-gray-500">{getRelativeTime(request.createdAt)}</p>
+                            <p className="text-xs text-gray-600">{getRelativeTime(request.createdAt)}</p>
                             {request.status === 'ACTIVE' && (
                               <button
                                 type="button"
                                 onClick={() => cancelServiceRequest(request.id, request.service.name)}
-                                className="text-[11px] sm:text-xs font-semibold px-2.5 py-1 rounded-full border border-red-200 text-red-700 bg-white hover:bg-red-50 transition-colors"
+                                aria-label={`Cancelar la solicitud de ${request.service.name}`}
+                                className="inline-flex min-h-[44px] items-center text-xs font-semibold px-4 rounded-full border border-red-200 text-red-700 bg-white hover:bg-red-50 transition-colors"
                               >
                                 Cancelar
                               </button>
@@ -1891,17 +1977,48 @@ export default function DashboardPage() {
                           </div>
                         </div>
 
+                        {(() => {
+                          const pendingProposals = request.proposals.filter((p) => p.status === 'PENDING').length
+                          if (request.status === 'ACTIVE' && !isExpired) {
+                            return pendingProposals > 0 ? (
+                              <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                                <span className="font-bold">Te toca a ti:</span> tienes {pendingProposals} {pendingProposals === 1 ? 'propuesta' : 'propuestas'}, elige una antes del {formatExpiry(request.expiresAt)}.
+                              </p>
+                            ) : (
+                              <p className="mb-3 rounded-xl bg-gray-50 px-3 py-2 text-xs text-gray-700">
+                                <span className="font-bold">Esperando propuestas de socios.</span> Te avisamos cuando llegue una.
+                              </p>
+                            )
+                          }
+                          if (request.status === 'ACCEPTED') {
+                            return (
+                              <div className="mb-3 flex flex-col gap-2 rounded-xl bg-primary-50 px-3 py-2 sm:flex-row sm:items-center">
+                                <p className="flex-1 text-xs text-primary-900">Elegiste una propuesta y ya tienes una reserva.</p>
+                                <button
+                                  type="button"
+                                  onClick={() => { setFilter(''); setActiveTab('bookings'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+                                  className="inline-flex min-h-[44px] items-center justify-center gap-1 rounded-full bg-primary-600 px-4 text-sm font-semibold text-white hover:bg-primary-700"
+                                >
+                                  Ver reserva
+                                  <ChevronRight size={16} aria-hidden="true" />
+                                </button>
+                              </div>
+                            )
+                          }
+                          return null
+                        })()}
+
                         <div className="flex items-start gap-3 mb-3">
                           <div className="w-11 h-11 rounded-xl bg-primary-50 border border-primary-100 flex items-center justify-center shrink-0">
                             <ServiceIcon slug={request.service.slug} emoji={request.service.icon} size="sm" />
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="font-semibold text-gray-900 text-sm sm:text-base truncate">{request.service.name}</p>
-                            <p className="text-xs sm:text-sm text-gray-500">{request.service.category.name}</p>
+                            <p className="text-xs sm:text-sm text-gray-600">{request.service.category.name}</p>
                             <OriginBadge variant="user" origin={request.origin} originChannel={request.originChannel} className="mt-0.5" />
                           </div>
                           <div className="text-right shrink-0">
-                            <p className="text-[11px] text-gray-500">Propuestas</p>
+                            <p className="text-[11px] text-gray-600">Propuestas</p>
                             <p className="text-base sm:text-lg font-bold text-primary-600">{request.proposals.length}</p>
                           </div>
                         </div>
@@ -1921,7 +2038,7 @@ export default function DashboardPage() {
                           </div>
                           <div className="flex items-center gap-2 rounded-xl bg-gray-50 border border-gray-100 px-3 py-2">
                             <Clock size={14} className="text-gray-500 shrink-0" />
-                            <span className="text-gray-700">{isExpired ? 'Venció' : 'Expira'}: {new Date(request.expiresAt).toLocaleString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                            <span className="text-gray-700">{isExpired ? 'Venció' : 'Expira'}: {formatExpiry(request.expiresAt)}</span>
                           </div>
                           <div className="flex items-center gap-2 rounded-xl bg-gray-50 border border-gray-100 px-3 py-2">
                             <DollarSign size={14} className="text-gray-500 shrink-0" />
@@ -1933,7 +2050,7 @@ export default function DashboardPage() {
 
                         {request.notes && (
                           <div className="mb-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5">
-                            <p className="text-[11px] uppercase tracking-wide text-gray-500 mb-1">Detalles</p>
+                            <p className="text-[11px] uppercase tracking-wide text-gray-600 mb-1">Detalles</p>
                             <p className="text-sm text-gray-700">{request.notes}</p>
                           </div>
                         )}
@@ -1947,16 +2064,17 @@ export default function DashboardPage() {
                               </span>
                             </div>
                             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                              {request.photos.sort((a, b) => a.order - b.order).map((photo, index) => (
+                              {[...request.photos].sort((a, b) => a.order - b.order).map((photo, index, all) => (
                                 <button
                                   key={photo.id}
                                   type="button"
-                                  className="relative rounded-lg overflow-hidden border border-gray-200"
-                                  onClick={() => setImageGallery({ isOpen: true, photos: request.photos || [], initialIndex: index })}
+                                  aria-label={`Ver foto ${index + 1} de ${all.length}`}
+                                  className="relative rounded-lg overflow-hidden border border-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+                                  onClick={() => setImageGallery({ isOpen: true, photos: all, initialIndex: index })}
                                 >
                                   <img
                                     src={photo.url}
-                                    alt="Foto de la solicitud"
+                                    alt=""
                                     className="w-full h-20 sm:h-24 object-cover"
                                   />
                                 </button>
@@ -1986,7 +2104,9 @@ export default function DashboardPage() {
                           <div className="border-t border-gray-100 pt-3 space-y-2.5">
                             <div className="flex items-center justify-between">
                               <h4 className="font-semibold text-sm sm:text-base text-gray-900">Propuestas</h4>
-                              <span className="text-xs text-gray-500">{request.proposals.length} disponibles</span>
+                              <span className="text-xs text-gray-600">
+                                {request.proposals.length} {request.status === 'ACTIVE' && !isExpired ? (request.proposals.length === 1 ? 'disponible' : 'disponibles') : (request.proposals.length === 1 ? 'recibida' : 'recibidas')}
+                              </span>
                             </div>
                             {sortedProposals.map((proposal) => {
                               const IDENTITY_TYPES = ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP']
@@ -2018,17 +2138,15 @@ export default function DashboardPage() {
                                       : 'border-gray-200 bg-white'
                                   }`}
                                 >
-                                  {freshProposalIds.has(proposal.id) && <span className="absolute -top-2 right-3 rounded-full bg-primary-600 px-2 py-0.5 text-[10px] font-bold text-white shadow">Nueva</span>}
+                                  {freshProposalIds.has(proposal.id) && <span className="absolute -top-2 right-3 rounded-full bg-primary-600 px-2 py-0.5 text-[11px] font-bold text-white shadow">Nueva</span>}
                                   <div className="flex items-start justify-between gap-3 mb-2">
                                     <div className="min-w-0">
                                       <div className="flex items-center gap-2 mb-1">
                                         <p className="font-semibold text-sm sm:text-base text-gray-900 truncate">{proposal.partner.user.name}</p>
-                                        {isFullyVerified && <ShieldCheck size={14} className="text-emerald-600 shrink-0" />}
-                                        {proposal.status === 'ACCEPTED' && (
-                                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200">
-                                            Aceptada
-                                          </span>
-                                        )}
+                                        {isFullyVerified && <ShieldCheck size={14} className="text-emerald-700 shrink-0" role="img" aria-label="Documentos verificados" />}
+                                        <span className={`shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${PROPOSAL_STATUS[proposal.status]?.className || PROPOSAL_STATUS.PENDING.className}`}>
+                                          {PROPOSAL_STATUS[proposal.status]?.label || proposal.status}
+                                        </span>
                                       </div>
                                       <p className="flex flex-wrap items-center gap-x-1.5 text-xs text-gray-600">
                                         {(proposal.partner.totalReviews ?? 0) > 0 ? (
@@ -2042,7 +2160,7 @@ export default function DashboardPage() {
                                         )}
                                         {(proposal.partner.completedServicesCount ?? 0) > 0 && <span>· {proposal.partner.completedServicesCount} {proposal.partner.completedServicesCount === 1 ? 'trabajo' : 'trabajos'}</span>}
                                         {proposal.partner.slug && proposal.partner.isPublicProfile && (
-                                          <a href={`/pro/${proposal.partner.slug}`} target="_blank" rel="noopener" className="font-semibold text-primary-700 underline-offset-2 hover:underline">Ver perfil</a>
+                                          <a href={`/pro/${proposal.partner.slug}`} target="_blank" rel="noopener" aria-label={`Ver perfil de ${proposal.partner.user.name} (se abre en otra pestaña)`} className="inline-flex min-h-[44px] items-center font-semibold text-primary-700 underline-offset-2 hover:underline">Ver perfil</a>
                                         )}
                                       </p>
                                       <div className="mt-1 flex items-center gap-2">
@@ -2066,16 +2184,16 @@ export default function DashboardPage() {
                                   {clientCommissionRate > 0 ? (
                                     <div className="grid grid-cols-2 gap-2 text-xs mb-2">
                                       <div className="rounded-lg bg-gray-50 border border-gray-100 px-2 py-1.5">
-                                        <p className="text-gray-500">Servicio</p>
+                                        <p className="text-gray-600">Servicio</p>
                                         <p className="font-semibold text-gray-800">{formatCurrency(proposal.price)}</p>
                                       </div>
                                       <div className="rounded-lg bg-gray-50 border border-gray-100 px-2 py-1.5">
-                                        <p className="text-gray-500">Tarifa ({clientCommissionRate}%)</p>
+                                        <p className="text-gray-600">Tarifa ({clientCommissionRate}%)</p>
                                         <p className="font-semibold text-gray-800">{formatCurrency(Math.round(proposal.price * (clientCommissionRate / 100)))}</p>
                                       </div>
                                     </div>
                                   ) : (
-                                    <p className="text-xs text-emerald-600 mb-2">Sin comisión de servicio</p>
+                                    <p className="text-xs text-emerald-800 mb-2">Sin comisión de servicio</p>
                                   )}
 
                                   <div className="flex flex-col sm:flex-row gap-2">
@@ -2083,7 +2201,7 @@ export default function DashboardPage() {
                                       <button
                                         onClick={() => acceptProposal(proposal.id, proposal.partner.user.name, proposal.price)}
                                         disabled={session?.user?.isActive === false}
-                                        className="w-full sm:flex-1 bg-emerald-600 text-white px-3 py-2.5 rounded-full hover:bg-emerald-700 transition-colors font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-card"
+                                        className="min-h-[44px] w-full sm:flex-1 bg-emerald-700 text-white px-3 py-2.5 rounded-full hover:bg-emerald-800 transition-colors font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-card"
                                       >
                                         <CheckCircle size={16} />
                                         Aceptar propuesta
@@ -2095,27 +2213,21 @@ export default function DashboardPage() {
                                           isOpen: true,
                                           proposalId: proposal.id,
                                           partnerName: proposal.partner.user.name,
-                                          serviceName: request.service.name
+                                          serviceName: request.service.name,
+                                          contextLine: proposal.status === 'ACCEPTED' ? 'Propuesta aceptada' : 'Solicitud · propuesta',
                                         })}
                                         disabled={session?.user?.isActive === false}
-                                        className={`w-full ${canAccept ? 'sm:flex-1' : ''} bg-white border border-primary-200 text-primary-700 px-3 py-2.5 rounded-full hover:bg-primary-50 transition-colors font-medium text-sm flex items-center justify-center gap-2 relative disabled:opacity-50 disabled:cursor-not-allowed`}
+                                        className={`min-h-[44px] w-full ${canAccept ? 'sm:flex-1' : ''} bg-white border border-primary-200 text-primary-700 px-3 py-2.5 rounded-full hover:bg-primary-50 transition-colors font-medium text-sm flex items-center justify-center gap-2 relative disabled:opacity-50 disabled:cursor-not-allowed`}
                                       >
                                         <MessageCircle size={16} />
                                         Chat
-                                        <CountBadge count={unreadCounts[proposal.id] ?? 0} className="absolute -right-1.5 -top-1.5 ring-2 ring-white" />
+                                        <CountBadge count={unreadCounts[proposal.id] ?? 0} label="mensajes sin leer" className="absolute -right-1.5 -top-1.5 ring-2 ring-white" />
                                       </button>
                                     )}
                                   </div>
                                 </div>
                               )
                             })}
-                          </div>
-                        ) : request.status === 'ACTIVE' && !isExpired ? (
-                          <div className="border-t border-gray-100 pt-3">
-                            <div className="rounded-xl bg-blue-50 border border-blue-100 px-3 py-3 text-center">
-                              <p className="text-sm font-semibold text-blue-900">Esperando propuestas de socios</p>
-                              <p className="text-xs text-blue-700 mt-1">Expira el {new Date(request.expiresAt).toLocaleString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
-                            </div>
                           </div>
                         ) : null}
                       </div>
@@ -2125,25 +2237,8 @@ export default function DashboardPage() {
               )}
             </div>
           )}
-        </main>
+        </div>
       </div>
-
-      <Modal
-        isOpen={modal.isOpen}
-        onClose={() => setModal({ ...modal, isOpen: false })}
-        title={modal.title}
-        message={modal.message}
-        type={modal.type}
-      />
-
-      <ConfirmModal
-        isOpen={confirmModal.isOpen}
-        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
-        onConfirm={confirmModal.onConfirm}
-        title={confirmModal.title}
-        message={confirmModal.message}
-        type={confirmModal.type}
-      />
 
       {imageGallery.isOpen && (
         <ImageGalleryModal
@@ -2153,35 +2248,13 @@ export default function DashboardPage() {
         />
       )}
 
-      {favoriteServicePicker.isOpen && (
-        <div
-          className="fixed inset-0 z-[70] bg-black/45 flex items-end sm:items-center justify-center"
-          onClick={() => setFavoriteServicePicker({ isOpen: false, partnerId: '', partnerName: '', services: [] })}
-        >
-          <div
-            className="w-full sm:max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl border border-gray-200 max-h-[82vh] overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="px-4 sm:px-6 pt-3 pb-4 border-b border-gray-100">
-              <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-3 sm:hidden" />
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-base sm:text-lg font-bold text-gray-900">Elige el servicio</p>
-                  <p className="text-sm text-gray-500">
-                    {favoriteServicePicker.partnerName} presta {favoriteServicePicker.services.length} servicios
-                  </p>
-                </div>
-                <button
-                  onClick={() => setFavoriteServicePicker({ isOpen: false, partnerId: '', partnerName: '', services: [] })}
-                  className="p-2 rounded-lg text-gray-500 hover:bg-gray-100"
-                  aria-label="Cerrar selector"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-            </div>
-
-            <div className="p-3 sm:p-4 overflow-y-auto max-h-[62vh] space-y-2.5">
+      <BottomSheet
+        open={favoriteServicePicker.isOpen}
+        onClose={() => setFavoriteServicePicker({ isOpen: false, partnerId: '', partnerName: '', services: [] })}
+        title="Elige el servicio"
+        description={`${favoriteServicePicker.partnerName} presta ${favoriteServicePicker.services.length} servicios`}
+      >
+            <div className="space-y-2.5">
               {favoriteServicePicker.services.map((service) => (
                 <button
                   key={service.id}
@@ -2204,19 +2277,17 @@ export default function DashboardPage() {
                             <span className="text-xs text-gray-600">{formatCurrency(service.price)}</span>
                           )}
                           {service.city && (
-                            <span className="text-xs text-gray-500 truncate">{service.city}</span>
+                            <span className="text-xs text-gray-600 truncate">{service.city}</span>
                           )}
                         </div>
                       </div>
                     </div>
-                    <ChevronRight size={16} className="text-gray-400 shrink-0" />
+                    <ChevronRight size={16} className="text-gray-500 shrink-0" aria-hidden="true" />
                   </div>
                 </button>
               ))}
             </div>
-          </div>
-        </div>
-      )}
+      </BottomSheet>
 
       {cancelSheet && (
         <CancelBookingSheet
@@ -2259,9 +2330,26 @@ export default function DashboardPage() {
           proposalId={chatModal.proposalId}
           partnerName={chatModal.partnerName}
           serviceName={chatModal.serviceName}
+          contextLine={chatModal.contextLine}
+          counterpartName={chatModal.partnerName}
           onClose={() => setChatModal({ isOpen: false, proposalId: '', partnerName: '', serviceName: '' })}
         />
       )}
+    </div>
+  )
+}
+
+/** A centered dialog over everything (BottomNav included): Escape and the backdrop close it, focus stays inside. */
+function CenterDialog({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: ReactNode }) {
+  const { dialogProps, titleId } = useDialog(open, onClose)
+  if (!open) return null
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <button type="button" aria-label="Cerrar" tabIndex={-1} onClick={onClose} className="absolute inset-0 cursor-default bg-slate-900/50 backdrop-blur-sm" />
+      <div {...dialogProps} className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl bg-white p-6 shadow-cardHover outline-none">
+        <h2 id={titleId} className="mb-4 text-xl font-bold text-slate-900">{title}</h2>
+        {children}
+      </div>
     </div>
   )
 }

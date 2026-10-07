@@ -407,10 +407,15 @@ export async function bookingsFor(actor: Actor, opts: { status?: BookingStatus[]
     // Today's Bogotá day as stored (date-only at 00:00 UTC); older instant rows of that day fall after it too
     where.scheduledDate = { gte: dateOnlyUtc(new Date()) }
   }
-  return prisma.booking.findMany({
+  const rows = await prisma.booking.findMany({
     where,
     include: BOOKINGS_LIST_INCLUDE,
     orderBy: opts.upcomingOnly ? { scheduledDate: 'asc' } : { createdAt: 'desc' },
     ...(opts.take ? { take: opts.take } : {}),
+  })
+  // The partner's bank account is only needed to pay by transfer: once the service is done and while it is unpaid
+  return rows.map((b) => {
+    const needsTransfer = b.status === 'COMPLETED' && b.payment?.status !== 'APPROVED' && b.payment?.confirmationStatus !== 'CONFIRMED'
+    return needsTransfer || !b.partner ? b : { ...b, partner: { ...b.partner, bankAccounts: [] } }
   })
 }

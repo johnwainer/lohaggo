@@ -8,6 +8,8 @@ import {
 import { useCity } from '@/lib/city-context'
 import AccountTopHeader from '@/components/shared/AccountTopHeader'
 import AccountPanel from '@/components/shared/AccountPanel'
+import ConfirmModal from '@/components/ConfirmModal'
+import { useDialog } from '@/components/ui/use-dialog'
 
 interface Address {
   id: string
@@ -32,9 +34,7 @@ export default function AddressesPage() {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editingAddress, setEditingAddress] = useState<Address | null>(null)
-  const [bookingsCount, setBookingsCount] = useState(0)
-  const [requestsCount, setRequestsCount] = useState(0)
-  const [favoritesCount, setFavoritesCount] = useState(0)
+  const [deleting, setDeleting] = useState<Address | null>(null)
   const [formData, setFormData] = useState({
     label: '',
     street: '',
@@ -52,17 +52,19 @@ export default function AddressesPage() {
   useEffect(() => {
     if (status === 'authenticated') {
       fetchAddresses()
-      fetchCounts()
     }
   }, [status])
 
+  // The select's values are city slugs ('medellin'): the default must be one of them
+  const defaultCitySlug = (cities.find(c => c.status === 'ACTIVE') || cities[0])?.slug || ''
+
   useEffect(() => {
-    if (cities.length > 0 && !formData.city) {
-      const activeCity = cities.find(c => c.status === 'ACTIVE')
-      const defaultCity = activeCity || cities[0]
-      setFormData(prev => ({ ...prev, city: defaultCity.slug }))
+    if (defaultCitySlug && !formData.city) {
+      setFormData(prev => ({ ...prev, city: defaultCitySlug }))
     }
-  }, [cities, formData.city])
+  }, [defaultCitySlug, formData.city])
+
+  const { dialogProps, titleId } = useDialog(showModal, () => handleCloseModal())
 
   const fetchAddresses = async () => {
     try {
@@ -75,34 +77,6 @@ export default function AddressesPage() {
       console.error('Error fetching addresses:', error)
     } finally {
       setLoading(false)
-    }
-  }
-
-  const fetchCounts = async () => {
-    try {
-      const [bookingsRes, requestsRes, favoritesRes] = await Promise.all([
-        fetch('/api/bookings'),
-        fetch('/api/service-requests'),
-        fetch('/api/favorites')
-      ])
-
-      if (bookingsRes.ok) {
-        const bookingsData = await bookingsRes.json()
-        setBookingsCount(Array.isArray(bookingsData) ? bookingsData.length : 0)
-      }
-
-      if (requestsRes.ok) {
-        const requestsData = await requestsRes.json()
-        const requests = Array.isArray(requestsData) ? requestsData : Array.isArray(requestsData?.serviceRequests) ? requestsData.serviceRequests : []
-        setRequestsCount(requests.length)
-      }
-
-      if (favoritesRes.ok) {
-        const favoritesData = await favoritesRes.json()
-        setFavoritesCount(Array.isArray(favoritesData) ? favoritesData.length : 0)
-      }
-    } catch (error) {
-      console.error('Error fetching counts:', error)
     }
   }
 
@@ -128,7 +102,7 @@ export default function AddressesPage() {
         number: '',
         complement: '',
         neighborhood: '',
-        city: 'MEDELLIN',
+        city: defaultCitySlug,
         postalCode: '',
         instructions: '',
         isPrimary: addresses.length === 0
@@ -177,8 +151,6 @@ export default function AddressesPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('¿Estás seguro de eliminar esta dirección?')) return
-
     try {
       const res = await fetch(`/api/addresses/${id}`, {
         method: 'DELETE'
@@ -222,39 +194,36 @@ export default function AddressesPage() {
         role="CLIENT"
         title="Mis Direcciones"
         subtitle="Administra tus direcciones de servicio"
-        counts={{
-          bookings: bookingsCount,
-          requests: requestsCount,
-          favorites: favoritesCount
-        }}
         action={
           <button
+            type="button"
             onClick={() => handleOpenModal()}
-            className="flex items-center gap-1.5 sm:gap-2 rounded-xl bg-primary-600 px-3 sm:px-4 py-2 text-white hover:bg-primary-700 transition font-semibold text-sm whitespace-nowrap"
+            className="flex min-h-[44px] items-center gap-1.5 sm:gap-2 rounded-full bg-primary-600 px-3 sm:px-4 py-2 text-white hover:bg-primary-700 transition font-semibold text-sm whitespace-nowrap"
           >
-            <Plus size={16} className="sm:w-[18px] sm:h-[18px]" />
+            <Plus size={16} className="sm:w-[18px] sm:h-[18px]" aria-hidden="true" />
             <span className="hidden sm:inline">Agregar Dirección</span>
             <span className="sm:hidden">Agregar</span>
           </button>
         }
       />
 
-      <main className="account-main">
+      <div className="account-main">
 
         {addresses.length === 0 ? (
           <AccountPanel className="text-center">
-            <MapPin className="mx-auto text-gray-400 mb-3 sm:mb-4" size={48} />
-            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">
+            <MapPin className="mx-auto text-gray-500 mb-3 sm:mb-4" size={48} aria-hidden="true" />
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">
               No tienes direcciones guardadas
-            </h3>
+            </h2>
             <p className="text-gray-600 mb-4 sm:mb-6 text-sm sm:text-base">
               Agrega una dirección para solicitar servicios más rápido
             </p>
             <button
+              type="button"
               onClick={() => handleOpenModal()}
-              className="inline-flex items-center gap-2 bg-primary-500 text-white px-5 py-2.5 sm:px-6 sm:py-3 rounded-lg hover:bg-[#E02849] transition font-medium"
+              className="inline-flex min-h-[44px] items-center gap-2 bg-primary-600 text-white px-5 py-2.5 sm:px-6 sm:py-3 rounded-full hover:bg-primary-700 transition font-medium"
             >
-              <Plus size={18} />
+              <Plus size={18} aria-hidden="true" />
               <span className="hidden xs:inline">Agregar Primera Dirección</span>
               <span className="xs:hidden">Agregar</span>
             </button>
@@ -278,32 +247,36 @@ export default function AddressesPage() {
                       )}
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                      <h2 className="font-semibold text-gray-900 flex items-center gap-2">
                         {address.label}
                         {address.isPrimary && (
                           <span className="inline-flex items-center gap-1 bg-primary-500 text-white text-xs px-2 py-1 rounded-full">
-                            <Star size={12} fill="white" />
+                            <Star size={12} fill="white" aria-hidden="true" />
                             Principal
                           </span>
                         )}
-                      </h3>
-                      <p className="text-sm text-gray-500">
+                      </h2>
+                      <p className="text-sm text-gray-600">
                         {getCityBySlug(address.city)?.name || address.city}
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
                     <button
+                      type="button"
                       onClick={() => handleOpenModal(address)}
-                      className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                      aria-label={`Editar dirección ${address.label}`}
+                      className="inline-flex h-11 w-11 items-center justify-center text-gray-700 hover:bg-gray-100 rounded-full transition"
                     >
-                      <Edit2 size={18} />
+                      <Edit2 size={18} aria-hidden="true" />
                     </button>
                     <button
-                      onClick={() => handleDelete(address.id)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                      type="button"
+                      onClick={() => setDeleting(address)}
+                      aria-label={`Eliminar dirección ${address.label}`}
+                      className="inline-flex h-11 w-11 items-center justify-center text-red-700 hover:bg-red-50 rounded-full transition"
                     >
-                      <Trash2 size={18} />
+                      <Trash2 size={18} aria-hidden="true" />
                     </button>
                   </div>
                 </div>
@@ -330,8 +303,9 @@ export default function AddressesPage() {
 
                 {!address.isPrimary && (
                   <button
+                    type="button"
                     onClick={() => handleSetPrimary(address)}
-                    className="mt-4 w-full text-sm text-primary-600 hover:bg-primary-500/5 py-2 rounded-lg transition font-medium"
+                    className="mt-4 min-h-[44px] w-full text-sm text-primary-700 hover:bg-primary-500/5 py-2 rounded-full transition font-medium"
                   >
                     Establecer como principal
                   </button>
@@ -340,37 +314,52 @@ export default function AddressesPage() {
             ))}
           </div>
         )}
-      </main>
+      </div>
+
+      <ConfirmModal
+        isOpen={!!deleting}
+        onClose={() => setDeleting(null)}
+        onConfirm={() => { if (deleting) void handleDelete(deleting.id) }}
+        title="Eliminar dirección"
+        message={deleting ? `¿Eliminar la dirección «${deleting.label}»? No podrás recuperarla.` : ''}
+        confirmText="Sí, eliminar"
+        cancelText="No, mantener"
+        type="danger"
+      />
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-gray-900">
-                {editingAddress ? 'Editar Dirección' : 'Nueva Dirección'}
-              </h2>
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4">
+          <button type="button" aria-label="Cerrar" tabIndex={-1} onClick={handleCloseModal} className="absolute inset-0 cursor-default bg-slate-900/50" />
+          <div {...dialogProps} className="relative bg-white rounded-t-3xl sm:rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto outline-none">
+            <div className="sticky top-0 z-10 bg-white border-b px-4 sm:px-6 py-3 flex items-center gap-2">
               <button
+                type="button"
                 onClick={handleCloseModal}
-                className="p-2 hover:bg-gray-100 rounded-lg transition"
+                aria-label="Volver"
+                className="inline-flex h-11 w-11 items-center justify-center hover:bg-gray-100 rounded-full transition"
               >
-                <ArrowLeft size={24} />
+                <ArrowLeft size={24} aria-hidden="true" />
               </button>
+              <h2 id={titleId} className="text-xl sm:text-2xl font-bold text-gray-900">
+                {editingAddress ? 'Editar dirección' : 'Nueva dirección'}
+              </h2>
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                <div role="alert" className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-xl">
                   {error}
                 </div>
               )}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Etiqueta <span className="text-red-500">*</span>
+                <label htmlFor="address-label" className="block text-sm font-medium text-gray-700 mb-2">
+                  Etiqueta <span className="text-red-700" aria-hidden="true">*</span>
                 </label>
                 <input
                   type="text"
                   required
+                  id="address-label"
                   value={formData.label}
                   onChange={(e) => setFormData({ ...formData, label: e.target.value })}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
@@ -380,13 +369,14 @@ export default function AddressesPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Calle/Carrera <span className="text-red-500">*</span>
+                  <label htmlFor="address-street" className="block text-sm font-medium text-gray-700 mb-2">
+                    Calle/Carrera <span className="text-red-700" aria-hidden="true">*</span>
                   </label>
                   <input
                     type="text"
                     required
-                    value={formData.street}
+                    id="address-street"
+                  value={formData.street}
                     onChange={(e) => setFormData({ ...formData, street: e.target.value })}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                     placeholder="Ej: Calle 10, Carrera 43A"
@@ -394,13 +384,14 @@ export default function AddressesPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Número <span className="text-red-500">*</span>
+                  <label htmlFor="address-number" className="block text-sm font-medium text-gray-700 mb-2">
+                    Número <span className="text-red-700" aria-hidden="true">*</span>
                   </label>
                   <input
                     type="text"
                     required
-                    value={formData.number}
+                    id="address-number"
+                  value={formData.number}
                     onChange={(e) => setFormData({ ...formData, number: e.target.value })}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                     placeholder="Ej: 25-30, 15-20"
@@ -409,11 +400,12 @@ export default function AddressesPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="address-complement" className="block text-sm font-medium text-gray-700 mb-2">
                   Complemento
                 </label>
                 <input
                   type="text"
+                  id="address-complement"
                   value={formData.complement}
                   onChange={(e) => setFormData({ ...formData, complement: e.target.value })}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
@@ -423,13 +415,14 @@ export default function AddressesPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Barrio <span className="text-red-500">*</span>
+                  <label htmlFor="address-neighborhood" className="block text-sm font-medium text-gray-700 mb-2">
+                    Barrio <span className="text-red-700" aria-hidden="true">*</span>
                   </label>
                   <input
                     type="text"
                     required
-                    value={formData.neighborhood}
+                    id="address-neighborhood"
+                  value={formData.neighborhood}
                     onChange={(e) => setFormData({ ...formData, neighborhood: e.target.value })}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                     placeholder="Ej: El Poblado, Chapinero"
@@ -437,12 +430,13 @@ export default function AddressesPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Ciudad <span className="text-red-500">*</span>
+                  <label htmlFor="address-city" className="block text-sm font-medium text-gray-700 mb-2">
+                    Ciudad <span className="text-red-700" aria-hidden="true">*</span>
                   </label>
                   <select
                     required
-                    value={formData.city}
+                    id="address-city"
+                  value={formData.city}
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                   >
@@ -465,11 +459,12 @@ export default function AddressesPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="address-postalCode" className="block text-sm font-medium text-gray-700 mb-2">
                   Código Postal
                 </label>
                 <input
                   type="text"
+                  id="address-postalCode"
                   value={formData.postalCode}
                   onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
@@ -478,10 +473,11 @@ export default function AddressesPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="address-instructions" className="block text-sm font-medium text-gray-700 mb-2">
                   Instrucciones adicionales
                 </label>
                 <textarea
+                  id="address-instructions"
                   value={formData.instructions}
                   onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
@@ -507,14 +503,14 @@ export default function AddressesPage() {
                 <button
                   type="button"
                   onClick={handleCloseModal}
-                  className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium"
+                  className="flex-1 min-h-[44px] px-6 py-3 border border-gray-300 text-gray-700 rounded-full hover:bg-gray-50 transition font-medium"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex-1 px-6 py-3 bg-primary-500 text-white rounded-lg hover:bg-[#E02849] transition font-medium disabled:opacity-50"
+                  className="flex-1 min-h-[44px] px-6 py-3 bg-primary-600 text-white rounded-full hover:bg-primary-700 transition font-medium disabled:opacity-50"
                 >
                   {submitting ? 'Guardando...' : editingAddress ? 'Actualizar' : 'Guardar'}
                 </button>
