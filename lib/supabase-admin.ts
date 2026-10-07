@@ -44,3 +44,11 @@ export async function emitProposalReadBroadcast(proposalId: string): Promise<voi
 export async function emitUserNotificationBroadcast(userId: string): Promise<void> {
   return sendBroadcast(`user:${userId}`, 'notification', { userId, t: Date.now() })
 }
+
+/**
+ * «Your data changed» for an open panel (a new proposal, a booking that moved): the page reloads what it
+ * shows, without waiting for the person to reload it. Carries no data, only what kind of thing changed.
+ */
+export async function emitUserDataBroadcast(userId: string, kind: 'requests' | 'bookings'): Promise<void> {
+  return sendBroadcast(`user:${userId}`, 'data', { kind, t: Date.now() })
+}

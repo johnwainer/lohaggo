@@ -3,6 +3,10 @@
 import { useEffect, useRef } from 'react'
 import { getSupabaseBrowser } from '@/lib/supabase-browser'
 
+/** Window event every page can listen to (one subscription per user, here): `detail` says what arrived. */
+export const USER_EVENT = 'lh:user-event'
+export type UserEventDetail = { event: 'notification' } | { event: 'data'; kind: 'requests' | 'bookings' }
+
 export function useNotificationRealtime(
   userId: string | null | undefined,
   onNotification: () => void
@@ -16,11 +20,20 @@ export function useNotificationRealtime(
     if (!userId) return
     const supabase = getSupabaseBrowser()
     if (!supabase) return
+    const relay = (detail: UserEventDetail) => {
+      try { window.dispatchEvent(new CustomEvent<UserEventDetail>(USER_EVENT, { detail })) } catch { /* old browsers */ }
+    }
 
     const channel = supabase
       .channel(`user:${userId}`, { config: { broadcast: { self: false } } })
       .on('broadcast', { event: 'notification' }, () => {
         onNotificationRef.current()
+        relay({ event: 'notification' })
+      })
+      // Something the open page shows changed (a new proposal, a booking that moved): it reloads it
+      .on('broadcast', { event: 'data' }, (msg) => {
+        const kind = (msg?.payload as { kind?: string } | undefined)?.kind
+        relay({ event: 'data', kind: kind === 'bookings' ? 'bookings' : 'requests' })
       })
       .subscribe()
 

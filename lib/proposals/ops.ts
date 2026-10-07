@@ -1,4 +1,5 @@
 import type { Prisma } from '@prisma/client'
+import { emitUserDataBroadcast } from '@/lib/supabase-admin'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
@@ -92,6 +93,8 @@ export async function createProposal(actor: Actor, input: ProposalInput, origin:
   } catch (err) {
     logger.warn('notifyNewProposal failed (non-fatal)', { proposalId: proposal.id, err })
   }
+  // The client's open panel shows the new proposal at once (also if the notification could not be created)
+  void emitUserDataBroadcast(sr.userId, 'requests')
   await recordPromptContext(sr.userId, 'CLIENT_PROPOSAL_RECEIVED', { proposalId: proposal.id, serviceRequestId: sr.id }).catch(() => undefined)
 
   return proposal

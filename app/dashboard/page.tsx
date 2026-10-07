@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { USER_EVENT, type UserEventDetail } from '@/hooks/useNotificationRealtime'
 import { useChatRealtime } from '@/hooks/useChatRealtime'
 import type { ReactNode } from 'react'
 import { useSession } from 'next-auth/react'
@@ -163,6 +164,10 @@ export default function DashboardPage() {
   const unreadNotifications = useNotificationUnreadCount(status === 'authenticated')
   const [bookings, setBookings] = useState<Booking[]>([])
   const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([])
+  // Proposals that arrived while the panel was open: highlighted, and announced in the page
+  const knownProposalIds = useRef<Set<string> | null>(null)
+  const [freshProposalIds, setFreshProposalIds] = useState<Set<string>>(new Set())
+  const [arrival, setArrival] = useState<{ proposalId: string; count: number; partner: string; service: string } | null>(null)
   const [favoritePartners, setFavoritePartners] = useState<any[]>([])
   const [favoriteServices, setFavoriteServices] = useState<any[]>([])
   const [clientCommissionRate, setClientCommissionRate] = useState<number>(0)
@@ -322,6 +327,50 @@ export default function DashboardPage() {
     }
   }, [status, bookings, serviceRequests])
 
+  // Live panel: a new proposal or a booking that moved arrives as an event; the page reloads what it shows
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pending = useRef<{ requests: boolean; bookings: boolean }>({ requests: false, bookings: false })
+  const scheduleRefresh = useCallback((what: { requests?: boolean; bookings?: boolean }) => {
+    pending.current = { requests: pending.current.requests || Boolean(what.requests), bookings: pending.current.bookings || Boolean(what.bookings) }
+    if (refreshTimer.current) clearTimeout(refreshTimer.current)
+    refreshTimer.current = setTimeout(() => {
+      const p = pending.current
+      pending.current = { requests: false, bookings: false }
+      if (p.requests) void fetchServiceRequests()
+      if (p.bookings) void fetchBookings(true)
+    }, 400)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    if (status !== 'authenticated') return
+    const onEvent = (e: Event) => {
+      const d = (e as CustomEvent<UserEventDetail>).detail
+      if (!d) return
+      if (d.event === 'notification') scheduleRefresh({ requests: true, bookings: true })
+      else scheduleRefresh(d.kind === 'bookings' ? { bookings: true } : { requests: true })
+    }
+    // Safety net when realtime is off: on coming back to the tab and every minute while visible
+    const onVisible = () => { if (!document.hidden) scheduleRefresh({ requests: true, bookings: true }) }
+    const timer = setInterval(() => { if (!document.hidden) scheduleRefresh({ requests: true }) }, 60_000)
+    window.addEventListener(USER_EVENT, onEvent)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.removeEventListener(USER_EVENT, onEvent)
+      document.removeEventListener('visibilitychange', onVisible)
+      clearInterval(timer)
+      if (refreshTimer.current) clearTimeout(refreshTimer.current)
+    }
+  }, [status, scheduleRefresh])
+
+  const openArrival = () => {
+    if (!arrival) return
+    setActiveTab('requests')
+    const id = arrival.proposalId
+    setArrival(null)
+    setTimeout(() => document.getElementById(`proposal-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150)
+  }
+
   const proposalIdsForRealtime = useMemo(
     () => [
       ...bookings.map((b) => b.proposalId).filter((id): id is string => !!id),
@@ -362,8 +411,8 @@ export default function DashboardPage() {
     }
   }
 
-  const fetchBookings = async () => {
-    setLoading(true)
+  const fetchBookings = async (silent = false) => {
+    if (!silent) setLoading(true)
     try {
       const res = await fetch('/api/bookings')
       const data = await res.json()
@@ -392,6 +441,18 @@ export default function DashboardPage() {
       })) as ServiceRequest[]
 
       setServiceRequests(normalizedRequests)
+
+      // New proposals since the last load (the first load only remembers what is there)
+      const ids = normalizedRequests.flatMap((r) => r.proposals.map((p) => p.id))
+      if (knownProposalIds.current) {
+        const added = normalizedRequests.flatMap((r) => r.proposals.filter((p) => !knownProposalIds.current!.has(p.id)).map((p) => ({ p, r })))
+        if (added.length) {
+          setFreshProposalIds((prev) => new Set([...Array.from(prev), ...added.map((a) => a.p.id)]))
+          const first = added[0]
+          setArrival({ proposalId: first.p.id, count: added.length, partner: first.p.partner?.user?.name || 'Un profesional', service: first.r.service?.name || 'tu servicio' })
+        }
+      }
+      knownProposalIds.current = new Set(ids)
 
       if (data?.clientCommissionRate !== undefined) {
         setClientCommissionRate(data.clientCommissionRate)
@@ -936,6 +997,20 @@ export default function DashboardPage() {
                 )}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {arrival && (
+        <div className="fixed inset-x-3 bottom-20 z-[90] mx-auto max-w-md sm:bottom-6" role="status" aria-live="polite">
+          <div className="flex items-center gap-3 rounded-2xl bg-gray-900 px-4 py-3 text-white shadow-xl">
+            <span className="text-xl" aria-hidden>🔔</span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold">{arrival.count > 1 ? `${arrival.count} propuestas nuevas` : 'Nueva propuesta'}</p>
+              <p className="truncate text-xs text-gray-300">{arrival.count > 1 ? `Para tus solicitudes` : `${arrival.partner} · ${arrival.service}`}</p>
+            </div>
+            <button onClick={openArrival} className="shrink-0 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-gray-900">Ver</button>
+            <button onClick={() => setArrival(null)} className="-mr-1 shrink-0 p-1 text-gray-400 hover:text-white" aria-label="Cerrar">✕</button>
           </div>
         </div>
       )}
@@ -1937,12 +2012,16 @@ export default function DashboardPage() {
                               return (
                                 <div
                                   key={proposal.id}
-                                  className={`rounded-xl border p-3 ${
-                                    isFullyVerified
+                                  id={`proposal-${proposal.id}`}
+                                  className={`relative rounded-xl border p-3 ${
+                                    freshProposalIds.has(proposal.id)
+                                      ? 'border-primary-400 bg-primary-50/60 ring-2 ring-primary-300'
+                                      : isFullyVerified
                                       ? 'border-emerald-200 bg-emerald-50/40'
                                       : 'border-gray-200 bg-white'
                                   }`}
                                 >
+                                  {freshProposalIds.has(proposal.id) && <span className="absolute -top-2 right-3 rounded-full bg-primary-600 px-2 py-0.5 text-[10px] font-bold text-white shadow">Nueva</span>}
                                   <div className="flex items-start justify-between gap-3 mb-2">
                                     <div className="min-w-0">
                                       <div className="flex items-center gap-2 mb-1">

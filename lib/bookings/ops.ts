@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { emitUserDataBroadcast } from '@/lib/supabase-admin'
 import { createLogger } from '@/lib/logger'
 import { notifyBookingStatusChange, createNotification } from '@/lib/notifications/notificationService'
 import { computeRefundPolicy, calculateSlaDueAt } from '@/lib/launch-ops'
@@ -81,7 +82,7 @@ export async function addBookingEvent(p: {
   toStatus?: BookingStatus | null
   detail?: string | null
 }) {
-  return prisma.bookingEvent.create({
+  const event = await prisma.bookingEvent.create({
     data: {
       bookingId: p.bookingId,
       type: p.type,
@@ -93,6 +94,14 @@ export async function addBookingEvent(p: {
       detail: p.detail ?? null,
     },
   })
+  // Every change to a booking passes here: the client's and the partner's open panels reload it
+  void prisma.booking.findUnique({ where: { id: p.bookingId }, select: { userId: true, partner: { select: { userId: true } } } })
+    .then((b) => {
+      if (b?.userId) void emitUserDataBroadcast(b.userId, 'bookings')
+      if (b?.partner?.userId) void emitUserDataBroadcast(b.partner.userId, 'bookings')
+    })
+    .catch(() => null)
+  return event
 }
 
 const AUTOMATION_TRIGGER: Partial<Record<BookingStatus, 'BOOKING_CONFIRMED' | 'BOOKING_COMPLETED' | 'BOOKING_CANCELLED'>> = {

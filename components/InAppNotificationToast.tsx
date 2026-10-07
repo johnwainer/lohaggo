@@ -123,6 +123,8 @@ export default function InAppNotificationToast() {
   const router = useRouter()
   const [toasts, setToasts] = useState<Toast[]>([])
   const seenIdsRef = useRef<Set<string>>(new Set())
+  const pathnameRef = useRef(pathname)
+  pathnameRef.current = pathname
   const skipRender =
     status !== 'authenticated' ||
     !session?.user?.id ||
@@ -145,6 +147,8 @@ export default function InAppNotificationToast() {
       if (!fresh) return
 
       seenIdsRef.current.add(fresh.id)
+      // On the client panel the page itself announces the new proposal (and points at it): no second alert
+      if (fresh.type === 'NEW_PROPOSAL' && pathnameRef.current?.startsWith('/dashboard')) return
       const toast: Toast = {
         id: fresh.id,
         type: fresh.type,
