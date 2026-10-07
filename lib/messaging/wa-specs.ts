@@ -111,7 +111,8 @@ export const WA = {
   C28: (p: { payoutId: string; partnerName: string; amount: number; service: string; last4: string }) =>
     spec('C28', [['lh_socio_pago_plataforma_enviado', { 1: partner(p.partnerName), 2: waMoney(p.amount), 3: p.service, 4: p.last4 }]], E('Payout', p.payoutId)),
   C1: (p: { userId: string; name: string; suffix: string }) => spec('C1', [['lh_socio_cuenta_creada', { 1: partner(p.name), 2: p.suffix }]], E('User', p.userId)),
-  C3: (p: { userId: string; name: string; day: 1 | 3 | 7 }) =>
+  /** `day` 1/3/7 for the automatic reminders; a string tag (e.g. «m20261007») for one sent by hand from the admin */
+  C3: (p: { userId: string; name: string; day: 1 | 3 | 7 | string }) =>
     spec('C3', [['lh_socio_falta_documento', { 1: partner(p.name), 2: 'partner/verification' }]], E('User', p.userId), { dedupeKey: `C3:User:${p.userId}:d${p.day}` }),
   C4: (p: { documentId: string; name: string; type: string }) => spec('C4', [['lh_socio_documento_recibido', { 1: partner(p.name), 2: docLabel(p.type) }]], E('VerificationDocument', p.documentId)),
   C5: (p: { documentId: string; name: string; type: string }) => spec('C5', [['lh_socio_documento_aprobado', { 1: partner(p.name), 2: docLabel(p.type) }]], E('VerificationDocument', p.documentId)),

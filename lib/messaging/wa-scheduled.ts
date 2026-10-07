@@ -240,3 +240,39 @@ export async function runWaDaily(now = new Date()): Promise<Tally> {
 
   return t
 }
+
+/**
+ * The «falta tu documento» reminder (C3) sent by hand to every partner who still has not uploaded an
+ * identity document (none pending or approved) and is not verified. Same template, first-name greeting,
+ * opt-out and inbox record as the automatic one; at most once per partner per Bogotá day, so it can be
+ * called again until `done` is true. Stops after `limit` sends or ~45 s.
+ */
+export async function sendVerificationReminders(opts: { limit?: number; excludeUserIds?: string[]; dryRun?: boolean; now?: Date } = {}) {
+  const now = opts.now ?? new Date()
+  const limit = Math.min(Math.max(opts.limit ?? 60, 1), 200)
+  const tag = `m${bogotaClock(now).dateKey.replace(/-/g, '')}`
+  const partners = await prisma.partnerProfile.findMany({
+    where: {
+      verified: false,
+      user: { isActive: true, role: 'PARTNER', ...(opts.excludeUserIds?.length ? { id: { notIn: opts.excludeUserIds } } : {}) },
+      documents: { none: { type: { in: [...IDENTITY] }, status: { in: ['PENDING', 'APPROVED'] } } },
+    },
+    select: { userId: true, user: { select: { name: true } } },
+    orderBy: { createdAt: 'asc' },
+  })
+  if (opts.dryRun) return { eligible: partners.length, sent: 0, skipped: {} as Record<string, number>, failed: 0, done: true }
+
+  const started = Date.now()
+  let sent = 0
+  let failed = 0
+  const skipped: Record<string, number> = {}
+  let done = true
+  for (const p of partners) {
+    if (sent >= limit || Date.now() - started > 45_000) { done = false; break }
+    const res = await sendWaToUser(p.userId, WA.C3({ userId: p.userId, name: p.user.name, day: tag }), now)
+    if (res?.ok) sent++
+    else if (res && 'skipped' in res && res.skipped) skipped[res.skipped] = (skipped[res.skipped] ?? 0) + 1
+    else failed++
+  }
+  return { eligible: partners.length, sent, skipped, failed, done }
+}
