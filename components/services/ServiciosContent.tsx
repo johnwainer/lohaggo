@@ -1,5 +1,6 @@
 'use client'
 
+import { CountBadge } from '@/components/ui/count-badge'
 import { useEffect, useState, useCallback, useMemo, useRef, memo, type ReactNode } from 'react'
 import { useSearchParams, usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
@@ -794,7 +795,7 @@ export function ServiciosContent({
               >
                 <SlidersHorizontal className="h-3.5 w-3.5" />
                 Filtrar resultados
-                <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-xs">{activeRefinementCount}</span>
+                <CountBadge count={activeRefinementCount} showZero tone="glass" />
               </button>
               {(selectedCategory || activeRefinementCount > 0) && (
                 <button
@@ -1181,9 +1182,7 @@ export function ServiciosContent({
       >
         <SlidersHorizontal className="h-4 w-4" />
         {activeRefinementCount > 0 && (
-          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white text-[10px] font-bold text-primary-600">
-            {activeRefinementCount}
-          </span>
+          <CountBadge count={activeRefinementCount} size="sm" tone="light" />
         )}
       </button>
 

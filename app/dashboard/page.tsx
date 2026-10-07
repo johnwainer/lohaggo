@@ -1805,11 +1805,7 @@ export default function DashboardPage() {
                         }`}
                       >
                         <span>{option.label}</span>
-                        <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${
-                          isActive ? 'bg-white/20 text-white' : 'bg-white text-slate-600'
-                        }`}>
-                          {option.count}
-                        </span>
+                        <CountBadge count={option.count} showZero tone={isActive ? 'glass' : 'light'} className={isActive ? '' : 'text-slate-600'} />
                       </button>
                     )
                   })}

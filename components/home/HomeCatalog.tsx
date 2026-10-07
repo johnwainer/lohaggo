@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { CountBadge } from '@/components/ui/count-badge'
 import type { ReactNode } from 'react'
 import { ChevronRight, SlidersHorizontal } from 'lucide-react'
 import { ServiceCardView, type ServiceCardData } from '@/components/services/ServiceCardView'
@@ -63,7 +64,7 @@ export function HomeCatalog({
           >
             <SlidersHorizontal className="h-3.5 w-3.5" />
             Filtrar resultados
-            <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-xs">0</span>
+            <CountBadge count={0} showZero tone="glass" />
           </Link>
         </div>
       </div>
