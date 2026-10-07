@@ -34,9 +34,9 @@ export default function ClientDashboardNav({
 
   const tabs = useMemo(() => ([
     { id: 'overview' as const, label: 'Resumen', icon: Home, path: '/dashboard', badge: 0, badgeLabel: '' },
-    { id: 'bookings' as const, label: 'Reservas', icon: Calendar, path: '/dashboard?tab=bookings', badge: bookingsCount || live.bookings || 0, badgeLabel: 'reservas en curso' },
-    { id: 'requests' as const, label: 'Solicitudes', icon: Send, path: '/dashboard?tab=requests', badge: requestsCount || live.action || 0, badgeLabel: 'pendientes de ti' },
-    { id: 'favorites' as const, label: 'Favoritos', icon: Heart, path: '/dashboard?tab=favorites', badge: favoritesCount || live.favorites || 0, badgeLabel: 'favoritos' },
+    { id: 'bookings' as const, label: 'Reservas', icon: Calendar, path: '/dashboard?tab=bookings', badge: live.bookings || bookingsCount || 0, badgeLabel: 'reservas en curso' },
+    { id: 'requests' as const, label: 'Solicitudes', icon: Send, path: '/dashboard?tab=requests', badge: live.action || requestsCount || 0, badgeLabel: 'pendientes de ti' },
+    { id: 'favorites' as const, label: 'Favoritos', icon: Heart, path: '/dashboard?tab=favorites', badge: live.favorites || favoritesCount || 0, badgeLabel: 'favoritos' },
   ]), [bookingsCount, requestsCount, favoritesCount, live.bookings, live.action, live.favorites])
 
   const isTabs = Boolean(onTabChange)
