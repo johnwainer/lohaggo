@@ -9,6 +9,8 @@ import { useCity } from '@/lib/city-context'
 import NotificationBell from './NotificationBell'
 import CityModal from './CityModal'
 
+const ROLE_LABEL: Record<string, string> = { CLIENT: 'Cliente', PARTNER: 'Socio', ADMIN: 'Admin' }
+
 export function Navbar() {
   const router = useRouter()
   const { data: session } = useSession()
@@ -17,6 +19,8 @@ export function Navbar() {
   const [mobileCityDropdownOpen, setMobileCityDropdownOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
+  const userMenuButtonRef = useRef<HTMLButtonElement>(null)
+  const mobileMenuButtonRef = useRef<HTMLButtonElement>(null)
 
   const { selectedCity, setSelectedCity, setShowCityModal, cities, isGeolocating, getActiveCities } = useCity()
   const currentCity = cities.find((city) => city.slug === selectedCity)
@@ -51,9 +55,49 @@ export function Navbar() {
   }, [userMenuOpen])
 
   useEffect(() => {
+    if (!userMenuOpen) return
+    const raf = window.requestAnimationFrame(() => {
+      userMenuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus()
+    })
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setUserMenuOpen(false)
+        userMenuButtonRef.current?.focus()
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => {
+      window.cancelAnimationFrame(raf)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [userMenuOpen])
+
+  const onUserMenuKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return
+    const items = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]'))
+    if (!items.length) return
+    e.preventDefault()
+    const i = items.indexOf(document.activeElement as HTMLElement)
+    let next = 0
+    if (e.key === 'ArrowDown') next = i < 0 ? 0 : (i + 1) % items.length
+    if (e.key === 'ArrowUp') next = i <= 0 ? items.length - 1 : i - 1
+    if (e.key === 'End') next = items.length - 1
+    items[next].focus()
+  }
+
+  useEffect(() => {
     if (!mobileMenuOpen) {
       setMobileCityDropdownOpen(false)
+      return
     }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setMobileMenuOpen(false)
+        mobileMenuButtonRef.current?.focus()
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
   }, [mobileMenuOpen])
 
   useEffect(() => {
@@ -170,7 +214,7 @@ export function Navbar() {
                   setShowCityModal(true)
                   setOpen(false)
                 }}
-                className="w-full text-left px-3 py-2 text-sm font-semibold text-primary-600 hover:bg-primary-500/5 rounded-lg transition-all"
+                className="w-full min-h-[44px] text-left px-3 py-2 text-sm font-semibold text-primary-600 hover:bg-primary-500/5 rounded-lg transition-all"
               >
                 Ver todas las opciones
               </button>
@@ -258,38 +302,50 @@ export function Navbar() {
 
                 <div className="relative ml-4" ref={userMenuRef}>
                   <button
+                    ref={userMenuButtonRef}
+                    type="button"
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
+                    aria-haspopup="menu"
+                    aria-expanded={userMenuOpen}
+                    aria-controls="menu-usuario"
                     className="flex items-center space-x-3 bg-gray-50 hover:bg-gray-100 px-4 py-2.5 rounded-xl transition-all border-2 border-gray-200 hover:border-primary-500/30"
                   >
                     {session.user.image ? (
                       <img
                         src={session.user.image}
-                        alt="Profile"
+                        alt={session.user.name ?? ''}
                         className="w-9 h-9 rounded-full object-cover"
                       />
                     ) : (
-                      <div className="w-9 h-9 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center text-white font-black text-sm">
+                      <div aria-hidden="true" className="w-9 h-9 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center text-white font-black text-sm">
                         {session.user.name?.charAt(0).toUpperCase()}
                       </div>
                     )}
                     <span className="text-sm font-bold text-gray-700">{session.user.name}</span>
-                    <ChevronDown size={16} className={`text-gray-500 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+                    <ChevronDown size={16} aria-hidden="true" className={`text-gray-500 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
                   </button>
 
                   {userMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border-2 border-gray-100 py-2 animate-scale-in">
-                      <div className="px-4 py-3 border-b border-gray-100">
+                    <div
+                      id="menu-usuario"
+                      role="menu"
+                      aria-label="Menú de tu cuenta"
+                      onKeyDown={onUserMenuKeyDown}
+                      className="absolute right-0 mt-2 w-60 bg-white rounded-2xl shadow-2xl border-2 border-gray-100 py-2 animate-scale-in"
+                    >
+                      <div role="none" className="px-4 py-3 border-b border-gray-100">
                         <p className="text-sm font-bold text-gray-900">{session.user.name}</p>
-                        <p className="text-xs text-gray-500 font-medium">{session.user.email}</p>
-                        <span className="inline-block mt-2 text-xs font-bold text-primary-600 bg-primary-500/10 px-3 py-1 rounded-full border border-primary-500/20">
-                          {session.user.role}
+                        <p className="text-xs text-gray-600 font-medium break-all">{session.user.email}</p>
+                        <span className="inline-block mt-2 text-xs font-bold text-primary-700 bg-primary-500/10 px-3 py-1 rounded-full border border-primary-500/20">
+                          {ROLE_LABEL[session.user.role] ?? session.user.role}
                         </span>
                       </div>
                       {session.user.role !== 'ADMIN' && (
                         <>
                           <Link
                             href="/profile"
-                            className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold"
+                            role="menuitem"
+                            className="w-full min-h-[44px] flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 focus-visible:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500 transition-colors font-bold"
                             onClick={() => setUserMenuOpen(false)}
                           >
                             <User size={16} />
@@ -298,7 +354,8 @@ export function Navbar() {
                           {session.user.role === 'PARTNER' && (
                             <Link
                               href="/partner/bank-accounts"
-                              className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold"
+                              role="menuitem"
+                            className="w-full min-h-[44px] flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 focus-visible:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500 transition-colors font-bold"
                               onClick={() => setUserMenuOpen(false)}
                             >
                               <Landmark size={16} />
@@ -307,7 +364,8 @@ export function Navbar() {
                           )}
                           <Link
                             href="/my-ratings"
-                            className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold"
+                            role="menuitem"
+                            className="w-full min-h-[44px] flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 focus-visible:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500 transition-colors font-bold"
                             onClick={() => setUserMenuOpen(false)}
                           >
                             <Star size={16} />
@@ -319,7 +377,8 @@ export function Navbar() {
                         <>
                           <Link
                             href="/partner/services"
-                            className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold"
+                            role="menuitem"
+                            className="w-full min-h-[44px] flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 focus-visible:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500 transition-colors font-bold"
                             onClick={() => setUserMenuOpen(false)}
                           >
                             <Settings size={16} />
@@ -327,7 +386,8 @@ export function Navbar() {
                           </Link>
                           <Link
                             href="/partner/verification"
-                            className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold"
+                            role="menuitem"
+                            className="w-full min-h-[44px] flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 focus-visible:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500 transition-colors font-bold"
                             onClick={() => setUserMenuOpen(false)}
                           >
                             <Shield size={16} />
@@ -339,7 +399,8 @@ export function Navbar() {
                         <>
                           <Link
                             href="/dashboard/addresses"
-                            className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold"
+                            role="menuitem"
+                            className="w-full min-h-[44px] flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 focus-visible:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500 transition-colors font-bold"
                             onClick={() => setUserMenuOpen(false)}
                           >
                             <MapPin size={16} />
@@ -347,7 +408,8 @@ export function Navbar() {
                           </Link>
                           <Link
                             href="/dashboard/payment-methods"
-                            className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold"
+                            role="menuitem"
+                            className="w-full min-h-[44px] flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 focus-visible:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500 transition-colors font-bold"
                             onClick={() => setUserMenuOpen(false)}
                           >
                             <CreditCard size={16} />
@@ -356,8 +418,10 @@ export function Navbar() {
                         </>
                       )}
                       <button
+                        type="button"
+                        role="menuitem"
                         onClick={() => signOut({ callbackUrl: '/' })}
-                        className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors font-bold"
+                        className="w-full min-h-[44px] flex items-center space-x-2 px-4 py-3 text-sm text-red-700 hover:bg-red-50 focus-visible:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500 transition-colors font-bold"
                       >
                         <LogOut size={16} />
                         <span>Cerrar sesión</span>
@@ -387,10 +451,15 @@ export function Navbar() {
           {/* Mobile menu button */}
           <div className="md:hidden flex items-center">
             <button
+              ref={mobileMenuButtonRef}
+              type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="text-gray-700 hover:text-primary-600 p-2 rounded-lg hover:bg-primary-500/5 transition-all"
+              aria-label={mobileMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
+              aria-expanded={mobileMenuOpen}
+              aria-controls="menu-movil"
+              className="flex min-h-[44px] min-w-[44px] items-center justify-center text-gray-700 hover:text-primary-600 p-2 rounded-full hover:bg-primary-500/5 transition-all"
             >
-              {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              {mobileMenuOpen ? <X size={24} aria-hidden="true" /> : <Menu size={24} aria-hidden="true" />}
             </button>
           </div>
         </div>
@@ -399,13 +468,13 @@ export function Navbar() {
       {/* Mobile Menu */}
       {mobileMenuOpen && (
         <>
-          <div className="md:hidden relative z-50 bg-white border-t border-gray-200 animate-slide-down shadow-lg max-h-[calc(100vh-5rem)] overflow-y-auto">
+          <div id="menu-movil" className="md:hidden relative z-50 bg-white border-t border-gray-200 animate-slide-down shadow-lg max-h-[calc(100vh-5rem)] overflow-y-auto">
             <div className="px-4 pt-2 pb-4 space-y-2">
             {/* City Selector - Mobile */}
             <div className="mb-2">
               <button
                 onClick={() => setMobileCityDropdownOpen(!mobileCityDropdownOpen)}
-                className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 transition-all"
+                className="w-full flex items-center justify-between min-h-[44px] px-4 py-3 rounded-xl text-sm font-bold text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 transition-all"
               >
                 <div className="flex items-center space-x-2">
                   <MapPin size={18} className="text-primary-600" />
@@ -480,7 +549,7 @@ export function Navbar() {
                         setMobileCityDropdownOpen(false)
                         setMobileMenuOpen(false)
                       }}
-                      className="w-full text-left px-3 py-2 text-sm font-semibold text-primary-600 hover:bg-primary-500/5 rounded-lg transition-all"
+                      className="w-full min-h-[44px] text-left px-3 py-2 text-sm font-semibold text-primary-600 hover:bg-primary-500/5 rounded-lg transition-all"
                     >
                       Ver todas las opciones
                     </button>
@@ -495,7 +564,7 @@ export function Navbar() {
               <>
                 <Link
                   href="/faq"
-                  className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+                  className={`block min-h-[44px] px-4 py-3 rounded-xl text-sm font-bold transition-all ${
                     pathname === '/faq'
                       ? 'text-primary-600 bg-primary-500/5'
                       : 'text-gray-700 hover:text-primary-600 hover:bg-primary-500/5'
@@ -506,7 +575,7 @@ export function Navbar() {
                 </Link>
                 <Link
                   href="/unete"
-                  className="block px-4 py-3 rounded-xl text-sm font-bold border-2 border-secondary-500 text-secondary-600 text-center hover:bg-secondary-500 hover:text-white transition-all"
+                  className="block min-h-[44px] px-4 py-3 rounded-xl text-sm font-bold border-2 border-secondary-500 text-secondary-600 text-center hover:bg-secondary-500 hover:text-white transition-all"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Soy profesional
@@ -518,7 +587,7 @@ export function Navbar() {
               <>
                 <Link
                   href={getDashboardLink() || '/dashboard'}
-                  className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                  className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 min-h-[44px] px-4 py-3 rounded-xl text-sm font-bold transition-all"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   <LayoutDashboard size={18} />
@@ -526,7 +595,7 @@ export function Navbar() {
                 </Link>
                 <Link
                   href="/faq"
-                  className={`block px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+                  className={`block min-h-[44px] px-4 py-3 rounded-xl text-sm font-bold transition-all ${
                     pathname === '/faq'
                       ? 'text-primary-600 bg-primary-500/5'
                       : 'text-gray-700 hover:text-primary-600 hover:bg-primary-500/5'
@@ -540,24 +609,24 @@ export function Navbar() {
                     {session.user.image ? (
                       <img
                         src={session.user.image}
-                        alt="Profile"
+                        alt={session.user.name ?? ''}
                         className="w-10 h-10 rounded-full object-cover"
                       />
                     ) : (
-                      <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center text-white font-black">
+                      <div aria-hidden="true" className="w-10 h-10 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center text-white font-black">
                         {session.user.name?.charAt(0).toUpperCase()}
                       </div>
                     )}
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-sm font-bold text-gray-900">{session.user.name}</p>
-                      <p className="text-xs text-gray-500 font-medium">{session.user.email}</p>
+                      <p className="text-xs text-gray-600 font-medium break-all">{session.user.email}</p>
                     </div>
                   </div>
                   {session.user.role !== 'ADMIN' && (
                     <>
                       <Link
                         href="/profile"
-                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 min-h-[44px] px-4 py-3 rounded-xl text-sm font-bold transition-all"
                         onClick={() => setMobileMenuOpen(false)}
                       >
                         <User size={18} />
@@ -565,7 +634,7 @@ export function Navbar() {
                       </Link>
                       <Link
                         href="/my-ratings"
-                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 min-h-[44px] px-4 py-3 rounded-xl text-sm font-bold transition-all"
                         onClick={() => setMobileMenuOpen(false)}
                       >
                         <Star size={18} />
@@ -577,7 +646,7 @@ export function Navbar() {
                     <>
                       <Link
                         href="/partner/services"
-                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 min-h-[44px] px-4 py-3 rounded-xl text-sm font-bold transition-all"
                         onClick={() => setMobileMenuOpen(false)}
                       >
                         <Settings size={18} />
@@ -585,7 +654,7 @@ export function Navbar() {
                       </Link>
                       <Link
                         href="/partner/verification"
-                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 min-h-[44px] px-4 py-3 rounded-xl text-sm font-bold transition-all"
                         onClick={() => setMobileMenuOpen(false)}
                       >
                         <Shield size={18} />
@@ -593,7 +662,7 @@ export function Navbar() {
                       </Link>
                       <Link
                         href="/partner/bank-accounts"
-                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 min-h-[44px] px-4 py-3 rounded-xl text-sm font-bold transition-all"
                         onClick={() => setMobileMenuOpen(false)}
                       >
                         <Landmark size={18} />
@@ -605,7 +674,7 @@ export function Navbar() {
                     <>
                       <Link
                         href="/dashboard/addresses"
-                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 min-h-[44px] px-4 py-3 rounded-xl text-sm font-bold transition-all"
                         onClick={() => setMobileMenuOpen(false)}
                       >
                         <MapPin size={18} />
@@ -613,7 +682,7 @@ export function Navbar() {
                       </Link>
                       <Link
                         href="/dashboard/payment-methods"
-                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                        className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 min-h-[44px] px-4 py-3 rounded-xl text-sm font-bold transition-all"
                         onClick={() => setMobileMenuOpen(false)}
                       >
                         <CreditCard size={18} />
@@ -623,7 +692,7 @@ export function Navbar() {
                   )}
                   <button
                     onClick={() => signOut({ callbackUrl: '/' })}
-                    className="w-full flex items-center space-x-2 text-red-600 hover:text-red-700 hover:bg-red-50 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                    className="w-full flex items-center space-x-2 text-red-600 hover:text-red-700 hover:bg-red-50 min-h-[44px] px-4 py-3 rounded-xl text-sm font-bold transition-all"
                   >
                     <LogOut size={18} />
                     <span>Cerrar sesión</span>

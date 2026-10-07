@@ -6,6 +6,17 @@ import { Sparkles, Facebook, Instagram, Mail, Phone, MapPin, Heart } from 'lucid
 import { useSession } from 'next-auth/react'
 import type { TopService } from '@/lib/public/topServices'
 
+/** Client panel views get a one-line footer instead of the full public one. */
+export function isClientPanelPath(pathname: string | null | undefined): boolean {
+  if (!pathname) return false
+  return (
+    pathname === '/dashboard' || pathname.startsWith('/dashboard/') ||
+    pathname === '/notifications' || pathname.startsWith('/notifications/') ||
+    pathname === '/my-ratings' || pathname.startsWith('/my-ratings/') ||
+    pathname === '/profile' || pathname.startsWith('/profile/')
+  )
+}
+
 export function Footer({ services = [] }: { services?: TopService[] }) {
   const pathname = usePathname()
   const currentYear = new Date().getFullYear()
@@ -14,6 +25,24 @@ export function Footer({ services = [] }: { services?: TopService[] }) {
   // Hide footer on admin pages
   if (pathname?.startsWith('/admin')) {
     return null
+  }
+
+  if (isClientPanelPath(pathname)) {
+    return (
+      <footer className="border-t border-gray-200 bg-white">
+        <div className="mx-auto max-w-7xl px-4 pt-3 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-6 md:py-3 lg:px-8">
+          <nav aria-label="Enlaces legales y ayuda" className="flex flex-wrap items-center justify-center gap-x-1 text-sm text-gray-600">
+            <span className="px-1">© {currentYear} LoHaggo</span>
+            <span aria-hidden="true">·</span>
+            <Link href="/faq" className="inline-flex min-h-[44px] items-center rounded-full px-2 font-medium hover:text-primary-700">Ayuda</Link>
+            <span aria-hidden="true">·</span>
+            <Link href="/privacy" className="inline-flex min-h-[44px] items-center rounded-full px-2 font-medium hover:text-primary-700">Privacidad</Link>
+            <span aria-hidden="true">·</span>
+            <Link href="/terms" className="inline-flex min-h-[44px] items-center rounded-full px-2 font-medium hover:text-primary-700">Términos</Link>
+          </nav>
+        </div>
+      </footer>
+    )
   }
 
   return (
@@ -41,11 +70,11 @@ export function Footer({ services = [] }: { services?: TopService[] }) {
               LoHaggo, Lo necesitas. La forma más simple de encontrar cualquier servicio.
             </p>
             <div className="flex space-x-4">
-              <a href="https://www.facebook.com/lohaggo" target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white/10 hover:bg-gradient-to-r hover:from-primary-500 hover:to-secondary-500 rounded-full flex items-center justify-center transition-all transform hover:scale-110">
-                <Facebook size={18} />
+              <a href="https://www.facebook.com/lohaggo" target="_blank" rel="noopener noreferrer" aria-label="Facebook de LoHaggo" className="w-11 h-11 bg-white/10 hover:bg-gradient-to-r hover:from-primary-500 hover:to-secondary-500 rounded-full flex items-center justify-center transition-all transform hover:scale-110">
+                <Facebook size={18} aria-hidden="true" />
               </a>
-              <a href="https://www.instagram.com/lohaggo_" target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white/10 hover:bg-gradient-to-r hover:from-primary-500 hover:to-secondary-500 rounded-full flex items-center justify-center transition-all transform hover:scale-110">
-                <Instagram size={18} />
+              <a href="https://www.instagram.com/lohaggo_" target="_blank" rel="noopener noreferrer" aria-label="Instagram de LoHaggo" className="w-11 h-11 bg-white/10 hover:bg-gradient-to-r hover:from-primary-500 hover:to-secondary-500 rounded-full flex items-center justify-center transition-all transform hover:scale-110">
+                <Instagram size={18} aria-hidden="true" />
               </a>
             </div>
           </div>

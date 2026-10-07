@@ -8,6 +8,7 @@ import {
   Trophy, Send, AlertCircle, X
 } from 'lucide-react'
 import { useNotificationRealtime } from '@/hooks/useNotificationRealtime'
+import { notificationTarget } from '@/components/NotificationBell'
 
 type NotificationType =
   | 'NEW_SERVICE_REQUEST' | 'NEW_PROPOSAL' | 'PROPOSAL_ACCEPTED' | 'PROPOSAL_REJECTED'
@@ -43,35 +44,9 @@ function parseData(raw: string | null): Record<string, unknown> {
   try { return JSON.parse(raw) as Record<string, unknown> } catch { return {} }
 }
 
+/** Same destinations as the bell and the inbox: messages open the chats list of each side, never the panel home. */
 function getActionUrl(n: Notification, role: string | undefined): string {
-  const d = parseData(n.data)
-  if (typeof d.targetUrl === 'string' && d.targetUrl.startsWith('/')) return d.targetUrl
-
-  const isPartner = role === 'PARTNER'
-  switch (n.type) {
-    case 'NEW_MESSAGE':
-      return isPartner ? '/partner/messages' : '/dashboard'
-    case 'NEW_SERVICE_REQUEST':
-      return '/partner?tab=my-requests'
-    case 'NEW_PROPOSAL':
-      return '/dashboard?tab=requests'
-    case 'PROPOSAL_ACCEPTED':
-      return '/partner?tab=bookings'
-    case 'PROPOSAL_REJECTED':
-      return '/partner?tab=my-requests'
-    case 'BOOKING_CONFIRMED':
-    case 'BOOKING_CANCELLED':
-    case 'BOOKING_IN_PROGRESS':
-    case 'BOOKING_COMPLETED':
-      return isPartner ? '/partner?tab=bookings' : '/dashboard?tab=bookings'
-    case 'DOCUMENT_APPROVED':
-    case 'DOCUMENT_REJECTED':
-      return '/partner/verification'
-    case 'ACHIEVEMENT_UNLOCKED':
-      return '/partner/achievements'
-    default:
-      return '/notifications'
-  }
+  return notificationTarget(n.type, role, parseData(n.data))
 }
 
 function getIcon(type: NotificationType) {
@@ -166,16 +141,32 @@ export default function InAppNotificationToast() {
 
   useNotificationRealtime(skipRender ? null : session?.user?.id, onNotification)
 
+  // Hover or keyboard focus on a toast holds it on screen; leaving gives it its full time again
+  const pausedRef = useRef<Set<string>>(new Set())
+
   useEffect(() => {
     if (toasts.length === 0) return
     const timer = setInterval(() => {
       const now = Date.now()
-      setToasts((prev) => prev.filter((t) => now - t.enteredAt < AUTO_DISMISS_MS))
+      setToasts((prev) => {
+        const next = prev.filter((t) => pausedRef.current.has(t.id) || now - t.enteredAt < AUTO_DISMISS_MS)
+        return next.length === prev.length ? prev : next
+      })
     }, 500)
     return () => clearInterval(timer)
   }, [toasts.length])
 
+  const pause = useCallback((id: string) => {
+    pausedRef.current.add(id)
+  }, [])
+
+  const resume = useCallback((id: string) => {
+    if (!pausedRef.current.delete(id)) return
+    setToasts((prev) => prev.map((t) => (t.id === id ? { ...t, enteredAt: Date.now() } : t)))
+  }, [])
+
   const dismiss = useCallback((id: string) => {
+    pausedRef.current.delete(id)
     setToasts((prev) => prev.filter((t) => t.id !== id))
   }, [])
 
@@ -189,44 +180,48 @@ export default function InAppNotificationToast() {
     router.push(toast.href)
   }, [router, dismiss])
 
-  if (skipRender || toasts.length === 0) return null
+  if (skipRender) return null
 
   return (
     <div
       className="fixed left-0 right-0 z-[100] flex flex-col items-center gap-2 px-3 pointer-events-none"
       style={{ top: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}
       role="region"
-      aria-label="Notificaciones en tiempo real"
+      aria-label="Avisos en tiempo real"
+      aria-live="polite"
+      aria-relevant="additions"
     >
       {toasts.map((t) => {
         const Icon = getIcon(t.type)
         return (
           <div
             key={t.id}
-            className="pointer-events-auto w-full max-w-md animate-slide-down"
+            className="pointer-events-auto flex w-full max-w-md items-stretch overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-black/5 animate-slide-down"
+            onMouseEnter={() => pause(t.id)}
+            onMouseLeave={() => resume(t.id)}
+            onFocus={() => pause(t.id)}
+            onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) resume(t.id) }}
           >
             <button
               type="button"
               onClick={() => handleClick(t)}
-              className={`group flex w-full items-stretch gap-0 overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-black/5 transition-transform active:scale-[0.98]`}
+              className="flex min-w-0 flex-1 items-stretch text-left transition-transform active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500 rounded-l-2xl"
             >
-              <div className={`flex w-12 shrink-0 items-center justify-center bg-gradient-to-b ${getAccent(t.type)} text-white`}>
+              <span aria-hidden="true" className={`flex w-12 shrink-0 items-center justify-center bg-gradient-to-b ${getAccent(t.type)} text-white`}>
                 <Icon className="h-5 w-5" />
-              </div>
-              <div className="flex-1 min-w-0 px-3 py-2.5 text-left">
-                <p className="text-sm font-bold text-gray-900 truncate">{t.title}</p>
-                <p className="text-xs text-gray-600 line-clamp-2 leading-snug mt-0.5">{t.message}</p>
-              </div>
-              <span
-                role="button"
-                aria-label="Cerrar"
-                tabIndex={0}
-                onClick={(e) => { e.stopPropagation(); dismiss(t.id) }}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); dismiss(t.id) } }}
-                className="flex w-9 shrink-0 cursor-pointer items-center justify-center self-stretch text-gray-400 hover:text-gray-700 hover:bg-gray-50"
-              >
-                <X className="h-4 w-4" />
               </span>
+              <span className="min-w-0 flex-1 px-3 py-2.5">
+                <span className="block truncate text-sm font-bold text-gray-900">{t.title}</span>
+                <span className="mt-0.5 block text-xs leading-snug text-gray-600 line-clamp-2">{t.message}</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              aria-label="Cerrar aviso"
+              onClick={() => dismiss(t.id)}
+              className="flex min-h-[44px] w-11 shrink-0 items-center justify-center text-gray-600 hover:bg-gray-50 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500 rounded-r-2xl"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
         )

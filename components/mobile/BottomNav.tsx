@@ -4,7 +4,7 @@ import { CountBadge } from '@/components/ui/count-badge'
 import { Suspense } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { Home, User, Package, Bell, MessageSquare, Wallet, UserCircle, Heart, Sparkles, Zap } from 'lucide-react'
+import { Home, User, Package, Bell, MessageSquare, UserCircle, Sparkles, Zap } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { usePartnerNavCounts } from '@/hooks/usePartnerNavCounts'
 import { useClientNavCounts } from '@/hooks/useClientNavCounts'
@@ -20,30 +20,70 @@ const partnerNavItems = [
 
 const clientNavItems = [
   { id: 'requests', label: 'Solicitudes', icon: Package, path: '/dashboard?tab=requests' },
-  { id: 'notifications', label: 'Notif.', icon: Bell, path: '/notifications' },
+  { id: 'notifications', label: 'Avisos', icon: Bell, path: '/notifications' },
   { id: 'messages', label: 'Chats', icon: MessageSquare, path: '/dashboard/messages' },
   { id: 'profile', label: 'Perfil', icon: UserCircle, path: '/profile' },
 ] as const
 
-function NavLink({ icon: Icon, label, isActive, badge, href }: {
+function NavLink({ icon: Icon, label, isActive, badge, badgeLabel, href }: {
   icon: React.ElementType
   label: string
   isActive: boolean
   badge?: number
+  badgeLabel?: string
   href: string
 }) {
   return (
     <Link
       href={href}
+      aria-current={isActive ? 'page' : undefined}
       onClick={() => window.dispatchEvent(new Event('bottom-nav-navigate'))}
       style={{ WebkitTapHighlightColor: 'transparent' }}
-      className={`touch-manipulation select-none relative flex min-h-[56px] min-w-[44px] flex-col items-center justify-center rounded-xl text-xs font-medium transition cursor-pointer ${
+      className={`touch-manipulation select-none relative flex min-h-[56px] min-w-[44px] flex-col items-center justify-center rounded-xl font-medium transition cursor-pointer ${
         isActive ? 'bg-primary-50 text-primary-700' : 'text-gray-600 active:scale-95'
       }`}
     >
-      <Icon className="h-5 w-5" />
-      <span className="text-[10px] mt-0.5">{label}</span>
-      <CountBadge count={badge ?? 0} size="sm" className="absolute right-1 top-1" />
+      <Icon className="h-5 w-5" aria-hidden="true" />
+      <span className="mt-0.5 text-[11px] leading-tight">{label}</span>
+      <CountBadge count={badge ?? 0} size="sm" label={badgeLabel} className="absolute right-1 top-1" />
+    </Link>
+  )
+}
+
+/** The raised orange button in the middle. The whole column (circle and word) is one link. */
+function CenterAction({ href, label, srExtra, icon: Icon, isActive, badge, badgeLabel }: {
+  href: string
+  label: string
+  srExtra?: string
+  icon: React.ElementType
+  isActive: boolean
+  badge?: number
+  badgeLabel?: string
+}) {
+  return (
+    <Link
+      href={href}
+      aria-current={isActive ? 'page' : undefined}
+      onClick={() => window.dispatchEvent(new Event('bottom-nav-navigate'))}
+      style={{ WebkitTapHighlightColor: 'transparent' }}
+      className="group touch-manipulation select-none relative z-20 flex min-h-[56px] min-w-[44px] flex-col items-center justify-end rounded-xl transition cursor-pointer"
+    >
+      <span
+        className={`absolute left-1/2 -top-2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-4 border-white transition-all group-active:scale-95 ${
+          isActive
+            ? 'bg-secondary-100 shadow-sm'
+            : 'bg-gradient-to-br from-secondary-500 to-secondary-600 shadow-[0_8px_24px_-4px_rgba(234,88,12,0.55)]'
+        }`}
+      >
+        <Icon className={`h-7 w-7 ${isActive ? 'text-secondary-600' : 'text-white'}`} strokeWidth={2.5} aria-hidden="true" />
+        {!isActive && (
+          <CountBadge count={badge ?? 0} tone="danger" pulse label={badgeLabel} className="absolute -right-1 -top-1 ring-2 ring-white" />
+        )}
+      </span>
+      <span className="mt-1 whitespace-nowrap text-[11px] font-semibold leading-tight tracking-tight text-secondary-700">
+        {label}
+        {srExtra && <span className="sr-only"> {srExtra}</span>}
+      </span>
     </Link>
   )
 }
@@ -77,6 +117,11 @@ function PartnerBarInner() {
     if (id === 'messages') return counts.messages
     return 0
   }
+  const badgeLabel = (id: string) => {
+    if (id === 'bookings') return 'reservas por atender'
+    if (id === 'messages') return 'mensajes sin leer'
+    return undefined
+  }
 
   const solicitudesActive = isActive('solicitudes')
   const requestsBadge = counts.requests
@@ -85,6 +130,7 @@ function PartnerBarInner() {
 
   return (
     <nav
+      aria-label="Navegación principal"
       className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)] md:hidden"
       data-tour="bottom-nav"
     >
@@ -96,19 +142,19 @@ function PartnerBarInner() {
             label={item.label}
             isActive={isActive(item.id)}
             badge={badge(item.id)}
+            badgeLabel={badgeLabel(item.id)}
             href={item.path}
           />
         ))}
 
-        <div className="flex min-h-[52px] flex-col items-center justify-end">
-          <span
-            className={`mt-1 text-[10px] transition-colors ${
-              solicitudesActive ? 'font-medium text-gray-500' : 'font-semibold text-secondary-600'
-            }`}
-          >
-            Oportunidades
-          </span>
-        </div>
+        <CenterAction
+          href="/partner?tab=my-requests"
+          label="Oportunidades"
+          icon={Zap}
+          isActive={solicitudesActive}
+          badge={requestsBadge}
+          badgeLabel="oportunidades nuevas"
+        />
 
         {rightItems.map((item) => (
           <NavLink
@@ -117,31 +163,10 @@ function PartnerBarInner() {
             label={item.label}
             isActive={isActive(item.id)}
             badge={badge(item.id)}
+            badgeLabel={badgeLabel(item.id)}
             href={item.path}
           />
         ))}
-
-        <Link
-          href="/partner?tab=my-requests"
-          aria-label="Ver oportunidades"
-          onClick={() => window.dispatchEvent(new Event('bottom-nav-navigate'))}
-          style={{ WebkitTapHighlightColor: 'transparent' }}
-          className="touch-manipulation select-none absolute left-1/2 top-0 z-20 h-16 w-16 -translate-x-1/2 -translate-y-1/2 rounded-full transition cursor-pointer active:scale-95 [clip-path:circle(50%)]"
-        >
-          <span
-            className={`relative flex h-16 w-16 items-center justify-center rounded-full border-4 border-white transition-all ${
-              solicitudesActive
-                ? 'bg-secondary-100 shadow-sm'
-                : 'bg-gradient-to-br from-secondary-500 to-secondary-600 shadow-[0_8px_24px_-4px_rgba(234,88,12,0.55)]'
-            }`}
-          >
-            <Zap
-              className={`h-7 w-7 ${solicitudesActive ? 'text-secondary-500' : 'text-white'}`}
-              strokeWidth={2.5}
-            />
-            {!solicitudesActive && <CountBadge count={requestsBadge} tone="danger" pulse className="absolute -right-1 -top-1 ring-2 ring-white" />}
-          </span>
-        </Link>
       </div>
     </nav>
   )
@@ -169,9 +194,16 @@ function ClientBarInner() {
   }
 
   const badge = (id: string) => {
-    if (id === 'requests') return counts.bookings + counts.requests
+    if (id === 'requests') return counts.action
     if (id === 'notifications') return counts.notifications
+    if (id === 'messages') return counts.messages
     return 0
+  }
+  const badgeLabel = (id: string) => {
+    if (id === 'requests') return 'pendientes de ti'
+    if (id === 'notifications') return 'notificaciones sin leer'
+    if (id === 'messages') return 'mensajes sin leer'
+    return undefined
   }
 
   const solicitarActive = isActive('solicitar')
@@ -180,6 +212,7 @@ function ClientBarInner() {
 
   return (
     <nav
+      aria-label="Navegación principal"
       className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)] md:hidden"
       data-tour="bottom-nav"
     >
@@ -191,19 +224,18 @@ function ClientBarInner() {
             label={item.label}
             isActive={isActive(item.id)}
             badge={badge(item.id)}
+            badgeLabel={badgeLabel(item.id)}
             href={item.path}
           />
         ))}
 
-        <div className="flex min-h-[52px] flex-col items-center justify-end">
-          <span
-            className={`mt-1 text-[10px] transition-colors ${
-              solicitarActive ? 'font-medium text-gray-500' : 'font-semibold text-secondary-600'
-            }`}
-          >
-            Solicitar
-          </span>
-        </div>
+        <CenterAction
+          href="/"
+          label="Solicitar"
+          srExtra="servicio"
+          icon={Sparkles}
+          isActive={solicitarActive}
+        />
 
         {rightItems.map((item) => (
           <NavLink
@@ -212,30 +244,10 @@ function ClientBarInner() {
             label={item.label}
             isActive={isActive(item.id)}
             badge={badge(item.id)}
+            badgeLabel={badgeLabel(item.id)}
             href={item.path}
           />
         ))}
-
-        <Link
-          href="/"
-          aria-label="Solicitar servicio"
-          onClick={() => window.dispatchEvent(new Event('bottom-nav-navigate'))}
-          style={{ WebkitTapHighlightColor: 'transparent' }}
-          className="touch-manipulation select-none absolute left-1/2 top-0 z-20 h-16 w-16 -translate-x-1/2 -translate-y-1/2 rounded-full transition cursor-pointer active:scale-95 [clip-path:circle(50%)]"
-        >
-          <span
-            className={`flex h-16 w-16 items-center justify-center rounded-full border-4 border-white transition-all ${
-              solicitarActive
-                ? 'bg-secondary-100 shadow-sm'
-                : 'bg-gradient-to-br from-secondary-500 to-secondary-600 shadow-[0_8px_24px_-4px_rgba(234,88,12,0.55)]'
-            }`}
-          >
-            <Sparkles
-              className={`h-7 w-7 ${solicitarActive ? 'text-secondary-500' : 'text-white'}`}
-              strokeWidth={2.5}
-            />
-          </span>
-        </Link>
       </div>
     </nav>
   )
@@ -268,14 +280,15 @@ export function BottomNav() {
   const isHomeActive = pathname === '/' || pathname.startsWith('/servicios')
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 safe-area-bottom md:hidden" data-tour="bottom-nav">
+    <nav aria-label="Navegación principal" className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 safe-area-bottom md:hidden" data-tour="bottom-nav">
       <div className="grid h-16 grid-cols-2">
         <Link
           href="/"
+          aria-current={isHomeActive ? 'page' : undefined}
           onClick={() => window.dispatchEvent(new Event('bottom-nav-navigate'))}
           className={`touch-manipulation flex flex-col items-center justify-center gap-1 px-2 py-2 transition-colors active:scale-95 ${isHomeActive ? 'text-primary-600' : 'text-gray-500'}`}
         >
-          <Home className="w-6 h-6" />
+          <Home className="w-6 h-6" aria-hidden="true" />
           <span className="text-xs font-medium">Inicio</span>
         </Link>
         <Link
@@ -283,7 +296,7 @@ export function BottomNav() {
           onClick={() => window.dispatchEvent(new Event('bottom-nav-navigate'))}
           className="touch-manipulation flex flex-col items-center justify-center gap-1 px-2 py-2 transition-colors active:scale-95 text-gray-500"
         >
-          <User className="w-6 h-6" />
+          <User className="w-6 h-6" aria-hidden="true" />
           <span className="text-xs font-medium">Entrar</span>
         </Link>
       </div>

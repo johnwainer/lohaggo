@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { Navbar } from './Navbar'
-import { Footer } from './Footer'
+import { Footer, isClientPanelPath } from './Footer'
 import { AppDownloadBanner } from './AppDownloadBanner'
 import { BottomNav } from './mobile/BottomNav'
 import NotificationPermissionPrompt from './NotificationPermissionPrompt'
@@ -50,10 +50,11 @@ export default function PublicLayout({ children, footerServices = [] }: { childr
       <InactiveAccountBanner />
       <Navbar />
       <PasswordUpdateBanner />
-      <main className="min-h-screen pb-24 md:pb-0">
+      {/* Panel views already leave room for the bottom nav in .account-main */}
+      <main id="contenido" className={isClientPanelPath(pathname) ? 'min-h-screen' : 'min-h-screen pb-24 md:pb-0'}>
         {children}
       </main>
-      <AppDownloadBanner />
+      {!isClientPanelPath(pathname) && <AppDownloadBanner />}
       <Footer services={footerServices} />
       <BottomNav />
       <FloatingButtons />

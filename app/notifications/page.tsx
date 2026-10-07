@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
 import ClientDashboardNav from '@/components/ClientDashboardNav'
 import NotificationsInbox from '@/components/shared/NotificationsInbox'
+import { notificationTarget, parseNotificationData } from '@/components/NotificationBell'
+import { refreshClientNavCounts, useClientNavCounts } from '@/hooks/useClientNavCounts'
 
 interface Notification {
   id: string
@@ -25,42 +27,11 @@ export default function NotificationsPage() {
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
   const [filter, setFilter] = useState<'all' | 'unread'>('all')
   const { isSupported, isSubscribed, subscribeToPush, permission, isLoading: pushLoading, error: pushError } = usePushNotifications()
-  const [bookingsCount, setBookingsCount] = useState(0)
-  const [requestsCount, setRequestsCount] = useState(0)
-  const [favoritesCount, setFavoritesCount] = useState(0)
-
-  const fetchCounts = async () => {
-    try {
-      const [bookingsRes, requestsRes, favoritesRes] = await Promise.all([
-        fetch('/api/bookings'),
-        fetch('/api/service-requests'),
-        fetch('/api/favorites')
-      ])
-
-      if (bookingsRes.ok) {
-        const bookingsData = await bookingsRes.json()
-        setBookingsCount(Array.isArray(bookingsData) ? bookingsData.length : 0)
-      }
-
-      if (requestsRes.ok) {
-        const requestsData = await requestsRes.json()
-        const requests = Array.isArray(requestsData) ? requestsData : Array.isArray(requestsData?.serviceRequests) ? requestsData.serviceRequests : []
-        setRequestsCount(requests.length)
-      }
-
-      if (favoritesRes.ok) {
-        const favoritesData = await favoritesRes.json()
-        setFavoritesCount(Array.isArray(favoritesData) ? favoritesData.length : 0)
-      }
-    } catch (error) {
-      console.error('Error fetching counts:', error)
-    }
-  }
+  const navCounts = useClientNavCounts()
 
   useEffect(() => {
     if (status === 'authenticated') {
       fetchNotifications()
-      fetchCounts()
     }
   }, [status])
 
@@ -97,6 +68,7 @@ export default function NotificationsPage() {
         body: JSON.stringify({ notificationId })
       })
       fetchNotifications()
+      refreshClientNavCounts()
     } catch (error) {
       console.error('Error marking notification as read:', error)
     }
@@ -107,34 +79,7 @@ export default function NotificationsPage() {
       await markAsRead(notification.id)
     }
 
-    let parsedData: any = {}
-    if (notification.data) {
-      try {
-        parsedData = JSON.parse(notification.data)
-      } catch (error) {
-        console.error('Error parsing notification data:', error)
-      }
-    }
-
-    const isPartner = session?.user?.role === 'PARTNER'
-    const explicitTarget = typeof parsedData.targetUrl === 'string' ? parsedData.targetUrl : null
-
-    if (explicitTarget && explicitTarget.startsWith('/')) {
-      router.push(explicitTarget)
-      return
-    }
-
-    if (parsedData.serviceRequestId) {
-      router.push(isPartner ? '/partner?tab=my-requests' : '/dashboard?tab=requests')
-      return
-    }
-
-    if (parsedData.bookingId || parsedData.proposalId || parsedData.paymentId) {
-      router.push(isPartner ? '/partner?tab=bookings' : '/dashboard?tab=bookings')
-      return
-    }
-
-    router.push(isPartner ? '/partner' : '/dashboard')
+    router.push(notificationTarget(notification.type, session?.user?.role, parseNotificationData(notification.data)))
   }
 
   const markAllAsRead = async () => {
@@ -145,6 +90,7 @@ export default function NotificationsPage() {
         body: JSON.stringify({ markAllAsRead: true })
       })
       fetchNotifications()
+      refreshClientNavCounts()
     } catch (error) {
       console.error('Error marking all as read:', error)
     }
@@ -173,13 +119,13 @@ export default function NotificationsPage() {
         isLoading: pushLoading,
         error: pushError
       }}
-      headerSubtitle={`Cliente: ${unreadCount} sin leer`}
+      headerSubtitle={unreadCount === 1 ? '1 sin leer' : `${unreadCount} sin leer`}
       emptySubtitle="Aquí verás novedades de reservas, solicitudes y pagos."
       nav={(
         <ClientDashboardNav
-          bookingsCount={bookingsCount}
-          requestsCount={requestsCount}
-          favoritesCount={favoritesCount}
+          bookingsCount={navCounts.bookings}
+          requestsCount={navCounts.action}
+          favoritesCount={navCounts.favorites}
           notificationsCount={unreadCount}
           activeTab="notifications"
         />

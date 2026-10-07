@@ -9,6 +9,7 @@ import AccountTopHeader from '@/components/shared/AccountTopHeader'
 import AccountPanel from '@/components/shared/AccountPanel'
 import QrCode from '@/components/QrCode'
 import { normalizeSlug } from '@/lib/slug'
+import ConfirmModal from '@/components/ConfirmModal'
 
 type NotificationPreference = {
   channel: 'PUSH' | 'EMAIL' | 'WHATSAPP' | 'SMS'
@@ -290,6 +291,8 @@ export default function ProfilePage() {
     }
   }
 
+  const [photoToDelete, setPhotoToDelete] = useState<string | null>(null)
+
   const deletePubPhoto = async (id: string) => {
     const res = await fetch(`/api/partner/work-photos/${id}`, { method: 'DELETE' })
     if (res.ok) setPubPhotos((prev) => prev.filter((p) => p.id !== id))
@@ -455,13 +458,14 @@ export default function ProfilePage() {
         }
       />
 
-      <main className="account-main">
+      <div className="account-main">
         <div className="flex flex-col lg:flex-row gap-6">
           <div className="flex-1 space-y-6">
             <AccountPanel title="Información Personal" subtitle="Actualiza tus datos de perfil">
               <div>
                 {message && (
                   <div
+                    role={message.type === 'error' ? 'alert' : 'status'}
                     className={`mb-6 p-4 rounded-lg flex items-center gap-3 ${
                       message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
                     }`}
@@ -475,22 +479,23 @@ export default function ProfilePage() {
                   <div className="relative group">
                     <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
                       {image ? (
-                        <img src={image} alt="Profile" className="w-full h-full object-cover" />
+                        <img src={image} alt={name ? `Foto de ${name}` : 'Tu foto de perfil'} className="w-full h-full object-cover" />
                       ) : (
                         <User size={48} className="text-gray-400" />
                       )}
                     </div>
                     <label
                       htmlFor="avatar-upload"
-                      className="absolute bottom-0 right-0 bg-secondary-500 text-white p-3 rounded-full cursor-pointer hover:bg-primary-500 transition-colors shadow-lg"
+                      className="absolute bottom-0 right-0 flex h-11 w-11 items-center justify-center bg-secondary-600 text-white rounded-full cursor-pointer hover:bg-primary-600 focus-within:ring-2 focus-within:ring-primary-500 focus-within:ring-offset-2 transition-colors shadow-lg"
                     >
-                      <Camera size={20} />
+                      <Camera size={20} aria-hidden="true" />
+                      <span className="sr-only">Cambiar foto de perfil</span>
                       <input
                         id="avatar-upload"
                         type="file"
                         accept="image/*"
                         onChange={handleImageUpload}
-                        className="hidden"
+                        className="sr-only"
                         disabled={uploadingImage}
                       />
                     </label>
@@ -534,10 +539,11 @@ export default function ProfilePage() {
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                         placeholder="+57 300 123 4567"
+                        aria-describedby="phone-help"
                         className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-secondary-500 focus:border-transparent"
                       />
                     </div>
-                    <p className="mt-2 text-sm text-gray-500">Formato: +57 seguido del número (ej: +57 300 123 4567)</p>
+                    <p id="phone-help" className="mt-2 text-sm text-gray-600">Formato: +57 seguido del número (ej: +57 300 123 4567)</p>
                   </div>
 
                   <div>
@@ -551,10 +557,11 @@ export default function ProfilePage() {
                         id="email"
                         value={email}
                         disabled
-                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+                        aria-describedby="email-help"
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
                       />
                     </div>
-                    <p className="mt-2 text-sm text-gray-500">El correo electrónico no se puede modificar</p>
+                    <p id="email-help" className="mt-2 text-sm text-gray-600">El correo electrónico no se puede modificar</p>
                   </div>
 
                   <div className="flex justify-end">
@@ -586,6 +593,7 @@ export default function ProfilePage() {
 
                   {prefsMessage && (
                     <div
+                      role={prefsMessage.type === 'error' ? 'alert' : 'status'}
                       className={`mb-4 rounded-lg border px-3 py-2 text-sm ${
                         prefsMessage.type === 'success'
                           ? 'border-green-200 bg-green-50 text-green-700'
@@ -598,7 +606,7 @@ export default function ProfilePage() {
 
                   <div className="space-y-3">
                     {loadingPrefs ? (
-                      <div className="text-sm text-gray-500">Cargando preferencias...</div>
+                      <div role="status" className="text-sm text-gray-600">Cargando preferencias...</div>
                     ) : (
                       notificationPrefs.map((pref) => {
                         const isPushChannel = pref.channel === 'PUSH'
@@ -627,22 +635,31 @@ export default function ProfilePage() {
                           <div key={pref.channel} className="rounded-xl border border-gray-200 px-4 py-3">
                             <div className="flex items-center justify-between gap-3">
                               <div>
-                                <p className="font-medium text-gray-900">{channelName}</p>
-                                <p className="text-xs text-gray-500">{helper}</p>
+                                <p id={`canal-${pref.channel}`} className="font-medium text-gray-900">{channelName}</p>
+                                <p id={`canal-${pref.channel}-ayuda`} className="text-xs text-gray-600">{helper}</p>
                               </div>
                               <button
                                 type="button"
+                                role="switch"
+                                aria-checked={pref.enabledByUser}
+                                aria-labelledby={`canal-${pref.channel}`}
+                                aria-describedby={`canal-${pref.channel}-ayuda`}
                                 disabled={disabled}
                                 onClick={() => updateChannelPreference(pref.channel, !pref.enabledByUser)}
-                                className={`relative inline-flex h-7 w-12 items-center rounded-full transition ${
-                                  pref.enabledByUser ? 'bg-secondary-500' : 'bg-gray-300'
-                                } ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                className={`inline-flex h-11 w-14 shrink-0 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
                               >
                                 <span
-                                  className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${
-                                    pref.enabledByUser ? 'translate-x-6' : 'translate-x-1'
+                                  aria-hidden="true"
+                                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition ${
+                                    pref.enabledByUser ? 'bg-secondary-600' : 'bg-gray-400'
                                   }`}
-                                />
+                                >
+                                  <span
+                                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${
+                                      pref.enabledByUser ? 'translate-x-6' : 'translate-x-1'
+                                    }`}
+                                  />
+                                </span>
                               </button>
                             </div>
                             {!pref.enabledByAdmin && (
@@ -677,7 +694,7 @@ export default function ProfilePage() {
                 </div>
 
                 {pwMessage && (
-                  <div className={`mb-4 flex items-center gap-2 rounded-xl border px-4 py-3 text-sm ${
+                  <div role={pwMessage.type === 'error' ? 'alert' : 'status'} className={`mb-4 flex items-center gap-2 rounded-xl border px-4 py-3 text-sm ${
                     pwMessage.type === 'success'
                       ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                       : 'border-red-200 bg-red-50 text-red-700'
@@ -693,26 +710,29 @@ export default function ProfilePage() {
                   {/* Current password — hidden for magic-link sessions */}
                   {!session?.user?.needsPasswordUpdate && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      <label htmlFor="pw-current" className="block text-sm font-medium text-gray-700 mb-1.5">
                         Contraseña actual
                       </label>
                       <div className="relative">
                         <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                         <input
+                          id="pw-current"
+                          autoComplete="current-password"
                           type={pwShowCurrent ? 'text' : 'password'}
                           value={pwCurrent}
                           onChange={e => setPwCurrent(e.target.value)}
                           required
                           placeholder="Tu contraseña actual"
-                          className="w-full rounded-xl border border-gray-200 bg-gray-50 pl-10 pr-10 py-3 text-sm focus:border-primary-500 focus:bg-white focus:outline-none transition"
+                          className="w-full rounded-xl border border-gray-200 bg-gray-50 pl-10 pr-12 py-3 text-sm focus:border-primary-500 focus:bg-white focus:outline-none transition"
                         />
                         <button
                           type="button"
                           onClick={() => setPwShowCurrent(v => !v)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                          aria-label={pwShowCurrent ? 'Ocultar' : 'Mostrar'}
+                          className="absolute right-0 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full text-gray-600 hover:text-gray-900"
+                          aria-label={pwShowCurrent ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                          aria-pressed={pwShowCurrent}
                         >
-                          {pwShowCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          {pwShowCurrent ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
                         </button>
                       </div>
                     </div>
@@ -720,46 +740,51 @@ export default function ProfilePage() {
 
                   {/* New password */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    <label htmlFor="pw-new" className="block text-sm font-medium text-gray-700 mb-1.5">
                       Nueva contraseña
                     </label>
                     <div className="relative">
                       <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                       <input
+                        id="pw-new"
+                        autoComplete="new-password"
                         type={pwShowNew ? 'text' : 'password'}
                         value={pwNew}
                         onChange={e => setPwNew(e.target.value)}
                         required
                         minLength={8}
                         placeholder="Mínimo 8 caracteres"
-                        className="w-full rounded-xl border border-gray-200 bg-gray-50 pl-10 pr-10 py-3 text-sm focus:border-primary-500 focus:bg-white focus:outline-none transition"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 pl-10 pr-12 py-3 text-sm focus:border-primary-500 focus:bg-white focus:outline-none transition"
                       />
                       <button
                         type="button"
                         onClick={() => setPwShowNew(v => !v)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                        aria-label={pwShowNew ? 'Ocultar' : 'Mostrar'}
+                        className="absolute right-0 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full text-gray-600 hover:text-gray-900"
+                        aria-label={pwShowNew ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                        aria-pressed={pwShowNew}
                       >
-                        {pwShowNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        {pwShowNew ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
                       </button>
                     </div>
                   </div>
 
                   {/* Confirm */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    <label htmlFor="pw-confirm" className="block text-sm font-medium text-gray-700 mb-1.5">
                       Confirmar nueva contraseña
                     </label>
                     <div className="relative">
                       <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                       <input
+                        id="pw-confirm"
+                        autoComplete="new-password"
                         type="password"
                         value={pwConfirm}
                         onChange={e => setPwConfirm(e.target.value)}
                         required
                         minLength={8}
                         placeholder="Repite la nueva contraseña"
-                        className="w-full rounded-xl border border-gray-200 bg-gray-50 pl-10 pr-10 py-3 text-sm focus:border-primary-500 focus:bg-white focus:outline-none transition"
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 pl-10 pr-12 py-3 text-sm focus:border-primary-500 focus:bg-white focus:outline-none transition"
                       />
                     </div>
                   </div>
@@ -789,20 +814,24 @@ export default function ProfilePage() {
 
             {/* Public profile section — partners only */}
             {isPartner && pubLoaded && (
+              <div id="perfil-publico" className="scroll-mt-24">
               <AccountPanel
                 title="Perfil Público"
                 subtitle="Tu página personal para compartir con clientes"
                 action={
                   <div className="flex items-center gap-2">
                     <button
+                      type="button"
                       onClick={togglePubPublic}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors ${
+                      aria-pressed={pubIsPublic}
+                      aria-label={pubIsPublic ? 'Perfil visible. Ocultar perfil público' : 'Perfil oculto. Hacer visible el perfil público'}
+                      className={`flex min-h-[44px] items-center gap-1.5 px-3 rounded-full text-xs sm:text-sm font-semibold transition-colors ${
                         pubIsPublic
                           ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200'
                       }`}
                     >
-                      {pubIsPublic ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                      {pubIsPublic ? <Eye className="w-4 h-4" aria-hidden="true" /> : <EyeOff className="w-4 h-4" aria-hidden="true" />}
                       {pubIsPublic ? 'Visible' : 'Oculto'}
                     </button>
                     {pubSlug && (
@@ -810,9 +839,10 @@ export default function ProfilePage() {
                         href={`/pro/${pubSlug}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold bg-primary-600 text-white hover:bg-primary-700 transition-colors"
+                        className="flex min-h-[44px] items-center gap-1.5 px-3 rounded-full text-xs sm:text-sm font-semibold bg-primary-600 text-white hover:bg-primary-700 transition-colors"
                       >
-                        <ExternalLink className="w-4 h-4" /> Ver perfil
+                        <ExternalLink className="w-4 h-4" aria-hidden="true" /> Ver perfil
+                        <span className="sr-only"> (se abre en otra pestaña)</span>
                       </a>
                     )}
                   </div>
@@ -826,54 +856,62 @@ export default function ProfilePage() {
                     {/* Form fields */}
                     <div className="flex-1 space-y-4">
                       <div className="space-y-1">
-                        <label className="text-sm font-medium text-gray-700">Titular</label>
+                        <label htmlFor="pub-headline" className="text-sm font-medium text-gray-700">Titular</label>
                         <input
+                          id="pub-headline"
+                          aria-describedby="pub-headline-count"
                           className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary-400 focus:border-primary-400 outline-none"
                           placeholder="Ej: Electricista certificado con 10 años de experiencia"
                           value={pubHeadline}
                           maxLength={120}
                           onChange={(e) => setPubHeadline(e.target.value)}
                         />
-                        <p className="text-xs text-gray-400 text-right">{pubHeadline.length}/120</p>
+                        <p id="pub-headline-count" className="text-xs text-gray-600 text-right">{pubHeadline.length}/120</p>
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-sm font-medium text-gray-700">Sobre mí</label>
+                        <label htmlFor="pub-bio" className="text-sm font-medium text-gray-700">Sobre mí</label>
                         <textarea
+                          id="pub-bio"
+                          aria-describedby="pub-bio-count"
                           className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary-400 focus:border-primary-400 outline-none resize-none min-h-[90px]"
                           placeholder="Cuéntales sobre tu experiencia y especialidades…"
                           value={pubBio}
                           maxLength={800}
                           onChange={(e) => setPubBio(e.target.value)}
                         />
-                        <p className="text-xs text-gray-400 text-right">{pubBio.length}/800</p>
+                        <p id="pub-bio-count" className="text-xs text-gray-600 text-right">{pubBio.length}/800</p>
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-sm font-medium text-gray-700">URL personalizada</label>
+                        <label htmlFor="pub-slug" className="text-sm font-medium text-gray-700">URL personalizada</label>
                         <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-primary-400 focus-within:border-primary-400">
-                          <span className="px-2.5 py-2.5 bg-gray-50 text-gray-500 text-xs border-r border-gray-200 select-none whitespace-nowrap">lohaggo.com/pro/</span>
+                          <span id="pub-slug-prefix" className="px-2.5 py-2.5 bg-gray-50 text-gray-600 text-xs border-r border-gray-200 select-none whitespace-nowrap">lohaggo.com/pro/</span>
                           <input
+                            id="pub-slug"
+                            aria-describedby={pubSlugError ? 'pub-slug-prefix pub-slug-error' : 'pub-slug-prefix'}
+                            aria-invalid={pubSlugError ? true : undefined}
                             className="flex-1 px-3 py-2.5 text-sm outline-none bg-white min-w-0"
                             placeholder="tu-nombre"
                             value={pubSlug}
                             onChange={(e) => { setPubSlug(e.target.value); setPubSlugError(null) }}
                             onBlur={(e) => setPubSlug(normalizeSlug(e.target.value) || pubSlug)}
                           />
-                          <button onClick={regeneratePubSlug} title="Generar URL automática" className="px-3 py-2.5 text-gray-400 hover:text-primary-600 transition-colors border-l border-gray-200">
-                            <RefreshCw className="w-4 h-4" />
+                          <button type="button" onClick={regeneratePubSlug} aria-label="Generar URL automática" title="Generar URL automática" className="flex min-h-[44px] min-w-[44px] items-center justify-center self-stretch text-gray-600 hover:text-primary-700 transition-colors border-l border-gray-200">
+                            <RefreshCw className="w-4 h-4" aria-hidden="true" />
                           </button>
                         </div>
-                        {pubSlugError && <p className="text-xs text-red-600">{pubSlugError}</p>}
+                        {pubSlugError && <p id="pub-slug-error" role="alert" className="text-xs text-red-700">{pubSlugError}</p>}
                       </div>
 
                       {pubFeedback && (
-                        <div className={`rounded-xl px-4 py-3 text-sm font-medium ${pubFeedback.type === 'ok' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                        <div role={pubFeedback.type === 'ok' ? 'status' : 'alert'} className={`rounded-xl px-4 py-3 text-sm font-medium ${pubFeedback.type === 'ok' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
                           {pubFeedback.msg}
                         </div>
                       )}
 
                       <button
+                        type="button"
                         onClick={savePubProfile}
                         disabled={pubSaving}
                         className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-500 to-primary-700 text-white font-semibold rounded-xl transition hover:shadow-lg disabled:opacity-50"
@@ -887,30 +925,39 @@ export default function ProfilePage() {
                     {pubProfileUrl && (
                       <div className="w-full lg:w-64 flex-shrink-0 order-first lg:order-last">
                         <div className="bg-gray-50 rounded-2xl border border-gray-100 p-4 flex flex-col items-center gap-3">
-                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Tu código QR</p>
+                          <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Tu código QR</p>
                           <QrCode key={pubQrKey} url={pubProfileUrl} size={180} />
                           <button
+                            type="button"
                             onClick={() => setPubQrKey((k) => k + 1)}
-                            className="flex items-center gap-1 text-xs text-gray-400 hover:text-primary-600 transition-colors"
+                            aria-label="Regenerar código QR"
+                            className="flex min-h-[44px] items-center gap-1 rounded-full px-3 text-xs font-medium text-gray-600 hover:text-primary-700 transition-colors"
                           >
-                            <RefreshCw className="w-3 h-3" /> Regenerar
+                            <RefreshCw className="w-3 h-3" aria-hidden="true" /> Regenerar
                           </button>
                         </div>
                         <div className="mt-3 space-y-2">
-                          <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
-                            <Link2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                          <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl pl-3 pr-1 py-0.5">
+                            <Link2 className="w-4 h-4 text-gray-500 flex-shrink-0" aria-hidden="true" />
                             <span className="flex-1 text-xs text-gray-700 truncate font-mono min-w-0">lohaggo.com/pro/{pubSlug}</span>
-                            <button onClick={copyPubLink} className="flex-shrink-0 flex items-center gap-1 text-xs font-semibold text-primary-600 hover:text-primary-700 ml-1">
-                              {pubCopied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                            <button
+                              type="button"
+                              onClick={copyPubLink}
+                              aria-label={pubCopied ? 'Enlace copiado' : 'Copiar enlace del perfil'}
+                              className="flex-shrink-0 flex h-11 w-11 items-center justify-center rounded-full text-primary-700 hover:bg-primary-50"
+                            >
+                              {pubCopied ? <Check className="w-4 h-4 text-emerald-600" aria-hidden="true" /> : <Copy className="w-4 h-4" aria-hidden="true" />}
                             </button>
+                            <span className="sr-only" role="status">{pubCopied ? 'Enlace copiado' : ''}</span>
                           </div>
                           <a
                             href={`https://wa.me/?text=${encodeURIComponent(`¡Mira mi perfil en LoHaggo y contrata mis servicios! ${pubProfileUrl}`)}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#1ebe5d] text-white font-semibold py-2.5 rounded-xl text-sm transition-colors"
+                            className="flex min-h-[44px] items-center justify-center gap-2 w-full bg-[#128C4A] hover:bg-[#0F7A40] text-white font-semibold py-2.5 rounded-full text-sm transition-colors"
                           >
-                            <MessageCircle className="w-4 h-4" /> WhatsApp
+                            <MessageCircle className="w-4 h-4" aria-hidden="true" /> Compartir por WhatsApp
+                            <span className="sr-only"> (se abre en otra pestaña)</span>
                           </a>
                         </div>
                       </div>
@@ -920,21 +967,25 @@ export default function ProfilePage() {
                   {/* Work photos — full width below */}
                   <div className="pt-4 border-t border-gray-100 space-y-3">
                     <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-gray-700">
-                        Fotos de mis trabajos <span className="text-gray-400 font-normal">({pubPhotos.length}/10)</span>
-                      </p>
+                      <h3 className="text-sm font-semibold text-gray-700">
+                        Fotos de mis trabajos <span className="text-gray-600 font-normal">({pubPhotos.length}/10)</span>
+                      </h3>
                       <button
+                        type="button"
                         onClick={() => photoInputRef.current?.click()}
                         disabled={pubUploadingPhoto || pubPhotos.length >= 10}
-                        className="flex items-center gap-1.5 text-xs font-semibold text-primary-600 hover:text-primary-700 disabled:opacity-50 transition-colors"
+                        aria-label="Agregar fotos de tus trabajos"
+                        className="flex min-h-[44px] items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-primary-700 hover:bg-primary-50 disabled:opacity-50 transition-colors"
                       >
-                        <Upload className="w-3.5 h-3.5" /> Agregar
+                        <Upload className="w-3.5 h-3.5" aria-hidden="true" /> Agregar
                       </button>
                       <input
                         ref={photoInputRef}
                         type="file"
                         accept="image/*"
                         multiple
+                        tabIndex={-1}
+                        aria-hidden="true"
                         className="hidden"
                         onChange={async (e) => {
                           const files = Array.from(e.target.files ?? [])
@@ -945,33 +996,41 @@ export default function ProfilePage() {
                     </div>
                     {pubPhotos.length === 0 && !pubUploadingPhoto ? (
                       <button
+                        type="button"
                         onClick={() => photoInputRef.current?.click()}
-                        className="w-full border-2 border-dashed border-gray-200 rounded-xl py-8 flex flex-col items-center gap-1.5 text-gray-400 hover:border-primary-300 hover:text-primary-500 transition-colors text-sm"
+                        className="w-full border-2 border-dashed border-gray-300 rounded-2xl py-8 flex flex-col items-center gap-1.5 text-gray-600 hover:border-primary-300 hover:text-primary-700 transition-colors text-sm"
                       >
-                        <Camera className="w-6 h-6" /> Sube fotos de tus trabajos
+                        <Camera className="w-6 h-6" aria-hidden="true" /> Sube fotos de tus trabajos
                       </button>
                     ) : (
-                      <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
-                        {pubPhotos.map((photo) => (
-                          <div key={photo.id} className="relative group aspect-square rounded-lg overflow-hidden border border-gray-100">
-                            <img src={photo.url} alt="Trabajo" className="w-full h-full object-cover" />
-                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                              <button onClick={() => deletePubPhoto(photo.id)} className="bg-red-600 hover:bg-red-700 text-white p-1.5 rounded-lg">
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
+                      <ul className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                        {pubPhotos.map((photo, i) => (
+                          <li key={photo.id} className="relative aspect-square rounded-xl overflow-hidden border border-gray-100">
+                            <img src={photo.url} alt={`Foto de trabajo ${i + 1}`} className="w-full h-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={() => setPhotoToDelete(photo.id)}
+                              aria-label="Eliminar foto"
+                              className="absolute right-0 top-0 flex h-11 w-11 items-center justify-center"
+                            >
+                              <span aria-hidden="true" className="flex h-8 w-8 items-center justify-center rounded-full bg-red-600 text-white shadow-md ring-2 ring-white hover:bg-red-700">
+                                <Trash2 className="w-4 h-4" />
+                              </span>
+                            </button>
+                          </li>
                         ))}
                         {pubUploadingPhoto && (
-                          <div className="aspect-square rounded-lg border-2 border-dashed border-primary-200 bg-primary-50 flex items-center justify-center">
-                            <RefreshCw className="w-4 h-4 text-primary-400 animate-spin" />
-                          </div>
+                          <li className="aspect-square rounded-xl border-2 border-dashed border-primary-200 bg-primary-50 flex items-center justify-center" role="status">
+                            <RefreshCw className="w-4 h-4 text-primary-600 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                            <span className="sr-only">Subiendo foto…</span>
+                          </li>
                         )}
-                      </div>
+                      </ul>
                     )}
                   </div>
                 </div>
               </AccountPanel>
+              </div>
             )}
           </div>
 
@@ -1024,7 +1083,7 @@ export default function ProfilePage() {
                   </div>
                   <h3 className="text-lg font-bold text-gray-900 mb-2">Calificación</h3>
                   <div className="flex items-center gap-2 mb-2">
-                    <p className="text-3xl font-bold text-yellow-600">
+                    <p className="text-3xl font-bold text-amber-700">
                       {partnerData?.rating?.toFixed(1) || '0.0'}
                     </p>
                     <Star className="text-yellow-500 fill-yellow-500" size={20} />
@@ -1074,7 +1133,7 @@ export default function ProfilePage() {
                         partnerData?.documents?.some((d: any) =>
                           ['CEDULA_CIUDADANIA', 'CEDULA_EXTRANJERIA', 'PASAPORTE', 'PEP'].includes(d.type) &&
                           d.status === 'APPROVED'
-                        ) ? 'text-green-600 font-medium' : 'text-gray-500'
+                        ) ? 'text-green-700 font-medium' : 'text-gray-600'
                       }`}>
                         Documento de Identidad
                       </span>
@@ -1097,7 +1156,7 @@ export default function ProfilePage() {
                         partnerData?.documents?.some((d: any) =>
                           ['DIPLOMA_BACHILLERATO', 'DIPLOMA_TECNICO', 'DIPLOMA_TECNOLOGO', 'DIPLOMA_PROFESIONAL', 'DIPLOMA_POSGRADO', 'CERTIFICADO_CURSO'].includes(d.type) &&
                           d.status === 'APPROVED'
-                        ) ? 'text-purple-600 font-medium' : 'text-gray-500'
+                        ) ? 'text-purple-700 font-medium' : 'text-gray-600'
                       }`}>
                         Estudios
                       </span>
@@ -1114,7 +1173,7 @@ export default function ProfilePage() {
                       } />
                       <span className={`text-sm ${
                         partnerData?.documents?.some((d: any) => d.type === 'ANTECEDENTES' && d.status === 'APPROVED')
-                          ? 'text-emerald-600 font-medium' : 'text-gray-500'
+                          ? 'text-emerald-700 font-medium' : 'text-gray-600'
                       }`}>
                         Antecedentes
                       </span>
@@ -1160,7 +1219,7 @@ export default function ProfilePage() {
                   </div>
                   <h3 className="text-lg font-bold text-gray-900 mb-2">Mis Calificaciones</h3>
                   <div className="flex items-center gap-2 mb-2">
-                    <p className="text-3xl font-bold text-yellow-600">
+                    <p className="text-3xl font-bold text-amber-700">
                       {clientRating?.toFixed(1) || '0.0'}
                     </p>
                     <Star className="text-yellow-500 fill-yellow-500" size={20} />
@@ -1188,7 +1247,22 @@ export default function ProfilePage() {
             )}
           </aside>
         </div>
-      </main>
+      </div>
+
+      <ConfirmModal
+        isOpen={photoToDelete !== null}
+        onClose={() => setPhotoToDelete(null)}
+        onConfirm={() => {
+          const id = photoToDelete
+          setPhotoToDelete(null)
+          if (id) void deletePubPhoto(id)
+        }}
+        title="¿Eliminar esta foto?"
+        message="La foto dejará de verse en tu perfil público. Esta acción no se puede deshacer."
+        confirmText="Eliminar foto"
+        cancelText="Cancelar"
+        type="danger"
+      />
     </div>
   )
 }
