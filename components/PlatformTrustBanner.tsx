@@ -116,7 +116,7 @@ export default function PlatformTrustBanner({
         <button
           onClick={handleDismiss}
           aria-label="Cerrar banner"
-          className="absolute top-2 right-2 p-1.5 rounded-lg hover:bg-black/5 transition opacity-60 hover:opacity-100"
+          className="absolute top-1 right-1 inline-flex h-11 w-11 items-center justify-center rounded-full text-gray-600 hover:bg-black/5 transition"
         >
           <X className="w-4 h-4" />
         </button>

@@ -31,7 +31,7 @@ export default function QrCode({ url, size = 240, className }: QrCodeProps) {
         <a
           href={dataUrl}
           download="qr-lohaggo.png"
-          className="block text-center text-xs text-primary-600 font-semibold py-2 hover:underline"
+          className="flex min-h-[44px] items-center justify-center text-sm text-primary-700 font-semibold hover:underline"
         >
           ↓ Descargar PNG
         </a>

@@ -45,7 +45,8 @@ export function CountBadge({ count, max = 99, tone = 'primary', size = 'md', pul
   return (
     <span
       className={cn(
-        'inline-flex shrink-0 items-center justify-center rounded-full font-bold leading-none tabular-nums',
+        // relative: the hidden screen-reader text stays inside the badge instead of widening a scrolling row
+        'relative inline-flex shrink-0 items-center justify-center rounded-full font-bold leading-none tabular-nums',
         toneClasses[tone],
         sizeClasses[size],
         pulse && 'animate-pulse motion-reduce:animate-none',

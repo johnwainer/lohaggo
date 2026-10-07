@@ -1211,7 +1211,8 @@ export default function DashboardPage() {
                       </div>
                       <button
                         onClick={() => setActiveTab('bookings')}
-                        className="inline-flex items-center gap-1 text-sm font-semibold text-primary-700 hover:text-primary-800 transition-colors"
+                        aria-label="Ver todas tus reservas"
+                        className="inline-flex min-h-[44px] items-center gap-1 px-2 -mx-2 text-sm font-semibold text-primary-700 hover:text-primary-800 transition-colors"
                       >
                         Ver todo
                         <ChevronRight className="w-4 h-4" />
@@ -1300,7 +1301,8 @@ export default function DashboardPage() {
                       </div>
                       <button
                         onClick={() => setActiveTab('favorites')}
-                        className="text-sm font-semibold text-primary-700 hover:text-primary-800"
+                        aria-label="Ver todos tus favoritos"
+                        className="inline-flex min-h-[44px] items-center px-2 -mx-2 text-sm font-semibold text-primary-700 hover:text-primary-800"
                       >
                         Ver todo
                       </button>
