@@ -31,13 +31,10 @@ export function Footer({ services = [] }: { services?: TopService[] }) {
     return (
       <footer className="border-t border-gray-200 bg-white">
         <div className="mx-auto max-w-7xl px-4 pt-3 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-6 md:py-3 lg:px-8">
-          <nav aria-label="Enlaces legales y ayuda" className="flex flex-wrap items-center justify-center gap-x-1 text-sm text-gray-600">
+          <nav aria-label="Enlaces legales y ayuda" className="flex flex-wrap items-center justify-center gap-x-3 text-sm text-gray-600">
             <span className="px-1">© {currentYear} LoHaggo</span>
-            <span aria-hidden="true">·</span>
             <Link href="/faq" className="inline-flex min-h-[44px] items-center rounded-full px-2 font-medium hover:text-primary-700">Ayuda</Link>
-            <span aria-hidden="true">·</span>
             <Link href="/privacy" className="inline-flex min-h-[44px] items-center rounded-full px-2 font-medium hover:text-primary-700">Privacidad</Link>
-            <span aria-hidden="true">·</span>
             <Link href="/terms" className="inline-flex min-h-[44px] items-center rounded-full px-2 font-medium hover:text-primary-700">Términos</Link>
           </nav>
         </div>

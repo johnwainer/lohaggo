@@ -1356,10 +1356,10 @@ function PartnerDashboardContent() {
                       <p className="text-gray-600 text-base">Las reservas aparecerán aquí cuando los clientes las realicen</p>
                       <button
                         type="button"
-                        onClick={() => router.push('/partner/services')}
+                        onClick={() => router.push('/partner?tab=my-requests')}
                         className="mt-5 inline-flex min-h-[44px] items-center justify-center rounded-full bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-700"
                       >
-                        Configurar servicios
+                        Ver oportunidades
                       </button>
                     </>
                   )}
@@ -1762,9 +1762,19 @@ function PartnerDashboardContent() {
             {...proposalDialog.dialogProps}
             className={`${DESIGN_SYSTEM.components.card.base} relative max-w-2xl w-full max-h-[90vh] overflow-y-auto rounded-b-none sm:rounded-3xl outline-none`}
           >
-            <div className={`${DESIGN_SYSTEM.spacing.card} border-b bg-gradient-to-r from-primary-600 to-primary-700`}>
-              <h2 id={proposalDialog.titleId} className={`${DESIGN_SYSTEM.typography.h2} text-white`}>Enviar Propuesta</h2>
-              <p className="text-white/90 text-sm mt-1">Completa los detalles de tu oferta</p>
+            <div className={`${DESIGN_SYSTEM.spacing.card} sticky top-0 z-10 flex items-start justify-between gap-3 border-b bg-gradient-to-r from-primary-600 to-primary-700`}>
+              <div className="min-w-0">
+                <h2 id={proposalDialog.titleId} className={`${DESIGN_SYSTEM.typography.h2} text-white`}>Enviar Propuesta</h2>
+                <p className="text-white/90 text-sm mt-1">Completa los detalles de tu oferta</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { if (!submittingProposal) setShowProposalModal(false) }}
+                aria-label="Cerrar"
+                className="-mr-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              >
+                <X className="h-5 w-5" aria-hidden="true" />
+              </button>
             </div>
 
             <div className={`${DESIGN_SYSTEM.spacing.card} ${DESIGN_SYSTEM.spacing.gap}`}>
@@ -1846,7 +1856,7 @@ function PartnerDashboardContent() {
                     className={`${DESIGN_SYSTEM.components.input.base} pl-10`}
                   />
                 </div>
-                <p id="proposal-price-net" className="mt-2 text-sm text-gray-700" aria-live="polite">
+                <p id="proposal-price-net" className="mt-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800 empty:hidden" aria-live="polite">
                   {partnerRate === null
                     ? null
                     : partnerRate > 0
@@ -1882,9 +1892,11 @@ function PartnerDashboardContent() {
                       value={proposalTime}
                       step={1800}
                       disabled={!proposalDate}
+                      aria-describedby={!proposalDate ? 'proposal-time-hint' : undefined}
                       onChange={(e) => setProposalTime(e.target.value)}
                       className={`${DESIGN_SYSTEM.components.input.base} disabled:bg-gray-100`}
                     />
+                    {!proposalDate && <p id="proposal-time-hint" className="mt-1 text-xs text-gray-600">Elige primero la fecha</p>}
                   </div>
                 </div>
               </div>
@@ -1904,7 +1916,7 @@ function PartnerDashboardContent() {
               </div>
             </div>
 
-            <div className={`${DESIGN_SYSTEM.spacing.card} border-t bg-gray-50 flex gap-3 pb-[calc(env(safe-area-inset-bottom)+1rem)]`}>
+            <div className={`${DESIGN_SYSTEM.spacing.card} sticky bottom-0 z-10 border-t bg-gray-50 flex gap-3 pb-[calc(env(safe-area-inset-bottom)+1rem)]`}>
               <button
                 type="button"
                 onClick={() => setShowProposalModal(false)}

@@ -754,7 +754,10 @@ export default function DashboardPage() {
   const confirmedCount = bookings.filter(b => b.status === 'CONFIRMED').length
   const completedCount = bookings.filter(b => b.status === 'COMPLETED').length
   const activeRequestsCount = serviceRequests.filter(r => r.status === 'ACTIVE').length
-  const totalProposals = serviceRequests.reduce((total, req) => total + req.proposals.length, 0)
+  // Proposals still to choose from: pending ones on requests that have not expired
+  const totalProposals = serviceRequests
+    .filter((r) => r.status === 'ACTIVE' && (!r.expiresAt || new Date(r.expiresAt).getTime() > Date.now()))
+    .reduce((total, req) => total + req.proposals.filter((p) => p.status === 'PENDING').length, 0)
 
   const filteredBookings = bookings
     .filter(booking =>
@@ -1060,7 +1063,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="md:hidden border-t border-gray-100 bg-white">
-            <div role="tablist" aria-label="Secciones de tu panel" className="flex gap-2 overflow-x-auto scrollbar-hide px-4 py-2">
+            <div role="tablist" aria-label="Secciones de tu panel" className="flex gap-2 overflow-x-auto scrollbar-hide pl-4 pr-10 py-2 [mask-image:linear-gradient(to_right,black_85%,transparent)]">
               {(['overview', 'bookings', 'requests', 'favorites'] as const).map((tab) => {
                 const selected = activeTab === tab
                 const badge = tab === 'bookings' ? navCounts.bookings : tab === 'requests' ? navCounts.action : 0
@@ -1278,7 +1281,7 @@ export default function DashboardPage() {
                         <span className="text-xl font-bold text-slate-900">{activeRequestsCount}</span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-slate-500">Propuestas</span>
+                        <span className="text-sm text-slate-600">Propuestas por elegir</span>
                         <span className="text-xl font-bold text-slate-900">{totalProposals}</span>
                       </div>
                     </div>
@@ -1971,7 +1974,7 @@ export default function DashboardPage() {
                                 type="button"
                                 onClick={() => cancelServiceRequest(request.id, request.service.name)}
                                 aria-label={`Cancelar la solicitud de ${request.service.name}`}
-                                className="inline-flex min-h-[44px] items-center text-xs font-semibold px-4 rounded-full border border-red-200 text-red-700 bg-white hover:bg-red-50 transition-colors"
+                                className="inline-flex min-h-[44px] items-center px-2 text-xs font-semibold text-gray-600 underline underline-offset-2 hover:text-red-700 transition-colors"
                               >
                                 Cancelar
                               </button>
@@ -1983,9 +1986,16 @@ export default function DashboardPage() {
                           const pendingProposals = request.proposals.filter((p) => p.status === 'PENDING').length
                           if (request.status === 'ACTIVE' && !isExpired) {
                             return pendingProposals > 0 ? (
-                              <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                                <span className="font-bold">Te toca a ti:</span> tienes {pendingProposals} {pendingProposals === 1 ? 'propuesta' : 'propuestas'}, elige una antes del {formatExpiry(request.expiresAt).replace(/\.$/, "")}.
-                              </p>
+                              <div className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                                <p><span className="font-bold">Te toca a ti:</span> tienes {pendingProposals} {pendingProposals === 1 ? 'propuesta' : 'propuestas'}, elige una antes del {formatExpiry(request.expiresAt).replace(/\.$/, "")}.</p>
+                                <button
+                                  type="button"
+                                  onClick={() => document.getElementById(`proposals-${request.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                                  className="mt-2 inline-flex min-h-[44px] w-full items-center justify-center rounded-full bg-primary-600 px-4 text-sm font-semibold text-white hover:bg-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+                                >
+                                  Ver {pendingProposals === 1 ? 'la propuesta' : `${pendingProposals} propuestas`}
+                                </button>
+                              </div>
                             ) : (
                               <p className="mb-3 rounded-xl bg-gray-50 px-3 py-2 text-xs text-gray-700">
                                 <span className="font-bold">Esperando propuestas de socios.</span> Te avisamos cuando llegue una.
@@ -2038,10 +2048,12 @@ export default function DashboardPage() {
                                 : 'Sin fecha preferida'}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2 rounded-xl bg-gray-50 border border-gray-100 px-3 py-2">
-                            <Clock size={14} className="text-gray-500 shrink-0" />
-                            <span className="text-gray-700">{isExpired ? 'Venció' : 'Expira'}: {formatExpiry(request.expiresAt)}</span>
-                          </div>
+                          {!(request.status === 'ACTIVE' && !isExpired && request.proposals.some((p) => p.status === 'PENDING')) && (
+                            <div className="flex items-center gap-2 rounded-xl bg-gray-50 border border-gray-100 px-3 py-2">
+                              <Clock size={14} className="text-gray-600 shrink-0" aria-hidden="true" />
+                              <span className="text-gray-700">{isExpired ? 'Venció' : 'Expira'}: {formatExpiry(request.expiresAt)}</span>
+                            </div>
+                          )}
                           <div className="flex items-center gap-2 rounded-xl bg-gray-50 border border-gray-100 px-3 py-2">
                             <DollarSign size={14} className="text-gray-500 shrink-0" />
                             <span className="text-gray-700">
@@ -2103,7 +2115,7 @@ export default function DashboardPage() {
                         )}
 
                         {request.proposals.length > 0 ? (
-                          <div className="border-t border-gray-100 pt-3 space-y-2.5">
+                          <div id={`proposals-${request.id}`} className="scroll-mt-40 border-t border-gray-100 pt-3 space-y-2.5">
                             <div className="flex items-center justify-between">
                               <h4 className="font-semibold text-sm sm:text-base text-gray-900">Propuestas</h4>
                               <span className="text-xs text-gray-600">

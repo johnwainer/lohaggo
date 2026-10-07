@@ -19,7 +19,7 @@ const partnerNavItems = [
 ] as const
 
 const clientNavItems = [
-  { id: 'requests', label: 'Solicitudes', icon: Package, path: '/dashboard?tab=requests' },
+  { id: 'requests', label: 'Mi panel', icon: Package, path: '/dashboard?tab=requests' },
   { id: 'notifications', label: 'Avisos', icon: Bell, path: '/notifications' },
   { id: 'messages', label: 'Chats', icon: MessageSquare, path: '/dashboard/messages' },
   { id: 'profile', label: 'Perfil', icon: UserCircle, path: '/profile' },
@@ -134,7 +134,7 @@ function PartnerBarInner() {
       className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)] md:hidden"
       data-tour="bottom-nav"
     >
-      <div className="relative mx-auto grid max-w-2xl grid-cols-5 gap-1 px-2 py-2">
+      <div className="relative mx-auto grid max-w-2xl grid-cols-[1fr_1fr_1.35fr_1fr_1fr] gap-1 px-2 py-2">
         {leftItems.map((item) => (
           <NavLink
             key={item.id}
@@ -216,7 +216,7 @@ function ClientBarInner() {
       className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)] md:hidden"
       data-tour="bottom-nav"
     >
-      <div className="relative mx-auto grid max-w-2xl grid-cols-5 gap-1 px-2 py-2">
+      <div className="relative mx-auto grid max-w-2xl grid-cols-[1fr_1fr_1.35fr_1fr_1fr] gap-1 px-2 py-2">
         {leftItems.map((item) => (
           <NavLink
             key={item.id}
