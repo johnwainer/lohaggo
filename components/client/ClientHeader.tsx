@@ -1,5 +1,6 @@
 'use client'
 
+import { CountBadge } from '@/components/ui/count-badge'
 import { useRouter } from 'next/navigation'
 import { Home, Package, MessageSquare, Bell, Settings, User } from 'lucide-react'
 import { DESIGN_SYSTEM } from '@/lib/design-system'
@@ -117,13 +118,7 @@ export default function ClientHeader({
                   >
                     {item.icon}
                     <span className="hidden sm:inline">{item.label}</span>
-                    {item.badge && item.badge > 0 && (
-                      <span
-                        className={`${item.badgeColor} text-white text-[10px] px-2 py-0.5 rounded-full ml-2`}
-                      >
-                        {item.badge}
-                      </span>
-                    )}
+                    <CountBadge count={item.badge ?? 0} className="ml-2" />
                   </button>
                 )
               })}

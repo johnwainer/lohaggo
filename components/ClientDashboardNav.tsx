@@ -1,5 +1,6 @@
 'use client'
 
+import { CountBadge } from '@/components/ui/count-badge'
 import { useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Home, MessageSquare, Heart, Bell, Send } from 'lucide-react'
@@ -63,11 +64,7 @@ export default function ClientDashboardNav({
                 >
                   <Icon className="w-5 h-5" />
                   <span>{item.label}</span>
-                  {item.badge > 0 && (
-                    <span className="bg-primary-600 text-white text-[10px] px-1.5 py-0.5 rounded-full">
-                      {item.badge > 99 ? '99+' : item.badge}
-                    </span>
-                  )}
+                  <CountBadge count={item.badge} />
                 </button>
               )
             })}

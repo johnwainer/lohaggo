@@ -1,5 +1,6 @@
 'use client'
 
+import { CountBadge } from '@/components/ui/count-badge'
 import { Suspense } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
@@ -42,11 +43,7 @@ function NavLink({ icon: Icon, label, isActive, badge, href }: {
     >
       <Icon className="h-5 w-5" />
       <span className="text-[10px] mt-0.5">{label}</span>
-      {!!badge && badge > 0 && (
-        <span className="absolute right-1 top-1 inline-flex min-w-4 h-4 items-center justify-center rounded-full bg-primary-600 px-1 text-[9px] font-bold text-white">
-          {badge > 99 ? '99+' : badge}
-        </span>
-      )}
+      <CountBadge count={badge ?? 0} size="sm" className="absolute right-1 top-1" />
     </Link>
   )
 }
@@ -142,11 +139,7 @@ function PartnerBarInner() {
               className={`h-7 w-7 ${solicitudesActive ? 'text-secondary-500' : 'text-white'}`}
               strokeWidth={2.5}
             />
-            {!solicitudesActive && requestsBadge > 0 && (
-              <span className="absolute -right-1 -top-1 inline-flex min-w-5 h-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white ring-2 ring-white animate-pulse">
-                {requestsBadge > 99 ? '99+' : requestsBadge}
-              </span>
-            )}
+            {!solicitudesActive && <CountBadge count={requestsBadge} tone="danger" pulse className="absolute -right-1 -top-1 ring-2 ring-white" />}
           </span>
         </Link>
       </div>

@@ -1,5 +1,6 @@
 'use client'
 
+import { CountBadge } from '@/components/ui/count-badge'
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
@@ -86,11 +87,7 @@ export default function NotificationBell() {
         className="relative p-2 text-gray-600 hover:text-gray-900 transition"
       >
         <Bell size={24} />
-        {unreadCount > 0 && (
-          <span className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-            {unreadCount > 9 ? '9+' : unreadCount}
-          </span>
-        )}
+        <CountBadge count={unreadCount} max={9} tone="danger" className="absolute right-0 top-0" />
       </button>
 
       {showDropdown && (

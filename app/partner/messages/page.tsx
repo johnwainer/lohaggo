@@ -1,5 +1,6 @@
 'use client'
 
+import { CountBadge } from '@/components/ui/count-badge'
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
@@ -136,11 +137,7 @@ export default function PartnerMessagesPage() {
                           {conv.client.name.charAt(0).toUpperCase()}
                         </div>
                       )}
-                      {conv.unreadCount > 0 && conv.isActive && (
-                        <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                          {conv.unreadCount > 9 ? '9+' : conv.unreadCount}
-                        </span>
-                      )}
+                      {conv.isActive && <CountBadge count={conv.unreadCount} max={9} tone="danger" className="absolute -right-1 -top-1 ring-2 ring-white" />}
                     </div>
 
                     <div className="flex-1 min-w-0">

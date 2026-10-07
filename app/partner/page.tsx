@@ -1,5 +1,6 @@
 'use client'
 
+import { CountBadge } from '@/components/ui/count-badge'
 import { useEffect, useMemo, useState, Suspense } from 'react'
 import { useChatRealtime } from '@/hooks/useChatRealtime'
 import type { ReactNode } from 'react'
@@ -1479,11 +1480,7 @@ function PartnerDashboardContent() {
                               >
                                 <MessageCircle size={20} />
                                 Chat con Cliente
-                                {unreadCounts[request.proposals[0].id] > 0 && (
-                                  <span className="absolute -top-2 -right-2 bg-gradient-to-r from-primary-500 to-primary-600 text-white text-xs font-bold rounded-full h-7 w-7 flex items-center justify-center animate-pulse shadow-lg">
-                                    {unreadCounts[request.proposals[0].id]}
-                                  </span>
-                                )}
+                                <CountBadge count={unreadCounts[request.proposals[0].id] ?? 0} size="lg" pulse className="absolute -right-2 -top-2 shadow-lg ring-2 ring-white" />
                               </button>
                             )}
                           </div>

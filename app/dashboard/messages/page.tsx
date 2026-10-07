@@ -1,5 +1,6 @@
 'use client'
 
+import { CountBadge } from '@/components/ui/count-badge'
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
@@ -178,11 +179,7 @@ export default function ClientMessagesPage() {
                           <ShieldCheck className="h-3 w-3" />
                         </span>
                       )}
-                      {conv.unreadCount > 0 && conv.isActive && (
-                        <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-                          {conv.unreadCount > 9 ? '9+' : conv.unreadCount}
-                        </span>
-                      )}
+                      {conv.isActive && <CountBadge count={conv.unreadCount} max={9} tone="danger" className="absolute -right-1 -top-1 ring-2 ring-white" />}
                     </div>
 
                     <div className="min-w-0 flex-1">

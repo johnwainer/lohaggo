@@ -1,5 +1,6 @@
 'use client'
 
+import { CountBadge } from '@/components/ui/count-badge'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { USER_EVENT, type UserEventDetail } from '@/hooks/useNotificationRealtime'
 import { useChatRealtime } from '@/hooks/useChatRealtime'
@@ -2105,11 +2106,7 @@ export default function DashboardPage() {
                                       >
                                         <MessageCircle size={16} />
                                         Chat
-                                        {unreadCounts[proposal.id] > 0 && (
-                                          <span className="absolute -top-1.5 -right-1.5 bg-primary-600 text-white text-[10px] font-bold rounded-full h-5 min-w-5 px-1 flex items-center justify-center">
-                                            {unreadCounts[proposal.id]}
-                                          </span>
-                                        )}
+                                        <CountBadge count={unreadCounts[proposal.id] ?? 0} className="absolute -right-1.5 -top-1.5 ring-2 ring-white" />
                                       </button>
                                     )}
                                   </div>

@@ -1,5 +1,6 @@
 'use client'
 
+import { CountBadge } from '@/components/ui/count-badge'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
@@ -275,13 +276,7 @@ export default function PartnerShell({ children }: { children: React.ReactNode }
                   >
                     <Icon className={`w-5 h-5 ${link.highlight && !active ? 'text-secondary-600' : ''}`} />
                     <span className="flex-1">{link.label}</span>
-                    {badge > 0 && (
-                      <span className={`inline-flex min-w-5 h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white ${
-                        link.highlight ? 'bg-secondary-600' : 'bg-primary-600'
-                      }`}>
-                        {badge > 99 ? '99+' : badge}
-                      </span>
-                    )}
+                    <CountBadge count={badge} tone={link.highlight ? 'secondary' : 'primary'} />
                   </Link>
                 )
               })}

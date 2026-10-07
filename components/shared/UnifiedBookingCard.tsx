@@ -1,5 +1,6 @@
 'use client'
 
+import { CountBadge } from '@/components/ui/count-badge'
 import { Calendar, CheckCircle2, ChevronDown, Clock, Loader2, MapPin, MessageCircle, Star, User } from 'lucide-react'
 import ServiceIcon from '@/components/ServiceIcon'
 import OriginBadge from '@/components/shared/OriginBadge'
@@ -211,11 +212,7 @@ export default function UnifiedBookingCard({
               >
                 {pendingAction === action.label ? <Loader2 className="h-4 w-4 animate-spin" /> : action.icon || <MessageCircle className="h-4 w-4" />}
                 <span className="truncate">{action.label}</span>
-                {action.badge && action.badge > 0 && (
-                  <span className="absolute -right-1 -top-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary-600 text-[10px] font-bold text-white">
-                    {action.badge}
-                  </span>
-                )}
+                <CountBadge count={action.badge ?? 0} className="absolute -right-1 -top-1 ring-2 ring-white" />
               </button>
             ))}
           </div>
