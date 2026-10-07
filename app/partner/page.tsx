@@ -31,6 +31,7 @@ import LoadingSpinner from '@/components/shared/LoadingSpinner'
 import EmptyState from '@/components/shared/EmptyState'
 import PlatformTrustBanner from '@/components/PlatformTrustBanner'
 import ServiceIcon from '@/components/ServiceIcon'
+import InProgressPanel, { type InProgressItem } from '@/components/shared/InProgressPanel'
 import {
   getBookingVisualState, getBookingVisualLabel, getNextStep, bookingStatusColor,
   BOOKING_FILTER_ORDER, BOOKING_STATUS_COLORS, type BookingVisualState,
@@ -725,6 +726,44 @@ function PartnerDashboardContent() {
   const confirmedCount = bookings.filter(b => b.status === 'CONFIRMED').length
   const paymentReportedBookings = bookings.filter(b => getBookingVisualState('PARTNER', b) === 'PAYMENT_REPORTED')
 
+  // «En curso» at the top of the overview: bookings not closed yet and proposals waiting for the client
+  const inProgressItems: InProgressItem[] = [
+    ...bookings
+      .filter((b) => ['PENDING', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'PAYMENT_REPORTED'].includes(getBookingVisualState('PARTNER', b)))
+      .map((b): InProgressItem => {
+        const state = getBookingVisualState('PARTNER', b)
+        const step = getNextStep('PARTNER', b)
+        return {
+          id: `booking-${b.id}`,
+          title: b.service.name,
+          slug: b.service.slug,
+          icon: b.service.icon,
+          chip: getBookingVisualLabel(state, 'PARTNER'),
+          chipClass: bookingStatusColor(state).full,
+          detail: `${b.user?.name || 'Cliente'} · ${formatBookingWhen({ scheduledDate: new Date(b.scheduledDate), scheduledTime: b.scheduledTime })} · ${step.text}`,
+          actor: step.actor,
+          onOpen: () => { setFilter(''); setSearchTerm(''); router.push(`/partner?tab=bookings&booking=${b.id}`) },
+        }
+      }),
+    ...serviceRequests
+      .filter((r) => r.proposals[0]?.status === 'PENDING' && r.status === 'ACTIVE')
+      .map((r): InProgressItem => ({
+        id: `proposal-${r.proposals[0].id}`,
+        title: r.service.name,
+        slug: r.service.slug,
+        icon: r.service.icon,
+        chip: 'Propuesta enviada',
+        chipClass: 'bg-amber-100 text-amber-900 border-amber-200',
+        detail: `${r.user?.name || 'Cliente'} · ofreciste ${formatCurrency(r.proposals[0].price)} · esperando que el cliente elija`,
+        actor: 'them',
+        onOpen: () => {
+          router.push('/partner?tab=my-requests')
+          window.setTimeout(() => document.getElementById(`opportunity-${r.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 400)
+        },
+      })),
+  ]
+
+
   const newRequests = serviceRequests.filter(r => r.proposals.length === 0)
   const proposedRequestsCount = serviceRequests.length - newRequests.length
 
@@ -892,6 +931,12 @@ function PartnerDashboardContent() {
           {/* Overview Tab */}
           {activeTab === 'overview' && (
             <div className="space-y-4 mt-4">
+
+              <InProgressPanel
+                items={inProgressItems}
+                emptyText="No tienes reservas ni propuestas en curso. Revisa las oportunidades nuevas para enviar propuestas."
+                emptyAction={{ label: 'Ver oportunidades', onClick: () => router.push('/partner?tab=my-requests') }}
+              />
 
               {/* ── Verification banner (no bloqueante) ── */}
               {verificationAlert.isOpen && (
@@ -1576,7 +1621,7 @@ function PartnerDashboardContent() {
                     const own = request.proposals[0]
                     const ownChip = own ? (PROPOSAL_STATUS_CHIP[own.status] || PROPOSAL_STATUS_CHIP.PENDING) : null
                     return (
-                    <div key={request.id} className="bg-white rounded-2xl sm:rounded-3xl shadow-lg hover:shadow-xl transition-all overflow-hidden border border-gray-100">
+                    <div key={request.id} id={`opportunity-${request.id}`} className="scroll-mt-28 bg-white rounded-2xl sm:rounded-3xl shadow-lg hover:shadow-xl transition-all overflow-hidden border border-gray-100">
                       <div className="p-5 sm:p-6">
                         <div className="flex items-start gap-4 mb-5">
                           <ServiceIcon slug={request.service.slug} emoji={request.service.icon} size="xl" />

@@ -23,6 +23,7 @@ import UnifiedBookingCard from '@/components/shared/UnifiedBookingCard'
 import OriginBadge from '@/components/shared/OriginBadge'
 import OfflinePaymentActions from '@/components/payments/OfflinePaymentActions'
 import ServiceIcon from '@/components/ServiceIcon'
+import InProgressPanel, { type InProgressItem } from '@/components/shared/InProgressPanel'
 import ClientDashboardNav from '@/components/ClientDashboardNav'
 import { BOOKING_FILTER_ORDER, bookingStatusColor, getBookingVisualLabel, getBookingVisualState, getNextStep, isPaymentSettled, type BookingVisualState } from '@/lib/booking-status'
 import { useDialog } from '@/components/ui/use-dialog'
@@ -759,6 +760,48 @@ export default function DashboardPage() {
     .filter((r) => r.status === 'ACTIVE' && (!r.expiresAt || new Date(r.expiresAt).getTime() > Date.now()))
     .reduce((total, req) => total + req.proposals.filter((p) => p.status === 'PENDING').length, 0)
 
+  // «En curso» at the top of the overview: open requests and bookings not closed yet, what each needs and who acts
+  const goToElement = (id: string) => {
+    window.setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150)
+  }
+  const inProgressItems: InProgressItem[] = [
+    ...serviceRequests
+      .filter((r) => r.status === 'ACTIVE' && new Date(r.expiresAt).getTime() > Date.now())
+      .map((r): InProgressItem => {
+        const pending = r.proposals.filter((p) => p.status === 'PENDING').length
+        return {
+          id: `request-${r.id}`,
+          title: r.service.name,
+          slug: r.service.slug,
+          icon: r.service.icon,
+          chip: 'Solicitud activa',
+          chipClass: 'bg-emerald-100 text-emerald-900 border-emerald-200',
+          detail: pending > 0
+            ? `${pending} ${pending === 1 ? 'propuesta' : 'propuestas'} para elegir · vence ${formatExpiry(r.expiresAt).replace(/\.$/, '')}`
+            : 'Esperando propuestas de socios',
+          actor: pending > 0 ? 'you' : 'them',
+          onOpen: () => { setRequestStatusFilter('ALL'); setRequestSearchTerm(''); setActiveTab('requests'); goToElement(pending > 0 ? `proposals-${r.id}` : `request-${r.id}`) },
+        }
+      }),
+    ...bookings
+      .filter((b) => !['CANCELLED', 'PAID', 'RATED', 'REFUNDED'].includes(getBookingVisualState('CLIENT', b)))
+      .map((b): InProgressItem => {
+        const state = getBookingVisualState('CLIENT', b)
+        const step = getNextStep('CLIENT', b)
+        return {
+          id: `booking-${b.id}`,
+          title: b.service.name,
+          slug: b.service.slug,
+          icon: b.service.icon,
+          chip: getBookingVisualLabel(state, 'CLIENT'),
+          chipClass: bookingStatusColor(state).full,
+          detail: `${formatBookingWhen({ scheduledDate: new Date(b.scheduledDate), scheduledTime: b.scheduledTime })} · ${step.text}`,
+          actor: step.actor,
+          onOpen: () => { setFilter(''); setSearchTerm(''); setActiveTab('bookings'); goToElement(`booking-${b.id}`) },
+        }
+      }),
+  ]
+
   const filteredBookings = bookings
     .filter(booking =>
       booking.service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -1097,28 +1140,11 @@ export default function DashboardPage() {
         <div className="account-main">
           {activeTab === 'overview' && (
             <div className="space-y-4 sm:space-y-6">
-              <div>
-                <p className="text-sm text-slate-500">Hola,</p>
-                <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-                  {session?.user?.name || 'Usuario'}
-                </h2>
-              </div>
-
-              {(() => {
-                // Completed services where the payment step is the client's (same rule as the card's «Te toca a ti»)
-                const toReport = bookings.filter((b) => getBookingVisualState('CLIENT', b) === 'COMPLETED' && getNextStep('CLIENT', b).actor === 'you')
-                if (!toReport.length) return null
-                return (
-                  <button type="button" onClick={() => { setFilter('COMPLETED'); setActiveTab('bookings') }} className="flex w-full items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-left shadow-card">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700" aria-hidden="true"><DollarSign size={20} /></span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-semibold text-amber-950">Te toca a ti: paga y repórtalo</span>
-                      <span className="block truncate text-sm text-amber-900">{toReport.length === 1 ? `${toReport[0].service.name} · ${getNextStep('CLIENT', toReport[0]).text}` : `${toReport.length} servicios terminados por pagar`}</span>
-                    </span>
-                    <ChevronRight size={18} className="shrink-0 text-amber-700" />
-                  </button>
-                )
-              })()}
+              <InProgressPanel
+                items={inProgressItems}
+                emptyText="No tienes solicitudes ni reservas en curso."
+                emptyAction={{ label: 'Solicitar un servicio', onClick: () => router.push('/') }}
+              />
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                 <div className="rounded-2xl bg-white border border-slate-100 shadow-card p-4 sm:p-5">
@@ -1613,7 +1639,7 @@ export default function DashboardPage() {
                     }
 
                     return (
-                      <div key={booking.id} className="space-y-2">
+                      <div key={booking.id} id={`booking-${booking.id}`} className="space-y-2 scroll-mt-40">
                         <UnifiedBookingCard
                           role="CLIENT"
                           serviceName={booking.service.name}
@@ -1954,6 +1980,7 @@ export default function DashboardPage() {
                     return (
                       <div
                         key={request.id}
+                        id={`request-${request.id}`}
                         className="bg-white rounded-2xl border border-slate-100 shadow-card p-4 sm:p-5"
                       >
                         <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
