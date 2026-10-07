@@ -1921,7 +1921,7 @@ function PartnerDashboardContent() {
                 type="button"
                 onClick={() => setShowProposalModal(false)}
                 disabled={submittingProposal}
-                className="min-h-[44px] bg-white text-gray-700 border-2 border-gray-400 px-4 py-3 rounded-full font-semibold hover:bg-gray-50 transition-all flex-1 disabled:opacity-50"
+                className="min-h-[44px] bg-white text-gray-700 border-2 border-gray-400 px-5 py-3 rounded-full font-semibold hover:bg-gray-50 transition-all flex-none disabled:opacity-50"
               >
                 Cancelar
               </button>
@@ -1929,7 +1929,7 @@ function PartnerDashboardContent() {
                 type="button"
                 onClick={submitProposal}
                 aria-busy={submittingProposal}
-                className="min-h-[44px] bg-gradient-to-r from-primary-600 to-primary-700 text-white px-4 py-3 rounded-full font-semibold hover:from-primary-700 hover:to-primary-800 transition-all disabled:opacity-60 disabled:cursor-not-allowed flex-1 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                className="min-h-[44px] bg-gradient-to-r from-primary-600 to-primary-700 text-white px-4 py-3 rounded-full font-semibold hover:from-primary-700 hover:to-primary-800 transition-all disabled:opacity-60 disabled:cursor-not-allowed flex-1 whitespace-nowrap flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
                 disabled={session?.user?.isActive === false || submittingProposal}
               >
                 {submittingProposal
