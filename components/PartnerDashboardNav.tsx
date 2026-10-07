@@ -15,10 +15,8 @@ interface PartnerDashboardNavProps {
   onTabChange?: (tab: 'overview' | 'bookings' | 'my-requests') => void
 }
 
+/** Counts come only from /api/partner/nav-counts; the count props are kept for old callsites and ignored. */
 export default function PartnerDashboardNav({
-  bookingsCount: bookingsCountProp = 0,
-  requestsCount = 0,
-  messagesCount: messagesCountProp = 0,
   activeTab = null,
   onTabChange,
 }: PartnerDashboardNavProps) {
@@ -26,8 +24,9 @@ export default function PartnerDashboardNav({
   const pathname = usePathname()
   const liveCounts = usePartnerNavCounts()
 
-  const bookingsCount = liveCounts.bookings || bookingsCountProp
-  const messagesCount = liveCounts.messages || messagesCountProp
+  const bookingsCount = liveCounts.bookings
+  const requestsCount = liveCounts.requests
+  const messagesCount = liveCounts.messages
 
   const navItems = useMemo(() => ([
     {
@@ -40,31 +39,34 @@ export default function PartnerDashboardNav({
     },
     {
       id: 'bookings' as const,
-      label: 'Reservas',
+      label: 'Agenda',
       icon: Package,
       path: '/partner?tab=bookings',
       badge: bookingsCount,
+      badgeLabel: 'reservas por atender',
       isTab: true,
     },
     {
       id: 'my-requests' as const,
-      label: 'Solicitudes',
+      label: 'Oportunidades',
       icon: Bell,
       path: '/partner?tab=my-requests',
       badge: requestsCount,
+      badgeLabel: 'oportunidades nuevas',
       isTab: true,
     },
     {
       id: 'messages' as const,
-      label: 'Mensajes',
+      label: 'Chats',
       icon: MessageSquare,
       path: '/partner/messages',
       badge: messagesCount,
+      badgeLabel: 'mensajes sin leer',
       isTab: false,
     },
     {
       id: 'payments' as const,
-      label: 'Pagos',
+      label: 'Ingresos',
       icon: Wallet,
       path: '/partner/payments',
       badge: 0,
@@ -101,7 +103,7 @@ export default function PartnerDashboardNav({
       {/* Desktop — same look as ClientDashboardNav */}
       <div className="hidden md:block border-t border-gray-200 bg-gray-50">
         <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
-          <nav className="flex gap-1 overflow-x-auto scrollbar-hide snap-x snap-mandatory">
+          <nav aria-label="Secciones del panel" className="flex gap-1 overflow-x-auto scrollbar-hide snap-x snap-mandatory">
             {navItems.map((item) => {
               const Icon = item.icon
               const isActive = isItemActive(item)
@@ -110,6 +112,7 @@ export default function PartnerDashboardNav({
                   key={item.id}
                   type="button"
                   onClick={() => handleNav(item)}
+                  aria-current={isActive ? 'page' : undefined}
                   className={`snap-start flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap ${
                     isActive
                       ? 'border-primary-600 text-primary-600'
@@ -118,7 +121,7 @@ export default function PartnerDashboardNav({
                 >
                   <Icon className="w-5 h-5" />
                   <span>{item.label}</span>
-                  <CountBadge count={item.badge} />
+                  <CountBadge count={item.badge} label={'badgeLabel' in item ? item.badgeLabel : undefined} />
                 </button>
               )
             })}

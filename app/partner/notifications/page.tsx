@@ -18,6 +18,25 @@ interface Notification {
   data?: string
 }
 
+const isInternalPath = (v: unknown): v is string => typeof v === 'string' && /^\/(?![/\\])/.test(v) && !v.includes('\\')
+
+/** Where a notification takes the partner: its own link when it brings one, else the concrete place for its type. */
+function partnerNotificationTarget(type: string, data: Record<string, unknown>): string {
+  for (const key of ['targetUrl', 'actionUrl', 'url']) {
+    if (isInternalPath(data[key])) return data[key] as string
+  }
+  if (type === 'NEW_MESSAGE' || data.chatId) return '/partner/messages'
+  if (type === 'DOCUMENT_APPROVED' || type === 'DOCUMENT_REJECTED') return '/partner/verification'
+  if (type === 'ACHIEVEMENT_UNLOCKED') return '/partner/achievements'
+  if (data.bookingId || data.paymentId || type.startsWith('BOOKING_') || type.startsWith('PAYMENT_') || type.startsWith('RATING_') || type === 'PROPOSAL_ACCEPTED') {
+    return typeof data.bookingId === 'string' ? `/partner?tab=bookings&booking=${encodeURIComponent(data.bookingId)}` : '/partner?tab=bookings'
+  }
+  if (data.serviceRequestId || data.proposalId || type === 'NEW_SERVICE_REQUEST' || type === 'PROPOSAL_REJECTED') {
+    return '/partner?tab=my-requests'
+  }
+  return '/partner'
+}
+
 export default function PartnerNotificationsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -117,33 +136,17 @@ export default function PartnerNotificationsPage() {
       await markAsRead(notification.id)
     }
 
-    let parsedData: any = {}
+    let parsedData: Record<string, unknown> = {}
     if (notification.data) {
       try {
-        parsedData = JSON.parse(notification.data)
+        const parsed = JSON.parse(notification.data)
+        if (parsed && typeof parsed === 'object') parsedData = parsed
       } catch (error) {
         console.error('Error parsing notification data:', error)
       }
     }
 
-    const explicitTarget = typeof parsedData.targetUrl === 'string' ? parsedData.targetUrl : null
-
-    if (explicitTarget && explicitTarget.startsWith('/')) {
-      router.push(explicitTarget)
-      return
-    }
-
-    if (parsedData.serviceRequestId) {
-      router.push('/partner?tab=my-requests')
-      return
-    }
-
-    if (parsedData.bookingId || parsedData.proposalId || parsedData.paymentId) {
-      router.push('/partner?tab=bookings')
-      return
-    }
-
-    router.push('/partner')
+    router.push(partnerNotificationTarget(notification.type, parsedData))
   }
 
   const handleEnablePushNotifications = async () => {
@@ -169,7 +172,7 @@ export default function PartnerNotificationsPage() {
         isLoading: pushLoading,
         error: pushError
       }}
-      headerSubtitle={`Socio: ${unreadCount} sin leer`}
+      headerSubtitle={`${unreadCount} sin leer`}
       emptySubtitle="Aquí verás novedades de reservas, solicitudes y actividad de clientes."
       nav={(
         <PartnerDashboardNav

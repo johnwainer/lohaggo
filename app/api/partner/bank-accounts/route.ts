@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
+import { maskAccountNumber } from '@/lib/admin/pagination'
 import { getColombiaBankCatalog } from '@/lib/banking/catalog'
 import { addBankAccount } from '@/lib/partners/ops'
 import { APP_ORIGIN, OpsError, type Actor } from '@/lib/ops/origin'
@@ -17,8 +18,10 @@ async function sessionPartner(): Promise<{ actor: Actor; partnerId: string } | n
   return { actor: { userId: session.user.id, role: session.user.role as Actor['role'], partnerId: profile.id, email: session.user.email ?? null }, partnerId: profile.id }
 }
 
-function listAccounts(partnerId: string) {
-  return prisma.partnerBankAccount.findMany({ where: { partnerId }, orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }] })
+/** The partner's accounts as the browser sees them: account and document numbers show only their last 4 digits. */
+async function listAccounts(partnerId: string) {
+  const rows = await prisma.partnerBankAccount.findMany({ where: { partnerId }, orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }] })
+  return rows.map((r) => ({ ...r, accountNumber: maskAccountNumber(r.accountNumber) ?? '', holderDocumentNumber: maskAccountNumber(r.holderDocumentNumber) ?? '' }))
 }
 
 export async function GET() {
@@ -39,7 +42,7 @@ export async function POST(req: NextRequest) {
     if (!ctx) return NextResponse.json({ error: 'Perfil de socio no encontrado' }, { status: 404 })
     const body = await req.json()
     const account = await addBankAccount(ctx.actor, body, APP_ORIGIN)
-    return NextResponse.json({ account }, { status: 201 })
+    return NextResponse.json({ account: { ...account, accountNumber: maskAccountNumber(account.accountNumber) ?? '', holderDocumentNumber: maskAccountNumber(account.holderDocumentNumber) ?? '' } }, { status: 201 })
   } catch (error) {
     if (error instanceof OpsError) return NextResponse.json({ error: error.message }, { status: error.status })
     logger.error('Error creating partner bank account', error || undefined)

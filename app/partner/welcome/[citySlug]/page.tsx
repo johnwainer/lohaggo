@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
+import { formatCalendarDay } from '@/lib/bookings/when'
 import {
   CheckCircle,
   Calendar,
@@ -59,8 +60,9 @@ export default function PartnerWelcomePage({ params }: { params: Promise<{ cityS
 
   if (loading || status === 'loading') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary-50 via-secondary-50 to-accent-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
+      <div className="min-h-screen bg-gradient-to-br from-primary-50 via-secondary-50 to-accent-50 flex items-center justify-center" aria-busy="true">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600" aria-hidden="true"></div>
+        <span className="sr-only">Cargando…</span>
       </div>
     )
   }
@@ -70,11 +72,7 @@ export default function PartnerWelcomePage({ params }: { params: Promise<{ cityS
   }
 
   const launchDate = city.launchDate
-    ? new Date(city.launchDate).toLocaleDateString('es-ES', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      })
+    ? formatCalendarDay(city.launchDate, { year: 'numeric', month: 'long', day: 'numeric' })
     : 'Próximamente'
 
   const steps = [
@@ -237,10 +235,10 @@ export default function PartnerWelcomePage({ params }: { params: Promise<{ cityS
           </p>
           <button
             onClick={() => router.push('/partner')}
-            className="inline-flex items-center gap-2 bg-white text-primary-600 font-bold px-8 py-4 rounded-xl hover:bg-gray-50 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+            className="inline-flex items-center gap-2 bg-white text-primary-700 font-bold px-8 min-h-[52px] rounded-full hover:bg-gray-50 transition-all shadow-lg hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-primary-500"
           >
             <span>Ir a mi Panel de Socio</span>
-            <ArrowRight size={20} />
+            <ArrowRight size={20} aria-hidden="true" />
           </button>
         </div>
 

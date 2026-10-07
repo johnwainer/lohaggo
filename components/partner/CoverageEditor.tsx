@@ -102,7 +102,7 @@ export default function CoverageEditor() {
         type="button"
         aria-pressed={on}
         onClick={() => toggleZone(z.key)}
-        className={`min-h-[36px] px-3.5 py-1.5 rounded-full text-sm font-semibold border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-1 ${
+        className={`min-h-[44px] px-4 py-2 rounded-full text-sm font-semibold border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-1 ${
           on ? 'bg-primary-600 border-primary-600 text-white' : 'bg-white border-gray-200 text-gray-700 hover:border-primary-300'
         }`}
       >
@@ -114,10 +114,10 @@ export default function CoverageEditor() {
   return (
     <section id="zonas-y-horario" aria-labelledby="coverage-title" className="mb-8 scroll-mt-20">
       <h2 id="coverage-title" className="text-xl font-semibold text-gray-900 mb-1">Zonas y horario</h2>
-      <p className="text-sm text-gray-500 mb-4">Te avisamos primero de las solicitudes en tus zonas y dentro de tu horario.</p>
+      <p className="text-sm text-gray-600 mb-4">Te avisamos primero de las solicitudes en tus zonas y dentro de tu horario.</p>
 
       {loading ? (
-        <div className="bg-white rounded-2xl border border-gray-100 p-6 text-sm text-gray-500">Cargando…</div>
+        <div className="bg-white rounded-2xl border border-gray-100 p-6 text-sm text-gray-600" aria-busy="true">Cargando…</div>
       ) : (
         <div className="space-y-4">
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5">
@@ -125,19 +125,19 @@ export default function CoverageEditor() {
               <MapPin size={18} className="text-primary-600" aria-hidden />
               <h3 className="font-bold text-gray-900">Zonas donde trabajas</h3>
             </div>
-            <p className="text-xs text-gray-500 mb-4">
+            <p className="text-xs text-gray-600 mb-4">
               Sin zonas marcadas = atiendes toda la ciudad.
               {zones.length > 0 && <> · <span className="font-semibold text-primary-700">{zones.length} marcada{zones.length === 1 ? '' : 's'}</span></>}
             </p>
 
-            <p className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Medellín (comunas)</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-gray-600 mb-2">Medellín (comunas)</p>
             <div className="flex flex-wrap gap-2 mb-4">{comunas.map(chip)}</div>
 
-            <p className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Área metropolitana</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-gray-600 mb-2">Área metropolitana</p>
             <div className="flex flex-wrap gap-2">{municipios.map(chip)}</div>
 
             {zones.length > 0 && (
-              <button type="button" onClick={() => { setStatus(null); setZones([]) }} className="mt-4 text-sm font-semibold text-gray-500 underline underline-offset-2 hover:text-gray-700">
+              <button type="button" onClick={() => { setStatus(null); setZones([]) }} className="mt-4 min-h-[44px] rounded-full px-1 text-sm font-semibold text-gray-600 underline underline-offset-2 hover:text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500">
                 Quitar todas (toda la ciudad)
               </button>
             )}
@@ -148,7 +148,7 @@ export default function CoverageEditor() {
               <CalendarClock size={18} className="text-secondary-600" aria-hidden />
               <h3 className="font-bold text-gray-900">Horario semanal</h3>
             </div>
-            <p className="text-xs text-gray-500 mb-3">Sin días activos = te llegan solicitudes a cualquier hora.</p>
+            <p className="text-xs text-gray-600 mb-3">Sin días activos = te llegan solicitudes a cualquier hora.</p>
 
             <ul className="divide-y divide-gray-100">
               {DAY_ORDER.map((d) => {
@@ -158,16 +158,18 @@ export default function CoverageEditor() {
                 return (
                   <li key={d} className="py-3">
                     <div className="flex items-center justify-between gap-3">
-                      <span id={`day-${d}`} className={`font-semibold ${on ? 'text-gray-900' : 'text-gray-400'}`}>{dayName}</span>
+                      <span id={`day-${d}`} className={`font-semibold ${on ? 'text-gray-900' : 'text-gray-600'}`}>{dayName}</span>
                       <button
                         type="button"
                         role="switch"
                         aria-checked={on}
                         aria-labelledby={`day-${d}`}
                         onClick={() => updateDay(d, on ? [] : [{ ...DEFAULT_RANGE }])}
-                        className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-1 ${on ? 'bg-primary-600' : 'bg-gray-200'}`}
+                        className="relative inline-flex h-11 w-14 flex-shrink-0 items-center justify-center rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-1"
                       >
-                        <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${on ? 'translate-x-6' : 'translate-x-1'}`} />
+                        <span aria-hidden className={`relative inline-flex h-7 w-12 items-center rounded-full transition ${on ? 'bg-primary-600' : 'bg-gray-300'}`}>
+                          <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${on ? 'translate-x-6' : 'translate-x-1'}`} />
+                        </span>
                       </button>
                     </div>
 
@@ -182,17 +184,17 @@ export default function CoverageEditor() {
                                 id={`from-${d}-${i}`}
                                 value={r.startTime}
                                 onChange={(e) => updateDay(d, ranges.map((x, j) => (j === i ? { ...x, startTime: e.target.value } : x)))}
-                                className={`flex-1 min-w-0 h-10 rounded-xl border bg-gray-50 px-2 text-sm font-medium text-gray-900 ${bad ? 'border-red-300' : 'border-gray-200'}`}
+                                className={`flex-1 min-w-0 h-11 rounded-xl border bg-gray-50 px-2 text-sm font-medium text-gray-900 ${bad ? 'border-red-300' : 'border-gray-200'}`}
                               >
                                 {TIMES.map((t) => <option key={t} value={t}>{t}</option>)}
                               </select>
-                              <span className="text-gray-400 text-sm" aria-hidden>a</span>
+                              <span className="text-gray-600 text-sm" aria-hidden>a</span>
                               <label className="sr-only" htmlFor={`to-${d}-${i}`}>{`${dayName} hasta`}</label>
                               <select
                                 id={`to-${d}-${i}`}
                                 value={r.endTime}
                                 onChange={(e) => updateDay(d, ranges.map((x, j) => (j === i ? { ...x, endTime: e.target.value } : x)))}
-                                className={`flex-1 min-w-0 h-10 rounded-xl border bg-gray-50 px-2 text-sm font-medium text-gray-900 ${bad ? 'border-red-300' : 'border-gray-200'}`}
+                                className={`flex-1 min-w-0 h-11 rounded-xl border bg-gray-50 px-2 text-sm font-medium text-gray-900 ${bad ? 'border-red-300' : 'border-gray-200'}`}
                               >
                                 {END_TIMES.map((t) => <option key={t} value={t}>{label(t)}</option>)}
                               </select>
@@ -201,9 +203,9 @@ export default function CoverageEditor() {
                                   type="button"
                                   aria-label={`Quitar franja ${i + 1} del ${dayName.toLowerCase()}`}
                                   onClick={() => updateDay(d, ranges.filter((_, j) => j !== i))}
-                                  className="h-10 w-10 flex-shrink-0 inline-flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                                  className="h-11 w-11 flex-shrink-0 inline-flex items-center justify-center rounded-full text-gray-600 hover:bg-gray-100 hover:text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
                                 >
-                                  <X size={16} />
+                                  <X size={16} aria-hidden />
                                 </button>
                               )}
                             </div>
@@ -219,7 +221,7 @@ export default function CoverageEditor() {
                                 const from = idx >= 0 && idx + 4 < TIMES.length ? idx : TIMES.indexOf('18:00')
                                 updateDay(d, [...ranges, { startTime: TIMES[from], endTime: TIMES[from + 4] }])
                               }}
-                              className="inline-flex items-center gap-1 text-xs font-semibold text-primary-700 hover:text-primary-800 py-1"
+                              className="inline-flex min-h-[44px] items-center gap-1 rounded-full px-1 text-xs font-semibold text-primary-700 hover:text-primary-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
                             >
                               <Plus size={14} aria-hidden /> Otra franja
                             </button>
@@ -227,7 +229,7 @@ export default function CoverageEditor() {
                           <button
                             type="button"
                             onClick={() => copyToAll(d)}
-                            className="inline-flex items-center gap-1 text-xs font-semibold text-secondary-700 hover:text-secondary-800 py-1"
+                            className="inline-flex min-h-[44px] items-center gap-1 rounded-full px-1 text-xs font-semibold text-secondary-700 hover:text-secondary-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
                           >
                             <Copy size={14} aria-hidden /> Copiar a todos los días
                           </button>
@@ -251,7 +253,7 @@ export default function CoverageEditor() {
             type="button"
             onClick={save}
             disabled={saving}
-            className="w-full sm:w-auto px-8 h-12 rounded-full bg-primary-600 text-white font-bold hover:bg-primary-700 disabled:opacity-60 transition"
+            className="w-full sm:w-auto px-8 h-12 rounded-full bg-primary-600 text-white font-bold hover:bg-primary-700 disabled:opacity-60 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
           >
             {saving ? 'Guardando…' : 'Guardar zonas y horario'}
           </button>

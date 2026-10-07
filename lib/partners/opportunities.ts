@@ -92,6 +92,8 @@ export function toPartnerOpportunity(r: SourceRequest, partnerId: string) {
     photos: (r.photos || []).map((p) => ({ id: p.id, url: p.url, order: p.order })),
     proposals: own.slice(0, 1).map((p) => ({ id: p.id, price: p.price, notes: p.notes, status: p.status })),
     _count: { proposals: r._count?.proposals ?? own.length },
+    /** Other partners' proposals on this request (the partner's own one does not count). */
+    competitors: Math.max(0, (r._count?.proposals ?? own.length) - own.length),
   }
 }
 

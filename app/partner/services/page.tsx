@@ -15,6 +15,8 @@ import AccountPanel from '@/components/shared/AccountPanel'
 import ServiceIcon from '@/components/ServiceIcon'
 import CoverageEditor from '@/components/partner/CoverageEditor'
 import { opportunitiesFromResponse } from '@/lib/partners/opportunities'
+import ConfirmModal from '@/components/ConfirmModal'
+import { BottomSheet } from '@/components/ui/bottom-sheet'
 
 interface ApprovedDoc {
   id: string
@@ -69,6 +71,7 @@ export default function ServicesManagementPage() {
   const [showUnverified, setShowUnverified] = useState(false)
   const [bookingsCount, setBookingsCount] = useState(0)
   const [requestsCount, setRequestsCount] = useState(0)
+  const [toRemove, setToRemove] = useState<{ partnerServiceId: string; name: string } | null>(null)
 
   useEffect(() => {
     if (status === 'authenticated') {
@@ -168,10 +171,6 @@ export default function ServicesManagementPage() {
   }
 
   const handleRemoveService = async (partnerServiceId: string) => {
-    if (!confirm('¿Estás seguro de que quieres eliminar este servicio?')) {
-      return
-    }
-
     try {
       const res = await fetch('/api/partner/services', {
         method: 'DELETE',
@@ -236,9 +235,9 @@ export default function ServicesManagementPage() {
 
   if (loading) {
     return (
-      <div className="panel-page min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100">
+      <div className="panel-page min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100" aria-busy="true">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-primary-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-primary-600 mx-auto mb-4" aria-hidden="true"></div>
           <p className="text-gray-600 font-medium">Cargando servicios...</p>
         </div>
       </div>
@@ -258,13 +257,13 @@ export default function ServicesManagementPage() {
           }}
         />
 
-        <main className="account-main">
+        <div className="account-main">
           <div>
             {message && (
-              <div className={`mb-6 p-4 rounded-lg flex items-center gap-3 ${
+              <div role={message.type === 'error' ? 'alert' : 'status'} className={`mb-6 p-4 rounded-2xl flex items-center gap-3 ${
                 message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
               }`}>
-                {message.type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
+                {message.type === 'success' ? <CheckCircle size={20} aria-hidden="true" /> : <AlertCircle size={20} aria-hidden="true" />}
                 <span>{message.text}</span>
               </div>
             )}
@@ -276,7 +275,7 @@ export default function ServicesManagementPage() {
                     <p className="text-gray-600 text-sm">Servicios Activos</p>
                     <p className="text-3xl font-bold text-primary-600">{activeServices.length}</p>
                   </div>
-                  <Settings className="text-primary-600" size={40} />
+                  <Settings className="text-primary-600" size={40} aria-hidden="true" />
                 </div>
               </div>
               <div className="surface-card p-6">
@@ -285,10 +284,10 @@ export default function ServicesManagementPage() {
                     <p className="text-gray-600 text-sm">Para activar</p>
                     <p className="text-3xl font-bold text-gray-900">{verifiedServices.length - activeServices.length}</p>
                     {hiddenByVerification > 0 && (
-                      <p className="text-[11px] text-gray-500 mt-0.5">{hiddenByVerification} requieren verificación</p>
+                      <p className="text-xs text-gray-600 mt-0.5">{hiddenByVerification} requieren verificación</p>
                     )}
                   </div>
-                  <Plus className="text-gray-600" size={40} />
+                  <Plus className="text-gray-600" size={40} aria-hidden="true" />
                 </div>
               </div>
             </div>
@@ -296,9 +295,9 @@ export default function ServicesManagementPage() {
             <div className="mb-6">
               <button
                 onClick={() => setShowAddModal(true)}
-                className="bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition flex items-center gap-2 font-medium"
+                className="bg-primary-600 text-white px-6 min-h-[48px] rounded-full hover:bg-primary-700 transition flex items-center gap-2 font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
               >
-                <Plus size={20} />
+                <Plus size={20} aria-hidden="true" />
                 Agregar Nuevo Servicio
               </button>
             </div>
@@ -307,9 +306,9 @@ export default function ServicesManagementPage() {
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Mis Servicios</h2>
               {activeServices.length === 0 ? (
                 <AccountPanel className="text-center">
-                  <AlertCircle className="mx-auto text-gray-400 mb-4" size={48} />
+                  <AlertCircle className="mx-auto text-gray-500 mb-4" size={48} aria-hidden="true" />
                   <p className="text-gray-600">No tienes servicios activos</p>
-                  <p className="text-sm text-gray-500 mt-2">Agrega servicios para empezar a recibir solicitudes</p>
+                  <p className="text-sm text-gray-600 mt-2">Agrega servicios para empezar a recibir solicitudes</p>
                 </AccountPanel>
               ) : (
                 <div className="space-y-4">
@@ -323,10 +322,10 @@ export default function ServicesManagementPage() {
                               <h3 className="text-lg font-semibold text-gray-900">{service.name}</h3>
                               <p className="text-sm text-gray-600 mt-1">{service.description}</p>
                               <div className="flex items-center gap-4 mt-2">
-                                <span className="text-xs bg-primary-100 text-primary-700 px-2 py-1 rounded">
+                                <span className="text-xs bg-primary-100 text-primary-700 px-2 py-1 rounded-full">
                                   {service.category.name}
                                 </span>
-                                <span className="text-xs text-gray-500">
+                                <span className="text-xs text-gray-600">
                                   {service.duration} min
                                 </span>
                               </div>
@@ -346,19 +345,20 @@ export default function ServicesManagementPage() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <div className="text-sm text-gray-600 bg-blue-50 px-3 py-1 rounded-lg flex items-center">
-                              <Settings size={16} className="inline mr-1" />
+                            <div className="hidden sm:flex text-sm text-gray-600 bg-blue-50 px-3 py-1 rounded-full items-center">
+                              <Settings size={16} className="inline mr-1" aria-hidden="true" />
                               Editable abajo
                             </div>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation()
-                                handleRemoveService(service.partnerServiceId!)
+                                setToRemove({ partnerServiceId: service.partnerServiceId!, name: service.name })
                               }}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                              className="h-11 w-11 inline-flex items-center justify-center text-red-600 hover:bg-red-50 rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                              aria-label={`Eliminar servicio ${service.name}`}
                               title="Eliminar servicio"
                             >
-                              <Trash2 size={20} />
+                              <Trash2 size={20} aria-hidden="true" />
                             </button>
                           </div>
                         </div>
@@ -367,8 +367,10 @@ export default function ServicesManagementPage() {
                       <div className="border-t border-gray-100 px-4 py-4 bg-gray-50">
                         <div className="flex flex-col sm:flex-row gap-3">
                           <div className="flex-1">
-                            <label className="block text-xs font-medium text-gray-500 mb-1.5">💰 Precio</label>
+                            <label htmlFor={`price-${service.id}`} className="block text-xs font-medium text-gray-600 mb-1.5"><span aria-hidden="true">💰 </span>Precio</label>
                             <input
+                              id={`price-${service.id}`}
+                              inputMode="numeric"
                               type="number"
                               value={service.price}
                               onChange={(e) => {
@@ -377,14 +379,15 @@ export default function ServicesManagementPage() {
                                 )
                                 setActiveServices(newServices)
                               }}
-                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                              className="w-full px-3 min-h-[44px] text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                               min="0"
                               step="1000"
                             />
                           </div>
                           <div className="flex-1">
-                            <label className="block text-xs font-medium text-gray-500 mb-1.5">📍 Ciudad</label>
+                            <label htmlFor={`city-${service.id}`} className="block text-xs font-medium text-gray-600 mb-1.5"><span aria-hidden="true">📍 </span>Ciudad</label>
                             <select
+                              id={`city-${service.id}`}
                               value={service.city || 'MEDELLIN'}
                               onChange={(e) => {
                                 const newServices = activeServices.map(s =>
@@ -392,7 +395,7 @@ export default function ServicesManagementPage() {
                                 )
                                 setActiveServices(newServices)
                               }}
-                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                              className="w-full px-3 min-h-[44px] text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                             >
                               {CITIES.map(city => (
                                 <option key={city.value} value={city.value}>{city.label}</option>
@@ -402,7 +405,7 @@ export default function ServicesManagementPage() {
                           <div className="sm:self-end">
                             <button
                               onClick={() => handleUpdatePrice(service.partnerServiceId!, service.id, service.price, service.city || 'MEDELLIN')}
-                              className="w-full sm:w-auto px-5 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 transition"
+                              className="w-full sm:w-auto px-5 min-h-[44px] bg-primary-600 text-white text-sm font-semibold rounded-full hover:bg-primary-700 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
                             >
                               Guardar
                             </button>
@@ -417,123 +420,124 @@ export default function ServicesManagementPage() {
 
             <CoverageEditor />
 
-            {showAddModal && (
-              <div className="fixed inset-0 bg-black/50 z-50 flex flex-col justify-end sm:items-center sm:justify-center sm:p-4">
-                <div className="bg-white w-full rounded-t-2xl sm:rounded-2xl sm:max-w-2xl max-h-[92vh] sm:max-h-[85vh] overflow-hidden flex flex-col">
-                  {/* Header */}
-                  <div className="px-5 pt-5 pb-4 border-b border-gray-100 flex items-center justify-between">
-                    <div>
-                      <h2 className="text-lg font-bold text-gray-900">Agregar servicio</h2>
-                      <p className="text-xs text-gray-500 mt-0.5">Máximo 5 servicios en tu perfil</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                        activeServices.length >= 5 ? 'bg-red-100 text-red-700' : 'bg-primary-100 text-primary-700'
-                      }`}>
-                        {activeServices.length}/5
-                      </span>
-                      <button
-                        onClick={() => setShowAddModal(false)}
-                        className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition"
-                      >
-                        ✕
-                      </button>
-                    </div>
+            <BottomSheet
+              open={showAddModal}
+              onClose={() => setShowAddModal(false)}
+              title={
+                <span className="flex items-center gap-2">
+                  Agregar servicio
+                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                    activeServices.length >= 5 ? 'bg-red-100 text-red-800' : 'bg-primary-100 text-primary-700'
+                  }`}>
+                    {activeServices.length}/5
+                  </span>
+                </span>
+              }
+              description="Máximo 5 servicios en tu perfil"
+              className="sm:max-h-[85vh]"
+            >
+              <div className="-mx-5">
+                {hiddenByVerification > 0 && (
+                  <div className="px-5 py-2 bg-amber-50 border-y border-amber-100 flex items-center gap-2 text-xs">
+                    <AlertCircle size={14} className="text-amber-700 flex-shrink-0" aria-hidden="true" />
+                    <span className="text-amber-900 flex-1">
+                      Ocultando <strong>{hiddenByVerification}</strong> servicios sin documentos aprobados.
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowUnverified(v => !v)}
+                      aria-pressed={showUnverified}
+                      className="min-h-[44px] px-2 rounded-full font-semibold text-amber-800 hover:text-amber-900 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600"
+                    >
+                      {showUnverified ? 'Ocultar' : 'Ver todos'}
+                    </button>
                   </div>
+                )}
 
-                  {/* Verification filter banner */}
-                  {hiddenByVerification > 0 && (
-                    <div className="px-5 py-3 bg-amber-50 border-b border-amber-100 flex items-center gap-2 text-xs">
-                      <AlertCircle size={14} className="text-amber-600 flex-shrink-0" />
-                      <span className="text-amber-900 flex-1">
-                        Ocultando <strong>{hiddenByVerification}</strong> servicios sin documentos aprobados.
-                      </span>
+                <div className="px-5 py-2 border-b border-gray-100">
+                  <div className="flex gap-2 overflow-x-auto py-1 no-scrollbar" role="group" aria-label="Filtrar por categoría">
+                    {['all', ...categories].map(category => (
                       <button
-                        onClick={() => setShowUnverified(v => !v)}
-                        className="font-semibold text-amber-700 hover:text-amber-900 whitespace-nowrap"
-                      >
-                        {showUnverified ? 'Ocultar' : 'Ver todos'}
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Category tabs — horizontal scroll */}
-                  <div className="px-5 py-3 border-b border-gray-100">
-                    <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-                      <button
-                        onClick={() => setSelectedCategory('all')}
-                        className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition ${
-                          selectedCategory === 'all'
+                        key={category}
+                        type="button"
+                        onClick={() => setSelectedCategory(category)}
+                        aria-pressed={selectedCategory === category}
+                        className={`flex-shrink-0 px-4 min-h-[44px] rounded-full text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 ${
+                          selectedCategory === category
                             ? 'bg-primary-600 text-white'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         }`}
                       >
-                        Todos
+                        {category === 'all' ? 'Todos' : category}
                       </button>
-                      {categories.map(category => (
-                        <button
-                          key={category}
-                          onClick={() => setSelectedCategory(category)}
-                          className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition ${
-                            selectedCategory === category
-                              ? 'bg-primary-600 text-white'
-                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                          }`}
-                        >
-                          {category}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Service list */}
-                  <div className="flex-1 overflow-y-auto">
-                    {filteredServices.length === 0 ? (
-                      <div className="text-center py-12">
-                        <AlertCircle className="mx-auto text-gray-300 mb-3" size={40} />
-                        <p className="text-gray-500 text-sm">No hay servicios en esta categoría</p>
-                      </div>
-                    ) : (
-                      <ul className="divide-y divide-gray-100">
-                        {filteredServices.map((service) => {
-                          const isDisabled = !service.isActive && activeServices.length >= 5
-                          return (
-                            <li
-                              key={service.id}
-                              onClick={() => !service.isActive && !isDisabled && handleAddService(service)}
-                              className={`flex items-center gap-3 px-5 py-3.5 transition ${
-                                service.isActive
-                                  ? 'bg-green-50'
-                                  : isDisabled
-                                  ? 'opacity-40 cursor-not-allowed'
-                                  : 'active:bg-gray-50 cursor-pointer hover:bg-gray-50'
-                              }`}
-                            >
-                              <ServiceIcon slug={service.slug} emoji={service.icon} size="sm" />
-                              <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-gray-900 text-sm leading-tight">{service.name}</p>
-                                <p className="text-xs text-gray-500 mt-0.5">{service.category.name} · {service.duration} min</p>
-                              </div>
-                              <div className="flex-shrink-0">
-                                {service.isActive ? (
-                                  <CheckCircle size={20} className="text-green-500" />
-                                ) : isDisabled ? (
-                                  <AlertCircle size={20} className="text-gray-300" />
-                                ) : (
-                                  <span className="text-xs font-bold text-primary-600 bg-primary-50 px-2.5 py-1 rounded-full">+ Agregar</span>
-                                )}
-                              </div>
-                            </li>
-                          )
-                        })}
-                      </ul>
-                    )}
+                    ))}
                   </div>
                 </div>
+
+                {filteredServices.length === 0 ? (
+                  <div className="text-center py-12">
+                    <AlertCircle className="mx-auto text-gray-400 mb-3" size={40} aria-hidden="true" />
+                    <p className="text-gray-600 text-sm">No hay servicios en esta categoría</p>
+                  </div>
+                ) : (
+                  <ul className="divide-y divide-gray-100">
+                    {filteredServices.map((service) => {
+                      const isDisabled = !service.isActive && activeServices.length >= 5
+                      return (
+                        <li key={service.id}>
+                          <button
+                            type="button"
+                            onClick={() => handleAddService(service)}
+                            disabled={service.isActive || isDisabled}
+                            aria-label={
+                              service.isActive
+                                ? `${service.name}: ya está en tu perfil`
+                                : isDisabled
+                                ? `${service.name}: llegaste al máximo de 5 servicios`
+                                : `Agregar ${service.name}`
+                            }
+                            className={`w-full text-left flex items-center gap-3 px-5 py-3.5 min-h-[56px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500 ${
+                              service.isActive
+                                ? 'bg-green-50 cursor-default'
+                                : isDisabled
+                                ? 'cursor-not-allowed'
+                                : 'active:bg-gray-50 hover:bg-gray-50'
+                            }`}
+                          >
+                            <ServiceIcon slug={service.slug} emoji={service.icon} size="sm" />
+                            <span className="flex-1 min-w-0">
+                              <span className={`block font-semibold text-sm leading-tight ${isDisabled ? 'text-gray-600' : 'text-gray-900'}`}>{service.name}</span>
+                              <span className="block text-xs text-gray-600 mt-0.5">{service.category.name} · {service.duration} min</span>
+                            </span>
+                            <span className="flex-shrink-0" aria-hidden="true">
+                              {service.isActive ? (
+                                <CheckCircle size={20} className="text-green-600" />
+                              ) : isDisabled ? (
+                                <span className="text-xs font-semibold text-gray-600">Máximo 5</span>
+                              ) : (
+                                <span className="text-xs font-bold text-primary-700 bg-primary-50 px-3 py-1.5 rounded-full">+ Agregar</span>
+                              )}
+                            </span>
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
               </div>
-            )}
+            </BottomSheet>
+
+            <ConfirmModal
+              isOpen={!!toRemove}
+              onClose={() => setToRemove(null)}
+              onConfirm={() => { if (toRemove) handleRemoveService(toRemove.partnerServiceId) }}
+              title="Eliminar servicio"
+              message={toRemove ? `¿Quieres quitar «${toRemove.name}» de tu perfil? Dejarás de recibir solicitudes de este servicio.` : ''}
+              confirmText="Eliminar"
+              type="danger"
+            />
           </div>
-        </main>
+        </div>
       </div>
     </div>
   )

@@ -17,11 +17,22 @@ export async function GET() {
 
   const payouts = await prisma.payout.findMany({
     where: { partnerId: partner.id },
-    include: {
+    select: {
+      id: true,
+      amount: true,
+      partnerCommission: true,
+      partnerCommissionRate: true,
+      netAmount: true,
+      status: true,
+      createdAt: true,
+      processedAt: true,
       payment: {
-        include: {
+        select: {
           booking: {
-            include: {
+            select: {
+              id: true,
+              scheduledDate: true,
+              scheduledTime: true,
               service: { select: { name: true, slug: true, icon: true } },
               user: { select: { name: true } },
             },

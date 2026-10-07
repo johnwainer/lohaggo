@@ -2,9 +2,9 @@
 
 import { CountBadge } from '@/components/ui/count-badge'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { Sparkles, ChevronDown, MapPin, LogOut, Home, Package, Zap, MessageSquare, UserCircle, Shield, Settings, Landmark, Wallet, Award, Globe, Menu, X } from 'lucide-react'
 import NotificationBell from '@/components/NotificationBell'
 import { useCity } from '@/lib/city-context'
@@ -16,13 +16,14 @@ type SidebarLink = {
   icon: typeof Home
   href: string
   highlight?: boolean
+  badgeLabel?: string
 }
 
 const SIDEBAR_LINKS: readonly SidebarLink[] = [
   { id: 'overview', label: 'Inicio', icon: Home, href: '/partner' },
-  { id: 'bookings', label: 'Agenda', icon: Package, href: '/partner?tab=bookings' },
-  { id: 'solicitudes', label: 'Solicitudes', icon: Zap, href: '/partner?tab=my-requests', highlight: true },
-  { id: 'messages', label: 'Chats', icon: MessageSquare, href: '/partner/messages' },
+  { id: 'bookings', label: 'Agenda', icon: Package, href: '/partner?tab=bookings', badgeLabel: 'reservas por atender' },
+  { id: 'solicitudes', label: 'Oportunidades', icon: Zap, href: '/partner?tab=my-requests', highlight: true, badgeLabel: 'oportunidades nuevas' },
+  { id: 'messages', label: 'Chats', icon: MessageSquare, href: '/partner/messages', badgeLabel: 'mensajes sin leer' },
   { id: 'payments', label: 'Ingresos', icon: Wallet, href: '/partner/payments' },
 ]
 
@@ -34,7 +35,21 @@ const BUSINESS_LINKS = [
   { id: 'achievements', label: 'Logros', icon: Award, href: '/partner/achievements' },
 ] as const
 
+/** useSearchParams needs a Suspense boundary; the fallback reads the tab as empty (Inicio) until it resolves. */
 export default function PartnerShell({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={<PartnerShellInner tab={null}>{children}</PartnerShellInner>}>
+      <PartnerShellWithParams>{children}</PartnerShellWithParams>
+    </Suspense>
+  )
+}
+
+function PartnerShellWithParams({ children }: { children: React.ReactNode }) {
+  const searchParams = useSearchParams()
+  return <PartnerShellInner tab={searchParams.get('tab')}>{children}</PartnerShellInner>
+}
+
+function PartnerShellInner({ children, tab }: { children: React.ReactNode; tab: string | null }) {
   const pathname = usePathname()
   const router = useRouter()
   const { data: session } = useSession()
@@ -58,18 +73,22 @@ export default function PartnerShell({ children }: { children: React.ReactNode }
     return () => document.removeEventListener('mousedown', handler)
   }, [menuOpen])
 
-  useEffect(() => { setMenuOpen(false) }, [pathname])
+  useEffect(() => { setMenuOpen(false) }, [pathname, tab])
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false) }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [menuOpen])
 
   const isLinkActive = (href: string) => {
     const [base, query] = href.split('?')
     if (base !== pathname) return false
-    if (!query) {
-      // /partner exacto sin tab → overview
-      return new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('tab') === null
-        || base !== '/partner'
-    }
-    const want = new URLSearchParams(query).get('tab')
-    const has = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('tab')
+    const want = query ? new URLSearchParams(query).get('tab') : null
+    if (base !== '/partner') return true
+    // /partner sin tab (o tab desconocido) → Inicio
+    const has = tab === 'bookings' || tab === 'my-requests' ? tab : null
     return want === has
   }
 
@@ -114,9 +133,12 @@ export default function PartnerShell({ children }: { children: React.ReactNode }
 
               {/* Mobile: hamburguesa (toggle full-width slide-down panel) */}
               <button
+                type="button"
                 onClick={() => setMenuOpen(!menuOpen)}
-                aria-label="Menú"
-                className="md:hidden p-2 rounded-lg text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 transition"
+                aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'}
+                aria-expanded={menuOpen}
+                aria-controls="partner-mobile-menu"
+                className="md:hidden inline-flex h-11 w-11 items-center justify-center rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 text-gray-700 hover:text-primary-600 hover:bg-primary-500/5 transition"
               >
                 {menuOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
@@ -124,11 +146,15 @@ export default function PartnerShell({ children }: { children: React.ReactNode }
               {/* Desktop: avatar + nombre + dropdown */}
               <div ref={menuRef} className="relative hidden md:block">
                 <button
+                  type="button"
                   onClick={() => setMenuOpen(!menuOpen)}
-                  className="flex items-center space-x-3 bg-gray-50 hover:bg-gray-100 px-4 py-2.5 rounded-xl transition-all border-2 border-gray-200 hover:border-primary-500/30"
+                  aria-label="Menú de cuenta"
+                  aria-expanded={menuOpen}
+                  aria-haspopup="menu"
+                  className="flex items-center space-x-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 bg-gray-50 hover:bg-gray-100 px-4 py-2.5 rounded-xl transition-all border-2 border-gray-200 hover:border-primary-500/30"
                 >
                   {session?.user?.image ? (
-                    <img src={session.user.image} alt="Profile" className="w-9 h-9 rounded-full object-cover" />
+                    <img src={session.user.image} alt="" className="w-9 h-9 rounded-full object-cover" />
                   ) : (
                     <div className="w-9 h-9 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center text-white font-black text-sm">
                       {initial}
@@ -139,31 +165,33 @@ export default function PartnerShell({ children }: { children: React.ReactNode }
                 </button>
 
                 {menuOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border-2 border-gray-100 py-2 animate-scale-in">
-                    <div className="px-4 py-3 border-b border-gray-100">
+                  <div role="menu" aria-label="Cuenta" className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border-2 border-gray-100 py-2 animate-scale-in">
+                    <div role="presentation" className="px-4 py-3 border-b border-gray-100">
                       <p className="text-sm font-bold text-gray-900">{session?.user?.name}</p>
-                      <p className="text-xs text-gray-500 font-medium truncate">{session?.user?.email}</p>
+                      <p className="text-xs text-gray-600 font-medium truncate">{session?.user?.email}</p>
                       <span className="inline-block mt-2 text-xs font-bold text-primary-600 bg-primary-500/10 px-3 py-1 rounded-full border border-primary-500/20">
                         SOCIO
                       </span>
                     </div>
-                    <Link href="/profile" className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold">
+                    <Link href="/profile" role="menuitem" className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold">
                       <UserCircle size={16} />
                       <span>Mi Perfil</span>
                     </Link>
-                    <Link href="/partner/services" className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold">
+                    <Link href="/partner/services" role="menuitem" className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold">
                       <Settings size={16} />
                       <span>Mis Servicios</span>
                     </Link>
-                    <Link href="/partner/verification" className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold">
+                    <Link href="/partner/verification" role="menuitem" className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold">
                       <Shield size={16} />
                       <span>Verificación</span>
                     </Link>
-                    <Link href="/partner/bank-accounts" className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold">
+                    <Link href="/partner/bank-accounts" role="menuitem" className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors font-bold">
                       <Landmark size={16} />
                       <span>Datos Bancarios</span>
                     </Link>
                     <button
+                      type="button"
+                      role="menuitem"
                       onClick={() => signOut({ callbackUrl: '/' })}
                       className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors font-bold"
                     >
@@ -189,12 +217,13 @@ export default function PartnerShell({ children }: { children: React.ReactNode }
             />
             <div
               ref={mobileMenuRef}
+              id="partner-mobile-menu"
               className="md:hidden relative z-50 bg-white border-t border-gray-200 animate-slide-down shadow-lg max-h-[calc(100vh-5rem)] overflow-y-auto"
             >
               <div className="px-4 pt-2 pb-4 space-y-2">
                 <div className="flex items-center space-x-3 px-4 py-2">
                   {session?.user?.image ? (
-                    <img src={session.user.image} alt="Profile" className="w-10 h-10 rounded-full object-cover" />
+                    <img src={session.user.image} alt={session.user.name || ''} className="w-10 h-10 rounded-full object-cover" />
                   ) : (
                     <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center text-white font-black">
                       {initial}
@@ -202,7 +231,7 @@ export default function PartnerShell({ children }: { children: React.ReactNode }
                   )}
                   <div className="min-w-0">
                     <p className="text-sm font-bold text-gray-900 truncate">{session?.user?.name}</p>
-                    <p className="text-xs text-gray-500 font-medium truncate">{session?.user?.email}</p>
+                    <p className="text-xs text-gray-600 font-medium truncate">{session?.user?.email}</p>
                   </div>
                 </div>
 
@@ -253,8 +282,8 @@ export default function PartnerShell({ children }: { children: React.ReactNode }
         <div className="md:grid md:grid-cols-[220px_1fr] md:gap-6">
           {/* Sidebar desktop */}
           <aside className="hidden md:block">
-            <nav className="space-y-1 sticky top-20">
-              <div className="px-3 pb-1 text-[11px] uppercase tracking-wide font-bold text-gray-400">Trabajo</div>
+            <nav aria-label="Panel del socio" className="space-y-1 sticky top-24">
+              <div className="px-3 pb-1 text-[11px] uppercase tracking-wide font-bold text-gray-600">Trabajo</div>
               {SIDEBAR_LINKS.map(link => {
                 const Icon = link.icon
                 const active = isLinkActive(link.href)
@@ -266,6 +295,7 @@ export default function PartnerShell({ children }: { children: React.ReactNode }
                   <Link
                     key={link.id}
                     href={link.href}
+                    aria-current={active ? 'page' : undefined}
                     className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition ${
                       active
                         ? 'bg-primary-50 text-primary-700'
@@ -276,12 +306,12 @@ export default function PartnerShell({ children }: { children: React.ReactNode }
                   >
                     <Icon className={`w-5 h-5 ${link.highlight && !active ? 'text-secondary-600' : ''}`} />
                     <span className="flex-1">{link.label}</span>
-                    <CountBadge count={badge} tone={link.highlight ? 'secondary' : 'primary'} />
+                    <CountBadge count={badge} tone={link.highlight ? 'secondary' : 'primary'} label={link.badgeLabel} />
                   </Link>
                 )
               })}
 
-              <div className="px-3 pt-4 pb-1 text-[11px] uppercase tracking-wide font-bold text-gray-400">Mi Negocio</div>
+              <div className="px-3 pt-4 pb-1 text-[11px] uppercase tracking-wide font-bold text-gray-600">Mi Negocio</div>
               {BUSINESS_LINKS.map(link => {
                 const Icon = link.icon
                 const active = pathname === link.href
@@ -289,6 +319,7 @@ export default function PartnerShell({ children }: { children: React.ReactNode }
                   <Link
                     key={link.id}
                     href={link.href}
+                    aria-current={active ? 'page' : undefined}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition ${
                       active ? 'bg-primary-50 text-primary-700' : 'text-gray-700 hover:bg-gray-100'
                     }`}

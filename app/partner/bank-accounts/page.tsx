@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation'
 import { COLOMBIA_BANKS } from '@/lib/banking/colombia'
 import AccountTopHeader from '@/components/shared/AccountTopHeader'
 import { opportunitiesFromResponse } from '@/lib/partners/opportunities'
+import { maskAccountNumber } from '@/lib/admin/pagination'
+import { BottomSheet } from '@/components/ui/bottom-sheet'
 
 type BankAccount = {
   id: string
@@ -32,6 +34,16 @@ type BankOption = {
   supportsSavings: boolean
   supportsChecking: boolean
 }
+
+const DOC_TYPE_LABEL: Record<BankAccount['holderDocumentType'], string> = {
+  CC: 'Cédula de ciudadanía',
+  CE: 'Cédula de extranjería',
+  NIT: 'NIT',
+  PASSPORT: 'Pasaporte',
+}
+
+const FIELD = 'w-full border border-gray-300 rounded-xl px-3 min-h-[44px] bg-white text-sm outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent'
+const LABEL = 'block text-sm font-semibold text-gray-700 mb-1'
 
 export default function PartnerBankAccountsPage() {
   const { data: session, status } = useSession()
@@ -200,8 +212,9 @@ export default function PartnerBankAccountsPage() {
 
   if (status === 'loading') {
     return (
-      <div className="panel-page min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      <div className="panel-page min-h-screen bg-gradient-to-br from-gray-50 to-gray-100" aria-busy="true">
         <div className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 space-y-4">
+          <span className="sr-only">Cargando datos bancarios…</span>
           <div className="h-8 w-48 rounded bg-gray-200 animate-pulse" />
           <div className="h-56 rounded-xl bg-white border border-gray-200 animate-pulse" />
           <div className="h-48 rounded-xl bg-white border border-gray-200 animate-pulse" />
@@ -222,27 +235,28 @@ export default function PartnerBankAccountsPage() {
         }}
       />
 
-      <main className="account-main-narrow space-y-6">
+      <div className="account-main-narrow space-y-6">
         {feedback && (
           <div
-            className={`rounded-lg border p-3 text-sm ${
+            role={feedback.type === 'error' ? 'alert' : 'status'}
+            className={`rounded-2xl border p-3 text-sm ${
               feedback.type === 'success'
-                ? 'border-green-200 bg-green-50 text-green-700'
-                : 'border-red-200 bg-red-50 text-red-700'
+                ? 'border-green-200 bg-green-50 text-green-800'
+                : 'border-red-200 bg-red-50 text-red-800'
             }`}
           >
             {feedback.text}
           </div>
         )}
 
-        {/* Lista de cuentas + CTA agregar */}
         <div className="surface-card p-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-bold text-gray-900">Mis cuentas</h2>
             {accounts.length > 0 && (
               <button
+                type="button"
                 onClick={() => setFormOpen(true)}
-                className="rounded-xl bg-primary-600 text-white px-3 py-1.5 text-sm font-semibold hover:bg-primary-700"
+                className="rounded-full bg-primary-600 text-white px-4 min-h-[44px] text-sm font-semibold hover:bg-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
               >
                 + Agregar cuenta
               </button>
@@ -251,159 +265,162 @@ export default function PartnerBankAccountsPage() {
           {accounts.length === 0 ? (
             <div className="py-8 text-center">
               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <span className="text-2xl">🏦</span>
+                <span className="text-2xl" aria-hidden="true">🏦</span>
               </div>
               <p className="font-semibold text-gray-900 mb-1">Aún no tienes cuentas registradas</p>
-              <p className="text-sm text-gray-500 mb-4">Registra una cuenta en Colombia para recibir tus pagos.</p>
+              <p className="text-sm text-gray-600 mb-4">Registra una cuenta en Colombia para recibir tus pagos.</p>
               <button
+                type="button"
                 onClick={() => setFormOpen(true)}
-                className="inline-flex rounded-xl bg-primary-600 text-white px-4 py-2 text-sm font-semibold hover:bg-primary-700"
+                className="inline-flex items-center rounded-full bg-primary-600 text-white px-5 min-h-[48px] text-sm font-semibold hover:bg-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
               >
                 + Agregar cuenta bancaria
               </button>
             </div>
           ) : (
-            <div className="space-y-2">
+            <ul className="space-y-2">
               {accounts.map((acc) => (
-                <div key={acc.id} className="border rounded-lg p-3 flex items-center justify-between gap-3">
-                  <div>
-                    <p className="font-medium">{acc.bankName} · {acc.accountType === 'SAVINGS' ? 'Ahorros' : 'Corriente'}</p>
-                    <p className="text-sm text-gray-600">****{acc.accountNumber.slice(-4)} · {acc.holderDocumentType} {acc.holderDocumentNumber}</p>
-                    <p className="text-xs text-gray-500">{acc.isDefault ? 'Predeterminada' : 'Secundaria'} · {acc.isActive ? 'Activa' : 'Inactiva'}</p>
+                <li key={acc.id} className="border border-gray-200 rounded-2xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-medium text-gray-900 truncate" title={acc.bankName}>{acc.bankName} · {acc.accountType === 'SAVINGS' ? 'Ahorros' : 'Corriente'}</p>
+                    <p className="text-sm text-gray-600">
+                      <span className="sr-only">Cuenta terminada en </span>{maskAccountNumber(acc.accountNumber)} · {acc.holderDocumentType} {maskAccountNumber(acc.holderDocumentNumber)}
+                    </p>
+                    <p className="text-xs text-gray-600">{acc.isDefault ? 'Predeterminada' : 'Secundaria'} · {acc.isActive ? 'Activa' : 'Inactiva'}</p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-shrink-0">
                     {!acc.isDefault && acc.isActive && (
                       <button
+                        type="button"
                         onClick={() => setDefault(acc.id)}
                         disabled={processingActionId === acc.id}
-                        className="px-3 py-1 border rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 min-h-[44px] border border-gray-300 rounded-full text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
                       >
-                        {processingActionId === acc.id ? 'Actualizando...' : 'Predeterminar'}
+                        {processingActionId === acc.id ? 'Actualizando…' : 'Predeterminar'}
                       </button>
                     )}
                     {acc.isActive && (
                       <button
+                        type="button"
                         onClick={() => deactivate(acc.id)}
                         disabled={processingActionId === acc.id}
-                        className="px-3 py-1 border rounded text-sm text-red-600 border-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        aria-label={`Desactivar cuenta ${acc.bankName} terminada en ${acc.accountNumber.replace(/\D/g, "").slice(-4)}`}
+                        className="px-4 min-h-[44px] border border-red-200 rounded-full text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
                       >
-                        {processingActionId === acc.id ? 'Actualizando...' : 'Desactivar'}
+                        {processingActionId === acc.id ? 'Actualizando…' : 'Desactivar'}
                       </button>
                     )}
                   </div>
-                </div>
+                </li>
               ))}
-            </div>
+            </ul>
           )}
         </div>
 
-        {/* Modal: form para agregar cuenta */}
-        {formOpen && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
-            <div className="bg-white w-full sm:max-w-2xl rounded-2xl max-h-[85vh] sm:max-h-[92vh] overflow-y-auto">
-              <div className="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-                <h3 className="font-bold text-gray-900">Agregar cuenta bancaria</h3>
-                <button
-                  onClick={() => setFormOpen(false)}
-                  aria-label="Cerrar"
-                  className="p-1.5 rounded-lg hover:bg-gray-100"
-                >
-                  <span className="text-gray-500 text-xl leading-none">×</span>
-                </button>
-              </div>
-              <form onSubmit={createAccount} className="grid md:grid-cols-2 gap-3 p-4">
-          <div className="md:col-span-2">
-            <label className="block text-sm font-semibold text-gray-700 mb-1">Banco en Colombia</label>
-            <select
-              className="w-full border rounded-lg px-3 py-2 bg-white"
-              value={form.bankName}
-              onChange={(e) => setForm({ ...form, bankName: e.target.value })}
-              required
-            >
-              <option value="">Selecciona tu banco</option>
-              {bankOptions.map((bank) => (
-                <option key={bank.id} value={bank.name}>
-                  {bank.name}
-                </option>
-              ))}
-            </select>
-            <p className="mt-1 text-xs text-gray-500">
-              Catálogo Colombia ({bankOptions.length} bancos). Si tu banco no aparece, contacta soporte.
-            </p>
-          </div>
-
-          <select className="border rounded-lg px-3 py-2" value={form.accountType} onChange={(e) => setForm({ ...form, accountType: e.target.value as 'SAVINGS' | 'CHECKING' })}>
-            {(selectedBank?.supportsSavings ?? true) && <option value="SAVINGS">Ahorros</option>}
-            {(selectedBank?.supportsChecking ?? true) && <option value="CHECKING">Corriente</option>}
-          </select>
-          <input
-            className="border rounded-lg px-3 py-2"
-            placeholder={selectedBank ? `Cuenta (${selectedBank.accountNumberMinLength}-${selectedBank.accountNumberMaxLength} dígitos)` : 'Número de cuenta'}
-            value={form.accountNumber}
-            inputMode="numeric"
-            pattern="[0-9]*"
-            maxLength={selectedBank?.accountNumberMaxLength || 20}
-            onChange={(e) => setForm({ ...form, accountNumber: e.target.value.replace(/\D/g, '') })}
-            required
-          />
-          <input className="border rounded-lg px-3 py-2" placeholder="Titular" value={form.accountHolderName} onChange={(e) => setForm({ ...form, accountHolderName: e.target.value })} required />
-          <select className="border rounded-lg px-3 py-2" value={form.holderDocumentType} onChange={(e) => setForm({ ...form, holderDocumentType: e.target.value as 'CC' | 'CE' | 'NIT' | 'PASSPORT' })}>
-            <option value="CC">CC</option>
-            <option value="CE">CE</option>
-            <option value="NIT">NIT</option>
-            <option value="PASSPORT">PASSPORT</option>
-          </select>
-          <input
-            className="border rounded-lg px-3 py-2"
-            placeholder={form.holderDocumentType === 'PASSPORT' ? 'Pasaporte (letras y números)' : 'Documento'}
-            value={form.holderDocumentNumber}
-            inputMode={form.holderDocumentType === 'PASSPORT' ? 'text' : 'numeric'}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                holderDocumentNumber: form.holderDocumentType === 'PASSPORT'
-                  ? e.target.value.toUpperCase()
-                  : e.target.value.replace(/\D/g, ''),
-              })
-            }
-            required
-          />
-          <input className="border rounded-lg px-3 py-2 md:col-span-2" placeholder="Mercado Pago recipient_id (requerido para live)" value={form.mercadoPagoRecipientId} onChange={(e) => setForm({ ...form, mercadoPagoRecipientId: e.target.value })} />
-          <details className="md:col-span-2 rounded-lg border border-gray-200 bg-gray-50 text-sm text-gray-700">
-            <summary className="cursor-pointer font-semibold px-3 py-2">Formato esperado</summary>
-            <ul className="list-disc pl-8 pr-3 pb-3 space-y-1">
-              <li>Número de cuenta: solo números ({selectedBank ? `${selectedBank.accountNumberMinLength}-${selectedBank.accountNumberMaxLength}` : '8-20'} dígitos).</li>
-              <li>Tipo de cuenta: ahorros o corriente.</li>
-              <li>Documento: CC/CE/NIT numérico o pasaporte alfanumérico.</li>
-            </ul>
-          </details>
-          <details className="md:col-span-2 rounded-lg border border-blue-200 bg-blue-50 text-sm text-blue-900">
-            <summary className="cursor-pointer font-semibold px-3 py-2">¿Dónde saco mi recipient_id de Mercado Pago?</summary>
-            <div className="px-3 pb-3">
-              <ol className="list-decimal pl-5 space-y-1 text-blue-800">
-                <li>Entra al panel de desarrolladores de Mercado Pago con tu cuenta.</li>
-                <li>Configura la cuenta receptora para transferencias/payouts.</li>
-                <li>Copia el identificador del receptor (recipient_id) y pégalo aquí.</li>
-              </ol>
-              <a
-                href="https://www.mercadopago.com.co/developers/es/docs"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-block mt-2 font-semibold text-blue-700 underline"
+        <BottomSheet
+          open={formOpen}
+          onClose={() => setFormOpen(false)}
+          title="Agregar cuenta bancaria"
+        >
+          <form id="bank-account-form" onSubmit={createAccount} className="grid md:grid-cols-2 gap-3">
+            <div className="md:col-span-2">
+              <label htmlFor="ba-bank" className={LABEL}>Banco en Colombia</label>
+              <select
+                id="ba-bank"
+                className={FIELD}
+                value={form.bankName}
+                onChange={(e) => setForm({ ...form, bankName: e.target.value })}
+                aria-describedby="ba-bank-help"
+                required
               >
-                Ver documentación oficial de Mercado Pago
-              </a>
+                <option value="">Selecciona tu banco</option>
+                {bankOptions.map((bank) => (
+                  <option key={bank.id} value={bank.name}>
+                    {bank.name}
+                  </option>
+                ))}
+              </select>
+              <p id="ba-bank-help" className="mt-1 text-xs text-gray-600">
+                Si tu banco no aparece, escríbenos a soporte.
+              </p>
             </div>
-          </details>
-          <div className="md:col-span-2 flex items-center justify-end gap-2 sticky bottom-0 bg-white pt-3 border-t border-gray-100 -mx-4 px-4">
-            <button type="button" onClick={() => setFormOpen(false)} className="rounded-lg border border-gray-300 text-gray-700 px-4 py-2 text-sm font-semibold hover:bg-gray-50">Cancelar</button>
-            <button disabled={saving} className="rounded-lg bg-primary-600 text-white px-4 py-2 text-sm font-semibold disabled:opacity-50">{saving ? 'Guardando...' : 'Guardar cuenta'}</button>
-          </div>
-              </form>
+
+            <div>
+              <label htmlFor="ba-type" className={LABEL}>Tipo de cuenta</label>
+              <select id="ba-type" className={FIELD} value={form.accountType} onChange={(e) => setForm({ ...form, accountType: e.target.value as 'SAVINGS' | 'CHECKING' })}>
+                {(selectedBank?.supportsSavings ?? true) && <option value="SAVINGS">Ahorros</option>}
+                {(selectedBank?.supportsChecking ?? true) && <option value="CHECKING">Corriente</option>}
+              </select>
             </div>
-          </div>
-        )}
-      </main>
+            <div>
+              <label htmlFor="ba-number" className={LABEL}>Número de cuenta</label>
+              <input
+                id="ba-number"
+                className={FIELD}
+                placeholder={selectedBank ? `${selectedBank.accountNumberMinLength} a ${selectedBank.accountNumberMaxLength} dígitos` : 'Solo números'}
+                value={form.accountNumber}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                autoComplete="off"
+                maxLength={selectedBank?.accountNumberMaxLength || 20}
+                onChange={(e) => setForm({ ...form, accountNumber: e.target.value.replace(/\D/g, '') })}
+                required
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label htmlFor="ba-holder" className={LABEL}>Titular de la cuenta</label>
+              <input id="ba-holder" className={FIELD} placeholder="Nombre como aparece en el banco" autoComplete="name" value={form.accountHolderName} onChange={(e) => setForm({ ...form, accountHolderName: e.target.value })} required />
+            </div>
+            <div>
+              <label htmlFor="ba-doc-type" className={LABEL}>Tipo de documento</label>
+              <select id="ba-doc-type" className={FIELD} value={form.holderDocumentType} onChange={(e) => setForm({ ...form, holderDocumentType: e.target.value as 'CC' | 'CE' | 'NIT' | 'PASSPORT' })}>
+                {(Object.keys(DOC_TYPE_LABEL) as BankAccount['holderDocumentType'][]).map((k) => (
+                  <option key={k} value={k}>{DOC_TYPE_LABEL[k]}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="ba-doc" className={LABEL}>Número de documento</label>
+              <input
+                id="ba-doc"
+                className={FIELD}
+                placeholder={form.holderDocumentType === 'PASSPORT' ? 'Letras y números' : 'Solo números'}
+                value={form.holderDocumentNumber}
+                inputMode={form.holderDocumentType === 'PASSPORT' ? 'text' : 'numeric'}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    holderDocumentNumber: form.holderDocumentType === 'PASSPORT'
+                      ? e.target.value.toUpperCase()
+                      : e.target.value.replace(/\D/g, ''),
+                  })
+                }
+                required
+              />
+            </div>
+            <details className="md:col-span-2 rounded-2xl border border-gray-200 bg-gray-50 text-sm text-gray-700">
+              <summary className="cursor-pointer font-semibold px-3 min-h-[44px] flex items-center rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500">Formato esperado</summary>
+              <ul className="list-disc pl-8 pr-3 pb-3 space-y-1">
+                <li>Número de cuenta: solo números ({selectedBank ? `${selectedBank.accountNumberMinLength} a ${selectedBank.accountNumberMaxLength}` : '8 a 20'} dígitos).</li>
+                <li>Tipo de cuenta: ahorros o corriente.</li>
+                <li>Documento: cédula, cédula de extranjería o NIT con números; pasaporte con letras y números.</li>
+              </ul>
+            </details>
+            <details className="md:col-span-2 rounded-2xl border border-gray-200 bg-white text-sm text-gray-700">
+              <summary className="cursor-pointer font-semibold px-3 min-h-[44px] flex items-center rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500">Avanzado (solo soporte)</summary>
+              <div className="px-3 pb-3">
+                <p className="text-xs text-gray-600 mb-2">No necesitas llenar esto. Solo si el equipo de LoHaggo te pide un código de Mercado Pago.</p>
+                <label htmlFor="ba-mp" className={LABEL}>Código de Mercado Pago</label>
+                <input id="ba-mp" className={FIELD} autoComplete="off" value={form.mercadoPagoRecipientId} onChange={(e) => setForm({ ...form, mercadoPagoRecipientId: e.target.value })} />
+              </div>
+            </details>
+            <div className="md:col-span-2 flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+              <button type="button" onClick={() => setFormOpen(false)} className="rounded-full border border-gray-300 text-gray-700 px-5 min-h-[44px] text-sm font-semibold hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500">Cancelar</button>
+              <button type="submit" disabled={saving} className="rounded-full bg-primary-600 text-white px-5 min-h-[44px] text-sm font-semibold hover:bg-primary-700 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2">{saving ? 'Guardando…' : 'Guardar cuenta'}</button>
+            </div>
+          </form>
+        </BottomSheet>
+      </div>
     </div>
   )
 }

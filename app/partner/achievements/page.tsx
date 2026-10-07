@@ -33,7 +33,7 @@ const ACHIEVEMENT_COLORS: Record<string, string> = {
   FIRST_DOCUMENT: 'bg-blue-100 text-blue-600',
   IDENTITY_VERIFIED: 'bg-green-100 text-green-600',
   EDUCATION_VERIFIED: 'bg-purple-100 text-purple-600',
-  BACKGROUND_CHECK: 'bg-yellow-100 text-yellow-600',
+  BACKGROUND_CHECK: 'bg-amber-100 text-amber-700',
   PROFILE_COMPLETE: 'bg-pink-100 text-pink-600',
   FIRST_SERVICE: 'bg-indigo-100 text-indigo-600',
   VERIFIED_PARTNER: 'bg-red-100 text-red-600'
@@ -71,9 +71,9 @@ export default function PartnerAchievementsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center" aria-busy="true">
+        <div className="text-center" role="status">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto" aria-hidden="true"></div>
           <p className="mt-4 text-gray-600">Cargando logros...</p>
         </div>
       </div>
@@ -90,11 +90,11 @@ export default function PartnerAchievementsPage() {
         subtitle={`Has desbloqueado ${unlockedAchievements.length} logro${unlockedAchievements.length !== 1 ? 's' : ''}`}
       />
 
-      <main className="account-main">
+      <div className="account-main">
 
         {unlockedAchievements.length === 0 ? (
           <AccountPanel className="text-center py-8">
-            <Trophy className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <Trophy className="w-16 h-16 text-gray-500 mx-auto mb-4" aria-hidden="true" />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">
               Aún no tienes logros
             </h2>
@@ -114,7 +114,7 @@ export default function PartnerAchievementsPage() {
                   className="surface-card p-6 hover:shadow-[0_12px_30px_rgba(15,23,42,0.12)] transition-shadow"
                 >
                   <div className={`w-16 h-16 rounded-full ${colorClass} flex items-center justify-center mb-4`}>
-                    <Icon className="w-8 h-8" />
+                    <Icon className="w-8 h-8" aria-hidden="true" />
                   </div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">
                     {achievement.name}
@@ -122,12 +122,13 @@ export default function PartnerAchievementsPage() {
                   <p className="text-gray-600 text-sm mb-4">
                     {achievement.description}
                   </p>
-                  <div className="flex items-center text-sm text-gray-500">
-                    <Clock className="w-4 h-4 mr-1" />
+                  <div className="flex items-center text-sm text-gray-600">
+                    <Clock className="w-4 h-4 mr-1" aria-hidden="true" />
                     Desbloqueado el {new Date(achievement.unlockedAt!).toLocaleDateString('es-ES', {
                       day: 'numeric',
                       month: 'long',
-                      year: 'numeric'
+                      year: 'numeric',
+                      timeZone: 'America/Bogota',
                     })}
                   </div>
                 </div>
@@ -135,7 +136,7 @@ export default function PartnerAchievementsPage() {
             })}
           </div>
         )}
-      </main>
+      </div>
     </div>
   )
 }
