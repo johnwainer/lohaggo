@@ -119,7 +119,7 @@ export default function ShareProfileCard({ moment, className = '' }: { moment?: 
               className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full border-2 border-secondary-300 bg-white px-3 text-sm font-semibold text-secondary-900 hover:bg-secondary-50 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary-600"
             >
               {sharingImage ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Download size={16} aria-hidden="true" />}
-              Imagen para estados
+              <span className="whitespace-nowrap">Para estados<span className="sr-only"> (imagen de tu perfil)</span></span>
             </button>
             <button
               type="button"
