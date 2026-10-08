@@ -1516,6 +1516,21 @@ export const WA_CATALOG: WaCatalogEntry[] = [
     "title": "Ver solicitud",
     "url": "https://www.lohaggo.com/{{6}}"
   }
+},
+{
+  "code": "C33",
+  "name": "lh_socio_compartir_perfil",
+  "category": "MARKETING",
+  "body": "⭐ Hola {{1}}, tu perfil en LoHaggo ya tiene su propio enlace. Compártelo con tus clientes, amigos y vecinos, o en tus estados de WhatsApp: quien te pida un servicio desde ahí te llega directo a ti, con chat y confirmación de pago en la app. Entre más calificaciones tengas, más clientes nuevos te encuentran.",
+  "variables": {
+    "1": "Carlos",
+    "2": "pro/carlos-perez-medellin?utm_source=whatsapp&utm_medium=socio&utm_campaign=compartir_perfil"
+  },
+  "quickReplies": [],
+  "url": {
+    "title": "Ver y compartir mi perfil",
+    "url": "https://www.lohaggo.com/{{2}}"
+  }
 }
 ]
 

@@ -276,3 +276,38 @@ export async function sendVerificationReminders(opts: { limit?: number; excludeU
   }
   return { eligible: partners.length, sent, skipped, failed, done }
 }
+
+/**
+ * Invites verified, active partners with a visible public profile to share it (C33, marketing: respects
+ * opt-outs and quiet hours). Creates the profile address when missing. At most once a month per partner;
+ * call again while `done` is false.
+ */
+export async function sendShareProfileInvites(opts: { limit?: number; excludeUserIds?: string[]; dryRun?: boolean; now?: Date } = {}) {
+  const now = opts.now ?? new Date()
+  const limit = Math.min(Math.max(opts.limit ?? 60, 1), 200)
+  const partners = await prisma.partnerProfile.findMany({
+    where: {
+      verified: true, isActive: true, isPublicProfile: true,
+      user: { isActive: true, role: 'PARTNER', ...(opts.excludeUserIds?.length ? { id: { notIn: opts.excludeUserIds } } : {}) },
+    },
+    select: { id: true, userId: true, slug: true, city: true, user: { select: { name: true } } },
+    orderBy: { createdAt: 'asc' },
+  })
+  if (opts.dryRun) return { eligible: partners.length, withoutSlug: partners.filter((p) => !p.slug).length, sent: 0, skipped: {} as Record<string, number>, failed: 0, done: true }
+
+  const { ensurePartnerSlug } = await import('@/lib/partners/share')
+  const started = Date.now()
+  let sent = 0
+  let failed = 0
+  const skipped: Record<string, number> = {}
+  let done = true
+  for (const p of partners) {
+    if (sent >= limit || Date.now() - started > 45_000) { done = false; break }
+    const slug = await ensurePartnerSlug({ id: p.id, slug: p.slug, city: p.city, userName: p.user.name })
+    const res = await sendWaToUser(p.userId, WA.C33({ partnerId: p.id, name: p.user.name, slug }), now)
+    if (res?.ok) sent++
+    else if (res && 'skipped' in res && res.skipped) skipped[res.skipped] = (skipped[res.skipped] ?? 0) + 1
+    else failed++
+  }
+  return { eligible: partners.length, withoutSlug: 0, sent, skipped, failed, done }
+}

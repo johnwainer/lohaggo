@@ -32,6 +32,7 @@ import EmptyState from '@/components/shared/EmptyState'
 import PlatformTrustBanner from '@/components/PlatformTrustBanner'
 import ServiceIcon from '@/components/ServiceIcon'
 import InProgressPanel, { type InProgressItem } from '@/components/shared/InProgressPanel'
+import ShareProfileCard from '@/components/partner/ShareProfileCard'
 import {
   getBookingVisualState, getBookingVisualLabel, getNextStep, bookingStatusColor,
   BOOKING_FILTER_ORDER, BOOKING_STATUS_COLORS, type BookingVisualState,
@@ -1003,6 +1004,15 @@ function PartnerDashboardContent() {
                   </span>
                 </button>
               </div>
+
+              {(() => {
+                // Right after a finished job is when a client recommends: the card asks for it
+                const weekAgo = Date.now() - 7 * 24 * 3600_000
+                const recent = bookings
+                  .filter((b) => b.status === 'COMPLETED' && new Date(b.scheduledDate).getTime() >= weekAgo)
+                  .sort((a, b) => new Date(b.scheduledDate).getTime() - new Date(a.scheduledDate).getTime())[0]
+                return <ShareProfileCard moment={recent ? { clientName: recent.user?.name } : null} />
+              })()}
 
               {/* ── Earnings hero ── */}
               <div className="bg-gradient-to-br from-primary-600 to-primary-800 rounded-2xl p-5 text-white">

@@ -114,6 +114,9 @@ export const WA = {
   /** `day` 1/3/7 for the automatic reminders; a string tag (e.g. «m20261007») for one sent by hand from the admin */
   C3: (p: { userId: string; name: string; day: 1 | 3 | 7 | string }) =>
     spec('C3', [['lh_socio_falta_documento', { 1: partner(p.name), 2: 'partner/verification' }]], E('User', p.userId), { dedupeKey: `C3:User:${p.userId}:d${p.day}` }),
+  /** Invite a verified partner to share their public profile (at most once a month) */
+  C33: (p: { partnerId: string; name: string; slug: string }) =>
+    spec('C33', [['lh_socio_compartir_perfil', { 1: partner(p.name), 2: `pro/${p.slug}?utm_source=whatsapp&utm_medium=socio&utm_campaign=compartir_perfil` }]], E('PartnerProfile', p.partnerId), { marketing: true, dedupeKey: `C33:PartnerProfile:${p.partnerId}`, dedupeWindowMs: 30 * DAY }),
   C4: (p: { documentId: string; name: string; type: string }) => spec('C4', [['lh_socio_documento_recibido', { 1: partner(p.name), 2: docLabel(p.type) }]], E('VerificationDocument', p.documentId)),
   C5: (p: { documentId: string; name: string; type: string }) => spec('C5', [['lh_socio_documento_aprobado', { 1: partner(p.name), 2: docLabel(p.type) }]], E('VerificationDocument', p.documentId)),
   C6: (p: { documentId: string; name: string; type: string; reason: string }) =>

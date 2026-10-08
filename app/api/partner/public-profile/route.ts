@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { generatePartnerSlug, normalizeSlug } from '@/lib/slug'
+import { uniquePartnerSlug } from '@/lib/partners/share'
 
 async function getPartner(email: string) {
   const user = await prisma.user.findUnique({
@@ -49,21 +50,10 @@ export async function PATCH(req: NextRequest) {
   if (!partner.slug && !updates.slug) {
     const user = await prisma.user.findUnique({ where: { id: partner.userId }, select: { name: true } })
     const autoSlug = generatePartnerSlug(user?.name ?? 'socio', partner.city)
-    const unique = await ensureUniqueSlug(autoSlug, partner.id)
+    const unique = await uniquePartnerSlug(autoSlug, partner.id)
     updates.slug = unique
   }
 
   const updated = await prisma.partnerProfile.update({ where: { id: partner.id }, data: updates })
   return NextResponse.json({ partner: updated })
-}
-
-async function ensureUniqueSlug(base: string, excludeId: string): Promise<string> {
-  let candidate = base
-  let attempt = 0
-  while (true) {
-    const existing = await prisma.partnerProfile.findUnique({ where: { slug: candidate } })
-    if (!existing || existing.id === excludeId) return candidate
-    attempt += 1
-    candidate = `${base}-${attempt}`
-  }
 }

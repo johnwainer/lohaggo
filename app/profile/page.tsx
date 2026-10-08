@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { partnerShareUrl } from '@/lib/partners/share-url'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { User, Mail, Camera, Save, AlertCircle, CheckCircle, Star, MapPin, Shield, Briefcase, ChevronRight, CreditCard, GraduationCap, Phone, Landmark, Bell, Globe, Eye, EyeOff, Copy, Check, MessageCircle, ExternalLink, Upload, Trash2, RefreshCw, Link2, KeyRound, Lock } from 'lucide-react'
@@ -65,7 +66,7 @@ export default function ProfilePage() {
   const photoInputRef = useRef<HTMLInputElement>(null)
 
   const isPartner = session?.user?.role === 'PARTNER'
-  const pubProfileUrl = pubSlug ? `https://www.lohaggo.com/pro/${pubSlug}` : null
+  const pubProfileUrl = pubSlug ? partnerShareUrl(pubSlug, 'qr') : null
   const {
     isSupported: pushSupported,
     isSubscribed: pushSubscribed,
@@ -300,7 +301,7 @@ export default function ProfilePage() {
 
   const copyPubLink = async () => {
     if (!pubProfileUrl) return
-    await navigator.clipboard.writeText(pubProfileUrl).catch(() => null)
+    await navigator.clipboard.writeText(partnerShareUrl(pubSlug!, 'enlace')).catch(() => null)
     setPubCopied(true)
     setTimeout(() => setPubCopied(false), 2500)
   }
@@ -951,13 +952,20 @@ export default function ProfilePage() {
                             <span className="sr-only" role="status">{pubCopied ? 'Enlace copiado' : ''}</span>
                           </div>
                           <a
-                            href={`https://wa.me/?text=${encodeURIComponent(`¡Mira mi perfil en LoHaggo y contrata mis servicios! ${pubProfileUrl}`)}`}
+                            href={`https://wa.me/?text=${encodeURIComponent(`¡Hola! Ahora puedes pedirme mis servicios por LoHaggo, con chat y confirmación de pago en la app. Mira mi perfil y escríbeme: ${partnerShareUrl(pubSlug!, 'whatsapp')}`)}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex min-h-[44px] items-center justify-center gap-2 w-full bg-[#128C4A] hover:bg-[#0F7A40] text-white font-semibold py-2.5 rounded-full text-sm transition-colors"
                           >
                             <MessageCircle className="w-4 h-4" aria-hidden="true" /> Compartir por WhatsApp
                             <span className="sr-only"> (se abre en otra pestaña)</span>
+                          </a>
+                          <a
+                            href={`/pro/${pubSlug}/imagen`}
+                            download="mi-perfil-lohaggo.png"
+                            className="flex min-h-[44px] items-center justify-center gap-2 w-full rounded-full border-2 border-gray-300 bg-white py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-50 transition-colors"
+                          >
+                            Descargar imagen para estados
                           </a>
                         </div>
                       </div>
