@@ -648,7 +648,10 @@ function versionText(variants: Array<{ channel: string; body: string; publishOpt
 }
 
 type ArbiterCase = import('@/lib/marketing/arbiter-core').ArbiterCase
-type Arbitration = { decision: ArbiterDecision; reason: string; by: 'rules' | 'haggo' }
+type Arbitration = { decision: ArbiterDecision; reason: string; by: 'rules' | 'haggo'; transient?: boolean }
+
+/** A decision that could not be made (AI down, no credit): not recorded, so the next cycle tries again */
+const isTransientArbitration = (a: { reason?: string } | null | undefined) => Boolean(a?.reason?.startsWith('Haggo no pudo decidir'))
 
 /**
  * The writer and the editor did not agree: Haggo decides (publish or discard) instead of leaving the
@@ -672,12 +675,13 @@ async function arbitratePiece(agent: Agent, postId: string, p: { editorStatus: A
     if (!d) return { decision: 'human', reason: 'Haggo no dio una decisión clara', by: 'haggo' }
     return { ...d, by: 'haggo' }
   } catch (err) {
-    return { decision: 'human', reason: `Haggo no pudo decidir: ${err instanceof Error ? err.message : 'error'}`, by: 'haggo' }
+    return { decision: 'human', reason: `Haggo no pudo decidir: ${err instanceof Error ? err.message : 'error'}`, by: 'haggo', transient: true }
   }
 }
 
 /** Haggo's decision applied: published pieces skip the editor's hold; discarded ones free their idea for another. */
 async function applyArbitration(agent: Agent, postId: string, ideaId: string | null, a: Arbitration, mode: AgentMode) {
+  if (a.transient) return { ok: false as const, message: a.reason }
   const current = await prisma.marketingPost.findUnique({ where: { id: postId }, select: { agentMeta: true, title: true } })
   const meta = { ...((current?.agentMeta as Record<string, unknown> | null) ?? {}), arbiter: { decision: a.decision, reason: a.reason, by: a.by, at: new Date().toISOString() }, editorPending: false }
   if (a.decision === 'publish') {
@@ -790,7 +794,7 @@ export async function draftIdea(agent: Agent, ideaId: string, opts: { instructio
       confidence: draft.confidence, risks: draft.risks, hypothesis: draft.hypothesis || idea.hypothesis, cta: draft.cta, rationale: idea.rationale, explore: idea.explore, service,
       imageSource: image.source, imageError: image.error, videoSource: video.source, videoError: video.error, guardrails: check.issues, validation: check.validation, corrected, mode, instruction: opts.instruction ?? null,
       review: review ? { status: review.status, score: review.score, rounds: review.rounds, summary: review.summary.slice(0, 600) } : null,
-      arbiter: arbitration ? { decision: arbitration.decision, reason: arbitration.reason, by: arbitration.by, at: new Date().toISOString() } : null,
+      arbiter: arbitration && !arbitration.transient ? { decision: arbitration.decision, reason: arbitration.reason, by: arbitration.by, at: new Date().toISOString() } : null,
     }
     await prisma.marketingPost.update({
       where: { id: post.id },
@@ -1220,7 +1224,8 @@ export async function runAgentCycle(agentId: string, deadline = Date.now() + 240
       for (const p of stuck) {
         if (timeLeft() < 150_000 || decided >= 3) break
         // Already decided once: what Haggo left to a person stays with that person
-        if ((p.agentMeta as { arbiter?: unknown } | null)?.arbiter) continue
+        const prior = (p.agentMeta as { arbiter?: { reason?: string } } | null)?.arbiter
+        if (prior && !isTransientArbitration(prior)) continue
         decided++
         const meta = (p.agentMeta as { instruction?: string | null; risks?: string[]; guardrails?: Array<{ severity: string; message: string }>; review?: { score?: number | null; summary?: string } | null; arbiter?: { decision?: string } | null } | null) ?? {}
         const mode = modeFor(agent, p.variants.map((v) => v.channel as MarketingChannel))
@@ -1229,9 +1234,11 @@ export async function runAgentCycle(agentId: string, deadline = Date.now() + 240
           const editorStatus = (['approved', 'changes', 'rejected', 'failed'].includes(p.reviewStatus ?? '') ? p.reviewStatus : p.reviewStatus === 'overridden' ? 'approved' : 'changes') as ArbiterCase['editorStatus']
           const a = await arbitratePiece(agent, p.id, { editorStatus, score: meta.review?.score ?? null, summary: meta.review?.summary ?? '', risks: meta.risks ?? [], issues: meta.guardrails ?? [], requestedByPerson: Boolean(meta.instruction) }, meter)
           const res = await applyArbitration(agent, p.id, p.ideaId, a, mode)
+          if (a.transient) return { summary: `Haggo no pudo decidir sobre «${p.id}» y lo reintentará: ${a.reason}`, value: a }
           return { summary: `Haggo decidió ${a.decision === 'publish' ? 'publicar' : a.decision === 'discard' ? 'descartar' : 'dejarla a una persona'} «${p.id}»: ${a.reason}${a.decision === 'publish' && !res.ok ? ` · no se programó: ${res.message}` : ''}`, value: a }
         })
         report.push(`árbitro ${p.id}: ${r.ok ? r.summary : r.error}`)
+        if (r.ok && r.value.transient) break
       }
     }
 
