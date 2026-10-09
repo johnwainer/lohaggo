@@ -1226,7 +1226,8 @@ export async function runAgentCycle(agentId: string, deadline = Date.now() + 240
       })
       let decided = 0
       for (const p of stuck) {
-        if (timeLeft() < 150_000 || decided >= 3) break
+        // A decision is one short model call: it only needs to leave room for the drafting that follows
+        if (timeLeft() < 90_000 || decided >= 3) break
         // Already decided once: what Haggo left to a person stays with that person
         const prior = (p.agentMeta as { arbiter?: { reason?: string } } | null)?.arbiter
         if (prior && !isTransientArbitration(prior)) continue
