@@ -2,6 +2,7 @@
  * The marketing agent's onboarding answers: shape, defaults and whitelisting of what the wizard can
  * write. Pure: every value is bounded here so the prompt and the scheduler can trust it.
  */
+import { defaultImageStyleConfig, sanitizeImageStyles, type ImageStyleConfig } from '@/lib/marketing/image-styles'
 import type { MarketingChannel } from '@/lib/marketing/channel-rules'
 
 export const AGENT_MODES = ['copilot', 'supervised', 'autopilot'] as const
@@ -99,7 +100,8 @@ export type AgentConfig = {
     draftLeadHours: number
   }
   /** carouselSize: images in each carousel the agent makes (2 to 10) */
-  images: { source: (typeof IMAGE_SOURCES)[number]; logo: boolean; carouselSize: number }
+  /** styles: which looks the agent may use for AI images and whether it picks per piece (lib/marketing/image-styles) */
+  images: { source: (typeof IMAGE_SOURCES)[number]; logo: boolean; carouselSize: number; styles: ImageStyleConfig }
   notify: { email: boolean }
 }
 
@@ -134,7 +136,7 @@ export function defaultAgentConfig(objective = 'reach'): AgentConfig {
       WEB: { enabled: true, perWeek: 1, formats: ['guía', 'lista'], accountIds: [] },
     },
     schedule: { smart: true, days: [1, 2, 3, 4, 5, 6], windows: [{ from: 8, to: 21 }], quietFrom: 21, quietTo: 7, minGapHours: 3, maxPerDay: 1, repeatDays: 21, draftLeadHours: 72 },
-    images: { source: 'ai', logo: true, carouselSize: 2 },
+    images: { source: 'ai', logo: true, carouselSize: 2, styles: defaultImageStyleConfig() },
     notify: { email: true },
   }
 }
@@ -261,7 +263,7 @@ export function sanitizeAgentConfig(raw: unknown, prev: AgentConfig = defaultAge
       repeatDays: int(schedule.repeatDays, 0, 120, prev.schedule.repeatDays),
       draftLeadHours: int(schedule.draftLeadHours, 12, 168, prev.schedule.draftLeadHours),
     },
-    images: { source: oneOf(images.source, IMAGE_SOURCES, prev.images.source), logo: bool(images.logo, prev.images.logo), carouselSize: int(images.carouselSize, 2, 10, prev.images.carouselSize ?? 2) },
+    images: { source: oneOf(images.source, IMAGE_SOURCES, prev.images.source), logo: bool(images.logo, prev.images.logo), carouselSize: int(images.carouselSize, 2, 10, prev.images.carouselSize ?? 2), styles: sanitizeImageStyles(images.styles, prev.images.styles ?? defaultImageStyleConfig()) },
     notify: { email: bool(notify.email, prev.notify.email) },
   }
   for (const c of AGENT_CHANNELS) if (config.channels[c].enabled && !config.channels[c].formats.length) config.channels[c].formats = [AGENT_FORMATS[c][0]]

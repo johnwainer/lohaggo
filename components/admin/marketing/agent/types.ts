@@ -49,6 +49,8 @@ export type AgentMeta = {
   rationale?: string | null
   service?: string | null
   imageError?: string | null
+  /** Id of the image style the agent used (lib/marketing/image-styles) */
+  imageStyle?: string | null
   videoSource?: string | null
   videoError?: string | null
   preflight?: Array<{ channel: MkChannel; account: string; format: string; status: string; detail: string }>

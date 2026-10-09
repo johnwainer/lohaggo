@@ -2,6 +2,7 @@
  * Image suggestions for posts: free stock photos (Pexels) and, if configured, an AI image provider.
  * The brand logo is never drawn by an AI: it is laid over the image by Cloudinary. Pure.
  */
+import { IMAGE_STYLES } from '@/lib/marketing/image-styles'
 import type { MarketingChannel } from '@/lib/marketing/channel-rules'
 
 export const IMAGE_PROVIDERS = {
@@ -109,12 +110,8 @@ export function isPexelsImageUrl(url: string) {
   }
 }
 
-export const STYLE_PRESETS = [
-  ['realista', 'fotografía realista, luz natural, alta calidad, sin texto'],
-  ['ilustración', 'ilustración plana moderna, colores morado y naranja, sin texto'],
-  ['cercana', 'escena cotidiana en un hogar colombiano, cálida y cercana, sin texto'],
-  ['producto', 'composición limpia sobre fondo claro, estilo editorial, sin texto'],
-] as const
+/** The same styles the agent uses (lib/marketing/image-styles), as [label, prompt] for the manual image dialog */
+export const STYLE_PRESETS = IMAGE_STYLES.map((s) => [s.label, s.prompt] as const)
 
 /**
  * The final instruction to the generator. Brand rules always go in: no text or logos drawn by the

@@ -700,7 +700,7 @@ export type IdeaDraft = {
 }
 export type PostDraft = {
   title: string; brief: string; service: string | null; cta: string; confidence: number; risks: string[]; hypothesis: string
-  image: { query: string; alt: string; prompt: string; slides?: string[] }
+  image: { query: string; alt: string; prompt: string; slides?: string[]; style?: string | null }
   web: { body: string; seoTitle: string; seoDescription: string; slug: string; excerpt: string; tags: string[]; category: string } | null
   instagram: { caption: string; format: string } | null
   facebook: { text: string; link: string | null } | null
@@ -857,7 +857,7 @@ export function parseDraft(input: unknown, channels: MarketingChannel[], formats
     value: {
       title, brief: s(input.brief, 1000), service: s(input.service, 80) || null, cta: s(input.cta, 200), confidence: confidence!,
       risks: strs(input.risks, 6, 300), hypothesis: s(input.hypothesis, 300),
-      image: { query: s(img.query, 80), alt: s(img.alt, 200), prompt: s(img.prompt, 800), slides },
+      image: { query: s(img.query, 80), alt: s(img.alt, 200), prompt: s(img.prompt, 800), slides, style: s(img.style, 60) || null },
       web: channels.includes('WEB') ? web : null,
       instagram: channels.includes('INSTAGRAM') ? instagram : null,
       facebook: channels.includes('FACEBOOK') ? facebook : null,

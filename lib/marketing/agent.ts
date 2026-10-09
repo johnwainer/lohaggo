@@ -72,6 +72,7 @@ import { brandName, catalogFor, learningRows, momentFacts, plannedPieces, recent
 import { agentUrl, notify, postUrl, type NoticeType } from '@/lib/marketing/agent-notices'
 import { editorialGate, getEditorialSettings, hashOf, latestEditorAsks, loadReviewPost, reviewPass, saveReviewState, type PassResult, type ReviewEnv } from '@/lib/marketing/editorial'
 import { gateReason, instructionsForAgent, nextReviewStep, type Instruction } from '@/lib/marketing/editorial-core'
+import { defaultImageStyleConfig, resolveStyle } from '@/lib/marketing/image-styles'
 import { ARBITER_TOOL, arbiterPrecheck, arbiterSystem, arbiterTask, isLinkParamAsk, parseArbiter, type ArbiterDecision } from '@/lib/marketing/arbiter-core'
 import { overrideReview } from '@/lib/marketing/editorial-ops'
 import { reviewApplies, type EditorialSettings } from '@/lib/marketing/editorial-rubric'
@@ -463,7 +464,7 @@ async function writeDraft(postId: string, draft: PostDraft, channels: MarketingC
  * if configured and within the per-post cap; the brand logo on top. Never throws: without an image
  * the piece fails validation for Instagram and goes to a person.
  */
-async function attachImages(agent: Agent, config: AgentConfig, postId: string, draft: PostDraft, service: string | null, channels: MarketingChannel[], meter: Meter): Promise<{ source: string | null; error: string | null }> {
+async function attachImages(agent: Agent, config: AgentConfig, postId: string, draft: PostDraft, service: string | null, channels: MarketingChannel[], meter: Meter): Promise<{ source: string | null; error: string | null; style?: string | null }> {
   if (config.images.source === 'manual') return { source: null, error: null }
   if (await prisma.marketingMedia.count({ where: { postId } })) return { source: 'existing', error: null }
   const carousel = channels.includes('INSTAGRAM') && draft.instagram?.format === 'carousel'
@@ -486,16 +487,18 @@ async function attachImages(agent: Agent, config: AgentConfig, postId: string, d
       else {
         try {
           const base = draft.image.prompt || servicePrompt(service || draft.title)
+          // The look the agent chose for this piece (or the one the team fixed)
+          const style = resolveStyle(config.images.styles ?? defaultImageStyleConfig(), draft.image.style)
           // A carousel with one scene per image when the model described them; otherwise n images of the same scene
           const slides = carousel ? (draft.image.slides ?? []).slice(0, count) : []
           const imgs = slides.length >= 2
-            ? (await Promise.all(slides.map((sl) => generateImages({ workspaceId: agent.workspaceId, postId, prompt: `${sl}. ${base}`.slice(0, 1500), orientation, n: 1 })))).flat()
-            : await generateImages({ workspaceId: agent.workspaceId, postId, prompt: base, orientation, n: count })
+            ? (await Promise.all(slides.map((sl) => generateImages({ workspaceId: agent.workspaceId, postId, prompt: `${sl}. ${base}`.slice(0, 1500), style: style?.prompt ?? null, orientation, n: 1 })))).flat()
+            : await generateImages({ workspaceId: agent.workspaceId, postId, prompt: base, style: style?.prompt ?? null, orientation, n: count })
           // The provider charges every generated image, also those whose upload failed
           meter.addFixed(s.costPerImageUsd * Math.max(imgs.length, slides.length >= 2 ? slides.length : count))
           for (const img of imgs) await importImage({ workspaceId: agent.workspaceId, postId, brand, candidate: { source: 'ai', url: img.fullUrl, publicId: img.publicId, width: img.width, height: img.height, bytes: img.bytes, alt, credit: img.credit } })
           if (carousel && imgs.length < 2) await saveVariants(postId, [{ channel: 'INSTAGRAM', format: 'feed' }])
-          if (imgs.length) return { source: 'ai', error: count < n ? `Tope de imágenes por pieza: ${imgs.length} de ${n} con IA` : null }
+          if (imgs.length) return { source: 'ai', error: count < n ? `Tope de imágenes por pieza: ${imgs.length} de ${n} con IA` : null, style: style?.id ?? null }
           aiNote = 'La IA no devolvió imágenes; se usaron fotos de Pexels'
         } catch (err) {
           logger.warn('AI image failed, using Pexels', { agentId: agent.id, err: err instanceof Error ? err.message : err })
@@ -792,7 +795,7 @@ export async function draftIdea(agent: Agent, ideaId: string, opts: { instructio
     const t = nextAgentState(from, 'drafted', mode, { valid: check.ok, needsReview: !arbiterPublishes && (check.needsReview || heldByEditor), trial })!
     const meta = {
       confidence: draft.confidence, risks: draft.risks, hypothesis: draft.hypothesis || idea.hypothesis, cta: draft.cta, rationale: idea.rationale, explore: idea.explore, service,
-      imageSource: image.source, imageError: image.error, videoSource: video.source, videoError: video.error, guardrails: check.issues, validation: check.validation, corrected, mode, instruction: opts.instruction ?? null,
+      imageSource: image.source, imageError: image.error, imageStyle: image.style ?? null, videoSource: video.source, videoError: video.error, guardrails: check.issues, validation: check.validation, corrected, mode, instruction: opts.instruction ?? null,
       review: review ? { status: review.status, score: review.score, rounds: review.rounds, summary: review.summary.slice(0, 600) } : null,
       arbiter: arbitration && !arbitration.transient ? { decision: arbitration.decision, reason: arbitration.reason, by: arbitration.by, at: new Date().toISOString() } : null,
     }

@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, Check, ChevronLeft, ChevronRight, Loader2, Plus, Sparkles, Trash2, X } from 'lucide-react'
 import { CHANNEL_NAME, MkChannelIcon, OBJECTIVES, api, input, type MkChannel } from '@/components/admin/marketing/shared'
 import { AGENT_FORMATS, AWARENESS, AWARENESS_LABEL, DEFAULT_SETTINGS, KPIS, KPI_BY_OBJECTIVE, KPI_LABEL, defaultAgentConfig } from '@/lib/marketing/agent-input'
+import ImageStylesField from '@/components/admin/marketing/agent/ImageStylesField'
+import { defaultImageStyleConfig } from '@/lib/marketing/image-styles'
 import { MODE_INFO, type AgentConfig, type AgentDetailData, type AgentSettings, type WizardOptions } from '@/components/admin/marketing/agent/types'
 
 type Ws = { id: string; name: string; permissions: string[] }
@@ -441,6 +443,9 @@ export default function AgentWizard({ workspace, existing, onClose, onSaved }: {
                 </Field>
                 <label className="flex items-end gap-2 pb-2 text-sm text-gray-700 sm:col-span-2"><input type="checkbox" checked={config.images.logo} onChange={(e) => set('images', { ...config.images, logo: e.target.checked })} /> Poner siempre el logo (del kit de marca)</label>
               </div>
+              {config.images.source === 'ai' && (
+                <ImageStylesField agentId={agentId} value={config.images.styles ?? defaultImageStyleConfig()} onChange={(styles) => set('images', { ...config.images, styles })} />
+              )}
               <label className="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" checked={config.notify.email} onChange={(e) => set('notify', { email: e.target.checked })} /> Avisar también por correo a quienes pueden publicar en el workspace</label>
               {needsConfirm && (
                 <label className="flex items-start gap-2 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">

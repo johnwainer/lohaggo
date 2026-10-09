@@ -1,5 +1,6 @@
 'use client'
 
+import { IMAGE_STYLES } from '@/lib/marketing/image-styles'
 import { videoPosterUrl } from '@/lib/marketing/media'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
@@ -36,6 +37,7 @@ function PostCard({ post, children }: { post: AgentPost; children?: React.ReactN
             <StatusChip status={post.status} />
             <ReviewChip status={post.reviewStatus} score={post.reviewScore} />
             {post.pillar && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600">{post.pillar}</span>}
+            {meta.imageStyle && <span className="rounded-full bg-primary-50 px-2 py-0.5 text-[11px] text-primary-800">Imagen: {IMAGE_STYLES.find((x) => x.id === meta.imageStyle)?.label ?? 'estilo propio'}</span>}
             {meta.confidence != null && <span className={`text-[11px] ${meta.confidence < 0.7 ? 'text-amber-700' : 'text-gray-500'}`}>Confianza {Math.round(meta.confidence * 100)} %</span>}
           </div>
           <Link href={`/admin/marketing/posts/${post.id}`} className="block break-words font-semibold text-gray-900 hover:text-primary-700">{post.title}</Link>

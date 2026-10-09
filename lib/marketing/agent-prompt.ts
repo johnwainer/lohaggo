@@ -4,6 +4,7 @@
  * moment (date, calendar, results, rejections; not cached). Everything people typed goes inside
  * <datos> tags and is declared as data, never instructions. Pure.
  */
+import { defaultImageStyleConfig, styleGuide } from '@/lib/marketing/image-styles'
 import type Anthropic from '@anthropic-ai/sdk'
 import { LIMITS, type MarketingChannel } from '@/lib/marketing/channel-rules'
 import { AGENT_FORMATS, AWARENESS_LABEL, KPI_LABEL, type AgentConfig, type AgentMode, type AgentSettings } from '@/lib/marketing/agent-input'
@@ -110,6 +111,7 @@ export function campaignBlock(f: PromptFacts & { campaignName: string; campaignD
     `Catálogo de servicios${c.offer.allServices ? '' : ' a promocionar'} (nombre · categoría · precio base en COP):\n${bullet(f.catalog.services.map((s) => `${s.name}${s.category ? ` · ${s.category}` : ''}${s.basePrice ? ` · desde $${Math.round(s.basePrice).toLocaleString('es-CO')}` : ''}`))}`,
     `Límites técnicos: Instagram máx. ${LIMITS.INSTAGRAM.caption} caracteres y ${LIMITS.INSTAGRAM.hashtags} hashtags, los enlaces no son clicables; carrusel de ${LIMITS.INSTAGRAM.carouselMin} a ${LIMITS.INSTAGRAM.carouselMax} imágenes. Facebook: como mucho ${LIMITS.FACEBOOK.recommendedHashtags} hashtags. Blog: título SEO ≤ ${LIMITS.WEB.seoTitleMax} caracteres, meta descripción de ${LIMITS.WEB.seoDescriptionMin} a ${LIMITS.WEB.seoDescriptionMax}, al menos ${LIMITS.WEB.minWords} palabras, subtítulos "## ", Markdown sin repetir el título como encabezado.`,
     `Carruseles: ${c.images.carouselSize ?? 2} imágenes cada uno. En image.slides describe una escena distinta por imagen (sin textos): el texto del carrusel va en el caption, no sobre las fotos.`,
+    c.images.source === 'ai' ? styleGuide(c.images.styles ?? defaultImageStyleConfig()) : '',
     `Formatos que puedes usar (los que el equipo activó): ${channels.map((ch) => `${channelName[ch]}: ${(c.channels[ch].formats.length ? c.channels[ch].formats : AGENT_FORMATS[ch]).join(', ')}`).join('; ')}.`,
     FORMAT_GUIDE,
     f.strategy ? `Estrategia aprobada:\n${strategyText(f.strategy)}` : 'Aún no hay estrategia aprobada.',
@@ -260,6 +262,7 @@ export const DRAFT_TOOL: Anthropic.Tool = {
           alt: { type: 'string', description: 'Texto alternativo de la imagen' },
           prompt: { type: 'string', description: 'Descripción visual para generarla con IA, sin textos ni logos' },
           slides: { type: 'array', items: { type: 'string' }, description: 'Solo carruseles: una descripción visual distinta por imagen (sin textos ni logos)' },
+          style: { type: 'string', description: 'Id del estilo de imagen elegido de la lista «Estilo de imagen» (por ejemplo profesional, cercana, ilustracion)' },
         },
         required: ['query', 'alt', 'prompt'],
       },
