@@ -79,7 +79,7 @@ export default function ImageStylesField({ agentId, value, onChange }: { agentId
                 {ex
                   // eslint-disable-next-line @next/next/no-img-element
                   ? <img src={ex.url.replace('/image/upload/', '/image/upload/c_fill,w_400,h_400,f_auto/')} alt={`Ejemplo del estilo ${s.label}`} className="h-full w-full object-cover" loading="lazy" />
-                  : <div className="flex h-full w-full flex-col items-center justify-center gap-1 p-3 text-center text-gray-500"><ImageIcon size={22} aria-hidden="true" /><span className="text-[11px]">Sin ejemplo todavía</span></div>}
+                  : <div className="flex h-full w-full flex-col items-center justify-center gap-1 p-3 text-center text-gray-500"><ImageIcon size={22} aria-hidden="true" /><span className="text-[11px]">{meta && meta.exampleQuery === null ? 'Se muestra con la IA: el agente lo genera solo cuando esté disponible' : 'Sin ejemplo todavía'}</span></div>}
                 {ex && <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white">{ex.source === 'ai' ? 'Con tu IA' : 'Referencia'}</span>}
               </div>
               <div className="flex flex-1 flex-col gap-1 p-3">
