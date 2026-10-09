@@ -13,8 +13,8 @@ export type ImageStyle = {
   whenToUse: string
   /** Sent to the image generator */
   prompt: string
-  /** Stock-photo search used for a reference example when AI generation is not available */
-  exampleQuery: string
+  /** Stock-photo search for a reference example when AI generation is not available; null when stock photos cannot show the style (illustration, 3D) */
+  exampleQuery: string | null
 }
 
 export const IMAGE_STYLES: ImageStyle[] = [
@@ -24,7 +24,7 @@ export const IMAGE_STYLES: ImageStyle[] = [
     description: 'Foto editorial limpia: el profesional trabajando, uniformado, con buena luz.',
     whenToUse: 'confianza y seriedad: presentar un servicio, verificación, garantía, reparaciones técnicas',
     prompt: 'fotografía profesional editorial, encuadre limpio y ordenado, iluminación suave de estudio, profesional con uniforme trabajando con sus herramientas, alta nitidez, colores naturales',
-    exampleQuery: 'professional technician working home',
+    exampleQuery: 'electrician at work',
   },
   {
     id: 'hiperrealista',
@@ -32,7 +32,7 @@ export const IMAGE_STYLES: ImageStyle[] = [
     description: 'Detalle extremo, texturas y profundidad de campo, como una foto de cámara profesional.',
     whenToUse: 'mostrar un problema o un resultado de cerca: humedad, grietas, acabados, antes y después de un trabajo',
     prompt: 'fotografía hiperrealista, detalle extremo y texturas visibles, luz natural lateral, lente 50 mm, poca profundidad de campo, aspecto de cámara réflex',
-    exampleQuery: 'macro texture wall crack detail',
+    exampleQuery: 'hands repairing pipe close up',
   },
   {
     id: 'cercana',
@@ -48,7 +48,7 @@ export const IMAGE_STYLES: ImageStyle[] = [
     description: 'Dibujo vectorial moderno con formas simples y los colores de la marca.',
     whenToUse: 'explicar pasos, listas y consejos de forma sencilla; temas donde una foto se vería forzada',
     prompt: 'ilustración vectorial plana y moderna, formas simples y redondeadas, paleta morado y naranja con fondos claros, sin sombras realistas',
-    exampleQuery: 'flat illustration home repair',
+    exampleQuery: null,
   },
   {
     id: 'animada',
@@ -56,7 +56,7 @@ export const IMAGE_STYLES: ImageStyle[] = [
     description: 'Render 3D estilo película animada: personajes amigables y colores vivos.',
     whenToUse: 'piezas divertidas o para todo público: mascotas, niños, belleza, campañas de temporada',
     prompt: 'render 3D estilo película animada, personajes amigables y expresivos, colores vivos, iluminación suave y cálida, acabado tipo plastilina brillante',
-    exampleQuery: '3d render cartoon character',
+    exampleQuery: null,
   },
   {
     id: 'minimalista',
@@ -64,7 +64,7 @@ export const IMAGE_STYLES: ImageStyle[] = [
     description: 'Un objeto protagonista sobre fondo de color sólido, mucho espacio libre.',
     whenToUse: 'mensajes cortos, historias y reels con texto en pantalla, promociones: deja espacio para el titular',
     prompt: 'composición minimalista, un solo objeto o herramienta protagonista, fondo de color sólido de la marca, mucho espacio negativo, sombras suaves',
-    exampleQuery: 'minimal tool solid color background',
+    exampleQuery: 'minimal objects pastel background',
   },
 ]
 

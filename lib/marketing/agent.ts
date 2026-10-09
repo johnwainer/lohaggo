@@ -73,6 +73,7 @@ import { agentUrl, notify, postUrl, type NoticeType } from '@/lib/marketing/agen
 import { editorialGate, getEditorialSettings, hashOf, latestEditorAsks, loadReviewPost, reviewPass, saveReviewState, type PassResult, type ReviewEnv } from '@/lib/marketing/editorial'
 import { gateReason, instructionsForAgent, nextReviewStep, type Instruction } from '@/lib/marketing/editorial-core'
 import { defaultImageStyleConfig, resolveStyle } from '@/lib/marketing/image-styles'
+import { upgradeOneStyleExample } from '@/lib/marketing/image-style-examples'
 import { ARBITER_TOOL, arbiterPrecheck, arbiterSystem, arbiterTask, isLinkParamAsk, parseArbiter, type ArbiterDecision } from '@/lib/marketing/arbiter-core'
 import { overrideReview } from '@/lib/marketing/editorial-ops'
 import { reviewApplies, type EditorialSettings } from '@/lib/marketing/editorial-rubric'
@@ -1280,6 +1281,12 @@ export async function runAgentCycle(agentId: string, deadline = Date.now() + 240
         continue
       }
       Object.assign(agent, await loadAgent(agent.id))
+    }
+
+    // The style examples shown in the settings: replaced by AI ones once image AI works (one per cycle)
+    if (timeLeft() > 110_000 && config.images.source === 'ai') {
+      const r = await upgradeOneStyleExample(agent).catch((err: unknown) => `ejemplo de estilo: ${err instanceof Error ? err.message : 'error'}`)
+      if (r) report.push(r)
     }
 
     if (timeLeft() > 100_000) {
