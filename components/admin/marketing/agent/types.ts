@@ -53,6 +53,8 @@ export type AgentMeta = {
   videoError?: string | null
   preflight?: Array<{ channel: MkChannel; account: string; format: string; status: string; detail: string }>
   review?: { status: string; score: number | null; rounds: number; summary: string } | null
+  /** Haggo's decision when the writer and the editor did not agree */
+  arbiter?: { decision: 'publish' | 'discard' | 'human'; reason: string; by: 'rules' | 'haggo'; at: string } | null
   guardrails?: GuardrailIssue[]
   validation?: string[]
   slots?: Array<{ channel: MkChannel; at: string; reason: string; kind: string }>

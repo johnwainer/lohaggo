@@ -58,6 +58,7 @@ function PostCard({ post, children }: { post: AgentPost; children?: React.ReactN
         <p className="text-xs text-red-700">Meta la rechazó en la prueba previa: {meta.preflight.filter((r) => r.status === 'failed').map((r) => `${CHANNEL_NAME[r.channel]} ${r.account}: ${r.detail}`).join(' · ')}</p>
       )}
       {meta.review && meta.review.status !== 'approved' && meta.review.summary && <p className="text-xs text-gray-600">Editor: {meta.review.summary}</p>}
+      {meta.arbiter && <p className={`rounded-xl px-3 py-2 text-xs ${meta.arbiter.decision === 'human' ? 'bg-amber-50 text-amber-900' : 'bg-primary-50 text-primary-900'}`}><strong>{meta.arbiter.by === 'haggo' ? 'Haggo decidió' : 'Regla'}: {meta.arbiter.decision === 'publish' ? 'publicar' : meta.arbiter.decision === 'discard' ? 'descartar' : 'dejarla a una persona'}.</strong> {meta.arbiter.reason}</p>}
       {children}
     </div>
   )

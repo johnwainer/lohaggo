@@ -72,6 +72,8 @@ import { brandName, catalogFor, learningRows, momentFacts, plannedPieces, recent
 import { agentUrl, notify, postUrl, type NoticeType } from '@/lib/marketing/agent-notices'
 import { editorialGate, getEditorialSettings, hashOf, latestEditorAsks, loadReviewPost, reviewPass, saveReviewState, type PassResult, type ReviewEnv } from '@/lib/marketing/editorial'
 import { gateReason, instructionsForAgent, nextReviewStep, type Instruction } from '@/lib/marketing/editorial-core'
+import { ARBITER_TOOL, arbiterPrecheck, arbiterSystem, arbiterTask, isLinkParamAsk, parseArbiter, type ArbiterDecision } from '@/lib/marketing/arbiter-core'
+import { overrideReview } from '@/lib/marketing/editorial-ops'
 import { reviewApplies, type EditorialSettings } from '@/lib/marketing/editorial-rubric'
 
 const logger = createLogger('marketing-agent')
@@ -645,6 +647,53 @@ function versionText(variants: Array<{ channel: string; body: string; publishOpt
   }).join('\n\n')
 }
 
+type ArbiterCase = import('@/lib/marketing/arbiter-core').ArbiterCase
+type Arbitration = { decision: ArbiterDecision; reason: string; by: 'rules' | 'haggo' }
+
+/**
+ * The writer and the editor did not agree: Haggo decides (publish or discard) instead of leaving the
+ * piece for a person. Only real blocks and pieces a person asked for go to a person.
+ */
+async function arbitratePiece(agent: Agent, postId: string, p: { editorStatus: ArbiterCase['editorStatus']; score: number | null; summary: string; risks: string[]; issues: Array<{ severity: string; message: string }>; requestedByPerson: boolean }, meter: Meter): Promise<Arbitration> {
+  const editorial = await getEditorialSettings(agent.workspaceId)
+  const blocks = p.issues.filter((i) => i.severity === 'block').map((i) => i.message)
+  const pre = arbiterPrecheck({ editorStatus: p.editorStatus, score: p.score, minScore: editorial.minScore, blocks, requestedByPerson: p.requestedByPerson })
+  if (pre) return { ...pre, by: 'rules' }
+  const post = await prisma.marketingPost.findUnique({ where: { id: postId }, select: { title: true, variants: { select: { channel: true, body: true, publishOptions: true } } } })
+  if (!post) return { decision: 'human', reason: 'Publicación no encontrada', by: 'rules' }
+  const asks = ((await latestEditorAsks(postId)) ?? []).map((i) => i.change).filter((c) => !isLinkParamAsk(c))
+  try {
+    const ai = await getAiSettings()
+    const raw = await callTool(agent, ai.defaultModel, {
+      kind: 'marketing_arbiter', system: [{ type: 'text', text: arbiterSystem((await brandName(agent.workspaceId)) || 'LoHaggo') }], tool: ARBITER_TOOL, maxTokens: 1500, effort: 'low',
+      task: arbiterTask({ title: post.title, texts: versionText(post.variants).slice(0, 6000), editorSummary: p.summary.slice(0, 800), editorAsks: asks.slice(0, 6), score: p.score, minScore: editorial.minScore, writerRisks: p.risks.filter((r) => !isLinkParamAsk(r)).slice(0, 6), warnings: p.issues.filter((i) => i.severity !== 'block').map((i) => i.message).slice(0, 6) }),
+    }, meter)
+    const d = parseArbiter(raw)
+    if (!d) return { decision: 'human', reason: 'Haggo no dio una decisión clara', by: 'haggo' }
+    return { ...d, by: 'haggo' }
+  } catch (err) {
+    return { decision: 'human', reason: `Haggo no pudo decidir: ${err instanceof Error ? err.message : 'error'}`, by: 'haggo' }
+  }
+}
+
+/** Haggo's decision applied: published pieces skip the editor's hold; discarded ones free their idea for another. */
+async function applyArbitration(agent: Agent, postId: string, ideaId: string | null, a: Arbitration, mode: AgentMode) {
+  const current = await prisma.marketingPost.findUnique({ where: { id: postId }, select: { agentMeta: true, title: true } })
+  const meta = { ...((current?.agentMeta as Record<string, unknown> | null) ?? {}), arbiter: { decision: a.decision, reason: a.reason, by: a.by, at: new Date().toISOString() }, editorPending: false }
+  if (a.decision === 'publish') {
+    await overrideReview(postId)
+    await prisma.marketingPost.update({ where: { id: postId }, data: { status: 'approved', approvedAt: new Date(), approvedById: null, agentMeta: json(meta) } })
+    return schedulePiece(agent, postId, mode)
+  }
+  if (a.decision === 'discard') {
+    await prisma.marketingPost.update({ where: { id: postId }, data: { status: 'archived', rejectedReason: `Haggo la descartó: ${a.reason}`.slice(0, 500), agentMeta: json(meta) } })
+    if (ideaId) await prisma.marketingIdea.update({ where: { id: ideaId }, data: { status: 'rejected', rejectedReason: `Haggo descartó la pieza: ${a.reason}`.slice(0, 500) } }).catch(() => null)
+    return { ok: true as const, message: 'descartada' }
+  }
+  await prisma.marketingPost.update({ where: { id: postId }, data: { agentMeta: json(meta) } })
+  return { ok: false as const, message: a.reason }
+}
+
 export async function draftIdea(agent: Agent, ideaId: string, opts: { instruction?: string | null; postId?: string | null; editorNotes?: string[] | null; deadline?: number } = {}) {
   return withRun(agent, 'draft', { ideaId, postId: opts.postId ?? null, instruction: opts.instruction ?? null, editorNotes: opts.editorNotes ?? null }, async (meter) => {
     const idea = await prisma.marketingIdea.findFirst({ where: { id: ideaId, agentId: agent.id } })
@@ -723,17 +772,25 @@ export async function draftIdea(agent: Agent, ideaId: string, opts: { instructio
       review = { status: pass.status, score: pass.score, rounds: round, summary: pass.summary, instructions: pass.instructions }
       await saveReviewState(post.id, pass.status, { score: pass.score, rounds: round })
     }
-    const heldByEditor = Boolean(review && review.status !== 'approved')
+    let heldByEditor = Boolean(review && review.status !== 'approved')
 
     const trial = !existing && agent.trialPostsRemaining > 0
     const mode = modeFor(agent, channels)
+    // Writer and editor did not agree (or the rules flagged a warning): Haggo decides, not a person
+    let arbitration: Arbitration | null = null
+    if (check.ok && mode !== 'copilot' && (heldByEditor || check.needsReview)) {
+      arbitration = await arbitratePiece(agent, post.id, { editorStatus: review?.status ?? 'approved', score: review?.score ?? null, summary: review?.summary ?? '', risks: draft.risks, issues: check.issues, requestedByPerson: Boolean(existing) }, meter)
+      if (arbitration.decision === 'publish') { if (heldByEditor) await overrideReview(post.id); heldByEditor = false }
+    }
     // A version a person asked for goes back to that person, whatever the mode
     const from: AgentState = existing ? 'review' : 'idea_accepted'
-    const t = nextAgentState(from, 'drafted', mode, { valid: check.ok, needsReview: check.needsReview || heldByEditor, trial })!
+    const arbiterPublishes = arbitration?.decision === 'publish'
+    const t = nextAgentState(from, 'drafted', mode, { valid: check.ok, needsReview: !arbiterPublishes && (check.needsReview || heldByEditor), trial })!
     const meta = {
       confidence: draft.confidence, risks: draft.risks, hypothesis: draft.hypothesis || idea.hypothesis, cta: draft.cta, rationale: idea.rationale, explore: idea.explore, service,
       imageSource: image.source, imageError: image.error, videoSource: video.source, videoError: video.error, guardrails: check.issues, validation: check.validation, corrected, mode, instruction: opts.instruction ?? null,
       review: review ? { status: review.status, score: review.score, rounds: review.rounds, summary: review.summary.slice(0, 600) } : null,
+      arbiter: arbitration ? { decision: arbitration.decision, reason: arbitration.reason, by: arbitration.by, at: new Date().toISOString() } : null,
     }
     await prisma.marketingPost.update({
       where: { id: post.id },
@@ -743,6 +800,10 @@ export async function draftIdea(agent: Agent, ideaId: string, opts: { instructio
         features: json(postFeatures({ pillar: idea.pillar, service, explore: idea.explore, cta: draft.cta, imageSource: image.source, at: null, variants: check.post.variants.map((v) => ({ channel: v.channel as MarketingChannel, body: v.body, format: ideaInfo.formats[v.channel as MarketingChannel] ?? v.format })) })),
       },
     })
+    if (arbitration?.decision === 'discard') {
+      await applyArbitration(agent, post.id, idea.id, arbitration, mode)
+      return { summary: `«${draft.title}» descartada por Haggo: ${arbitration.reason}`, value: post.id, output: { postId: post.id, state: 'archived', arbiter: arbitration, review } }
+    }
     await runActions(agent, t.actions, { postId: post.id, ideaId: idea.id, title: draft.title, mode, problems: [...check.validation, ...check.issues.map((i) => i.message)], isNew: !existing })
     if (review && heldByEditor) {
       const why = review.status === 'failed' ? `La revisión no se pudo hacer: ${review.summary}` : review.status === 'rejected' ? `El editor la rechazó: ${review.summary}` : `El editor sigue pidiendo cambios tras ${review.rounds} ronda(s): ${review.instructions.slice(0, 3).map((i) => i.change).join(' · ') || review.summary}`
@@ -751,7 +812,8 @@ export async function draftIdea(agent: Agent, ideaId: string, opts: { instructio
 
     const where = t.state === 'review' ? 'esperando aprobación' : t.state === 'draft' ? 'en borrador (necesita a una persona)' : 'programada'
     const reviewNote = review ? ` · revisión: ${review.status === 'approved' ? `aprobada${review.score != null ? ` ${review.score}/10` : ''}` : review.status === 'failed' ? 'no se pudo hacer' : review.status === 'rejected' ? 'rechazada' : 'pide cambios'}${review.rounds ? ` tras ${review.rounds} reescritura(s)` : ''}` : ''
-    return { summary: `«${draft.title}» ${where}${corrected ? ' tras una corrección' : ''}${reviewNote}${image.error ? ` · imagen: ${image.error}` : ''}${video.source ? ` · video: ${video.source}` : video.error ? ` · video: ${video.error}` : ''}`, value: post.id, output: { postId: post.id, state: t.state, issues: check.issues, validation: check.validation, review } }
+    const arbiterNote = arbitration ? ` · Haggo: ${arbitration.decision === 'publish' ? 'publicar' : 'a una persona'} (${arbitration.reason})` : ''
+    return { summary: `«${draft.title}» ${where}${corrected ? ' tras una corrección' : ''}${reviewNote}${arbiterNote}${image.error ? ` · imagen: ${image.error}` : ''}${video.source ? ` · video: ${video.source}` : video.error ? ` · video: ${video.error}` : ''}`, value: post.id, output: { postId: post.id, state: t.state, issues: check.issues, validation: check.validation, review } }
   })
 }
 
@@ -1145,6 +1207,38 @@ export async function runAgentCycle(agentId: string, deadline = Date.now() + 240
           body: r.ok ? `${r.summary}. Revísala y apruébala.` : r.error, url: postUrl(held.id), postId: held.id, dedupeKey: `edapply:${held.id}:${bogota(now).key}`,
         })
       }
+    }
+
+    // Pieces waiting for a person because the agents did not agree: Haggo decides, a few per cycle
+    {
+      const stuck = await prisma.marketingPost.findMany({
+        where: { agentId: agent.id, status: 'review', updatedAt: { lt: new Date(now.getTime() - 30 * 60_000) } },
+        orderBy: { updatedAt: 'asc' }, take: 20,
+        select: { id: true, ideaId: true, reviewStatus: true, agentMeta: true, variants: { select: { channel: true } } },
+      })
+      let decided = 0
+      for (const p of stuck) {
+        if (timeLeft() < 150_000 || decided >= 3) break
+        // Already decided once: what Haggo left to a person stays with that person
+        if ((p.agentMeta as { arbiter?: unknown } | null)?.arbiter) continue
+        decided++
+        const meta = (p.agentMeta as { instruction?: string | null; risks?: string[]; guardrails?: Array<{ severity: string; message: string }>; review?: { score?: number | null; summary?: string } | null; arbiter?: { decision?: string } | null } | null) ?? {}
+        const mode = modeFor(agent, p.variants.map((v) => v.channel as MarketingChannel))
+        if (mode === 'copilot') continue
+        const r = await withRun(agent, 'review', { postId: p.id, trigger: 'arbiter' }, async (meter) => {
+          const editorStatus = (['approved', 'changes', 'rejected', 'failed'].includes(p.reviewStatus ?? '') ? p.reviewStatus : p.reviewStatus === 'overridden' ? 'approved' : 'changes') as ArbiterCase['editorStatus']
+          const a = await arbitratePiece(agent, p.id, { editorStatus, score: meta.review?.score ?? null, summary: meta.review?.summary ?? '', risks: meta.risks ?? [], issues: meta.guardrails ?? [], requestedByPerson: Boolean(meta.instruction) }, meter)
+          const res = await applyArbitration(agent, p.id, p.ideaId, a, mode)
+          return { summary: `Haggo decidió ${a.decision === 'publish' ? 'publicar' : a.decision === 'discard' ? 'descartar' : 'dejarla a una persona'} «${p.id}»: ${a.reason}${a.decision === 'publish' && !res.ok ? ` · no se programó: ${res.message}` : ''}`, value: a }
+        })
+        report.push(`árbitro ${p.id}: ${r.ok ? r.summary : r.error}`)
+      }
+    }
+
+    // Ideas left «proposed» from a time the agent was in copilot: accepted now if their date is ahead
+    if (modeFor(agent, enabledChannels(config), { ignoreTrial: true }) !== 'copilot') {
+      const adopted = await prisma.marketingIdea.updateMany({ where: { agentId: agent.id, status: 'proposed', targetDate: { gt: now } }, data: { status: 'accepted' } })
+      if (adopted.count) report.push(`${adopted.count} idea(s) propuestas aceptadas`)
     }
 
     let planned = false

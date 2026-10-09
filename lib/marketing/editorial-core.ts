@@ -4,6 +4,7 @@
  */
 import { createHash } from 'crypto'
 import type { MarketingChannel } from '@/lib/marketing/channel-rules'
+import { isLinkParamAsk } from '@/lib/marketing/arbiter-core'
 import { CRITERIA, CRITERION_IDS, CRITERION_LABEL, PASSING, reviewApplies, type CriterionId, type EditorialSettings, type RubricItem, type ReviewStatus } from '@/lib/marketing/editorial-rubric'
 
 // ─── Texts and fingerprint ──────────────────────────────────────────────────
@@ -232,7 +233,8 @@ export function nextReviewStep(outcome: EditorOutcome['result'], round: number, 
 
 /** The editor's asks as the agent's corrections for its next version. */
 export function instructionsForAgent(instructions: Instruction[]) {
-  return instructions.map((i) => `${i.channel ? `${CHANNEL_NAME[i.channel]}` : 'General'}${i.field ? ` (${i.field})` : ''}: ${i.change}${i.reason ? ` — ${i.reason}` : ''}`)
+  // Link tracking parameters are the platform's: an ask about them would only make the writer contradict its own instructions
+  return instructions.filter((i) => !isLinkParamAsk(`${i.change} ${i.reason ?? ''}`)).map((i) => `${i.channel ? `${CHANNEL_NAME[i.channel]}` : 'General'}${i.field ? ` (${i.field})` : ''}: ${i.change}${i.reason ? ` — ${i.reason}` : ''}`)
 }
 
 // ─── Publishing gate ────────────────────────────────────────────────────────

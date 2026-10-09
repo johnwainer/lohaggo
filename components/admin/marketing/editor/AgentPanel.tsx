@@ -52,6 +52,7 @@ export default function AgentPanel({ post, idea, agentId, canEdit, onChanged, on
         {meta.slots?.map((s) => <p key={s.channel}><strong>{CHANNEL_NAME[s.channel]}:</strong> {s.reason}</p>)}
         {post.optOutDeadline && post.status === 'scheduled' && <p className="font-semibold text-amber-800">Sale sola si nadie la cancela o edita antes del {fmtDateTime(post.optOutDeadline)}.</p>}
         {meta.risks?.length ? <p className="text-gray-500">Riesgos: {meta.risks.join('; ')}</p> : null}
+        {meta.arbiter && <p className={`rounded-xl px-3 py-2 text-xs ${meta.arbiter.decision === 'human' ? 'bg-amber-50 text-amber-900' : 'bg-primary-50 text-primary-900'}`}><strong>{meta.arbiter.by === 'haggo' ? 'Haggo decidió' : 'Regla'}: {meta.arbiter.decision === 'publish' ? 'publicar' : meta.arbiter.decision === 'discard' ? 'descartar' : 'dejarla a una persona'}.</strong> {meta.arbiter.reason}</p>}
       </div>
       {issues.length > 0 && <div className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900 space-y-0.5">{issues.slice(0, 6).map((i, n) => <p key={n} className="flex gap-1"><AlertTriangle size={12} className="mt-0.5 shrink-0" />{i}</p>)}</div>}
       {canEdit && !closed && (

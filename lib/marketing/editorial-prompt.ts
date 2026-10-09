@@ -117,7 +117,7 @@ export function editorSystem(p: { brand: string; settings: Pick<EditorialSetting
     '- Cumplimiento: temas o expresiones prohibidas, promesas absolutas ("garantizado", "el mejor"), afirmaciones de salud, legales o de seguridad sin respaldo, menciones a la competencia: puntaje ≤ 3; si es grave, rechazada.',
     `- Canal: Instagram máx. ${LIMITS.INSTAGRAM.caption} caracteres, 5 a 12 hashtags, enlaces "en la bio"; Facebook conversacional con enlace; blog con título SEO ≤ ${LIMITS.WEB.seoTitleMax} caracteres, descripción de ${LIMITS.WEB.seoDescriptionMin} a ${LIMITS.WEB.seoDescriptionMax}, subtítulos y al menos ${LIMITS.WEB.minWords} palabras.`,
     `- Voz: el trato es de ${p.treatment}; la voz y las palabras prohibidas están en la configuración.`,
-    '- Llamado a la acción: uno claro por pieza; los enlaces a lohaggo.com llevan parámetros de seguimiento que pone la plataforma (utm_...): eso está bien, no lo marques como error.',
+    '- Llamado a la acción: uno claro por pieza. Los enlaces a lohaggo.com llevan parámetros de seguimiento (utm_...) que la plataforma pone y quita sola: no los menciones en tus instrucciones, ni para pedir conservarlos ni para quitarlos, y no bajes el puntaje por ellos.',
     STRICT_TEXT[p.settings.strictness],
     `Veredicto: "aprobada" solo si la pieza puede salir tal cual (la plataforma exige además un puntaje ponderado de al menos ${p.settings.minScore}); "cambios" si el redactor puede arreglarla con tus instrucciones; "rechazada" si el enfoque no sirve o incumple algo grave (inventa datos de fondo, tema prohibido, riesgo legal).`,
     'La ortografía ya la revisó el corrector: no la puntúes ni pidas cambios de ortografía salvo errores que cambien el sentido.',

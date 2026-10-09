@@ -57,6 +57,7 @@ const KIND_LABEL: Record<string, string> = {
   marketing_review_editor: 'Revisión editorial: editor',
   marketing_review_spelling: 'Revisión editorial: ortografía',
   marketing_ad_agent: 'Agente de pauta (Meta Ads)',
+  marketing_arbiter: 'Haggo: árbitro de publicaciones',
   haggo_cycle: 'Haggo: ciclos de revisión',
   haggo_chat: 'Haggo: conversación',
   haggo_report: 'Haggo: informes',

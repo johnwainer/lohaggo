@@ -68,7 +68,7 @@ export type Post = {
   reviewedAt?: string | null
   agentMeta?: {
     confidence?: number; risks?: string[]; hypothesis?: string | null; rationale?: string | null; service?: string | null
-    guardrails?: Array<{ message: string; severity: string }>; validation?: string[]; slots?: Array<{ channel: MkChannel; reason: string }>; scheduleProblems?: string[]
+    guardrails?: Array<{ message: string; severity: string }>; validation?: string[]; slots?: Array<{ channel: MkChannel; reason: string }>; scheduleProblems?: string[]; arbiter?: { decision: 'publish' | 'discard' | 'human'; reason: string; by: 'rules' | 'haggo'; at: string } | null
     preflight?: PreflightRow[]
   } | null
 }
