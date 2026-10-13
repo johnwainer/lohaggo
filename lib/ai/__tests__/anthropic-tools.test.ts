@@ -36,3 +36,11 @@ describe('herramientas que se envían a Claude', () => {
     expect(c.tripNow).toBe(false)
   })
 })
+
+describe('modo estricto', () => {
+  it('con más de 20 herramientas estrictas ninguna sale estricta; con pocas se conserva', () => {
+    const many = Array.from({ length: 21 }, (_, i) => ({ name: `t${i}`, input_schema: { type: 'object' as const, properties: {} }, strict: true }))
+    expect(anthropicSafeTools(many).some((t) => t.strict)).toBe(false)
+    expect(anthropicSafeTools(many.slice(0, 5)).every((t) => t.strict)).toBe(true)
+  })
+})

@@ -7,6 +7,7 @@ function hasForeignToolTurn(messages: Anthropic.MessageParam[]) {
   return messages.some((m) => m.role === 'assistant' && Array.isArray(m.content) && m.content.some((b) => b.type === 'tool_use') && !m.content.some((b) => b.type === 'thinking' || b.type === 'redacted_thinking'))
 }
 
+const MAX_STRICT_TOOLS = 20
 const INTEGER_BOUNDS = ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf'] as const
 
 /** One JSON schema without the bounds Claude rejects on integers (moved into the description, which the model still reads). */
@@ -29,11 +30,17 @@ function cleanSchema(node: unknown): unknown {
 }
 
 /**
- * Claude rejects «minimum»/«maximum» on integer tool parameters (400 «For 'integer' type, properties maximum,
+ * Claude rejects «minimum»/«maximum» on integer tool parameters and more than 20 strict tools (400 «For 'integer' type, properties maximum,
  * minimum are not supported»), which OpenAI accepts: every tool goes out without them. Code validates ranges anyway.
  */
 export function anthropicSafeTools(tools: Anthropic.Tool[]): Anthropic.Tool[] {
-  return tools.map((t) => (t.input_schema ? { ...t, input_schema: cleanSchema(t.input_schema) as Anthropic.Tool['input_schema'] } : t))
+  // Claude takes at most MAX_STRICT_TOOLS strict tools per request (400 «Too many strict tools»): over that, none go strict
+  const tooManyStrict = tools.filter((t) => t.strict).length > MAX_STRICT_TOOLS
+  return tools.map((t) => {
+    const out: Anthropic.Tool = t.input_schema ? { ...t, input_schema: cleanSchema(t.input_schema) as Anthropic.Tool['input_schema'] } : { ...t }
+    if (tooManyStrict) delete out.strict
+    return out
+  })
 }
 
 /**
