@@ -275,6 +275,8 @@ export const AgentRuntimeService = {
       // Report the real reason; never dress an API failure up as an answer
       const error = describeApiError(err)
       logger.error('Agent reply failed', { agentId: agent.id, conversationId: opts.conversationId, error })
+      // A customer was left without an answer: the team hears it once (open incident = already told), not after days
+      if (!opts.dryRun) void reportAgentFailure(agent.name, error)
       return { ...result, ok: false, error, handoff: true, handoffReason: 'api_error', handoffDetail: error, text: agent.handoffMessage }
     }
 
@@ -434,4 +436,20 @@ async function pickLeastLoadedMember(workspaceId: string): Promise<string | null
   })
   const load = new Map(counts.map((c) => [c.assignedToId, c._count._all]))
   return [...members].sort((a, b) => (load.get(a.userId) ?? 0) - (load.get(b.userId) ?? 0))[0].userId
+}
+
+/** One open incident per failing period: critical, so admins get it by WhatsApp; resolving it re-arms the alarm. */
+async function reportAgentFailure(agentName: string, error: string) {
+  try {
+    const open = await prisma.adminIncident.findFirst({ where: { type: 'ai:agent-failing', status: { in: ['OPEN', 'ACKNOWLEDGED'] } }, select: { id: true } })
+    if (open) return
+    const { openIncident } = await import('@/lib/ops/platform-ops')
+    await openIncident({
+      type: 'ai:agent-failing', severity: 'CRITICAL', source: 'ai-runtime',
+      title: `El agente «${agentName}» no puede responder a los clientes`,
+      description: `Cada mensaje pasa a una persona porque la IA rechaza la respuesta: ${error}`.slice(0, 2000),
+    })
+  } catch (err) {
+    logger.warn('Could not open the agent failure incident', { err: err instanceof Error ? err.message : err })
+  }
 }

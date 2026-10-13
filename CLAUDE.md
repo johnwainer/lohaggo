@@ -53,6 +53,12 @@
 - ❌ Un aviso guardado (degradación del agente, estado de cuenta) **NUNCA** debe quedarse pegado hasta el próximo cron: por ese mensaje se desconectaron y reconectaron las 3 cuentas y 38 publicaciones y el agente quedaron apuntando a ids borrados. Diagnosticar recalcula la degradación al instante.
 - ✅ Al conectar o diagnosticar una cuenta de Meta corre `adoptOrphans` (`lib/marketing/reconnect.ts`): publicaciones sin cuenta vuelven a la suya y el agente deja ids que ya no existen (`healAccountIds`).
 
+#### Reglas duras aprendidas (incidente del 2026-10-13 — el agente de la bandeja no respondió durante 4 días)
+- ❌ **NUNCA** asumir que una herramienta que acepta OpenAI la acepta Claude. Al pasar Claude a proveedor principal, cada turno del agente devolvía 400 (`minimum`/`maximum` en parámetros `integer`, y más de 20 herramientas `strict`) y cada mensaje de cliente terminaba en «Te comunico con una persona».
+- ✅ Todas las herramientas hacia Claude pasan por `anthropicSafeTools` (`lib/ai/providers/anthropic.ts`): quita los rangos de enteros (el código valida) y el modo estricto si son más de 20.
+- ✅ Tras cambiar el proveedor o el modelo de IA, probar el agente con el simulador del admin (`/api/admin/ai/agents/[id]/test`), no solo «Probar modelo» (que va sin herramientas).
+- ✅ Un fallo del agente con un cliente abre un incidente crítico `ai:agent-failing` (aviso por WhatsApp a los admins); nunca debe quedar solo en un evento de la conversación.
+
 ### 4. Dirección de diseño y producto
 
 **Look & feel: estilo Rappi.** Decidido tras research de competidores directos (TaskRabbit, Thumbtack, Angi, IguanaFix, Habitissimo — ninguno usa mapa principal en home services).
