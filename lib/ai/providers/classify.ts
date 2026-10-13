@@ -3,7 +3,7 @@ import OpenAI from 'openai'
 import { ProviderResponseError } from '@/lib/ai/providers/translate'
 import type { ProviderId } from '@/lib/ai/providers/types'
 
-export type FailReason = 'sin_credito' | 'clave_invalida' | 'limite' | 'sobrecarga' | 'caido' | 'sin_clave' | 'modelo_no_disponible'
+export type FailReason = 'sin_credito' | 'clave_invalida' | 'limite' | 'sobrecarga' | 'caido' | 'sin_clave' | 'modelo_no_disponible' | 'incompatible'
 
 export const REASON_LABEL: Record<FailReason, string> = {
   sin_credito: 'sin crédito',
@@ -13,6 +13,7 @@ export const REASON_LABEL: Record<FailReason, string> = {
   caido: 'no responde',
   sin_clave: 'sin clave configurada',
   modelo_no_disponible: 'modelo no disponible',
+  incompatible: 'no acepta el formato de la petición',
 }
 
 export type Classification = {
@@ -72,5 +73,9 @@ export function classifyProviderError(_provider: ProviderId, err: unknown): Clas
   if (status === 404) return { failover: true, reason: 'modelo_no_disponible', cooldownMs: 0, tripNow: false }
   if (status === 529 || status === 503) return { failover: true, reason: 'sobrecarga', cooldownMs: 5 * MIN, tripNow: false }
   if (status >= 500) return { failover: true, reason: 'caido', cooldownMs: 5 * MIN, tripNow: false }
+  // A 400 about the tools' schema is this provider's dialect, not a wrong request: the other one may take it as is
+  if (status === 400 && /tools\.\d+|input_schema|schema/.test(text) && /not supported|unsupported/.test(text) && !/credit/.test(text)) {
+    return { failover: true, reason: 'incompatible', cooldownMs: 0, tripNow: false }
+  }
   return NO
 }

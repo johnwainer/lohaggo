@@ -7,6 +7,35 @@ function hasForeignToolTurn(messages: Anthropic.MessageParam[]) {
   return messages.some((m) => m.role === 'assistant' && Array.isArray(m.content) && m.content.some((b) => b.type === 'tool_use') && !m.content.some((b) => b.type === 'thinking' || b.type === 'redacted_thinking'))
 }
 
+const INTEGER_BOUNDS = ['minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf'] as const
+
+/** One JSON schema without the bounds Claude rejects on integers (moved into the description, which the model still reads). */
+function cleanSchema(node: unknown): unknown {
+  if (Array.isArray(node)) return node.map(cleanSchema)
+  if (!node || typeof node !== 'object') return node
+  const o = { ...(node as Record<string, unknown>) }
+  const types = Array.isArray(o.type) ? o.type : [o.type]
+  if (types.includes('integer')) {
+    const lo = o.minimum ?? o.exclusiveMinimum
+    const hi = o.maximum ?? o.exclusiveMaximum
+    if (lo !== undefined || hi !== undefined) {
+      const range = lo !== undefined && hi !== undefined ? `entre ${lo} y ${hi}` : lo !== undefined ? `desde ${lo}` : `hasta ${hi}`
+      o.description = `${typeof o.description === 'string' && o.description ? `${o.description}. ` : ''}Número entero ${range}.`
+    }
+    for (const k of INTEGER_BOUNDS) delete o[k]
+  }
+  for (const [k, v] of Object.entries(o)) if (v && typeof v === 'object' && k !== 'enum' && k !== 'const' && k !== 'default' && k !== 'examples') o[k] = cleanSchema(v)
+  return o
+}
+
+/**
+ * Claude rejects «minimum»/«maximum» on integer tool parameters (400 «For 'integer' type, properties maximum,
+ * minimum are not supported»), which OpenAI accepts: every tool goes out without them. Code validates ranges anyway.
+ */
+export function anthropicSafeTools(tools: Anthropic.Tool[]): Anthropic.Tool[] {
+  return tools.map((t) => (t.input_schema ? { ...t, input_schema: cleanSchema(t.input_schema) as Anthropic.Tool['input_schema'] } : t))
+}
+
 /**
  * Builds the request for a given model. Claude 5 / 4.6+: adaptive thinking + effort, never
  * temperature/top_p/top_k (400). Legacy fallback models (Haiku 4.5) take neither thinking nor effort.
@@ -21,7 +50,7 @@ export function buildRequest(p: CallParams, model: string): Anthropic.MessageCre
     messages: p.messages,
   }
   if (p.system?.length) req.system = p.system
-  if (p.tools?.length) req.tools = p.tools
+  if (p.tools?.length) req.tools = anthropicSafeTools(p.tools)
   if (thinking) req.thinking = { type: 'adaptive' }
   if (caps.effort) req.output_config = { effort: p.effort }
   return req

@@ -88,7 +88,8 @@ export async function callAI(p: CallParams, ctx: CallContext): Promise<CallResul
   const { result: message, provider } = await runProviders(plans, {
     failoverEnabled: settings.failoverEnabled && ctx.allowFailover !== false,
     isDown: (pr) => providerIsDown(states, pr),
-    onError: (pr, c, err) => (c.reason ? recordProviderError(pr, c, describeApiError(err)) : undefined),
+    // A request this provider does not accept says nothing about its health: it is not counted towards marking it down
+    onError: (pr, c, err) => (c.reason && c.reason !== 'incompatible' ? recordProviderError(pr, c, describeApiError(err)) : undefined),
     onOk: recordProviderOk,
     describe: describeApiError,
   })
