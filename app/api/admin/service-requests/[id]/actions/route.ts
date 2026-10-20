@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { requireAdmin } from '@/lib/admin-utils'
 import { opsErrorResponse } from '@/lib/ops/actor'
+import { notifySelectedPartners } from '@/lib/admin/request-partners'
 import { adminBookingStatus, adminReactivate, adminReschedule, openSupportCase, postSupportMessage, renotifyPartners, type AdminActor } from '@/lib/admin/interventions'
 
 export const dynamic = 'force-dynamic'
@@ -9,6 +10,7 @@ export const dynamic = 'force-dynamic'
 const schema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('chat_message'), proposalId: z.string().min(1), text: z.string().min(2).max(1000), to: z.enum(['client', 'partner', 'both']) }),
   z.object({ action: z.literal('renotify') }),
+  z.object({ action: z.literal('renotify_selected'), partnerIds: z.array(z.string().min(1)).min(1).max(60) }),
   z.object({ action: z.literal('reactivate') }),
   z.object({ action: z.literal('booking_status'), bookingId: z.string().min(1), status: z.enum(['CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']), reason: z.string().max(500).optional(), reopen: z.boolean().optional() }),
   z.object({ action: z.literal('reschedule'), bookingId: z.string().min(1), date: z.string(), time: z.string() }),
@@ -28,6 +30,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     switch (b.action) {
       case 'chat_message': return NextResponse.json(await postSupportMessage(actor, { requestId: id, proposalId: b.proposalId, text: b.text, to: b.to }))
       case 'renotify': return NextResponse.json(await renotifyPartners(actor, id))
+      case 'renotify_selected': return NextResponse.json(await notifySelectedPartners(actor, id, b.partnerIds))
       case 'reactivate': return NextResponse.json(await adminReactivate(actor, id))
       case 'booking_status': return NextResponse.json(await adminBookingStatus(actor, { requestId: id, bookingId: b.bookingId, status: b.status, reason: b.reason, reopen: b.reopen }))
       case 'reschedule': return NextResponse.json(await adminReschedule(actor, { requestId: id, bookingId: b.bookingId, date: b.date, time: b.time }))

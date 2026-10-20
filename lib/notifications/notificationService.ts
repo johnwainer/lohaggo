@@ -526,6 +526,44 @@ async function dispatchAutomaticNotificationChannels(params: {
  * reminder about a request without proposals) the client is not written to again. Returns how many
  * partners were notified.
  */
+type RequestForNotice = {
+  id: string; serviceId: string; address: string | null; city: string; isUrgent: boolean; preferredDate: Date | null; preferredTime: string | null
+  service: { name: string }; user: { name: string }
+}
+
+/** «hoy, urgente», «mié 22 oct 9:00 a. m.» or «fecha por definir»: the when of a request in the partner's notice */
+export async function requestWhenText(sr: Pick<RequestForNotice, 'isUrgent' | 'preferredDate' | 'preferredTime'>) {
+  if (sr.isUrgent) return 'hoy, urgente'
+  if (!sr.preferredDate) return 'fecha por definir'
+  const { waDay, waWhen } = await import('@/lib/messaging/wa-format')
+  const { bookingWhen } = await import('@/lib/bookings/when')
+  return sr.preferredTime
+    ? waWhen(bookingWhen({ scheduledDate: sr.preferredDate, scheduledTime: sr.preferredTime }))
+    : waDay(bookingWhen({ scheduledDate: sr.preferredDate, scheduledTime: '12:00' }))
+}
+
+/**
+ * One partner told about one request: WhatsApp template (C10, or C11 when direct; once per round) and the
+ * in-app notification. `round` separates repeated notices so a reminder is not taken for a duplicate.
+ */
+export async function sendRequestNoticeToPartner(sr: RequestForNotice, partnerUser: { id: string; name: string }, opts: { direct: boolean; round: number; when?: string }) {
+  const { waNewRequestToPartner } = await import('@/lib/messaging/wa-events')
+  const when = opts.when ?? (await requestWhenText(sr))
+  // Template first (C10 / C11): the free-text WhatsApp of the notification is then skipped
+  const wa = await waNewRequestToPartner({
+    requestId: sr.id, partnerUserId: partnerUser.id, partnerName: partnerUser.name, service: sr.service.name,
+    address: sr.address, city: sr.city, when, direct: opts.direct, round: opts.round,
+  })
+  await createNotification({
+    userId: partnerUser.id,
+    type: "NEW_SERVICE_REQUEST",
+    title: opts.direct ? "Nueva solicitud directa" : "Nueva solicitud de servicio",
+    message: opts.direct ? `${sr.user.name} te ha solicitado ${sr.service.name}` : `${sr.user.name} solicita ${sr.service.name}`,
+    data: { serviceRequestId: sr.id, serviceId: sr.serviceId, isDirect: opts.direct },
+  })
+  return wa
+}
+
 export async function notifyNewServiceRequest(serviceRequestId: string, opts: { partnersOnly?: boolean; round?: number; origin?: { via: string } } = {}): Promise<number> {
   let notified = 0
   try {
@@ -566,37 +604,14 @@ export async function notifyNewServiceRequest(serviceRequestId: string, opts: { 
 
     if (!serviceRequest) return 0
 
-    const { waNewRequestToPartner, waRequestCreated } = await import('@/lib/messaging/wa-events')
+    const { waRequestCreated } = await import('@/lib/messaging/wa-events')
     const serviceName = serviceRequest.service.name
 
-    // Format the "when" string for the partner notification
-    let when = 'fecha por definir'
-    if (serviceRequest.isUrgent) {
-      when = 'hoy, urgente'
-    } else if (serviceRequest.preferredDate) {
-      const { waDay, waWhen } = await import('@/lib/messaging/wa-format')
-      const { bookingWhen } = await import('@/lib/bookings/when')
-      when = serviceRequest.preferredTime
-        ? waWhen(bookingWhen({ scheduledDate: serviceRequest.preferredDate, scheduledTime: serviceRequest.preferredTime }))
-        : waDay(bookingWhen({ scheduledDate: serviceRequest.preferredDate, scheduledTime: '12:00' }))
-    }
+    const when = await requestWhenText(serviceRequest)
 
     const notifyPartner = async (partner: { user: { id: string; name: string; phone: string | null } }, isDirect: boolean) => {
       notified++
-      // Template first (C10 / C11): the free-text WhatsApp of the notification is then skipped
-      await waNewRequestToPartner({
-        requestId: serviceRequest.id, partnerUserId: partner.user.id, partnerName: partner.user.name, service: serviceName,
-        address: serviceRequest.address, city: serviceRequest.city, when, direct: isDirect, round: opts.round ?? 0,
-      })
-      await createNotification({
-        userId: partner.user.id,
-        type: "NEW_SERVICE_REQUEST",
-        title: isDirect ? "Nueva solicitud directa" : "Nueva solicitud de servicio",
-        message: isDirect
-          ? `${serviceRequest.user.name} te ha solicitado ${serviceName}`
-          : `${serviceRequest.user.name} solicita ${serviceName}`,
-        data: { serviceRequestId: serviceRequest.id, serviceId: serviceRequest.serviceId, isDirect }
-      })
+      await sendRequestNoticeToPartner(serviceRequest, partner.user, { direct: isDirect, round: opts.round ?? 0, when })
     }
 
     const isEligible = (p: { isActive: boolean; verified: boolean; isAvailable: boolean }) =>

@@ -25,6 +25,7 @@ export type { AttentionFlag, Intervention }
 export type ActionBody =
   | { action: 'chat_message'; proposalId: string; text: string; to: 'client' | 'partner' | 'both' }
   | { action: 'renotify' }
+  | { action: 'renotify_selected'; partnerIds: string[] }
   | { action: 'reactivate' }
   | { action: 'booking_status'; bookingId: string; status: 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'; reason?: string; reopen?: boolean }
   | { action: 'reschedule'; bookingId: string; date: string; time: string }

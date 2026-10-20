@@ -13,6 +13,7 @@ import { zoneName } from '@/lib/geo/zones'
 import { BOOKING_STATUS_LABEL } from '@/lib/bookings/transitions'
 import { AttentionPanel } from '@/components/admin/requests/AttentionPanel'
 import { BookingSection } from '@/components/admin/requests/BookingSection'
+import { RenotifyPartnersSheet } from '@/components/admin/requests/RenotifyPartners'
 import { ChatThread, type ChatThreadHandle } from '@/components/admin/requests/ChatThread'
 import type { ActionBody, Case, Intervention, Recipient } from '@/components/admin/requests/types'
 import {
@@ -27,6 +28,7 @@ type SheetState =
   | { kind: 'cancel'; reopen: boolean }
   | { kind: 'case' }
   | { kind: 'confirm'; action: 'renotify' | 'reactivate' }
+  | { kind: 'renotify' }
 
 type Notice = { ok: boolean; text: string } | null
 
@@ -111,6 +113,8 @@ export default function RequestCasePage() {
     if (!data) return
     switch (i) {
       case 'renotify':
+        setSheet({ kind: 'renotify' })
+        return
       case 'reactivate':
         setSheet({ kind: 'confirm', action: i })
         return
@@ -226,7 +230,13 @@ export default function RequestCasePage() {
       </Section>
 
       {/* Notified */}
-      <Section title="Socios avisados" icon={<Bell className="h-4 w-4" />} count={c.notified.length} defaultOpen={false}>
+      <Section
+        title="Socios avisados"
+        icon={<Bell className="h-4 w-4" />}
+        count={c.notified.length}
+        defaultOpen={false}
+        right={c.status === 'ACTIVE' ? <button type="button" onClick={() => setSheet({ kind: 'renotify' })} className={`${btn.small} border-primary-200 bg-primary-50 text-primary-700 hover:bg-primary-100`}>Avisar a socios</button> : undefined}
+      >
         {!c.notified.length ? <p className="text-sm text-gray-400">No hay avisos registrados.</p> : (
           <ul className="divide-y divide-gray-100">
             {c.notified.map((n, i) => (
@@ -389,6 +399,21 @@ function ActionSheet({ sheet, data, busy, run, onClose }: {
   const done = async (p: Promise<boolean>) => { if (await p) onClose() }
   const spin = busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null
   const cancelBtn = <button type="button" onClick={onClose} className={btn.ghost}>Volver</button>
+
+  if (sheet.kind === 'renotify') {
+    return (
+      <RenotifyPartnersSheet
+        requestId={data.id}
+        busy={busy}
+        onClose={onClose}
+        onSend={(partnerIds) => run({ action: 'renotify_selected', partnerIds }, (r) => {
+          const sent = typeof r.sent === 'number' ? r.sent : 0
+          const skipped = Array.isArray(r.skipped) ? (r.skipped as Array<{ name: string; reason: string }>) : []
+          return `Se avisó a ${sent} ${sent === 1 ? 'socio' : 'socios'}${skipped.length ? ` · sin avisar: ${skipped.slice(0, 3).map((x) => `${x.name} (${x.reason})`).join(', ')}` : ''}`
+        })}
+      />
+    )
+  }
 
   if (sheet.kind === 'confirm') {
     const renotify = sheet.action === 'renotify'
