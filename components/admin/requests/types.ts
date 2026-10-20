@@ -27,6 +27,8 @@ export type ActionBody =
   | { action: 'renotify' }
   | { action: 'renotify_selected'; partnerIds: string[] }
   | { action: 'reactivate' }
+  | { action: 'close'; reason: 'spam' | 'not_serious' | 'duplicate' | 'out_of_scope' | 'incomplete' | 'other'; note?: string; notifyClient: boolean; notifyPartners: boolean; deleteForGood: boolean }
+  | { action: 'message_client'; text: string }
   | { action: 'booking_status'; bookingId: string; status: 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'; reason?: string; reopen?: boolean }
   | { action: 'reschedule'; bookingId: string; date: string; time: string }
   | { action: 'open_case'; subject: string; description: string; priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' }

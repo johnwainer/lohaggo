@@ -1531,6 +1531,34 @@ export const WA_CATALOG: WaCatalogEntry[] = [
     "title": "Ver y compartir mi perfil",
     "url": "https://www.lohaggo.com/{{2}}"
   }
+},
+{
+  "code": "B29",
+  "name": "lh_cliente_solicitud_cerrada_equipo",
+  "category": "UTILITY",
+  "body": "ℹ️ Hola {{1}}, el equipo de LoHaggo cerró tu solicitud #{{2}} de *{{3}}*. Motivo: {{4}}. Si fue un error o de verdad necesitas el servicio, respóndenos por aquí y te ayudamos.",
+  "variables": {
+    "1": "Ana",
+    "2": "A1B2C3",
+    "3": "Plomería",
+    "4": "no pudimos confirmar los datos del servicio"
+  },
+  "quickReplies": [],
+  "url": null
+},
+{
+  "code": "C34",
+  "name": "lh_socio_solicitud_cancelada",
+  "category": "UTILITY",
+  "body": "ℹ️ Hola {{1}}, la solicitud #{{2}} de *{{3}}* que te avisamos ya no está disponible: {{4}}. No tienes que hacer nada; te seguimos avisando de nuevas solicitudes.",
+  "variables": {
+    "1": "Carlos",
+    "2": "A1B2C3",
+    "3": "Plomería",
+    "4": "el cliente la canceló"
+  },
+  "quickReplies": [],
+  "url": null
 }
 ]
 

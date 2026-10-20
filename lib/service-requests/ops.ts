@@ -174,7 +174,7 @@ export async function createServiceRequest(actor: Actor, input: ServiceRequestIn
 export async function cancelServiceRequest(actor: Actor, requestId: string, origin: Origin) {
   const serviceRequest = await prisma.serviceRequest.findUnique({
     where: { id: requestId },
-    select: { id: true, userId: true, status: true, proposals: { select: { id: true, status: true } } },
+    select: { id: true, userId: true, status: true, proposals: { select: { id: true, status: true, partnerId: true } } },
   })
   if (!serviceRequest) throw new OpsError('Solicitud no encontrada', 404)
   if (serviceRequest.userId !== actor.userId) throw new OpsError('No autorizado', 403)
@@ -198,6 +198,9 @@ export async function cancelServiceRequest(actor: Actor, requestId: string, orig
 
   const { waRequestCancelled } = await import('@/lib/messaging/wa-events')
   await waRequestCancelled(requestId, origin)
+  // Partners who were told about it and never proposed hear it is gone (those who proposed got the rejection above)
+  const { notifyPartnersRequestGone } = await import('@/lib/admin/request-moderation')
+  await notifyPartnersRequestGone(requestId, 'el cliente la canceló', { exceptPartnerIds: serviceRequest.proposals.map((p) => p.partnerId) }).catch((err) => logger.warn('Notify partners request gone failed (non-fatal)', { requestId, err }))
 
   return { id: requestId, cancelledProposals: pendingProposalIds.length }
 }

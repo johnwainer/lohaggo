@@ -14,6 +14,7 @@ import { BOOKING_STATUS_LABEL } from '@/lib/bookings/transitions'
 import { AttentionPanel } from '@/components/admin/requests/AttentionPanel'
 import { BookingSection } from '@/components/admin/requests/BookingSection'
 import { RenotifyPartnersSheet } from '@/components/admin/requests/RenotifyPartners'
+import { CloseRequestSheet, MessageClientSheet } from '@/components/admin/requests/ModerationSheets'
 import { ChatThread, type ChatThreadHandle } from '@/components/admin/requests/ChatThread'
 import type { ActionBody, Case, Intervention, Recipient } from '@/components/admin/requests/types'
 import {
@@ -29,6 +30,8 @@ type SheetState =
   | { kind: 'case' }
   | { kind: 'confirm'; action: 'renotify' | 'reactivate' }
   | { kind: 'renotify' }
+  | { kind: 'message_client' }
+  | { kind: 'close' }
 
 type Notice = { ok: boolean; text: string } | null
 
@@ -199,7 +202,16 @@ export default function RequestCasePage() {
       </div>
 
       {/* Request */}
-      <Section title="Solicitud" icon={<ClipboardList className="h-4 w-4" />}>
+      <Section
+        title="Solicitud"
+        icon={<ClipboardList className="h-4 w-4" />}
+        right={
+          <span className="flex flex-wrap justify-end gap-2">
+            <button type="button" onClick={() => setSheet({ kind: 'message_client' })} className={`${btn.small} border-primary-200 bg-primary-50 text-primary-700 hover:bg-primary-100`}>Mensaje al cliente</button>
+            <button type="button" onClick={() => setSheet({ kind: 'close' })} className={`${btn.small} border-red-200 bg-red-50 text-red-700 hover:bg-red-100`}>{c.status === 'CANCELLED' ? 'Eliminar' : 'Cerrar o eliminar'}</button>
+          </span>
+        }
+      >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Field label="Cliente">
             <Link href={`/admin/users/${c.client.id}`} className="inline-flex items-center gap-1 font-semibold text-primary-600 hover:underline">
@@ -399,6 +411,9 @@ function ActionSheet({ sheet, data, busy, run, onClose }: {
   const done = async (p: Promise<boolean>) => { if (await p) onClose() }
   const spin = busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null
   const cancelBtn = <button type="button" onClick={onClose} className={btn.ghost}>Volver</button>
+
+  if (sheet.kind === 'message_client') return <MessageClientSheet busy={busy} run={run} onClose={onClose} />
+  if (sheet.kind === 'close') return <CloseRequestSheet busy={busy} run={run} onClose={onClose} onDeleted={() => { window.location.href = '/admin/service-requests' }} />
 
   if (sheet.kind === 'renotify') {
     return (

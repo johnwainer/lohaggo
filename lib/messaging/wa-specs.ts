@@ -180,8 +180,14 @@ export const WA = {
   B26: (p: { chatId: string; clientName: string; partnerName: string; service: string; ref: string }) =>
     spec('B26', [['lh_cliente_mensaje_socio', { 1: client(p.clientName), 2: partner(p.partnerName), 3: p.service, 4: `#${p.ref}`, 5: 'dashboard?tab=bookings' }]], E('Chat', p.chatId), { dedupeKey: `B26:Chat:${p.chatId}`, dedupeWindowMs: 30 * 60_000 }),
   /** A note from the LoHaggo team in the chat of a service (client or partner); one per message */
-  B27: (p: { messageId: string; name: string; side: 'CLIENT' | 'PARTNER'; service: string; ref: string }) =>
-    spec('B27', [['lh_soporte_mensaje_servicio', { 1: p.side === 'CLIENT' ? client(p.name) : partner(p.name), 2: p.service, 3: `#${p.ref}`, 4: p.side === 'CLIENT' ? 'dashboard?tab=bookings' : 'partner?tab=bookings' }]], E('ChatMessage', p.messageId)),
+  /** The team closed a client's request (spam, not serious, duplicate…): the reason, and the way back if it was a mistake */
+  B29: (p: { requestId: string; clientName: string; service: string; reason: string }) =>
+    spec('B29', [['lh_cliente_solicitud_cerrada_equipo', { 1: client(p.clientName), 2: waRef(p.requestId), 3: p.service, 4: p.reason }], ['lh_cliente_solicitud_cancelada_v3', { 1: client(p.clientName), 2: waRef(p.requestId), 3: p.service }]], E('ServiceRequest', p.requestId)),
+  /** A request a partner was told about is gone (cancelled by the client or the team) */
+  C34: (p: { requestId: string; partnerName: string; service: string; reason: string }) =>
+    spec('C34', [['lh_socio_solicitud_cancelada', { 1: partner(p.partnerName), 2: waRef(p.requestId), 3: p.service, 4: p.reason }]], E('ServiceRequest', p.requestId)),
+  B27: (p: { messageId: string; name: string; side: 'CLIENT' | 'PARTNER'; service: string; ref: string; url?: string }) =>
+    spec('B27', [['lh_soporte_mensaje_servicio', { 1: p.side === 'CLIENT' ? client(p.name) : partner(p.name), 2: p.service, 3: `#${p.ref}`, 4: p.url ?? (p.side === 'CLIENT' ? 'dashboard?tab=bookings' : 'partner?tab=bookings') }]], E('ChatMessage', p.messageId)),
   C31: (p: { chatId: string; partnerName: string; clientName: string; service: string; ref: string }) =>
     spec('C31', [['lh_socio_mensaje_cliente', { 1: partner(p.partnerName), 2: client(p.clientName), 3: p.service, 4: `#${p.ref}`, 5: 'partner?tab=bookings' }]], E('Chat', p.chatId), { dedupeKey: `C31:Chat:${p.chatId}`, dedupeWindowMs: 30 * 60_000 }),
 

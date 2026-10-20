@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { requireAdmin } from '@/lib/admin-utils'
 import { opsErrorResponse } from '@/lib/ops/actor'
 import { notifySelectedPartners } from '@/lib/admin/request-partners'
+import { adminCloseRequest, adminMessageClient } from '@/lib/admin/request-moderation'
 import { adminBookingStatus, adminReactivate, adminReschedule, openSupportCase, postSupportMessage, renotifyPartners, type AdminActor } from '@/lib/admin/interventions'
 
 export const dynamic = 'force-dynamic'
@@ -12,6 +13,8 @@ const schema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('renotify') }),
   z.object({ action: z.literal('renotify_selected'), partnerIds: z.array(z.string().min(1)).min(1).max(60) }),
   z.object({ action: z.literal('reactivate') }),
+  z.object({ action: z.literal('close'), reason: z.enum(['spam', 'not_serious', 'duplicate', 'out_of_scope', 'incomplete', 'other']), note: z.string().max(300).optional(), notifyClient: z.boolean(), notifyPartners: z.boolean(), deleteForGood: z.boolean() }),
+  z.object({ action: z.literal('message_client'), text: z.string().min(2).max(1000) }),
   z.object({ action: z.literal('booking_status'), bookingId: z.string().min(1), status: z.enum(['CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']), reason: z.string().max(500).optional(), reopen: z.boolean().optional() }),
   z.object({ action: z.literal('reschedule'), bookingId: z.string().min(1), date: z.string(), time: z.string() }),
   z.object({ action: z.literal('open_case'), subject: z.string().min(3).max(200), description: z.string().max(4000).default(''), priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).optional() }),
@@ -32,6 +35,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       case 'renotify': return NextResponse.json(await renotifyPartners(actor, id))
       case 'renotify_selected': return NextResponse.json(await notifySelectedPartners(actor, id, b.partnerIds))
       case 'reactivate': return NextResponse.json(await adminReactivate(actor, id))
+      case 'close': return NextResponse.json(await adminCloseRequest(actor, id, { reason: b.reason, note: b.note, notifyClient: b.notifyClient, notifyPartners: b.notifyPartners, deleteForGood: b.deleteForGood }))
+      case 'message_client': return NextResponse.json(await adminMessageClient(actor, id, b.text))
       case 'booking_status': return NextResponse.json(await adminBookingStatus(actor, { requestId: id, bookingId: b.bookingId, status: b.status, reason: b.reason, reopen: b.reopen }))
       case 'reschedule': return NextResponse.json(await adminReschedule(actor, { requestId: id, bookingId: b.bookingId, date: b.date, time: b.time }))
       case 'open_case': return NextResponse.json(await openSupportCase(actor, { requestId: id, subject: b.subject, description: b.description, priority: b.priority }))
