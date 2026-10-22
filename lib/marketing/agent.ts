@@ -28,6 +28,8 @@ import {
   bogota,
   budgetLevel,
   calendarGaps,
+  dailyFormatGaps,
+  enforceDailyFormats,
   checkGuardrails,
   degradation,
   effectiveMode,
@@ -357,7 +359,10 @@ export async function planIdeas(agent: Agent, now = new Date()) {
     // The campaign's last day bounds the plan (unless the agent runs always)
     const endsAt = config.alwaysOn ? null : agent.campaign.endsAt
     const gaps = calendarGaps({ now, horizonDays: agent.horizonDays, channels: config.channels, planned, days: config.schedule.days, endsAt })
-    if (!gaps.length) {
+    // Required formats per day (e.g. one reel a day): the nearest days first, as many as one plan can hold
+    const daily = dailyFormatGaps({ now, horizonDays: agent.horizonDays, channels: config.channels, planned, days: config.schedule.days, endsAt })
+      .map((d) => ({ ...d, dates: d.dates.slice(0, MAX_IDEAS - 2) }))
+    if (!gaps.length && !daily.length) {
       await prisma.marketingAgent.update({ where: { id: agent.id }, data: { lastPlannedAt: now } })
       return { summary: 'El calendario del horizonte ya está cubierto', value: 0, skipped: true }
     }
@@ -365,15 +370,16 @@ export async function planIdeas(agent: Agent, now = new Date()) {
     const ctx = await promptContext(agent, now)
     const recent = await recentTopics(agent.id, now, config.schedule.repeatDays)
     const order = pillarDeficit(strategy.pillars, (await prisma.marketingIdea.findMany({ where: { agentId: agent.id, createdAt: { gte: new Date(now.getTime() - 30 * DAY) }, status: { not: 'rejected' } }, select: { pillar: true } })))
-    const maxIdeas = Math.min(MAX_IDEAS, Math.max(...gaps.map((g) => g.needed)) + 2)
+    const maxIdeas = Math.min(MAX_IDEAS, Math.max(0, ...gaps.map((g) => g.needed), ...daily.map((d) => d.dates.length)) + 2)
     const fromDay = addDays(bogota(now).key, 1)
     const toDay = bogota(new Date(Math.min(now.getTime() + agent.horizonDays * DAY, endsAt ? endsAt.getTime() : Infinity))).key
     const input = await callTool(agent, ai.defaultModel, {
       kind: 'marketing_agent_plan', system: ctx.system, tool: PLAN_TOOL, maxTokens: 7000, effort: 'medium',
-      task: planTask({ gaps, order, exploreCount: Math.round(maxIdeas * agent.exploreRatio), fromDay, toDay, maxIdeas }),
+      task: planTask({ gaps, daily, order, exploreCount: Math.round(maxIdeas * agent.exploreRatio), fromDay, toDay, maxIdeas }),
     }, meter)
     const parsed = parseIdeas(input, { pillars: strategy.pillars.map((p) => p.name), channels: enabledChannels(config), services: ctx.catalog.services.map((s) => s.name), fromDay, toDay, max: maxIdeas, formats: { INSTAGRAM: config.channels.INSTAGRAM.formats, FACEBOOK: config.channels.FACEBOOK.formats, WEB: config.channels.WEB.formats } })
     if (!parsed.ok) throw new AgentError(parsed.errors.join(' · '))
+    const quota = enforceDailyFormats(parsed.value.ideas, daily, enabledChannels(config))
 
     let proposed = 0
     let accepted = 0
@@ -398,8 +404,8 @@ export async function planIdeas(agent: Agent, now = new Date()) {
     }
     await prisma.marketingAgent.update({ where: { id: agent.id }, data: { lastPlannedAt: now } })
     if (proposed) await notify(noticeTarget(agent), { type: 'ideas', title: `${proposed} ${proposed === 1 ? 'idea nueva' : 'ideas nuevas'} por revisar: ${agent.campaign.name}`, body: 'Acéptalas o recházalas (con el motivo, así el agente aprende).', url: agentUrl(agent.id), dedupeKey: `ideas:${agent.id}:${bogota(now).key}:${now.getUTCHours()}` })
-    const summary = [`${proposed + accepted} ideas`, proposed ? `${proposed} por revisar` : '', accepted ? `${accepted} aceptadas solas` : '', repeats.length ? `${repeats.length} descartadas por repetidas` : '', parsed.value.dropped.length ? `${parsed.value.dropped.length} inválidas` : ''].filter(Boolean).join(', ')
-    return { summary, value: proposed + accepted, output: { gaps, dropped: parsed.value.dropped, repeats } }
+    const summary = [`${proposed + accepted} ideas`, quota.uncovered.length ? `sin cubrir: ${quota.uncovered.length} de formato diario` : '', proposed ? `${proposed} por revisar` : '', accepted ? `${accepted} aceptadas solas` : '', repeats.length ? `${repeats.length} descartadas por repetidas` : '', parsed.value.dropped.length ? `${parsed.value.dropped.length} inválidas` : ''].filter(Boolean).join(', ')
+    return { summary, value: proposed + accepted, output: { gaps, daily, uncovered: quota.uncovered, dropped: parsed.value.dropped, repeats } }
   })
 }
 

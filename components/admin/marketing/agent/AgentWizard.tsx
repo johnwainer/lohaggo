@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, Check, ChevronLeft, ChevronRight, Loader2, Plus, Sparkles, Trash2, X } from 'lucide-react'
 import { CHANNEL_NAME, MkChannelIcon, OBJECTIVES, api, input, type MkChannel } from '@/components/admin/marketing/shared'
-import { AGENT_FORMATS, AWARENESS, AWARENESS_LABEL, DEFAULT_SETTINGS, KPIS, KPI_BY_OBJECTIVE, KPI_LABEL, defaultAgentConfig } from '@/lib/marketing/agent-input'
+import { AGENT_FORMATS, MAX_DAILY_PER_FORMAT, AWARENESS, AWARENESS_LABEL, DEFAULT_SETTINGS, KPIS, KPI_BY_OBJECTIVE, KPI_LABEL, defaultAgentConfig } from '@/lib/marketing/agent-input'
 import ImageStylesField from '@/components/admin/marketing/agent/ImageStylesField'
 import { defaultImageStyleConfig } from '@/lib/marketing/image-styles'
 import { MODE_INFO, type AgentConfig, type AgentDetailData, type AgentSettings, type WizardOptions } from '@/components/admin/marketing/agent/types'
@@ -14,6 +14,8 @@ type CampaignForm = { name: string; objective: string; description: string; star
 const STEPS = ['Objetivo y medición', 'Negocio y oferta', 'Audiencia', 'Voz y límites', 'Canales y horarios', 'Autonomía'] as const
 const CHANNELS: MkChannel[] = ['INSTAGRAM', 'FACEBOOK', 'WEB']
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+/** Formats a person can require every day (vertical video and stories) */
+const DAILY_FORMATS = ['reel', 'story', 'historia']
 const FORMAT_LABEL: Record<string, string> = { feed: 'Imagen', carousel: 'Carrusel', reel: 'Reel', story: 'Historia', historia: 'Historia', foto: 'Foto', texto: 'Solo texto', enlace: 'Enlace', guía: 'Guía', lista: 'Lista', comparativa: 'Comparativa', preguntas: 'Preguntas frecuentes', caso: 'Caso real' }
 const SEGMENT_PRESETS = ['Cliente final (hogares)', 'Empresas y conjuntos', 'Socios a reclutar (profesionales)']
 
@@ -333,9 +335,32 @@ export default function AgentWizard({ workspace, existing, onClose, onSaved }: {
                     {plan.enabled && (
                       <>
                         <div className="flex flex-wrap gap-2">
-                          {AGENT_FORMATS[ch].map((f) => <Toggle key={f} on={plan.formats.includes(f)} onClick={() => setChannel(ch, { formats: plan.formats.includes(f) ? plan.formats.filter((x) => x !== f) : [...plan.formats, f] })}>{FORMAT_LABEL[f] ?? f}</Toggle>)}
+                          {AGENT_FORMATS[ch].map((f) => <Toggle key={f} on={plan.formats.includes(f)} onClick={() => setChannel(ch, plan.formats.includes(f) ? { formats: plan.formats.filter((x) => x !== f), minDaily: Object.fromEntries(Object.entries(plan.minDaily ?? {}).filter(([k]) => k !== f)) } : { formats: [...plan.formats, f] })}>{FORMAT_LABEL[f] ?? f}</Toggle>)}
                           {ch !== 'WEB' && <span className="self-center text-xs text-gray-400">Reels: clip vertical de Pexels o la foto animada. Historias: la foto con el texto encima.</span>}
                         </div>
+                        {ch !== 'WEB' && plan.formats.some((f) => DAILY_FORMATS.includes(f)) && (
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-600">
+                            <span className="text-xs text-gray-500">Mínimo cada día permitido:</span>
+                            {plan.formats.filter((f) => DAILY_FORMATS.includes(f)).map((f) => (
+                              <label key={f} className="flex items-center gap-2">
+                                <input
+                                  type="number" min={0} max={MAX_DAILY_PER_FORMAT}
+                                  className="w-14 rounded-lg border border-gray-200 px-2 py-1"
+                                  value={plan.minDaily?.[f] ?? 0}
+                                  onChange={(e) => {
+                                    const n = Math.max(0, Math.min(MAX_DAILY_PER_FORMAT, Math.round(Number(e.target.value) || 0)))
+                                    const next = { ...(plan.minDaily ?? {}) }
+                                    if (n) next[f] = n
+                                    else delete next[f]
+                                    const floor = Math.min(14, Object.values(next).reduce((x, v) => x + v, 0) * Math.max(1, config.schedule.days.length))
+                                    setChannel(ch, { minDaily: next, perWeek: Math.max(plan.perWeek, floor) })
+                                  }}
+                                />
+                                {(FORMAT_LABEL[f] ?? f).toLowerCase()} al día
+                              </label>
+                            ))}
+                          </div>
+                        )}
                         {ch !== 'WEB' && (
                           chAccounts.length === 0 ? <p className="text-xs text-amber-700">No hay cuentas de {CHANNEL_NAME[ch]} conectadas en este workspace.</p> : (
                             <div className="space-y-1">

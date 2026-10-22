@@ -106,7 +106,7 @@ export function campaignBlock(f: PromptFacts & { campaignName: string; campaignD
     `Llamada a la acción preferida: ${c.voice.cta || MISSING}`,
     c.voice.examples.length ? `Publicaciones que le gustan al equipo (imita el estilo, no el contenido):\n${c.voice.examples.map((e, i) => `Ejemplo ${i + 1}:\n${e}`).join('\n\n')}` : '',
     '</datos>',
-    `Canales y frecuencia: ${channels.map((ch) => `${channelName[ch]} ${c.channels[ch].perWeek}/semana (formatos: ${c.channels[ch].formats.join(', ')})`).join('; ')}`,
+    `Canales y frecuencia: ${channels.map((ch) => `${channelName[ch]} ${c.channels[ch].perWeek}/semana (formatos: ${c.channels[ch].formats.join(', ')}${Object.keys(c.channels[ch].minDaily ?? {}).length ? `; obligatorio cada día: ${Object.entries(c.channels[ch].minDaily).map(([f, n]) => `${n} ${f}`).join(', ')}` : ''})`).join('; ')}`,
     `Ciudades: ${(c.offer.cities.length ? c.offer.cities : f.catalog.cities).join(', ') || MISSING}`,
     `Catálogo de servicios${c.offer.allServices ? '' : ' a promocionar'} (nombre · categoría · precio base en COP):\n${bullet(f.catalog.services.map((s) => `${s.name}${s.category ? ` · ${s.category}` : ''}${s.basePrice ? ` · desde $${Math.round(s.basePrice).toLocaleString('es-CO')}` : ''}`))}`,
     `Límites técnicos: Instagram máx. ${LIMITS.INSTAGRAM.caption} caracteres y ${LIMITS.INSTAGRAM.hashtags} hashtags, los enlaces no son clicables; carrusel de ${LIMITS.INSTAGRAM.carouselMin} a ${LIMITS.INSTAGRAM.carouselMax} imágenes. Facebook: como mucho ${LIMITS.FACEBOOK.recommendedHashtags} hashtags. Blog: título SEO ≤ ${LIMITS.WEB.seoTitleMax} caracteres, meta descripción de ${LIMITS.WEB.seoDescriptionMin} a ${LIMITS.WEB.seoDescriptionMax}, al menos ${LIMITS.WEB.minWords} palabras, subtítulos "## ", Markdown sin repetir el título como encabezado.`,
@@ -330,10 +330,14 @@ export function strategyTask(extra?: string | null, previous?: Strategy | null) 
   ].filter(Boolean).join('\n')
 }
 
-export function planTask(p: { gaps: Array<{ channel: MarketingChannel; needed: number; dates: string[] }>; order: Array<{ pillar: string; target: number; actual: number }>; exploreCount: number; fromDay: string; toDay: string; maxIdeas: number }) {
+export function planTask(p: { gaps: Array<{ channel: MarketingChannel; needed: number; dates: string[] }>; daily?: Array<{ channel: MarketingChannel; format: string; perDay: number; dates: string[] }>; order: Array<{ pillar: string; target: number; actual: number }>; exploreCount: number; fromDay: string; toDay: string; maxIdeas: number }) {
+  const daily = p.daily ?? []
   return [
     `Planifica ideas para los huecos del calendario entre ${p.fromDay} y ${p.toDay} con la herramienta proponer_ideas.`,
-    `Huecos por canal:\n${p.gaps.map((g) => `- ${channelName[g.channel]}: faltan ${g.needed} (días sugeridos: ${g.dates.join(', ') || 'libres'})`).join('\n')}`,
+    p.gaps.length ? `Huecos por canal:\n${p.gaps.map((g) => `- ${channelName[g.channel]}: faltan ${g.needed} (días sugeridos: ${g.dates.join(', ') || 'libres'})`).join('\n')}` : '',
+    daily.length
+      ? `Formatos obligatorios cada día (la configuración del equipo lo exige): ${daily.map((d) => `${channelName[d.channel]} ${d.format} ${d.perDay} al día; faltan en ${Array.from(new Set(d.dates)).join(', ')}`).join('; ')}. Para cada una de esas fechas propone una idea con ese canal en ese formato (targetDate = la fecha). Cuentan dentro de los huecos por canal.`
+      : '',
     'Una idea puede cubrir varios canales a la vez (el mismo tema adaptado a cada red): úsalo cuando el tema sirva en todos.',
     `Pilares por cubrir primero (objetivo vs. real): ${p.order.map((o) => `${o.pillar} ${o.target} % / ${o.actual} %`).join('; ')}.`,
     `De las ideas, ${p.exploreCount} deben ser de exploración (explore: true), probando pilares, formatos o ángulos poco medidos; el resto, en lo que ya funciona.`,

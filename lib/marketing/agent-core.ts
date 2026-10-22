@@ -378,6 +378,67 @@ export function calendarGaps(p: { now: Date; horizonDays: number; channels: Reco
   return out
 }
 
+/** A planned piece as the quotas read it: its channel, day and format (agent format or the variant's). */
+export type PlannedPiece = { channel: MarketingChannel; at: Date; format?: string | null }
+
+/** Whether a planned piece is of the agent format `format` in its channel. */
+const isFormat = (x: PlannedPiece, format: string) => Boolean(x.format) && (x.format === format || x.format === variantFormat(x.channel, format))
+
+/**
+ * Days of the horizon still missing a required format (channels[c].minDaily, e.g. one reel a day): from
+ * tomorrow, on allowed weekdays, the days whose planned pieces of that format fall short.
+ */
+export function dailyFormatGaps(p: { now: Date; horizonDays: number; channels: Record<MarketingChannel, ChannelPlan>; planned: PlannedPiece[]; days: number[]; endsAt?: Date | null }) {
+  const end = Math.min(p.now.getTime() + p.horizonDays * DAY, p.endsAt ? p.endsAt.getTime() : Infinity)
+  const today = bogota(p.now).key
+  const totalDays = Math.max(0, Math.floor((end - p.now.getTime()) / DAY))
+  const out: Array<{ channel: MarketingChannel; format: string; perDay: number; dates: string[] }> = []
+  for (const channel of AGENT_CHANNELS) {
+    const plan = p.channels[channel]
+    if (!plan.enabled) continue
+    for (const [format, perDay] of Object.entries(plan.minDaily ?? {})) {
+      if (!perDay) continue
+      const dates: string[] = []
+      for (let d = 1; d <= totalDays; d++) {
+        const key = addDays(today, d)
+        if (!p.days.includes(weekdayOf(key))) continue
+        const have = p.planned.filter((x) => x.channel === channel && bogota(x.at).key === key && isFormat(x, format)).length
+        for (let i = have; i < perDay; i++) dates.push(key)
+      }
+      if (dates.length) out.push({ channel, format, perDay, dates })
+    }
+  }
+  return out
+}
+
+/**
+ * Makes the planned ideas honour the daily quotas: on a day still short of the format, an idea of that
+ * channel takes the format, or one of that day adds the channel with it. What stays uncovered is returned
+ * (the next planning run asks again). Mutates and returns the ideas. Pure.
+ */
+export function enforceDailyFormats(ideas: IdeaDraft[], gaps: Array<{ channel: MarketingChannel; format: string; dates: string[] }>, enabled: MarketingChannel[]) {
+  const uncovered: string[] = []
+  for (const g of gaps) {
+    if (!enabled.includes(g.channel)) continue
+    const need = new Map<string, number>()
+    for (const d of g.dates) need.set(d, (need.get(d) ?? 0) + 1)
+    need.forEach((count, day) => {
+      let left = count - ideas.filter((i) => i.targetDate === day && i.channels.includes(g.channel) && i.formats[g.channel] === g.format).length
+      for (const idea of ideas) {
+        if (left <= 0) break
+        if (idea.targetDate !== day || idea.formats[g.channel] === g.format) continue
+        // Another required format of the same channel keeps its piece
+        if (idea.channels.includes(g.channel) && idea.formats[g.channel] && gaps.some((o) => o !== g && o.channel === g.channel && o.format === idea.formats[g.channel] && o.dates.includes(day))) continue
+        if (!idea.channels.includes(g.channel)) idea.channels.push(g.channel)
+        idea.formats[g.channel] = g.format
+        left--
+      }
+      if (left > 0) uncovered.push(`${day} ${CHANNEL_LABEL[g.channel]} ${g.format}`)
+    })
+  }
+  return { ideas, uncovered }
+}
+
 // ─── Smart scheduling ───────────────────────────────────────────────────────
 
 /** Below this many measured posts in a channel the agent uses the baseline hours. */
@@ -906,7 +967,8 @@ export function applyRecommendations(config: AgentConfig, strategy: Strategy, re
     } else if (r.type === 'frequency') {
       const plan = nextConfig.channels[r.channel]
       if (!plan.enabled) { skipped.push(`${r.channel} está apagado`); continue }
-      const next = Math.max(1, Math.min(14, plan.perWeek + Math.sign(r.perWeek - plan.perWeek)))
+      const floor = Object.values(plan.minDaily ?? {}).reduce((x, n) => x + n, 0) * Math.max(1, nextConfig.schedule.days.length)
+      const next = Math.max(1, Math.min(14, floor), Math.min(14, plan.perWeek + Math.sign(r.perWeek - plan.perWeek)))
       if (next === plan.perWeek) continue
       plan.perWeek = next
       applied.push(`${CHANNEL_LABEL[r.channel]}: ${next} por semana`)
@@ -914,6 +976,7 @@ export function applyRecommendations(config: AgentConfig, strategy: Strategy, re
       const plan = nextConfig.channels[r.channel]
       if (!AGENT_FORMATS[r.channel].includes(r.format)) { skipped.push(`Formato no disponible: ${r.format}`); continue }
       if (r.direction === 'more' && !plan.formats.includes(r.format)) { plan.formats.push(r.format); applied.push(`${CHANNEL_LABEL[r.channel]}: añade ${r.format}`) }
+      if (r.direction === 'less' && plan.minDaily?.[r.format]) { skipped.push(`${CHANNEL_LABEL[r.channel]}: ${r.format} es obligatorio cada día`); continue }
       if (r.direction === 'less' && plan.formats.includes(r.format) && plan.formats.length > 1) { plan.formats = plan.formats.filter((f) => f !== r.format); applied.push(`${CHANNEL_LABEL[r.channel]}: deja ${r.format}`) }
     } else if (r.type === 'avoid') {
       nextStrategy.avoid = Array.from(new Set([...(nextStrategy.avoid || []), r.topic])).slice(-20)

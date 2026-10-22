@@ -108,22 +108,24 @@ export async function rejectionsFor(agentId: string, now = new Date(), days = 60
 export async function plannedPieces(agentId: string, now: Date, horizonDays: number) {
   const end = new Date(now.getTime() + horizonDays * DAY)
   const [pubs, drafts, ideas] = await Promise.all([
-    prisma.marketingPublication.findMany({ where: { post: { agentId }, status: { in: ['scheduled', 'publishing', 'processing', 'published'] }, scheduledAt: { gte: now, lte: end } }, select: { channel: true, scheduledAt: true, postId: true } }),
+    prisma.marketingPublication.findMany({ where: { post: { agentId }, status: { in: ['scheduled', 'publishing', 'processing', 'published'] }, scheduledAt: { gte: now, lte: end } }, select: { channel: true, scheduledAt: true, postId: true, variantId: true } }),
     // Written but not scheduled yet (in review, approved): they will take a slot near their idea's day
-    prisma.marketingPost.findMany({ where: { agentId, status: { in: ['draft', 'review', 'approved'] } }, select: { id: true, ideaId: true, variants: { select: { channel: true } } } }),
-    prisma.marketingIdea.findMany({ where: { agentId, status: { in: ['proposed', 'accepted', 'drafted'] }, targetDate: { gte: new Date(now.getTime() - DAY), lte: end } }, select: { id: true, channels: true, targetDate: true, postId: true, status: true } }),
+    prisma.marketingPost.findMany({ where: { agentId, status: { in: ['draft', 'review', 'approved'] } }, select: { id: true, ideaId: true, variants: { select: { channel: true, format: true } } } }),
+    prisma.marketingIdea.findMany({ where: { agentId, status: { in: ['proposed', 'accepted', 'drafted'] }, targetDate: { gte: new Date(now.getTime() - DAY), lte: end } }, select: { id: true, channels: true, formats: true, targetDate: true, postId: true, status: true } }),
   ])
-  const out: Array<{ channel: MarketingChannel; at: Date }> = pubs.map((p) => ({ channel: p.channel, at: p.scheduledAt }))
+  const variantFormats = new Map((await prisma.marketingPostVariant.findMany({ where: { id: { in: pubs.map((p) => p.variantId) } }, select: { id: true, format: true } })).map((v) => [v.id, v.format]))
+  const out: Array<{ channel: MarketingChannel; at: Date; format: string | null }> = pubs.map((p) => ({ channel: p.channel, at: p.scheduledAt, format: variantFormats.get(p.variantId) ?? null }))
   const scheduledPosts = new Set(pubs.map((p) => p.postId))
   const ideaDate = new Map(ideas.map((i) => [i.id, i.targetDate]))
   for (const d of drafts) {
     if (scheduledPosts.has(d.id)) continue
     const at = (d.ideaId && ideaDate.get(d.ideaId)) || new Date(now.getTime() + DAY)
-    for (const v of d.variants) out.push({ channel: v.channel, at })
+    for (const v of d.variants) out.push({ channel: v.channel, at, format: v.format ?? null })
   }
   for (const i of ideas) {
     if (i.status === 'drafted' || i.postId) continue
-    for (const c of i.channels) if (c === 'WEB' || c === 'FACEBOOK' || c === 'INSTAGRAM') out.push({ channel: c, at: i.targetDate })
+    const formats = (i.formats && typeof i.formats === 'object' ? i.formats : {}) as Record<string, unknown>
+    for (const c of i.channels) if (c === 'WEB' || c === 'FACEBOOK' || c === 'INSTAGRAM') out.push({ channel: c, at: i.targetDate, format: typeof formats[c] === 'string' ? (formats[c] as string) : null })
   }
   return out
 }

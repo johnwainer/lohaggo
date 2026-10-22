@@ -50,7 +50,11 @@ export const EMOJI_LEVELS = ['none', 'few', 'moderate'] as const
 export type EmojiLevel = (typeof EMOJI_LEVELS)[number]
 export const IMAGE_SOURCES = ['pexels', 'ai', 'manual'] as const
 
-export type ChannelPlan = { enabled: boolean; perWeek: number; formats: string[]; accountIds: string[] }
+/** minDaily: at least this many pieces of a format every allowed day (e.g. { reel: 1 }); counts inside perWeek */
+export type ChannelPlan = { enabled: boolean; perWeek: number; formats: string[]; accountIds: string[]; minDaily: Record<string, number> }
+
+/** Most pieces of one format a day can require. */
+export const MAX_DAILY_PER_FORMAT = 3
 
 export type AgentConfig = {
   kpi: Kpi
@@ -131,9 +135,9 @@ export function defaultAgentConfig(objective = 'reach'): AgentConfig {
     audience: { segments: [{ name: 'Cliente final', pains: '', motivations: '' }], objections: [], awareness: 'problem', formal: false },
     voice: { adjectives: [], bannedWords: [], bannedTopics: ['política', 'religión', 'competencia por su nombre'], emojis: { INSTAGRAM: 'moderate', FACEBOOK: 'few', WEB: 'none' }, brandHashtags: ['#LoHaggo'], cta: '', examples: [] },
     channels: {
-      INSTAGRAM: { enabled: true, perWeek: 4, formats: ['feed', 'carousel', 'reel', 'story'], accountIds: [] },
-      FACEBOOK: { enabled: true, perWeek: 3, formats: ['foto', 'enlace', 'reel', 'historia'], accountIds: [] },
-      WEB: { enabled: true, perWeek: 1, formats: ['guía', 'lista'], accountIds: [] },
+      INSTAGRAM: { enabled: true, perWeek: 4, formats: ['feed', 'carousel', 'reel', 'story'], accountIds: [], minDaily: {} },
+      FACEBOOK: { enabled: true, perWeek: 3, formats: ['foto', 'enlace', 'reel', 'historia'], accountIds: [], minDaily: {} },
+      WEB: { enabled: true, perWeek: 1, formats: ['guía', 'lista'], accountIds: [], minDaily: {} },
     },
     schedule: { smart: true, days: [1, 2, 3, 4, 5, 6], windows: [{ from: 8, to: 21 }], quietFrom: 21, quietTo: 7, minGapHours: 3, maxPerDay: 1, repeatDays: 21, draftLeadHours: 72 },
     images: { source: 'ai', logo: true, carouselSize: 2, styles: defaultImageStyleConfig() },
@@ -187,14 +191,26 @@ export function sanitizeAgentConfig(raw: unknown, prev: AgentConfig = defaultAge
   const budget = obj(b.budget ?? prev.budget)
   const emojis = obj(voice.emojis)
 
+  const allowedDays = Array.isArray(schedule.days) ? schedule.days.length : prev.schedule.days.length
   const ch = (c: MarketingChannel): ChannelPlan => {
     const x = obj(channels[c])
     const p = prev.channels[c]
+    const formats = list(x.formats, 5, 20).filter((f) => AGENT_FORMATS[c].includes(f))
+    const rawDaily = x.minDaily === undefined ? (p.minDaily ?? {}) : obj(x.minDaily)
+    const minDaily: Record<string, number> = {}
+    for (const [f, n] of Object.entries(rawDaily)) {
+      const v = int(n, 0, MAX_DAILY_PER_FORMAT, 0)
+      if (v > 0 && AGENT_FORMATS[c].includes(f)) minDaily[f] = v
+    }
+    // A required format is always one the agent may use, and the week has room for every day's quota
+    for (const f of Object.keys(minDaily)) if (!formats.includes(f)) formats.push(f)
+    const floor = Math.min(14, Object.values(minDaily).reduce((a, n) => a + n, 0) * Math.max(1, Math.min(7, allowedDays || 7)))
     return {
       enabled: bool(x.enabled, p.enabled),
-      perWeek: int(x.perWeek, 0, 14, p.perWeek),
-      formats: list(x.formats, 5, 20).filter((f) => AGENT_FORMATS[c].includes(f)),
+      perWeek: Math.max(int(x.perWeek, 0, 14, p.perWeek), floor),
+      formats,
       accountIds: c === 'WEB' ? [] : list(x.accountIds, 5, 40),
+      minDaily: c === 'WEB' ? {} : minDaily,
     }
   }
 
