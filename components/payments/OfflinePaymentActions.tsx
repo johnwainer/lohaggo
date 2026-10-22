@@ -402,6 +402,8 @@ function ReportClientForm(props: {
   const [uploadError, setUploadError] = useState<string | null>(null)
   const upload = async (file: File | undefined) => {
     if (!file) return
+    if (!file.type.startsWith('image/')) return setUploadError('Sube una foto o captura del comprobante')
+    if (file.size > 5 * 1024 * 1024) return setUploadError('La foto pesa más de 5 MB: toma una captura de pantalla')
     setUploading(true)
     setUploadError(null)
     try {
@@ -423,10 +425,10 @@ function ReportClientForm(props: {
       <fieldset className="space-y-2">
         <legend className="sr-only">Método de pago</legend>
         {props.available.includes('CASH') && (
-          <MethodOption value="CASH" current={props.method} onChange={props.setMethod} icon={<Banknote className="w-5 h-5 text-emerald-600" />} label="Efectivo" description="Pagué en efectivo al socio" />
+          <MethodOption value="CASH" current={props.method} onChange={props.setMethod} icon={<Banknote className="w-5 h-5 text-emerald-600" />} label="Efectivo" description="Pagaste en efectivo al socio" />
         )}
         {props.available.includes('DIRECT_TRANSFER') && (
-          <MethodOption value="DIRECT_TRANSFER" current={props.method} onChange={props.setMethod} icon={<ArrowRightLeft className="w-5 h-5 text-blue-600" />} label="Transferencia" description="Transferí a la cuenta del socio" />
+          <MethodOption value="DIRECT_TRANSFER" current={props.method} onChange={props.setMethod} icon={<ArrowRightLeft className="w-5 h-5 text-blue-600" />} label="Transferencia" description="Transferiste a la cuenta del socio" />
         )}
       </fieldset>
       <div>
@@ -443,14 +445,27 @@ function ReportClientForm(props: {
       </div>
       {props.method === 'DIRECT_TRANSFER' && (
         <div>
-          <label htmlFor={receiptId} className="block text-sm font-medium text-gray-700 mb-1">Comprobante (opcional, recomendado)</label>
-          <input id={receiptId} type="file" accept="image/*" onChange={(e) => upload(e.target.files?.[0])} disabled={uploading} className="block w-full text-sm text-gray-700 file:mr-3 file:min-h-[44px] file:rounded-full file:border-0 file:bg-primary-50 file:px-4 file:font-semibold file:text-primary-700" />
-          <p className="mt-1 text-xs text-gray-600" role="status">{uploading ? 'Subiendo…' : props.receiptUrl ? 'Comprobante adjunto: el socio lo verá al confirmar.' : 'Con la foto del comprobante el socio confirma más rápido.'}</p>
+          <p className="block text-sm font-medium text-gray-700 mb-1">Comprobante (opcional, recomendado)</p>
+          <p id={`${receiptId}-hint`} className="mb-2 text-xs text-gray-600">Con la foto del comprobante el socio confirma más rápido.</p>
+          {props.receiptUrl ? (
+            <div className="flex items-center gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={props.receiptUrl} alt="Comprobante adjunto" className="h-16 w-16 rounded-xl border border-gray-200 object-cover" />
+              <button type="button" onClick={() => props.setReceiptUrl(null)} className="min-h-[44px] rounded-full px-4 text-sm font-semibold text-red-700 hover:bg-red-50">Quitar</button>
+            </div>
+          ) : (
+            <label htmlFor={receiptId} className={`inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-full bg-primary-50 px-4 text-sm font-semibold text-primary-700 hover:bg-primary-100 ${uploading ? 'pointer-events-none opacity-60' : ''}`}>
+              {uploading ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Receipt className="w-4 h-4" aria-hidden="true" />}
+              {uploading ? 'Subiendo…' : 'Subir comprobante'}
+            </label>
+          )}
+          <input id={receiptId} type="file" accept="image/*" capture="environment" aria-describedby={`${receiptId}-hint`} className="sr-only" disabled={uploading} onChange={(e) => { void upload(e.target.files?.[0]); e.target.value = '' }} />
+          <p className="sr-only" role="status">{uploading ? 'Subiendo comprobante' : props.receiptUrl ? 'Comprobante adjunto' : ''}</p>
           {uploadError && <p className="mt-1 text-xs text-red-700" role="alert">{uploadError}</p>}
         </div>
       )}
       <FormError error={props.error} />
-      <FormButtons onCancel={props.onCancel} submitting={props.submitting || uploading} label="Confirmar" busyLabel="Reportando…" tone="bg-primary-600 hover:bg-primary-700" />
+      <FormButtons onCancel={props.onCancel} submitting={props.submitting || uploading} label="Reportar pago" busyLabel="Reportando…" tone="bg-primary-600 hover:bg-primary-700" />
     </form>
   )
 }

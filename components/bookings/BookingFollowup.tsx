@@ -27,6 +27,13 @@ const ICON: Record<Action, typeof RotateCcw> = {
 
 type Group = { key: string; title: string; text: string; actions: Action[] }
 
+/** Answers that cancel or report someone: asked once more before sending */
+const CONFIRM: Partial<Record<Action, string>> = {
+  no_show: '¿Confirmas que el socio no ha llegado? Le avisaremos y, si no inicia en 30 minutos, cancelamos sin costo.',
+  client_cancel: '¿Seguro que quieres cancelar el servicio? El socio ya está en el lugar.',
+}
+const SECONDARY: Action[] = ['no_show', 'client_cancel', 'price_no', 'reschedule_no']
+
 /** The questions waiting for the client, one per topic, each with its own buttons. */
 function groupsFor(actions: Action[], status: string, info: FollowupInfo): Group[] {
   const has = (a: Action) => actions.includes(a)
@@ -49,11 +56,13 @@ export default function BookingFollowup({ bookingId, status, actions, info = {},
   const list = actions.filter((a): a is Action => a in LABEL)
   const [busy, setBusy] = useState<Action | null>(null)
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
+  const [confirming, setConfirming] = useState<Action | null>(null)
   const baseId = useId()
   const groups = groupsFor(list, status, info)
   if (!groups.length && !message) return null
 
   async function run(action: Action) {
+    setConfirming(null)
     setBusy(action)
     setMessage(null)
     try {
@@ -69,33 +78,47 @@ export default function BookingFollowup({ bookingId, status, actions, info = {},
   }
 
   return (
-    <div className="space-y-2" aria-live="polite">
-      {groups.map((g) => (
+    <div className="space-y-2">
+      {groups.map((g, gi) => (
         <section key={g.key} aria-labelledby={`${baseId}-${g.key}`} className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
           <h3 id={`${baseId}-${g.key}`} className="font-bold text-amber-900">{g.title}</h3>
           <p className="mt-1 break-words text-sm leading-relaxed text-amber-900">{g.text}</p>
-          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-            {g.actions.map((a, i) => {
-              const Icon = busy === a ? Loader2 : ICON[a]
-              return (
-                <button
-                  key={a}
-                  type="button"
-                  disabled={busy !== null}
-                  aria-busy={busy === a}
-                  onClick={() => run(a)}
-                  className={`inline-flex min-h-[44px] w-full items-center justify-center gap-2 text-sm sm:w-auto disabled:cursor-not-allowed disabled:opacity-60 ${focusRing} ${i === 0 ? DESIGN_SYSTEM.components.button.primary : 'rounded-full border border-amber-300 bg-white px-4 font-semibold text-amber-900 hover:bg-amber-100'}`}
-                >
-                  <Icon size={18} className={`shrink-0 ${busy === a ? 'animate-spin' : ''}`} aria-hidden="true" />
-                  {LABEL[a]}
+          {confirming && g.actions.includes(confirming) ? (
+            <div className="mt-3 rounded-2xl bg-white p-3">
+              <p className="text-sm font-medium text-gray-900">{CONFIRM[confirming]}</p>
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                <button type="button" autoFocus disabled={busy !== null} onClick={() => run(confirming)} className={`inline-flex min-h-[44px] w-full items-center justify-center gap-2 text-sm sm:w-auto disabled:opacity-60 ${focusRing} ${DESIGN_SYSTEM.components.button.primary}`}>
+                  {busy === confirming && <Loader2 size={18} className="shrink-0 animate-spin" aria-hidden="true" />} Sí, {LABEL[confirming].toLowerCase()}
                 </button>
-              )
-            })}
-          </div>
+                <button type="button" disabled={busy !== null} onClick={() => setConfirming(null)} className={`inline-flex min-h-[44px] w-full items-center justify-center rounded-full border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-800 sm:w-auto ${focusRing}`}>Volver</button>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+              {g.actions.map((a, i) => {
+                const Icon = busy === a ? Loader2 : ICON[a]
+                // One primary per card: the first safe answer of the first question
+                const primary = gi === 0 && i === 0 && !SECONDARY.includes(a)
+                return (
+                  <button
+                    key={a}
+                    type="button"
+                    disabled={busy !== null}
+                    aria-busy={busy === a}
+                    onClick={() => (CONFIRM[a] ? setConfirming(a) : run(a))}
+                    className={`inline-flex min-h-[44px] w-full items-center justify-center gap-2 text-sm sm:w-auto disabled:cursor-not-allowed disabled:opacity-60 ${focusRing} ${primary ? DESIGN_SYSTEM.components.button.primary : 'rounded-full border border-amber-300 bg-white px-4 font-semibold text-amber-900 hover:bg-amber-100'}`}
+                  >
+                    <Icon size={18} className={`shrink-0 ${busy === a ? 'animate-spin' : ''}`} aria-hidden="true" />
+                    {LABEL[a]}
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </section>
       ))}
-      {busy && <span className="sr-only" role="status">Enviando…</span>}
-      <p role={message && !message.ok ? 'alert' : 'status'} className={`text-sm font-medium ${message?.ok ? 'text-green-800' : 'text-red-700'}`}>{message?.text ?? ''}</p>
+      <span className="sr-only" role="status">{busy ? 'Enviando…' : message?.ok ? message.text : ''}</span>
+      {message && <p role={message.ok ? undefined : 'alert'} className={`text-sm font-medium ${message.ok ? 'text-green-800' : 'text-red-700'}`}>{message.text}</p>}
     </div>
   )
 }

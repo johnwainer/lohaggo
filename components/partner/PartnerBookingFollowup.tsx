@@ -20,14 +20,17 @@ export default function PartnerBookingFollowup({ bookingId, actions, info = {}, 
   const [busy, setBusy] = useState<Action | null>(null)
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
   const [priceOpen, setPriceOpen] = useState(false)
+  const [confirmAbsent, setConfirmAbsent] = useState(false)
   const [amount, setAmount] = useState('')
   const [note, setNote] = useState('')
   const amountId = useId()
   const noteId = useId()
+  const hintId = useId()
   const waiting = Boolean(info.reschedule || info.price || info.clientAbsent)
   if (!list.length && !waiting && !message) return null
 
   async function run(action: Action, extra: Record<string, unknown> = {}) {
+    setConfirmAbsent(false)
     setBusy(action)
     setMessage(null)
     try {
@@ -50,7 +53,7 @@ export default function PartnerBookingFollowup({ bookingId, actions, info = {}, 
   const secondary = `inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-full border border-gray-300 bg-white px-4 text-sm font-semibold text-gray-800 hover:bg-gray-50 sm:w-auto disabled:cursor-not-allowed disabled:opacity-60 ${focusRing}`
 
   return (
-    <div className="space-y-2" aria-live="polite">
+    <div className="space-y-2">
       {info.reschedule && (
         <p className="flex items-start gap-2 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
           <CalendarClock size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
@@ -66,7 +69,7 @@ export default function PartnerBookingFollowup({ bookingId, actions, info = {}, 
       {info.clientAbsent && (
         <p className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           <UserX size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
-          <span>Le avisamos al cliente que no lo encontraste. Si no responde en 30 minutos, cancelamos la reserva y queda registrado a tu favor.</span>
+          <span>Le avisamos al cliente que no lo encontraste. Si no responde en 30 minutos, cancelamos la reserva y no se te penaliza.</span>
         </p>
       )}
       {list.length > 0 && (
@@ -77,8 +80,8 @@ export default function PartnerBookingFollowup({ bookingId, actions, info = {}, 
               Voy en camino
             </button>
           )}
-          {list.includes('client_absent') && (
-            <button type="button" disabled={busy !== null} aria-busy={busy === 'client_absent'} onClick={() => run('client_absent')} className={secondary}>
+          {list.includes('client_absent') && !confirmAbsent && (
+            <button type="button" disabled={busy !== null} aria-busy={busy === 'client_absent'} onClick={() => setConfirmAbsent(true)} className={secondary}>
               {busy === 'client_absent' ? <Loader2 size={18} className="shrink-0 animate-spin" aria-hidden="true" /> : <UserX size={18} className="shrink-0" aria-hidden="true" />}
               El cliente no estaba
             </button>
@@ -90,11 +93,23 @@ export default function PartnerBookingFollowup({ bookingId, actions, info = {}, 
           )}
         </div>
       )}
+      {confirmAbsent && (
+        <div className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm font-medium text-amber-900">¿Ya estás en la dirección y el cliente no aparece? Le avisaremos ahora; si no responde en 30 minutos, cancelamos la reserva.</p>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <button type="button" autoFocus disabled={busy !== null} onClick={() => run('client_absent')} className={`inline-flex min-h-[44px] w-full items-center justify-center gap-2 text-sm sm:w-auto disabled:opacity-60 ${focusRing} ${DESIGN_SYSTEM.components.button.primary}`}>
+              {busy === 'client_absent' && <Loader2 size={18} className="shrink-0 animate-spin" aria-hidden="true" />} Sí, avisar al cliente
+            </button>
+            <button type="button" disabled={busy !== null} onClick={() => setConfirmAbsent(false)} className={secondary}>Volver</button>
+          </div>
+        </div>
+      )}
       {priceOpen && (
         <div className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4">
           <p className="text-sm text-gray-700">Precio acordado: <strong>{formatCurrency(totalPrice)}</strong>. El cliente debe aceptar el nuevo precio antes de pagar.</p>
           <label htmlFor={amountId} className="block text-sm font-medium text-gray-700">Precio final</label>
-          <input id={amountId} inputMode="numeric" className={field} placeholder="Ej.: 150000" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, '').slice(0, 9))} />
+          <input id={amountId} autoFocus inputMode="numeric" pattern="[0-9]*" autoComplete="off" aria-describedby={hintId} className={field} placeholder="Ej.: 150000" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, '').slice(0, 9))} />
+          <p id={hintId} className="text-xs text-gray-600">{value > 0 ? `Nuevo precio: ${formatCurrency(value)}. ` : ''}Escribe también el motivo (mínimo 5 caracteres).</p>
           <label htmlFor={noteId} className="block text-sm font-medium text-gray-700">¿Por qué cambia? (lo verá el cliente)</label>
           <textarea id={noteId} rows={2} className={field} placeholder="Ej.: hubo que cambiar también el sifón" value={note} onChange={(e) => setNote(e.target.value.slice(0, 300))} />
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -105,8 +120,8 @@ export default function PartnerBookingFollowup({ bookingId, actions, info = {}, 
           </div>
         </div>
       )}
-      {busy && <span className="sr-only" role="status">Enviando…</span>}
-      <p role={message && !message.ok ? 'alert' : 'status'} className={`text-sm font-medium ${message?.ok ? 'text-green-800' : 'text-red-700'}`}>{message?.text ?? ''}</p>
+      <span className="sr-only" role="status">{busy ? 'Enviando…' : message?.ok ? message.text : ''}</span>
+      {message && <p role={message.ok ? undefined : 'alert'} className={`text-sm font-medium ${message.ok ? 'text-green-800' : 'text-red-700'}`}>{message.text}</p>}
     </div>
   )
 }
