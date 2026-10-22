@@ -219,7 +219,7 @@ export async function recordMetaMessage(params: RecordParams): Promise<boolean> 
 
   const isInbound = params.direction === 'INBOUND'
   // The answer to the satisfaction survey (and the echo of the survey itself) keeps a closed conversation closed
-  const csatScore = isInbound && !params.mediaUrl ? csatReplyScore(readInboxState(conversation.customFields), params.body) : null
+  const csatScore = isInbound && !params.mediaUrl ? csatReplyScore(readInboxState(conversation.customFields), params.body, Date.now(), conversation.status) : null
   const keepClosed = Boolean(csatScore) || (!isInbound && isCsatMessage(params.body))
   await prisma.conversation.update({
     where: { id: conversation.id },
@@ -235,6 +235,7 @@ export async function recordMetaMessage(params: RecordParams): Promise<boolean> 
   })
   if (csatScore) {
     await recordCsatReply(conversation.id, csatScore, params.sentAt || new Date())
+    emitInboxEvent({ type: 'new-message', conversationId: conversation.id, workspaceId: conversation.workspaceId })
     return true
   }
   // Inbox «Por responder»: the contact wrote, or someone answered from Meta's own inbox (echo)

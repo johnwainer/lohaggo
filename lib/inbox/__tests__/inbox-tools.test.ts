@@ -191,3 +191,18 @@ describe('voice notes', () => {
     expect(needsTranscriptionLabel({ ...audio, mediaType: 'image/jpeg' })).toBe(false)
   })
 })
+
+describe('Encuesta · casos de borde', () => {
+  it('un número en una conversación reabierta no es una calificación', async () => {
+    const { csatReplyScore } = await import('@/lib/inbox/csat-core')
+    const asked = new Date(Date.now() - 3600_000).toISOString()
+    expect(csatReplyScore({ csatAskedAt: asked }, '5', Date.now(), 'CLOSED')).toBe(5)
+    expect(csatReplyScore({ csatAskedAt: asked }, '5', Date.now(), 'OPEN')).toBeNull()
+  })
+  it('no pregunta en una conversación que nadie respondió', async () => {
+    const { csatSkipReason } = await import('@/lib/inbox/csat-core')
+    const base = { channel: 'WHATSAPP', status: 'CLOSED', reason: 'gestionada', automatedOnly: false, aiSpam: false, isTest: false, optedOut: false, csatAskedAt: null, lastInboundAt: new Date() }
+    expect(csatSkipReason({ ...base, replied: false })).toBe('no_reply')
+    expect(csatSkipReason({ ...base, replied: true })).toBeNull()
+  })
+})

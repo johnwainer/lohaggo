@@ -22,9 +22,13 @@ export async function askCsatOnClose(conversationId: string, reason: string): Pr
       lastInboundAt = last?.sentAt ?? null
     }
     const optedOut = Boolean(await prisma.messagingOptOut.findFirst({ where: { channel: conv.channel, destination: conv.contactPhone, isActive: true }, select: { id: true } }).catch(() => null))
+    const replied = Boolean(state.lastReplyAt) || Boolean(await prisma.conversationMessage.findFirst({
+      where: { conversationId, direction: 'OUTBOUND', senderType: { in: ['HUMAN', 'AI'] }, NOT: { aiAgentId: { in: ['csat', 'booking-followup'] } } },
+      select: { id: true },
+    }).catch(() => null))
     const skip = csatSkipReason({
       channel: conv.channel, status: conv.status, reason, automatedOnly: Boolean(state.automatedOnly), aiSpam: conv.aiSpam, isTest: conv.isTest,
-      optedOut, csatAskedAt: state.csatAskedAt, lastInboundAt,
+      optedOut, csatAskedAt: state.csatAskedAt, lastInboundAt, replied,
     })
     if (skip) return false
 

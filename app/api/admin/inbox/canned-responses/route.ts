@@ -74,7 +74,8 @@ export async function DELETE(request: NextRequest) {
   const { id } = await request.json().catch(() => ({}))
   if (!id || typeof id !== 'string') return NextResponse.json({ error: 'id requerido' }, { status: 400 })
 
-  await prisma.cannedResponse.updateMany({ where: { id }, data: { isActive: false } })
+  const res = await prisma.cannedResponse.updateMany({ where: { id, isActive: true }, data: { isActive: false } })
+  if (!res.count) return NextResponse.json({ error: 'Respuesta no encontrada' }, { status: 404 })
   await auditAdminAction({ actorId: admin.id, actorEmail: admin.email, action: 'INBOX_SAVED_REPLY_DELETE', entityType: 'CannedResponse', entityId: id, request })
 
   return NextResponse.json({ ok: true })

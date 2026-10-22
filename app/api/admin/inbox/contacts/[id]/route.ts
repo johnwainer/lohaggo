@@ -32,12 +32,15 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   const body = await request.json().catch(() => ({}))
   const str = (k: string) => (body[k] === undefined ? undefined : body[k] === null ? null : String(body[k]))
   try {
-    // Linking by hand: never an admin account, never through a phone several accounts share
-    if (typeof body.userId === 'string' && body.userId) {
+    // Linking by hand: never an admin account, never through a phone several accounts share. The value
+    // checked is exactly the one saved (anything that is not a string or null is refused)
+    if (body.userId !== undefined && body.userId !== null && typeof body.userId !== 'string') return NextResponse.json({ error: 'Cuenta inválida' }, { status: 400 })
+    const userId = str('userId')
+    if (userId) {
       const contact = await prisma.contact.findUnique({ where: { id }, select: { phone: true } })
-      await assertLinkableUser(body.userId, contact?.phone)
+      await assertLinkableUser(userId, contact?.phone, str('phone'))
     }
-    const updated = await updateContact(id, { name: str('name'), phone: str('phone'), email: str('email'), notes: str('notes'), userId: str('userId') })
+    const updated = await updateContact(id, { name: str('name'), phone: str('phone'), email: str('email'), notes: str('notes'), userId })
     await auditAdminAction({ actorId: auth.admin.id, actorEmail: auth.admin.email, action: 'INBOX_CONTACT_UPDATE', entityType: 'Contact', entityId: updated.id, details: JSON.stringify(Object.keys(body)), request })
     return NextResponse.json({ contact: await getContactDetail(updated.id) })
   } catch (err) {

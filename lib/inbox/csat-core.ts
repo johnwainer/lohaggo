@@ -23,9 +23,13 @@ export function parseCsatScore(body: string | null | undefined): number | null {
   return m ? Number(m[1]) : null
 }
 
-/** The score when this message answers a pending survey (asked < 24 h ago and not answered yet). */
-export function csatReplyScore(state: Pick<InboxState, 'csatAskedAt' | 'csat'>, body: string | null | undefined, now: number = Date.now()): number | null {
+/**
+ * The score when this message answers a pending survey (asked < 24 h ago, not answered yet, and the
+ * conversation still closed: once it reopened, a lone digit is an ordinary answer for the team or the agent).
+ */
+export function csatReplyScore(state: Pick<InboxState, 'csatAskedAt' | 'csat'>, body: string | null | undefined, now: number = Date.now(), status?: string | null): number | null {
   if (!state.csatAskedAt) return null
+  if (status && status !== 'RESOLVED' && status !== 'CLOSED') return null
   const asked = new Date(state.csatAskedAt).getTime()
   if (Number.isNaN(asked) || now - asked > CSAT_ANSWER_MS || now < asked) return null
   if (state.csat && state.csat.at >= state.csatAskedAt) return null
@@ -42,6 +46,8 @@ export type CsatAskInput = {
   optedOut: boolean
   csatAskedAt: string | null | undefined
   lastInboundAt: string | Date | null | undefined
+  /** Someone (a person or the agent) answered in this conversation: nobody asks how a chat nobody attended went */
+  replied?: boolean
 }
 
 /** Why the survey is not sent, or null when it goes out. */
@@ -50,6 +56,7 @@ export function csatSkipReason(input: CsatAskInput, now: number = Date.now()): s
   if (!(CSAT_CHANNELS as readonly string[]).includes(input.channel)) return 'channel'
   if (input.status !== 'RESOLVED' && input.status !== 'CLOSED') return 'open'
   if (input.automatedOnly) return 'automated_only'
+  if (input.replied === false) return 'no_reply'
   if (input.aiSpam) return 'spam'
   if (input.isTest) return 'test'
   if (input.optedOut) return 'opted_out'

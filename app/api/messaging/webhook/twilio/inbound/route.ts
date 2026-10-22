@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
     logger.info('New conversation', { id: conversation.id, channel, contactPhone })
   } else {
     // The answer to the satisfaction survey: recorded and thanked, the conversation stays closed
-    csatScore = !button && !media.length && !optingOut ? csatReplyScore(readInboxState(conversation.customFields), body) : null
+    csatScore = !button && !media.length && !optingOut ? csatReplyScore(readInboxState(conversation.customFields), body, Date.now(), conversation.status) : null
     await prisma.conversation.update({
       where: { id: conversation.id },
       data: {
@@ -225,6 +225,7 @@ export async function POST(request: NextRequest) {
   logger.info('Inbound saved', { conversationId: conversation.id, messageSid })
   if (csatScore) {
     await recordCsatReply(conversation.id, csatScore, inbound.sentAt)
+    emitInboxEvent({ type: 'new-message', conversationId: conversation.id, workspaceId: conversation.workspaceId })
     return twiml()
   }
   // The contact wrote: «Por responder» in the inbox (also wakes a snoozed conversation)

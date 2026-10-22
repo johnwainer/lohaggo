@@ -29,7 +29,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
   try {
     const phoneChannel = conversation.channel === 'WHATSAPP' || conversation.channel === 'SMS'
-    if (userId) await assertLinkableUser(userId, phoneChannel ? conversation.contactPhone : null)
+    const contactPhone = conversation.contactId ? (await prisma.contact.findUnique({ where: { id: conversation.contactId }, select: { phone: true } }))?.phone ?? null : null
+    if (userId) await assertLinkableUser(userId, phoneChannel ? conversation.contactPhone : null, contactPhone)
     if (conversation.contactId) await updateContact(conversation.contactId, { userId })
     else await prisma.conversation.update({ where: { id }, data: { userId } })
   } catch (err) {
