@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import type { ConversationStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/admin-utils'
@@ -9,6 +9,7 @@ import { emitInboxEvent } from '@/lib/messaging/inbox-emitter'
 import { copilotState } from '@/lib/ai/copilot'
 import { commentModeration } from '@/lib/ai/comments'
 import { isCommentChannel, privateReplyAvailability } from '@/lib/ai/comments-core'
+import { askCsatOnClose } from '@/lib/inbox/csat'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -136,6 +137,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   const actor = { conversationId: id, actorType: 'user', actorId: admin.id, actorName: admin.name }
   if (data.status !== undefined && data.status !== existing.status) {
     await prisma.conversationEvent.create({ data: { ...actor, type: 'status', detail: String(data.status) } })
+    // A person closed it: the matter was handled, so the contact may get the satisfaction question
+    const wasOpen = existing.status === 'OPEN' || existing.status === 'IN_PROGRESS'
+    if (wasOpen && (data.status === 'RESOLVED' || data.status === 'CLOSED')) after(() => askCsatOnClose(id, 'gestionada'))
   }
   if (data.assignedToId !== undefined && data.assignedToId !== existing.assignedToId) {
     await prisma.conversationEvent.create({ data: { ...actor, type: 'assigned', detail: conversation.assignedTo?.name || 'Sin asignar' } })

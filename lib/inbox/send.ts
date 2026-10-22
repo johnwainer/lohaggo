@@ -30,6 +30,8 @@ export type SendInput = {
   visibility?: 'public' | 'private'
   /** Comment channels: the comment to answer (default: the latest one still visible) */
   replyToCommentId?: string | null
+  /** Leaves the conversation's status as it is (the survey after a close must not reopen it) */
+  keepStatus?: boolean
 }
 
 const include = { sentBy: { select: { id: true, name: true } } }
@@ -104,7 +106,7 @@ export async function sendToConversation(input: SendInput): Promise<SendResult> 
   const finish = async (savedList: Saved[]): Promise<SendResult> => {
     await prisma.conversation.update({
       where: { id },
-      data: { lastMessageAt: new Date(), lastMessageBody: storedBody.slice(0, 200), status: 'IN_PROGRESS' },
+      data: { lastMessageAt: new Date(), lastMessageBody: storedBody.slice(0, 200), ...(input.keepStatus ? {} : { status: 'IN_PROGRESS' as const }) },
     })
     // Answered (by a person or the AI): it leaves «Por responder»
     await markReplied(id)

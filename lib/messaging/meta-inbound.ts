@@ -8,7 +8,9 @@ import { fetchContactProfile, fetchThreadMessages, listPendingConversations, typ
 import { getConnectionCredentials, getConnectionMeta, isMetaChannel, requireMetaApp } from '@/lib/messaging/meta-channels'
 import { autopilotCovers, drainAgentTasks, scheduleInboundAgent } from '@/lib/ai/autopilot'
 import { resolveInboundContact } from '@/lib/inbox/contacts'
-import { markInbound, markReplied } from '@/lib/inbox/state'
+import { markInbound, markReplied, readInboxState } from '@/lib/inbox/state'
+import { csatReplyScore, isCsatMessage } from '@/lib/inbox/csat-core'
+import { recordCsatReply } from '@/lib/inbox/csat'
 import { processCommentChanges } from '@/lib/messaging/meta-comments'
 import { commentSettingsOf } from '@/lib/ai/comments-core'
 import { extractWebRef, parseMetaReferral, recordConversationAttribution } from '@/lib/messaging/attribution'
@@ -216,18 +218,25 @@ export async function recordMetaMessage(params: RecordParams): Promise<boolean> 
   }
 
   const isInbound = params.direction === 'INBOUND'
+  // The answer to the satisfaction survey (and the echo of the survey itself) keeps a closed conversation closed
+  const csatScore = isInbound && !params.mediaUrl ? csatReplyScore(readInboxState(conversation.customFields), params.body) : null
+  const keepClosed = Boolean(csatScore) || (!isInbound && isCsatMessage(params.body))
   await prisma.conversation.update({
     where: { id: conversation.id },
     data: {
-      status: conversation.status === 'CLOSED' || conversation.status === 'RESOLVED' ? 'OPEN' : conversation.status,
+      status: !keepClosed && (conversation.status === 'CLOSED' || conversation.status === 'RESOLVED') ? 'OPEN' : conversation.status,
       lastMessageAt: params.sentAt || new Date(),
       lastMessageBody: params.body.slice(0, 200),
-      ...(isInbound ? { unreadCount: { increment: 1 } } : {}),
+      ...(isInbound && !csatScore ? { unreadCount: { increment: 1 } } : {}),
       ...(params.contactNameHint && !conversation.contactName ? { contactName: params.contactNameHint } : {}),
       ...(params.threadOwner !== undefined ? { threadOwner: params.threadOwner } : {}),
       ...(conversation.connectionId ? {} : { connectionId: params.conn.id }),
     },
   })
+  if (csatScore) {
+    await recordCsatReply(conversation.id, csatScore, params.sentAt || new Date())
+    return true
+  }
   // Inbox «Por responder»: the contact wrote, or someone answered from Meta's own inbox (echo)
   if (isInbound) await markInbound(conversation.id, params.sentAt || new Date())
   else await markReplied(conversation.id, params.sentAt || new Date())

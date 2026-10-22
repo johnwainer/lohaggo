@@ -9,13 +9,18 @@ import {
   StickyNote, Zap, Tag, ChevronDown, Plus, Trash2, LayoutTemplate,
   ChevronUp, Link2, Copy, Check, ArrowLeft, BellOff,
   Paperclip, Mic, Square, FileText, Download, Bot, Hand, Pause, Play, ListTodo, Sparkles, Eye, EyeOff,
-  Pin, Wrench, ArrowUp,
+  Pin, Wrench, ArrowUp, BarChart3, Unlink,
 } from 'lucide-react'
 import { ChannelIcon, CHANNEL_META } from '@/components/admin/ChannelIcon'
 import ContactPanel, { RoleBadge, type ContactDetail } from '@/components/admin/inbox/ContactPanel'
 import ConversationMenu, { type InboxAction } from '@/components/admin/inbox/ConversationMenu'
 import InboxToolsDialog, { type InboxTool } from '@/components/admin/inbox/InboxToolsDialog'
-import { DEFAULT_TAB, INBOX_TABS, TAB_LABELS, leftTabLabel, parseTab, waitingFor, type InboxTab } from '@/lib/inbox/tabs'
+import InboxMetricsDialog from '@/components/admin/inbox/InboxMetricsDialog'
+import LinkAccountDialog from '@/components/admin/inbox/LinkAccountDialog'
+import SavedRepliesPicker from '@/components/admin/inbox/SavedRepliesPicker'
+import { isWindowOpen, waitingState } from '@/lib/inbox/waiting'
+import { needsTranscriptionLabel } from '@/lib/inbox/audio'
+import { DEFAULT_TAB, INBOX_TABS, TAB_LABELS, leftTabLabel, parseTab, type InboxTab } from '@/lib/inbox/tabs'
 import {
   VoiceRecorder, isRecordingSupported, prepareImage, uploadAttachment, kindFromMime, formatBytes, formatDuration,
   type PendingAttachment,
@@ -122,7 +127,7 @@ type Conversation = {
   inbox?: InboxRowState | null
 }
 
-type InboxRowState = { awaitingReply: boolean; lastInboundAt: string | null; automatedOnly: boolean; pinned: boolean; snoozedUntil: string | null; unreadForMe: boolean }
+type InboxRowState = { awaitingReply: boolean; lastInboundAt: string | null; automatedOnly: boolean; pinned: boolean; snoozedUntil: string | null; unreadForMe: boolean; csat?: { score: number; at: string } | null }
 
 /** Fields a background refresh may change on a row that stays where it is */
 const ROW_LIVE_FIELDS = [
@@ -135,8 +140,6 @@ function liveFields(c: Partial<Conversation>): Partial<Conversation> {
   for (const k of ROW_LIVE_FIELDS) if (k in c) out[k] = c[k]
   return out as Partial<Conversation>
 }
-
-type CannedResponse = { id: string; title: string; body: string; category?: string | null }
 
 type WaTemplate = { sid: string; name: string; body: string; variables: Record<string, string> }
 
@@ -222,10 +225,11 @@ function slaLabel(conv: Conversation): { label: string; level: 'ok' | 'warn' | '
   return { label, level: mins >= 120 ? 'critical' : 'warn' }
 }
 
-function isWaWindowClosed(messages: Message[]): boolean {
-  const lastInbound = [...messages].reverse().find((m) => m.direction === 'INBOUND')
-  if (!lastInbound) return true
-  return Date.now() - new Date(lastInbound.sentAt).getTime() > 24 * 60 * 60 * 1000
+/** The 24 h window: the latest of the loaded messages and the inbox bookkeeping (older pages may not be loaded). */
+function isWaWindowClosed(messages: Message[], lastInboundAt?: string | null): boolean {
+  const lastInbound = [...messages].reverse().find((m) => m.direction === 'INBOUND')?.sentAt ?? null
+  const latest = [lastInbound, lastInboundAt ?? null].filter(Boolean).sort().pop() ?? null
+  return !isWindowOpen(latest)
 }
 
 const EVENT_LABEL: Record<string, string> = {
@@ -236,6 +240,10 @@ const EVENT_LABEL: Record<string, string> = {
   account_created: 'Cuenta creada',
   account_attempt: 'Intento de crear cuenta',
   account_linked: 'Conversación vinculada a la cuenta',
+  account_unlinked: 'Conversación desvinculada de la cuenta',
+  csat_asked: 'Encuesta de satisfacción enviada',
+  csat_answered: 'Calificación del cliente',
+  ai_transcription_failed: 'Nota de voz sin transcripción',
   agent_action: 'El agente hizo',
   agent_action_review: 'Revisión de una acción del agente',
   copilot_alert: 'Cliente sin respuesta',
@@ -247,7 +255,7 @@ const EVENT_LABEL: Record<string, string> = {
 function eventText(e: ConvEvent) {
   const who = e.actorName ? (e.actorType === 'ai' ? `🤖 ${e.actorName}` : e.actorName) : ''
   const base = EVENT_LABEL[e.type] || e.type
-  const detail = e.type === 'status' && e.detail && e.detail in STATUS_LABELS ? STATUS_LABELS[e.detail as ConvStatus] : e.detail
+  const detail = e.type === 'ai_transcription_failed' ? null : e.type === 'status' && e.detail && e.detail in STATUS_LABELS ? STATUS_LABELS[e.detail as ConvStatus] : e.detail
   if (e.type === 'agent_action' && detail) return [who, `${base}: ${detail}`].filter(Boolean).join(' · ')
   return [who, base, detail].filter(Boolean).join(' · ')
 }
@@ -368,8 +376,8 @@ export default function InboxPage() {
   const [replyVisibility, setReplyVisibility] = useState<'public' | 'private'>('public')
   const [commentBusyId, setCommentBusyId] = useState<string | null>(null)
   const [showCannedPicker, setShowCannedPicker] = useState(false)
-  const [cannedResponses, setCannedResponses] = useState<CannedResponse[]>([])
-  const [cannedSearch, setCannedSearch] = useState('')
+  const [showMetrics, setShowMetrics] = useState(false)
+  const [showLink, setShowLink] = useState(false)
   const [showTagPicker, setShowTagPicker] = useState(false)
   const [msgSearch, setMsgSearch] = useState('')
   const [showMsgSearch, setShowMsgSearch] = useState(false)
@@ -696,15 +704,6 @@ export default function InboxPage() {
       document.removeEventListener('visibilitychange', onVisible)
     }
   }, [realtimeOk])
-
-  // ── Canned responses ─────────────────────────────────────────────────────
-
-  useEffect(() => {
-    fetch('/api/admin/inbox/canned-responses')
-      .then((r) => r.json())
-      .then((d) => setCannedResponses(d.responses || []))
-      .catch(() => { /* ignore */ })
-  }, [])
 
   // ── WA templates (lazy load) ─────────────────────────────────────────────
 
@@ -1381,6 +1380,30 @@ export default function InboxPage() {
     }
   }
 
+  // ── Linking the conversation to a platform account ───────────────────────
+
+  function applyLink(id: string, data: { user: unknown; contact: unknown }) {
+    const user = (data.user as ConvUser | null) ?? null
+    const contact = (data.contact as ContactDetail | null) ?? undefined
+    setSelected((prev) => (prev && prev.id === id ? { ...prev, user, ...(contact !== undefined ? { contact } : {}) } : prev))
+    setConversations((prev) => prev.map((c) => (c.id === id ? { ...c, user } : c)))
+    loadConversationDetail(id, true)
+  }
+
+  async function unlinkAccount() {
+    if (!selected?.user) return
+    if (!window.confirm(`¿Desvincular esta conversación de la cuenta de ${selected.user.name}?`)) return
+    const id = selected.id
+    try {
+      const res = await fetch(`/api/admin/inbox/conversations/${id}/link`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: null }) })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'No se pudo desvincular')
+      applyLink(id, data)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo desvincular')
+    }
+  }
+
   // ── Derived values ────────────────────────────────────────────────────────
 
   const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0)
@@ -1402,24 +1425,14 @@ export default function InboxPage() {
 
   const timelineMessages = msgSearch ? filteredMessages : withEvents(filteredMessages, selected?.events)
 
-  const windowClosed = selected?.channel === 'WHATSAPP' && isWaWindowClosed(selected?.messages || [])
+  const windowClosed = selected?.channel === 'WHATSAPP' && isWaWindowClosed(selected?.messages || [], selected?.inbox?.lastInboundAt)
   // While an AI agent handles the conversation, people only write after taking it over (internal notes stay open)
   const aiLocked = !!selected?.aiHandled && !isInternalNote
   // Messenger / Instagram: outside 24h the input stays open (HUMAN_AGENT tag, up to 7 days) but we warn
-  const metaWindowClosed = !!selected && isMetaChannel(selected.channel) && isWaWindowClosed(selected.messages || [])
+  const metaWindowClosed = !!selected && isMetaChannel(selected.channel) && isWaWindowClosed(selected.messages || [], selected.inbox?.lastInboundAt)
   const metaThreadElsewhere = !!selected && isMetaChannel(selected.channel) && !!selected.threadOwner
   const commentConv = !!selected && isCommentChannel(selected.channel)
   const privateReply = selected?.comments?.privateReply ?? { ok: false, reason: 'No disponible' }
-
-  const cannedFiltered = cannedResponses.filter((r) =>
-    !cannedSearch || r.title.toLowerCase().includes(cannedSearch.toLowerCase()) || r.body.toLowerCase().includes(cannedSearch.toLowerCase())
-  )
-  const cannedByCategory = cannedFiltered.reduce<Record<string, CannedResponse[]>>((acc, r) => {
-    const cat = r.category || 'General'
-    if (!acc[cat]) acc[cat] = []
-    acc[cat].push(r)
-    return acc
-  }, {})
 
   function insertEmoji(emoji: string) {
     const el = inputRef.current
@@ -1490,6 +1503,9 @@ export default function InboxPage() {
                   )}
                 </div>
               )}
+              <button onClick={() => setShowMetrics(true)} aria-label="Métricas de la bandeja" title="Métricas" className="rounded-lg p-2 md:p-1.5 hover:bg-gray-100 transition text-gray-500">
+                <BarChart3 className="h-4 w-4" />
+              </button>
               <button onClick={() => loadConversations({ keepScroll: true })} aria-label="Actualizar" title="Actualizar" className="rounded-lg p-2 md:p-1.5 hover:bg-gray-100 transition text-gray-500">
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               </button>
@@ -1728,11 +1744,12 @@ export default function InboxPage() {
             </div>
           )}
           {conversations.map((conv) => {
-            const sla = tab === 'awaiting' ? null : slaLabel(conv)
             const left = me && conv.inbox ? leftTabLabel(conv, tab, me, nowIso) : null
             const unreadMark = conv.unreadCount === 0 && Boolean(conv.inbox?.unreadForMe)
             const unread = conv.unreadCount > 0 || unreadMark
-            const waiting = tab === 'awaiting' && conv.inbox?.awaitingReply ? waitingFor(conv.inbox.lastInboundAt || conv.lastMessageAt, nowTick) : null
+            const awaitingNow = Boolean(conv.inbox?.awaitingReply) && (conv.status === 'OPEN' || conv.status === 'IN_PROGRESS') && !conv.inbox?.snoozedUntil
+            const waiting = awaitingNow ? waitingState(conv.inbox?.lastInboundAt || conv.lastMessageAt, nowTick) : null
+            const sla = tab === 'awaiting' || waiting ? null : slaLabel(conv)
             const touched = touchedIds.includes(conv.id)
             return (
               <div key={conv.id} className={`flex items-stretch transition-colors ${checkedIds.includes(conv.id) ? 'bg-primary-50/60' : touched ? 'bg-amber-50/70' : ''}`}>
@@ -1784,8 +1801,11 @@ export default function InboxPage() {
                         ? <span className="rounded-full bg-gray-800 px-1.5 py-0.5 text-[10px] font-semibold text-white">{left}</span>
                         : <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${STATUS_COLORS[conv.status]}`}>{STATUS_LABELS[conv.status]}</span>}
                       {waiting && !left && (
-                        <span className={`text-[10px] font-semibold ${conv.inbox?.lastInboundAt && nowTick - new Date(conv.inbox.lastInboundAt).getTime() > 2 * 60 * 60 * 1000 ? 'text-red-600' : 'text-orange-600'}`}>
-                          {waiting}
+                        <span
+                          className={`text-[10px] font-semibold ${waiting.overdue ? 'rounded-full bg-red-100 px-1.5 py-0.5 text-red-700' : 'text-orange-600'}`}
+                          title={waiting.overdue ? 'Más de 15 min sin respuesta en horario de atención' : undefined}
+                        >
+                          {waiting.label}
                         </span>
                       )}
                       {sla && (
@@ -2099,6 +2119,16 @@ export default function InboxPage() {
                 </button>
                 {selected.priority === 'high' && <span className="rounded-full bg-red-100 text-red-700 px-2 py-0.5 font-semibold">Prioridad alta</span>}
                 {selected.aiSpam && <span className="rounded-full bg-gray-100 text-gray-600 px-2 py-0.5">Marcada como publicidad</span>}
+                {selected.inbox?.csat && (
+                  <span className="rounded-full bg-emerald-50 text-emerald-800 px-2 py-0.5 font-medium" title={`Calificó la atención el ${new Date(selected.inbox.csat.at).toLocaleString('es-CO', { timeZone: 'America/Bogota', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`}>
+                    ★ {selected.inbox.csat.score}/5
+                  </span>
+                )}
+                {!selected.user && !commentConv && (
+                  <button onClick={() => setShowLink(true)} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2 py-0.5 text-gray-600 hover:bg-gray-50">
+                    <Link2 className="h-3 w-3" /> Vincular cuenta
+                  </button>
+                )}
               </div>
               {(selected.tasks || []).some((t) => !t.doneAt) && (
                 <div className={`${showDetails ? 'block' : 'hidden'} md:block pl-0 md:pl-12 space-y-1`}>
@@ -2197,6 +2227,12 @@ export default function InboxPage() {
                     <Link2 className="h-3 w-3" /> Magic Link
                   </button>
                   <button
+                    onClick={unlinkAccount}
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white border border-amber-300 text-amber-800 hover:bg-amber-100 transition text-xs font-medium"
+                  >
+                    <Unlink className="h-3 w-3" /> Desvincular
+                  </button>
+                  <button
                     onClick={() => openProfile(selected.user!.id)}
                     disabled={profileLoading}
                     className="underline opacity-70 hover:opacity-100 flex items-center gap-1 disabled:opacity-40"
@@ -2275,6 +2311,9 @@ export default function InboxPage() {
                                 return (
                                   <div className="mb-2">
                                     <audio controls preload="metadata" src={proxyUrl} className="max-w-[240px] h-10" />
+                                    {needsTranscriptionLabel(msg) && (
+                                      <span className="mt-1 inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-600">Sin transcripción</span>
+                                    )}
                                   </div>
                                 )
                               }
@@ -2356,41 +2395,14 @@ export default function InboxPage() {
             {/* Error banner */}
             {errorBanner}
 
-            {/* Canned responses picker */}
+            {/* Saved replies picker */}
             {showCannedPicker && (
-              <div className="mx-3 md:mx-5 mb-2 rounded-xl border bg-white shadow-lg max-h-60 overflow-hidden flex flex-col">
-                <div className="flex items-center gap-2 px-3 py-2 border-b">
-                  <Search className="h-3.5 w-3.5 text-gray-400" />
-                  <input
-                    autoFocus
-                    className="flex-1 min-w-0 text-base md:text-sm outline-none"
-                    placeholder="Buscar respuesta…"
-                    value={cannedSearch}
-                    onChange={(e) => setCannedSearch(e.target.value)}
-                  />
-                  <button onClick={() => setShowCannedPicker(false)} className="text-gray-400 hover:text-gray-600"><X className="h-4 w-4" /></button>
-                </div>
-                <div className="overflow-y-auto flex-1">
-                  {Object.entries(cannedByCategory).map(([cat, responses]) => (
-                    <div key={cat}>
-                      <p className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400 bg-gray-50">{cat}</p>
-                      {responses.map((r) => (
-                        <button
-                          key={r.id}
-                          onClick={() => { setMessageText(r.body); setShowCannedPicker(false); setCannedSearch(''); inputRef.current?.focus() }}
-                          className="w-full text-left px-3 py-2 hover:bg-primary-50 transition"
-                        >
-                          <p className="text-sm font-medium text-gray-800">{r.title}</p>
-                          <p className="text-xs text-gray-500 truncate">{r.body}</p>
-                        </button>
-                      ))}
-                    </div>
-                  ))}
-                  {cannedFiltered.length === 0 && (
-                    <p className="px-3 py-4 text-sm text-gray-400 text-center">Sin respuestas guardadas</p>
-                  )}
-                </div>
-              </div>
+              <SavedRepliesPicker
+                conversationId={selected.id}
+                contactName={selected.user?.name || selected.contact?.name || selected.contactName || null}
+                onClose={() => setShowCannedPicker(false)}
+                onInsert={(text) => { setMessageText(text); setShowCannedPicker(false); inputRef.current?.focus() }}
+              />
             )}
 
             {/* Closed notice */}
@@ -2542,7 +2554,7 @@ export default function InboxPage() {
                 {windowClosed && !isInternalNote && !showTemplatePicker && (
                   <div className="mb-2 flex items-center gap-2 rounded-xl border border-yellow-200 bg-yellow-50 px-3 py-2 text-xs text-yellow-800">
                     <Clock className="h-3.5 w-3.5 shrink-0 text-yellow-600" />
-                    <span className="flex-1">Ventana de 24h cerrada: WhatsApp solo permite retomar con una plantilla aprobada.</span>
+                    <span className="flex-1">La ventana de 24 h está cerrada: solo puedes enviar una plantilla</span>
                     <button onClick={loadWaTemplates} className="shrink-0 inline-flex items-center gap-1 rounded-lg bg-green-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-green-700">
                       <LayoutTemplate className="h-3.5 w-3.5" /> Elegir plantilla
                     </button>
@@ -2647,7 +2659,8 @@ export default function InboxPage() {
                     <button
                       onClick={() => setShowCannedPicker((v) => !v)}
                       className={`rounded-lg p-2 transition ${showCannedPicker ? 'bg-primary-100 text-primary-600' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
-                      title="Respuestas rápidas"
+                      title="Respuestas guardadas"
+                      aria-label="Respuestas guardadas"
                     >
                       <Zap className="h-4 w-4" />
                     </button>
@@ -3001,6 +3014,15 @@ export default function InboxPage() {
       )}
 
       <InboxToolsDialog tool={tool} onClose={() => setTool(null)} onDone={() => loadConversations({ silent: true, keepScroll: true })} />
+      <InboxMetricsDialog open={showMetrics} onClose={() => setShowMetrics(false)} />
+      {selected && (
+        <LinkAccountDialog
+          open={showLink}
+          conversationId={selected.id}
+          onClose={() => setShowLink(false)}
+          onLinked={(data) => applyLink(selected.id, data)}
+        />
+      )}
     </div>
   )
 }

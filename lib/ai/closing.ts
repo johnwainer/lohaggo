@@ -44,6 +44,11 @@ export async function closeConversation(conversationId: string, agent: Agent, re
     },
   })
   if (conv) emitInboxEvent({ type: 'status-update', conversationId, workspaceId: conv.workspaceId })
+  // Handled: one satisfaction question (lib/inbox/csat-core.ts decides if it may go out)
+  if (reason === 'gestionada') {
+    const { askCsatOnClose } = await import('@/lib/inbox/csat')
+    await askCsatOnClose(conversationId, reason)
+  }
   return true
 }
 

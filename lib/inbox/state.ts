@@ -24,6 +24,10 @@ export type InboxState = {
   snoozedBy?: string | null
   /** Admin ids that marked it as unread for themselves */
   unreadFor?: string[]
+  /** ISO time the satisfaction survey was sent (at most once every 7 days, see lib/inbox/csat-core.ts) */
+  csatAskedAt?: string | null
+  /** The contact's answer to the survey (1–5) */
+  csat?: { score: number; at: string } | null
 }
 
 export const INBOX_KEY = 'inbox'
@@ -45,7 +49,15 @@ export function readInboxState(customFields: unknown): InboxState {
     snoozedUntil: typeof raw.snoozedUntil === 'string' ? raw.snoozedUntil : null,
     snoozedBy: typeof raw.snoozedBy === 'string' ? raw.snoozedBy : null,
     unreadFor: ids(raw.unreadFor),
+    csatAskedAt: typeof raw.csatAskedAt === 'string' ? raw.csatAskedAt : null,
+    csat: readCsat(raw.csat),
   }
+}
+
+function readCsat(v: unknown): InboxState['csat'] {
+  const o = asObject(v)
+  const score = Number(o.score)
+  return Number.isInteger(score) && score >= 1 && score <= 5 && typeof o.at === 'string' ? { score, at: o.at } : null
 }
 
 /** customFields with `patch` merged into its inbox key; every other key is kept. Pure. */
@@ -66,6 +78,7 @@ export function inboxView(customFields: unknown, viewerId: string, now = new Dat
     pinned: (s.pinnedBy ?? []).includes(viewerId),
     snoozedUntil: snoozeActive ? s.snoozedUntil ?? null : null,
     unreadForMe: (s.unreadFor ?? []).includes(viewerId),
+    csat: s.csat ?? null,
   }
 }
 
