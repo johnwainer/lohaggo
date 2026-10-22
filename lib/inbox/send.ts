@@ -7,6 +7,7 @@ import { sendWhatsAppTemplate } from '@/lib/messaging/providers'
 import { replyToComment, replyToMention, sendMetaMessage, sendPrivateReply } from '@/lib/messaging/meta-graph'
 import { baseChannelOf, isCommentChannel, privateReplyAvailability } from '@/lib/ai/comments-core'
 import { linkIdentity } from '@/lib/inbox/contacts'
+import { markReplied } from '@/lib/inbox/state'
 import { describeGraphError, getConnectionCredentials, isMetaChannel, requireMetaApp } from '@/lib/messaging/meta-channels'
 import { twilioAddress } from '@/lib/messaging/contact-address'
 import { attachmentLabel, channelDeliveryUrl, channelSupportsAttachment, warmDeliveryUrl, isTrustedAttachmentUrl, kindFromMime, type AttachmentKind } from '@/lib/messaging/attachments'
@@ -105,6 +106,8 @@ export async function sendToConversation(input: SendInput): Promise<SendResult> 
       where: { id },
       data: { lastMessageAt: new Date(), lastMessageBody: storedBody.slice(0, 200), status: 'IN_PROGRESS' },
     })
+    // Answered (by a person or the AI): it leaves «Por responder»
+    await markReplied(id)
     emitInboxEvent({ type: 'new-message', conversationId: id, workspaceId: conversation.workspaceId })
     return { ok: true, saved: savedList[savedList.length - 1], savedList }
   }

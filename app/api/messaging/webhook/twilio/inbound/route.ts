@@ -13,6 +13,7 @@ import { getDefaultWorkspaceId } from '@/lib/workspaces'
 import { normalizeContactAddress } from '@/lib/messaging/contact-address'
 import { attachmentLabel, kindFromMime } from '@/lib/messaging/attachments'
 import { resolveInboundContact } from '@/lib/inbox/contacts'
+import { markInbound } from '@/lib/inbox/state'
 import { autopilotCovers, drainAgentTasks, scheduleInboundAgent } from '@/lib/ai/autopilot'
 import { extractWebRef, parseTwilioReferral, recordConversationAttribution } from '@/lib/messaging/attribution'
 import { parseButtonReply, withButtonMark } from '@/lib/messaging/wa-format'
@@ -215,6 +216,8 @@ export async function POST(request: NextRequest) {
   }
 
   logger.info('Inbound saved', { conversationId: conversation.id, messageSid })
+  // The contact wrote: «Por responder» in the inbox (also wakes a snoozed conversation)
+  await markInbound(conversation.id, inbound.sentAt)
   if (button) await recordButtonPress(conversation.id, button, String(formData.get('OriginalRepliedMessageSid') || '') || null, user?.id ?? null)
   // Ad / website attribution (Click-to-WhatsApp params, or the web's «(ref: web-…)» tag)
   const adReferral = isWhatsApp ? parseTwilioReferral((k) => formData.get(k)) : null

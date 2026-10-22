@@ -9,9 +9,13 @@ import {
   StickyNote, Zap, Tag, ChevronDown, Plus, Trash2, LayoutTemplate,
   ChevronUp, Link2, Copy, Check, ArrowLeft, BellOff,
   Paperclip, Mic, Square, FileText, Download, Bot, Hand, Pause, Play, ListTodo, Sparkles, Eye, EyeOff,
+  Pin, Wrench, ArrowUp,
 } from 'lucide-react'
 import { ChannelIcon, CHANNEL_META } from '@/components/admin/ChannelIcon'
 import ContactPanel, { RoleBadge, type ContactDetail } from '@/components/admin/inbox/ContactPanel'
+import ConversationMenu, { type InboxAction } from '@/components/admin/inbox/ConversationMenu'
+import InboxToolsDialog, { type InboxTool } from '@/components/admin/inbox/InboxToolsDialog'
+import { DEFAULT_TAB, INBOX_TABS, TAB_LABELS, leftTabLabel, parseTab, waitingFor, type InboxTab } from '@/lib/inbox/tabs'
 import {
   VoiceRecorder, isRecordingSupported, prepareImage, uploadAttachment, kindFromMime, formatBytes, formatDuration,
   type PendingAttachment,
@@ -114,6 +118,22 @@ type Conversation = {
   isAd?: boolean
   commentKind?: string | null
   comments?: { canHide: boolean; privateReply: { ok: boolean; reason?: string } } | null
+  /** List bookkeeping for the viewer (customFields.inbox, computed by the API) */
+  inbox?: InboxRowState | null
+}
+
+type InboxRowState = { awaitingReply: boolean; lastInboundAt: string | null; automatedOnly: boolean; pinned: boolean; snoozedUntil: string | null; unreadForMe: boolean }
+
+/** Fields a background refresh may change on a row that stays where it is */
+const ROW_LIVE_FIELDS = [
+  'lastMessageAt', 'lastMessageBody', 'unreadCount', 'status', 'assignedToId', 'assignedTo', 'aiHandled', 'aiAgentId', 'aiAgentName',
+  'tags', 'priority', 'copilotAlertedMessageId', 'contactName', 'user', 'threadOwner', 'inbox',
+] as const
+
+function liveFields(c: Partial<Conversation>): Partial<Conversation> {
+  const out: Record<string, unknown> = {}
+  for (const k of ROW_LIVE_FIELDS) if (k in c) out[k] = c[k]
+  return out as Partial<Conversation>
 }
 
 type CannedResponse = { id: string; title: string; body: string; category?: string | null }
@@ -311,13 +331,30 @@ export default function InboxPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
-  const [filterStatus, setFilterStatus] = useState<ConvStatus | ''>('')
+  const [tab, setTab] = useState<InboxTab>(DEFAULT_TAB)
+  const [tabCounts, setTabCounts] = useState<Partial<Record<InboxTab, number>>>({})
+  const [connectionCounts, setConnectionCounts] = useState<Record<string, number>>({})
+  const [me, setMe] = useState('')
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
+  const [loadingMoreList, setLoadingMoreList] = useState(false)
+  /** Conversations that changed while the list stayed still: shown as «N conversaciones con novedades» */
+  const [pendingIds, setPendingIds] = useState<string[]>([])
+  /** The tab's counter when the list was last loaded: a higher counter later means new conversations */
+  const [baselineCount, setBaselineCount] = useState<number | null>(null)
+  /** Rows touched in place by a background refresh (brief highlight) */
+  const [touchedIds, setTouchedIds] = useState<string[]>([])
+  const [urlReady, setUrlReady] = useState(false)
+  const [showTools, setShowTools] = useState(false)
+  const [tool, setTool] = useState<InboxTool | null>(null)
+  const listBoxRef = useRef<HTMLDivElement>(null)
+  const conversationsRef = useRef<Conversation[]>([])
+  const lastProbeRef = useRef(0)
   const [filterChannel, setFilterChannel] = useState<Channel | ''>('')
   const [filterAgent, setFilterAgent] = useState('')
   const [filterUnread, setFilterUnread] = useState(false)
   const [filterConnection, setFilterConnection] = useState('')
   const [filterTag, setFilterTag] = useState('')
-  const [sortBy, setSortBy] = useState<'unread' | 'recent' | 'waiting' | 'oldest'>('unread')
   const [showFilters, setShowFilters] = useState(false)
   const [channelCounts, setChannelCounts] = useState<Record<string, number>>({})
   const [totalCount, setTotalCount] = useState(0)
@@ -372,43 +409,135 @@ export default function InboxPage() {
 
   // ── Fetch conversation list ──────────────────────────────────────────────
 
-  const loadConversations = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true)
+  useEffect(() => { conversationsRef.current = conversations }, [conversations])
+
+  const listParams = useCallback(() => {
+    const params = new URLSearchParams()
+    params.set('tab', tab)
+    if (filterChannel) params.set('channel', filterChannel)
+    if (filterAgent) params.set('assignedToId', filterAgent)
+    if (filterWorkspace) params.set('workspaceId', filterWorkspace)
+    if (filterConnection) params.set('connectionId', filterConnection)
+    if (filterTag) params.set('tag', filterTag)
+    if (filterUnread) params.set('unreadOnly', 'true')
+    if (search) params.set('search', search)
+    return params
+  }, [tab, filterChannel, filterAgent, filterWorkspace, filterConnection, filterTag, filterUnread, search])
+
+  /** Selectors and counters that come with every first page */
+  function applyMeta(data: Record<string, unknown>) {
+    if (Array.isArray(data.workspaces)) setWorkspaces(data.workspaces as typeof workspaces)
+    if (Array.isArray(data.agents)) setAgents(data.agents as Agent[])
+    if (Array.isArray(data.aiAgents)) setAiAgents(data.aiAgents as typeof aiAgents)
+    if (data.channelCounts) setChannelCounts(data.channelCounts as Record<string, number>)
+    if (typeof data.total === 'number') setTotalCount(data.total)
+    if (data.tabCounts) setTabCounts(data.tabCounts as Partial<Record<InboxTab, number>>)
+    if (data.connectionCounts) setConnectionCounts(data.connectionCounts as Record<string, number>)
+    if (Array.isArray(data.connections)) setConnections(data.connections as typeof connections)
+    if (Array.isArray(data.tags)) setKnownTags(data.tags as string[])
+    if (typeof data.me === 'string') setMe(data.me)
+    if (typeof data.isSuperAdmin === 'boolean') setIsSuperAdmin(data.isSuperAdmin)
+  }
+
+  /**
+   * Replaces the list (filter or tab change, «Actualizar», first load). keepScroll: the novedades bar and the
+   * refresh button keep the reading position; a new filter starts at the top.
+   */
+  const loadConversations = useCallback(async (opts: { silent?: boolean; keepScroll?: boolean } = {}) => {
+    if (!opts.silent) setLoading(true)
     const seq = ++listSeqRef.current
+    const box = listBoxRef.current
+    const scrollTop = opts.keepScroll && box ? box.scrollTop : 0
     try {
-      const params = new URLSearchParams()
-      if (filterStatus) params.set('status', filterStatus)
-      if (filterChannel) params.set('channel', filterChannel)
-      if (filterAgent) params.set('assignedToId', filterAgent)
-      if (filterWorkspace) params.set('workspaceId', filterWorkspace)
-      if (filterConnection) params.set('connectionId', filterConnection)
-      if (filterTag) params.set('tag', filterTag)
-      if (filterUnread) params.set('unreadOnly', 'true')
-      if (search) params.set('search', search)
-      params.set('sort', sortBy)
-      const res = await fetch(`/api/admin/inbox/conversations?${params}`)
+      const res = await fetch(`/api/admin/inbox/conversations?${listParams()}`)
       if (!res.ok) throw new Error(await readError(res, 'No se pudieron cargar las conversaciones'))
       const data = await res.json()
       if (seq !== listSeqRef.current) return
-      if (Array.isArray(data.workspaces)) setWorkspaces(data.workspaces)
+      applyMeta(data)
       setConversations(data.conversations || [])
-      setAgents(data.agents || [])
-      setAiAgents(data.aiAgents || [])
-      setChannelCounts(data.channelCounts || {})
-      setTotalCount(data.total || 0)
-      if (Array.isArray(data.connections)) setConnections(data.connections)
-      if (Array.isArray(data.tags)) setKnownTags(data.tags)
+      setNextCursor(data.nextCursor ?? null)
+      setBaselineCount(typeof data.tabCounts?.[data.tab] === 'number' ? data.tabCounts[data.tab] : null)
+      setPendingIds([])
+      setTouchedIds([])
       setListError(null)
+      requestAnimationFrame(() => { if (listBoxRef.current) listBoxRef.current.scrollTop = scrollTop })
     } catch (err) {
       if (seq !== listSeqRef.current) return
       setListError(err instanceof Error && err.message !== 'Failed to fetch' ? err.message : 'Sin conexión: no se pudieron cargar las conversaciones')
     } finally {
       if (seq === listSeqRef.current) setLoading(false)
     }
-  }, [filterStatus, filterChannel, filterAgent, filterWorkspace, filterConnection, filterTag, filterUnread, search, sortBy])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listParams])
+
+  /**
+   * Background refresh (realtime event or polling): the list does NOT move. Rows on screen are updated in
+   * place (preview, counters, owner, status); conversations that would appear are only counted in the
+   * «novedades» bar; counters of tabs and channels are refreshed.
+   */
+  const probeConversations = useCallback(async () => {
+    lastProbeRef.current = Date.now()
+    const seq = listSeqRef.current
+    const visible = conversationsRef.current
+    const params = listParams()
+    if (visible.length) params.set('watch', visible.slice(0, 150).map((c) => c.id).join(','))
+    try {
+      const res = await fetch(`/api/admin/inbox/conversations?${params}`)
+      if (!res.ok) return
+      const data = await res.json()
+      // A replace started meanwhile (filter change): this snapshot is stale
+      if (seq !== listSeqRef.current) return
+      applyMeta(data)
+      const fresh = new Map<string, Conversation>()
+      for (const c of [...(data.watched || []), ...(data.conversations || [])] as Conversation[]) fresh.set(c.id, c)
+      const current = conversationsRef.current
+      const shown = new Set(current.map((c) => c.id))
+      const touched = current.filter((c) => {
+        const f = fresh.get(c.id)
+        return f && (f.lastMessageAt !== c.lastMessageAt || f.unreadCount !== c.unreadCount)
+      }).map((c) => c.id)
+      setConversations((prev) => prev.map((c) => {
+        const f = fresh.get(c.id)
+        return f ? { ...c, ...liveFields(f) } : c
+      }))
+      const appeared = ((data.conversations || []) as Conversation[]).filter((c) => !shown.has(c.id)).map((c) => c.id)
+      if (appeared.length) setPendingIds((prev) => Array.from(new Set([...prev, ...appeared])))
+      if (touched.length) {
+        setTouchedIds((prev) => Array.from(new Set([...prev, ...touched])))
+        setTimeout(() => setTouchedIds((prev) => prev.filter((id) => !touched.includes(id))), 4000)
+      }
+    } catch {
+      // Best effort: the next event or poll tries again
+    }
+  }, [listParams])
+
+  async function loadMoreConversations() {
+    if (!nextCursor || loadingMoreList) return
+    setLoadingMoreList(true)
+    const seq = listSeqRef.current
+    try {
+      const params = listParams()
+      params.set('cursor', nextCursor)
+      const res = await fetch(`/api/admin/inbox/conversations?${params}`)
+      if (!res.ok) throw new Error(await readError(res, 'No se pudieron cargar más conversaciones'))
+      const data = await res.json()
+      if (seq !== listSeqRef.current) return
+      setConversations((prev) => {
+        const ids = new Set(prev.map((c) => c.id))
+        return [...prev, ...((data.conversations || []) as Conversation[]).filter((c) => !ids.has(c.id))]
+      })
+      setNextCursor(data.nextCursor ?? null)
+    } catch (err) {
+      setListError(err instanceof Error && err.message !== 'Failed to fetch' ? err.message : 'Sin conexión: no se pudieron cargar más conversaciones')
+    } finally {
+      setLoadingMoreList(false)
+    }
+  }
 
   const loadConversationsRef = useRef(loadConversations)
   useEffect(() => { loadConversationsRef.current = loadConversations }, [loadConversations])
+  const probeRef = useRef(probeConversations)
+  useEffect(() => { probeRef.current = probeConversations }, [probeConversations])
 
   // Debounce typing before hitting the API
   useEffect(() => {
@@ -416,13 +545,53 @@ export default function InboxPage() {
     return () => clearTimeout(t)
   }, [searchInput])
 
-  const activeFilterCount = [filterStatus, filterAgent, filterConnection, filterTag, filterWorkspace].filter(Boolean).length + (filterUnread ? 1 : 0) + (sortBy !== 'unread' ? 1 : 0)
+  const activeFilterCount = [filterAgent, filterTag, filterWorkspace].filter(Boolean).length + (filterUnread ? 1 : 0)
   function clearFilters() {
-    setFilterStatus(''); setFilterAgent(''); setFilterConnection(''); setFilterTag(''); setFilterWorkspace('')
-    setFilterUnread(false); setSortBy('unread'); setFilterChannel(''); setSearchInput(''); setSearch('')
+    setFilterAgent(''); setFilterConnection(''); setFilterTag(''); setFilterWorkspace('')
+    setFilterUnread(false); setFilterChannel(''); setSearchInput(''); setSearch('')
   }
 
-  useEffect(() => { loadConversations() }, [loadConversations])
+  // Tab, filters and search live in the URL (shareable, survive a reload): read once, then kept in sync
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search)
+    setTab(parseTab(q.get('tab')))
+    const ch = q.get('channel') as Channel | null
+    if (ch && ch in CHANNEL_LABEL) setFilterChannel(ch)
+    setFilterAgent(q.get('agent') || '')
+    setFilterConnection(q.get('account') || '')
+    setFilterTag(q.get('tag') || '')
+    setFilterWorkspace(q.get('ws') || '')
+    setFilterUnread(q.get('unread') === '1')
+    const text = (q.get('q') || '').slice(0, 100)
+    setSearchInput(text)
+    setSearch(text)
+    setUrlReady(true)
+  }, [])
+
+  useEffect(() => {
+    if (!urlReady) return
+    const url = new URL(window.location.href)
+    const set = (k: string, v: string) => (v ? url.searchParams.set(k, v) : url.searchParams.delete(k))
+    set('tab', tab === DEFAULT_TAB ? '' : tab)
+    set('channel', filterChannel)
+    set('agent', filterAgent)
+    set('account', filterConnection)
+    set('tag', filterTag)
+    set('ws', filterWorkspace)
+    set('unread', filterUnread ? '1' : '')
+    set('q', search)
+    const next = `${url.pathname}${url.search}${url.hash}`
+    if (next !== `${window.location.pathname}${window.location.search}${window.location.hash}`) window.history.replaceState(window.history.state, '', next)
+  }, [urlReady, tab, filterChannel, filterAgent, filterConnection, filterTag, filterWorkspace, filterUnread, search])
+
+  useEffect(() => { if (urlReady) loadConversations() }, [urlReady, loadConversations])
+
+  function changeTab(next: InboxTab) {
+    if (next === tab) { loadConversations({ keepScroll: false }); return }
+    setConversations([])
+    setNextCursor(null)
+    setTab(next)
+  }
 
   // Deep link from an origin badge: /admin/inbox?c=<conversationId> opens that conversation on load
   useEffect(() => {
@@ -437,13 +606,15 @@ export default function InboxPage() {
     if (conversationId && conversationId === currentIdRef.current) refreshDetailRef.current = true
     if (refreshTimerRef.current) return
     // Coalesces bursts (the same event can arrive by SSE and by Realtime)
+    // At most one list probe every 2 s (bursts: the same event arrives by SSE and by Realtime)
+    const wait = Math.max(300, 2000 - (Date.now() - lastProbeRef.current))
     refreshTimerRef.current = setTimeout(() => {
       refreshTimerRef.current = null
-      loadConversationsRef.current(true)
+      probeRef.current()
       const id = currentIdRef.current
       if (refreshDetailRef.current && id) loadDetailRef.current(id, true)
       refreshDetailRef.current = false
-    }, 300)
+    }, wait)
   }, [])
 
   const handleInboxEvent = useCallback((event: { type?: string; conversationId?: string } | null) => {
@@ -514,7 +685,7 @@ export default function InboxPage() {
   useEffect(() => {
     function tick() {
       if (document.visibilityState !== 'visible') return
-      loadConversationsRef.current(true)
+      probeRef.current()
       if (currentIdRef.current) loadDetailRef.current(currentIdRef.current, true)
     }
     const t = setInterval(tick, realtimeOk ? 30_000 : 10_000)
@@ -859,7 +1030,9 @@ export default function InboxPage() {
       setSelected((prev) => {
         if (!prev || prev.id !== convId) return prev
         // The echo webhook may already have pushed some of these rows via a live refresh
-        const next = { ...prev, messages: mergeMessages(prev.messages || [], added), lastMessageBody: data.message.body, lastMessageAt: data.message.sentAt }
+        const next = internal
+          ? { ...prev, messages: mergeMessages(prev.messages || [], added) }
+          : { ...prev, messages: mergeMessages(prev.messages || [], added), lastMessageBody: data.message.body, lastMessageAt: data.message.sentAt, status: 'IN_PROGRESS' as ConvStatus, inbox: prev.inbox ? { ...prev.inbox, awaitingReply: false, snoozedUntil: null } : prev.inbox }
         // Replying ends the countdown and any pending suggestion
         return !internal && next.copilot ? { ...next, copilot: { ...next.copilot, suggestion: null, timer: null } } : next
       })
@@ -868,7 +1041,9 @@ export default function InboxPage() {
       setConversations((prev) =>
         prev.map((c) =>
           c.id === convId
-            ? { ...c, lastMessageBody: data.message.body, lastMessageAt: data.message.sentAt, status: internal ? c.status : 'IN_PROGRESS' }
+            ? internal
+              ? c
+              : { ...c, lastMessageBody: data.message.body, lastMessageAt: data.message.sentAt, status: 'IN_PROGRESS', inbox: c.inbox ? { ...c.inbox, awaitingReply: false, snoozedUntil: null } : c.inbox }
             : c
         )
       )
@@ -992,6 +1167,12 @@ export default function InboxPage() {
 
   // ── Copilot: suggestions and the "nobody answered" countdown ─────────────
 
+  // «espera hace X» and snoozes that end: re-render every minute
+  useEffect(() => {
+    const t = setInterval(() => setNowTick(Date.now()), 60_000)
+    return () => clearInterval(t)
+  }, [])
+
   useEffect(() => {
     if (!selected?.copilot?.timer) return
     const t = setInterval(() => setNowTick(Date.now()), 15_000)
@@ -1097,7 +1278,7 @@ export default function InboxPage() {
       setBulkNotice(`${data.done} asignada(s).${answering}${skipped.length ? ` Omitidas: ${skipped.join('; ')}.` : ''}`)
       setCheckedIds([])
       setBulkTarget('')
-      await loadConversations(true)
+      await loadConversations({ silent: true, keepScroll: true })
       if (selected && checkedIds.includes(selected.id)) await loadConversationDetail(selected.id, true)
     } finally {
       setBulkBusy(false)
@@ -1112,6 +1293,58 @@ export default function InboxPage() {
     const tags = current.includes(tag) ? current.filter((t) => t !== tag) : [...current, tag]
     await patchConversation({ tags }, { tags }, 'No se pudo cambiar la etiqueta')
   }
+
+  // ── List bookkeeping: pin, unread for me, snooze ─────────────────────────
+
+  async function inboxAction(conv: Conversation, a: InboxAction) {
+    const id = conv.id
+    const prevState = conv.inbox ?? null
+    const base: InboxRowState = prevState ?? { awaitingReply: false, lastInboundAt: null, automatedOnly: false, pinned: false, snoozedUntil: null, unreadForMe: false }
+    const optimistic: InboxRowState = {
+      ...base,
+      ...(a.action === 'pin' ? { pinned: true } : a.action === 'unpin' ? { pinned: false } : {}),
+      ...(a.action === 'mark-unread' ? { unreadForMe: true } : a.action === 'mark-read' ? { unreadForMe: false } : {}),
+      ...(a.action === 'unsnooze' ? { snoozedUntil: null } : {}),
+    }
+    const put = (state: InboxRowState | null) => {
+      setConversations((prev) => {
+        const next = prev.map((c) => (c.id === id ? { ...c, inbox: state } : c))
+        // Pinning is the viewer's own choice: the row goes up right away (with the other pinned ones)
+        if (a.action !== 'pin' || !state?.pinned) return next
+        const row = next.find((c) => c.id === id)
+        if (!row) return next
+        const rest = next.filter((c) => c.id !== id)
+        const lastPinned = rest.reduce((idx, c, i) => (c.inbox?.pinned ? i : idx), -1)
+        return [...rest.slice(0, lastPinned + 1), row, ...rest.slice(lastPinned + 1)]
+      })
+      setSelected((prev) => (prev && prev.id === id ? { ...prev, inbox: state } : prev))
+    }
+    put(optimistic)
+    // Marking the open conversation as unread closes it (like an email client): opening it again clears the mark
+    if (a.action === 'mark-unread' && currentIdRef.current === id) closeConversation()
+    try {
+      const res = await fetch(`/api/admin/inbox/conversations/${id}/inbox-state`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(a),
+      })
+      if (!res.ok) throw new Error(await readError(res, 'No se pudo guardar el cambio'))
+      const data = await res.json()
+      if (data.inbox) put(data.inbox)
+    } catch (err) {
+      put(prevState)
+      setError(err instanceof Error && err.message !== 'Failed to fetch' ? err.message : 'No se pudo guardar el cambio: sin conexión')
+    }
+  }
+
+  // The open conversation's fresh data also refreshes its row (labels such as «Ya respondida» follow it)
+  const selectedRowKey = selected
+    ? JSON.stringify([selected.id, selected.status, selected.assignedToId, selected.aiHandled, selected.aiAgentName, selected.inbox, selected.lastMessageAt, selected.lastMessageBody, selected.tags])
+    : ''
+  useEffect(() => {
+    const cur = selectedRef.current
+    if (!cur) return
+    setConversations((prev) => prev.map((c) => (c.id === cur.id ? { ...c, ...liveFields({ ...cur, unreadCount: c.unreadCount, user: c.user }) } : c)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRowKey])
 
   // ── Profile modal ────────────────────────────────────────────────────────
 
@@ -1151,6 +1384,16 @@ export default function InboxPage() {
   // ── Derived values ────────────────────────────────────────────────────────
 
   const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0)
+  const nowIso = new Date(nowTick).toISOString()
+  const shownIds = new Set(conversations.map((c) => c.id))
+  // New conversations waiting to appear + rows already shown that left the tab (except the open one)
+  const leftRows = me ? conversations.filter((c) => c.inbox && leftTabLabel(c, tab, me, nowIso)) : []
+  // «Por responder» puts newcomers at the end (they waited less): the counter tells they arrived
+  const arrivals = Math.max(
+    pendingIds.filter((id) => !shownIds.has(id)).length,
+    baselineCount !== null && tabCounts[tab] !== undefined ? tabCounts[tab]! - baselineCount + leftRows.length : 0,
+  )
+  const pendingCount = Math.max(0, arrivals) + leftRows.filter((c) => c.id !== selected?.id).length
   const isInternal = isInternalNote
 
   const filteredMessages = (selected?.messages || []).filter((m) =>
@@ -1205,23 +1448,52 @@ export default function InboxPage() {
     <div className="flex h-full min-h-0 flex-1 bg-gray-50 overflow-hidden">
 
       {/* ── Left sidebar: conversation list ── */}
-      <aside className={`flex flex-col w-full md:w-80 shrink-0 border-r bg-white ${mobileView === 'chat' ? 'hidden md:flex' : 'flex'}`}>
+      <aside className={`flex flex-col w-full md:w-80 lg:w-96 shrink-0 border-r bg-white ${mobileView === 'chat' ? 'hidden md:flex' : 'flex'}`}>
 
         {/* Header */}
-        <div className="px-3 md:px-4 py-3 border-b">
+        <div className="px-3 md:px-4 pt-3 pb-2 border-b">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Inbox className="h-5 w-5 text-gray-700" />
               <h1 className="font-bold text-gray-900">Bandeja</h1>
               {totalUnread > 0 && (
-                <span className="rounded-full bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 leading-none">
+                <span className="rounded-full bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 leading-none" aria-label={`${totalUnread} sin leer`}>
                   {totalUnread}
                 </span>
               )}
             </div>
-            <button onClick={() => loadConversations()} aria-label="Actualizar" className="rounded-lg p-2 md:p-1.5 hover:bg-gray-100 transition text-gray-500">
-              <RefreshCw className="h-4 w-4" />
-            </button>
+            <div className="flex items-center gap-1">
+              {isSuperAdmin && (
+                <div className="relative" onKeyDown={(e) => { if (e.key === 'Escape') setShowTools(false) }}>
+                  <button
+                    onClick={() => setShowTools((v) => !v)}
+                    aria-haspopup="menu"
+                    aria-expanded={showTools}
+                    aria-label="Herramientas de la bandeja"
+                    title="Herramientas"
+                    className={`rounded-lg p-2 md:p-1.5 transition ${showTools ? 'bg-gray-100 text-gray-800' : 'text-gray-500 hover:bg-gray-100'}`}
+                  >
+                    <Wrench className="h-4 w-4" />
+                  </button>
+                  {showTools && (
+                    <>
+                      <div className="fixed inset-0 z-20" aria-hidden="true" onClick={() => setShowTools(false)} />
+                      <div role="menu" aria-label="Herramientas de la bandeja" className="absolute right-0 top-full z-30 mt-1 w-64 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border bg-white py-1 shadow-lg">
+                        <button role="menuitem" autoFocus onClick={() => { setShowTools(false); setTool('cleanup') }} className="block w-full px-3 py-2.5 md:py-2 text-left text-sm text-gray-700 hover:bg-gray-50 focus:bg-gray-100 focus:outline-none">
+                          Cerrar conversaciones inactivas…
+                        </button>
+                        <button role="menuitem" onClick={() => { setShowTools(false); setTool('backfill') }} className="block w-full px-3 py-2.5 md:py-2 text-left text-sm text-gray-700 hover:bg-gray-50 focus:bg-gray-100 focus:outline-none">
+                          Recalcular «Por responder»…
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+              <button onClick={() => loadConversations({ keepScroll: true })} aria-label="Actualizar" title="Actualizar" className="rounded-lg p-2 md:p-1.5 hover:bg-gray-100 transition text-gray-500">
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
           </div>
 
           <div className="relative mb-2">
@@ -1229,28 +1501,55 @@ export default function InboxPage() {
             <input
               className="w-full border rounded-lg pl-8 pr-8 py-2 md:py-1.5 text-base md:text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
               placeholder="Buscar nombre, teléfono, email o mensaje…"
+              aria-label="Buscar conversaciones"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
             />
             {searchInput && (
-              <button onClick={() => { setSearchInput(''); setSearch('') }} className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 hover:text-gray-600" title="Limpiar búsqueda">
+              <button onClick={() => { setSearchInput(''); setSearch('') }} className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 hover:text-gray-600" title="Limpiar búsqueda" aria-label="Limpiar búsqueda">
                 <X className="h-4 w-4" />
               </button>
             )}
           </div>
 
-          {/* Channel chips with counters */}
-          <div className="flex flex-wrap gap-1.5">
+          {/* Fixed tabs with counters */}
+          <div role="tablist" aria-label="Bandejas" className="-mx-3 md:-mx-4 px-3 md:px-4 flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {INBOX_TABS.map((t) => {
+              const active = tab === t
+              const count = tabCounts[t]
+              return (
+                <button
+                  key={t}
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => changeTab(t)}
+                  className={`shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition ${active ? 'bg-primary-600 text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                >
+                  {TAB_LABELS[t]}
+                  {count !== undefined && (
+                    <span className={`rounded-full px-1.5 leading-5 text-[11px] ${active ? 'bg-white/20 text-white' : t === 'awaiting' && count > 0 ? 'bg-red-500 text-white' : 'bg-white text-gray-500'}`}>
+                      {count.toLocaleString('es-CO')}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Channel chips with counters (inside the tab) */}
+          <div role="group" aria-label="Canal" className="-mx-3 md:-mx-4 px-3 md:px-4 mt-1.5 flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <button
               onClick={() => setFilterChannel('')}
+              aria-pressed={filterChannel === ''}
               className={`shrink-0 inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition ${filterChannel === '' ? 'bg-gray-900 border-gray-900 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
             >
-              Todos <span className={filterChannel === '' ? 'text-gray-300' : 'text-gray-400'}>{totalCount}</span>
+              Todos los canales <span className={filterChannel === '' ? 'text-gray-300' : 'text-gray-400'}>{totalCount}</span>
             </button>
             {(['WHATSAPP', 'INSTAGRAM', 'MESSENGER', 'SMS', 'FACEBOOK_COMMENT', 'INSTAGRAM_COMMENT'] as Channel[]).filter((ch) => (channelCounts[ch] ?? 0) > 0 || filterChannel === ch).map((ch) => (
               <button
                 key={ch}
                 onClick={() => setFilterChannel(filterChannel === ch ? '' : ch)}
+                aria-pressed={filterChannel === ch}
                 className={`shrink-0 inline-flex items-center gap-1.5 rounded-full border pl-1 pr-2.5 py-0.5 text-xs font-medium transition ${filterChannel === ch ? `bg-white border-gray-900 ring-2 ${CHANNEL_META[ch].ring} text-gray-900` : 'bg-white text-gray-600 hover:bg-gray-50'}`}
                 title={`Solo ${CHANNEL_META[ch].label}`}
               >
@@ -1261,27 +1560,59 @@ export default function InboxPage() {
             ))}
           </div>
 
-          <div className="flex flex-wrap items-center gap-1.5 mt-2">
+          {/* Connected account (e.g. one Instagram per brand) */}
+          {connections.length > 0 && (
+            <div role="group" aria-label="Cuenta" className="-mx-3 md:-mx-4 px-3 md:px-4 mt-1 flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <button
+                onClick={() => setFilterConnection('')}
+                aria-pressed={filterConnection === ''}
+                className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium transition ${filterConnection === '' ? 'bg-gray-900 border-gray-900 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+              >
+                Todas las cuentas
+              </button>
+              {connections.filter((c) => (connectionCounts[c.id] ?? 0) > 0 || filterConnection === c.id).map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => setFilterConnection(filterConnection === c.id ? '' : c.id)}
+                  aria-pressed={filterConnection === c.id}
+                  title={`${CHANNEL_META[c.channel]?.label ?? c.channel} · ${c.name}`}
+                  className={`shrink-0 inline-flex max-w-[14rem] items-center gap-1.5 rounded-full border pl-1 pr-2.5 py-0.5 text-xs font-medium transition ${filterConnection === c.id ? 'bg-white border-gray-900 ring-2 ring-gray-300 text-gray-900' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                >
+                  <ChannelIcon channel={c.channel} size={16} />
+                  <span className="truncate">{c.name}</span>
+                  <span className="text-gray-400">{connectionCounts[c.id] ?? 0}</span>
+                </button>
+              ))}
+              {((connectionCounts.none ?? 0) > 0 || filterConnection === 'none') && (
+                <button
+                  onClick={() => setFilterConnection(filterConnection === 'none' ? '' : 'none')}
+                  aria-pressed={filterConnection === 'none'}
+                  className={`shrink-0 inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition ${filterConnection === 'none' ? 'bg-white border-gray-900 ring-2 ring-gray-300 text-gray-900' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                >
+                  WhatsApp y SMS <span className="text-gray-400">{connectionCounts.none ?? 0}</span>
+                </button>
+              )}
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
             <button
               onClick={() => setFilterUnread((v) => !v)}
+              aria-pressed={filterUnread}
               className={`rounded-lg px-2 py-1 text-xs border transition ${filterUnread ? 'bg-red-50 border-red-300 text-red-700 font-semibold' : 'text-gray-600 hover:bg-gray-50'}`}
             >
               No leídos
             </button>
             <button
               onClick={() => setFilterAgent(filterAgent === 'none' ? '' : 'none')}
+              aria-pressed={filterAgent === 'none'}
               className={`rounded-lg px-2 py-1 text-xs border transition ${filterAgent === 'none' ? 'bg-amber-50 border-amber-300 text-amber-800 font-semibold' : 'text-gray-600 hover:bg-gray-50'}`}
             >
               Sin asignar
             </button>
             <button
-              onClick={() => setFilterAgent(filterAgent === 'ai' ? '' : 'ai')}
-              className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs border transition ${filterAgent === 'ai' ? 'bg-violet-50 border-violet-300 text-violet-800 font-semibold' : 'text-gray-600 hover:bg-gray-50'}`}
-            >
-              <Bot className="h-3 w-3" /> IA
-            </button>
-            <button
               onClick={() => setShowFilters((v) => !v)}
+              aria-expanded={showFilters}
               className={`ml-auto inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs border transition ${showFilters || activeFilterCount > 0 ? 'bg-primary-50 border-primary-300 text-primary-700 font-semibold' : 'text-gray-600 hover:bg-gray-50'}`}
             >
               Filtros{activeFilterCount > 0 ? ` · ${activeFilterCount}` : ''}
@@ -1291,36 +1622,22 @@ export default function InboxPage() {
 
           {showFilters && (
             <div className="mt-2 grid grid-cols-2 gap-1.5 rounded-xl border bg-gray-50 p-2">
-              <select className="border rounded-lg px-2 py-1 text-xs bg-white min-w-0" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as ConvStatus | '')}>
-                <option value="">Estado: todos</option>
-                {(Object.keys(STATUS_LABELS) as ConvStatus[]).map((st) => <option key={st} value={st}>{STATUS_LABELS[st]}</option>)}
-              </select>
-              <select className="border rounded-lg px-2 py-1 text-xs bg-white min-w-0" value={filterAgent} onChange={(e) => setFilterAgent(e.target.value)}>
+              <select aria-label="Agente" className="border rounded-lg px-2 py-1 text-xs bg-white min-w-0" value={filterAgent} onChange={(e) => setFilterAgent(e.target.value)}>
                 <option value="">Agente: todos</option>
                 <option value="none">Sin asignar</option>
                 <option value="ai">Atendidas por IA</option>
                 {agents.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
-              <select className="border rounded-lg px-2 py-1 text-xs bg-white min-w-0" value={filterConnection} onChange={(e) => setFilterConnection(e.target.value)} disabled={connections.length === 0}>
-                <option value="">Cuenta: todas</option>
-                {connections.map((c) => <option key={c.id} value={c.id}>{CHANNEL_META[c.channel]?.label ?? c.channel} · {c.name}</option>)}
-              </select>
-              <select className="border rounded-lg px-2 py-1 text-xs bg-white min-w-0" value={filterTag} onChange={(e) => setFilterTag(e.target.value)}>
+              <select aria-label="Etiqueta" className="border rounded-lg px-2 py-1 text-xs bg-white min-w-0" value={filterTag} onChange={(e) => setFilterTag(e.target.value)}>
                 <option value="">Etiqueta: todas</option>
                 {Array.from(new Set([...PRESET_TAGS, ...knownTags])).map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
               {workspaces.length > 1 && (
-                <select className="border rounded-lg px-2 py-1 text-xs bg-white min-w-0" value={filterWorkspace} onChange={(e) => setFilterWorkspace(e.target.value)}>
+                <select aria-label="Workspace" className="col-span-2 border rounded-lg px-2 py-1 text-xs bg-white min-w-0" value={filterWorkspace} onChange={(e) => setFilterWorkspace(e.target.value)}>
                   <option value="">Workspace: todos</option>
                   {workspaces.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
                 </select>
               )}
-              <select className="border rounded-lg px-2 py-1 text-xs bg-white min-w-0" value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)}>
-                <option value="unread">Orden: no leídos primero</option>
-                <option value="recent">Orden: más recientes</option>
-                <option value="waiting">Orden: más tiempo esperando</option>
-                <option value="oldest">Orden: más antiguas</option>
-              </select>
               <button onClick={clearFilters} className="col-span-2 rounded-lg py-1 text-xs font-medium text-gray-500 hover:text-gray-800 hover:bg-white">
                 Limpiar filtros
               </button>
@@ -1335,8 +1652,11 @@ export default function InboxPage() {
               onChange={(e) => setCheckedIds(e.target.checked ? conversations.map((c) => c.id) : [])}
             />
             <span>
-              {loading ? 'Buscando…' : `${conversations.length}${conversations.length === 200 ? '+' : ''} ${conversations.length === 1 ? 'conversación' : 'conversaciones'}`}
+              {loading
+                ? 'Buscando…'
+                : `${conversations.length.toLocaleString('es-CO')} de ${(tabCounts[tab] ?? conversations.length).toLocaleString('es-CO')} ${(tabCounts[tab] ?? conversations.length) === 1 ? 'conversación' : 'conversaciones'}`}
               {search && <> · para “{search}”</>}
+              {tab === 'awaiting' && !loading && conversations.length > 1 && <> · la que más espera primero</>}
             </span>
           </div>
 
@@ -1347,7 +1667,7 @@ export default function InboxPage() {
                 <button onClick={() => setCheckedIds([])} className="text-gray-500 hover:text-gray-800">Cancelar</button>
               </div>
               <div className="flex gap-1.5">
-                <select className="flex-1 min-w-0 border rounded-lg px-2 py-1.5 md:py-1 text-xs bg-white" value={bulkTarget} onChange={(e) => setBulkTarget(e.target.value)}>
+                <select className="flex-1 min-w-0 border rounded-lg px-2 py-1.5 md:py-1 text-xs bg-white" value={bulkTarget} onChange={(e) => setBulkTarget(e.target.value)} aria-label="¿Quién las atiende?">
                   <option value="">¿Quién las atiende?</option>
                   {aiAgents.length > 0 && (
                     <optgroup label="Agentes IA">
@@ -1368,13 +1688,25 @@ export default function InboxPage() {
           {bulkNotice && (
             <div className="mt-2 flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-xs text-emerald-800">
               <span className="flex-1">{bulkNotice}</span>
-              <button onClick={() => setBulkNotice(null)}><X className="h-3 w-3" /></button>
+              <button onClick={() => setBulkNotice(null)} aria-label="Cerrar aviso"><X className="h-3 w-3" /></button>
             </div>
           )}
         </div>
 
+        {/* The list never reorders by itself: changes wait here until the person asks for them */}
+        {pendingCount > 0 && (
+          <button
+            onClick={() => loadConversations({ silent: true, keepScroll: true })}
+            className="flex w-full items-center justify-center gap-1.5 border-b bg-primary-50 px-3 py-2 text-xs font-semibold text-primary-700 hover:bg-primary-100"
+          >
+            <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" />
+            {pendingCount} {pendingCount === 1 ? 'conversación con novedades' : 'conversaciones con novedades'} · <span className="underline">Actualizar</span>
+          </button>
+        )}
+        <p className="sr-only" aria-live="polite">{pendingCount > 0 ? `${pendingCount} conversaciones con novedades` : ''}</p>
+
         {/* List */}
-        <div className="flex-1 overflow-y-auto divide-y">
+        <div ref={listBoxRef} className="flex-1 overflow-y-auto divide-y">
           {loading && conversations.length === 0 && (
             <div className="flex items-center justify-center h-32 text-sm text-gray-400">Cargando…</div>
           )}
@@ -1387,29 +1719,37 @@ export default function InboxPage() {
             </div>
           )}
           {!loading && !listError && conversations.length === 0 && (
-            <div className="flex flex-col items-center justify-center h-32 text-sm text-gray-400 gap-2">
+            <div className="flex flex-col items-center justify-center h-32 px-6 text-center text-sm text-gray-400 gap-2">
               <MessageSquare className="h-8 w-8 opacity-30" />
-              Sin conversaciones
-              {(activeFilterCount > 0 || search || filterChannel) && (
+              {tab === 'awaiting' && !search && !filterChannel && !filterConnection && activeFilterCount === 0 ? 'Nadie espera respuesta. ¡Al día!' : 'Sin conversaciones'}
+              {(activeFilterCount > 0 || search || filterChannel || filterConnection) && (
                 <button onClick={clearFilters} className="text-xs font-medium text-primary-600 hover:underline">Limpiar filtros</button>
               )}
             </div>
           )}
           {conversations.map((conv) => {
-            const sla = slaLabel(conv)
+            const sla = tab === 'awaiting' ? null : slaLabel(conv)
+            const left = me && conv.inbox ? leftTabLabel(conv, tab, me, nowIso) : null
+            const unreadMark = conv.unreadCount === 0 && Boolean(conv.inbox?.unreadForMe)
+            const unread = conv.unreadCount > 0 || unreadMark
+            const waiting = tab === 'awaiting' && conv.inbox?.awaitingReply ? waitingFor(conv.inbox.lastInboundAt || conv.lastMessageAt, nowTick) : null
+            const touched = touchedIds.includes(conv.id)
             return (
-              <div key={conv.id} className={`flex items-stretch ${checkedIds.includes(conv.id) ? 'bg-primary-50/60' : ''}`}>
+              <div key={conv.id} className={`flex items-stretch transition-colors ${checkedIds.includes(conv.id) ? 'bg-primary-50/60' : touched ? 'bg-amber-50/70' : ''}`}>
               <label className="flex items-start pl-3 pt-4 cursor-pointer" title="Seleccionar">
-                <input type="checkbox" checked={checkedIds.includes(conv.id)} onChange={() => toggleChecked(conv.id)} />
+                <input type="checkbox" checked={checkedIds.includes(conv.id)} onChange={() => toggleChecked(conv.id)} aria-label={`Seleccionar ${displayName(conv)}`} />
               </label>
               <button
                 onClick={() => selectConversation(conv)}
-                className={`flex-1 min-w-0 text-left pl-2 pr-4 py-3 hover:bg-gray-50 transition relative ${selected?.id === conv.id ? 'bg-primary-50 border-l-2 border-primary-600' : ''}`}
+                className={`flex-1 min-w-0 text-left pl-2 pr-1 py-3 hover:bg-gray-50 transition relative ${selected?.id === conv.id ? 'bg-primary-50 border-l-2 border-primary-600' : ''} ${left && selected?.id !== conv.id ? 'opacity-60' : ''}`}
               >
                 {conv.unreadCount > 0 && (
-                  <span className="absolute right-3 top-3 rounded-full bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 leading-none">
+                  <span className="absolute right-1 top-3 rounded-full bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 leading-none">
                     {conv.unreadCount}
                   </span>
+                )}
+                {unreadMark && (
+                  <span className="absolute right-2 top-4 h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden="true" />
                 )}
                 <div className="flex gap-3">
                   {/* Avatar with channel badge */}
@@ -1422,8 +1762,10 @@ export default function InboxPage() {
                     <ChannelIcon channel={conv.channel} size={18} className="absolute -bottom-0.5 -right-0.5 ring-2 ring-white" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 pr-6">
-                      <span className={`text-sm truncate flex-1 ${conv.unreadCount > 0 ? 'font-bold text-gray-900' : 'font-semibold text-gray-800'}`}>{displayName(conv)}</span>
+                    <div className="flex items-center gap-1.5 pr-6">
+                      {conv.inbox?.pinned && <Pin className="h-3 w-3 shrink-0 text-primary-600" aria-label="Fijada" />}
+                      <span className={`text-sm truncate flex-1 ${unread ? 'font-bold text-gray-900' : 'font-semibold text-gray-800'}`}>{displayName(conv)}</span>
+                      {unreadMark && <span className="sr-only">No leída</span>}
                       {conv.user && (conv.user.role === 'PARTNER' || conv.user.role === 'CLIENT') && (
                         <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${conv.user.role === 'PARTNER' ? 'bg-orange-100 text-orange-800' : 'bg-emerald-100 text-emerald-800'}`}>
                           {conv.user.role === 'PARTNER' ? 'Socio' : 'Cliente'}
@@ -1436,13 +1778,29 @@ export default function InboxPage() {
                       {conv.connection?.name ? <span className="text-gray-400"> · {conv.connection.name}</span> : null}
                       {workspaces.length > 1 && conv.workspace ? <span className="text-gray-400"> · {conv.workspace.name}</span> : null}
                     </p>
-                    <p className={`text-xs truncate mt-0.5 ${conv.unreadCount > 0 ? 'text-gray-800' : 'text-gray-500'}`}>{conv.lastMessageBody || '—'}</p>
+                    <p className={`text-xs truncate mt-0.5 ${unread ? 'text-gray-800' : 'text-gray-500'}`}>{conv.lastMessageBody || '—'}</p>
                     <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                      <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${STATUS_COLORS[conv.status]}`}>{STATUS_LABELS[conv.status]}</span>
+                      {left
+                        ? <span className="rounded-full bg-gray-800 px-1.5 py-0.5 text-[10px] font-semibold text-white">{left}</span>
+                        : <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${STATUS_COLORS[conv.status]}`}>{STATUS_LABELS[conv.status]}</span>}
+                      {waiting && !left && (
+                        <span className={`text-[10px] font-semibold ${conv.inbox?.lastInboundAt && nowTick - new Date(conv.inbox.lastInboundAt).getTime() > 2 * 60 * 60 * 1000 ? 'text-red-600' : 'text-orange-600'}`}>
+                          {waiting}
+                        </span>
+                      )}
                       {sla && (
                         <span className={`text-[10px] font-medium ${sla.level === 'critical' ? 'text-red-600' : 'text-orange-500'}`}>
                           · {sla.label}
                         </span>
+                      )}
+                      {conv.inbox?.snoozedUntil && (
+                        <span className="inline-flex items-center gap-0.5 rounded-full bg-sky-100 px-1.5 py-0.5 text-[10px] font-medium text-sky-800">
+                          <Clock className="h-2.5 w-2.5" aria-hidden="true" />
+                          hasta {new Date(conv.inbox.snoozedUntil).toLocaleString('es-CO', { timeZone: 'America/Bogota', weekday: 'short', hour: 'numeric', minute: '2-digit' })}
+                        </span>
+                      )}
+                      {conv.inbox?.automatedOnly && (
+                        <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500">Solo avisos automáticos</span>
                       )}
                       {conv.tags?.slice(0, 2).map((tag) => (
                         <span key={tag} className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium border ${tagColor(tag)}`}>{tag}</span>
@@ -1465,9 +1823,29 @@ export default function InboxPage() {
                   </div>
                 </div>
               </button>
+              <div className="flex items-start pt-2 pr-1">
+                <ConversationMenu
+                  label={`Más acciones para ${displayName(conv)}`}
+                  pinned={Boolean(conv.inbox?.pinned)}
+                  unread={unread}
+                  snoozedUntil={conv.inbox?.snoozedUntil ?? null}
+                  onAction={(a) => inboxAction(conv, a)}
+                />
+              </div>
               </div>
             )
           })}
+          {nextCursor && conversations.length > 0 && (
+            <div className="p-3">
+              <button
+                onClick={loadMoreConversations}
+                disabled={loadingMoreList}
+                className="w-full rounded-full border py-2.5 md:py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                {loadingMoreList ? 'Cargando…' : 'Cargar más'}
+              </button>
+            </div>
+          )}
         </div>
       </aside>
 
@@ -1483,7 +1861,7 @@ export default function InboxPage() {
               setSelected((prev) => prev ? { ...prev, contact, contactName: contact.name ?? prev.contactName, user: contact.user ? { ...contact.user, image: prev.user?.image ?? null } : null } : prev)
               setConversations((prev) => prev.map((c) => c.contactId === contact.id ? { ...c, contactName: contact.name ?? c.contactName } : c))
             }}
-            onOpenConversation={(id) => { setShowContact(false); openConversation(id); loadConversations(true) }}
+            onOpenConversation={(id) => { setShowContact(false); openConversation(id); probeConversations() }}
             onOpenProfile={openProfile}
           />
         )}
@@ -1584,6 +1962,16 @@ export default function InboxPage() {
                 >
                   <Search className="h-4 w-4" />
                 </button>
+
+                {/* Pin / unread for me / snooze */}
+                <ConversationMenu
+                  className="shrink-0"
+                  label={`Más acciones para ${displayName(selected)}`}
+                  pinned={Boolean(selected.inbox?.pinned)}
+                  unread={Boolean(selected.inbox?.unreadForMe)}
+                  snoozedUntil={selected.inbox?.snoozedUntil ?? null}
+                  onAction={(a) => inboxAction(selected, a)}
+                />
 
                 {/* Agent selector */}
                 <div className="hidden sm:flex items-center gap-1 shrink-0">
@@ -2611,6 +2999,8 @@ export default function InboxPage() {
           onClose={() => setMagicLinkTarget(null)}
         />
       )}
+
+      <InboxToolsDialog tool={tool} onClose={() => setTool(null)} onDone={() => loadConversations({ silent: true, keepScroll: true })} />
     </div>
   )
 }

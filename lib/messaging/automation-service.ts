@@ -2,8 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
 import { sendMessageViaProvider, sendMetaWhatsAppTemplate, sendWhatsAppTemplate } from '@/lib/messaging/providers'
 import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
-import { emitInboxEvent } from '@/lib/messaging/inbox-emitter'
-import { getDefaultWorkspaceId } from '@/lib/workspaces'
+import { recordAutomatedOutbound } from '@/lib/inbox/automated'
 import {
   sendWelcomePartner,
   sendVerificationReminder,
@@ -20,41 +19,8 @@ async function saveAutomationMessageToInbox(params: {
   body: string
 }) {
   try {
-    const { channel, contactPhone, userId, contactName, body } = params
-    const snippet = body.slice(0, 200)
-
-    const conversation = await prisma.conversation.upsert({
-      where: { channel_contactPhone: { channel, contactPhone } },
-      create: {
-        channel,
-        workspaceId: await getDefaultWorkspaceId(),
-        contactPhone,
-        contactName,
-        userId,
-        status: 'OPEN',
-        lastMessageAt: new Date(),
-        lastMessageBody: snippet,
-        unreadCount: 0,
-      },
-      update: {
-        lastMessageAt: new Date(),
-        lastMessageBody: snippet,
-        ...(userId ? { userId } : {}),
-        ...(contactName ? { contactName } : {}),
-      },
-    })
-
-    await prisma.conversationMessage.create({
-      data: {
-        conversationId: conversation.id,
-        direction: 'OUTBOUND',
-        body,
-        status: 'SENT',
-        senderType: 'AUTOMATION',
-      },
-    })
-
-    emitInboxEvent({ type: 'new-message', conversationId: conversation.id, workspaceId: conversation.workspaceId })
+    // Automatic notice: kept in the thread without reordering or reopening the inbox (no new SMS conversations)
+    await recordAutomatedOutbound(params)
   } catch (err) {
     logger.error('saveAutomationMessageToInbox failed', { err })
   }

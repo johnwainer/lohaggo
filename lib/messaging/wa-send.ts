@@ -204,8 +204,8 @@ export async function recordTemplateInConversation(p: RecordInput) {
     const conversation = existing
       ? await prisma.conversation.update({
         where: { id: existing.id },
+        // An automatic template is not activity: lastMessageAt / preview / status stay (the inbox does not reorder)
         data: {
-          lastMessageAt: p.now, lastMessageBody: snippet,
           ...(existing.userId || !p.userId ? {} : { userId: p.userId }),
           ...(existing.contactId ? {} : { contactId: contact.id }),
           customFields: withTemplateMark(existing.customFields, mark) as Prisma.InputJsonValue,
@@ -216,7 +216,7 @@ export async function recordTemplateInConversation(p: RecordInput) {
         data: {
           channel: 'WHATSAPP', workspaceId, contactPhone: p.phone, contactName: contact.name || p.name, userId: p.userId ?? contact.userId ?? null,
           contactId: contact.id, status: 'CLOSED', lastMessageAt: p.now, lastMessageBody: snippet, unreadCount: 0,
-          customFields: withTemplateMark(null, mark) as Prisma.InputJsonValue,
+          customFields: { ...withTemplateMark(null, mark), inbox: { automatedOnly: true, awaitingReply: false } } as Prisma.InputJsonValue,
         },
         select: { id: true, workspaceId: true },
       })

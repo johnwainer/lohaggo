@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/admin-utils'
 import { canView, getWorkspaceAccess } from '@/lib/workspaces'
 import { contactInclude } from '@/lib/inbox/contacts'
+import { inboxView, patchInboxState, readInboxState } from '@/lib/inbox/state'
+import { emitInboxEvent } from '@/lib/messaging/inbox-emitter'
 import { copilotState } from '@/lib/ai/copilot'
 import { commentModeration } from '@/lib/ai/comments'
 import { isCommentChannel, privateReplyAvailability } from '@/lib/ai/comments-core'
@@ -56,6 +58,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
   // Mark as read only on an explicit open (no cursor, not a background refresh)
   if (!before && markRead) {
     await prisma.conversation.update({ where: { id }, data: { unreadCount: 0 } })
+    // «Marcar como no leído» was personal: opening it clears it for this admin
+    const unreadFor = readInboxState(conversation.customFields).unreadFor ?? []
+    if (unreadFor.includes(admin.id)) await patchInboxState(id, { unreadFor: unreadFor.filter((x) => x !== admin.id) })
   }
 
   // Copilot: agent that assists here, the pending suggestion and the takeover countdown
@@ -86,7 +91,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     comments = { canHide: moderation.canHide, privateReply: privateReplyAvailability(target, replied.map((r) => r.commentId), new Date(), conversation.commentKind) }
   }
 
-  return NextResponse.json({ conversation: { ...conversation, messages, copilot, comments }, hasMore })
+  return NextResponse.json({ conversation: { ...conversation, messages, copilot, comments, inbox: inboxView(conversation.customFields, admin.id) }, hasMore })
 }
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
@@ -135,6 +140,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   if (data.assignedToId !== undefined && data.assignedToId !== existing.assignedToId) {
     await prisma.conversationEvent.create({ data: { ...actor, type: 'assigned', detail: conversation.assignedTo?.name || 'Sin asignar' } })
   }
+  // Other open inboxes see the change at once (their lists update the row in place, without reordering)
+  if (Object.keys(data).length) emitInboxEvent({ type: 'status-update', conversationId: id, workspaceId: existing.workspaceId })
 
   return NextResponse.json({ conversation })
 }

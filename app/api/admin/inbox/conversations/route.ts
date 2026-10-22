@@ -1,20 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
-import type { ConversationStatus, MessagingChannel, Prisma } from '@prisma/client'
+import type { ConversationStatus, MessagingChannel } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/admin-utils'
 import { canView, getWorkspaceAccess, listAccessibleWorkspaces, workspaceScope } from '@/lib/workspaces'
+import { INBOX_TABS, channelCountsQuery, connectionCountsQuery, countsQuery, decodeCursor, encodeCursor, pageQuery, parseTab, type InboxTab, type ListFilters } from '@/lib/inbox/list'
+import { inboxView } from '@/lib/inbox/state'
 
 export const dynamic = 'force-dynamic'
 
 const CHANNELS: MessagingChannel[] = ['WHATSAPP', 'SMS', 'MESSENGER', 'INSTAGRAM', 'FACEBOOK_COMMENT', 'INSTAGRAM_COMMENT']
 const STATUSES: ConversationStatus[] = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED']
-type SortKey = 'recent' | 'unread' | 'waiting' | 'oldest'
 
 export async function GET(request: NextRequest) {
   const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { searchParams } = request.nextUrl
+  const tab = parseTab(searchParams.get('tab'))
   const statusParam = searchParams.get('status') as ConversationStatus | null
   const status = statusParam && STATUSES.includes(statusParam) ? statusParam : null
   const channelParam = searchParams.get('channel') as MessagingChannel | null
@@ -25,50 +27,37 @@ export async function GET(request: NextRequest) {
   const search = searchParams.get('search')?.trim().slice(0, 100) || ''
   const unreadOnly = searchParams.get('unreadOnly') === 'true'
   const workspaceId = searchParams.get('workspaceId')
-  const sortParam = (searchParams.get('sort') || 'unread') as SortKey
-  const sort: SortKey = ['recent', 'unread', 'waiting', 'oldest'].includes(sortParam) ? sortParam : 'unread'
+  const limit = Math.min(Math.max(Number(searchParams.get('limit')) || 40, 1), 100)
+  const cursorParam = searchParams.get('cursor')
+  const cursor = decodeCursor(cursorParam)
+  if (cursorParam && !cursor) return NextResponse.json({ error: 'Cursor inválido' }, { status: 400 })
+  // «Cargar más» only needs the next page; the first page also brings counters and selectors
+  const pageOnly = Boolean(cursor)
 
   const access = await getWorkspaceAccess(admin)
   if (workspaceId && !canView(access, workspaceId)) {
     return NextResponse.json({ error: 'Sin acceso a este workspace' }, { status: 403 })
   }
 
-  const searchDigits = search.replace(/\D/g, '')
-  // Every filter except channel: used both for the list and for the per-channel counters
-  const baseWhere: Prisma.ConversationWhereInput = {
-    ...(workspaceId ? { workspaceId } : workspaceScope(access)),
-    ...(status ? { status } : {}),
-    ...(assignedToId === 'none' ? { assignedToId: null, aiHandled: false } : assignedToId === 'ai' ? { aiHandled: true } : assignedToId ? { assignedToId } : {}),
-    ...(connectionId ? { connectionId } : {}),
-    ...(tag ? { tags: { has: tag } } : {}),
-    ...(unreadOnly ? { unreadCount: { gt: 0 } } : {}),
-    ...(search
-      ? {
-          OR: [
-            { contactPhone: { contains: search } },
-            ...(searchDigits.length >= 4 ? [{ contactPhone: { contains: searchDigits } }] : []),
-            { contactName: { contains: search, mode: 'insensitive' } },
-            { user: { name: { contains: search, mode: 'insensitive' } } },
-            { user: { email: { contains: search, mode: 'insensitive' } } },
-            { tags: { has: search.toLowerCase() } },
-            { messages: { some: { body: { contains: search, mode: 'insensitive' }, isInternal: false } } },
-          ],
-        }
-      : {}),
+  const now = new Date()
+  const ctx = { userId: admin.id, nowIso: now.toISOString() }
+  const filters: ListFilters = {
+    workspaceIds: workspaceId ? [workspaceId] : access.workspaceIds,
+    channel, status, assignedToId, connectionId, tag, search, unreadOnly,
   }
 
-  const orderBy: Prisma.ConversationOrderByWithRelationInput[] =
-    sort === 'recent'
-      ? [{ lastMessageAt: { sort: 'desc', nulls: 'last' } }]
-      : sort === 'oldest'
-      ? [{ lastMessageAt: { sort: 'asc', nulls: 'last' } }]
-      : sort === 'waiting'
-      ? [{ unreadCount: 'desc' }, { lastMessageAt: { sort: 'asc', nulls: 'last' } }]
-      : [{ unreadCount: 'desc' }, { lastMessageAt: { sort: 'desc', nulls: 'last' } }]
+  const rows = await prisma.$queryRaw<Array<{ id: string; pinned: boolean; sort_at: Date }>>(pageQuery(tab, filters, ctx, cursor, limit))
+  const hasMore = rows.length > limit
+  const page = rows.slice(0, limit)
+  const last = page[page.length - 1]
+  const nextCursor = hasMore && last ? encodeCursor({ p: last.pinned, t: new Date(last.sort_at).toISOString(), i: last.id }) : null
 
-  const [conversations, channelGroups, agents, workspaces, connections, tagRows, aiAgents] = await Promise.all([
-    prisma.conversation.findMany({
-      where: { ...baseWhere, ...(channel ? { channel } : {}) },
+  // Background refresh: fresh data of the rows already on screen (updated in place, never moved)
+  const watchIds = (searchParams.get('watch') || '').split(',').map((x) => x.trim()).filter(Boolean).slice(0, 150)
+  const wanted = Array.from(new Set([...page.map((r) => r.id), ...watchIds]))
+  const found = wanted.length
+    ? await prisma.conversation.findMany({
+      where: { id: { in: wanted }, ...(workspaceId ? { workspaceId } : workspaceScope(access)) },
       include: {
         user: { select: { id: true, name: true, email: true, role: true, image: true } },
         assignedTo: { select: { id: true, name: true, email: true } },
@@ -76,10 +65,24 @@ export async function GET(request: NextRequest) {
         connection: { select: { id: true, name: true, channel: true } },
         _count: { select: { messages: true } },
       },
-      orderBy,
-      take: 200,
-    }),
-    prisma.conversation.groupBy({ by: ['channel'], where: baseWhere, _count: { _all: true } }),
+    })
+    : []
+  const byId = new Map(found.map((c) => [c.id, c]))
+  const conversations = page
+    .map((r) => byId.get(r.id))
+    .filter((c): c is NonNullable<typeof c> => Boolean(c))
+    .map((c) => ({ ...c, inbox: inboxView(c.customFields, admin.id, now) }))
+  const watched = watchIds
+    .map((id) => byId.get(id))
+    .filter((c): c is NonNullable<typeof c> => Boolean(c))
+    .map((c) => ({ ...c, inbox: inboxView(c.customFields, admin.id, now) }))
+
+  if (pageOnly) return NextResponse.json({ conversations, nextCursor, tab })
+
+  const [countRows, channelRows, connectionRows, agents, workspaces, connections, tagRows, aiAgents] = await Promise.all([
+    prisma.$queryRaw<Array<Record<InboxTab, number>>>(countsQuery(filters, ctx)),
+    prisma.$queryRaw<Array<{ channel: string; n: number }>>(channelCountsQuery(tab, filters, ctx)),
+    prisma.$queryRaw<Array<{ connectionId: string | null; n: number }>>(connectionCountsQuery(tab, filters, ctx)),
     // Agents for assignment: admins in a workspace the caller can see (superadmin: all admins)
     prisma.user.findMany({
       where: {
@@ -113,19 +116,28 @@ export async function GET(request: NextRequest) {
     }),
   ])
 
+  const tabCounts = Object.fromEntries(INBOX_TABS.map((t) => [t, Number(countRows[0]?.[t] ?? 0)])) as Record<InboxTab, number>
   const channelCounts: Record<string, number> = {}
-  for (const g of channelGroups) channelCounts[g.channel] = g._count._all
+  for (const g of channelRows) channelCounts[g.channel] = Number(g.n)
+  const connectionCounts: Record<string, number> = {}
+  for (const g of connectionRows) connectionCounts[g.connectionId ?? 'none'] = Number(g.n)
   const tags = Array.from(new Set(tagRows.flatMap((r) => r.tags))).sort((a, b) => a.localeCompare(b, 'es'))
 
   return NextResponse.json({
+    tab,
     conversations,
+    watched,
+    nextCursor,
+    tabCounts,
     agents,
     aiAgents,
     workspaces,
     connections,
+    connectionCounts,
     tags,
     channelCounts,
     total: Object.values(channelCounts).reduce((a, b) => a + b, 0),
+    me: admin.id,
     isSuperAdmin: access.isSuperAdmin,
   })
 }

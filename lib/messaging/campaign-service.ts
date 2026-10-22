@@ -7,7 +7,7 @@ import { renderTextTemplate } from '@/lib/messaging/template'
 import { sendMessageViaProvider, sendWhatsAppTemplate, sendMetaWhatsAppTemplate } from '@/lib/messaging/providers'
 import { getMessagingProviderRuntimeConfig } from '@/lib/messaging/provider-config'
 import { resolveCampaignRecipients, resolveDestination } from '@/lib/messaging/campaign-recipients'
-import { getDefaultWorkspaceId } from '@/lib/workspaces'
+import { recordAutomatedOutbound } from '@/lib/inbox/automated'
 import { isMarketingQuietHour } from '@/lib/messaging/wa-format'
 import { NO_MARKETING_TAG } from '@/lib/messaging/wa-send'
 import { campaignRefCode, campaignWaLink, withCampaignUtm } from '@/lib/messaging/campaign-tracking'
@@ -400,38 +400,18 @@ export async function processCampaign(campaignId: string, opts: { from?: Messagi
           if (clean.startsWith('57')) return `+${clean}`
           return `+57${clean}`
         })()
-        const conv = await prisma.conversation.upsert({
-          where: { channel_contactPhone: { channel: campaign.channel, contactPhone: normalizedPhone } },
-          create: {
-            channel: campaign.channel,
-            workspaceId: await getDefaultWorkspaceId(),
-            contactPhone: normalizedPhone,
-            userId: user.id,
-            contactName: user.name || null,
-            status: 'OPEN',
-            lastMessageAt: new Date(),
-            lastMessageBody: messageBody.slice(0, 200),
-            unreadCount: 0,
-          },
-          update: {
-            lastMessageAt: new Date(),
-            lastMessageBody: messageBody.slice(0, 200),
-            userId: user.id,
-            contactName: user.name || null,
-          },
-        })
-        await prisma.conversationMessage.create({
-          data: {
-            conversationId: conv.id,
-            direction: 'OUTBOUND',
-            body: messageBody,
-            providerMessageId: result.providerMessageId || null,
-            status: 'SENT',
-            senderType: 'AUTOMATION',
-          },
+        // Automatic notice: kept in the thread without reordering or reopening the inbox (no new SMS conversations)
+        const conv = await recordAutomatedOutbound({
+          channel: campaign.channel,
+          contactPhone: normalizedPhone,
+          userId: user.id,
+          contactName: user.name || null,
+          body: messageBody,
+          providerMessageId: result.providerMessageId || null,
+          emit: false,
         })
         // Last touch for the attribution board: a request in the next days counts for this campaign
-        if (campaign.channel === 'WHATSAPP') {
+        if (conv && campaign.channel === 'WHATSAPP') {
           const fields = conv.customFields && typeof conv.customFields === 'object' && !Array.isArray(conv.customFields) ? (conv.customFields as Prisma.JsonObject) : {}
           await prisma.conversation.update({
             where: { id: conv.id },

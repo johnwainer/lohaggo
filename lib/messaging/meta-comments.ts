@@ -1,3 +1,4 @@
+import { markInbound } from '@/lib/inbox/state'
 import type { ChannelConnection, Conversation } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { createLogger } from '@/lib/logger'
@@ -164,6 +165,8 @@ async function applyEvent(app: MetaAppConfig, conn: ChannelConnection, channel: 
     if ((err as { code?: string })?.code === 'P2002') return 'duplicate'
     throw err
   }
+  // A comment waits for an answer like a message: it enters «Por responder» (and wakes a snoozed thread)
+  await markInbound(conversation.id, sentAt).catch(() => null)
 
   await prisma.conversation.update({
     where: { id: conversation.id },

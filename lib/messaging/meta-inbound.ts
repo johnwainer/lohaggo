@@ -8,6 +8,7 @@ import { fetchContactProfile, fetchThreadMessages, listPendingConversations, typ
 import { getConnectionCredentials, getConnectionMeta, isMetaChannel, requireMetaApp } from '@/lib/messaging/meta-channels'
 import { autopilotCovers, drainAgentTasks, scheduleInboundAgent } from '@/lib/ai/autopilot'
 import { resolveInboundContact } from '@/lib/inbox/contacts'
+import { markInbound, markReplied } from '@/lib/inbox/state'
 import { processCommentChanges } from '@/lib/messaging/meta-comments'
 import { commentSettingsOf } from '@/lib/ai/comments-core'
 import { extractWebRef, parseMetaReferral, recordConversationAttribution } from '@/lib/messaging/attribution'
@@ -227,6 +228,9 @@ export async function recordMetaMessage(params: RecordParams): Promise<boolean> 
       ...(conversation.connectionId ? {} : { connectionId: params.conn.id }),
     },
   })
+  // Inbox «Por responder»: the contact wrote, or someone answered from Meta's own inbox (echo)
+  if (isInbound) await markInbound(conversation.id, params.sentAt || new Date())
+  else await markReplied(conversation.id, params.sentAt || new Date())
   emitInboxEvent({ type: 'new-message', conversationId: conversation.id, workspaceId: conversation.workspaceId })
   if (isInbound) scheduleInboundAgent(conversation.id, messageId)
   return true
