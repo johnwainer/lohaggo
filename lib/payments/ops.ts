@@ -69,6 +69,7 @@ export async function ensurePayoutForPayment(
   const partnerCommission = Math.round((serviceAmount * rate) / 100)
   const bankAccount = await prisma.partnerBankAccount.findFirst({ where: { partnerId: booking.partnerId, isDefault: true, isActive: true }, select: { id: true } })
 
+  // Two confirmations at once: the unique paymentId keeps one payout, the second call returns it
   return prisma.payout.create({
     data: {
       paymentId: payment.id,
@@ -80,6 +81,9 @@ export async function ensurePayoutForPayment(
       netAmount: serviceAmount - partnerCommission,
       status: 'PENDING',
     },
+  }).catch(async (err) => {
+    if ((err as { code?: string })?.code !== 'P2002') throw err
+    return prisma.payout.findUniqueOrThrow({ where: { paymentId: payment.id } })
   })
 }
 
@@ -319,6 +323,55 @@ export async function undoClientReport(actor: Actor, bookingId: string) {
     data: { confirmationStatus: 'NONE', clientReportedMethod: null, clientReportedAt: null, clientReportNote: null },
   })
   logger.info('Client un-reported payment', { bookingId: booking.id, userId: actor.userId })
+  return payment
+}
+
+export type AdminPaymentOutcome = { outcome: 'paid'; method: OfflineMethod; note: string } | { outcome: 'unpaid'; note: string }
+
+/**
+ * The team settles the payment of a completed booking (a dispute, or one nobody answers): «paid» approves it
+ * with the method checked and creates the payout; «unpaid» clears the reports so the client pays or reports again.
+ */
+export async function adminResolvePayment(actor: Actor, bookingId: string, input: AdminPaymentOutcome, origin: Origin) {
+  if (actor.role !== 'ADMIN') throw new OpsError('Solo el equipo puede resolver el pago', 403)
+  const note = input.note.trim()
+  if (note.length < 5) throw new OpsError('Escribe cómo lo verificaste (mínimo 5 caracteres)')
+  const booking = await loadBookingWithPayment(bookingId)
+  if (booking.status !== 'COMPLETED') throw new OpsError('La reserva debe estar completada')
+  if (booking.payment?.status === 'APPROVED') throw new OpsError('El pago ya está aprobado', 409)
+  // Only offline payments still open: an online one (or refunded / failed) is settled by Mercado Pago and refunds
+  if (booking.payment && (booking.payment.mercadopagoId || booking.payment.status !== 'PENDING')) throw new OpsError('Este pago se gestiona en línea o ya está cerrado; revísalo en Pagos', 409)
+  const now = new Date()
+
+  if (input.outcome === 'paid') {
+    const payment = await prisma.payment.upsert({
+      where: { bookingId: booking.id },
+      create: { ...offlineCreateBase(booking), status: 'APPROVED', confirmationStatus: 'CONFIRMED', partnerConfirmedMethod: input.method, partnerConfirmedAt: now, paidAt: now, ...originColumns(origin) },
+      update: { status: 'APPROVED', confirmationStatus: 'CONFIRMED', partnerConfirmedMethod: input.method, partnerConfirmedAt: booking.payment?.partnerConfirmedAt ?? now, paidAt: now, rejectionReason: null },
+    })
+    await addBookingEvent({ bookingId, type: 'payment', actor, origin, detail: `El equipo confirmó el pago en ${METHOD_LABEL[input.method]}: ${note}` })
+    await ensurePayoutForPayment(payment, booking)
+    const wa = await import('@/lib/messaging/wa-events')
+    await wa.waPaymentConfirmed(booking.id)
+    await createNotification({ userId: booking.userId, type: 'PAYMENT_CONFIRMED_BY_PARTNER', title: 'Pago confirmado', message: 'Nuestro equipo verificó el pago. Tu reserva queda marcada como pagada.', data: { bookingId: booking.id, kind: 'PAYMENT_CONFIRMED' } })
+    if (booking.partner?.user?.id) {
+      await createNotification({ userId: booking.partner.user.id, type: 'PAYMENT_CONFIRMED_BY_PARTNER', title: 'Pago verificado por el equipo', message: `Dejamos el pago de la reserva #${booking.id.slice(-6)} como recibido en ${METHOD_LABEL[input.method]}.`, data: { bookingId: booking.id, kind: 'PAYMENT_CONFIRMED' } })
+    }
+    logger.info('Admin settled payment as paid', { bookingId, adminId: actor.userId, method: input.method })
+    return payment
+  }
+
+  if (!booking.payment) throw new OpsError('No hay ningún reporte de pago que limpiar')
+  const payment = await prisma.payment.update({
+    where: { id: booking.payment.id },
+    data: { status: 'PENDING', confirmationStatus: 'NONE', clientReportedMethod: null, clientReportedAt: null, clientReportNote: null, partnerConfirmedMethod: null, partnerConfirmedAt: null, rejectionReason: 'El equipo revisó el caso y el pago no se recibió', reminderCount: 0, lastReminderAt: null },
+  })
+  await addBookingEvent({ bookingId, type: 'payment', actor, origin, detail: `El equipo dejó el pago como no recibido: ${note}` })
+  await createNotification({ userId: booking.userId, type: 'PAYMENT_REJECTED_BY_PARTNER', title: 'Tu pago sigue pendiente', message: 'Revisamos el caso y el pago aún no figura como recibido. Paga o reporta el pago de nuevo desde tu panel; si ya pagaste, escríbenos con el comprobante.', data: { bookingId: booking.id, kind: 'PAYMENT_REJECTED_BY_PARTNER' } })
+  if (booking.partner?.user?.id) {
+    await createNotification({ userId: booking.partner.user.id, type: 'PAYMENT_REJECTED_BY_PARTNER', title: 'Pago marcado como pendiente', message: `El equipo dejó el pago de la reserva #${booking.id.slice(-6)} como no recibido; le pedimos al cliente que pague.`, data: { bookingId: booking.id, kind: 'PAYMENT_REJECTED_BY_PARTNER' } })
+  }
+  logger.info('Admin settled payment as unpaid', { bookingId, adminId: actor.userId })
   return payment
 }
 

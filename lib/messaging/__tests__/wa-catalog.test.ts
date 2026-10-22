@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { WA_CATALOG, contentTypes } from '@/lib/messaging/wa-catalog'
 
 describe('WA_CATALOG · reglas de Meta', () => {
-  it('87 plantillas con nombres únicos', () => {
-    expect(WA_CATALOG).toHaveLength(87)
-    expect(new Set(WA_CATALOG.map((t) => t.name)).size).toBe(87)
+  it('97 plantillas con nombres únicos', () => {
+    expect(WA_CATALOG).toHaveLength(97)
+    expect(new Set(WA_CATALOG.map((t) => t.name)).size).toBe(97)
   })
   it('ningún texto empieza ni termina con variable, ni junta dos variables', () => {
     for (const t of WA_CATALOG.filter((x) => x.body)) {
@@ -38,5 +38,23 @@ describe('WA_CATALOG · reglas de Meta', () => {
     expect(Object.keys(contentTypes(byName('lh_cliente_sin_propuestas')))).toEqual(['twilio/quick-reply'])
     expect(Object.keys(contentTypes(byName('lh_cliente_cuenta_creada')))).toEqual(['twilio/call-to-action'])
     expect(Object.keys(contentTypes(byName('lh_cliente_solicitud_cancelada')))).toEqual(['twilio/text'])
+  })
+})
+
+describe('Seguimiento de reservas · botones', () => {
+  it('cada botón de las plantillas de seguimiento lo aplica el servidor', async () => {
+    const { FOLLOWUP_BUTTONS } = await import('@/lib/bookings/followup-buttons')
+    const codes = ['B30', 'B31', 'B32', 'B33', 'B34', 'C36', 'C39']
+    const ids = WA_CATALOG.filter((t) => codes.includes(t.code)).flatMap((t) => t.quickReplies.map((q) => q.id))
+    expect(ids.length).toBeGreaterThan(10)
+    for (const id of ids) expect(FOLLOWUP_BUTTONS[id], id).toBeDefined()
+  })
+})
+
+describe('Seguimiento de reservas · plantillas', () => {
+  it('las plantillas que aplica el servidor existen en el catálogo', async () => {
+    const { FOLLOWUP_TEMPLATES } = await import('@/lib/bookings/followup-buttons')
+    const names = new Set(WA_CATALOG.map((t) => t.name))
+    for (const n of Array.from(FOLLOWUP_TEMPLATES)) expect(names.has(n), n).toBe(true)
   })
 })

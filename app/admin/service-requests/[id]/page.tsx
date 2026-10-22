@@ -32,6 +32,7 @@ type SheetState =
   | { kind: 'renotify' }
   | { kind: 'message_client' }
   | { kind: 'close' }
+  | { kind: 'payment' }
 
 type Notice = { ok: boolean; text: string } | null
 
@@ -320,6 +321,7 @@ export default function RequestCasePage() {
               onStatus: (to) => setSheet({ kind: 'status', to }),
               onReschedule: () => setSheet({ kind: 'reschedule' }),
               onCancel: (reopen) => setSheet({ kind: 'cancel', reopen }),
+              onResolvePayment: () => setSheet({ kind: 'payment' }),
             }}
           />
           {c.otherBookings.length > 0 && (
@@ -407,6 +409,7 @@ function ActionSheet({ sheet, data, busy, run, onClose }: {
   const [subject, setSubject] = useState('')
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>('MEDIUM')
+  const [method, setMethod] = useState<'CASH' | 'DIRECT_TRANSFER'>(() => (b?.payment?.clientReportedMethod === 'DIRECT_TRANSFER' ? 'DIRECT_TRANSFER' : 'CASH'))
 
   const done = async (p: Promise<boolean>) => { if (await p) onClose() }
   const spin = busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null
@@ -466,6 +469,27 @@ function ActionSheet({ sheet, data, busy, run, onClose }: {
           <label className="block min-w-0"><span className="text-xs font-semibold text-gray-500">Fecha</span><input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`${input} mt-1`} /></label>
           <label className="block min-w-0"><span className="text-xs font-semibold text-gray-500">Hora</span><input type="time" value={time} onChange={(e) => setTime(e.target.value)} className={`${input} mt-1`} /></label>
         </div>
+      </Sheet>
+    )
+  }
+
+  if (sheet.kind === 'payment') {
+    const ok = reason.trim().length >= 5
+    const pay = b.payment
+    const resolve = (outcome: 'paid' | 'unpaid') => done(run({ action: 'payment_resolve', bookingId: b.id, outcome, method: outcome === 'paid' ? method : undefined, note: reason.trim() }, () => outcome === 'paid' ? 'Pago confirmado: se avisó al cliente y al socio' : 'Pago dejado como pendiente: se le pidió al cliente que pague'))
+    return (
+      <Sheet title={`Resolver el pago de #${b.ref}`} onClose={onClose} footer={<>{cancelBtn}<button type="button" disabled={busy || !ok} className={btn.ghost} onClick={() => resolve('unpaid')}>No se pagó</button><button type="button" disabled={busy || !ok} className={btn.primary} onClick={() => resolve('paid')}>{spin} Sí se pagó</button></>}>
+        <p className="text-gray-700">
+          {pay?.clientReportedMethod ? `El cliente reportó ${pay.clientReportedMethod === 'CASH' ? 'efectivo' : 'transferencia'}. ` : 'El cliente no ha reportado el pago. '}
+          {pay?.partnerConfirmedMethod ? `El socio dijo ${pay.partnerConfirmedMethod === 'CASH' ? 'efectivo' : 'transferencia'}.` : 'El socio no lo ha confirmado.'}
+          {' '}Habla con las partes y deja aquí cómo lo verificaste.
+        </p>
+        <label className="block"><span className="text-xs font-semibold text-gray-500">Medio con el que se pagó (si se pagó)</span>
+          <select value={method} onChange={(e) => setMethod(e.target.value as 'CASH' | 'DIRECT_TRANSFER')} className={`${input} mt-1 bg-white`}>
+            <option value="CASH">Efectivo</option><option value="DIRECT_TRANSFER">Transferencia</option>
+          </select>
+        </label>
+        <label className="block"><span className="text-xs font-semibold text-gray-500">Cómo lo verificaste (lo verá el cliente si queda pendiente)</span><textarea value={reason} onChange={(e) => setReason(e.target.value.slice(0, 300))} rows={3} className={`${input} mt-1`} placeholder="Ej.: el socio envió el comprobante por WhatsApp" /></label>
       </Sheet>
     )
   }

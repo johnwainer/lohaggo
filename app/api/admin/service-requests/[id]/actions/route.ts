@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { requireAdmin } from '@/lib/admin-utils'
+import { auditAdminAction, requireAdmin } from '@/lib/admin-utils'
 import { opsErrorResponse } from '@/lib/ops/actor'
 import { notifySelectedPartners } from '@/lib/admin/request-partners'
 import { adminCloseRequest, adminMessageClient } from '@/lib/admin/request-moderation'
+import { prisma } from '@/lib/prisma'
+import { ADMIN_ORIGIN, OpsError } from '@/lib/ops/origin'
+import { adminResolvePayment } from '@/lib/payments/ops'
 import { adminBookingStatus, adminReactivate, adminReschedule, openSupportCase, postSupportMessage, renotifyPartners, type AdminActor } from '@/lib/admin/interventions'
 
 export const dynamic = 'force-dynamic'
@@ -17,6 +20,7 @@ const schema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('message_client'), text: z.string().min(2).max(1000) }),
   z.object({ action: z.literal('booking_status'), bookingId: z.string().min(1), status: z.enum(['CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']), reason: z.string().max(500).optional(), reopen: z.boolean().optional() }),
   z.object({ action: z.literal('reschedule'), bookingId: z.string().min(1), date: z.string(), time: z.string() }),
+  z.object({ action: z.literal('payment_resolve'), bookingId: z.string().min(1), outcome: z.enum(['paid', 'unpaid']), method: z.enum(['CASH', 'DIRECT_TRANSFER']).optional(), note: z.string().min(5).max(300) }),
   z.object({ action: z.literal('open_case'), subject: z.string().min(3).max(200), description: z.string().max(4000).default(''), priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).optional() }),
 ])
 
@@ -39,6 +43,15 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       case 'message_client': return NextResponse.json(await adminMessageClient(actor, id, b.text))
       case 'booking_status': return NextResponse.json(await adminBookingStatus(actor, { requestId: id, bookingId: b.bookingId, status: b.status, reason: b.reason, reopen: b.reopen }))
       case 'reschedule': return NextResponse.json(await adminReschedule(actor, { requestId: id, bookingId: b.bookingId, date: b.date, time: b.time }))
+      case 'payment_resolve': {
+        // Only a booking of this request
+        const owned = await prisma.booking.findFirst({ where: { id: b.bookingId, proposal: { serviceRequestId: id } }, select: { id: true } })
+        if (!owned) throw new OpsError('La reserva no es de esta solicitud', 404)
+        const input = b.outcome === 'paid' ? { outcome: 'paid' as const, method: b.method ?? 'CASH', note: b.note } : { outcome: 'unpaid' as const, note: b.note }
+        const payment = await adminResolvePayment(actor, b.bookingId, input, ADMIN_ORIGIN)
+        await auditAdminAction({ actorId: admin.id, actorEmail: admin.email ?? 'admin', action: 'ADMIN_PAYMENT_RESOLVED', entityType: 'Booking', entityId: b.bookingId, route: `/admin/service-requests/${id}`, details: JSON.stringify({ requestId: id, outcome: b.outcome, method: b.method ?? null, note: b.note }) }).catch(() => null)
+        return NextResponse.json({ ok: true, status: payment.status, confirmationStatus: payment.confirmationStatus })
+      }
       case 'open_case': return NextResponse.json(await openSupportCase(actor, { requestId: id, subject: b.subject, description: b.description, priority: b.priority }))
     }
   } catch (err) {

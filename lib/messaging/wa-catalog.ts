@@ -1559,6 +1559,173 @@ export const WA_CATALOG: WaCatalogEntry[] = [
   },
   "quickReplies": [],
   "url": null
+},
+{
+  "code": "B30",
+  "name": "lh_cliente_socio_sin_confirmar",
+  "category": "UTILITY",
+  "body": "⏳ Hola {{1}}, {{2}} todavía no confirma tu reserva #{{3}} de *{{4}}* para el {{5}}. ¿Quieres que busquemos otro socio o prefieres esperar un poco más?",
+  "variables": {
+    "1": "Ana",
+    "2": "Carlos",
+    "3": "A1B2C3",
+    "4": "Plomería",
+    "5": "vie 3 oct, 10:00 a. m."
+  },
+  "quickReplies": [
+    { "title": "Buscar otro socio", "id": "rebook_yes" },
+    { "title": "Esperar", "id": "rebook_wait" }
+  ],
+  "url": null
+},
+{
+  "code": "B31",
+  "name": "lh_cliente_reserva_sin_confirmar",
+  "category": "UTILITY",
+  "body": "⚠️ Hola {{1}}, cancelamos tu reserva #{{2}} de *{{3}}* porque el socio no la confirmó a tiempo. No tienes que pagar nada. ¿Abrimos tu solicitud de nuevo para que otros socios te envíen propuestas?",
+  "variables": {
+    "1": "Ana",
+    "2": "A1B2C3",
+    "3": "Plomería"
+  },
+  "quickReplies": [
+    { "title": "Sí, buscar otro", "id": "rebook_yes" },
+    { "title": "No, gracias", "id": "rebook_no" }
+  ],
+  "url": null
+},
+{
+  "code": "B32",
+  "name": "lh_cliente_llego_socio",
+  "category": "UTILITY",
+  "body": "📍 Hola {{1}}, tu servicio de *{{2}}* (reserva #{{3}}) estaba programado a las {{4}}. ¿{{5}} ya llegó?",
+  "variables": {
+    "1": "Ana",
+    "2": "Plomería",
+    "3": "A1B2C3",
+    "4": "10:00 a. m.",
+    "5": "Carlos"
+  },
+  "quickReplies": [
+    { "title": "Sí, ya llegó", "id": "arrived_yes" },
+    { "title": "No ha llegado", "id": "arrived_no" }
+  ],
+  "url": null
+},
+{
+  "code": "B33",
+  "name": "lh_cliente_socio_no_llego",
+  "category": "UTILITY",
+  "body": "😔 Hola {{1}}, sentimos que el socio no llegara a tu servicio de *{{2}}*. Cancelamos la reserva #{{3}} sin costo y lo reportamos. ¿Quieres que busquemos otro socio lo antes posible?",
+  "variables": {
+    "1": "Ana",
+    "2": "Plomería",
+    "3": "A1B2C3"
+  },
+  "quickReplies": [
+    { "title": "Sí, buscar otro", "id": "rebook_yes" },
+    { "title": "No, gracias", "id": "rebook_no" }
+  ],
+  "url": null
+},
+{
+  "code": "B34",
+  "name": "lh_cliente_servicio_termino",
+  "category": "UTILITY",
+  "body": "🛠️ Hola {{1}}, ¿ya terminó el servicio de *{{2}}* con {{3}} (reserva #{{4}})? Cuéntanos para cerrarlo y que puedas pagar y calificar.",
+  "variables": {
+    "1": "Ana",
+    "2": "Plomería",
+    "3": "Carlos",
+    "4": "A1B2C3"
+  },
+  "quickReplies": [
+    { "title": "Sí, ya terminó", "id": "service_done" },
+    { "title": "Aún no", "id": "service_not_done" }
+  ],
+  "url": null
+},
+{
+  "code": "C35",
+  "name": "lh_socio_reserva_no_confirmada",
+  "category": "UTILITY",
+  "body": "⚠️ Hola {{1}}, la reserva #{{2}} de *{{3}}* se canceló porque no la confirmaste antes de la hora del servicio. Confirma tus reservas a tiempo para seguir recibiendo solicitudes.",
+  "variables": {
+    "1": "Carlos",
+    "2": "A1B2C3",
+    "3": "Plomería"
+  },
+  "quickReplies": [],
+  "url": null
+},
+{
+  "code": "C36",
+  "name": "lh_socio_llegada_pendiente",
+  "category": "UTILITY",
+  "body": "📍 Hola {{1}}, tu servicio de *{{2}}* con {{3}} (reserva #{{4}}) era a las {{5}} y aún no está iniciado. ¿Ya llegaste?",
+  "variables": {
+    "1": "Carlos",
+    "2": "Plomería",
+    "3": "Ana",
+    "4": "A1B2C3",
+    "5": "10:00 a. m."
+  },
+  "quickReplies": [
+    { "title": "Ya empecé", "id": "arrival_started" },
+    { "title": "Voy en camino", "id": "arrival_on_way" },
+    { "title": "No puedo ir", "id": "partner_cant_go" }
+  ],
+  "url": null
+},
+{
+  "code": "C38",
+  "name": "lh_socio_reserva_cancelada_no_llego",
+  "category": "UTILITY",
+  "body": "⚠️ Hola {{1}}, cancelamos la reserva #{{2}} de *{{3}}* porque el cliente reportó que no llegaste y el servicio no se inició. El equipo revisará el caso; si hubo un error, responde a este mensaje.",
+  "variables": {
+    "1": "Carlos",
+    "2": "A1B2C3",
+    "3": "Plomería"
+  },
+  "quickReplies": [],
+  "url": null
+},
+{
+  "code": "C39",
+  "name": "lh_socio_te_pagaron",
+  "category": "UTILITY",
+  "body": "💰 Hola {{1}}, ¿{{2}} ya te pagó {{3}} por el servicio de *{{4}}* (reserva #{{5}})? Cuéntanos para dejarlo registrado.",
+  "variables": {
+    "1": "Carlos",
+    "2": "Ana",
+    "3": "$120.000",
+    "4": "Plomería",
+    "5": "A1B2C3"
+  },
+  "quickReplies": [
+    { "title": "Sí, en efectivo", "id": "partner_paid_cash" },
+    { "title": "Sí, transferencia", "id": "partner_paid_transfer" },
+    { "title": "Aún no me paga", "id": "partner_not_paid" }
+  ],
+  "url": null
+},
+{
+  "code": "D11",
+  "name": "lh_admin_pago_sin_resolver",
+  "category": "UTILITY",
+  "body": "🚨 Hola {{1}}, el pago de la reserva #{{2}} de *{{3}}* sigue sin resolverse: {{4}}. Revísalo y contacta a las partes.",
+  "variables": {
+    "1": "Juan",
+    "2": "A1B2C3",
+    "3": "Plomería",
+    "4": "el socio dice que el cliente no le ha pagado",
+    "5": "admin/bookings"
+  },
+  "quickReplies": [],
+  "url": {
+    "title": "Ver reserva",
+    "url": "https://www.lohaggo.com/{{5}}"
+  }
 }
 ]
 

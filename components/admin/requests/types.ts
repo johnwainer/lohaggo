@@ -31,6 +31,7 @@ export type ActionBody =
   | { action: 'message_client'; text: string }
   | { action: 'booking_status'; bookingId: string; status: 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'; reason?: string; reopen?: boolean }
   | { action: 'reschedule'; bookingId: string; date: string; time: string }
+  | { action: 'payment_resolve'; bookingId: string; outcome: 'paid' | 'unpaid'; method?: 'CASH' | 'DIRECT_TRANSFER'; note: string }
   | { action: 'open_case'; subject: string; description: string; priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' }
 
 export type Recipient = 'client' | 'partner' | 'both'

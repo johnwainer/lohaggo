@@ -90,7 +90,9 @@ export const WA = {
   B12: (b: BookingData) => spec('B12', [['lh_cliente_servicio_pronto_v2', { 1: client(b.clientName), 2: b.service, 3: waTime(b.when), 4: partner(b.partnerName) }]], E('Booking', b.id), { dedupeKey: `B12:Booking:${b.id}:${b.when.toISOString()}` }),
   B13: (b: BookingData) => spec('B13', [['lh_cliente_servicio_iniciado', { 1: client(b.clientName), 2: partner(b.partnerName), 3: b.service }]], E('Booking', b.id)),
   B14: (b: BookingData) => spec('B14', [['lh_cliente_servicio_terminado_pago', { 1: client(b.clientName), 2: partner(b.partnerName), 3: b.service, 4: waMoney(b.price) }]], E('Booking', b.id)),
-  B15: (b: BookingData) => spec('B15', [['lh_cliente_pago_pendiente', { 1: client(b.clientName), 2: b.service, 3: partner(b.partnerName) }]], E('Booking', b.id)),
+  /** `round` 2+ for the later reminders (the first one keeps its original dedupe key) */
+  B15: (b: BookingData & { round?: number }) =>
+    spec('B15', [['lh_cliente_pago_pendiente', { 1: client(b.clientName), 2: b.service, 3: partner(b.partnerName) }]], E('Booking', b.id), (b.round ?? 1) > 1 ? { dedupeKey: `B15:Booking:${b.id}:r${b.round}` } : {}),
   B16: (b: BookingData) => spec('B16', [['lh_cliente_pago_confirmado_v2', { 1: client(b.clientName), 2: partner(b.partnerName), 3: waMoney(b.price), 4: b.service }]], E('Booking', b.id)),
   B17: (b: BookingData & { reason: string; at: Date }) =>
     spec('B17', [['lh_cliente_pago_rechazado_v2', { 1: client(b.clientName), 2: partner(b.partnerName), 3: b.service, 4: b.reason }]], E('Booking', b.id), { dedupeKey: `B17:Booking:${b.id}:${b.at.getTime()}` }),
@@ -186,6 +188,19 @@ export const WA = {
   /** A request a partner was told about is gone (cancelled by the client or the team) */
   C34: (p: { requestId: string; partnerName: string; service: string; reason: string }) =>
     spec('C34', [['lh_socio_solicitud_cancelada', { 1: partner(p.partnerName), 2: waRef(p.requestId), 3: p.service, 4: p.reason }]], E('ServiceRequest', p.requestId)),
+  /** Follow-ups of an accepted booking (lib/bookings/followups.ts) */
+  B30: (b: BookingData) => spec('B30', [['lh_cliente_socio_sin_confirmar', { 1: client(b.clientName), 2: partner(b.partnerName), 3: waRef(b.id), 4: b.service, 5: waWhen(b.when) }]], E('Booking', b.id), { dedupeKey: `B30:Booking:${b.id}:${b.when.toISOString()}` }),
+  B31: (b: BookingData) => spec('B31', [['lh_cliente_reserva_sin_confirmar', { 1: client(b.clientName), 2: waRef(b.id), 3: b.service }]], E('Booking', b.id)),
+  B32: (b: BookingData) => spec('B32', [['lh_cliente_llego_socio', { 1: client(b.clientName), 2: b.service, 3: waRef(b.id), 4: waTime(b.when), 5: partner(b.partnerName) }]], E('Booking', b.id), { dedupeKey: `B32:Booking:${b.id}:${b.when.toISOString()}` }),
+  B33: (b: BookingData) => spec('B33', [['lh_cliente_socio_no_llego', { 1: client(b.clientName), 2: b.service, 3: waRef(b.id) }]], E('Booking', b.id)),
+  B34: (b: BookingData) => spec('B34', [['lh_cliente_servicio_termino', { 1: client(b.clientName), 2: b.service, 3: partner(b.partnerName), 4: waRef(b.id) }]], E('Booking', b.id)),
+  C35: (b: BookingData) => spec('C35', [['lh_socio_reserva_no_confirmada', { 1: partner(b.partnerName), 2: waRef(b.id), 3: b.service }]], E('Booking', b.id)),
+  C36: (b: BookingData) => spec('C36', [['lh_socio_llegada_pendiente', { 1: partner(b.partnerName), 2: b.service, 3: client(b.clientName), 4: waRef(b.id), 5: waTime(b.when) }]], E('Booking', b.id), { dedupeKey: `C36:Booking:${b.id}:${b.when.toISOString()}` }),
+  C38: (b: BookingData) => spec('C38', [['lh_socio_reserva_cancelada_no_llego', { 1: partner(b.partnerName), 2: waRef(b.id), 3: b.service }]], E('Booking', b.id)),
+  C39: (b: BookingData) => spec('C39', [['lh_socio_te_pagaron', { 1: partner(b.partnerName), 2: client(b.clientName), 3: waMoney(b.price), 4: b.service, 5: waRef(b.id) }]], E('Booking', b.id)),
+  D11: (p: { adminName: string; bookingId: string; requestId: string | null; service: string; problem: string }) =>
+    spec('D11', [['lh_admin_pago_sin_resolver', { 1: admin(p.adminName), 2: waRef(p.bookingId), 3: p.service, 4: p.problem, 5: p.requestId ? `admin/service-requests/${p.requestId}` : 'admin?section=payments' }]], E('Booking', p.bookingId), { dedupeKey: `D11:Booking:${p.bookingId}:${p.problem.slice(0, 40)}` }),
+
   B27: (p: { messageId: string; name: string; side: 'CLIENT' | 'PARTNER'; service: string; ref: string; url?: string }) =>
     spec('B27', [['lh_soporte_mensaje_servicio', { 1: p.side === 'CLIENT' ? client(p.name) : partner(p.name), 2: p.service, 3: `#${p.ref}`, 4: p.url ?? (p.side === 'CLIENT' ? 'dashboard?tab=bookings' : 'partner?tab=bookings') }]], E('ChatMessage', p.messageId)),
   C31: (p: { chatId: string; partnerName: string; clientName: string; service: string; ref: string }) =>

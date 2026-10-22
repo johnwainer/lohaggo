@@ -140,6 +140,23 @@ async function handlePOST(req: NextRequest) {
           status = 'PENDING';
       }
 
+      // Already settled another way (cash / transfer, or the team): never overwritten. A second payment online is
+      // money to return: the team gets a refund case.
+      if (payment.status === 'APPROVED' && payment.mercadopagoId !== String(paymentId)) {
+        logger.warn('MercadoPago notice for a payment already settled', { paymentId, bookingId: payment.bookingId, mpStatus: status });
+        if (status === 'APPROVED') {
+          await prisma.adminSupportCase.create({
+            data: {
+              userId: payment.userId, role: 'CLIENT', bookingId: payment.bookingId, priority: 'HIGH', status: 'OPEN', queue: 'REFUNDS',
+              subject: `Pago doble · reserva #${payment.bookingId.slice(-6)}`,
+              description: `El cliente pagó en línea (Mercado Pago ${paymentId}) una reserva que ya figuraba como pagada. Reembolsar el pago en línea.`,
+              slaDueAt: new Date(Date.now() + 24 * 3600_000),
+            },
+          }).catch(() => null);
+        }
+        return NextResponse.json({ received: true });
+      }
+
       await prisma.payment.update({
         where: { id: payment.id },
         data: {

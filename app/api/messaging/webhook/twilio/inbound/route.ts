@@ -16,7 +16,8 @@ import { resolveInboundContact } from '@/lib/inbox/contacts'
 import { markInbound } from '@/lib/inbox/state'
 import { autopilotCovers, drainAgentTasks, scheduleInboundAgent } from '@/lib/ai/autopilot'
 import { extractWebRef, parseTwilioReferral, recordConversationAttribution } from '@/lib/messaging/attribution'
-import { parseButtonReply, withButtonMark } from '@/lib/messaging/wa-format'
+import { parseButtonReply, withButtonMark, type ButtonMark } from '@/lib/messaging/wa-format'
+import { handleFollowupButton, isFollowupButton } from '@/lib/bookings/followup-buttons'
 import { NO_MARKETING_TAG } from '@/lib/messaging/wa-send'
 import type { Prisma } from '@prisma/client'
 
@@ -218,7 +219,7 @@ export async function POST(request: NextRequest) {
   logger.info('Inbound saved', { conversationId: conversation.id, messageSid })
   // The contact wrote: «Por responder» in the inbox (also wakes a snoozed conversation)
   await markInbound(conversation.id, inbound.sentAt)
-  if (button) await recordButtonPress(conversation.id, button, String(formData.get('OriginalRepliedMessageSid') || '') || null, user?.id ?? null)
+  const buttonMark = button ? await recordButtonPress(conversation.id, button, String(formData.get('OriginalRepliedMessageSid') || '') || null, user?.id ?? null) : null
   // Ad / website attribution (Click-to-WhatsApp params, or the web's «(ref: web-…)» tag)
   const adReferral = isWhatsApp ? parseTwilioReferral((k) => formData.get(k)) : null
   await recordConversationAttribution(conversation.id, { adReferral, webRef: extractWebRef(body) })
@@ -235,6 +236,11 @@ export async function POST(request: NextRequest) {
   // AI autopilot works after the TwiML response
   const conversationId = conversation.id
   if (optingOut) return twiml()
+  // Booking follow-up buttons (¿llegó el socio?, ¿buscamos otro?…) are applied by the server and answered at once
+  if (buttonMark && isFollowupButton(buttonMark.id)) {
+    const handled = await handleFollowupButton({ conversationId, userId: user?.id ?? null, button: buttonMark }).catch(() => false)
+    if (handled) return twiml()
+  }
   after(async () => {
     scheduleInboundAgent(conversationId, lastMessageId)
     await drainAgentTasks()
@@ -248,23 +254,26 @@ export async function POST(request: NextRequest) {
  * so the AI agent acts on the right booking or payment. «No más avisos» (optout_soft) is applied here:
  * the conversation is tagged and a linked user is excluded from marketing.
  */
-async function recordButtonPress(conversationId: string, button: { id: string; text: string }, repliedSid: string | null, userId: string | null) {
+async function recordButtonPress(conversationId: string, button: { id: string; text: string }, repliedSid: string | null, userId: string | null): Promise<ButtonMark | null> {
   try {
     const conv = await prisma.conversation.findUnique({ where: { id: conversationId }, select: { customFields: true, tags: true } })
-    if (!conv) return
+    if (!conv) return null
     const optOut = button.id === 'optout_soft'
+    const fields = withButtonMark(conv.customFields, button, repliedSid)
     await prisma.conversation.update({
       where: { id: conversationId },
       data: {
-        customFields: withButtonMark(conv.customFields, button, repliedSid) as Prisma.InputJsonValue,
+        customFields: fields as Prisma.InputJsonValue,
         ...(optOut && !conv.tags.includes(NO_MARKETING_TAG) ? { tags: [...conv.tags, NO_MARKETING_TAG] } : {}),
       },
     })
     if (optOut && userId) {
       await prisma.user.update({ where: { id: userId }, data: { excludedFromMarketing: true, excludedFromMarketingAt: new Date(), excludedFromMarketingBy: 'whatsapp:optout_soft' } })
     }
+    return (fields.lastButton as ButtonMark) ?? null
   } catch (err) {
     logger.warn('Button press not recorded', { conversationId, err: err instanceof Error ? err.message : err })
+    return null
   }
 }
 

@@ -75,7 +75,7 @@ export async function loadBooking(bookingId: string) {
 
 export async function addBookingEvent(p: {
   bookingId: string
-  type: 'status' | 'reschedule' | 'payment' | 'guarantee'
+  type: 'status' | 'reschedule' | 'payment' | 'guarantee' | 'followup'
   actor: Actor
   origin: Origin
   fromStatus?: BookingStatus | null
@@ -253,7 +253,7 @@ export const REQUEST_REOPEN_ACTION = 'REQUEST_REOPEN'
  * The partner dropped a booking: its request opens again for 24 h so other partners can propose (the
  * proposals the client had not chosen come back), and matching partners are told. Returns whether it reopened.
  */
-async function reopenRequestAfterPartnerCancel(booking: { id: string; proposalId: string | null; partnerId: string | null }) {
+export async function reopenRequestAfterPartnerCancel(booking: { id: string; proposalId: string | null; partnerId: string | null }, opts: { asap?: boolean } = {}) {
   try {
     if (!booking.proposalId) return false
     const proposal = await prisma.proposal.findUnique({ where: { id: booking.proposalId }, select: { id: true, serviceRequestId: true, serviceRequest: { select: { status: true, partnerId: true } } } })
@@ -262,7 +262,11 @@ async function reopenRequestAfterPartnerCancel(booking: { id: string; proposalId
     const res = await prisma.serviceRequest.updateMany({
       where: { id: proposal.serviceRequestId, status: 'ACCEPTED' },
       // A request directed to this partner opens to everyone
-      data: { status: 'ACTIVE', expiresAt, ...(proposal.serviceRequest.partnerId ? { partnerId: null } : {}) },
+      data: {
+        status: 'ACTIVE', expiresAt, ...(proposal.serviceRequest.partnerId ? { partnerId: null } : {}),
+        // The original date already passed (no-show, never confirmed): partners propose the soonest they can
+        ...(opts.asap ? { preferredDate: null, preferredTime: null, isUrgent: true } : {}),
+      },
     })
     if (res.count === 0) return false
     await prisma.proposal.update({ where: { id: proposal.id }, data: { status: 'REJECTED' } })

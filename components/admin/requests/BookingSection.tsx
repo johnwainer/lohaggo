@@ -12,7 +12,7 @@ const PAY_STATUS: Record<string, string> = { PENDING: 'Pendiente', APPROVED: 'Ap
 const CONFIRMATION: Record<string, string> = { NONE: 'Sin reportes', CLIENT_REPORTED: 'El cliente reportó el pago', PARTNER_REPORTED: 'El socio reportó el pago', CONFIRMED: 'Confirmado por ambos', DISPUTED: 'En disputa' }
 const METHOD: Record<string, string> = { CASH: 'Efectivo', TRANSFER: 'Transferencia', NEQUI: 'Nequi', DAVIPLATA: 'Daviplata' }
 const ACTOR: Record<string, string> = { client: 'Cliente', partner: 'Socio', admin: 'Admin', system: 'Sistema', CLIENT: 'Cliente', PARTNER: 'Socio', ADMIN: 'Admin', SYSTEM: 'Sistema' }
-const EVENT: Record<string, string> = { status: 'Cambio de estado', reschedule: 'Reprogramación', payment: 'Pago', created: 'Creada' }
+const EVENT: Record<string, string> = { status: 'Cambio de estado', reschedule: 'Reprogramación', payment: 'Pago', created: 'Creada', guarantee: 'Garantía', followup: 'Seguimiento' }
 
 const label = (map: Record<string, string>, v: string | null | undefined) => (v ? map[v] ?? v : '—')
 
@@ -20,6 +20,7 @@ export type BookingActions = {
   onStatus: (to: BookingStatus) => void
   onReschedule: () => void
   onCancel: (reopen: boolean) => void
+  onResolvePayment: () => void
 }
 
 export function BookingSection({ booking: b, busy, actions, onOpenImage }: { booking: CaseBooking; busy: boolean; actions: BookingActions; onOpenImage: (urls: string[], i: number) => void }) {
@@ -33,6 +34,7 @@ export function BookingSection({ booking: b, busy, actions, onOpenImage }: { boo
   const after = b.photos.filter((p) => p.kind !== 'before').map((p) => p.url)
   const pay = b.payment
   const review = b.review
+  const canResolvePayment = status === 'COMPLETED' && pay?.status !== 'APPROVED'
 
   return (
     <div className="space-y-5">
@@ -91,7 +93,10 @@ export function BookingSection({ booking: b, busy, actions, onOpenImage }: { boo
       )}
 
       <div id="pago" className="scroll-mt-20 rounded-2xl border border-gray-100 bg-gray-50/60 p-3 sm:p-4">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Pago</p>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Pago</p>
+          {canResolvePayment && <button type="button" disabled={busy} onClick={actions.onResolvePayment} className={`${btn.ghost} ${pay?.confirmationStatus === 'DISPUTED' ? 'text-red-600' : ''}`}>Resolver pago</button>}
+        </div>
         {!pay ? <p className="text-sm text-gray-500">Sin registro de pago.</p> : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="Estado">{label(PAY_STATUS, pay.status)} · {cop(pay.totalAmount)}{pay.paidAt ? ` · pagado ${when(pay.paidAt)}` : ''}</Field>

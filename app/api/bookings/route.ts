@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createLogger } from '@/lib/logger'
 import { currentActor } from '@/lib/ops/actor'
 import { bookingsFor } from '@/lib/bookings/ops'
+import { followupOptions } from '@/lib/bookings/followups'
 import { BookingStatus } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
@@ -22,7 +23,12 @@ export async function GET(request: Request) {
     const take = actor.role === 'ADMIN' && takeRaw > 0 ? Math.min(takeRaw, 1000) : undefined
 
     const bookings = await bookingsFor(actor, { status: statuses, take })
-    return NextResponse.json(bookings)
+    if (actor.role !== 'CLIENT') return NextResponse.json(bookings)
+    // The client's follow-up buttons (el socio no llegó, ya terminó, buscar otro socio) on recent live bookings
+    const recent = Date.now() - 8 * 24 * 3600_000
+    const ids = bookings.filter((b) => b.status !== 'COMPLETED' && b.updatedAt.getTime() >= recent).map((b) => b.id)
+    const options = await followupOptions(actor, ids).catch(() => ({} as Record<string, string[]>))
+    return NextResponse.json(bookings.map((b) => ({ ...b, followupActions: options[b.id] ?? [] })))
   } catch (error) {
     logger.error('Error fetching bookings:', error)
     return NextResponse.json({ error: "Error al obtener reservas" }, { status: 500 })

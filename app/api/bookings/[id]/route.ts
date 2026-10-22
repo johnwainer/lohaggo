@@ -32,6 +32,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     if (!booking) throw new OpsError('Reserva no encontrada', 404)
     assertBookingAccess(actor, booking)
 
+    // Follow-up marks carry each side's word (no llegó, no me pagó): only the team sees them
+    if (actor.role !== 'ADMIN') return NextResponse.json({ ...booking, events: booking.events.filter((e) => e.type !== 'followup') })
     return NextResponse.json(booking)
   } catch (error) {
     if (error instanceof OpsError) return opsErrorResponse(error)
